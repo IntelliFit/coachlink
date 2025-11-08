@@ -58,7 +58,7 @@ export default function Navigation() {
             return (
                 <Link
                     href={(menuItem as MenuItemWithTemplate).url}
-                    className={`${options.className} ${isActive ? 'p-menuitem-link-active font-semibold' : ''}`}
+                    className={`${options.className} ${isActive ? 'p-menuitem-link-active font-semibold text-primary border-b-2 border-primary' : ''} transition-colors duration-200`}
                     aria-current={isActive ? 'page' : undefined}
                 >
                     <span className={options.iconClassName} />
@@ -79,17 +79,19 @@ export default function Navigation() {
 
     // Logo + 网站名，水平布局
     const logoStart = (
-        <div className="flex items-center">
-            <Avatar
-                icon={<Brain className="w-6 h-6 text-white" />}
-                className="bg-primary shadow-lg"
-                shape="circle"
-                size="large"
-            />
-            <span className="ml-3 text-2xl font-extrabold text-primary">
-                CoachLink
+        <div className="flex items-center space-x-3 mr-3">
+            {/* 图标 */}
+            <div className="bg-primary rounded-lg p-3 shadow-lg text-2xl flex items-center justify-center hover:bg-primary/90 transition-colors duration-200">
+                <Brain className="w-5 h-5 text-white" />
+            </div>
+
+            {/* 名称 */}
+            <span className="text-2xl font-extrabold">
+                <span>Coach</span>
+                <span className="text-primary">Link</span>
             </span>
         </div>
+
     );
 
     // 主题切换按钮
@@ -99,10 +101,8 @@ export default function Navigation() {
             <Button
                 icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}
                 onClick={toggleTheme}
-                className="p-button-outlined theme-toggle"
                 rounded
                 text
-                severity="help"
                 data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
                 aria-label={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
             />
@@ -112,7 +112,7 @@ export default function Navigation() {
     return (
         <>
             {/* 主导航栏 */}
-            <header className="sticky top-0 z-50 shadow-sm backdrop-blur-sm bg-opacity-95" role="banner">
+            <header className="sticky top-0 z-50" role="banner">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Menubar
                         model={menuItems}
@@ -125,7 +125,7 @@ export default function Navigation() {
 
             {/* 面包屑导航，仅在非首页显示 */}
             {pathname !== '/' && breadcrumbItems.length > 1 && (
-                <nav className="border-b" aria-label="面包屑导航">
+                <nav className="border-b border-surface-200 dark:border-surface-700" aria-label="面包屑导航">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                         <BreadCrumb
                             model={breadcrumbItems}
@@ -133,7 +133,7 @@ export default function Navigation() {
                                 icon: 'pi pi-home',
                                 url: '/',
                                 template: (item, options) => (
-                                    <Link href={(item as MenuItemWithTemplate).url} className={options.className} aria-label="首页">
+                                    <Link href={(item as MenuItemWithTemplate).url} className={`${options.className} text-primary hover:text-primary/80 transition-colors duration-200`} aria-label="首页">
                                         <span className={options.iconClassName} />
                                     </Link>
                                 ),
