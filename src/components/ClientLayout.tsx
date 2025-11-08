@@ -35,7 +35,7 @@ export default function ClientLayout({
             ripple: true,
             locale: language,
         }}>
-            <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
+            <div className="min-h-screen">
                 {children}
             </div>
         </PrimeReactProvider>

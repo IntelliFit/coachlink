@@ -97,13 +97,13 @@ export default function Navigation() {
         <div className="flex align-items-center mr-6">
             <Link
                 href="/"
-                className="flex align-items-center no-underline text-900 hover:text-700 transition-colors duration-200"
+                className="flex align-items-center no-underline hover:text-700 transition-colors duration-200"
                 aria-label="CoachLink 首页"
             >
                 <div className="w-3rem h-3rem bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex align-items-center justify-center mr-3 shadow-md">
                     <Brain className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-900 dark:text-white">CoachLink</span>
+                <span className="text-2xl font-bold">CoachLink</span>
             </Link>
         </div>
     );
@@ -118,7 +118,7 @@ export default function Navigation() {
             <Button
                 icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}
                 onClick={toggleTheme}
-                className="p-button-outlined theme-toggle border-300 dark:border-600"
+                className="p-button-outlined theme-toggle"
                 rounded
                 text
                 severity="help"
@@ -133,7 +133,7 @@ export default function Navigation() {
         <>
             {/* 主导航 */}
             <header
-                className="sticky top-0 z-50 shadow-sm bg-white dark:bg-gray-900 backdrop-blur-sm bg-opacity-95"
+                className="sticky top-0 z-50 shadow-sm backdrop-blur-sm bg-opacity-95"
                 role="banner"
             >
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -149,7 +149,7 @@ export default function Navigation() {
             {/* 面包屑导航 - 仅在非首页显示 */}
             {pathname !== '/' && breadcrumbItems.length > 1 && (
                 <nav
-                    className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+                    className="border-b"
                     aria-label="面包屑导航"
                 >
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">

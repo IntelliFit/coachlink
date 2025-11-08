@@ -33,11 +33,11 @@ export default async function DashboardPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen">
             <main className="p-4 md:p-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex justify-between items-center mb-8">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">仪表板</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold">仪表板</h1>
                         <form action={handleLogout}>
                             <Button
                                 type="submit"
@@ -48,27 +48,27 @@ export default async function DashboardPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">欢迎</h2>
-                            <p className="text-gray-700 dark:text-gray-300">
+                        <div className="rounded-lg shadow p-6">
+                            <h2 className="text-xl font-semibold mb-4">欢迎</h2>
+                            <p>
                                 欢迎回来, {profile?.full_name || user?.email}!
                             </p>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 md:col-span-2">
-                            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">快速访问</h2>
+                        <div className="rounded-lg shadow p-6 md:col-span-2">
+                            <h2 className="text-xl font-semibold mb-4">快速访问</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <a href="/training" className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg text-center hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer block">
-                                    <h3 className="font-medium text-gray-900 dark:text-white">AI训练计划</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">创建个性化训练</p>
+                                <a href="/training" className="p-4 border rounded-lg text-center hover:bg-gray-50 cursor-pointer block">
+                                    <h3 className="font-medium">AI训练计划</h3>
+                                    <p className="text-sm mt-1">创建个性化训练</p>
                                 </a>
-                                <a href="/coach" className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg text-center hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer block">
-                                    <h3 className="font-medium text-gray-900 dark:text-white">教练</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">查看教练资料</p>
+                                <a href="/coach" className="p-4 border rounded-lg text-center hover:bg-gray-50 cursor-pointer block">
+                                    <h3 className="font-medium">教练</h3>
+                                    <p className="text-sm mt-1">查看教练资料</p>
                                 </a>
-                                <a href="/ranking" className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg text-center hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer block">
-                                    <h3 className="font-medium text-gray-900 dark:text-white">排行榜</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">查看运动排名</p>
+                                <a href="/ranking" className="p-4 border rounded-lg text-center hover:bg-gray-50 cursor-pointer block">
+                                    <h3 className="font-medium">排行榜</h3>
+                                    <p className="text-sm mt-1">查看运动排名</p>
                                 </a>
                             </div>
                         </div>

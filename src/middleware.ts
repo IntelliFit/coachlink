@@ -85,6 +85,6 @@ export const config = {
     /*
      * 匹配所有请求路径，除了以特定扩展名结尾的文件
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|themes).*)',
   ],
 };

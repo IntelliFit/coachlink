@@ -48,16 +48,15 @@ export default function RegisterPage() {
 
     if (success) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+            <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="w-full max-w-md">
-                    <Card title="注册成功" className="bg-white dark:bg-gray-800 text-center">
-                        <p className="mb-4 text-gray-700 dark:text-gray-300">
+                    <Card title="注册成功" className="text-center">
+                        <p className="mb-4">
                             请检查您的邮箱以确认账户。
                         </p>
                         <Button
                             label="前往登录"
                             onClick={() => router.push('/login')}
-                            className="bg-primary-600 hover:bg-primary-700"
                         />
                     </Card>
                 </div>

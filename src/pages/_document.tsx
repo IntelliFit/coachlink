@@ -5,6 +5,7 @@ interface MyDocumentProps extends DocumentInitialProps {
 }
 
 export default function MyDocument({ theme }: MyDocumentProps) {
+    
     const themeHref =
         theme === 'dark'
             ? '/themes/lara-dark-blue/theme.css'
@@ -28,7 +29,7 @@ export default function MyDocument({ theme }: MyDocumentProps) {
     );
 }
 
-MyDocument.getInitialProps = async (ctx: DocumentContext) => {
+MyDocument.getInitialProps = async (ctx: DocumentContext) => {    
     const initialProps = await Document.getInitialProps(ctx);
 
     const cookie = ctx.req?.headers.cookie ?? '';

@@ -35,18 +35,18 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+        <div className="min-h-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md">
-                <Card title="登录到 CoachLink" className="bg-white dark:bg-gray-800">
+                <Card title="登录到 CoachLink">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded">
+                        <div className="mb-4 p-3 rounded">
                             {error}
                         </div>
                     )}
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label htmlFor="email" className="block text-sm font-medium mb-1">
                                 邮箱
                             </label>
                             <InputText
@@ -61,7 +61,7 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label htmlFor="password" className="block text-sm font-medium mb-1">
                                 密码
                             </label>
                             <Password
@@ -80,16 +80,16 @@ export default function LoginPage() {
                             type="submit"
                             label={loading ? '登录中...' : '登录'}
                             disabled={loading}
-                            className="w-full bg-primary-600 hover:bg-primary-700"
+                            className="w-full"
                         />
                     </form>
 
                     <div className="mt-4 text-center">
-                        <p className="text-gray-600 dark:text-gray-400">
+                        <p>
                             还没有账户？{' '}
                             <button
                                 onClick={() => router.push('/register')}
-                                className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-medium"
+                                className="font-medium"
                             >
                                 立即注册
                             </button>
