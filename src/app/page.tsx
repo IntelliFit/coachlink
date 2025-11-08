@@ -30,13 +30,13 @@ export default function Home() {
                 <div className="space-y-8">
                     <Card title={t('common.welcome')}>
                         <p>{t('home.description')}</p>
-                        
+
                         <Divider />
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
                             {/* AI训练计划 */}
-                            <div 
-                                className="p-card p-component shadow-sm hover:shadow-md transition-shadow cursor-pointer rounded-lg border" 
+                            <div
+                                className="p-card p-component shadow-sm hover:shadow-md transition-shadow cursor-pointer rounded-lg border"
                                 onClick={() => navigateToProtectedPage('training-plans')}
                             >
                                 <div className="p-card-body">
@@ -53,7 +53,7 @@ export default function Home() {
                             </div>
 
                             {/* 教练服务 */}
-                            <div 
+                            <div
                                 className="p-card p-component shadow-sm hover:shadow-md transition-shadow cursor-pointer rounded-lg border"
                                 onClick={() => navigateToProtectedPage('coach')}
                             >
@@ -71,7 +71,7 @@ export default function Home() {
                             </div>
 
                             {/* 排行榜 */}
-                            <div 
+                            <div
                                 className="p-card p-component shadow-sm hover:shadow-md transition-shadow cursor-pointer rounded-lg border"
                                 onClick={() => navigateToProtectedPage('ranking')}
                             >
@@ -89,7 +89,7 @@ export default function Home() {
                             </div>
 
                             {/* 支付功能测试按钮 */}
-                            <div 
+                            <div
                                 className="p-card p-component shadow-sm hover:shadow-md transition-shadow cursor-pointer rounded-lg border-2"
                                 onClick={() => handlePaymentTest()}
                             >
@@ -110,11 +110,9 @@ export default function Home() {
                     </Card>
                 </div>
             </div>
-            
-            <div className="mt-8 text-center">
-                <p>CoachLink - Connecting Coaches and Clients</p>
-            </div>
-            
+            <footer className="layout-footer w-full">
+                © 2025 CoachLink
+            </footer>
         </main>
     );
 }

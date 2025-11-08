@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.layout-footer {
+    padding: 2rem 4rem;
+    margin-top: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    font-weight: 500;
+    color: var(--text-800);
+    border-top: 1px solid var(--surface-border);
+}
+
+
+@media screen and (max-width: 1199px) {
+    .layout-content, .layout-footer {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
