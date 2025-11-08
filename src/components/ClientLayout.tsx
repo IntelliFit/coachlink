@@ -2,8 +2,6 @@
 
 import React, { useEffect, ReactNode } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { useLanguage } from '@/context/LanguageContext';
-import { PrimeReactProvider } from 'primereact/api';
 import { ToastContextProvider } from "./ToastContext";
 
 export default function ClientLayout({
@@ -12,7 +10,6 @@ export default function ClientLayout({
     children: ReactNode;
 }) {
     const { theme } = useTheme();
-    const { language } = useLanguage();
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
@@ -31,13 +28,8 @@ export default function ClientLayout({
     }, [theme]);
 
     return (
-        <PrimeReactProvider value={{
-            ripple: true,
-            locale: language,
-        }}>
-            <div className="min-h-screen">
-                {children}
-            </div>
-        </PrimeReactProvider>
+        <div className="min-h-screen">
+            {children}
+        </div>
     );
 }

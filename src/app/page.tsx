@@ -5,13 +5,9 @@ import { Button } from 'primereact/button';
 import { Divider } from 'primereact/divider';
 import { Brain, Users, Trophy, CreditCard } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
-import { useLanguage } from '@/context/LanguageContext';
 import { useTranslation } from 'react-i18next';
 
 export default function Home() {
-    const { theme } = useTheme();
-    const { language } = useLanguage();
-    const { t } = useTranslation();
 
     const navigateToProtectedPage = (page: string) => {
         // 在实际应用中，这里会导航到受保护的页面
@@ -43,7 +39,7 @@ export default function Home() {
 
             <div className="w-full max-w-6xl">
                 <div className="space-y-8">
-                    <div title={t('common.welcome')} className="shadow-sm">
+                    <div title={'Home'} className="shadow-sm">
 
                         <Divider />
 
