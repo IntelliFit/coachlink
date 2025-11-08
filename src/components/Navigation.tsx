@@ -4,9 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Brain, Target, Users, Trophy } from 'lucide-react';
-import { Button } from 'primereact/button';
 import { Menubar } from 'primereact/menubar';
 import { BreadCrumb } from 'primereact/breadcrumb';
+import { Button } from 'primereact/button';
+import { Avatar } from 'primereact/avatar';
 import { Tooltip } from 'primereact/tooltip';
 import { MenuItem } from 'primereact/menuitem';
 import { useTheme } from '@/context/ThemeContext';
@@ -27,94 +28,74 @@ export default function Navigation() {
     const { theme, toggleTheme } = useTheme();
 
     const navigation: NavigationItem[] = [
-        {
-            name: '首页',
-            href: '/',
-            icon: Target,
-        },
-        {
-            name: '教练',
-            href: '/coach',
-            icon: Users,
-        },
-        {
-            name: '排行榜',
-            href: '/ranking',
-            icon: Trophy,
-        },
+        { name: '首页', href: '/', icon: Target },
+        { name: '教练', href: '/coach', icon: Users },
+        { name: '排行榜', href: '/ranking', icon: Trophy },
     ];
 
-    // 获取当前页面标题
-    const getPageTitle = (path: string): string => {
+    const getPageTitle = (path: string) => {
         const titles: Record<string, string> = {
             '/coach': '教练团队',
             '/ranking': '排行榜',
-            '/profile': '个人资料'
+            '/profile': '个人资料',
         };
         return titles[path] || '';
     };
 
-    // 面包屑导航数据
     const breadcrumbItems = [
         { label: '首页', url: '/' },
-        ...(pathname !== '/' && getPageTitle(pathname || '')
-            ? [{ label: getPageTitle(pathname || ''), url: pathname }]
-            : [])
+        ...(pathname !== '/' && getPageTitle(pathname)
+            ? [{ label: getPageTitle(pathname), url: pathname }]
+            : []),
     ].filter(item => item.label);
 
-    // 菜单项配置
-    const menuItems: MenuItemWithTemplate[] = navigation.map((item) => ({
+    const menuItems: MenuItemWithTemplate[] = navigation.map(item => ({
         label: item.name,
         icon: getMenuItemIcon(item.href),
         url: item.href,
-        template: (item: MenuItem, options: any) => {
-            const isActive = pathname === (item as MenuItemWithTemplate).url;
+        template: (menuItem, options) => {
+            const isActive = pathname === (menuItem as MenuItemWithTemplate).url;
             return (
                 <Link
-                    href={(item as MenuItemWithTemplate).url}
-                    className={`${options.className} ${isActive ? 'p-menuitem-link-active' : ''}`}
+                    href={(menuItem as MenuItemWithTemplate).url}
+                    className={`${options.className} ${isActive ? 'p-menuitem-link-active font-semibold' : ''}`}
                     aria-current={isActive ? 'page' : undefined}
                 >
                     <span className={options.iconClassName} />
-                    <span className={options.labelClassName}>{item.label}</span>
+                    <span className={options.labelClassName}>{menuItem.label}</span>
                 </Link>
             );
-        }
+        },
     }));
 
-    // 获取菜单项图标
     function getMenuItemIcon(href: string): string {
         const icons: Record<string, string> = {
             '/': 'pi pi-home',
             '/coach': 'pi pi-users',
-            '/ranking': 'pi pi-chart-line'
+            '/ranking': 'pi pi-chart-line',
         };
         return icons[href] || 'pi pi-circle';
     }
 
-    // Logo组件
+    // Logo + 网站名，水平布局
     const logoStart = (
-        <div className="flex align-items-center mr-6">
-            <Link
-                href="/"
-                className="flex align-items-center no-underline hover:text-700 transition-colors duration-200"
-                aria-label="CoachLink 首页"
-            >
-                <div className="w-3rem h-3rem bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex align-items-center justify-center mr-3 shadow-md">
-                    <Brain className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-2xl font-bold">CoachLink</span>
-            </Link>
+        <div className="flex items-center">
+            <Avatar
+                icon={<Brain className="w-6 h-6 text-white" />}
+                className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg"
+                shape="circle"
+                size="large"
+            />
+            <span className="ml-3 text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
+                CoachLink
+            </span>
         </div>
     );
 
     // 主题切换按钮
     const themeToggleEnd = (
-        <div className="flex align-items-center gap-2">
-            <Tooltip
-                target=".theme-toggle"
-                position="bottom"
-            />
+        <div className="flex items-center gap-2">
+            <Tooltip target=".theme-toggle" position="bottom" />
             <Button
                 icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}
                 onClick={toggleTheme}
@@ -128,14 +109,10 @@ export default function Navigation() {
         </div>
     );
 
-
     return (
         <>
-            {/* 主导航 */}
-            <header
-                className="sticky top-0 z-50 shadow-sm backdrop-blur-sm bg-opacity-95"
-                role="banner"
-            >
+            {/* 主导航栏 */}
+            <header className="sticky top-0 z-50 shadow-sm backdrop-blur-sm bg-opacity-95" role="banner">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Menubar
                         model={menuItems}
@@ -146,34 +123,26 @@ export default function Navigation() {
                 </div>
             </header>
 
-            {/* 面包屑导航 - 仅在非首页显示 */}
+            {/* 面包屑导航，仅在非首页显示 */}
             {pathname !== '/' && breadcrumbItems.length > 1 && (
-                <nav
-                    className="border-b"
-                    aria-label="面包屑导航"
-                >
+                <nav className="border-b" aria-label="面包屑导航">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                         <BreadCrumb
                             model={breadcrumbItems}
                             home={{
                                 icon: 'pi pi-home',
                                 url: '/',
-                                template: (item: MenuItem, options: any) => (
-                                    <Link
-                                        href={(item as MenuItemWithTemplate).url}
-                                        className={options.className}
-                                        aria-label="首页"
-                                    >
+                                template: (item, options) => (
+                                    <Link href={(item as MenuItemWithTemplate).url} className={options.className} aria-label="首页">
                                         <span className={options.iconClassName} />
                                     </Link>
-                                )
+                                ),
                             }}
                             className="bg-transparent border-none p-0"
                         />
                     </div>
                 </nav>
             )}
-
         </>
     );
 }
