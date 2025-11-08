@@ -82,11 +82,11 @@ export default function Navigation() {
         <div className="flex items-center">
             <Avatar
                 icon={<Brain className="w-6 h-6 text-white" />}
-                className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg"
+                className="bg-primary shadow-lg"
                 shape="circle"
                 size="large"
             />
-            <span className="ml-3 text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
+            <span className="ml-3 text-2xl font-extrabold text-primary">
                 CoachLink
             </span>
         </div>

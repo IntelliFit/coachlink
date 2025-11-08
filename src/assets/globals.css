@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --text-color: #4b5563;
+  --text-color-secondary: #6b7280;
+  --primary-color: #3b82f6;
+  --primary-color-text: #ffffff;
+  --font-family: "Inter var", sans-serif;
+  --inline-spacing: 0.5rem;
+  --border-radius: 6px;
+  --focus-ring: 0 0 0 0.2rem #bfdbfe;
+  --mask-bg: rgba(0, 0, 0, 0.4);
+  --highlight-bg: #eff6ff;
+  --highlight-text-color: #1d4ed8;
+}
+
 .layout-footer {
     padding: 2rem 4rem;
     margin-top: 4rem;
