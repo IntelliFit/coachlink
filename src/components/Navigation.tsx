@@ -57,8 +57,8 @@ export default function Navigation() {
     // 面包屑导航数据
     const breadcrumbItems = [
         { label: '首页', url: '/' },
-        ...(pathname !== '/' && getPageTitle(pathname)
-            ? [{ label: getPageTitle(pathname), url: pathname }]
+        ...(pathname !== '/' && getPageTitle(pathname || '')
+            ? [{ label: getPageTitle(pathname || ''), url: pathname }]
             : [])
     ].filter(item => item.label);
 
