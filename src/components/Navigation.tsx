@@ -110,16 +110,12 @@ export default function Navigation() {
     return (
         <>
             {/* 主导航栏 */}
-            <header className="sticky top-0 z-50" role="banner">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <Menubar
-                        model={menuItems}
-                        start={logoStart}
-                        end={themeToggleEnd}
-                        className="border-none bg-transparent px-0 py-3"
-                    />
-                </div>
-            </header>
+            <Menubar
+                model={menuItems}
+                start={logoStart}
+                end={themeToggleEnd}
+                className="sticky top-0 z-50 border-none bg-transparent px-0 py-3"
+            />
 
             {/* 面包屑导航，仅在非首页显示 */}
             {pathname !== '/' && breadcrumbItems.length > 1 && (

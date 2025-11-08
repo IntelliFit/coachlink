@@ -61,3 +61,13 @@ body {
 .p-password input {
     width: 100% !important;
 }
+
+.dark .p-menubar {
+    background-color: rgba(55, 65, 81, 0.5);
+    backdrop-filter: blur(10px);
+}
+
+.p-menubar {
+    background-color: rgba(248, 249, 250, 0.5);
+    backdrop-filter: blur(10px);
+}
