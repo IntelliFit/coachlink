@@ -81,9 +81,7 @@ export default function Navigation() {
     const logoStart = (
         <div className="flex items-center space-x-3 mr-3">
             {/* 图标 */}
-            <div className="bg-primary rounded-lg p-3 shadow-lg text-2xl flex items-center justify-center hover:bg-primary/90 transition-colors duration-200">
-                <Brain className="w-5 h-5 text-white" />
-            </div>
+            <img src="/favicon.svg" className='h-10 w-10' />
 
             {/* 名称 */}
             <span className="text-2xl font-extrabold">

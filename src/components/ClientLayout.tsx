@@ -4,7 +4,7 @@ import React, { useEffect, ReactNode } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { PrimeReactProvider } from 'primereact/api';
-import 'primeicons/primeicons.css';
+import { ToastContextProvider } from "./ToastContext";
 
 export default function ClientLayout({
     children,

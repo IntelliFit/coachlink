@@ -26,10 +26,10 @@ export default function Home() {
     // 定义卡片底部内容
     const getFooter = (page: string) => (
         <div className="flex justify-end">
-            <Button 
-                label="了解更多" 
+            <Button
+                label="了解更多"
                 icon="pi pi-arrow-right"
-                iconPos="right" 
+                iconPos="right"
                 onClick={(e) => {
                     e.stopPropagation();
                     navigateToProtectedPage(page);
@@ -40,6 +40,7 @@ export default function Home() {
 
     return (
         <main className="flex min-h-screen flex-col items-center p-4 md:p-8">
+
             <div className="w-full max-w-6xl">
                 <div className="space-y-8">
                     <div title={t('common.welcome')} className="shadow-sm">
@@ -48,7 +49,7 @@ export default function Home() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
                             {/* AI训练计划 */}
-                            <Card 
+                            <Card
                                 title="AI训练计划"
                                 subTitle="个性化定制训练方案"
                                 className="hover:shadow-md transition-shadow"
@@ -64,7 +65,7 @@ export default function Home() {
                             </Card>
 
                             {/* 教练服务 */}
-                            <Card 
+                            <Card
                                 title="教练服务"
                                 subTitle="专业教练指导"
                                 className="hover:shadow-md transition-shadow"
@@ -80,7 +81,7 @@ export default function Home() {
                             </Card>
 
                             {/* 排行榜 */}
-                            <Card 
+                            <Card
                                 title="排行榜"
                                 subTitle="查看各项运动排名"
                                 className="hover:shadow-md transition-shadow"
@@ -96,16 +97,16 @@ export default function Home() {
                             </Card>
 
                             {/* 支付功能测试按钮 */}
-                            <Card 
+                            <Card
                                 title="支付功能测试"
                                 subTitle="测试支付系统"
                                 className="hover:shadow-md transition-shadow"
                                 footer={
                                     <div className="flex justify-end">
-                                        <Button 
-                                            label="开始测试" 
-                                            icon="pi pi-credit-card" 
-                                            iconPos="right" 
+                                        <Button
+                                            label="开始测试"
+                                            icon="pi pi-credit-card"
+                                            iconPos="right"
                                             text
                                             onClick={(e) => {
                                                 e.stopPropagation();

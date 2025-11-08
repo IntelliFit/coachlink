@@ -12,10 +12,16 @@ import Navigation from '@/components/Navigation';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
-    title: 'CoachLink',
-    description: 'Coach-Client Management Platform',
-};
+export async function generateMetadata(): Promise<Metadata> {
+    return {
+        title: 'CoachLink',
+        description: 'Coach-Client Management Platform',
+        keywords: '健身',
+        icons: {
+            icon: "/favicon.svg",
+        },
+    };
+}
 
 export default function RootLayout({
     children,
