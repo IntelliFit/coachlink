@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>计划制定器 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 模板选择器 */
+        .template-selector {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px;
+            margin-top: 0;
+        }
+
+        .selector-button {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .selector-button:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .selector-button.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            color: #3b82f6;
+        }
+
+        /* 周标签栏 */
+        .week-tabs {
+            display: flex;
+            background: white;
+            margin: 0 16px;
+            border-radius: 12px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .week-tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .week-tab.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* 天标签栏 */
+        .day-tabs {
+            display: flex;
+            background: #f3f4f6;
+            margin: 16px;
+            border-radius: 12px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .day-tab {
+            flex: 1;
+            padding: 10px 8px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .day-tab.active {
+            background: white;
+            color: #3b82f6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .day-tab.rest {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        /* 动作列表 */
+        .exercise-list {
+            margin: 16px;
+        }
+
+        .exercise-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .exercise-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .exercise-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .action-btn-secondary {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .action-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .exercise-params {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .param-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .param-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .param-value {
+            font-size: 14px;
+            color: #1f2937;
+            background: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .weight-logic {
+            background: #eff6ff;
+            color: #1d4ed8;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* 添加按钮 */
+        .add-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .add-button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        /* 自动化规则设置 */
+        .rules-section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px;
+        }
+
+        .rule-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .rule-field {
+            flex: 1;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .rule-operator {
+            min-width: 60px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 13px;
+        }
+
+        .rule-value {
+            width: 80px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        /* 全局备注 */
+        .notes-section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px;
+        }
+
+        .notes-textarea {
+            width: 100%;
+            min-height: 80px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 标题栏 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <h1 class="text-2xl font-bold text-gray-900">制定训练计划</h1>
+                        <button class="px-4 py-2 bg-blue-500 text-white rounded-xl font-medium" onclick="savePlan()">
+                            保存
+                        </button>
+                    </div>
+
+                    <!-- 模板选择器 -->
+                    <div class="template-selector mb-4">
+                        <div class="flex gap-3">
+                            <button class="selector-button selected" onclick="selectMode('template')">
+                                <i class="fas fa-layer-group"></i>
+                                从模板开始
+                            </button>
+                            <button class="selector-button" onclick="selectMode('scratch')">
+                                <i class="fas fa-plus"></i>
+                                从头创建
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 周标签栏 -->
+                <div class="week-tabs">
+                    <div class="week-tab active" onclick="selectWeek(1)">Week 1</div>
+                    <div class="week-tab" onclick="selectWeek(2)">Week 2</div>
+                    <div class="week-tab" onclick="selectWeek(3)">Week 3</div>
+                    <div class="week-tab" onclick="selectWeek(4)">Week 4</div>
+                    <button class="px-2 py-1 text-blue-500" onclick="addWeek()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <!-- 天标签栏 -->
+                <div class="day-tabs">
+                    <div class="day-tab active" onclick="selectDay('day1')">周一</div>
+                    <div class="day-tab rest" onclick="selectDay('day2')">周二<br><span class="text-xs">休息</span></div>
+                    <div class="day-tab active" onclick="selectDay('day3')">周三</div>
+                    <div class="day-tab" onclick="selectDay('day4')">周四</div>
+                    <div class="day-tab" onclick="selectDay('day5')">周五</div>
+                    <div class="day-tab rest" onclick="selectDay('day6')">周六<br><span class="text-xs">休息</span></div>
+                    <div class="day-tab" onclick="selectDay('day7')">周日</div>
+                </div>
+
+                <!-- 动作列表 -->
+                <div class="exercise-list">
+                    <!-- 复制/删除天按钮 -->
+                    <div class="flex gap-2 mb-3">
+                        <button class="flex-1 add-button" onclick="copyDay()">
+                            <i class="fas fa-copy"></i>
+                            复制本日
+                        </button>
+                        <button class="flex-1 add-button" onclick="addRestDay()">
+                            <i class="fas fa-bed"></i>
+                            设为休息日
+                        </button>
+                    </div>
+
+                    <!-- 动作项目 1 -->
+                    <div class="exercise-item">
+                        <div class="exercise-header">
+                            <div class="exercise-name">杠铃卧推</div>
+                            <div class="exercise-actions">
+                                <button class="action-btn action-btn-primary" onclick="editExercise(1)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="deleteExercise(1)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="exercise-params">
+                            <div class="param-item">
+                                <div class="param-label">组数</div>
+                                <div class="param-value">5</div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">次数</div>
+                                <div class="param-value">5</div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">重量</div>
+                                <div class="param-value">100kg</div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">组间休息</div>
+                                <div class="param-value">90秒</div>
+                            </div>
+                        </div>
+
+                        <div class="weight-logic">绝对力量型</div>
+                    </div>
+
+                    <!-- 动作项目 2 -->
+                    <div class="exercise-item">
+                        <div class="exercise-header">
+                            <div class="exercise-name">引体向上</div>
+                            <div class="exercise-actions">
+                                <button class="action-btn action-btn-primary" onclick="editExercise(2)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="deleteExercise(2)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="exercise-params">
+                            <div class="param-item">
+                                <div class="param-label">组数</div>
+                                <div class="param-value">4</div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">次数</div>
+                                <div class="param-value">8</div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">重量</div>
+                                <div class="param-value">自重</div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">组间休息</div>
+                                <div class="param-value">60秒</div>
+                            </div>
+                        </div>
+
+                        <div class="weight-logic">相对力量型</div>
+                    </div>
+
+                    <!-- 添加动作按钮 -->
+                    <div class="mb-4">
+                        <button class="w-full add-button" onclick="showExerciseSelector()">
+                            <i class="fas fa-plus"></i>
+                            从动作库添加
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 自动化匹配规则 -->
+                <div class="rules-section">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900">自动化匹配规则</h2>
+                        <button class="text-sm text-blue-500 font-medium" onclick="toggleRules()">
+                            设置规则
+                        </button>
+                    </div>
+
+                    <div id="rulesContent" class="hidden">
+                        <div class="text-sm text-gray-600 mb-3">设置此模板的适用条件，系统将自动为符合条件的学员匹配此模板</div>
+
+                        <div id="rulesList" class="space-y-2">
+                            <!-- 规则项目 1 -->
+                            <div class="rule-item">
+                                <select class="rule-field">
+                                    <option>训练年限</option>
+                                    <option>主项</option>
+                                    <option>卧推1RM</option>
+                                    <option>深蹲1RM</option>
+                                    <option>体重</option>
+                                </select>
+                                <select class="rule-operator">
+                                    <option>&lt;</option>
+                                    <option>&gt;</option>
+                                    <option>=</option>
+                                    <option>≤</option>
+                                    <option>≥</option>
+                                </select>
+                                <input type="number" class="rule-value" placeholder="数值">
+                                <button class="text-red-500" onclick="removeRule(this)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <!-- 规则项目 2 -->
+                            <div class="rule-item">
+                                <select class="rule-field">
+                                    <option>训练年限</option>
+                                    <option>主项</option>
+                                    <option>卧推1RM</option>
+                                    <option>深蹲1RM</option>
+                                    <option>体重</option>
+                                </select>
+                                <select class="rule-operator">
+                                    <option>&lt;</option>
+                                    <option>&gt;</option>
+                                    <option>=</option>
+                                    <option>≤</option>
+                                    <option>≥</option>
+                                </select>
+                                <input type="number" class="rule-value" placeholder="数值">
+                                <button class="text-red-500" onclick="removeRule(this)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button class="w-full add-button mt-3" onclick="addRule()">
+                            <i class="fas fa-plus"></i>
+                            添加规则
+                        </button>
+
+                        <!-- 规则预览 -->
+                        <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                            <div class="text-sm font-medium text-gray-700 mb-2">规则预览：</div>
+                            <div class="text-sm text-gray-600">
+                                当学员满足以下所有条件时，将自动匹配此模板：<br>
+                                • 训练年限 &lt; 2年<br>
+                                • 主项 = 卧推
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 全局备注 -->
+                <div class="notes-section">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900">全局备注</h2>
+                        <span class="text-sm text-gray-500">选填</span>
+                    </div>
+
+                    <textarea class="notes-textarea" placeholder="为整个训练计划添加通用说明，如热身流程、补剂建议、心态调整等...">
+建议训练前进行10-15分钟动态热身，包括关节活动和轻重量预热。
+
+训练后进行充分的拉伸放松，特别注意胸部、肩部和手臂的拉伸。
+
+补充剂建议：训练后30分钟内摄入蛋白质和碳水化合物，促进恢复。
+                    </textarea>
+                </div>
+
+                <!-- 保存按钮 -->
+                <div class="p-4 pb-8">
+                    <div class="flex gap-3">
+                        <button class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium" onclick="saveDraft()">
+                            保存草稿
+                        </button>
+                        <button class="flex-1 py-3 bg-blue-500 text-white rounded-xl font-medium" onclick="publishPlan()">
+                            发布计划
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 动作选择器模态框 -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" id="exerciseModal">
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-96">
+            <div class="p-4 border-b">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-bold">选择动作</h3>
+                    <button onclick="hideExerciseModal()" class="text-gray-400">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="relative">
+                    <input type="text" placeholder="搜索动作..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="p-4 max-h-64 overflow-y-auto">
+                <div class="space-y-2">
+                    <div class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" onclick="selectExercise('bench-press')">
+                        <div class="font-medium">杠铃卧推</div>
+                        <div class="text-sm text-gray-500">胸部主要动作，发展上胸力量</div>
+                    </div>
+                    <div class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" onclick="selectExercise('pull-ups')">
+                        <div class="font-medium">引体向上</div>
+                        <div class="text-sm text-gray-500">背部自重训练，塑形美观</div>
+                    </div>
+                    <div class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" onclick="selectExercise('squats')">
+                        <div class="font-medium">深蹲</div>
+                        <div class="text-sm text-gray-500">腿部基础动作，全面发展</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentWeek = 1;
+        let currentDay = 'day1';
+        let rulesVisible = false;
+
+        // 选择模板模式
+        function selectMode(mode) {
+            const buttons = document.querySelectorAll('.selector-button');
+            buttons.forEach(btn => btn.classList.remove('selected'));
+
+            if (mode === 'template') {
+                buttons[0].classList.add('selected');
+                alert('选择从模板开始，将加载现有模板内容');
+            } else {
+                buttons[1].classList.add('selected');
+                alert('选择从头创建，将清空当前内容');
+            }
+        }
+
+        // 选择周
+        function selectWeek(week) {
+            currentWeek = week;
+            document.querySelectorAll('.week-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 更新天内容
+            updateDayContent();
+        }
+
+        // 选择天
+        function selectDay(day) {
+            currentDay = day;
+            document.querySelectorAll('.day-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 更新动作列表
+            updateExerciseList();
+        }
+
+        // 复制本日内容
+        function copyDay() {
+            alert('复制本日内容到其他日期');
+        }
+
+        // 设为休息日
+        function addRestDay() {
+            const currentTab = document.querySelector('.day-tab.active');
+            currentTab.classList.remove('active');
+            currentTab.classList.add('rest');
+            currentTab.innerHTML = '休息<br><span class="text-xs">休息</span>';
+
+            alert('已设为休息日');
+        }
+
+        // 显示动作选择器
+        function showExerciseSelector() {
+            document.getElementById('exerciseModal').classList.remove('hidden');
+        }
+
+        // 隐藏动作选择器
+        function hideExerciseModal() {
+            document.getElementById('exerciseModal').classList.add('hidden');
+        }
+
+        // 选择动作
+        function selectExercise(exerciseId) {
+            hideExerciseModal();
+
+            // 添加新动作到列表
+            const exerciseList = document.querySelector('.exercise-list');
+            const newExercise = createExerciseItem(exerciseId);
+            exerciseList.insertBefore(newExercise, exerciseList.lastElementChild);
+
+            alert(`已添加动作: ${exerciseId}`);
+        }
+
+        // 创建动作项目
+        function createExerciseItem(exerciseId) {
+            const item = document.createElement('div');
+            item.className = 'exercise-item';
+            item.innerHTML = `
+                <div class="exercise-header">
+                    <div class="exercise-name">新动作 ${exerciseId}</div>
+                    <div class="exercise-actions">
+                        <button class="action-btn action-btn-primary" onclick="editExercise('new')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn action-btn-danger" onclick="deleteExercise('new')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="exercise-params">
+                    <div class="param-item">
+                        <div class="param-label">组数</div>
+                        <div class="param-value" contenteditable="true">3</div>
+                    </div>
+                    <div class="param-item">
+                        <div class="param-label">次数</div>
+                        <div class="param-value" contenteditable="true">10</div>
+                    </div>
+                    <div class="param-item">
+                        <div class="param-label">重量</div>
+                        <div class="param-value" contenteditable="true">60kg</div>
+                    </div>
+                    <div class="param-item">
+                        <div class="param-label">组间休息</div>
+                        <div class="param-value" contenteditable="true">60秒</div>
+                    </div>
+                </div>
+                <div class="weight-logic">绝对力量型</div>
+            `;
+
+            return item;
+        }
+
+        // 编辑动作
+        function editExercise(id) {
+            alert(`编辑动作: ${id}`);
+        }
+
+        // 删除动作
+        function deleteExercise(id) {
+            if (confirm(`确定要删除这个动作吗？`)) {
+                event.target.closest('.exercise-item').remove();
+                alert('动作已删除');
+            }
+        }
+
+        // 切换规则显示
+        function toggleRules() {
+            rulesVisible = !rulesVisible;
+            const content = document.getElementById('rulesContent');
+            const button = event.target;
+
+            if (rulesVisible) {
+                content.classList.remove('hidden');
+                button.textContent = '隐藏规则';
+            } else {
+                content.classList.add('hidden');
+                button.textContent = '设置规则';
+            }
+        }
+
+        // 添加规则
+        function addRule() {
+            const rulesList = document.getElementById('rulesList');
+            const newRule = document.createElement('div');
+            newRule.className = 'rule-item';
+            newRule.innerHTML = `
+                <select class="rule-field">
+                    <option>训练年限</option>
+                    <option>主项</option>
+                    <option>卧推1RM</option>
+                    <option>深蹲1RM</option>
+                    <option>体重</option>
+                </select>
+                <select class="rule-operator">
+                    <option>&lt;</option>
+                    <option>&gt;</option>
+                    <option>=</option>
+                    <option>≤</option>
+                    <option>≥</option>
+                </select>
+                <input type="number" class="rule-value" placeholder="数值">
+                <button class="text-red-500" onclick="removeRule(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            rulesList.appendChild(newRule);
+            updateRulesPreview();
+        }
+
+        // 删除规则
+        function removeRule(button) {
+            button.closest('.rule-item').remove();
+            updateRulesPreview();
+        }
+
+        // 更新规则预览
+        function updateRulesPreview() {
+            const rules = document.querySelectorAll('.rule-item');
+            const preview = document.querySelector('.bg-gray-50');
+
+            if (rules.length === 0) {
+                preview.innerHTML = '<div class="text-sm font-medium text-gray-700 mb-2">规则预览：</div><div class="text-sm text-gray-600">暂无匹配规则</div>';
+                return;
+            }
+
+            let previewText = '当学员满足以下所有条件时，将自动匹配此模板：<br>';
+            rules.forEach((rule, index) => {
+                const field = rule.querySelector('.rule-field').value;
+                const operator = rule.querySelector('.rule-operator').value;
+                const value = rule.querySelector('.rule-value').value;
+                previewText += `• ${field} ${operator} ${value}<br>`;
+            });
+
+            preview.innerHTML = `<div class="text-sm font-medium text-gray-700 mb-2">规则预览：</div><div class="text-sm text-gray-600">${previewText}</div>`;
+        }
+
+        // 添加周
+        function addWeek() {
+            const weekTabs = document.querySelector('.week-tabs');
+            const weekCount = document.querySelectorAll('.week-tab').length;
+
+            const newWeek = document.createElement('div');
+            newWeek.className = 'week-tab';
+            newWeek.textContent = `Week ${weekCount}`;
+            newWeek.onclick = () => selectWeek(weekCount);
+
+            // 插入到添加按钮之前
+            weekTabs.insertBefore(newWeek, weekTabs.lastElementChild);
+        }
+
+        // 保存计划
+        function savePlan() {
+            alert('训练计划保存成功！');
+        }
+
+        // 保存草稿
+        function saveDraft() {
+            alert('草稿保存成功！');
+        }
+
+        // 发布计划
+        function publishPlan() {
+            if (confirm('确定要发布这个训练计划吗？发布后将对所有符合条件的学员生效。')) {
+                alert('训练计划发布成功！');
+            }
+        }
+
+        // 更新天内容
+        function updateDayContent() {
+            // 根据不同周显示不同内容
+            console.log(`更新 Week ${currentWeek} 的内容`);
+        }
+
+        // 更新动作列表
+        function updateExerciseList() {
+            // 根据不同天显示不同动作
+            console.log(`更新 ${currentDay} 的动作列表`);
+        }
+
+        // 监听参数变化
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('param-value')) {
+                // 参数变化时更新显示
+                console.log('参数已更新:', e.target.textContent);
+            }
+        });
+
+        // 页面加载初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 监听规则变化
+            document.addEventListener('change', function(e) {
+                if (e.target.closest('.rule-item')) {
+                    updateRulesPreview();
+                }
+            });
+
+            updateRulesPreview();
+        });
+    </script>
+</body>
+</html>
+

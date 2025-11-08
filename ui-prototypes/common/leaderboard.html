@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>排行榜 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .toolbar { background: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 10px 12px; }
+        .tabs { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; background: #f3f4f6; border-radius: 10px; padding: 6px; }
+        .tab { text-align: center; padding: 8px 0; font-size: 13px; border-radius: 8px; color: #6b7280; cursor: pointer; }
+        .tab.active { background: white; color: #3b82f6; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+        .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .select, .input { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; font-size: 13px; color: #111827; }
+        .content { flex: 1; overflow-y: auto; padding: 8px 12px; }
+        .card { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); border: 1px solid #e5e7eb; }
+        .row { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+        .row:last-child { border-bottom: none; }
+        .rank { width: 36px; height: 36px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #111827; background: #f3f4f6; }
+        .me .rank { background: #dbeafe; color: #1d4ed8; }
+        .user { display: flex; align-items: center; gap: 10px; }
+        .user img { width: 36px; height: 36px; border-radius: 9999px; }
+        .user .name { font-weight: 600; font-size: 14px; color: #111827; }
+        .user .meta { font-size: 12px; color: #6b7280; }
+        .score { text-align: right; }
+        .score .value { font-weight: 700; color: #111827; }
+        .score .video { color: #3b82f6; font-size: 12px; cursor: pointer; }
+        .pagination { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-top: 12px; }
+        .btn { background: #f3f4f6; border-radius: 10px; padding: 10px 12px; text-align: center; font-size: 13px; color: #374151; cursor: pointer; }
+        .btn.primary { background: #3b82f6; color: white; }
+        .subtabs { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; margin-top: 8px; }
+        .subtab { background: #f3f4f6; color: #6b7280; border-radius: 9999px; padding: 6px 10px; font-size: 12px; text-align: center; cursor: pointer; }
+        .subtab.active { background: #e0e7ff; color: #4338ca; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-card { width: 90%; max-width: 360px; background: #fff; border-radius: 16px; overflow: hidden; }
+        .modal-header { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+        .modal-body { padding: 12px; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tab-item.active .tab-icon, .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- Toolbar: tabs + filters -->
+            <div class="toolbar">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('pullup')">负重引体</div>
+                    <div class="tab" onclick="switchTab('bench')">卧推</div>
+                    <div class="tab" onclick="switchTab('squat')">深蹲</div>
+                    <div class="tab" onclick="switchTab('deadlift')">硬拉</div>
+                </div>
+                <div class="subtabs">
+                    <div class="subtab active" onclick="switchRule('strict')">严格规则</div>
+                    <div class="subtab" onclick="switchRule('loose')">宽松规则</div>
+                </div>
+                <div class="filters">
+                    <select class="select" id="weightClass">
+                        <option value="all">全部体重级别</option>
+                        <option value="-60">60kg以下</option>
+                        <option value="60-75">60-75kg</option>
+                        <option value=">=75">75kg以上</option>
+                    </select>
+                    <select class="select" id="scope">
+                        <option value="total">总榜</option>
+                        <option value="coefficient">体重系数榜</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- List -->
+            <div class="content">
+                <div class="card" id="leaderboard">
+                    <!-- rows injected by JS -->
+                </div>
+                <div class="pagination">
+                    <div class="btn" onclick="prevPage()">上一页</div>
+                    <div class="btn primary" id="pageInfo">第 1 / 5 页</div>
+                    <div class="btn" onclick="nextPage()">下一页</div>
+                </div>
+            </div>
+
+            <!-- Preview modal -->
+            <div class="modal" id="videoModal" onclick="closeModal(event)">
+                <div class="modal-card">
+                    <div class="modal-header">训练视频预览</div>
+                    <div class="modal-body">
+                        <div class="w-full h-48 bg-black rounded-md flex items-center justify-center text-white">视频播放器</div>
+                        <div class="mt-3 text-sm text-gray-600">张三 · 2024-10-20 · 负重引体 50kg</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <a href="../student/home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </div>
+                <a href="../student/training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <a href="../common/settings.html" class="tab-item">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'pullup';
+        let currentRule = 'strict';
+        let page = 1, totalPages = 5;
+
+        const sample = Array.from({length: 20}).map((_,i)=>({
+            rank: i+1,
+            name: ['张三','李四','王五','赵六'][i%4],
+            avatar: `https://i.pravatar.cc/64?img=${(i%8)+1}`,
+            meta: `${(60+i)%85}kg · 上海`,
+            value: (100-i*2)+'kg',
+        }));
+
+        function render(){
+            const list = document.getElementById('leaderboard');
+            list.innerHTML = '';
+            const start = (page-1)*5, end = start+5;
+            sample.slice(start, end).forEach((row, idx)=>{
+                const isMe = row.name==='张三' && idx===0;
+                const el = document.createElement('div');
+                el.className = 'row'+(isMe?' me':'');
+                el.innerHTML = `
+                    <div class="rank">${row.rank}</div>
+                    <div class="user">
+                        <img src="${row.avatar}">
+                        <div>
+                            <div class="name">${row.name}</div>
+                            <div class="meta">${row.meta}</div>
+                        </div>
+                    </div>
+                    <div class="score">
+                        <div class="value">${row.value}</div>
+                        <div class="video" onclick="openModal()">查看视频</div>
+                    </div>`;
+                list.appendChild(el);
+            });
+            document.getElementById('pageInfo').textContent = `第 ${page} / ${totalPages} 页`;
+        }
+
+        function switchTab(tab){ currentTab = tab; page=1; render(); }
+        function switchRule(rule){ currentRule = rule; page=1; render(); }
+        function prevPage(){ if(page>1){ page--; render(); } }
+        function nextPage(){ if(page<totalPages){ page++; render(); } }
+        function openModal(){ document.getElementById('videoModal').classList.add('show'); }
+        function closeModal(e){ if(e.target.id==='videoModal'){ document.getElementById('videoModal').classList.remove('show'); } }
+
+        render();
+    </script>
+</body>
+</html>

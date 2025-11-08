@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登录 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* iOS 风格输入框 */
+        .ios-input {
+            width: 100%;
+            height: 50px;
+            background: #f2f2f7;
+            border: none;
+            border-radius: 10px;
+            padding: 0 16px;
+            font-size: 17px;
+            color: #000000;
+            transition: all 0.2s;
+        }
+
+        .ios-input:focus {
+            outline: none;
+            background: #e8e8ed;
+        }
+
+        .ios-input::placeholder {
+            color: #8e8e93;
+        }
+
+        /* iOS 风格按钮 */
+        .ios-button {
+            width: 100%;
+            height: 50px;
+            background: #007AFF;
+            border: none;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ios-button:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+
+        .ios-button:disabled {
+            background: #c7c7cc;
+            cursor: not-allowed;
+        }
+
+        .ios-button-secondary {
+            background: #f2f2f7;
+            color: #007AFF;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+            
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <div class="px-6 py-8">
+                    <!-- Logo 和标题 -->
+                    <div class="text-center mb-12 mt-8">
+                        <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-lg">
+                            <i class="fas fa-dumbbell text-white text-4xl"></i>
+                        </div>
+                        <h1 class="text-3xl font-bold text-gray-900 mb-2">智健联盟</h1>
+                        <p class="text-gray-500 text-base">专业教练订阅平台</p>
+                    </div>
+
+                    <!-- 登录表单 -->
+                    <form id="loginForm" class="space-y-4">
+                        <!-- 手机号输入 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">手机号</label>
+                            <div class="relative">
+                                <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <input 
+                                    type="tel" 
+                                    id="phone"
+                                    class="ios-input pl-12" 
+                                    placeholder="请输入手机号"
+                                    maxlength="11"
+                                    required
+                                >
+                            </div>
+                        </div>
+
+                        <!-- 验证码输入 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">验证码</label>
+                            <div class="flex gap-3">
+                                <div class="flex-1 relative">
+                                    <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                        <i class="fas fa-lock"></i>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        id="code"
+                                        class="ios-input pl-12" 
+                                        placeholder="请输入验证码"
+                                        maxlength="6"
+                                        required
+                                    >
+                                </div>
+                                <button 
+                                    type="button" 
+                                    id="sendCodeBtn"
+                                    class="ios-button-secondary px-6 rounded-xl font-medium text-sm whitespace-nowrap"
+                                >
+                                    发送验证码
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 登录按钮 -->
+                        <div class="pt-4">
+                            <button type="submit" class="ios-button">
+                                <span>登录</span>
+                            </button>
+                        </div>
+
+                        <!-- 注册链接 -->
+                        <div class="text-center pt-4">
+                            <span class="text-gray-500 text-sm">还没有账号？</span>
+                            <a href="register.html" class="text-blue-500 text-sm font-medium ml-1">立即注册</a>
+                        </div>
+
+                        <!-- 协议 -->
+                        <div class="text-center pt-2">
+                            <p class="text-xs text-gray-400">
+                                登录即表示同意
+                                <a href="#" class="text-blue-500">用户协议</a>
+                                和
+                                <a href="#" class="text-blue-500">隐私政策</a>
+                            </p>
+                        </div>
+                    </form>
+
+                    <!-- 返回导航 -->
+                    <div class="text-center mt-8">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 发送验证码倒计时
+        let countdown = 60;
+        let timer = null;
+
+        document.getElementById('sendCodeBtn').addEventListener('click', function() {
+            const phone = document.getElementById('phone').value;
+            
+            if (!phone || phone.length !== 11) {
+                alert('请输入正确的手机号');
+                return;
+            }
+
+            if (timer) return;
+
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = `${countdown}秒后重试`;
+
+            timer = setInterval(() => {
+                countdown--;
+                btn.textContent = `${countdown}秒后重试`;
+
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    timer = null;
+                    countdown = 60;
+                    btn.disabled = false;
+                    btn.textContent = '发送验证码';
+                }
+            }, 1000);
+
+            // 模拟发送验证码
+            console.log('发送验证码到:', phone);
+        });
+
+        // 表单提交
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const phone = document.getElementById('phone').value;
+            const code = document.getElementById('code').value;
+
+            if (!phone || !code) {
+                alert('请填写完整信息');
+                return;
+            }
+
+            // 模拟登录
+            console.log('登录:', { phone, code });
+            alert('登录成功！（这是演示）');
+            
+            // 实际项目中这里会跳转到首页
+            // window.location.href = '../student/home.html';
+        });
+
+        // 手机号输入限制
+        document.getElementById('phone').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
+        });
+
+        // 验证码输入限制
+        document.getElementById('code').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
+        });
+    </script>
+</body>
+</html>

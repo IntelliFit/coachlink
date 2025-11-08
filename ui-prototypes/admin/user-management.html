@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>用户管理 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 搜索栏样式 */
+        .search-section {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+
+        /* 用户列表 */
+        .user-list {
+            padding: 16px;
+        }
+
+        .user-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .user-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .user-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+        }
+
+        .user-details h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+
+        .user-details p {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .user-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-badge.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-badge.inactive {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .status-badge.banned {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .role-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .role-badge.user {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .role-badge.coach {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .role-badge.admin {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .stat-number {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        /* 用户操作 */
+        .user-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .action-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .action-btn-secondary {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .action-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* 用户详情展开 */
+        .user-details-expanded {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        /* 筛选和操作栏 */
+        .controls-section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 0 16px 16px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #6b7280;
+        }
+
+        .filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .sort-select {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #6b7280;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            display: none;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #9ca3af;
+            margin: 0 auto 20px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 标题栏 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <a href="dashboard.html" class="text-gray-600">
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                            <h1 class="text-2xl font-bold text-gray-900">用户管理</h1>
+                        </div>
+                        <button class="px-4 py-2 bg-blue-500 text-white rounded-xl font-medium" onclick="addUser()">
+                            <i class="fas fa-plus mr-1"></i>添加用户
+                        </button>
+                    </div>
+
+                    <!-- 统计卡片 -->
+                    <div class="grid grid-cols-4 gap-3 mb-4">
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-lg font-bold text-blue-500">2,847</div>
+                            <div class="text-xs text-gray-500">总用户</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-lg font-bold text-green-500">2,156</div>
+                            <div class="text-xs text-gray-500">活跃用户</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-lg font-bold text-purple-500">89</div>
+                            <div class="text-xs text-gray-500">教练</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-lg font-bold text-red-500">12</div>
+                            <div class="text-xs text-gray-500">已封禁</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 搜索和筛选 -->
+                <div class="search-section">
+                    <div class="p-4">
+                        <!-- 搜索栏 -->
+                        <div class="relative mb-4">
+                            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <input
+                                type="text"
+                                id="searchInput"
+                                placeholder="搜索用户名、手机号、ID..."
+                                class="w-full pl-12 pr-4 py-3 bg-white rounded-xl border-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                        </div>
+
+                        <!-- 筛选按钮 -->
+                        <div class="flex gap-2 overflow-x-auto pb-2">
+                            <button class="filter-btn active" onclick="filterUsers('all')">全部</button>
+                            <button class="filter-btn" onclick="filterUsers('active')">活跃</button>
+                            <button class="filter-btn" onclick="filterUsers('inactive')">未活跃</button>
+                            <button class="filter-btn" onclick="filterUsers('banned')">已封禁</button>
+                            <button class="filter-btn" onclick="filterUsers('coaches')">教练</button>
+                            <select class="sort-select">
+                                <option>按注册时间</option>
+                                <option>按最后登录</option>
+                                <option>按训练天数</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 用户列表 -->
+                <div class="user-list">
+                    <!-- 用户项目 1 -->
+                    <div class="user-item" onclick="toggleUserDetails(1)">
+                        <div class="user-header">
+                            <div class="user-info">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=96" class="user-avatar">
+                                <div class="user-details">
+                                    <h4>张三</h4>
+                                    <p>138****1234 · ID: 10001</p>
+                                </div>
+                            </div>
+                            <div class="user-status">
+                                <div class="status-badge active">活跃</div>
+                                <div class="role-badge coach">教练</div>
+                            </div>
+                        </div>
+
+                        <div class="user-stats">
+                            <div class="stat-item">
+                                <div class="stat-number">45</div>
+                                <div class="stat-label">训练天数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">8</div>
+                                <div class="stat-label">订阅月数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">128</div>
+                                <div class="stat-label">学员数</div>
+                            </div>
+                        </div>
+
+                        <div class="user-actions">
+                            <button class="action-btn action-btn-primary" onclick="editUser(1)">
+                                <i class="fas fa-edit"></i>编辑
+                            </button>
+                            <button class="action-btn action-btn-secondary" onclick="viewProfile(1)">
+                                <i class="fas fa-eye"></i>查看
+                            </button>
+                            <button class="action-btn action-btn-danger" onclick="banUser(1)">
+                                <i class="fas fa-ban"></i>封禁
+                            </button>
+                        </div>
+
+                        <!-- 用户详情（隐藏） -->
+                        <div class="user-details-expanded" id="userDetails1" style="display: none;">
+                            <div class="detail-row">
+                                <span class="detail-label">注册时间</span>
+                                <span class="detail-value">2024-08-15 14:30</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">最后登录</span>
+                                <span class="detail-value">2024-10-23 09:41</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">订阅状态</span>
+                                <span class="detail-value">高级版 (到期: 2024-11-23)</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">训练项目</span>
+                                <span class="detail-value">卧推、深蹲、硬拉</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">所在地区</span>
+                                <span class="detail-value">北京市朝阳区</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 用户项目 2 -->
+                    <div class="user-item" onclick="toggleUserDetails(2)">
+                        <div class="user-header">
+                            <div class="user-info">
+                                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=96" class="user-avatar">
+                                <div class="user-details">
+                                    <h4>李四</h4>
+                                    <p>139****5678 · ID: 10002</p>
+                                </div>
+                            </div>
+                            <div class="user-status">
+                                <div class="status-badge active">活跃</div>
+                                <div class="role-badge user">学员</div>
+                            </div>
+                        </div>
+
+                        <div class="user-stats">
+                            <div class="stat-item">
+                                <div class="stat-number">23</div>
+                                <div class="stat-label">训练天数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">3</div>
+                                <div class="stat-label">订阅月数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">0</div>
+                                <div class="stat-label">教练数</div>
+                            </div>
+                        </div>
+
+                        <div class="user-actions">
+                            <button class="action-btn action-btn-primary" onclick="editUser(2)">
+                                <i class="fas fa-edit"></i>编辑
+                            </button>
+                            <button class="action-btn action-btn-secondary" onclick="viewProfile(2)">
+                                <i class="fas fa-eye"></i>查看
+                            </button>
+                            <button class="action-btn action-btn-danger" onclick="banUser(2)">
+                                <i class="fas fa-ban"></i>封禁
+                            </button>
+                        </div>
+
+                        <!-- 用户详情（隐藏） -->
+                        <div class="user-details-expanded" id="userDetails2" style="display: none;">
+                            <div class="detail-row">
+                                <span class="detail-label">注册时间</span>
+                                <span class="detail-value">2024-09-20 10:15</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">最后登录</span>
+                                <span class="detail-value">2024-10-22 20:30</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">订阅状态</span>
+                                <span class="detail-value">AI版 (到期: 2024-11-20)</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">训练项目</span>
+                                <span class="detail-value">卧推、深蹲</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">所在地区</span>
+                                <span class="detail-value">上海市浦东新区</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 用户项目 3 -->
+                    <div class="user-item" onclick="toggleUserDetails(3)">
+                        <div class="user-header">
+                            <div class="user-info">
+                                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=96" class="user-avatar">
+                                <div class="user-details">
+                                    <h4>王五</h4>
+                                    <p>137****9012 · ID: 10003</p>
+                                </div>
+                            </div>
+                            <div class="user-status">
+                                <div class="status-badge inactive">未活跃</div>
+                                <div class="role-badge user">学员</div>
+                            </div>
+                        </div>
+
+                        <div class="user-stats">
+                            <div class="stat-item">
+                                <div class="stat-number">7</div>
+                                <div class="stat-label">训练天数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">1</div>
+                                <div class="stat-label">订阅月数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">0</div>
+                                <div class="stat-label">教练数</div>
+                            </div>
+                        </div>
+
+                        <div class="user-actions">
+                            <button class="action-btn action-btn-primary" onclick="editUser(3)">
+                                <i class="fas fa-edit"></i>编辑
+                            </button>
+                            <button class="action-btn action-btn-secondary" onclick="viewProfile(3)">
+                                <i class="fas fa-eye"></i>查看
+                            </button>
+                            <button class="action-btn action-btn-danger" onclick="banUser(3)">
+                                <i class="fas fa-ban"></i>封禁
+                            </button>
+                        </div>
+
+                        <!-- 用户详情（隐藏） -->
+                        <div class="user-details-expanded" id="userDetails3" style="display: none;">
+                            <div class="detail-row">
+                                <span class="detail-label">注册时间</span>
+                                <span class="detail-value">2024-10-01 16:45</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">最后登录</span>
+                                <span class="detail-value">2024-10-15 14:20</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">订阅状态</span>
+                                <span class="detail-value">AI版 (已过期)</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">训练项目</span>
+                                <span class="detail-value">卧推</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">所在地区</span>
+                                <span class="detail-value">广东省深圳市</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 已封禁用户 -->
+                    <div class="user-item" onclick="toggleUserDetails(4)">
+                        <div class="user-header">
+                            <div class="user-info">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=96" class="user-avatar">
+                                <div class="user-details">
+                                    <h4>赵六</h4>
+                                    <p>136****7890 · ID: 10004</p>
+                                </div>
+                            </div>
+                            <div class="user-status">
+                                <div class="status-badge banned">已封禁</div>
+                                <div class="role-badge user">学员</div>
+                            </div>
+                        </div>
+
+                        <div class="user-stats">
+                            <div class="stat-item">
+                                <div class="stat-number">0</div>
+                                <div class="stat-label">训练天数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">0</div>
+                                <div class="stat-label">订阅月数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">0</div>
+                                <div class="stat-label">教练数</div>
+                            </div>
+                        </div>
+
+                        <div class="user-actions">
+                            <button class="action-btn action-btn-primary" onclick="editUser(4)">
+                                <i class="fas fa-edit"></i>编辑
+                            </button>
+                            <button class="action-btn action-btn-secondary" onclick="viewProfile(4)">
+                                <i class="fas fa-eye"></i>查看
+                            </button>
+                            <button class="action-btn action-btn-danger" onclick="unbanUser(4)">
+                                <i class="fas fa-check"></i>解封
+                            </button>
+                        </div>
+
+                        <!-- 用户详情（隐藏） -->
+                        <div class="user-details-expanded" id="userDetails4" style="display: none;">
+                            <div class="detail-row">
+                                <span class="detail-label">注册时间</span>
+                                <span class="detail-value">2024-10-10 09:15</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">封禁时间</span>
+                                <span class="detail-value">2024-10-20 11:30</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">封禁原因</span>
+                                <span class="detail-value">违反平台规则</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">订阅状态</span>
+                                <span class="detail-value">无订阅</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">所在地区</span>
+                                <span class="detail-value">江苏省南京市</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 空状态 -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">未找到用户</h3>
+                    <p class="text-gray-500 mb-6">尝试调整搜索关键词或筛选条件</p>
+                    <button class="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium" onclick="clearFilters()">
+                        清除筛选
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 切换用户详情
+        function toggleUserDetails(userId) {
+            const details = document.getElementById(`userDetails${userId}`);
+            const isVisible = details.style.display !== 'none';
+
+            // 隐藏所有其他详情
+            document.querySelectorAll('.user-details-expanded').forEach(detail => {
+                detail.style.display = 'none';
+            });
+
+            // 切换当前详情
+            details.style.display = isVisible ? 'none' : 'block';
+
+            // 更新视觉效果
+            const item = details.closest('.user-item');
+            if (!isVisible) {
+                item.style.borderLeftColor = '#10b981';
+                item.style.background = '#f0fdf4';
+            } else {
+                item.style.borderLeftColor = '#3b82f6';
+                item.style.background = 'white';
+            }
+
+            setTimeout(() => {
+                if (!isVisible) {
+                    item.style.borderLeftColor = '#3b82f6';
+                    item.style.background = 'white';
+                }
+            }, 300);
+        }
+
+        // 编辑用户
+        function editUser(userId) {
+            event.stopPropagation();
+            alert(`编辑用户: ID ${userId}`);
+        }
+
+        // 查看用户档案
+        function viewProfile(userId) {
+            event.stopPropagation();
+            alert(`查看用户档案: ID ${userId}`);
+        }
+
+        // 封禁用户
+        function banUser(userId) {
+            event.stopPropagation();
+            const reason = prompt('请输入封禁原因：');
+            if (reason) {
+                // 更新用户状态
+                const statusBadge = event.target.closest('.user-item').querySelector('.status-badge');
+                statusBadge.className = 'status-badge banned';
+                statusBadge.textContent = '已封禁';
+
+                // 更新操作按钮
+                const actions = event.target.closest('.user-actions');
+                actions.innerHTML = `
+                    <button class="action-btn action-btn-primary" onclick="editUser(${userId})">
+                        <i class="fas fa-edit"></i>编辑
+                    </button>
+                    <button class="action-btn action-btn-secondary" onclick="viewProfile(${userId})">
+                        <i class="fas fa-eye"></i>查看
+                    </button>
+                    <button class="action-btn action-btn-danger" onclick="unbanUser(${userId})">
+                        <i class="fas fa-check"></i>解封
+                    </button>
+                `;
+
+                alert(`用户 ${userId} 已封禁`);
+            }
+        }
+
+        // 解封用户
+        function unbanUser(userId) {
+            event.stopPropagation();
+            if (confirm('确定要解封这个用户吗？')) {
+                // 更新用户状态
+                const statusBadge = event.target.closest('.user-item').querySelector('.status-badge');
+                statusBadge.className = 'status-badge active';
+                statusBadge.textContent = '活跃';
+
+                // 更新操作按钮
+                const actions = event.target.closest('.user-actions');
+                actions.innerHTML = `
+                    <button class="action-btn action-btn-primary" onclick="editUser(${userId})">
+                        <i class="fas fa-edit"></i>编辑
+                    </button>
+                    <button class="action-btn action-btn-secondary" onclick="viewProfile(${userId})">
+                        <i class="fas fa-eye"></i>查看
+                    </button>
+                    <button class="action-btn action-btn-danger" onclick="banUser(${userId})">
+                        <i class="fas fa-ban"></i>封禁
+                    </button>
+                `;
+
+                alert(`用户 ${userId} 已解封`);
+            }
+        }
+
+        // 添加用户
+        function addUser() {
+            alert('添加新用户功能');
+        }
+
+        // 筛选用户
+        function filterUsers(type) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 模拟筛选效果
+            const items = document.querySelectorAll('.user-item');
+            items.forEach((item, index) => {
+                item.style.opacity = '0.5';
+                setTimeout(() => {
+                    item.style.opacity = '1';
+                }, index * 50);
+            });
+
+            console.log(`筛选用户类型: ${type}`);
+        }
+
+        // 搜索用户
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const items = document.querySelectorAll('.user-item');
+
+            items.forEach(item => {
+                const name = item.querySelector('h4').textContent.toLowerCase();
+                const phone = item.querySelector('p').textContent.toLowerCase();
+                const id = item.querySelector('p').textContent.toLowerCase();
+
+                if (name.includes(searchTerm) || phone.includes(searchTerm) || id.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = searchTerm ? 'none' : 'block';
+                }
+            });
+
+            // 显示/隐藏空状态
+            const visibleItems = Array.from(items).filter(item => item.style.display !== 'none');
+            document.getElementById('emptyState').style.display = visibleItems.length === 0 ? 'block' : 'none';
+        });
+
+        // 清除筛选
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            filterUsers('all');
+
+            document.querySelectorAll('.user-item').forEach(item => {
+                item.style.display = 'block';
+            });
+            document.getElementById('emptyState').style.display = 'none';
+        }
+
+        // 用户项目悬停效果
+        document.querySelectorAll('.user-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(8px)';
+                this.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
+            });
+
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 按钮点击效果
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const items = document.querySelectorAll('.user-item');
+            items.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    item.style.transition = 'all 0.3s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
+

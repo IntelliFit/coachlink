@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>订单历史 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab-item.active .tab-icon { color: #007AFF; }
+        .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="p-4">
+                    <!-- 订单统计 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h1 class="text-xl font-bold text-gray-900 mb-4">订单历史</h1>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-500">12</div>
+                                <div class="text-sm text-gray-500">总订单数</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-500">¥1,688</div>
+                                <div class="text-sm text-gray-500">累计消费</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-500">8</div>
+                                <div class="text-sm text-gray-500">订阅月数</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 订单列表 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">最近订单</h2>
+
+                        <!-- 订单项 -->
+                        <div class="border-b border-gray-100 pb-4 mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="font-bold text-gray-900">高级版月度订阅</div>
+                                    <div class="text-sm text-gray-500">订单号：2024100912345678</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold text-gray-900">¥199</div>
+                                    <div class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">支付成功</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-500">
+                                <span>2024-10-09 14:30:25</span>
+                                <span>微信支付</span>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100 pb-4 mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="font-bold text-gray-900">AI版月度订阅</div>
+                                    <div class="text-sm text-gray-500">订单号：2024090912345678</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold text-gray-900">¥99</div>
+                                    <div class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">支付成功</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-500">
+                                <span>2024-09-09 14:30:25</span>
+                                <span>支付宝支付</span>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100 pb-4 mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="font-bold text-gray-900">高级版月度订阅</div>
+                                    <div class="text-sm text-gray-500">订单号：2024080912345678</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold text-gray-900">¥199</div>
+                                    <div class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">支付成功</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-500">
+                                <span>2024-08-09 14:30:25</span>
+                                <span>微信支付</span>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100 pb-4 mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="font-bold text-gray-900">AI版月度订阅</div>
+                                    <div class="text-sm text-gray-500">订单号：2024070912345678</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold text-gray-900">¥99</div>
+                                    <div class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">支付成功</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-500">
+                                <span>2024-07-09 14:30:25</span>
+                                <span>微信支付</span>
+                            </div>
+                        </div>
+
+                        <div class="text-center pt-4">
+                            <button class="text-blue-500 font-medium" onclick="loadMoreOrders()">
+                                加载更多订单
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 支付方式 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">支付方式</h2>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 border border-gray-200 rounded-xl">
+                                <div class="flex items-center">
+                                    <i class="fab fa-weixin text-green-500 text-xl mr-3"></i>
+                                    <div>
+                                        <div class="font-medium text-gray-900">微信支付</div>
+                                        <div class="text-sm text-gray-500">已绑定</div>
+                                    </div>
+                                </div>
+                                <div class="text-blue-500 text-sm">默认</div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 border border-gray-200 rounded-xl">
+                                <div class="flex items-center">
+                                    <i class="fab fa-alipay text-blue-500 text-xl mr-3"></i>
+                                    <div>
+                                        <div class="font-medium text-gray-900">支付宝</div>
+                                        <div class="text-sm text-gray-500">已绑定</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-6 mt-6">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 加载更多订单
+        function loadMoreOrders() {
+            alert('加载更多订单...');
+        }
+
+        // 支付方式点击
+        document.querySelectorAll('.border').forEach(item => {
+            item.addEventListener('click', function() {
+                this.style.backgroundColor = '#f8fafc';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 150);
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.bg-white');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    element.style.transition = 'all 0.3s ease';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 150);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>系统设置 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 设置分组 */
+        .settings-group {
+            background: white;
+            border-radius: 16px;
+            margin: 16px;
+            margin-top: 0;
+            overflow: hidden;
+        }
+
+        .group-header {
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            background: #f8fafc;
+        }
+
+        .group-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .group-description {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* 设置项 */
+        .setting-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-item:hover {
+            background: #f8fafc;
+        }
+
+        .setting-info {
+            flex: 1;
+        }
+
+        .setting-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+
+        .setting-description {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .setting-value {
+            font-size: 14px;
+            color: #6b7280;
+            margin-right: 12px;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 开关样式 */
+        .ios-switch {
+            position: relative;
+            display: inline-block;
+            width: 51px;
+            height: 31px;
+        }
+
+        .ios-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .ios-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 31px;
+        }
+
+        .ios-switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 27px;
+            width: 27px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .ios-switch-slider {
+            background-color: #3b82f6;
+        }
+
+        input:checked + .ios-switch-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* 数值输入 */
+        .number-input {
+            width: 80px;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* 选择器 */
+        .select-input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            min-width: 100px;
+        }
+
+        /* 文本输入 */
+        .text-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-right: 12px;
+        }
+
+        /* 保存按钮 */
+        .save-section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px;
+            margin-top: 0;
+        }
+
+        .save-button {
+            width: 100%;
+            padding: 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .save-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 标题栏 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <a href="dashboard.html" class="text-gray-600">
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                            <h1 class="text-2xl font-bold text-gray-900">系统设置</h1>
+                        </div>
+                        <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-medium" onclick="resetSettings()">
+                            <i class="fas fa-undo mr-1"></i>重置
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 平台基本设置 -->
+                <div class="settings-group">
+                    <div class="group-header">
+                        <div class="group-title">
+                            <i class="fas fa-building text-blue-500"></i>
+                            平台设置
+                        </div>
+                        <div class="group-description">平台基本信息和品牌配置</div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('platformName')">
+                        <div class="setting-info">
+                            <div class="setting-name">平台名称</div>
+                            <div class="setting-description">应用名称和品牌标识</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">智健联盟</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('platformLogo')">
+                        <div class="setting-info">
+                            <div class="setting-name">平台Logo</div>
+                            <div class="setting-description">品牌形象和视觉识别</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">默认Logo</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('contactInfo')">
+                        <div class="setting-info">
+                            <div class="setting-name">联系方式</div>
+                            <div class="setting-description">客服电话和邮箱地址</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">400-123-4567</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('serviceArea')">
+                        <div class="setting-info">
+                            <div class="setting-name">服务区域</div>
+                            <div class="setting-description">平台服务覆盖范围</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">全国</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 审核设置 -->
+                <div class="settings-group">
+                    <div class="group-header">
+                        <div class="group-title">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            审核设置
+                        </div>
+                        <div class="group-description">内容审核和质量控制配置</div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">自动审核</div>
+                            <div class="setting-description">启用AI自动审核功能</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="toggleAutoReview(this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">敏感词过滤</div>
+                            <div class="setting-description">自动过滤不当内容</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="toggleSensitiveFilter(this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('reviewKeywords')">
+                        <div class="setting-info">
+                            <div class="setting-name">审核关键词</div>
+                            <div class="setting-description">自定义敏感词库</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">128个词</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">审核超时</div>
+                            <div class="setting-description">内容审核最长处理时间</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="number" class="number-input" value="24" min="1" max="72" onchange="updateReviewTimeout(this.value)">
+                            <span class="text-sm text-gray-500">小时</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 支付设置 -->
+                <div class="settings-group">
+                    <div class="group-header">
+                        <div class="group-title">
+                            <i class="fas fa-credit-card text-purple-500"></i>
+                            支付设置
+                        </div>
+                        <div class="group-description">支付方式和佣金配置</div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">微信支付</div>
+                            <div class="setting-description">启用微信支付功能</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="togglePayment('wechat', this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">支付宝支付</div>
+                            <div class="setting-description">启用支付宝支付功能</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="togglePayment('alipay', this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('commissionRate')">
+                        <div class="setting-info">
+                            <div class="setting-name">平台佣金</div>
+                            <div class="setting-description">教练收入分成比例</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">20%</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('specialCommission')">
+                        <div class="setting-info">
+                            <div class="setting-name">特殊佣金</div>
+                            <div class="setting-description">优秀教练专享比例</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">10%</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">最低提现</div>
+                            <div class="setting-description">教练提现最低金额</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="number" class="number-input" value="100" min="50" max="1000" onchange="updateMinWithdrawal(this.value)">
+                            <span class="text-sm text-gray-500">元</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通知设置 -->
+                <div class="settings-group">
+                    <div class="group-header">
+                        <div class="group-title">
+                            <i class="fas fa-bell text-orange-500"></i>
+                            通知设置
+                        </div>
+                        <div class="group-description">系统通知和邮件模板</div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">邮件通知</div>
+                            <div class="setting-description">系统邮件发送功能</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="toggleEmailNotification(this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">推送通知</div>
+                            <div class="setting-description">APP推送消息功能</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="togglePushNotification(this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('emailTemplate')">
+                        <div class="setting-info">
+                            <div class="setting-name">邮件模板</div>
+                            <div class="setting-description">欢迎邮件和通知模板</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">5个模板</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('welcomeMessage')">
+                        <div class="setting-info">
+                            <div class="setting-name">欢迎消息</div>
+                            <div class="setting-description">新用户欢迎消息</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">已设置</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 安全设置 -->
+                <div class="settings-group">
+                    <div class="group-header">
+                        <div class="group-title">
+                            <i class="fas fa-shield-alt text-red-500"></i>
+                            安全设置
+                        </div>
+                        <div class="group-description">系统安全和数据保护</div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">数据备份</div>
+                            <div class="setting-description">自动数据备份功能</div>
+                        </div>
+                        <div class="setting-control">
+                            <label class="ios-switch">
+                                <input type="checkbox" checked onchange="toggleDataBackup(this.checked)">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">备份频率</div>
+                            <div class="setting-description">数据备份间隔时间</div>
+                        </div>
+                        <div class="setting-control">
+                            <select class="select-input" onchange="updateBackupFrequency(this.value)">
+                                <option value="daily">每天</option>
+                                <option value="weekly" selected>每周</option>
+                                <option value="monthly">每月</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-item" onclick="editSetting('retentionPolicy')">
+                        <div class="setting-info">
+                            <div class="setting-name">数据保留</div>
+                            <div class="setting-description">用户数据保留策略</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value">2年</div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-name">SSL证书</div>
+                            <div class="setting-description">HTTPS安全连接</div>
+                        </div>
+                        <div class="setting-control">
+                            <div class="setting-value text-green-600">
+                                <i class="fas fa-check-circle mr-1"></i>正常
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 保存设置 -->
+                <div class="save-section">
+                    <button class="save-button" onclick="saveSettings()" id="saveButton">
+                        <i class="fas fa-save mr-2"></i>保存所有设置
+                    </button>
+                    <p class="text-xs text-gray-500 text-center mt-2">上次保存：2024-10-23 09:41</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置详情模态框 -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" id="settingModal">
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-96">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold" id="modalTitle">编辑设置</h3>
+                    <button onclick="closeSettingModal()" class="text-gray-400">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div id="modalContent">
+                    <!-- 动态内容 -->
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium" onclick="closeSettingModal()">
+                        取消
+                    </button>
+                    <button class="flex-1 py-3 bg-blue-500 text-white rounded-xl font-medium" onclick="saveSettingValue()">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSetting = '';
+        let hasChanges = false;
+
+        // 编辑设置
+        function editSetting(settingType) {
+            currentSetting = settingType;
+            const modal = document.getElementById('settingModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            switch(settingType) {
+                case 'platformName':
+                    title.textContent = '平台名称';
+                    content.innerHTML = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">平台名称</label>
+                            <input type="text" class="text-input" value="智健联盟" id="platformNameInput">
+                        </div>
+                    `;
+                    break;
+
+                case 'contactInfo':
+                    title.textContent = '联系方式';
+                    content.innerHTML = `
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">客服电话</label>
+                                <input type="tel" class="text-input" value="400-123-4567" id="phoneInput">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">邮箱地址</label>
+                                <input type="email" class="text-input" value="support@coachlink.com" id="emailInput">
+                            </div>
+                        </div>
+                    `;
+                    break;
+
+                case 'commissionRate':
+                    title.textContent = '平台佣金';
+                    content.innerHTML = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">佣金比例 (%)</label>
+                            <input type="number" class="text-input" value="20" min="0" max="50" id="commissionInput">
+                            <p class="text-xs text-gray-500 mt-2">建议设置在10%-30%之间</p>
+                        </div>
+                    `;
+                    break;
+
+                case 'reviewKeywords':
+                    title.textContent = '审核关键词';
+                    content.innerHTML = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">敏感词库</label>
+                            <textarea class="text-input h-24" placeholder="每行一个关键词">${getSampleKeywords()}</textarea>
+                            <p class="text-xs text-gray-500 mt-2">当前128个关键词</p>
+                        </div>
+                    `;
+                    break;
+            }
+
+            modal.classList.remove('hidden');
+            hasChanges = false;
+        }
+
+        // 获取示例关键词
+        function getSampleKeywords() {
+            return `广告
+推广
+赌博
+色情
+暴力
+毒品
+诈骗
+假冒
+侵权
+违法`;
+        }
+
+        // 关闭设置模态框
+        function closeSettingModal() {
+            document.getElementById('settingModal').classList.add('hidden');
+        }
+
+        // 保存设置值
+        function saveSettingValue() {
+            switch(currentSetting) {
+                case 'platformName':
+                    const name = document.getElementById('platformNameInput').value;
+                    updateSettingDisplay('platformName', name);
+                    break;
+                case 'contactInfo':
+                    const phone = document.getElementById('phoneInput').value;
+                    const email = document.getElementById('emailInput').value;
+                    updateSettingDisplay('contactInfo', phone);
+                    break;
+                case 'commissionRate':
+                    const commission = document.getElementById('commissionInput').value;
+                    updateSettingDisplay('commissionRate', commission + '%');
+                    break;
+                case 'reviewKeywords':
+                    const keywords = document.querySelector('#modalContent textarea').value;
+                    const count = keywords.split('\n').filter(k => k.trim()).length;
+                    updateSettingDisplay('reviewKeywords', count + '个词');
+                    break;
+            }
+
+            closeSettingModal();
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        // 更新设置显示
+        function updateSettingDisplay(settingType, value) {
+            const items = document.querySelectorAll('.setting-item');
+            items.forEach(item => {
+                if (item.onclick && item.onclick.toString().includes(settingType)) {
+                    const valueElement = item.querySelector('.setting-value');
+                    valueElement.textContent = value;
+                }
+            });
+        }
+
+        // 开关功能
+        function toggleAutoReview(enabled) {
+            console.log(`自动审核: ${enabled ? '开启' : '关闭'}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function toggleSensitiveFilter(enabled) {
+            console.log(`敏感词过滤: ${enabled ? '开启' : '关闭'}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function togglePayment(method, enabled) {
+            console.log(`${method === 'wechat' ? '微信' : '支付宝'}支付: ${enabled ? '开启' : '关闭'}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function toggleEmailNotification(enabled) {
+            console.log(`邮件通知: ${enabled ? '开启' : '关闭'}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function togglePushNotification(enabled) {
+            console.log(`推送通知: ${enabled ? '开启' : '关闭'}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function toggleDataBackup(enabled) {
+            console.log(`数据备份: ${enabled ? '开启' : '关闭'}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        // 更新配置值
+        function updateReviewTimeout(value) {
+            console.log(`审核超时时间: ${value}小时`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function updateBackupFrequency(value) {
+            console.log(`备份频率: ${value}`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        function updateMinWithdrawal(value) {
+            console.log(`最低提现金额: ${value}元`);
+            hasChanges = true;
+            updateSaveButton();
+        }
+
+        // 更新保存按钮状态
+        function updateSaveButton() {
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = !hasChanges;
+            saveButton.style.opacity = hasChanges ? '1' : '0.5';
+        }
+
+        // 保存所有设置
+        function saveSettings() {
+            if (!hasChanges) {
+                alert('没有需要保存的更改');
+                return;
+            }
+
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>保存中...';
+
+            // 模拟保存过程
+            setTimeout(() => {
+                saveButton.disabled = false;
+                saveButton.innerHTML = '<i class="fas fa-check mr-2"></i>保存成功';
+                hasChanges = false;
+
+                setTimeout(() => {
+                    saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>保存所有设置';
+                    updateSaveButton();
+                }, 2000);
+            }, 1500);
+        }
+
+        // 重置设置
+        function resetSettings() {
+            if (confirm('确定要重置所有设置为默认值吗？此操作不可撤销。')) {
+                alert('设置已重置为默认值');
+                hasChanges = true;
+                updateSaveButton();
+            }
+        }
+
+        // 设置项点击效果
+        document.querySelectorAll('.setting-item').forEach(item => {
+            item.addEventListener('click', function() {
+                if (!this.querySelector('.ios-switch')) {
+                    this.style.backgroundColor = '#f8fafc';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 150);
+                }
+            });
+        });
+
+        // 开关切换效果
+        document.querySelectorAll('.ios-switch input').forEach(switchInput => {
+            switchInput.addEventListener('change', function() {
+                const setting = this.closest('.setting-item').querySelector('.setting-name').textContent;
+                console.log(`${setting}: ${this.checked ? '开启' : '关闭'}`);
+            });
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('settingModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSettingModal();
+            }
+        });
+
+        // 页面加载初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSaveButton();
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>首页 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; position: relative; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab-item.active .tab-icon { color: #007AFF; }
+        .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+            <div class="content">
+                <div class="p-4">
+                    <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl p-6 mb-4 text-white">
+                        <div class="flex items-center mb-4">
+                            <img src="https://i.pravatar.cc/80?img=12" class="w-16 h-16 rounded-full border-4 border-white/30 mr-4">
+                            <div>
+                                <h2 class="text-xl font-bold">张三</h2>
+                                <p class="text-white/80 text-sm">已加入 30 天</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-center">
+                            <div><div class="text-2xl font-bold">12</div><div class="text-xs text-white/80">训练天数</div></div>
+                            <div><div class="text-2xl font-bold">85kg</div><div class="text-xs text-white/80">卧推1RM</div></div>
+                            <div><div class="text-2xl font-bold">+5kg</div><div class="text-xs text-white/80">本月进步</div></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <a href="coach-discovery.html" class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-user-tie text-blue-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">我的教练</h3>
+                            <p class="text-xs text-gray-500">查看教练信息</p>
+                        </a>
+                        <a href="training-plan.html" class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-calendar-check text-green-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">训练计划</h3>
+                            <p class="text-xs text-gray-500">查看训练安排</p>
+                        </a>
+                        <a href="../common/leaderboard.html" class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-trophy text-yellow-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">排行榜</h3>
+                            <p class="text-xs text-gray-500">查看排名</p>
+                        </a>
+                        <a href="profile.html" class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-chart-line text-purple-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">我的档案</h3>
+                            <p class="text-xs text-gray-500">查看进步数据</p>
+                        </a>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">今日训练</h3>
+                            <span class="text-xs text-blue-500">Week 2 Day 3</span>
+                        </div>
+                        <div class="mb-3">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-600">进度</span>
+                                <span class="text-gray-900 font-medium">0/5 组</span>
+                            </div>
+                            <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue-500 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <a href="training-execute.html" class="block w-full bg-blue-500 text-white text-center py-3 rounded-xl font-medium active:scale-95 transition">
+                            开始训练
+                        </a>
+                    </div>
+                    <div class="text-center py-4">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-bar">
+                <div class="tab-item active">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </div>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <a href="../common/settings.html" class="tab-item">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

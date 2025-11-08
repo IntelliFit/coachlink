@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>操作日志 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 筛选器样式 */
+        .filter-section {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+
+        /* 日志列表 */
+        .log-list {
+            padding: 16px;
+        }
+
+        .log-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s;
+        }
+
+        .log-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .log-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .log-operator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .operator-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+        }
+
+        .operator-info {
+            flex: 1;
+        }
+
+        .operator-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .operator-role {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .log-time {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .log-content {
+            margin-bottom: 12px;
+        }
+
+        .log-action {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .action-type {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .action-description {
+            font-size: 14px;
+            color: #374151;
+            flex: 1;
+        }
+
+        .log-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .detail-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-label {
+            font-weight: 500;
+        }
+
+        /* 筛选标签 */
+        .filter-tags {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        .filter-tag {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #6b7280;
+        }
+
+        .filter-tag.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        /* 日期选择器 */
+        .date-picker {
+            display: flex;
+            gap: 8px;
+            padding: 0 16px 16px;
+        }
+
+        .date-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        /* 统计卡片 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stats-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .stats-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* 导出按钮 */
+        .export-section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 0 16px 16px;
+        }
+
+        .export-button {
+            width: 100%;
+            padding: 12px 16px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .export-button:hover {
+            background: #059669;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            display: none;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #9ca3af;
+            margin: 0 auto 20px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 标题栏 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <a href="dashboard.html" class="text-gray-600">
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                            <h1 class="text-2xl font-bold text-gray-900">操作日志</h1>
+                        </div>
+                        <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-medium" onclick="clearLogs()">
+                            <i class="fas fa-trash mr-1"></i>清空
+                        </button>
+                    </div>
+
+                    <!-- 统计卡片 -->
+                    <div class="stats-cards">
+                        <div class="stats-card">
+                            <div class="stats-number">1,247</div>
+                            <div class="stats-label">今日操作</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-number">89</div>
+                            <div class="stats-label">活跃管理员</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-number">156</div>
+                            <div class="stats-label">异常记录</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 筛选器 -->
+                <div class="filter-section">
+                    <div class="filter-tags">
+                        <button class="filter-tag active" onclick="filterLogs('all')">全部</button>
+                        <button class="filter-tag" onclick="filterLogs('user')">用户管理</button>
+                        <button class="filter-tag" onclick="filterLogs('review')">内容审核</button>
+                        <button class="filter-tag" onclick="filterLogs('system')">系统设置</button>
+                        <button class="filter-tag" onclick="filterLogs('security')">安全事件</button>
+                    </div>
+
+                    <div class="date-picker">
+                        <input type="date" class="date-input" id="startDate" value="2024-10-20">
+                        <input type="date" class="date-input" id="endDate" value="2024-10-23">
+                    </div>
+                </div>
+
+                <!-- 操作日志列表 -->
+                <div class="log-list">
+                    <!-- 日志项目 1 -->
+                    <div class="log-item">
+                        <div class="log-header">
+                            <div class="log-operator">
+                                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64" class="operator-avatar">
+                                <div class="operator-info">
+                                    <div class="operator-name">系统管理员</div>
+                                    <div class="operator-role">超级管理员</div>
+                                </div>
+                            </div>
+                            <div class="log-time">10:30</div>
+                        </div>
+
+                        <div class="log-content">
+                            <div class="log-action">
+                                <span class="action-type">用户管理</span>
+                                <span class="action-description">封禁用户账号</span>
+                            </div>
+                            <div class="log-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">操作对象：</span>
+                                    <span class="detail-value">用户 ID: 10004 (赵六)</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">操作原因：</span>
+                                    <span class="detail-value">违反平台规则</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">IP地址：</span>
+                                    <span class="detail-value">192.168.1.100</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日志项目 2 -->
+                    <div class="log-item">
+                        <div class="log-header">
+                            <div class="log-operator">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64" class="operator-avatar">
+                                <div class="operator-info">
+                                    <div class="operator-name">审核员小李</div>
+                                    <div class="operator-role">内容审核员</div>
+                                </div>
+                            </div>
+                            <div class="log-time">09:45</div>
+                        </div>
+
+                        <div class="log-content">
+                            <div class="log-action">
+                                <span class="action-type">内容审核</span>
+                                <span class="action-description">通过排行榜成绩</span>
+                            </div>
+                            <div class="log-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">审核对象：</span>
+                                    <span class="detail-value">卧推 100kg × 5次</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">用户：</span>
+                                    <span class="detail-value">用户 ID: 10001 (张三)</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">审核结果：</span>
+                                    <span class="detail-value">✅ 通过</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日志项目 3 -->
+                    <div class="log-item">
+                        <div class="log-header">
+                            <div class="log-operator">
+                                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64" class="operator-avatar">
+                                <div class="operator-info">
+                                    <div class="operator-name">审核员小王</div>
+                                    <div class="operator-role">内容审核员</div>
+                                </div>
+                            </div>
+                            <div class="log-time">09:15</div>
+                        </div>
+
+                        <div class="log-content">
+                            <div class="log-action">
+                                <span class="action-type">内容审核</span>
+                                <span class="action-description">拒绝教练申请</span>
+                            </div>
+                            <div class="log-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">申请人：</span>
+                                    <span class="detail-value">教练 ID: 20015</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">拒绝原因：</span>
+                                    <span class="detail-value">资质证明不完整</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">审核结果：</span>
+                                    <span class="detail-value">❌ 拒绝</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日志项目 4 -->
+                    <div class="log-item">
+                        <div class="log-header">
+                            <div class="log-operator">
+                                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64" class="operator-avatar">
+                                <div class="operator-info">
+                                    <div class="operator-name">系统</div>
+                                    <div class="operator-role">自动任务</div>
+                                </div>
+                            </div>
+                            <div class="log-time">08:00</div>
+                        </div>
+
+                        <div class="log-content">
+                            <div class="log-action">
+                                <span class="action-type">系统设置</span>
+                                <span class="action-description">自动数据备份完成</span>
+                            </div>
+                            <div class="log-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">备份类型：</span>
+                                    <span class="detail-value">用户数据 + 训练记录</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">文件大小：</span>
+                                    <span class="detail-value">2.4 GB</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">存储位置：</span>
+                                    <span class="detail-value">阿里云 OSS</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日志项目 5 -->
+                    <div class="log-item">
+                        <div class="log-header">
+                            <div class="log-operator">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64" class="operator-avatar">
+                                <div class="operator-info">
+                                    <div class="operator-name">财务管理员</div>
+                                    <div class="operator-role">财务管理员</div>
+                                </div>
+                            </div>
+                            <div class="log-time">昨天</div>
+                        </div>
+
+                        <div class="log-content">
+                            <div class="log-action">
+                                <span class="action-type">财务管理</span>
+                                <span class="action-description">处理教练提现申请</span>
+                            </div>
+                            <div class="log-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">教练：</span>
+                                    <span class="detail-value">教练 ID: 20001 (王教练)</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">提现金额：</span>
+                                    <span class="detail-value">¥1,250.00</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">处理结果：</span>
+                                    <span class="detail-value">✅ 已发放</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日志项目 6 -->
+                    <div class="log-item">
+                        <div class="log-header">
+                            <div class="log-operator">
+                                <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=64" class="operator-avatar">
+                                <div class="operator-info">
+                                    <div class="operator-name">安全管理员</div>
+                                    <div class="operator-role">安全管理员</div>
+                                </div>
+                            </div>
+                            <div class="log-time">昨天</div>
+                        </div>
+
+                        <div class="log-content">
+                            <div class="log-action">
+                                <span class="action-type">安全事件</span>
+                                <span class="action-description">检测到异常登录</span>
+                            </div>
+                            <div class="log-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">用户：</span>
+                                    <span class="detail-value">用户 ID: 10005</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">登录IP：</span>
+                                    <span class="detail-value">203.0.113.45 (异常)</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">处理措施：</span>
+                                    <span class="detail-value">临时冻结账号</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 导出功能 -->
+                <div class="export-section">
+                    <button class="export-button" onclick="exportLogs()">
+                        <i class="fas fa-download"></i>
+                        导出操作日志
+                    </button>
+                    <p class="text-xs text-gray-500 text-center mt-2">支持导出Excel、CSV格式</p>
+                </div>
+
+                <!-- 空状态 -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">暂无操作记录</h3>
+                    <p class="text-gray-500 mb-6">所选时间范围内没有操作日志</p>
+                    <button class="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium" onclick="resetFilters()">
+                        重置筛选
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFilter = 'all';
+
+        // 按类型筛选日志
+        function filterLogs(type) {
+            currentFilter = type;
+
+            // 更新筛选标签状态
+            document.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 模拟筛选效果
+            const items = document.querySelectorAll('.log-item');
+            items.forEach((item, index) => {
+                item.style.opacity = '0.5';
+                setTimeout(() => {
+                    item.style.opacity = '1';
+                }, index * 50);
+            });
+
+            console.log(`筛选日志类型: ${type}`);
+        }
+
+        // 导出日志
+        function exportLogs() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (confirm(`确定要导出 ${startDate} 至 ${endDate} 的操作日志吗？`)) {
+                alert('开始导出日志文件，请稍候...');
+                // 模拟导出过程
+                setTimeout(() => {
+                    alert('日志导出完成！文件已发送到您的邮箱。');
+                }, 2000);
+            }
+        }
+
+        // 清空日志
+        function clearLogs() {
+            if (confirm('确定要清空所有操作日志吗？此操作不可撤销。')) {
+                alert('操作日志已清空');
+                // 隐藏所有日志项目
+                document.querySelectorAll('.log-item').forEach(item => {
+                    item.style.display = 'none';
+                });
+                document.getElementById('emptyState').style.display = 'block';
+            }
+        }
+
+        // 重置筛选
+        function resetFilters() {
+            // 重置日期
+            const today = new Date().toISOString().split('T')[0];
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            document.getElementById('startDate').value = weekAgo;
+            document.getElementById('endDate').value = today;
+
+            // 重置筛选
+            filterLogs('all');
+
+            // 显示所有日志项目
+            document.querySelectorAll('.log-item').forEach(item => {
+                item.style.display = 'block';
+            });
+            document.getElementById('emptyState').style.display = 'none';
+        }
+
+        // 日期范围筛选
+        function filterByDateRange() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            console.log(`日期范围: ${startDate} - ${endDate}`);
+
+            // 模拟日期筛选逻辑
+            const items = document.querySelectorAll('.log-item');
+            items.forEach(item => {
+                const timeText = item.querySelector('.log-time').textContent;
+                // 这里应该根据实际的日志时间进行筛选
+            });
+        }
+
+        // 监听日期变化
+        document.getElementById('startDate').addEventListener('change', filterByDateRange);
+        document.getElementById('endDate').addEventListener('change', filterByDateRange);
+
+        // 日志项目点击效果
+        document.querySelectorAll('.log-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const details = this.querySelector('.log-details');
+                if (details.style.display === 'none' || !details.style.display) {
+                    details.style.display = 'block';
+                    this.style.borderLeftColor = '#10b981';
+                } else {
+                    details.style.display = 'none';
+                    this.style.borderLeftColor = '#3b82f6';
+                }
+            });
+
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(8px)';
+                this.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
+            });
+
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const items = document.querySelectorAll('.log-item');
+            items.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    item.style.transition = 'all 0.3s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+
+            // 默认隐藏所有详情
+            document.querySelectorAll('.log-details').forEach(detail => {
+                detail.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
+

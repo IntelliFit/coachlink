@@ -1,0 +1,30 @@
+{
+  "name": "coachlink",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/start-dev.js",
+    "build": "node scripts/build-prod.js",
+    "start": "next start",
+    "lint": "next lint",
+    "check-env": "node scripts/check-env.js"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.45.6",
+    "@types/node": "^22.7.5",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "dotenv": "^16.4.5",
+    "i18next": "^23.16.4",
+    "lucide-react": "^0.553.0",
+    "next": "^16.0.1",
+    "primeicons": "^7.0.0",
+    "primereact": "^10.9.7",
+    "react": "19.0.0-rc-f994737d14-20240522",
+    "react-dom": "19.0.0-rc-f994737d14-20240522",
+    "react-i18next": "^15.1.1",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}

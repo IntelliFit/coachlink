@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>设置 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 底部 Tab Bar */
+        .tab-bar {
+            height: 83px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            padding-top: 8px;
+            position: relative;
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active .tab-icon {
+            color: #007AFF;
+        }
+
+        .tab-item.active .tab-label {
+            color: #007AFF;
+        }
+
+        .tab-icon {
+            font-size: 24px;
+            color: #8e8e93;
+        }
+
+        .tab-label {
+            font-size: 10px;
+            color: #8e8e93;
+            font-weight: 500;
+        }
+
+        /* iOS 风格开关 */
+        .ios-switch {
+            position: relative;
+            display: inline-block;
+            width: 51px;
+            height: 31px;
+        }
+
+        .ios-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .ios-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 31px;
+        }
+
+        .ios-switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 27px;
+            width: 27px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .ios-switch-slider {
+            background-color: #007AFF;
+        }
+
+        input:checked + .ios-switch-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 通知设置 -->
+                <div class="bg-white m-4 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-bell text-blue-500 mr-3"></i>
+                            通知设置
+                        </h2>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">训练提醒</div>
+                                <div class="text-sm text-gray-500">每日训练计划提醒</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked>
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">教练消息</div>
+                                <div class="text-sm text-gray-500">教练的指导和点评通知</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked>
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">系统通知</div>
+                                <div class="text-sm text-gray-500">平台更新和活动通知</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked>
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">排行榜更新</div>
+                                <div class="text-sm text-gray-500">个人排名变化通知</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 隐私设置 -->
+                <div class="bg-white m-4 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-shield-alt text-green-500 mr-3"></i>
+                            隐私设置
+                        </h2>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">公开训练数据</div>
+                                <div class="text-sm text-gray-500">允许其他用户查看我的训练记录</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox">
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">显示排行榜</div>
+                                <div class="text-sm text-gray-500">在排行榜中显示我的成绩</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked>
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">允许教练查看</div>
+                                <div class="text-sm text-gray-500">教练可以查看我的详细训练数据</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked>
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 账号安全 -->
+                <div class="bg-white m-4 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-lock text-red-500 mr-3"></i>
+                            账号安全
+                        </h2>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">修改密码</div>
+                                <div class="text-sm text-gray-500">定期更换密码确保账号安全</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">绑定手机号</div>
+                                <div class="text-sm text-gray-500">138****1234</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">登录设备</div>
+                                <div class="text-sm text-gray-500">当前登录设备管理</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">实名认证</div>
+                                <div class="text-sm text-gray-500">未认证</div>
+                            </div>
+                            <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">未完成</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通用设置 -->
+                <div class="bg-white m-4 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-cog text-gray-500 mr-3"></i>
+                            通用设置
+                        </h2>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">语言设置</div>
+                                <div class="text-sm text-gray-500">简体中文</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">主题模式</div>
+                                <div class="text-sm text-gray-500">浅色模式</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">单位设置</div>
+                                <div class="text-sm text-gray-500">公制单位 (kg, cm)</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">数据同步</div>
+                                <div class="text-sm text-gray-500">iCloud 同步已开启</div>
+                            </div>
+                            <label class="ios-switch">
+                                <input type="checkbox" checked>
+                                <span class="ios-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 帮助与支持 -->
+                <div class="bg-white m-4 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-question-circle text-blue-500 mr-3"></i>
+                            帮助与支持
+                        </h2>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <a href="help-center.html" class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">帮助中心</div>
+                                <div class="text-sm text-gray-500">常见问题解答</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </a>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">联系客服</div>
+                                <div class="text-sm text-gray-500">在线客服 7x24h</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">意见反馈</div>
+                                <div class="text-sm text-gray-500">产品建议和问题报告</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">用户指南</div>
+                                <div class="text-sm text-gray-500">新手教程和使用说明</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 关于 -->
+                <div class="bg-white m-4 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-info-circle text-gray-500 mr-3"></i>
+                            关于智健联盟
+                        </h2>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">当前版本</div>
+                                <div class="text-sm text-gray-500">v2.1.0 (Build 21001)</div>
+                            </div>
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">最新</span>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">服务协议</div>
+                                <div class="text-sm text-gray-500">用户使用协议和条款</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">隐私政策</div>
+                                <div class="text-sm text-gray-500">个人信息保护政策</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <div class="p-4 flex items-center justify-between active:bg-gray-50">
+                            <div>
+                                <div class="font-medium text-gray-900">开源许可证</div>
+                                <div class="text-sm text-gray-500">第三方库许可证信息</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 退出登录 -->
+                <div class="m-4 mb-8">
+                    <button class="w-full bg-red-500 text-white py-4 rounded-2xl font-semibold active:scale-95 transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+                    </button>
+                </div>
+
+                <!-- 返回导航 -->
+                <div class="text-center pb-8">
+                    <a href="../index.html" class="text-gray-400 text-sm">
+                        <i class="fas fa-arrow-left mr-2"></i>返回导航
+                    </a>
+                </div>
+            </div>
+
+            <!-- 底部 Tab Bar -->
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 开关交互
+        document.querySelectorAll('.ios-switch input').forEach(switchInput => {
+            switchInput.addEventListener('change', function() {
+                const setting = this.closest('.p-4').querySelector('.font-medium').textContent;
+                console.log(`${setting}: ${this.checked ? '开启' : '关闭'}`);
+            });
+        });
+
+        // 退出登录
+        document.querySelector('.bg-red-500').addEventListener('click', function() {
+            if (confirm('确定要退出登录吗？')) {
+                alert('退出登录成功！');
+                // 实际项目中会跳转到登录页
+                // window.location.href = '../auth/login.html';
+            }
+        });
+
+        // 列表项点击效果
+        document.querySelectorAll('.p-4').forEach(item => {
+            if (!item.querySelector('.ios-switch')) {
+                item.addEventListener('click', function() {
+                    if (this.style.backgroundColor !== 'rgb(249, 250, 251)') {
+                        this.style.backgroundColor = '#f9fafb';
+                        setTimeout(() => {
+                            this.style.backgroundColor = '';
+                        }, 150);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

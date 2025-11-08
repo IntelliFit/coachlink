@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>视频库 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab-item.active .tab-icon { color: #007AFF; }
+        .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="p-4">
+                    <!-- 筛选器 -->
+                    <div class="bg-white rounded-2xl p-4 mb-6">
+                        <div class="flex gap-3 mb-4">
+                            <select class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm">
+                                <option>全部动作</option>
+                                <option>卧推</option>
+                                <option>深蹲</option>
+                                <option>硬拉</option>
+                                <option>引体向上</option>
+                            </select>
+                            <select class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm">
+                                <option>全部时间</option>
+                                <option>最近7天</option>
+                                <option>最近30天</option>
+                                <option>最近90天</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-blue-500 text-white py-2 rounded-xl text-sm font-medium">筛选</button>
+                            <button class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-xl text-sm font-medium">重置</button>
+                        </div>
+                    </div>
+
+                    <!-- 视频统计 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h1 class="text-xl font-bold text-gray-900">训练视频</h1>
+                            <span class="text-sm text-gray-500">共 28 个视频</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-500">15</div>
+                                <div class="text-sm text-gray-500">卧推视频</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-500">8</div>
+                                <div class="text-sm text-gray-500">深蹲视频</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-500">5</div>
+                                <div class="text-sm text-gray-500">硬拉视频</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 视频网格 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- 视频项 -->
+                            <div class="video-item" onclick="playVideo('卧推突破100kg')">
+                                <div class="relative">
+                                    <div class="w-full h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-2">
+                                        <i class="fas fa-play text-white text-2xl"></i>
+                                    </div>
+                                    <div class="absolute top-2 right-2">
+                                        <span class="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">进步组</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900 mb-1">卧推突破100kg</div>
+                                <div class="text-xs text-gray-500 mb-1">2024-10-20 · 100kg × 5次</div>
+                                <div class="text-xs text-gray-400">RPE 8 · 教练已点评</div>
+                            </div>
+
+                            <div class="video-item" onclick="playVideo('深蹲新纪录')">
+                                <div class="relative">
+                                    <div class="w-full h-32 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center mb-2">
+                                        <i class="fas fa-play text-white text-2xl"></i>
+                                    </div>
+                                    <div class="absolute top-2 right-2">
+                                        <span class="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">进步组</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900 mb-1">深蹲新纪录</div>
+                                <div class="text-xs text-gray-500 mb-1">2024-10-18 · 120kg × 3次</div>
+                                <div class="text-xs text-gray-400">RPE 7 · 动作标准</div>
+                            </div>
+
+                            <div class="video-item" onclick="playVideo('硬拉训练')">
+                                <div class="relative">
+                                    <div class="w-full h-32 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-2">
+                                        <i class="fas fa-play text-white text-2xl"></i>
+                                    </div>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900 mb-1">硬拉训练</div>
+                                <div class="text-xs text-gray-500 mb-1">2024-10-16 · 140kg × 8次</div>
+                                <div class="text-xs text-gray-400">RPE 6 · 状态良好</div>
+                            </div>
+
+                            <div class="video-item" onclick="playVideo('引体向上')">
+                                <div class="relative">
+                                    <div class="w-full h-32 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center mb-2">
+                                        <i class="fas fa-play text-white text-2xl"></i>
+                                    </div>
+                                    <div class="absolute top-2 right-2">
+                                        <span class="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">进步组</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900 mb-1">引体向上</div>
+                                <div class="text-xs text-gray-500 mb-1">2024-10-15 · 自重 × 10次</div>
+                                <div class="text-xs text-gray-400">RPE 9 · 力竭训练</div>
+                            </div>
+
+                            <div class="video-item" onclick="playVideo('卧推训练')">
+                                <div class="relative">
+                                    <div class="w-full h-32 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center mb-2">
+                                        <i class="fas fa-play text-white text-2xl"></i>
+                                    </div>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900 mb-1">卧推训练</div>
+                                <div class="text-xs text-gray-500 mb-1">2024-10-13 · 95kg × 5次</div>
+                                <div class="text-xs text-gray-400">RPE 8 · 教练已点评</div>
+                            </div>
+
+                            <div class="video-item" onclick="playVideo('深蹲练习')">
+                                <div class="relative">
+                                    <div class="w-full h-32 bg-gradient-to-br from-teal-500 to-green-600 rounded-xl flex items-center justify-center mb-2">
+                                        <i class="fas fa-play text-white text-2xl"></i>
+                                    </div>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900 mb-1">深蹲练习</div>
+                                <div class="text-xs text-gray-500 mb-1">2024-10-11 · 115kg × 6次</div>
+                                <div class="text-xs text-gray-400">RPE 7 · 技术改进</div>
+                            </div>
+                        </div>
+
+                        <!-- 加载更多 -->
+                        <div class="text-center pt-4">
+                            <button class="text-blue-500 font-medium" onclick="loadMoreVideos()">
+                                加载更多视频
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 批量操作 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">批量操作</h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="flex items-center justify-center p-4 border border-gray-200 rounded-xl text-gray-700" onclick="selectAllVideos()">
+                                <i class="fas fa-check-square text-blue-500 text-xl mr-2"></i>
+                                全选视频
+                            </button>
+                            <button class="flex items-center justify-center p-4 border border-gray-200 rounded-xl text-gray-700" onclick="downloadVideos()">
+                                <i class="fas fa-download text-green-500 text-xl mr-2"></i>
+                                下载视频
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-6 mt-6">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 播放视频
+        function playVideo(videoName) {
+            alert(`播放视频: ${videoName}`);
+        }
+
+        // 加载更多视频
+        function loadMoreVideos() {
+            alert('加载更多视频...');
+        }
+
+        // 全选视频
+        function selectAllVideos() {
+            alert('全选所有视频');
+        }
+
+        // 下载视频
+        function downloadVideos() {
+            alert('下载选中的视频');
+        }
+
+        // 筛选功能
+        document.querySelectorAll('select, button').forEach(element => {
+            element.addEventListener('change', function() {
+                if (this.tagName === 'BUTTON') {
+                    this.style.backgroundColor = '#3b82f6';
+                    this.style.color = 'white';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                        this.style.color = '';
+                    }, 200);
+                }
+            });
+        });
+
+        // 视频项点击效果
+        document.querySelectorAll('.video-item').forEach(item => {
+            item.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.bg-white');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    element.style.transition = 'all 0.3s ease';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 150);
+            });
+        });
+    </script>
+</body>
+</html>

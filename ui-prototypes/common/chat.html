@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>聊天 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .chat-header { height: 52px; background: #ffffffcc; backdrop-filter: blur(20px); display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid #e5e7eb; }
+        .avatar { width: 32px; height: 32px; border-radius: 9999px; }
+        .chat-title { display: flex; flex-direction: column; line-height: 1.1; }
+        .chat-title .name { font-size: 15px; font-weight: 600; color: #111827; }
+        .chat-title .subtitle { font-size: 11px; color: #6b7280; }
+        .content { flex: 1; overflow-y: auto; padding: 12px 12px 8px; }
+        .msg { max-width: 75%; padding: 10px 12px; border-radius: 16px; font-size: 14px; line-height: 1.35; margin: 6px 0; display: inline-block; }
+        .from-me { background: #007aff; color: white; border-bottom-right-radius: 6px; margin-left: auto; }
+        .from-them { background: white; color: #111827; border-bottom-left-radius: 6px; }
+        .time { text-align: center; color: #9ca3af; font-size: 11px; margin: 8px 0; }
+        .bubble { display: flex; gap: 8px; align-items: flex-end; }
+        .bubble.me { justify-content: flex-end; }
+        .bubble .mini-avatar { width: 24px; height: 24px; border-radius: 9999px; }
+        .quote-card { background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 10px; padding: 8px 10px; font-size: 12px; color: #374151; margin-bottom: 6px; }
+        .video-chip { display: inline-flex; align-items: center; gap: 6px; background: #eef2ff; color: #4f46e5; border-radius: 9999px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+        .input-bar { height: 72px; background: #ffffff; border-top: 1px solid #e5e7eb; padding: 8px 10px; display: grid; grid-template-columns: 36px 1fr 36px; gap: 8px; }
+        .btn { width: 36px; height: 36px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: #374151; background: #f3f4f6; }
+        .text-input { border: 1px solid #e5e7eb; border-radius: 18px; padding: 10px 12px; outline: none; font-size: 14px; background: #fafafa; }
+        .ai-suggestions { position: absolute; left: 12px; right: 12px; bottom: 82px; display: grid; gap: 8px; }
+        .ai-chip { background: white; border: 1px solid #e5e7eb; border-radius: 9999px; padding: 8px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: pointer; }
+        .sheet { position: absolute; left: 0; right: 0; bottom: 72px; background: #fff; border-top-left-radius: 16px; border-top-right-radius: 16px; box-shadow: 0 -6px 24px rgba(0,0,0,0.1); padding: 12px; display: none; }
+        .sheet.show { display: block; }
+        .sheet-title { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px; }
+        .sheet-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+        .sheet-item { background: #f3f4f6; border-radius: 12px; padding: 10px; text-align: center; font-size: 12px; color: #374151; cursor: pointer; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tab-item.active .tab-icon, .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- Chat header with quick profile entry -->
+            <div class="chat-header">
+                <img class="avatar" src="https://i.pravatar.cc/64?img=4">
+                <div class="chat-title">
+                    <span class="name">王教练</span>
+                    <span class="subtitle">查看学员档案 · 快捷入口</span>
+                </div>
+                <div class="ml-auto flex items-center gap-2">
+                    <button class="btn" title="查看档案" onclick="openProfile()"><i class="fas fa-id-badge"></i></button>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <div class="content" id="chatContent">
+                <div class="time">昨天 20:33</div>
+                <div class="bubble">
+                    <img class="mini-avatar" src="https://i.pravatar.cc/48?img=12">
+                    <div>
+                        <div class="quote-card">[引用视频] 卧推 第3组 @ 100kg · 2024-10-20</div>
+                        <div class="msg from-them">教练，请看我这一组，腰部是否拱得太多？</div>
+                    </div>
+                </div>
+                <div class="bubble me">
+                    <div class="msg from-me">视频动作不错，注意下放节奏，建议3秒离心。</div>
+                </div>
+
+                <div class="time">今天 09:41</div>
+                <div class="bubble">
+                    <img class="mini-avatar" src="https://i.pravatar.cc/48?img=12">
+                    <div class="msg from-them">今天的训练需要加重量吗？</div>
+                </div>
+                <div class="bubble me">
+                    <div class="msg from-me">根据你的e1RM曲线，今日卧推+2.5kg，深蹲保持。</div>
+                </div>
+            </div>
+
+            <!-- AI suggestions (auto appear) -->
+            <div class="ai-suggestions" id="aiSuggestions" style="display:none">
+                <div class="ai-chip"><i class="fas fa-robot"></i> 今日建议：卧推+2.5kg；注意肩胛后缩</div>
+                <div class="ai-chip"><i class="fas fa-robot"></i> 模板建议：改为4x6，RPE 7</div>
+                <div class="ai-chip"><i class="fas fa-robot"></i> 回复：视频动作整体良好，稳定性可再提升</div>
+            </div>
+
+            <!-- Attachment sheet (quote video etc.) -->
+            <div class="sheet" id="attachSheet">
+                <div class="sheet-title">选择引用内容</div>
+                <div class="sheet-grid">
+                    <div class="sheet-item" onclick="pickVideo()"><i class="fas fa-video mb-1"></i><div>引用训练视频</div></div>
+                    <div class="sheet-item" onclick="pickRecord()"><i class="fas fa-dumbbell mb-1"></i><div>引用训练记录</div></div>
+                    <div class="sheet-item" onclick="pickPlan()"><i class="fas fa-calendar-alt mb-1"></i><div>引用训练计划</div></div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="input-bar">
+                <button class="btn" onclick="toggleAttach()"><i class="fas fa-paperclip"></i></button>
+                <input class="text-input" id="textInput" placeholder="发消息…">
+                <button class="btn" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <a href="../student/home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="../student/coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="../student/training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </div>
+                <a href="../common/settings.html" class="tab-item">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openProfile(){ alert('打开学员档案侧滑预览（演示）'); }
+        function toggleAttach(){ document.getElementById('attachSheet').classList.toggle('show'); }
+        function pickVideo(){ alert('打开视频库筛选器（演示）'); hideSheet(); addQuoteChip('卧推 第3组 @ 100kg · 2024-10-20'); }
+        function pickRecord(){ alert('打开训练历史（演示）'); hideSheet(); addQuoteChip('深蹲 120kg × 3 · 2024-10-18'); }
+        function pickPlan(){ alert('打开当前计划（演示）'); hideSheet(); addQuoteChip('W2D3 卧推 4x6 RPE7'); }
+        function hideSheet(){ document.getElementById('attachSheet').classList.remove('show'); }
+        function addQuoteChip(text){ const input=document.getElementById('textInput'); input.value = `[引用] ${text} ` + input.value; }
+
+        function sendMsg(){
+            const input = document.getElementById('textInput');
+            const text = input.value.trim();
+            if(!text) return;
+            const div = document.createElement('div');
+            div.className = 'bubble me';
+            const msg = document.createElement('div');
+            msg.className = 'msg from-me';
+            msg.textContent = text;
+            div.appendChild(msg);
+            document.getElementById('chatContent').appendChild(div);
+            input.value='';
+            document.getElementById('aiSuggestions').style.display='grid';
+            document.getElementById('chatContent').scrollTop = document.getElementById('chatContent').scrollHeight;
+        }
+
+        // Simulate AI suggestions appearing after 1s
+        setTimeout(()=>{ document.getElementById('aiSuggestions').style.display='grid'; }, 800);
+    </script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>训练记录详情 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 底部 Tab Bar */
+        .tab-bar {
+            height: 83px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            padding-top: 8px;
+            position: relative;
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active .tab-icon {
+            color: #007AFF;
+        }
+
+        .tab-item.active .tab-label {
+            color: #007AFF;
+        }
+
+        .tab-icon {
+            font-size: 24px;
+            color: #8e8e93;
+        }
+
+        .tab-label {
+            font-size: 10px;
+            color: #8e8e93;
+            font-weight: 500;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 训练数据卡片 -->
+                <div class="bg-gradient-to-br from-green-500 to-emerald-600 text-white p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <a href="profile.html" class="text-white/80">
+                            <i class="fas fa-arrow-left mr-2"></i>返回档案
+                        </a>
+                        <button class="text-white/80">
+                            <i class="fas fa-share"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-dumbbell text-2xl"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold mb-1">杠铃卧推</h1>
+                        <p class="text-white/80 text-sm">2024年10月23日  周三训练</p>
+                    </div>
+                </div>
+
+                <!-- 训练详情 -->
+                <div class="p-4 space-y-4">
+                    <!-- 基础信息 -->
+                    <div class="bg-white rounded-2xl p-4">
+                        <h2 class="font-bold text-lg mb-3 flex items-center">
+                            <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                            训练数据
+                        </h2>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-900">100kg</div>
+                                <div class="text-sm text-gray-500">完成重量</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-900">5次</div>
+                                <div class="text-sm text-gray-500">完成次数</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-900">5组</div>
+                                <div class="text-sm text-gray-500">训练组数</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-900">90秒</div>
+                                <div class="text-sm text-gray-500">组间休息</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RPE 和备注 -->
+                    <div class="bg-white rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-bold text-lg flex items-center">
+                                <i class="fas fa-heart text-red-500 mr-2"></i>
+                                训练反馈
+                            </h2>
+                            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                                进步组 ⭐
+                            </span>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-700">RPE 指数</span>
+                                    <span class="text-lg font-bold text-gray-900">8</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 h-2 bg-gray-200 rounded-full">
+                                        <div class="h-full bg-gradient-to-r from-green-400 to-red-500 rounded-full" style="width: 80%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-500">还能做2次</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">训练备注</label>
+                                <div class="bg-gray-50 rounded-xl p-3 text-sm text-gray-600">
+                                    今天卧推状态很好，最后一组勉强完成但动作标准。感觉核心稳定性比上周有进步，需要继续保持。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练视频 -->
+                    <div class="bg-white rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-bold text-lg flex items-center">
+                                <i class="fas fa-video text-purple-500 mr-2"></i>
+                                训练视频
+                            </h2>
+                            <span class="text-sm text-gray-500">第3组</span>
+                        </div>
+
+                        <div class="aspect-video bg-gray-100 rounded-xl flex items-center justify-center mb-3 cursor-pointer" onclick="playVideo()">
+                            <div class="text-center">
+                                <i class="fas fa-play-circle text-4xl text-gray-400 mb-2"></i>
+                                <p class="text-sm text-gray-500">点击播放训练视频</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm">
+                                <i class="fas fa-download mr-1"></i>下载
+                            </button>
+                            <button class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm">
+                                <i class="fas fa-share mr-1"></i>分享
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 教练点评 -->
+                    <div class="bg-white rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-bold text-lg flex items-center">
+                                <i class="fas fa-comments text-blue-500 mr-2"></i>
+                                教练点评
+                            </h2>
+                            <span class="text-sm text-gray-500">2小时前</span>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=60" class="w-12 h-12 rounded-full">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="font-semibold text-gray-900">王教练</span>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">专业教练</span>
+                                </div>
+                                <p class="text-sm text-gray-600 leading-relaxed">
+                                    动作质量很棒！注意到你这次的肩部稳定性比上周有明显进步。最后一次的深度也控制得很好。建议下周尝试102.5kg，保持同样标准的动作质量。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 相关训练 -->
+                    <div class="bg-white rounded-2xl p-4">
+                        <h2 class="font-bold text-lg mb-3 flex items-center">
+                            <i class="fas fa-list text-gray-500 mr-2"></i>
+                            相关训练记录
+                        </h2>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-dumbbell text-blue-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">杠铃卧推</div>
+                                        <div class="text-sm text-gray-500">10月20日 · 95kg x 5次</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-dumbbell text-green-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">杠铃卧推</div>
+                                        <div class="text-sm text-gray-500">10月16日 · 90kg x 5次</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 编辑按钮 -->
+                    <div class="pt-4">
+                        <button class="w-full bg-blue-500 text-white py-4 rounded-2xl font-semibold active:scale-95 transition mb-4">
+                            <i class="fas fa-edit mr-2"></i>编辑训练数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部 Tab Bar -->
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </div>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <a href="../common/settings.html" class="tab-item">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 播放视频
+        function playVideo() {
+            // 实际项目中这里会跳转到视频播放弹窗
+            alert('视频播放功能演示');
+        }
+
+        // 分享功能
+        document.querySelector('.fa-share').addEventListener('click', function() {
+            if (navigator.share) {
+                navigator.share({
+                    title: '我的训练记录 - 杠铃卧推',
+                    text: '100kg x 5次，RPE 8，感觉很棒！',
+                    url: window.location.href
+                });
+            } else {
+                alert('分享功能演示');
+            }
+        });
+
+        // 编辑训练数据
+        document.querySelector('.bg-blue-500').addEventListener('click', function() {
+            alert('编辑训练数据功能演示');
+        });
+    </script>
+</body>
+</html>
+

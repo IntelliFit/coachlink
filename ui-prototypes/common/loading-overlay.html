@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>加载状态 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 加载遮罩 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Spinner 加载器 */
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 脉冲加载器 */
+        .pulse-loader {
+            width: 48px;
+            height: 48px;
+            background: #007AFF;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(0.8); opacity: 1; }
+        }
+
+        /* 跳动点加载器 */
+        .dots-loader {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            background: #007AFF;
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* 骨架屏 */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* 按钮加载状态 */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* 演示按钮 */
+        .demo-button {
+            transition: all 0.2s;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .demo-button:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <div class="p-4">
+                    <div class="text-center mb-8">
+                        <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-spinner text-white text-3xl"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold text-gray-900 mb-2">加载状态组件</h1>
+                        <p class="text-gray-500">Loading States & Skeletons</p>
+                    </div>
+
+                    <!-- 页面加载状态演示 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-page text-blue-500 mr-2"></i>
+                                页面加载状态
+                            </h2>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showPageLoading('spinner')">
+                                <i class="fas fa-spinner"></i>
+                                旋转加载器
+                            </button>
+                            <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showPageLoading('pulse')">
+                                <i class="fas fa-circle"></i>
+                                脉冲加载器
+                            </button>
+                            <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showPageLoading('dots')">
+                                <i class="fas fa-ellipsis-h"></i>
+                                跳动点
+                            </button>
+                            <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showPageLoading('skeleton')">
+                                <i class="fas fa-bone"></i>
+                                骨架屏
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 按钮加载状态演示 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-mouse-pointer text-green-500 mr-2"></i>
+                                按钮加载状态
+                            </h2>
+                        </div>
+
+                        <div class="space-y-3">
+                            <button class="w-full demo-button bg-green-500 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showButtonLoading(this)">
+                                <i class="fas fa-save"></i>
+                                保存数据
+                            </button>
+                            <button class="w-full demo-button bg-purple-500 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showButtonLoading(this)">
+                                <i class="fas fa-upload"></i>
+                                上传视频
+                            </button>
+                            <button class="w-full demo-button bg-orange-500 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showButtonLoading(this)">
+                                <i class="fas fa-sync"></i>
+                                同步数据
+                            </button>
+                            <button class="w-full demo-button bg-red-500 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showButtonLoading(this)">
+                                <i class="fas fa-trash"></i>
+                                删除记录
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 骨架屏演示 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-skeleton text-gray-500 mr-2"></i>
+                                骨架屏加载
+                            </h2>
+                            <button class="text-blue-500 text-sm font-medium" onclick="toggleSkeleton()">
+                                切换状态
+                            </button>
+                        </div>
+
+                        <div id="skeletonContainer">
+                            <!-- 真实内容状态 -->
+                            <div class="skeleton-demo real-content">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=60" class="w-12 h-12 rounded-full">
+                                    <div>
+                                        <div class="font-semibold text-gray-900">王教练</div>
+                                        <div class="text-sm text-gray-500">专业力量举教练</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="h-4 bg-gray-200 rounded w-full"></div>
+                                    <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                                </div>
+                            </div>
+
+                            <!-- 骨架屏状态 -->
+                            <div class="skeleton-demo skeleton-content" style="display: none;">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-12 h-12 skeleton rounded-full"></div>
+                                    <div class="flex-1">
+                                        <div class="h-4 skeleton rounded w-24 mb-2"></div>
+                                        <div class="h-3 skeleton rounded w-32"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="h-4 skeleton rounded w-full"></div>
+                                    <div class="h-4 skeleton rounded w-3/4"></div>
+                                    <div class="h-4 skeleton rounded w-1/2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 进度条演示 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-tasks text-purple-500 mr-2"></i>
+                                进度指示器
+                            </h2>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between text-sm mb-2">
+                                    <span class="text-gray-600">数据加载进度</span>
+                                    <span class="font-medium" id="progressText">0%</span>
+                                </div>
+                                <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-300" id="progressBar" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-3">
+                                <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium" onclick="startProgress()">
+                                    开始加载
+                                </button>
+                                <button class="demo-button bg-gray-500 text-white py-3 rounded-xl font-medium" onclick="pauseProgress()">
+                                    暂停
+                                </button>
+                                <button class="demo-button bg-gray-500 text-white py-3 rounded-xl font-medium" onclick="resetProgress()">
+                                    重置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 实际应用场景演示 -->
+                    <div class="bg-white rounded-2xl p-4 mb-8">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-lightbulb text-orange-500 mr-2"></i>
+                                实际应用场景
+                            </h2>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="demo-button bg-indigo-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="simulateDataLoading()">
+                                <i class="fas fa-cloud"></i>
+                                数据加载
+                            </button>
+                            <button class="demo-button bg-teal-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="simulateVideoUpload()">
+                                <i class="fas fa-video"></i>
+                                视频上传
+                            </button>
+                            <button class="demo-button bg-pink-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="simulateFormSubmit()">
+                                <i class="fas fa-paper-plane"></i>
+                                表单提交
+                            </button>
+                            <button class="demo-button bg-yellow-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="simulatePageTransition()">
+                                <i class="fas fa-exchange-alt"></i>
+                                页面切换
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 返回导航 -->
+                    <div class="text-center pb-8">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页面加载遮罩 -->
+    <div class="loading-overlay" id="pageLoadingOverlay">
+        <div id="loadingSpinner" class="spinner"></div>
+        <div class="text-white font-medium">加载中...</div>
+    </div>
+
+    <script>
+        let progressInterval;
+        let currentProgress = 0;
+        let isLoading = false;
+
+        // 显示页面加载状态
+        function showPageLoading(type) {
+            const overlay = document.getElementById('pageLoadingOverlay');
+            const spinner = document.getElementById('loadingSpinner');
+
+            // 隐藏所有加载器
+            spinner.className = 'spinner';
+
+            // 根据类型显示不同的加载器
+            switch(type) {
+                case 'pulse':
+                    spinner.className = 'pulse-loader';
+                    break;
+                case 'dots':
+                    spinner.className = 'dots-loader';
+                    spinner.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+                    break;
+                case 'skeleton':
+                    // 骨架屏特殊处理
+                    toggleSkeleton();
+                    return;
+            }
+
+            overlay.classList.add('show');
+
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                hidePageLoading();
+            }, 3000);
+        }
+
+        // 隐藏页面加载状态
+        function hidePageLoading() {
+            const overlay = document.getElementById('pageLoadingOverlay');
+            overlay.classList.remove('show');
+        }
+
+        // 按钮加载状态
+        function showButtonLoading(button) {
+            if (isLoading) return;
+
+            isLoading = true;
+            const originalText = button.innerHTML;
+            button.classList.add('btn-loading');
+            button.disabled = true;
+
+            // 模拟加载时间
+            setTimeout(() => {
+                button.classList.remove('btn-loading');
+                button.disabled = false;
+                isLoading = false;
+
+                // 显示成功消息
+                const action = button.textContent.trim();
+                showToast(`${action}成功！`, 'success');
+            }, 2000);
+        }
+
+        // 切换骨架屏
+        function toggleSkeleton() {
+            const container = document.getElementById('skeletonContainer');
+            const realContent = container.querySelector('.real-content');
+            const skeletonContent = container.querySelector('.skeleton-content');
+
+            if (realContent.style.display === 'none') {
+                realContent.style.display = 'block';
+                skeletonContent.style.display = 'none';
+            } else {
+                realContent.style.display = 'none';
+                skeletonContent.style.display = 'block';
+            }
+        }
+
+        // 进度条功能
+        function startProgress() {
+            if (progressInterval) return;
+
+            progressInterval = setInterval(() => {
+                if (currentProgress < 100) {
+                    currentProgress += Math.random() * 15;
+                    if (currentProgress > 100) currentProgress = 100;
+
+                    updateProgress();
+                } else {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    showToast('数据加载完成！', 'success');
+                }
+            }, 200);
+        }
+
+        function pauseProgress() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        function resetProgress() {
+            currentProgress = 0;
+            updateProgress();
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('progressBar').style.width = currentProgress + '%';
+            document.getElementById('progressText').textContent = Math.round(currentProgress) + '%';
+        }
+
+        // 模拟实际应用场景
+        function simulateDataLoading() {
+            showPageLoading('spinner');
+            setTimeout(() => {
+                hidePageLoading();
+                showToast('数据加载完成！', 'success');
+            }, 2500);
+        }
+
+        function simulateVideoUpload() {
+            showButtonLoading(document.querySelector('.bg-teal-500'));
+        }
+
+        function simulateFormSubmit() {
+            showPageLoading('pulse');
+            setTimeout(() => {
+                hidePageLoading();
+                showToast('表单提交成功！', 'success');
+            }, 2000);
+        }
+
+        function simulatePageTransition() {
+            showPageLoading('dots');
+            setTimeout(() => {
+                hidePageLoading();
+                showToast('页面切换完成！', 'info');
+            }, 1500);
+        }
+
+        // Toast 提示函数
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl text-white font-medium z-[2000] transition-all duration-300`;
+            toast.style.backgroundColor = getToastColor(type);
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+            }, 100);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 2000);
+        }
+
+        function getToastColor(type) {
+            switch(type) {
+                case 'success': return '#10b981';
+                case 'error': return '#ef4444';
+                case 'warning': return '#f59e0b';
+                default: return '#007AFF';
+            }
+        }
+
+        // 页面加载时的演示
+        document.addEventListener('DOMContentLoaded', function() {
+            // 自动演示骨架屏切换
+            setTimeout(toggleSkeleton, 1000);
+            setTimeout(toggleSkeleton, 3000);
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>管理后台 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 数据卡片样式 */
+        .data-card {
+            background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .data-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            transform: translate(20px, -20px);
+        }
+
+        .data-number {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .data-label {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .data-change {
+            font-size: 13px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+        }
+
+        .data-change.positive {
+            color: #10b981;
+        }
+
+        .data-change.negative {
+            color: #ef4444;
+        }
+
+        /* 待办事项 */
+        .todo-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 0 16px 16px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .todo-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .todo-info {
+            flex: 1;
+        }
+
+        .todo-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .todo-description {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        .todo-badge {
+            background: #ef4444;
+            color: white;
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .todo-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 16px;
+        }
+
+        /* 快速入口 */
+        .quick-actions {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 0 16px 16px;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .action-card {
+            text-align: center;
+            padding: 16px 12px;
+            border-radius: 12px;
+            background: #f8fafc;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .action-card:hover {
+            background: #3b82f6;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .action-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .action-description {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        /* 数据趋势图 */
+        .chart-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 0 16px 16px;
+        }
+
+        .chart-placeholder {
+            height: 200px;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 头部信息 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">管理后台</h1>
+                            <p class="text-sm text-gray-500">超级管理员，欢迎回来</p>
+                        </div>
+                        <div class="relative">
+                            <button class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-bell text-gray-600"></i>
+                            </button>
+                            <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">2</span>
+                        </div>
+                    </div>
+
+                    <!-- 数据概览 -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">+127</div>
+                                <div class="data-label">今日新增用户</div>
+                                <div class="data-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span>+23% 较昨日</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">2,847</div>
+                                <div class="data-label">总用户数</div>
+                                <div class="data-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span>+15% 本月</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">89</div>
+                                <div class="data-label">在线教练</div>
+                                <div class="data-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span>+5 今日</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">+64</div>
+                                <div class="data-label">今日新增订阅</div>
+                                <div class="data-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span>+18% 较昨日</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待办事项 -->
+                <div class="todo-section">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-clipboard-list text-red-500 mr-2"></i>
+                            待办事项
+                        </h2>
+                        <span class="text-sm text-gray-500">优先处理</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="todo-item" onclick="handleTodo('leaderboard')">
+                            <div class="todo-icon bg-red-100 text-red-500">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="todo-info">
+                                <div class="todo-title">待审核排行榜成绩</div>
+                                <div class="todo-description">15条新提交的训练成绩需要审核验证</div>
+                            </div>
+                            <div class="todo-badge">15</div>
+                        </div>
+
+                        <div class="todo-item" onclick="handleTodo('coach')">
+                            <div class="todo-icon bg-blue-100 text-blue-500">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div class="todo-info">
+                                <div class="todo-title">待审核教练申请</div>
+                                <div class="todo-description">3名教练提交了入驻申请，需要资质审核</div>
+                            </div>
+                            <div class="todo-badge">3</div>
+                        </div>
+
+                        <div class="todo-item" onclick="handleTodo('content')">
+                            <div class="todo-icon bg-purple-100 text-purple-500">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="todo-info">
+                                <div class="todo-title">待审核教学内容</div>
+                                <div class="todo-description">7篇内容需要内容质量和合规性审核</div>
+                            </div>
+                            <div class="todo-badge">7</div>
+                        </div>
+
+                        <div class="todo-item" onclick="handleTodo('report')">
+                            <div class="todo-icon bg-orange-100 text-orange-500">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="todo-info">
+                                <div class="todo-title">待处理用户举报</div>
+                                <div class="todo-description">2起用户举报需要调查处理</div>
+                            </div>
+                            <div class="todo-badge">2</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 快速入口 -->
+                <div class="quick-actions">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                            快速入口
+                        </h2>
+                    </div>
+
+                    <div class="actions-grid">
+                        <div class="action-card" onclick="navigateTo('user-management')">
+                            <div class="action-icon bg-blue-500 text-white">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="action-title">用户管理</div>
+                            <div class="action-description">用户账户和权限</div>
+                        </div>
+
+                        <div class="action-card" onclick="navigateTo('review-system')">
+                            <div class="action-icon bg-green-500 text-white">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="action-title">内容审核</div>
+                            <div class="action-description">内容质量管控</div>
+                        </div>
+
+                        <div class="action-card" onclick="navigateTo('system-settings')">
+                            <div class="action-icon bg-purple-500 text-white">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <div class="action-title">系统设置</div>
+                            <div class="action-description">平台配置管理</div>
+                        </div>
+
+                        <div class="action-card" onclick="navigateTo('data-analytics')">
+                            <div class="action-icon bg-orange-500 text-white">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="action-title">数据分析</div>
+                            <div class="action-description">业务数据统计</div>
+                        </div>
+
+                        <div class="action-card" onclick="navigateTo('operation-log')">
+                            <div class="action-icon bg-gray-500 text-white">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div class="action-title">操作日志</div>
+                            <div class="action-description">行为审计追踪</div>
+                        </div>
+
+                        <div class="action-card" onclick="navigateTo('financial')">
+                            <div class="action-icon bg-yellow-500 text-white">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <div class="action-title">财务管理</div>
+                            <div class="action-description">收入和结算</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据趋势图 -->
+                <div class="chart-section">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-chart-line text-blue-500 mr-2"></i>
+                            今日数据趋势
+                        </h2>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">日</button>
+                            <button class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm">周</button>
+                            <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">月</button>
+                        </div>
+                    </div>
+
+                    <div class="chart-placeholder">
+                        <div class="text-center">
+                            <i class="fas fa-chart-area text-3xl mb-2 text-gray-400"></i>
+                            <p class="text-gray-500">数据趋势图表</p>
+                            <p class="text-xs text-gray-400">使用 Chart.js 渲染</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">用户增长</span>
+                            <div class="flex items-center gap-2">
+                                <div class="w-20 h-2 bg-gray-200 rounded-full">
+                                    <div class="w-3/4 h-full bg-green-500 rounded-full"></div>
+                                </div>
+                                <span class="text-sm font-semibold text-green-600">+127</span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">订阅转化</span>
+                            <div class="flex items-center gap-2">
+                                <div class="w-20 h-2 bg-gray-200 rounded-full">
+                                    <div class="w-1/2 h-full bg-blue-500 rounded-full"></div>
+                                </div>
+                                <span class="text-sm font-semibold text-blue-600">+64</span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">内容发布</span>
+                            <div class="flex items-center gap-2">
+                                <div class="w-20 h-2 bg-gray-200 rounded-full">
+                                    <div class="w-2/3 h-full bg-purple-500 rounded-full"></div>
+                                </div>
+                                <span class="text-sm font-semibold text-purple-600">+23</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统状态 -->
+                <div class="p-4 pb-8">
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-check-circle text-green-500"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-green-800">系统运行正常</div>
+                                <div class="text-sm text-green-600">所有服务在线，响应时间 < 200ms</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 处理待办事项
+        function handleTodo(type) {
+            const todoMap = {
+                'leaderboard': '排行榜审核',
+                'coach': '教练申请审核',
+                'content': '内容审核',
+                'report': '用户举报处理'
+            };
+
+            alert(`跳转到 ${todoMap[type]} 页面`);
+        }
+
+        // 导航到管理页面
+        function navigateTo(page) {
+            const pageMap = {
+                'user-management': 'admin/user-management.html',
+                'review-system': 'admin/review-system.html',
+                'system-settings': 'admin/system-settings.html',
+                'data-analytics': 'admin/data-analytics.html',
+                'operation-log': 'admin/operation-log.html',
+                'financial': 'admin/financial.html'
+            };
+
+            if (pageMap[page]) {
+                window.location.href = pageMap[page];
+            }
+        }
+
+        // 待办事项点击效果
+        document.querySelectorAll('.todo-item').forEach(item => {
+            item.addEventListener('click', function() {
+                this.style.transform = 'translateX(8px)';
+                setTimeout(() => {
+                    this.style.transform = 'translateX(0)';
+                }, 200);
+            });
+        });
+
+        // 快速入口卡片悬停效果
+        document.querySelectorAll('.action-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'translateY(-4px) scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'translateY(0) scale(1)';
+                }, 150);
+            });
+        });
+
+        // 通知按钮点击
+        document.querySelector('.fa-bell').addEventListener('click', function() {
+            alert('打开通知中心，查看系统通知和待办提醒');
+        });
+
+        // 数据卡片点击
+        document.querySelectorAll('.data-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const number = this.querySelector('.data-number').textContent;
+                const label = this.querySelector('.data-label').textContent;
+                alert(`查看 ${label} 详情：${number}`);
+            });
+        });
+
+        // 模拟实时数据更新
+        function updateLiveData() {
+            const cards = document.querySelectorAll('.data-card');
+            cards.forEach(card => {
+                const changeElement = card.querySelector('.data-change');
+                if (changeElement) {
+                    // 随机更新变化数据
+                    const numbers = ['+127', '+89', '+156', '+73', '+234', '+45'];
+                    const percentages = ['+12%', '+8%', '+15%', '+23%', '+5%', '+18%'];
+
+                    const randomNum = numbers[Math.floor(Math.random() * numbers.length)];
+                    const randomPercent = percentages[Math.floor(Math.random() * percentages.length)];
+
+                    const numberElement = card.querySelector('.data-number');
+                    const changeText = changeElement.querySelector('span');
+
+                    // 保持前缀符号
+                    const prefix = randomNum.startsWith('+') ? '+' : '';
+                    numberElement.textContent = randomNum;
+                    changeText.textContent = `${prefix}${randomPercent} 较昨日`;
+                }
+            });
+        }
+
+        // 每60秒更新一次数据
+        setInterval(updateLiveData, 60000);
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.data-card, .todo-item, .action-card');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    element.style.transition = 'all 0.3s ease';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
+

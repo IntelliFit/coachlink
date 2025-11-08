@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>教练详情</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*{-webkit-tap-highlight-color:transparent}body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#f5f5f7;margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100vh}.device-frame{width:393px;height:852px;background:#1d1d1f;border-radius:55px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}.device-screen{width:100%;height:100%;background:#f2f2f7;border-radius:47px;overflow:hidden;position:relative}.status-bar{height:54px;background:linear-gradient(180deg,rgba(242,242,247,.95),rgba(242,242,247,.9));backdrop-filter:blur(20px);display:flex;justify-content:space-between;align-items:center;padding:0 24px;padding-top:10px;z-index:50;position:relative}.dynamic-island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:126px;height:37px;background:#000;border-radius:19px;z-index:100}.content{height:calc(100% - 54px - 83px);overflow-y:auto;-webkit-overflow-scrolling:touch}.tab-bar{height:83px;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-top:.5px solid rgba(0,0,0,.1);display:flex;justify-content:space-around;align-items:flex-start;padding-top:8px;position:relative}.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:all .2s}.tab-item.active .tab-icon{color:#007AFF}.tab-item.active .tab-label{color:#007AFF}.tab-icon{font-size:24px;color:#8e8e93}.tab-label{font-size:10px;color:#8e8e93;font-weight:500}@media(max-width:430px){.device-frame{width:100%;height:100vh;border-radius:0;padding:0;box-shadow:none}.device-screen{border-radius:0}}
+</style>
+</head>
+<body>
+<div class="device-frame">
+<div class="device-screen">
+<div class="dynamic-island"></div>
+<div class="status-bar">
+<div style="font-size:15px;font-weight:600">9:41</div>
+<div style="display:flex;gap:6px"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div>
+</div>
+<div class="content">
+<div class="relative">
+<img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800" class="w-full h-64 object-cover">
+<a href="coach-discovery.html" class="absolute top-4 left-4 w-10 h-10 bg-black/30 backdrop-blur rounded-full flex items-center justify-center text-white">
+<i class="fas fa-arrow-left"></i>
+</a>
+<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
+<div class="flex items-center gap-4 mb-2">
+<img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200" class="w-20 h-20 rounded-2xl border-4 border-white">
+<div class="text-white">
+<h1 class="text-2xl font-bold mb-1">王教练</h1>
+<p class="text-sm opacity-90">力量举专家  5年经验</p>
+<div class="flex items-center gap-2 mt-1">
+<i class="fas fa-star text-yellow-400"></i>
+<span class="font-semibold">4.9</span>
+<span class="opacity-75"> 128学员</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 space-y-4">
+<div class="bg-white rounded-2xl p-4">
+<h2 class="font-bold text-lg mb-3">关于我</h2>
+<p class="text-gray-600 text-sm leading-relaxed">
+国家级力量举教练，专注于力量训练5年。帮助超过100名学员突破个人记录，平均提升30%力量水平。擅长卧推、深蹲、硬拉三大项技术指导。
+</p>
+</div>
+<div class="bg-white rounded-2xl p-4">
+<h2 class="font-bold text-lg mb-3">成功案例</h2>
+<div class="flex gap-3 overflow-x-auto pb-2">
+<div class="flex-shrink-0 w-40">
+<img src="https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400" class="w-full h-32 object-cover rounded-xl mb-2">
+<p class="text-xs text-gray-600">3个月卧推+20kg</p>
+</div>
+<div class="flex-shrink-0 w-40">
+<img src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400" class="w-full h-32 object-cover rounded-xl mb-2">
+<p class="text-xs text-gray-600">6个月深蹲+40kg</p>
+</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-4">
+<h2 class="font-bold text-lg mb-3">服务与定价</h2>
+<div class="space-y-3">
+<div class="border-2 border-gray-200 rounded-xl p-4">
+<div class="flex justify-between items-center mb-2">
+<h3 class="font-semibold">AI版</h3>
+<span class="text-xl font-bold text-blue-500">199<span class="text-sm text-gray-500">/月</span></span>
+</div>
+<ul class="space-y-2 text-sm text-gray-600">
+<li><i class="fas fa-check text-green-500 mr-2"></i>AI生成训练计划</li>
+<li><i class="fas fa-check text-green-500 mr-2"></i>进度追踪</li>
+<li><i class="fas fa-check text-green-500 mr-2"></i>基础答疑</li>
+</ul>
+</div>
+<div class="border-2 border-blue-500 rounded-xl p-4 bg-blue-50">
+<div class="flex justify-between items-center mb-2">
+<div>
+<h3 class="font-semibold">高级版</h3>
+<span class="text-xs text-blue-600">推荐</span>
+</div>
+<span class="text-xl font-bold text-blue-500">399<span class="text-sm text-gray-500">/月</span></span>
+</div>
+<ul class="space-y-2 text-sm text-gray-600">
+<li><i class="fas fa-check text-green-500 mr-2"></i>包含AI版所有功能</li>
+<li><i class="fas fa-check text-green-500 mr-2"></i>教练1对1指导</li>
+<li><i class="fas fa-check text-green-500 mr-2"></i>视频动作点评</li>
+<li><i class="fas fa-check text-green-500 mr-2"></i>实时聊天答疑</li>
+</ul>
+<button class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold mt-3 active:scale-95 transition">立即订阅</button>
+</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-4">
+<h2 class="font-bold text-lg mb-3">学员评价</h2>
+<div class="space-y-3">
+<div class="border-b pb-3">
+<div class="flex items-center gap-2 mb-2">
+<img src="https://i.pravatar.cc/40?img=1" class="w-8 h-8 rounded-full">
+<div class="flex-1">
+<div class="font-semibold text-sm">张三</div>
+<div class="flex items-center gap-1">
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+</div>
+</div>
+</div>
+<p class="text-sm text-gray-600">非常专业的教练，3个月帮我卧推从60kg提升到80kg！</p>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-2">
+<img src="https://i.pravatar.cc/40?img=2" class="w-8 h-8 rounded-full">
+<div class="flex-1">
+<div class="font-semibold text-sm">李四</div>
+<div class="flex items-center gap-1">
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+<i class="fas fa-star text-yellow-400 text-xs"></i>
+</div>
+</div>
+</div>
+<p class="text-sm text-gray-600">技术指导很到位，每次都能指出我的问题所在。</p>
+</div>
+</div>
+</div>
+<div class="text-center py-4">
+<a href="coach-discovery.html" class="text-gray-400 text-sm"><i class="fas fa-arrow-left mr-2"></i>返回发现页</a>
+</div>
+</div>
+</div>
+
+<!-- 底部 Tab Bar -->
+<div class="tab-bar">
+<a href="home.html" class="tab-item">
+<i class="fas fa-home tab-icon"></i>
+<span class="tab-label">首页</span>
+</a>
+<div class="tab-item active">
+<i class="fas fa-compass tab-icon"></i>
+<span class="tab-label">发现</span>
+</div>
+<a href="training-plan.html" class="tab-item">
+<i class="fas fa-calendar-alt tab-icon"></i>
+<span class="tab-label">计划</span>
+</a>
+<a href="../common/chat.html" class="tab-item">
+<i class="fas fa-comments tab-icon"></i>
+<span class="tab-label">聊天</span>
+</a>
+<a href="../common/settings.html" class="tab-item">
+<i class="fas fa-user tab-icon"></i>
+<span class="tab-label">我的</span>
+</a>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>动作库管理 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 搜索栏样式 */
+        .search-bar {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+
+        /* 筛选标签 */
+        .filter-tab {
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* 动作卡片 */
+        .exercise-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .exercise-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .exercise-video {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .exercise-info {
+            padding: 16px;
+        }
+
+        .exercise-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .exercise-description {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .exercise-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .action-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .action-btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .action-btn-secondary {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .action-btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .action-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .action-btn-danger:hover {
+            background: #dc2626;
+        }
+
+        /* 添加动作浮动按钮 */
+        .fab {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(59,130,246,0.3);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(59,130,246,0.4);
+        }
+
+        /* 模态框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: flex-end;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-height: 70%;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: #d1d5db;
+            border-radius: 2px;
+            margin: 12px auto;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 搜索和筛选 -->
+                <div class="search-bar p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h1 class="text-2xl font-bold text-gray-900">我的动作库</h1>
+                        <button class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-sliders-h text-gray-600"></i>
+                        </button>
+                    </div>
+
+                    <!-- 搜索栏 -->
+                    <div class="relative mb-4">
+                        <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="搜索动作..."
+                            class="w-full pl-12 pr-4 py-3 bg-white rounded-xl border-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                    </div>
+
+                    <!-- 筛选标签 -->
+                    <div class="flex gap-2 overflow-x-auto pb-2">
+                        <button class="filter-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap" onclick="filterExercises('all')">
+                            全部 (24)
+                        </button>
+                        <button class="filter-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap" onclick="filterExercises('video')">
+                            有视频 (18)
+                        </button>
+                        <button class="filter-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap" onclick="filterExercises('novideo')">
+                            无视频 (6)
+                        </button>
+                        <button class="filter-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap" onclick="filterExercises('strength')">
+                            力量型 (12)
+                        </button>
+                        <button class="filter-tab px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap" onclick="filterExercises('cardio')">
+                            心肺型 (8)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 动作列表 -->
+                <div class="p-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- 动作卡片 1 -->
+                        <div class="exercise-card" onclick="viewExercise(1)">
+                            <div class="exercise-video">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="exercise-info">
+                                <div class="exercise-name">杠铃卧推</div>
+                                <div class="exercise-description">经典胸部训练动作，发展上胸和三头肌力量</div>
+                                <div class="exercise-actions">
+                                    <button class="action-btn action-btn-primary" onclick="editExercise(1)">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button class="action-btn action-btn-danger" onclick="deleteExercise(1)">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 动作卡片 2 -->
+                        <div class="exercise-card" onclick="viewExercise(2)">
+                            <div class="exercise-video">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="exercise-info">
+                                <div class="exercise-name">引体向上</div>
+                                <div class="exercise-description">自重背部训练，发展背阔肌和肱二头肌</div>
+                                <div class="exercise-actions">
+                                    <button class="action-btn action-btn-primary" onclick="editExercise(2)">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button class="action-btn action-btn-danger" onclick="deleteExercise(2)">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 动作卡片 3 -->
+                        <div class="exercise-card" onclick="viewExercise(3)">
+                            <div class="exercise-video">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="exercise-info">
+                                <div class="exercise-name">深蹲</div>
+                                <div class="exercise-description">腿部基础动作，发展股四头肌和臀大肌</div>
+                                <div class="exercise-actions">
+                                    <button class="action-btn action-btn-primary" onclick="editExercise(3)">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button class="action-btn action-btn-danger" onclick="deleteExercise(3)">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 动作卡片 4 -->
+                        <div class="exercise-card" onclick="viewExercise(4)">
+                            <div class="exercise-video">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="exercise-info">
+                                <div class="exercise-name">硬拉</div>
+                                <div class="exercise-description">全身性动作，主要发展后链肌群力量</div>
+                                <div class="exercise-actions">
+                                    <button class="action-btn action-btn-primary" onclick="editExercise(4)">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button class="action-btn action-btn-danger" onclick="deleteExercise(4)">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 动作卡片 5 -->
+                        <div class="exercise-card" onclick="viewExercise(5)">
+                            <div class="exercise-video">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="exercise-info">
+                                <div class="exercise-name">肩上推举</div>
+                                <div class="exercise-description">肩部主要动作，发展三角肌和上胸</div>
+                                <div class="exercise-actions">
+                                    <button class="action-btn action-btn-primary" onclick="editExercise(5)">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button class="action-btn action-btn-danger" onclick="deleteExercise(5)">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 动作卡片 6 -->
+                        <div class="exercise-card" onclick="viewExercise(6)">
+                            <div class="exercise-video">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="exercise-info">
+                                <div class="exercise-name">弯举</div>
+                                <div class="exercise-description">肱二头肌孤立训练，塑形美观</div>
+                                <div class="exercise-actions">
+                                    <button class="action-btn action-btn-primary" onclick="editExercise(6)">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button class="action-btn action-btn-danger" onclick="deleteExercise(6)">
+                                        <i class="fas fa-trash mr-1"></i>删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div class="text-center py-12 hidden" id="emptyState">
+                        <div class="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-search text-2xl text-gray-400"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">未找到动作</h3>
+                        <p class="text-gray-500 mb-6">尝试调整搜索关键词或筛选条件</p>
+                        <button class="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium" onclick="clearFilters()">
+                            清除筛选
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 添加动作浮动按钮 -->
+            <div class="fab" onclick="showAddModal()">
+                <i class="fas fa-plus"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加动作模态框 -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <div class="modal-handle"></div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-900">添加新动作</h2>
+                    <button onclick="hideAddModal()" class="text-gray-400">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <form id="addExerciseForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">动作名称 *</label>
+                        <input type="text" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="例如：杠铃卧推" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">执行细节</label>
+                        <textarea class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 h-24 resize-none" placeholder="详细描述动作的正确执行方法、注意事项等..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">演示视频</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+                            <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2 block"></i>
+                            <p class="text-sm text-gray-500 mb-2">点击上传视频或粘贴视频链接</p>
+                            <input type="file" accept="video/*" class="hidden" id="videoUpload">
+                            <button type="button" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm" onclick="document.getElementById('videoUpload').click()">
+                                选择文件
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">动作类型</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-center">
+                                <input type="radio" name="exerciseType" value="strength" class="mr-2" checked>
+                                <span class="text-sm">力量型</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="exerciseType" value="cardio" class="mr-2">
+                                <span class="text-sm">心肺型</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium" onclick="hideAddModal()">
+                            取消
+                        </button>
+                        <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded-xl font-medium">
+                            添加动作
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑动作模态框 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-handle"></div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-900">编辑动作</h2>
+                    <button onclick="hideEditModal()" class="text-gray-400">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <form id="editExerciseForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">动作名称 *</label>
+                        <input type="text" id="editName" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">执行细节</label>
+                        <textarea id="editDetails" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 h-24 resize-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">视频链接</label>
+                        <input type="url" id="editVideo" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="https://...">
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium" onclick="hideEditModal()">
+                            取消
+                        </button>
+                        <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded-xl font-medium">
+                            保存修改
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFilter = 'all';
+
+        // 筛选动作
+        function filterExercises(type) {
+            // 更新筛选标签状态
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            currentFilter = type;
+
+            // 模拟筛选逻辑
+            const cards = document.querySelectorAll('.exercise-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0.5';
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                }, index * 50);
+            });
+
+            console.log(`筛选类型: ${type}`);
+        }
+
+        // 查看动作详情
+        function viewExercise(id) {
+            alert(`查看动作详情: ID ${id}`);
+        }
+
+        // 编辑动作
+        function editExercise(id) {
+            event.stopPropagation(); // 阻止事件冒泡
+
+            // 填充编辑表单
+            document.getElementById('editName').value = `动作 ${id}`;
+            document.getElementById('editDetails').value = `这是动作 ${id} 的详细执行说明...`;
+            document.getElementById('editVideo').value = `https://example.com/video-${id}`;
+
+            showEditModal();
+        }
+
+        // 删除动作
+        function deleteExercise(id) {
+            event.stopPropagation(); // 阻止事件冒泡
+
+            if (confirm(`确定要删除"动作 ${id}"吗？此操作不可撤销。`)) {
+                alert(`动作 ${id} 已删除`);
+                // 实际项目中会调用删除API
+            }
+        }
+
+        // 显示添加模态框
+        function showAddModal() {
+            const modal = document.getElementById('addModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 隐藏添加模态框
+        function hideAddModal() {
+            const modal = document.getElementById('addModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        // 显示编辑模态框
+        function showEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 隐藏编辑模态框
+        function hideEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        // 搜索功能
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.exercise-card');
+
+            cards.forEach(card => {
+                const name = card.querySelector('.exercise-name').textContent.toLowerCase();
+                const description = card.querySelector('.exercise-description').textContent.toLowerCase();
+
+                if (name.includes(searchTerm) || description.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = searchTerm ? 'none' : 'block';
+                }
+            });
+
+            // 显示/隐藏空状态
+            const visibleCards = Array.from(cards).filter(card => card.style.display !== 'none');
+            document.getElementById('emptyState').classList.toggle('hidden', visibleCards.length > 0);
+        });
+
+        // 清除筛选
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            filterExercises('all');
+
+            // 显示所有卡片
+            document.querySelectorAll('.exercise-card').forEach(card => {
+                card.style.display = 'block';
+            });
+            document.getElementById('emptyState').classList.add('hidden');
+        }
+
+        // 表单提交
+        document.getElementById('addExerciseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            hideAddModal();
+            alert('新动作添加成功！');
+        });
+
+        document.getElementById('editExerciseForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            hideEditModal();
+            alert('动作修改成功！');
+        });
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    if (this.id === 'addModal') hideAddModal();
+                    if (this.id === 'editModal') hideEditModal();
+                }
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.exercise-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
+

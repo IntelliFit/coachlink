@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>视频播放器 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #000000;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #ffffff;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 视频容器 */
+        .video-container {
+            width: 100%;
+            height: calc(100% - 54px);
+            position: relative;
+            background: #000000;
+        }
+
+        /* 视频播放器 */
+        .video-player {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .video-preview {
+            width: 100%;
+            height: 60%;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .play-button {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #000000;
+            transition: all 0.3s;
+            backdrop-filter: blur(20px);
+        }
+
+        .play-button:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,1);
+        }
+
+        /* 控制栏 */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%);
+            padding: 40px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-filled {
+            height: 100%;
+            background: #007AFF;
+            border-radius: 2px;
+            width: 25%;
+            transition: width 0.1s;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .control-button {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .time-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 视频容器 -->
+            <div class="video-container">
+                <!-- 视频播放器 -->
+                <div class="video-player">
+                    <div class="video-preview" id="videoPreview">
+                        <div class="play-button" id="playButton">
+                            <i class="fas fa-play"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 控制栏 -->
+                <div class="controls">
+                    <!-- 进度条 -->
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-filled" id="progressFilled"></div>
+                    </div>
+
+                    <!-- 控制按钮和时间 -->
+                    <div class="controls-row">
+                        <div class="control-buttons">
+                            <button class="control-button" id="playPauseBtn">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button class="control-button" id="volumeBtn">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                            <button class="control-button" id="fullscreenBtn">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+
+                        <div class="time-info">
+                            <span id="currentTime">1:23</span>
+                            <span>/</span>
+                            <span id="duration">4:56</span>
+                        </div>
+                    </div>
+
+                    <!-- 视频信息 -->
+                    <div class="text-white">
+                        <h3 class="font-bold text-lg mb-1">杠铃卧推技术详解</h3>
+                        <div class="flex items-center gap-2 text-sm text-white/80">
+                            <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=32" class="w-6 h-6 rounded-full">
+                            <span>王教练</span>
+                            <span>•</span>
+                            <span>1.2万次播放</span>
+                            <span>•</span>
+                            <span>2天前</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isPlaying = false;
+        let currentTime = 83; // 秒
+        let duration = 296; // 秒
+        let progressInterval;
+
+        // 播放/暂停
+        function togglePlay() {
+            const playBtn = document.getElementById('playPauseBtn');
+            const playButton = document.getElementById('playButton');
+            const preview = document.getElementById('videoPreview');
+
+            isPlaying = !isPlaying;
+
+            if (isPlaying) {
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                playButton.innerHTML = '<i class="fas fa-pause"></i>';
+                preview.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+
+                // 模拟播放进度
+                startProgress();
+            } else {
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                playButton.innerHTML = '<i class="fas fa-play"></i>';
+                preview.style.background = 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%)';
+
+                // 停止进度
+                stopProgress();
+            }
+        }
+
+        // 开始进度更新
+        function startProgress() {
+            progressInterval = setInterval(() => {
+                currentTime++;
+                if (currentTime > duration) {
+                    currentTime = duration;
+                    togglePlay(); // 播放完毕自动暂停
+                    return;
+                }
+
+                updateProgress();
+            }, 1000);
+        }
+
+        // 停止进度更新
+        function stopProgress() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+        }
+
+        // 更新进度显示
+        function updateProgress() {
+            const progressPercent = (currentTime / duration) * 100;
+            document.getElementById('progressFilled').style.width = progressPercent + '%';
+
+            // 更新时间显示
+            document.getElementById('currentTime').textContent = formatTime(currentTime);
+        }
+
+        // 格式化时间
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // 进度条点击
+        document.getElementById('progressBar').addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const progressPercent = clickX / rect.width;
+
+            currentTime = Math.floor(progressPercent * duration);
+            updateProgress();
+        });
+
+        // 音量控制
+        document.getElementById('volumeBtn').addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            if (icon.classList.contains('fa-volume-up')) {
+                icon.classList.remove('fa-volume-up');
+                icon.classList.add('fa-volume-mute');
+            } else {
+                icon.classList.remove('fa-volume-mute');
+                icon.classList.add('fa-volume-up');
+            }
+        });
+
+        // 全屏控制
+        document.getElementById('fullscreenBtn').addEventListener('click', function() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+                this.innerHTML = '<i class="fas fa-expand"></i>';
+            } else {
+                document.documentElement.requestFullscreen();
+                this.innerHTML = '<i class="fas fa-compress"></i>';
+            }
+        });
+
+        // 播放按钮点击
+        document.getElementById('playButton').addEventListener('click', togglePlay);
+        document.getElementById('playPauseBtn').addEventListener('click', togglePlay);
+
+        // 页面加载时更新时间显示
+        document.addEventListener('DOMContentLoaded', function() {
+            updateProgress();
+        });
+
+        // 退出全屏时更新图标
+        document.addEventListener('fullscreenchange', function() {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            if (!document.fullscreenElement) {
+                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            }
+        });
+
+        // 返回导航链接
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加返回导航链接（如果需要的话）
+            const statusBar = document.querySelector('.status-bar');
+            statusBar.addEventListener('click', function() {
+                // 点击状态栏可以返回上一页
+                alert('返回上一页');
+            });
+        });
+    </script>
+</body>
+</html>
+

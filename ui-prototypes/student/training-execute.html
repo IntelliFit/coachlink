@@ -1,0 +1,158 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>训练执行</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*{-webkit-tap-highlight-color:transparent}body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#f5f5f7;margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100vh}.device-frame{width:393px;height:852px;background:#1d1d1f;border-radius:55px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}.device-screen{width:100%;height:100%;background:#f2f2f7;border-radius:47px;overflow:hidden;position:relative}.status-bar{height:54px;background:linear-gradient(180deg,rgba(242,242,247,.95),rgba(242,242,247,.9));backdrop-filter:blur(20px);display:flex;justify-content:space-between;align-items:center;padding:0 24px;padding-top:10px;z-index:50;position:relative}.dynamic-island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:126px;height:37px;background:#000;border-radius:19px;z-index:100}.content{height:calc(100% - 54px - 83px);overflow-y:auto;-webkit-overflow-scrolling:touch}.tab-bar{height:83px;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-top:.5px solid rgba(0,0,0,.1);display:flex;justify-content:space-around;align-items:flex-start;padding-top:8px;position:relative}.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:all .2s}.tab-item.active .tab-icon{color:#007AFF}.tab-item.active .tab-label{color:#007AFF}.tab-icon{font-size:24px;color:#8e8e93}.tab-label{font-size:10px;color:#8e8e93;font-weight:500}@media(max-width:430px){.device-frame{width:100%;height:100vh;border-radius:0;padding:0;box-shadow:none}.device-screen{border-radius:0}}
+</style>
+</head>
+<body>
+<div class="device-frame">
+<div class="device-screen">
+<div class="dynamic-island"></div>
+<div class="status-bar">
+<div style="font-size:15px;font-weight:600">9:41</div>
+<div style="display:flex;gap:6px"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div>
+</div>
+<div class="content">
+<div class="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-4">
+<a href="training-plan.html" class="inline-block mb-3">
+<i class="fas fa-arrow-left"></i>
+</a>
+<h1 class="text-2xl font-bold mb-1">周五训练</h1>
+<p class="text-sm opacity-90">上肢拉  Week 1 Day 3</p>
+<div class="mt-4 bg-white/20 rounded-xl p-3">
+<div class="flex justify-between text-sm mb-2">
+<span>进度</span>
+<span class="font-semibold">2/15 组</span>
+</div>
+<div class="h-2 bg-white/30 rounded-full overflow-hidden">
+<div class="h-full bg-white rounded-full transition-all" style="width:13%"></div>
+</div>
+</div>
+</div>
+<div class="p-4 space-y-3">
+<div class="bg-white rounded-2xl p-4">
+<div class="flex items-center justify-between mb-3">
+<h3 class="font-bold text-lg">引体向上</h3>
+<a href="#" class="text-blue-500 text-sm">查看演示</a>
+</div>
+<div class="space-y-2">
+<div class="bg-green-50 border-2 border-green-500 rounded-xl p-3">
+<div class="flex items-center justify-between mb-2">
+<span class="text-sm font-medium text-green-700">第1组 / 共5组</span>
+<i class="fas fa-check-circle text-green-500 text-xl"></i>
+</div>
+<div class="text-sm text-gray-600 mb-2">
+<span class="font-semibold">完成：</span>80kg  5次
+</div>
+<div class="flex gap-2 text-xs">
+<span class="px-2 py-1 bg-green-100 text-green-700 rounded">RPE: 8</span>
+<span class="px-2 py-1 bg-green-100 text-green-700 rounded">感觉不错</span>
+</div>
+</div>
+<div class="bg-green-50 border-2 border-green-500 rounded-xl p-3">
+<div class="flex items-center justify-between mb-2">
+<span class="text-sm font-medium text-green-700">第2组 / 共5组</span>
+<i class="fas fa-check-circle text-green-500 text-xl"></i>
+</div>
+<div class="text-sm text-gray-600 mb-2">
+<span class="font-semibold">完成：</span>80kg  5次
+</div>
+<div class="flex gap-2 text-xs">
+<span class="px-2 py-1 bg-green-100 text-green-700 rounded">RPE: 8</span>
+</div>
+</div>
+<div class="bg-blue-50 border-2 border-blue-500 rounded-xl p-3">
+<div class="flex items-center justify-between mb-3">
+<span class="text-sm font-medium text-blue-700">第3组 / 共5组</span>
+<i class="fas fa-star text-yellow-400 text-xl"></i>
+</div>
+<div class="text-sm text-gray-600 mb-3">
+<span class="font-semibold">计划：</span>80kg  5次
+</div>
+<button class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold mb-2 active:scale-95 transition" onclick="completeSet(this)">
+<i class="fas fa-check mr-2"></i>完成本组
+</button>
+<div class="flex gap-2">
+<button class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm">编辑</button>
+<button class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm">跳过</button>
+</div>
+</div>
+<div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 opacity-60">
+<div class="flex items-center justify-between">
+<span class="text-sm font-medium text-gray-500">第4组 / 共5组</span>
+<i class="fas fa-lock text-gray-400"></i>
+</div>
+<div class="text-sm text-gray-500 mt-2">80kg  5次</div>
+</div>
+<div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 opacity-60">
+<div class="flex items-center justify-between">
+<span class="text-sm font-medium text-gray-500">第5组 / 共5组</span>
+<i class="fas fa-lock text-gray-400"></i>
+</div>
+<div class="text-sm text-gray-500 mt-2">80kg  5次</div>
+</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-4 opacity-50">
+<div class="flex items-center justify-between mb-3">
+<h3 class="font-bold text-lg">杠铃划船</h3>
+<i class="fas fa-lock text-gray-400"></i>
+</div>
+<p class="text-sm text-gray-500">完成引体向上后解锁</p>
+</div>
+<div class="text-center py-4">
+<a href="../index.html" class="text-gray-400 text-sm"><i class="fas fa-arrow-left mr-2"></i>返回导航</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+function completeSet(btn) {
+const card = btn.closest('.bg-blue-50');
+card.classList.remove('bg-blue-50', 'border-blue-500');
+card.classList.add('bg-green-50', 'border-green-500');
+const title = card.querySelector('.text-blue-700');
+title.classList.remove('text-blue-700');
+title.classList.add('text-green-700');
+const icon = card.querySelector('.fa-star');
+icon.classList.remove('fa-star', 'text-yellow-400');
+icon.classList.add('fa-check-circle', 'text-green-500');
+btn.parentElement.innerHTML = '<div class="flex gap-2 text-xs"><span class="px-2 py-1 bg-green-100 text-green-700 rounded">RPE: 8</span><span class="px-2 py-1 bg-green-100 text-green-700 rounded">完成</span></div>';
+const progress = document.querySelector('.h-full.bg-white');
+const current = parseInt(progress.style.width) || 13;
+progress.style.width = (current + 7) + '%';
+}
+</script>
+<div class="tab-bar">
+<a href="home.html" class="tab-item">
+<i class="fas fa-home tab-icon"></i>
+<span class="tab-label">首页</span>
+</a>
+<a href="coach-discovery.html" class="tab-item">
+<i class="fas fa-compass tab-icon"></i>
+<span class="tab-label">发现</span>
+</a>
+<div class="tab-item active">
+<i class="fas fa-calendar-alt tab-icon"></i>
+<span class="tab-label">计划</span>
+</div>
+<a href="../common/chat.html" class="tab-item">
+<i class="fas fa-comments tab-icon"></i>
+<span class="tab-label">聊天</span>
+</a>
+<a href="../common/settings.html" class="tab-item">
+<i class="fas fa-user tab-icon"></i>
+<span class="tab-label">我的</span>
+</a>
+</div>
+</div>
+</div>
+</body>
+</html>

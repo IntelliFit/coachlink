@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>发现教练 - 智健联盟</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+.status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; z-index: 50; }
+.dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+.content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+.tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+.tab-item.active .tab-icon { color: #007AFF; }
+.tab-item.active .tab-label { color: #007AFF; }
+.tab-icon { font-size: 24px; color: #8e8e93; }
+.tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+@media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+</style>
+</head>
+<body>
+<div class="device-frame">
+<div class="device-screen">
+<div class="dynamic-island"></div>
+<div class="status-bar">
+<div style="font-size: 15px; font-weight: 600; color: #000;">9:41</div>
+<div style="display: flex; gap: 6px;">
+<i class="fas fa-signal" style="font-size: 16px;"></i>
+<i class="fas fa-wifi" style="font-size: 16px;"></i>
+<i class="fas fa-battery-full" style="font-size: 16px;"></i>
+</div>
+</div>
+<div class="content">
+<div class="p-4">
+<div class="mb-4">
+<div class="relative">
+<input type="text" placeholder="搜索教练..." class="w-full h-12 bg-white rounded-xl px-4 pl-10 text-base" id="searchInput">
+<i class="fas fa-search absolute left-4 top-4 text-gray-400"></i>
+</div>
+</div>
+<div id="coachList" class="space-y-3">
+<a href="coach-detail.html" class="block bg-white rounded-2xl p-4 active:scale-95 transition">
+<div class="flex items-start gap-3">
+<img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200" class="w-16 h-16 rounded-xl object-cover">
+<div class="flex-1">
+<div class="flex items-center justify-between mb-1">
+<h3 class="font-bold text-gray-900">王教练</h3>
+<div class="flex items-center gap-1">
+<i class="fas fa-star text-yellow-400 text-sm"></i>
+<span class="text-sm font-medium">4.9</span>
+</div>
+</div>
+<p class="text-sm text-gray-500 mb-2">力量举专家  5年经验</p>
+<div class="flex gap-2 mb-2">
+<span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">卧推</span>
+<span class="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">深蹲</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs text-gray-400"><i class="fas fa-users mr-1"></i>128 学员</span>
+<span class="text-sm font-bold text-blue-500">199/月起</span>
+</div>
+</div>
+</div>
+</a>
+<a href="coach-detail.html" class="block bg-white rounded-2xl p-4 active:scale-95 transition">
+<div class="flex items-start gap-3">
+<img src="https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=200" class="w-16 h-16 rounded-xl object-cover">
+<div class="flex-1">
+<div class="flex items-center justify-between mb-1">
+<h3 class="font-bold text-gray-900">李教练</h3>
+<div class="flex items-center gap-1">
+<i class="fas fa-star text-yellow-400 text-sm"></i>
+<span class="text-sm font-medium">4.8</span>
+</div>
+</div>
+<p class="text-sm text-gray-500 mb-2">健美教练  8年经验</p>
+<div class="flex gap-2 mb-2">
+<span class="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full">增肌</span>
+<span class="px-2 py-1 bg-pink-100 text-pink-600 text-xs rounded-full">减脂</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs text-gray-400"><i class="fas fa-users mr-1"></i>256 学员</span>
+<span class="text-sm font-bold text-blue-500">299/月起</span>
+</div>
+</div>
+</div>
+</a>
+<a href="coach-detail.html" class="block bg-white rounded-2xl p-4 active:scale-95 transition">
+<div class="flex items-start gap-3">
+<img src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=200" class="w-16 h-16 rounded-xl object-cover">
+<div class="flex-1">
+<div class="flex items-center justify-between mb-1">
+<h3 class="font-bold text-gray-900">张教练</h3>
+<div class="flex items-center gap-1">
+<i class="fas fa-star text-yellow-400 text-sm"></i>
+<span class="text-sm font-medium">5.0</span>
+</div>
+</div>
+<p class="text-sm text-gray-500 mb-2">CrossFit教练  6年经验</p>
+<div class="flex gap-2 mb-2">
+<span class="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full">功能性训练</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs text-gray-400"><i class="fas fa-users mr-1"></i>89 学员</span>
+<span class="text-sm font-bold text-blue-500">399/月起</span>
+</div>
+</div>
+</div>
+</a>
+</div>
+<div class="text-center py-4 mt-4">
+<a href="../index.html" class="text-gray-400 text-sm"><i class="fas fa-arrow-left mr-2"></i>返回导航</a>
+</div>
+</div>
+</div>
+<div class="tab-bar">
+<a href="home.html" class="tab-item">
+<i class="fas fa-home tab-icon"></i>
+<span class="tab-label">首页</span>
+</a>
+<div class="tab-item active">
+<i class="fas fa-compass tab-icon"></i>
+<span class="tab-label">发现</span>
+</div>
+<a href="training-plan.html" class="tab-item">
+<i class="fas fa-calendar-alt tab-icon"></i>
+<span class="tab-label">计划</span>
+</a>
+<a href="../common/chat.html" class="tab-item">
+<i class="fas fa-comments tab-icon"></i>
+<span class="tab-label">聊天</span>
+</a>
+<a href="../common/settings.html" class="tab-item">
+<i class="fas fa-user tab-icon"></i>
+<span class="tab-label">我的</span>
+</a>
+</div>
+</div>
+</div>
+<script>
+document.getElementById('searchInput').addEventListener('input', function(e) {
+const term = e.target.value.toLowerCase();
+const coaches = document.querySelectorAll('#coachList > a');
+coaches.forEach(coach => {
+const text = coach.textContent.toLowerCase();
+coach.style.display = text.includes(term) ? 'block' : 'none';
+});
+});
+</script>
+</body>
+</html>

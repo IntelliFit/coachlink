@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>确认操作 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* 模态框 */
+        .modal {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(20px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 0;
+            max-width: 320px;
+            width: 90%;
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        /* 删除确认样式 */
+        .modal-delete .modal-header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .modal-delete .modal-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin: 0 auto 16px;
+        }
+
+        /* 取消订阅样式 */
+        .modal-unsubscribe .modal-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 16px 16px 0 0;
+        }
+
+        /* 退出登录样式 */
+        .modal-logout .modal-header {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 16px 16px 0 0;
+        }
+
+        /* 通用样式 */
+        .modal-header {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .modal-message {
+            font-size: 15px;
+            color: #6b7280;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .modal-footer {
+            padding: 0 20px 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-button {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .modal-button-cancel {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .modal-button-cancel:hover {
+            background: #e5e7eb;
+        }
+
+        .modal-button-confirm {
+            background: #007AFF;
+            color: #ffffff;
+        }
+
+        .modal-button-confirm:hover {
+            background: #0056cc;
+        }
+
+        .modal-button-danger {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .modal-button-danger:hover {
+            background: #dc2626;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+            .modal-content {
+                width: 95%;
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 演示按钮 -->
+                <div class="space-y-4">
+                    <!-- 删除确认 -->
+                    <div class="bg-white rounded-2xl p-4 mx-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">删除训练动作</h3>
+                                <p class="text-sm text-gray-500">删除后无法恢复</p>
+                            </div>
+                            <button class="px-4 py-2 bg-red-500 text-white rounded-xl font-medium" onclick="showModal('delete')">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 取消订阅 -->
+                    <div class="bg-white rounded-2xl p-4 mx-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">取消订阅</h3>
+                                <p class="text-sm text-gray-500">高级版套餐</p>
+                            </div>
+                            <button class="px-4 py-2 bg-orange-500 text-white rounded-xl font-medium" onclick="showModal('unsubscribe')">
+                                取消
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 退出登录 -->
+                    <div class="bg-white rounded-2xl p-4 mx-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">退出登录</h3>
+                                <p class="text-sm text-gray-500">清除本地数据</p>
+                            </div>
+                            <button class="px-4 py-2 bg-gray-500 text-white rounded-xl font-medium" onclick="showModal('logout')">
+                                退出
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 其他确认操作 -->
+                    <div class="bg-white rounded-2xl p-4 mx-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">跳过训练</h3>
+                                <p class="text-sm text-gray-500">今日训练安排</p>
+                            </div>
+                            <button class="px-4 py-2 bg-blue-500 text-white rounded-xl font-medium" onclick="showModal('skip')">
+                                跳过
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 返回导航 -->
+                <div class="text-center mt-8 pb-8">
+                    <a href="../index.html" class="text-gray-400 text-sm">
+                        <i class="fas fa-arrow-left mr-2"></i>返回导航
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content modal-delete">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-trash"></i>
+                </div>
+                <div class="modal-title">删除训练动作</div>
+                <div class="modal-message">
+                    确定要删除"杠铃卧推"吗？<br>
+                    删除后将无法恢复该动作的所有数据。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-button modal-button-cancel" onclick="hideModal('deleteModal')">
+                    取消
+                </button>
+                <button class="modal-button modal-button-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash"></i>
+                    删除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 取消订阅模态框 -->
+    <div class="modal" id="unsubscribeModal">
+        <div class="modal-content modal-unsubscribe">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="modal-title">取消订阅</div>
+                <div class="modal-message">
+                    确定要取消高级版订阅吗？<br>
+                    取消后将立即生效，剩余天数将按比例退款。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-button modal-button-cancel" onclick="hideModal('unsubscribeModal')">
+                    再想想
+                </button>
+                <button class="modal-button modal-button-danger" onclick="confirmUnsubscribe()">
+                    <i class="fas fa-times-circle"></i>
+                    取消订阅
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 退出登录模态框 -->
+    <div class="modal" id="logoutModal">
+        <div class="modal-content modal-logout">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-sign-out-alt"></i>
+                </div>
+                <div class="modal-title">退出登录</div>
+                <div class="modal-message">
+                    确定要退出登录吗？<br>
+                    退出后需要重新登录才能使用。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-button modal-button-cancel" onclick="hideModal('logoutModal')">
+                    取消
+                </button>
+                <button class="modal-button modal-button-danger" onclick="confirmLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    退出登录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 跳过训练模态框 -->
+    <div class="modal" id="skipModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-forward text-blue-500 text-2xl"></i>
+                </div>
+                <div class="modal-title">跳过今日训练</div>
+                <div class="modal-message">
+                    今日训练包含5个动作，确定要跳过吗？<br>
+                    建议完成训练以保持训练连续性。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-button modal-button-cancel" onclick="hideModal('skipModal')">
+                    继续训练
+                </button>
+                <button class="modal-button modal-button-confirm" onclick="confirmSkip()">
+                    <i class="fas fa-forward"></i>
+                    跳过
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 显示模态框
+        function showModal(type) {
+            let modalId;
+            switch(type) {
+                case 'delete':
+                    modalId = 'deleteModal';
+                    break;
+                case 'unsubscribe':
+                    modalId = 'unsubscribeModal';
+                    break;
+                case 'logout':
+                    modalId = 'logoutModal';
+                    break;
+                case 'skip':
+                    modalId = 'skipModal';
+                    break;
+            }
+
+            const modal = document.getElementById(modalId);
+            modal.classList.add('show');
+
+            // 防止背景滚动
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 隐藏模态框
+        function hideModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('show');
+
+            // 恢复背景滚动
+            document.body.style.overflow = 'auto';
+        }
+
+        // 确认删除
+        function confirmDelete() {
+            hideModal('deleteModal');
+            showToast('训练动作已删除', 'success');
+        }
+
+        // 确认取消订阅
+        function confirmUnsubscribe() {
+            hideModal('unsubscribeModal');
+            showToast('订阅已取消，退款处理中', 'success');
+        }
+
+        // 确认退出登录
+        function confirmLogout() {
+            hideModal('logoutModal');
+            showToast('已退出登录', 'info');
+            // 实际项目中会跳转到登录页
+            setTimeout(() => {
+                alert('跳转到登录页面');
+            }, 1500);
+        }
+
+        // 确认跳过训练
+        function confirmSkip() {
+            hideModal('skipModal');
+            showToast('今日训练已跳过', 'warning');
+        }
+
+        // 显示提示消息
+        function showToast(message, type = 'info') {
+            // 创建提示元素
+            const toast = document.createElement('div');
+            toast.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl text-white font-medium z-[2000] transition-all duration-300`;
+            toast.style.backgroundColor = getToastColor(type);
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            // 显示动画
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+            }, 100);
+
+            // 自动隐藏
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 2000);
+        }
+
+        // 获取提示颜色
+        function getToastColor(type) {
+            switch(type) {
+                case 'success':
+                    return '#10b981';
+                case 'error':
+                    return '#ef4444';
+                case 'warning':
+                    return '#f59e0b';
+                case 'info':
+                default:
+                    return '#007AFF';
+            }
+        }
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    const modalId = this.id;
+                    hideModal(modalId);
+                }
+            });
+        });
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    hideModal(modal.id);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>搜索结果 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 搜索框 */
+        .search-header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+
+        /* 筛选器 */
+        .filter-tag {
+            transition: all 0.2s;
+        }
+
+        .filter-tag.active {
+            background: #007AFF;
+            color: white;
+        }
+
+        /* 搜索高亮 */
+        .highlight {
+            background: #ffeb3b;
+            color: #333;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        /* 底部 Tab Bar */
+        .tab-bar {
+            height: 83px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            padding-top: 8px;
+            position: relative;
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active .tab-icon {
+            color: #007AFF;
+        }
+
+        .tab-item.active .tab-label {
+            color: #007AFF;
+        }
+
+        .tab-icon {
+            font-size: 24px;
+            color: #8e8e93;
+        }
+
+        .tab-label {
+            font-size: 10px;
+            color: #8e8e93;
+            font-weight: 500;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 搜索头部 -->
+                <div class="search-header p-4">
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h1 class="text-xl font-bold text-gray-900">搜索结果</h1>
+                            <button class="text-gray-500" onclick="clearSearch()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <input
+                                type="text"
+                                id="searchInput"
+                                value="卧推"
+                                class="w-full pl-12 pr-4 py-3 bg-white rounded-xl border-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                placeholder="搜索教练、内容、训练..."
+                            >
+                        </div>
+                    </div>
+
+                    <!-- 筛选器 -->
+                    <div class="flex gap-2 overflow-x-auto pb-2">
+                        <button class="filter-tag px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap active:scale-95" onclick="filterResults('all')">
+                            全部
+                        </button>
+                        <button class="filter-tag px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap active:scale-95" onclick="filterResults('coaches')">
+                            教练
+                        </button>
+                        <button class="filter-tag px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap active:scale-95" onclick="filterResults('content')">
+                            内容
+                        </button>
+                        <button class="filter-tag px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap active:scale-95" onclick="filterResults('training')">
+                            训练
+                        </button>
+                        <button class="filter-tag px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm whitespace-nowrap active:scale-95" onclick="filterResults('records')">
+                            记录
+                        </button>
+                    </div>
+
+                    <!-- 结果统计 -->
+                    <div class="flex items-center justify-between mt-3">
+                        <span class="text-sm text-gray-500">找到约 <span class="font-semibold text-gray-900">24</span> 个结果</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-500">排序:</span>
+                            <select class="text-sm bg-transparent border-none text-blue-500 focus:outline-none">
+                                <option>相关度</option>
+                                <option>最新</option>
+                                <option>最热</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 搜索结果 -->
+                <div class="p-4">
+                    <!-- 教练结果 -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-user-tie text-blue-500 mr-2"></i>
+                                教练
+                                <span class="ml-2 text-sm font-normal text-gray-500">8个结果</span>
+                            </h2>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- 教练卡片 1 -->
+                            <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                                <div class="flex items-center gap-3">
+                                    <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=80" class="w-16 h-16 rounded-2xl object-cover">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h3 class="font-bold text-gray-900">王教练</h3>
+                                                <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">卧推专家</span>
+                                            <div class="flex items-center gap-1">
+                                                <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                                <span class="text-sm font-semibold text-gray-900">4.9</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">国家级力量举教练，专注于<mark class="highlight">卧推</mark>技术指导，5年教学经验。</p>
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-4 text-xs text-gray-500">
+                                                <span><i class="fas fa-users mr-1"></i>128名学员</span>
+                                                <span><i class="fas fa-map-marker-alt mr-1"></i>北京</span>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-lg font-bold text-blue-500">199<span class="text-sm text-gray-500">/月</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 教练卡片 2 -->
+                            <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                                <div class="flex items-center gap-3">
+                                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80" class="w-16 h-16 rounded-2xl object-cover">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h3 class="font-bold text-gray-900">李教练</h3>
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">全能型</span>
+                                            <div class="flex items-center gap-1">
+                                                <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                                <span class="text-sm font-semibold text-gray-900">4.8</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">专业健身教练，<mark class="highlight">卧推</mark>、深蹲、硬拉全面指导，3年教学经验。</p>
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-4 text-xs text-gray-500">
+                                                <span><i class="fas fa-users mr-1"></i>89名学员</span>
+                                                <span><i class="fas fa-map-marker-alt mr-1"></i>上海</span>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-lg font-bold text-blue-500">299<span class="text-sm text-gray-500">/月</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 内容结果 -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-book-open text-green-500 mr-2"></i>
+                                教学内容
+                                <span class="ml-2 text-sm font-normal text-gray-500">6个结果</span>
+                            </h2>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- 内容卡片 1 -->
+                            <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                                <div class="flex items-start gap-3">
+                                    <img src="https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=80" class="w-16 h-16 rounded-xl object-cover">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">文章</span>
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">免费</span>
+                                        </div>
+                                        <h3 class="font-bold text-gray-900 mb-1">完美<mark class="highlight">卧推</mark>技术详解</h3>
+                                        <p class="text-sm text-gray-600 mb-2">详细讲解<mark class="highlight">卧推</mark>的正确姿势、握距选择、呼吸技巧等核心要点。</p>
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=32" class="w-6 h-6 rounded-full">
+                                                <span>王教练</span>
+                                                <span>•</span>
+                                                <span>2天前</span>
+                                            </div>
+                                            <div class="flex items-center gap-1 text-xs text-gray-500">
+                                                <i class="fas fa-eye"></i>
+                                                <span>1.2k</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 内容卡片 2 -->
+                            <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-play text-purple-500 text-xl"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">视频</span>
+                                            <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">付费</span>
+                                        </div>
+                                        <h3 class="font-bold text-gray-900 mb-1"><mark class="highlight">卧推</mark>常见错误及纠正方法</h3>
+                                        <p class="text-sm text-gray-600 mb-2">视频演示<mark class="highlight">卧推</mark>中最常见的10个错误动作及纠正技巧。</p>
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32" class="w-6 h-6 rounded-full">
+                                                <span>李教练</span>
+                                                <span>•</span>
+                                                <span>1周前</span>
+                                            </div>
+                                            <div class="flex items-center gap-1 text-xs text-gray-500">
+                                                <i class="fas fa-play"></i>
+                                                <span>856</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练记录结果 -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-chart-line text-purple-500 mr-2"></i>
+                                训练记录
+                                <span class="ml-2 text-sm font-normal text-gray-500">4个结果</span>
+                            </h2>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- 记录卡片 1 -->
+                            <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-trophy text-green-500"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">进步组</span>
+                                            <span class="text-sm text-gray-500">张三</span>
+                                        </div>
+                                        <h3 class="font-bold text-gray-900 mb-1"><mark class="highlight">卧推</mark> 100kg × 5次</h3>
+                                        <p class="text-sm text-gray-600 mb-2">RPE 8，动作质量很好！教练点评：肩部稳定性有进步。</p>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-gray-500">10月23日</span>
+                                            <div class="flex items-center gap-2">
+                                                <button class="text-xs text-blue-500">查看详情</button>
+                                                <button class="text-xs text-gray-500">分享</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 记录卡片 2 -->
+                            <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-dumbbell text-blue-500"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="text-sm text-gray-500">李四</span>
+                                        </div>
+                                        <h3 class="font-bold text-gray-900 mb-1"><mark class="highlight">卧推</mark> 85kg × 8次</h3>
+                                        <p class="text-sm text-gray-600 mb-2">RPE 9，接近力竭。需要增加重量。</p>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-gray-500">10月20日</span>
+                                            <div class="flex items-center gap-2">
+                                                <button class="text-xs text-blue-500">查看详情</button>
+                                                <button class="text-xs text-gray-500">分享</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 相关搜索 -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-search text-gray-500 mr-2"></i>
+                                相关搜索
+                            </h2>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm active:scale-95" onclick="searchRelated('卧推技巧')">
+                                卧推技巧
+                            </button>
+                            <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm active:scale-95" onclick="searchRelated('卧推训练计划')">
+                                卧推训练计划
+                            </button>
+                            <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm active:scale-95" onclick="searchRelated('卧推重量计算')">
+                                卧推重量计算
+                            </button>
+                            <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm active:scale-95" onclick="searchRelated('卧推常见错误')">
+                                卧推常见错误
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 无更多结果提示 -->
+                    <div class="text-center py-8">
+                        <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-search text-2xl text-gray-400"></i>
+                        </div>
+                        <p class="text-gray-500 mb-4">没有更多结果了</p>
+                        <button class="text-blue-500 font-medium" onclick="expandSearch()">
+                            尝试扩大搜索范围
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部 Tab Bar -->
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </div>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <a href="../common/settings.html" class="tab-item">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 筛选功能
+        function filterResults(type) {
+            const tags = document.querySelectorAll('.filter-tag');
+            tags.forEach(tag => tag.classList.remove('active'));
+
+            event.target.classList.add('active');
+
+            // 实际项目中会根据类型筛选结果
+            console.log(`筛选类型: ${type}`);
+
+            // 显示筛选动画效果
+            const results = document.querySelectorAll('.bg-white');
+            results.forEach((result, index) => {
+                result.style.opacity = '0.5';
+                setTimeout(() => {
+                    result.style.opacity = '1';
+                }, index * 50);
+            });
+        }
+
+        // 清除搜索
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            alert('清除搜索内容');
+        }
+
+        // 相关搜索
+        function searchRelated(term) {
+            document.getElementById('searchInput').value = term;
+            // 触发搜索
+            const searchEvent = new Event('input');
+            document.getElementById('searchInput').dispatchEvent(searchEvent);
+        }
+
+        // 扩大搜索范围
+        function expandSearch() {
+            alert('扩大搜索范围功能');
+        }
+
+        // 搜索输入高亮
+        function highlightSearchTerm() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (searchTerm) {
+                const walker = document.createTreeWalker(
+                    document.body,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+
+                const textNodes = [];
+                let node;
+                while (node = walker.nextNode()) {
+                    textNodes.push(node);
+                }
+
+                textNodes.forEach(textNode => {
+                    const text = textNode.textContent;
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    if (regex.test(text)) {
+                        const highlightedText = text.replace(regex, '<mark class="highlight">$1</mark>');
+                        const wrapper = document.createElement('span');
+                        wrapper.innerHTML = highlightedText;
+                        textNode.parentNode.replaceChild(wrapper, textNode);
+                    }
+                });
+            }
+        }
+
+        // 页面加载时高亮搜索词
+        document.addEventListener('DOMContentLoaded', function() {
+            highlightSearchTerm();
+        });
+
+        // 实时搜索
+        document.getElementById('searchInput').addEventListener('input', function() {
+            setTimeout(highlightSearchTerm, 300);
+        });
+    </script>
+</body>
+</html>
+

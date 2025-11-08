@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>模板库管理 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 模板卡片 */
+        .template-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .template-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .template-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        .template-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .template-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            flex: 1;
+            margin-right: 12px;
+        }
+
+        .template-actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .template-card:hover .template-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .action-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .action-btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .action-btn-secondary {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .action-btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .action-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .action-btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .template-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .template-tag {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .template-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .template-info-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #9ca3af;
+            margin: 0 auto 20px;
+        }
+
+        /* 添加按钮 */
+        .fab {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(59,130,246,0.3);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(59,130,246,0.4);
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 头部搜索 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <h1 class="text-2xl font-bold text-gray-900">我的模板库</h1>
+                        <div class="flex gap-2">
+                            <button class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-search text-gray-600"></i>
+                            </button>
+                            <button class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-sliders-h text-gray-600"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 模板统计 -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-xl font-bold text-blue-500">12</div>
+                            <div class="text-xs text-gray-500">总模板数</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-xl font-bold text-green-500">8</div>
+                            <div class="text-xs text-gray-500">已发布</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-xl font-bold text-orange-500">4</div>
+                            <div class="text-xs text-gray-500">草稿</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 模板列表 -->
+                <div class="p-4">
+                    <!-- 模板卡片 1 -->
+                    <div class="template-card" onclick="viewTemplate(1)">
+                        <div class="template-header">
+                            <div class="template-name">新手力量训练模板</div>
+                            <div class="template-actions">
+                                <button class="action-btn action-btn-primary" onclick="editTemplate(1)" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn action-btn-secondary" onclick="duplicateTemplate(1)" title="复制">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="deleteTemplate(1)" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="template-tags">
+                            <span class="template-tag">新手友好</span>
+                            <span class="template-tag">力量训练</span>
+                            <span class="template-tag">4周循环</span>
+                        </div>
+
+                        <div class="template-info">
+                            <div class="template-info-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>4周 × 3天/周</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-clock"></i>
+                                <span>60-75分钟/次</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-user"></i>
+                                <span>适合新手</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-500">
+                            <span>创建于 2024-10-15</span>
+                            <span class="ml-4">最后修改 2天前</span>
+                        </div>
+                    </div>
+
+                    <!-- 模板卡片 2 -->
+                    <div class="template-card" onclick="viewTemplate(2)">
+                        <div class="template-header">
+                            <div class="template-name">卧推专项进阶模板</div>
+                            <div class="template-actions">
+                                <button class="action-btn action-btn-primary" onclick="editTemplate(2)" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn action-btn-secondary" onclick="duplicateTemplate(2)" title="复制">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="deleteTemplate(2)" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="template-tags">
+                            <span class="template-tag">卧推专项</span>
+                            <span class="template-tag">进阶水平</span>
+                            <span class="template-tag">6周计划</span>
+                        </div>
+
+                        <div class="template-info">
+                            <div class="template-info-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>6周 × 4天/周</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-clock"></i>
+                                <span>45-60分钟/次</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-trophy"></i>
+                                <span>突破极限</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-500">
+                            <span>创建于 2024-09-28</span>
+                            <span class="ml-4">最后修改 1周前</span>
+                        </div>
+                    </div>
+
+                    <!-- 模板卡片 3 -->
+                    <div class="template-card" onclick="viewTemplate(3)">
+                        <div class="template-header">
+                            <div class="template-name">全身塑形训练模板</div>
+                            <div class="template-actions">
+                                <button class="action-btn action-btn-primary" onclick="editTemplate(3)" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn action-btn-secondary" onclick="duplicateTemplate(3)" title="复制">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="deleteTemplate(3)" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="template-tags">
+                            <span class="template-tag">全身训练</span>
+                            <span class="template-tag">塑形美观</span>
+                            <span class="template-tag">3周循环</span>
+                        </div>
+
+                        <div class="template-info">
+                            <div class="template-info-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>3周 × 5天/周</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-clock"></i>
+                                <span>50-70分钟/次</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-heart"></i>
+                                <span>均衡发展</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-500">
+                            <span>创建于 2024-10-10</span>
+                            <span class="ml-4">最后修改 5天前</span>
+                        </div>
+                    </div>
+
+                    <!-- 模板卡片 4 -->
+                    <div class="template-card" onclick="viewTemplate(4)">
+                        <div class="template-header">
+                            <div class="template-name">快速增肌模板</div>
+                            <div class="template-actions">
+                                <button class="action-btn action-btn-primary" onclick="editTemplate(4)" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn action-btn-secondary" onclick="duplicateTemplate(4)" title="复制">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="action-btn action-btn-danger" onclick="deleteTemplate(4)" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="template-tags">
+                            <span class="template-tag">增肌导向</span>
+                            <span class="template-tag">中级水平</span>
+                            <span class="template-tag">8周计划</span>
+                        </div>
+
+                        <div class="template-info">
+                            <div class="template-info-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>8周 × 4天/周</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-clock"></i>
+                                <span>60-90分钟/次</span>
+                            </div>
+                            <div class="template-info-item">
+                                <i class="fas fa-weight-hanging"></i>
+                                <span>大重量训练</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-500">
+                            <span>创建于 2024-09-15</span>
+                            <span class="ml-4">最后修改 2周前</span>
+                        </div>
+                    </div>
+
+                    <!-- 空状态提示 -->
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-arrow-down text-2xl mb-2 block"></i>
+                        <p class="text-sm">向下滚动查看更多模板</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 添加模板浮动按钮 -->
+            <div class="fab" onclick="createTemplate()">
+                <i class="fas fa-plus"></i>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 查看模板详情
+        function viewTemplate(id) {
+            alert(`查看模板详情: ID ${id}`);
+        }
+
+        // 编辑模板
+        function editTemplate(id) {
+            event.stopPropagation();
+            alert(`编辑模板: ID ${id}`);
+        }
+
+        // 复制模板
+        function duplicateTemplate(id) {
+            event.stopPropagation();
+            if (confirm(`确定要复制模板 ${id} 吗？`)) {
+                alert(`模板 ${id} 已复制成功`);
+            }
+        }
+
+        // 删除模板
+        function deleteTemplate(id) {
+            event.stopPropagation();
+            if (confirm(`确定要删除模板 ${id} 吗？此操作不可撤销。`)) {
+                alert(`模板 ${id} 已删除`);
+            }
+        }
+
+        // 创建新模板
+        function createTemplate() {
+            alert('跳转到模板编辑器创建新模板');
+        }
+
+        // 模板卡片悬停效果
+        document.querySelectorAll('.template-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+                this.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 动作按钮悬停效果
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                this.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.template-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
+

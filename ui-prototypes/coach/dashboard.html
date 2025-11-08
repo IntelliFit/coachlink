@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>教练工作台 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 数据卡片样式 */
+        .data-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .data-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            transform: translate(30px, -30px);
+        }
+
+        .data-number {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .data-label {
+            font-size: 13px;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .data-change {
+            font-size: 12px;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .data-change.positive {
+            color: #10b981;
+        }
+
+        .data-change.negative {
+            color: #ef4444;
+        }
+
+        /* 待办事项样式 */
+        .todo-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s;
+        }
+
+        .todo-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .todo-badge {
+            background: #ef4444;
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* 学员卡片样式 */
+        .student-card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            margin-right: 8px;
+            text-align: center;
+            min-width: 80px;
+            transition: all 0.2s;
+        }
+
+        .student-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .student-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-bottom: 8px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .student-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+
+        .student-level {
+            font-size: 10px;
+            color: #6b7280;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 2px 6px;
+        }
+
+        .student-level.ai {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .student-level.premium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        /* 底部操作区 */
+        .bottom-actions {
+            background: white;
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            margin: 16px;
+            margin-bottom: 0;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .action-item {
+            text-align: center;
+            padding: 12px 8px;
+            border-radius: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .action-item:hover {
+            background: #f3f4f6;
+            transform: translateY(-2px);
+        }
+
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            margin: 0 auto 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+        }
+
+        .action-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 顶部教练信息 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">教练工作台</h1>
+                            <p class="text-sm text-gray-500">王教练，早上好！</p>
+                        </div>
+                        <div class="relative">
+                            <button class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-bell text-gray-600"></i>
+                            </button>
+                            <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                        </div>
+                    </div>
+
+                    <!-- 数据概览卡片 -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">128</div>
+                                <div class="data-label">总学员数</div>
+                                <div class="data-change positive">
+                                    <i class="fas fa-arrow-up text-xs"></i>
+                                    <span>+12 本月</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">8</div>
+                                <div class="data-label">今日待办</div>
+                                <div class="data-change negative">
+                                    <i class="fas fa-clock text-xs"></i>
+                                    <span>需处理</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="relative z-10">
+                                <div class="data-number">¥3,240</div>
+                                <div class="data-label">本月收入</div>
+                                <div class="data-change positive">
+                                    <i class="fas fa-arrow-up text-xs"></i>
+                                    <span>+23%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 待办事项 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-tasks text-blue-500 mr-2"></i>
+                                待办事项
+                            </h2>
+                            <a href="#" class="text-sm text-blue-500 font-medium">查看全部</a>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="todo-item">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-user-plus text-red-500"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-900">新学员待审核</div>
+                                            <div class="text-sm text-gray-500">3名新学员提交了训练计划待您审核</div>
+                                        </div>
+                                    </div>
+                                    <span class="todo-badge">3</span>
+                                </div>
+                            </div>
+
+                            <div class="todo-item">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-comments text-blue-500"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-900">消息待回复</div>
+                                            <div class="text-sm text-gray-500">5条学员消息需要回复</div>
+                                        </div>
+                                    </div>
+                                    <span class="todo-badge">5</span>
+                                </div>
+                            </div>
+
+                            <div class="todo-item">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-video text-purple-500"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-900">视频待点评</div>
+                                            <div class="text-sm text-gray-500">2个训练视频需要技术指导</div>
+                                        </div>
+                                    </div>
+                                    <span class="todo-badge">2</span>
+                                </div>
+                            </div>
+
+                            <div class="todo-item">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-calendar-check text-green-500"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-900">计划待调整</div>
+                                            <div class="text-sm text-gray-500">张三的训练计划需要优化</div>
+                                        </div>
+                                    </div>
+                                    <span class="todo-badge">1</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 学员列表 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-users text-green-500 mr-2"></i>
+                                我的学员
+                                <span class="ml-2 text-sm font-normal text-gray-500">共128名</span>
+                            </h2>
+                            <a href="#" class="text-sm text-blue-500 font-medium">管理</a>
+                        </div>
+
+                        <div class="flex gap-2 overflow-x-auto pb-2">
+                            <div class="student-card">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80" class="student-avatar">
+                                <div class="student-name">张三</div>
+                                <div class="student-level premium">高级版</div>
+                            </div>
+
+                            <div class="student-card">
+                                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80" class="student-avatar">
+                                <div class="student-name">李四</div>
+                                <div class="student-level ai">AI版</div>
+                            </div>
+
+                            <div class="student-card">
+                                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80" class="student-avatar">
+                                <div class="student-name">王五</div>
+                                <div class="student-level premium">高级版</div>
+                            </div>
+
+                            <div class="student-card">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80" class="student-avatar">
+                                <div class="student-name">赵六</div>
+                                <div class="student-level ai">AI版</div>
+                            </div>
+
+                            <div class="student-card">
+                                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-plus text-gray-400"></i>
+                                </div>
+                                <div class="student-name">添加</div>
+                                <div class="text-xs text-gray-400">更多</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 快速操作 -->
+                    <div class="bg-white rounded-2xl p-4 mb-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                            快速操作
+                        </h2>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="p-4 bg-blue-50 rounded-xl text-left active:scale-95 transition">
+                                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-2">
+                                    <i class="fas fa-plus text-blue-500 text-lg"></i>
+                                </div>
+                                <div class="font-semibold text-gray-900 text-sm">添加动作</div>
+                                <div class="text-xs text-gray-500">扩展动作库</div>
+                            </button>
+
+                            <button class="p-4 bg-green-50 rounded-xl text-left active:scale-95 transition">
+                                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-2">
+                                    <i class="fas fa-layer-group text-green-500 text-lg"></i>
+                                </div>
+                                <div class="font-semibold text-gray-900 text-sm">创建模板</div>
+                                <div class="text-xs text-gray-500">新训练模板</div>
+                            </button>
+
+                            <button class="p-4 bg-purple-50 rounded-xl text-left active:scale-95 transition">
+                                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-2">
+                                    <i class="fas fa-chart-line text-purple-500 text-lg"></i>
+                                </div>
+                                <div class="font-semibold text-gray-900 text-sm">查看数据</div>
+                                <div class="text-xs text-gray-500">训练统计</div>
+                            </button>
+
+                            <button class="p-4 bg-orange-50 rounded-xl text-left active:scale-95 transition">
+                                <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-2">
+                                    <i class="fas fa-coins text-orange-500 text-lg"></i>
+                                </div>
+                                <div class="font-semibold text-gray-900 text-sm">收入管理</div>
+                                <div class="text-xs text-gray-500">财务中心</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 底部操作区 -->
+                    <div class="bottom-actions">
+                        <div class="action-grid">
+                            <div class="action-item" onclick="navigateTo('exercise-library')">
+                                <div class="action-icon bg-blue-500">
+                                    <i class="fas fa-dumbbell"></i>
+                                </div>
+                                <div class="action-name">动作库</div>
+                            </div>
+
+                            <div class="action-item" onclick="navigateTo('template-library')">
+                                <div class="action-icon bg-green-500">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                                <div class="action-name">模板库</div>
+                            </div>
+
+                            <div class="action-item" onclick="navigateTo('content-management')">
+                                <div class="action-icon bg-purple-500">
+                                    <i class="fas fa-book-open"></i>
+                                </div>
+                                <div class="action-name">内容</div>
+                            </div>
+
+                            <div class="action-item" onclick="navigateTo('revenue-center')">
+                                <div class="action-icon bg-yellow-500">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </div>
+                                <div class="action-name">收入</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面导航
+        function navigateTo(page) {
+            const pageMap = {
+                'exercise-library': 'coach/exercise-library.html',
+                'template-library': 'coach/template-library.html',
+                'content-management': 'coach/content-management.html',
+                'revenue-center': 'coach/revenue-center.html'
+            };
+
+            if (pageMap[page]) {
+                window.location.href = pageMap[page];
+            }
+        }
+
+        // 待办事项点击
+        document.querySelectorAll('.todo-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const title = this.querySelector('.font-semibold').textContent;
+                alert(`处理：${title}`);
+            });
+        });
+
+        // 学员卡片点击
+        document.querySelectorAll('.student-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const name = this.querySelector('.student-name').textContent;
+                if (name !== '添加') {
+                    alert(`查看学员：${name} 的档案`);
+                } else {
+                    alert('添加新学员');
+                }
+            });
+        });
+
+        // 数据卡片点击
+        document.querySelectorAll('.data-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const number = this.querySelector('.data-number').textContent;
+                const label = this.querySelector('.data-label').textContent;
+                alert(`查看 ${label} 详情：${number}`);
+            });
+        });
+
+        // 通知按钮点击
+        document.querySelector('.fa-bell').addEventListener('click', function() {
+            alert('打开通知中心');
+        });
+
+        // 模拟实时数据更新
+        function updateLiveData() {
+            const cards = document.querySelectorAll('.data-card');
+            cards.forEach(card => {
+                const changeElement = card.querySelector('.data-change');
+                if (changeElement) {
+                    // 随机更新变化指示器
+                    const isPositive = Math.random() > 0.3;
+                    changeElement.className = `data-change ${isPositive ? 'positive' : 'negative'}`;
+
+                    const icon = changeElement.querySelector('i');
+                    icon.className = isPositive ? 'fas fa-arrow-up text-xs' : 'fas fa-arrow-down text-xs';
+
+                    const text = changeElement.querySelector('span');
+                    const randomChange = Math.floor(Math.random() * 20) + 1;
+                    text.textContent = `${isPositive ? '+' : '-'}${randomChange}%`;
+                }
+            });
+        }
+
+        // 每30秒更新一次数据
+        setInterval(updateLiveData, 30000);
+
+        // 页面加载时的动画效果
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.data-card, .todo-item, .student-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
+

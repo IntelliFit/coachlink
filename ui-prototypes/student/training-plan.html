@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>训练计划</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*{-webkit-tap-highlight-color:transparent}body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#f5f5f7;margin:0;padding:0;display:flex;justify-content:center;align-items:center;min-height:100vh}.device-frame{width:393px;height:852px;background:#1d1d1f;border-radius:55px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}.device-screen{width:100%;height:100%;background:#f2f2f7;border-radius:47px;overflow:hidden;position:relative}.status-bar{height:54px;background:linear-gradient(180deg,rgba(242,242,247,.95),rgba(242,242,247,.9));backdrop-filter:blur(20px);display:flex;justify-content:space-between;align-items:center;padding:0 24px;padding-top:10px;z-index:50;position:relative}.dynamic-island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:126px;height:37px;background:#000;border-radius:19px;z-index:100}.content{height:calc(100% - 54px - 83px);overflow-y:auto;-webkit-overflow-scrolling:touch}.tab-bar{height:83px;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-top:.5px solid rgba(0,0,0,.1);display:flex;justify-content:space-around;align-items:flex-start;padding-top:8px}.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}.tab-item.active .tab-icon{color:#007AFF}.tab-item.active .tab-label{color:#007AFF}.tab-icon{font-size:24px;color:#8e8e93}.tab-label{font-size:10px;color:#8e8e93;font-weight:500}@media(max-width:430px){.device-frame{width:100%;height:100vh;border-radius:0;padding:0;box-shadow:none}.device-screen{border-radius:0}}
+</style>
+</head>
+<body>
+<div class="device-frame">
+<div class="device-screen">
+<div class="dynamic-island"></div>
+<div class="status-bar">
+<div style="font-size:15px;font-weight:600">9:41</div>
+<div style="display:flex;gap:6px"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div>
+</div>
+<div class="content">
+<div class="p-4">
+<div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-5 text-white mb-4">
+<h1 class="text-xl font-bold mb-2">力量提升计划</h1>
+<p class="text-sm opacity-90 mb-3">8周  每周3练</p>
+<div class="bg-white/20 rounded-xl p-3">
+<div class="flex justify-between text-sm mb-2">
+<span>总进度</span>
+<span class="font-semibold">12/24 天</span>
+</div>
+<div class="h-2 bg-white/30 rounded-full overflow-hidden">
+<div class="h-full bg-white rounded-full" style="width:50%"></div>
+</div>
+</div>
+</div>
+<div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+<button class="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium whitespace-nowrap">Week 1</button>
+<button class="px-4 py-2 bg-white text-gray-700 rounded-xl text-sm font-medium whitespace-nowrap">Week 2</button>
+<button class="px-4 py-2 bg-white text-gray-700 rounded-xl text-sm font-medium whitespace-nowrap">Week 3</button>
+<button class="px-4 py-2 bg-white text-gray-700 rounded-xl text-sm font-medium whitespace-nowrap">Week 4</button>
+</div>
+<div class="space-y-3">
+<div class="bg-white rounded-2xl p-4">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h3 class="font-bold text-gray-900">周一</h3>
+<p class="text-sm text-gray-500">上肢推</p>
+</div>
+<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+<i class="fas fa-check text-green-500"></i>
+</div>
+</div>
+<div class="flex gap-2 text-xs">
+<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">卧推 5x5</span>
+<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">推举 4x8</span>
+<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">+3个动作</span>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-4">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h3 class="font-bold text-gray-900">周三</h3>
+<p class="text-sm text-gray-500">下肢</p>
+</div>
+<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+<i class="fas fa-check text-green-500"></i>
+</div>
+</div>
+<div class="flex gap-2 text-xs">
+<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">深蹲 5x5</span>
+<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">硬拉 3x5</span>
+<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">+2个动作</span>
+</div>
+</div>
+<a href="training-execute.html" class="block bg-blue-50 border-2 border-blue-500 rounded-2xl p-4">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h3 class="font-bold text-blue-600">周五  今日训练</h3>
+<p class="text-sm text-blue-500">上肢拉</p>
+</div>
+<div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+<i class="fas fa-play text-white text-sm"></i>
+</div>
+</div>
+<div class="flex gap-2 text-xs mb-3">
+<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded">引体 5x5</span>
+<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded">划船 4x8</span>
+<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded">+3个动作</span>
+</div>
+<div class="bg-blue-500 text-white text-center py-2 rounded-xl font-medium text-sm">开始训练</div>
+</a>
+<div class="bg-white rounded-2xl p-4 opacity-50">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h3 class="font-bold text-gray-900">周日</h3>
+<p class="text-sm text-gray-500">休息日</p>
+</div>
+<div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+<i class="fas fa-moon text-gray-400"></i>
+</div>
+</div>
+<p class="text-xs text-gray-500">主动恢复，轻度拉伸</p>
+</div>
+</div>
+<div class="text-center py-4 mt-4">
+<a href="../index.html" class="text-gray-400 text-sm"><i class="fas fa-arrow-left mr-2"></i>返回导航</a>
+</div>
+</div>
+</div>
+<div class="tab-bar">
+<a href="home.html" class="tab-item">
+<i class="fas fa-home tab-icon"></i>
+<span class="tab-label">首页</span>
+</a>
+<a href="coach-discovery.html" class="tab-item">
+<i class="fas fa-compass tab-icon"></i>
+<span class="tab-label">发现</span>
+</a>
+<div class="tab-item active">
+<i class="fas fa-calendar-alt tab-icon"></i>
+<span class="tab-label">计划</span>
+</div>
+<a href="../common/chat.html" class="tab-item">
+<i class="fas fa-comments tab-icon"></i>
+<span class="tab-label">聊天</span>
+</a>
+<a href="../common/settings.html" class="tab-item">
+<i class="fas fa-user tab-icon"></i>
+<span class="tab-label">我的</span>
+</a>
+</div>
+</div>
+</div>
+</body>
+</html>

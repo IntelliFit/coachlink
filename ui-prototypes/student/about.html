@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>关于我们 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab-item.active .tab-icon { color: #007AFF; }
+        .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="p-4">
+                    <!-- 应用信息 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <div class="text-center">
+                            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-dumbbell text-white text-3xl"></i>
+                            </div>
+                            <h1 class="text-2xl font-bold text-gray-900 mb-2">智健联盟</h1>
+                            <p class="text-gray-500 mb-4">专业健身教练服务平台</p>
+                            <div class="flex items-center justify-center gap-4 text-sm text-gray-600">
+                                <span>版本 2.1.0</span>
+                                <span>•</span>
+                                <span>Build 2101</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 公司介绍 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">关于我们</h2>
+                        <div class="space-y-3 text-gray-600">
+                            <p>智健联盟是专业的健身教练服务平台，致力于为健身爱好者提供最优质的教练指导服务。</p>
+                            <p>我们汇聚了全国优秀的健身教练，通过AI技术和专业指导，帮助用户实现健身目标。</p>
+                            <p>无论您是健身新手还是资深爱好者，都能在这里找到适合的训练方案和专业的指导。</p>
+                        </div>
+                    </div>
+
+                    <!-- 功能特色 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">功能特色</h2>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="flex items-center p-3 bg-blue-50 rounded-xl">
+                                <i class="fas fa-robot text-blue-500 text-xl mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">AI智能训练计划</div>
+                                    <div class="text-sm text-gray-500">基于个人数据生成的个性化训练方案</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-green-50 rounded-xl">
+                                <i class="fas fa-user-tie text-green-500 text-xl mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">专业教练指导</div>
+                                    <div class="text-sm text-gray-500">1对1真人教练，专业技术指导</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-purple-50 rounded-xl">
+                                <i class="fas fa-trophy text-purple-500 text-xl mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">竞技排行榜</div>
+                                    <div class="text-sm text-gray-500">全国健身爱好者竞技平台</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-orange-50 rounded-xl">
+                                <i class="fas fa-video text-orange-500 text-xl mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">视频动作指导</div>
+                                    <div class="text-sm text-gray-500">标准动作演示和技术要点</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 联系方式 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">联系我们</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center p-3 border border-gray-200 rounded-xl">
+                                <i class="fas fa-phone text-blue-500 text-lg mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">客服热线</div>
+                                    <div class="text-sm text-gray-500">400-123-4567</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 border border-gray-200 rounded-xl">
+                                <i class="fas fa-envelope text-green-500 text-lg mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">邮箱</div>
+                                    <div class="text-sm text-gray-500">support@coachlink.com</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 border border-gray-200 rounded-xl">
+                                <i class="fas fa-globe text-purple-500 text-lg mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">官网</div>
+                                    <div class="text-sm text-gray-500">www.coachlink.com</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 border border-gray-200 rounded-xl">
+                                <i class="fab fa-weixin text-green-500 text-lg mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">微信公众号</div>
+                                    <div class="text-sm text-gray-500">智健联盟</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 法律信息 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">法律信息</h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                <span class="text-gray-900">用户协议</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                            <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                <span class="text-gray-900">隐私政策</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                            <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                <span class="text-gray-900">服务条款</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                            <div class="flex justify-between items-center p-3">
+                                <span class="text-gray-900">免责声明</span>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 版本信息 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-gray-900">当前版本</div>
+                                <div class="text-sm text-gray-500">2.1.0 (Build 2101)</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-gray-500 mb-1">最新版本</div>
+                                <div class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">已更新</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-6 mt-6">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 联系方式点击
+        document.querySelectorAll('.border').forEach(item => {
+            item.addEventListener('click', function() {
+                const title = this.querySelector('.font-medium').textContent;
+                if (title === '客服热线') {
+                    alert('拨打客服热线：400-123-4567');
+                } else if (title === '邮箱') {
+                    alert('发送邮件到：support@coachlink.com');
+                } else if (title === '官网') {
+                    alert('访问官网：www.coachlink.com');
+                } else if (title === '微信公众号') {
+                    alert('搜索微信公众号：智健联盟');
+                }
+            });
+        });
+
+        // 法律信息点击
+        document.querySelectorAll('.border-b').forEach(item => {
+            item.addEventListener('click', function() {
+                const title = this.textContent.trim();
+                alert(`查看 ${title} 详情`);
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.bg-white');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    element.style.transition = 'all 0.3s ease';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 150);
+            });
+        });
+    </script>
+</body>
+</html>

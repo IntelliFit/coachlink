@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>排行榜审核 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #1d1d1f;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 筛选器样式 */
+        .filter-section {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 0;
+            padding: 0 16px;
+        }
+
+        .filter-tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .filter-tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        /* 审核列表 */
+        .review-list {
+            padding: 16px;
+        }
+
+        .review-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s;
+        }
+
+        .review-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .review-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .review-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .review-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+        }
+
+        .review-info h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+
+        .review-info p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .review-time {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .review-content {
+            margin-bottom: 16px;
+        }
+
+        .review-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .score-badge {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .score-details {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .review-video {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .review-video:hover {
+            opacity: 0.8;
+        }
+
+        /* 审核操作 */
+        .review-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .action-btn-approve {
+            background: #10b981;
+            color: white;
+        }
+
+        .action-btn-approve:hover {
+            background: #059669;
+        }
+
+        .action-btn-reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .action-btn-reject:hover {
+            background: #dc2626;
+        }
+
+        /* 批量操作栏 */
+        .batch-actions {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 0 16px 16px;
+        }
+
+        .batch-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .select-all {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .select-all input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .batch-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .batch-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .batch-btn-approve {
+            background: #10b981;
+            color: white;
+        }
+
+        .batch-btn-reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .batch-btn-export {
+            background: #6b7280;
+            color: white;
+        }
+
+        /* 分页器 */
+        .pagination {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 0 16px 16px;
+        }
+
+        .pagination-info {
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .page-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .page-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .page-btn.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* 视频播放模态框 */
+        .video-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .video-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .video-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 320px;
+            width: 90%;
+        }
+
+        .video-player {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 标题栏 -->
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <a href="dashboard.html" class="text-gray-600">
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                            <h1 class="text-2xl font-bold text-gray-900">排行榜审核</h1>
+                        </div>
+                        <button class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-sliders-h text-gray-600"></i>
+                        </button>
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-xl font-bold text-red-500">15</div>
+                            <div class="text-xs text-gray-500">待审核</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-xl font-bold text-green-500">127</div>
+                            <div class="text-xs text-gray-500">已通过</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center">
+                            <div class="text-xl font-bold text-gray-500">8</div>
+                            <div class="text-xs text-gray-500">已拒绝</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 筛选器 -->
+                <div class="filter-section">
+                    <div class="filter-tabs">
+                        <div class="filter-tab active" onclick="filterByProject('all')">全部</div>
+                        <div class="filter-tab" onclick="filterByProject('bench')">卧推</div>
+                        <div class="filter-tab" onclick="filterByProject('squat')">深蹲</div>
+                        <div class="filter-tab" onclick="filterByProject('deadlift')">硬拉</div>
+                        <div class="filter-tab" onclick="filterByProject('pullup')">引体向上</div>
+                    </div>
+                </div>
+
+                <!-- 批量操作栏 -->
+                <div class="batch-actions">
+                    <div class="batch-controls">
+                        <label class="select-all">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            <span>全选</span>
+                        </label>
+                        <div class="batch-buttons">
+                            <button class="batch-btn batch-btn-approve" onclick="batchApprove()">
+                                <i class="fas fa-check"></i>批量通过
+                            </button>
+                            <button class="batch-btn batch-btn-reject" onclick="batchReject()">
+                                <i class="fas fa-times"></i>批量拒绝
+                            </button>
+                            <button class="batch-btn batch-btn-export" onclick="exportData()">
+                                <i class="fas fa-download"></i>导出
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 审核列表 -->
+                <div class="review-list">
+                    <!-- 审核项目 1 -->
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-user">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80" class="review-avatar">
+                                <div class="review-info">
+                                    <h4>张三</h4>
+                                    <p>杠铃卧推 · 100kg × 5次</p>
+                                </div>
+                            </div>
+                            <div class="review-time">10:30</div>
+                        </div>
+
+                        <div class="review-content">
+                            <div class="review-score">
+                                <div class="score-badge">100kg × 5次</div>
+                                <div class="score-details">RPE 8，动作规范</div>
+                            </div>
+
+                            <div class="review-video" onclick="playVideo(1)">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+
+                            <div class="review-actions">
+                                <button class="action-btn action-btn-approve" onclick="approveSubmission(1)">
+                                    <i class="fas fa-check"></i>通过
+                                </button>
+                                <button class="action-btn action-btn-reject" onclick="rejectSubmission(1)">
+                                    <i class="fas fa-times"></i>拒绝
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 审核项目 2 -->
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-user">
+                                <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80" class="review-avatar">
+                                <div class="review-info">
+                                    <h4>李四</h4>
+                                    <p>深蹲 · 120kg × 3次</p>
+                                </div>
+                            </div>
+                            <div class="review-time">09:15</div>
+                        </div>
+
+                        <div class="review-content">
+                            <div class="review-score">
+                                <div class="score-badge">120kg × 3次</div>
+                                <div class="score-details">RPE 9，深度到位</div>
+                            </div>
+
+                            <div class="review-video" onclick="playVideo(2)">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+
+                            <div class="review-actions">
+                                <button class="action-btn action-btn-approve" onclick="approveSubmission(2)">
+                                    <i class="fas fa-check"></i>通过
+                                </button>
+                                <button class="action-btn action-btn-reject" onclick="rejectSubmission(2)">
+                                    <i class="fas fa-times"></i>拒绝
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 审核项目 3 -->
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-user">
+                                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80" class="review-avatar">
+                                <div class="review-info">
+                                    <h4>王五</h4>
+                                    <p>硬拉 · 150kg × 1次</p>
+                                </div>
+                            </div>
+                            <div class="review-time">08:45</div>
+                        </div>
+
+                        <div class="review-content">
+                            <div class="review-score">
+                                <div class="score-badge">150kg × 1次</div>
+                                <div class="score-details">RPE 10，极限尝试</div>
+                            </div>
+
+                            <div class="review-video" onclick="playVideo(3)">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+
+                            <div class="review-actions">
+                                <button class="action-btn action-btn-approve" onclick="approveSubmission(3)">
+                                    <i class="fas fa-check"></i>通过
+                                </button>
+                                <button class="action-btn action-btn-reject" onclick="rejectSubmission(3)">
+                                    <i class="fas fa-times"></i>拒绝
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 审核项目 4 -->
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-user">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80" class="review-avatar">
+                                <div class="review-info">
+                                    <h4>赵六</h4>
+                                    <p>引体向上 · 自重 × 12次</p>
+                                </div>
+                            </div>
+                            <div class="review-time">昨天</div>
+                        </div>
+
+                        <div class="review-content">
+                            <div class="review-score">
+                                <div class="score-badge">自重 × 12次</div>
+                                <div class="score-details">RPE 7，轻松完成</div>
+                            </div>
+
+                            <div class="review-video" onclick="playVideo(4)">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+
+                            <div class="review-actions">
+                                <button class="action-btn action-btn-approve" onclick="approveSubmission(4)">
+                                    <i class="fas fa-check"></i>通过
+                                </button>
+                                <button class="action-btn action-btn-reject" onclick="rejectSubmission(4)">
+                                    <i class="fas fa-times"></i>拒绝
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分页器 -->
+                <div class="pagination">
+                    <div class="pagination-info">
+                        第 1 页，共 4 页 · 共 15 条记录
+                    </div>
+
+                    <div class="pagination-controls">
+                        <button class="page-btn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="page-btn active">1</button>
+                        <button class="page-btn">2</button>
+                        <button class="page-btn">3</button>
+                        <button class="page-btn">4</button>
+                        <button class="page-btn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频播放模态框 -->
+    <div class="video-modal" id="videoModal">
+        <div class="video-modal-content">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-bold">训练视频审核</h3>
+                <button onclick="closeVideoModal()" class="text-gray-400">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="video-player">
+                <i class="fas fa-play-circle"></i>
+            </div>
+
+            <div class="flex gap-3 mt-4">
+                <button class="flex-1 py-2 bg-green-500 text-white rounded-lg font-medium" onclick="approveFromModal()">
+                    通过审核
+                </button>
+                <button class="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium" onclick="rejectFromModal()">
+                    拒绝审核
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedItems = [];
+
+        // 按项目筛选
+        function filterByProject(project) {
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // 模拟筛选逻辑
+            const items = document.querySelectorAll('.review-item');
+            items.forEach((item, index) => {
+                item.style.opacity = '0.5';
+                setTimeout(() => {
+                    item.style.opacity = '1';
+                }, index * 50);
+            });
+
+            console.log(`筛选项目: ${project}`);
+        }
+
+        // 播放视频
+        function playVideo(id) {
+            const modal = document.getElementById('videoModal');
+            modal.classList.add('show');
+
+            // 存储当前审核项目ID
+            modal.dataset.reviewId = id;
+        }
+
+        // 关闭视频模态框
+        function closeVideoModal() {
+            const modal = document.getElementById('videoModal');
+            modal.classList.remove('show');
+        }
+
+        // 从模态框通过审核
+        function approveFromModal() {
+            const modal = document.getElementById('videoModal');
+            const reviewId = modal.dataset.reviewId;
+
+            closeVideoModal();
+            approveSubmission(reviewId);
+        }
+
+        // 从模态框拒绝审核
+        function rejectFromModal() {
+            const modal = document.getElementById('videoModal');
+            const reviewId = modal.dataset.reviewId;
+
+            closeVideoModal();
+            rejectSubmission(reviewId);
+        }
+
+        // 通过审核
+        function approveSubmission(id) {
+            if (confirm('确定要通过这个成绩吗？')) {
+                // 移除审核项目
+                const item = event.target.closest('.review-item');
+                item.style.transform = 'translateX(100%)';
+                item.style.opacity = '0';
+
+                setTimeout(() => {
+                    item.remove();
+                    updateStats('approve');
+                }, 300);
+
+                alert(`成绩 ${id} 已通过审核`);
+            }
+        }
+
+        // 拒绝审核
+        function rejectSubmission(id) {
+            const reason = prompt('请输入拒绝理由：');
+            if (reason) {
+                // 移除审核项目
+                const item = event.target.closest('.review-item');
+                item.style.transform = 'translateX(100%)';
+                item.style.opacity = '0';
+
+                setTimeout(() => {
+                    item.remove();
+                    updateStats('reject');
+                }, 300);
+
+                alert(`成绩 ${id} 已拒绝，理由：${reason}`);
+            }
+        }
+
+        // 更新统计数据
+        function updateStats(action) {
+            const pendingCount = document.querySelector('.text-red-500');
+            const approvedCount = document.querySelector('.text-green-500');
+            const rejectedCount = document.querySelector('.text-gray-500');
+
+            const pending = parseInt(pendingCount.textContent);
+            const approved = parseInt(approvedCount.textContent);
+            const rejected = parseInt(rejectedCount.textContent);
+
+            if (action === 'approve') {
+                pendingCount.textContent = pending - 1;
+                approvedCount.textContent = approved + 1;
+            } else {
+                pendingCount.textContent = pending - 1;
+                rejectedCount.textContent = rejected + 1;
+            }
+        }
+
+        // 全选/取消全选
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.review-item input[type="checkbox"]');
+
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+
+            selectedItems = selectAll.checked ? [1, 2, 3, 4] : [];
+        }
+
+        // 批量通过
+        function batchApprove() {
+            if (selectedItems.length === 0) {
+                alert('请先选择要审核的项目');
+                return;
+            }
+
+            if (confirm(`确定要通过选中的 ${selectedItems.length} 个成绩吗？`)) {
+                alert(`已批量通过 ${selectedItems.length} 个成绩`);
+                selectedItems = [];
+                document.getElementById('selectAll').checked = false;
+            }
+        }
+
+        // 批量拒绝
+        function batchReject() {
+            if (selectedItems.length === 0) {
+                alert('请先选择要审核的项目');
+                return;
+            }
+
+            const reason = prompt('请输入批量拒绝理由：');
+            if (reason) {
+                alert(`已批量拒绝 ${selectedItems.length} 个成绩`);
+                selectedItems = [];
+                document.getElementById('selectAll').checked = false;
+            }
+        }
+
+        // 导出数据
+        function exportData() {
+            alert('导出Excel文件功能');
+        }
+
+        // 审核项目悬停效果
+        document.querySelectorAll('.review-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(8px)';
+                this.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
+            });
+
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 按钮点击效果
+        document.querySelectorAll('.action-btn, .batch-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const items = document.querySelectorAll('.review-item');
+            items.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    item.style.transition = 'all 0.3s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('videoModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeVideoModal();
+            }
+        });
+    </script>
+</body>
+</html>
+

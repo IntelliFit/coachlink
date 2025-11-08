@@ -1,0 +1,55 @@
+import { cookies } from 'next/headers';
+import { cache } from 'react';
+import { type CookieOptions, createServerClient } from '@supabase/ssr';
+
+// 输出当前使用的环境配置
+if (typeof window === 'undefined') {
+    // 仅在服务端输出，避免在客户端暴露敏感信息
+    console.log(`[Supabase] Using configuration for: ${process.env.NODE_ENV}`);
+}
+
+// 检查环境变量是否存在
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// 验证环境变量
+if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+}
+
+if (!supabaseAnonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
+}
+
+// 仅服务端使用（SSR）
+export const createServerSupabaseClient = cache(async () => {
+    const cookieStore = await cookies();
+
+    return createServerClient(
+        supabaseUrl!,
+        supabaseAnonKey!,
+        {
+            cookies: {
+                get(name: string) {
+                    return cookieStore.get(name)?.value;
+                },
+                set(name: string, value: string, options: CookieOptions) {
+                    try {
+                        cookieStore.set({ name, value, ...options });
+                    } catch (error) {
+                        // 处理cookie设置错误
+                        console.error('Error setting cookie:', error);
+                    }
+                },
+                remove(name: string, options: CookieOptions) {
+                    try {
+                        cookieStore.set({ name, value: '', ...options });
+                    } catch (error) {
+                        // 处理cookie删除错误
+                        console.error('Error removing cookie:', error);
+                    }
+                },
+            },
+        }
+    );
+});

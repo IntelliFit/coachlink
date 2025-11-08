@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>成就徽章 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab-item.active .tab-icon { color: #007AFF; }
+        .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="p-4">
+                    <!-- 成就统计 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h1 class="text-xl font-bold text-gray-900 mb-4">成就徽章</h1>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-yellow-500">8</div>
+                                <div class="text-sm text-gray-500">已获得</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-400">12</div>
+                                <div class="text-sm text-gray-500">待解锁</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-500">20</div>
+                                <div class="text-sm text-gray-500">总徽章</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分类标签 -->
+                    <div class="bg-white rounded-2xl p-4 mb-6">
+                        <div class="flex gap-3 overflow-x-auto">
+                            <button class="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">全部</button>
+                            <button class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">训练里程碑</button>
+                            <button class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">力量突破</button>
+                            <button class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">坚持打卡</button>
+                            <button class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">特殊活动</button>
+                        </div>
+                    </div>
+
+                    <!-- 已获得徽章 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-trophy text-yellow-500 mr-2"></i>
+                            已获得徽章
+                        </h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- 徽章项 -->
+                            <div class="text-center p-4 border border-yellow-200 rounded-2xl bg-yellow-50">
+                                <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-fire text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">训练新星</div>
+                                <div class="text-sm text-gray-500 mb-2">完成首次训练</div>
+                                <div class="text-xs text-yellow-600 bg-yellow-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-blue-200 rounded-2xl bg-blue-50">
+                                <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-dumbbell text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">卧推达人</div>
+                                <div class="text-sm text-gray-500 mb-2">卧推突破100kg</div>
+                                <div class="text-xs text-blue-600 bg-blue-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-green-200 rounded-2xl bg-green-50">
+                                <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-calendar-check text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">坚持训练</div>
+                                <div class="text-sm text-gray-500 mb-2">连续训练7天</div>
+                                <div class="text-xs text-green-600 bg-green-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-purple-200 rounded-2xl bg-purple-50">
+                                <div class="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-chart-line text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">进步明显</div>
+                                <div class="text-sm text-gray-500 mb-2">力量提升5kg</div>
+                                <div class="text-xs text-purple-600 bg-purple-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-red-200 rounded-2xl bg-red-50">
+                                <div class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-video text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">视频达人</div>
+                                <div class="text-sm text-gray-500 mb-2">上传10个训练视频</div>
+                                <div class="text-xs text-red-600 bg-red-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-indigo-200 rounded-2xl bg-indigo-50">
+                                <div class="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-users text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">社区参与</div>
+                                <div class="text-sm text-gray-500 mb-2">参与排行榜挑战</div>
+                                <div class="text-xs text-indigo-600 bg-indigo-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-pink-200 rounded-2xl bg-pink-50">
+                                <div class="w-16 h-16 bg-pink-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-star text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">月度最佳</div>
+                                <div class="text-sm text-gray-500 mb-2">本月训练最积极</div>
+                                <div class="text-xs text-pink-600 bg-pink-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-orange-200 rounded-2xl bg-orange-50">
+                                <div class="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-crown text-white text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-900 mb-1">力量王者</div>
+                                <div class="text-sm text-gray-500 mb-2">深蹲突破150kg</div>
+                                <div class="text-xs text-orange-600 bg-orange-100 rounded-full px-2 py-1">已获得</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 待解锁徽章 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-lock text-gray-400 mr-2"></i>
+                            待解锁徽章
+                        </h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center p-4 border border-gray-200 rounded-2xl bg-gray-50 opacity-60">
+                                <div class="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-medal text-gray-500 text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-500 mb-1">百日坚持</div>
+                                <div class="text-sm text-gray-400 mb-2">连续训练100天</div>
+                                <div class="text-xs text-gray-400 bg-gray-200 rounded-full px-2 py-1">待解锁</div>
+                            </div>
+
+                            <div class="text-center p-4 border border-gray-200 rounded-2xl bg-gray-50 opacity-60">
+                                <div class="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-rocket text-gray-500 text-2xl"></i>
+                                </div>
+                                <div class="font-bold text-gray-500 mb-1">力量精英</div>
+                                <div class="text-sm text-gray-400 mb-2">三大项总和300kg</div>
+                                <div class="text-xs text-gray-400 bg-gray-200 rounded-full px-2 py-1">待解锁</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分享成就 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">分享成就</h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="flex items-center justify-center p-4 border border-gray-200 rounded-xl text-gray-700" onclick="shareAchievement()">
+                                <i class="fab fa-weixin text-green-500 text-xl mr-2"></i>
+                                微信分享
+                            </button>
+                            <button class="flex items-center justify-center p-4 border border-gray-200 rounded-xl text-gray-700" onclick="shareAchievement()">
+                                <i class="fab fa-qq text-blue-500 text-xl mr-2"></i>
+                                QQ分享
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-6 mt-6">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 分享成就
+        function shareAchievement() {
+            if (navigator.share) {
+                navigator.share({
+                    title: '我的训练成就',
+                    text: '在智健联盟获得的成就徽章',
+                    url: window.location.href
+                });
+            } else {
+                alert('分享功能演示');
+            }
+        }
+
+        // 徽章点击效果
+        document.querySelectorAll('.grid > div').forEach(badge => {
+            badge.addEventListener('click', function() {
+                this.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 200);
+            });
+        });
+
+        // 分类标签点击
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function() {
+                // 移除其他按钮的active状态
+                document.querySelectorAll('button').forEach(b => {
+                    b.className = 'bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap';
+                });
+                // 设置当前按钮为active
+                this.className = 'bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap';
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.bg-white');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    element.style.transition = 'all 0.3s ease';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 150);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "common": {
+    "welcome": "Welcome to CoachLink",
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search"
+  },
+  "theme": {
+    "light": "Light Mode",
+    "dark": "Dark Mode"
+  },
+  "language": {
+    "english": "English",
+    "chinese": "Chinese"
+  },
+  "home": {
+    "description": "Welcome to the intelligent fitness training platform! Please select the service you need:",
+    "ai_training": "AI Training Plans",
+    "ai_training_desc": "Personalized custom training programs",
+    "coaching": "Coaching",
+    "coaching_desc": "Professional coaching services",
+    "leaderboard": "Leaderboard",
+    "leaderboard_desc": "View rankings in various sports",
+    "payment_test": "Payment Function Test",
+    "payment_test_desc": "Test Alipay QR code payment function"
+  }
+}

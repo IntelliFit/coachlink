@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>消息提示 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px;
+        }
+
+        /* Toast 提示消息 */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: #007AFF;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,122,255,0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 2000;
+            max-width: 300px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+        }
+
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 8px 24px rgba(16,185,129,0.3);
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 8px 24px rgba(239,68,68,0.3);
+        }
+
+        .toast.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 8px 24px rgba(245,158,11,0.3);
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 8px 24px rgba(59,130,246,0.3);
+        }
+
+        /* 演示按钮 */
+        .demo-button {
+            transition: all 0.2s;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .demo-button:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+            .toast {
+                left: 20px;
+                right: 20px;
+                transform: translateX(0) translateY(-20px);
+                max-width: none;
+            }
+            .toast.show {
+                transform: translateX(0) translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-bell text-white text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900 mb-2">消息提示组件</h1>
+                    <p class="text-gray-500">Toast 消息提示系统演示</p>
+                </div>
+
+                <!-- 成功提示演示 -->
+                <div class="bg-white rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                            成功提示
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="demo-button bg-green-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('训练记录保存成功！', 'success')">
+                            <i class="fas fa-check"></i>
+                            保存成功
+                        </button>
+                        <button class="demo-button bg-green-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('订阅成功！欢迎加入智健联盟', 'success')">
+                            <i class="fas fa-star"></i>
+                            订阅成功
+                        </button>
+                        <button class="demo-button bg-green-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('数据同步完成', 'success')">
+                            <i class="fas fa-sync"></i>
+                            同步完成
+                        </button>
+                        <button class="demo-button bg-green-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('教练已回复您的消息', 'success')">
+                            <i class="fas fa-comments"></i>
+                            消息回复
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 错误提示演示 -->
+                <div class="bg-white rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                            错误提示
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="demo-button bg-red-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('网络连接失败，请检查网络', 'error')">
+                            <i class="fas fa-wifi"></i>
+                            网络错误
+                        </button>
+                        <button class="demo-button bg-red-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('保存失败，请重试', 'error')">
+                            <i class="fas fa-save"></i>
+                            保存失败
+                        </button>
+                        <button class="demo-button bg-red-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('登录已过期，请重新登录', 'error')">
+                            <i class="fas fa-sign-out-alt"></i>
+                            登录过期
+                        </button>
+                        <button class="demo-button bg-red-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('权限不足，无法操作', 'error')">
+                            <i class="fas fa-lock"></i>
+                            权限不足
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 警告提示演示 -->
+                <div class="bg-white rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-exclamation-triangle text-orange-500 mr-2"></i>
+                            警告提示
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="demo-button bg-orange-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('今日训练未完成，建议继续', 'warning')">
+                            <i class="fas fa-clock"></i>
+                            训练提醒
+                        </button>
+                        <button class="demo-button bg-orange-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('订阅即将到期，请续费', 'warning')">
+                            <i class="fas fa-calendar-alt"></i>
+                            订阅到期
+                        </button>
+                        <button class="demo-button bg-orange-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('数据未同步，请检查网络', 'warning')">
+                            <i class="fas fa-cloud"></i>
+                            同步警告
+                        </button>
+                        <button class="demo-button bg-orange-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('版本更新可用', 'warning')">
+                            <i class="fas fa-download"></i>
+                            更新提醒
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 信息提示演示 -->
+                <div class="bg-white rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                            信息提示
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('欢迎使用智健联盟！', 'info')">
+                            <i class="fas fa-handshake"></i>
+                            欢迎信息
+                        </button>
+                        <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('新功能已上线，快去体验吧', 'info')">
+                            <i class="fas fa-lightbulb"></i>
+                            新功能
+                        </button>
+                        <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('数据加载中，请稍候...', 'info')">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            加载提示
+                        </button>
+                        <button class="demo-button bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('操作已取消', 'info')">
+                            <i class="fas fa-undo"></i>
+                            操作取消
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 高级功能演示 -->
+                <div class="bg-white rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-cog text-gray-500 mr-2"></i>
+                            高级功能
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="demo-button bg-purple-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToastWithIcon('训练完成！🎉\n获得10积分奖励', 'success', 'trophy')">
+                            <i class="fas fa-trophy"></i>
+                            带图标提示
+                        </button>
+                        <button class="demo-button bg-indigo-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToastWithAction('新消息：教练已调整您的训练计划', 'info', '查看', 'primary')">
+                            <i class="fas fa-bell"></i>
+                            带操作提示
+                        </button>
+                        <button class="demo-button bg-teal-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showToast('这是一条较长的消息提示文本，用于测试多行显示效果和自动换行功能', 'info')">
+                            <i class="fas fa-align-left"></i>
+                            长文本提示
+                        </button>
+                        <button class="demo-button bg-pink-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2" onclick="showMultipleToasts()">
+                            <i class="fas fa-layer-group"></i>
+                            连续提示
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 代码示例 -->
+                <div class="bg-gray-900 rounded-2xl p-4 mb-8">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-white flex items-center">
+                            <i class="fas fa-code text-green-400 mr-2"></i>
+                            使用示例
+                        </h2>
+                        <button class="text-gray-400" onclick="copyCode()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-sm text-gray-300 font-mono leading-relaxed">
+                        <div>// 基本用法</div>
+                        <div>showToast('消息内容', 'success');</div>
+                        <div></div>
+                        <div>// 可用类型：success, error, warning, info</div>
+                        <div>// 自动3秒后消失，支持手动关闭</div>
+                    </div>
+                </div>
+
+                <!-- 返回导航 -->
+                <div class="text-center pb-8">
+                    <a href="../index.html" class="text-gray-400 text-sm">
+                        <i class="fas fa-arrow-left mr-2"></i>返回导航
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toast 系统
+        let toastQueue = [];
+        let currentToast = null;
+
+        // 显示 Toast 消息
+        function showToast(message, type = 'info', duration = 3000) {
+            // 如果有正在显示的toast，加入队列
+            if (currentToast) {
+                toastQueue.push({ message, type, duration });
+                return;
+            }
+
+            createToast(message, type, duration);
+        }
+
+        // 创建 Toast 元素
+        function createToast(message, type, duration) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+
+            // 添加图标
+            if (type === 'success') {
+                toast.innerHTML = '<i class="fas fa-check-circle mr-2"></i>' + message;
+            } else if (type === 'error') {
+                toast.innerHTML = '<i class="fas fa-times-circle mr-2"></i>' + message;
+            } else if (type === 'warning') {
+                toast.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>' + message;
+            } else {
+                toast.innerHTML = '<i class="fas fa-info-circle mr-2"></i>' + message;
+            }
+
+            document.body.appendChild(toast);
+
+            // 显示动画
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            currentToast = toast;
+
+            // 自动隐藏
+            setTimeout(() => {
+                hideToast(toast);
+            }, duration);
+        }
+
+        // 隐藏 Toast
+        function hideToast(toast) {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    document.body.removeChild(toast);
+                }
+                currentToast = null;
+
+                // 显示队列中的下一个toast
+                if (toastQueue.length > 0) {
+                    const nextToast = toastQueue.shift();
+                    setTimeout(() => {
+                        createToast(nextToast.message, nextToast.type, nextToast.duration);
+                    }, 300);
+                }
+            }, 300);
+        }
+
+        // 带图标的提示
+        function showToastWithIcon(message, type, icon) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${icon} mr-2"></i>${message}`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => hideToast(toast), 4000);
+        }
+
+        // 带操作按钮的提示
+        function showToastWithAction(message, type, actionText, actionType) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button class="ml-3 px-3 py-1 bg-white/20 rounded-lg text-sm font-medium hover:bg-white/30 transition-colors">
+                        ${actionText}
+                    </button>
+                </div>
+            `;
+
+            // 添加操作按钮事件
+            const actionBtn = toast.querySelector('button');
+            actionBtn.addEventListener('click', () => {
+                hideToast(toast);
+                if (actionType === 'primary') {
+                    showToast(`${actionText}操作已执行`, 'success');
+                }
+            });
+
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => hideToast(toast), 5000);
+        }
+
+        // 连续提示
+        function showMultipleToasts() {
+            setTimeout(() => showToast('第一条消息', 'info'), 0);
+            setTimeout(() => showToast('第二条消息', 'success'), 1000);
+            setTimeout(() => showToast('第三条消息', 'warning'), 2000);
+            setTimeout(() => showToast('第四条消息', 'error'), 3000);
+        }
+
+        // 复制代码
+        function copyCode() {
+            const code = `// 基本用法
+showToast('消息内容', 'success');
+
+// 可用类型：success, error, warning, info
+// 自动3秒后消失，支持手动关闭`;
+
+            navigator.clipboard.writeText(code).then(() => {
+                showToast('代码已复制到剪贴板', 'success');
+            });
+        }
+
+        // 点击 Toast 手动关闭
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.toast')) {
+                const toast = e.target.closest('.toast');
+                hideToast(toast);
+            }
+        });
+
+        // 演示函数
+        function demoToast(message, type) {
+            return function() {
+                showToast(message, type);
+            };
+        }
+
+        // 为所有演示按钮添加事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 成功提示按钮
+            document.querySelectorAll('.bg-green-500').forEach((btn, index) => {
+                const messages = [
+                    '训练记录保存成功！',
+                    '订阅成功！欢迎加入智健联盟',
+                    '数据同步完成',
+                    '教练已回复您的消息'
+                ];
+                btn.addEventListener('click', () => showToast(messages[index], 'success'));
+            });
+
+            // 错误提示按钮
+            document.querySelectorAll('.bg-red-500').forEach((btn, index) => {
+                const messages = [
+                    '网络连接失败，请检查网络',
+                    '保存失败，请重试',
+                    '登录已过期，请重新登录',
+                    '权限不足，无法操作'
+                ];
+                btn.addEventListener('click', () => showToast(messages[index], 'error'));
+            });
+
+            // 警告提示按钮
+            document.querySelectorAll('.bg-orange-500').forEach((btn, index) => {
+                const messages = [
+                    '今日训练未完成，建议继续',
+                    '订阅即将到期，请续费',
+                    '数据未同步，请检查网络',
+                    '版本更新可用'
+                ];
+                btn.addEventListener('click', () => showToast(messages[index], 'warning'));
+            });
+
+            // 信息提示按钮
+            document.querySelectorAll('.bg-blue-500').forEach((btn, index) => {
+                const messages = [
+                    '欢迎使用智健联盟！',
+                    '新功能已上线，快去体验吧',
+                    '数据加载中，请稍候...',
+                    '操作已取消'
+                ];
+                btn.addEventListener('click', () => showToast(messages[index], 'info'));
+            });
+        });
+    </script>
+</body>
+</html>
+

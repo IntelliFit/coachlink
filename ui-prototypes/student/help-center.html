@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>帮助中心 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px - 83px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 搜索框 */
+        .search-box {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+
+        /* FAQ 折叠 */
+        .faq-item {
+            transition: all 0.3s ease;
+        }
+
+        .faq-item.expanded {
+            background: #f8f9fa;
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .faq-item.expanded .faq-answer {
+            max-height: 200px;
+        }
+
+        /* 底部 Tab Bar */
+        .tab-bar {
+            height: 83px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            padding-top: 8px;
+            position: relative;
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active .tab-icon {
+            color: #007AFF;
+        }
+
+        .tab-item.active .tab-label {
+            color: #007AFF;
+        }
+
+        .tab-icon {
+            font-size: 24px;
+            color: #8e8e93;
+        }
+
+        .tab-label {
+            font-size: 10px;
+            color: #8e8e93;
+            font-weight: 500;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 搜索框 -->
+                <div class="search-box p-4">
+                    <div class="relative">
+                        <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="搜索问题..."
+                            class="w-full pl-12 pr-4 py-3 bg-white rounded-xl border-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                    </div>
+                </div>
+
+                <!-- 快速入口 -->
+                <div class="p-4">
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-headset text-blue-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">在线客服</h3>
+                            <p class="text-xs text-gray-500">7x24h 在线咨询</p>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-video text-green-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">视频教程</h3>
+                            <p class="text-xs text-gray-500">新手使用指南</p>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-comments text-purple-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">意见反馈</h3>
+                            <p class="text-xs text-gray-500">产品建议</p>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-3">
+                                <i class="fas fa-phone text-orange-500 text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-900 mb-1">联系我们</h3>
+                            <p class="text-xs text-gray-500">电话邮箱</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 热门问题 -->
+                <div class="px-4 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-fire text-red-500 mr-2"></i>
+                            热门问题
+                        </h2>
+                        <span class="text-sm text-gray-500">共 15 个问题</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <!-- 问题 1 -->
+                        <div class="faq-item bg-white rounded-2xl overflow-hidden">
+                            <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleFAQ(this)">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900 mb-1">如何开始我的第一次训练？</h3>
+                                    <p class="text-sm text-gray-500">新用户快速上手指南</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                            </div>
+                            <div class="faq-answer px-4 pb-4">
+                                <div class="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 leading-relaxed">
+                                    1. 完成注册后，完善个人档案<br>
+                                    2. 选择合适的教练并订阅服务<br>
+                                    3. 填写入会问卷获取专属计划<br>
+                                    4. 在"训练计划"中查看每日安排<br>
+                                    5. 点击"开始训练"进入执行页面
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 问题 2 -->
+                        <div class="faq-item bg-white rounded-2xl overflow-hidden">
+                            <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleFAQ(this)">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900 mb-1">RPE 是什么意思？</h3>
+                                    <p class="text-sm text-gray-500">主观疲劳度解释</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                            </div>
+                            <div class="faq-answer px-4 pb-4">
+                                <div class="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 leading-relaxed">
+                                    RPE（Rate of Perceived Exertion）是主观疲劳度评分：<br>
+                                    • RPE 6-7: 还能轻松完成更多次数<br>
+                                    • RPE 8-9: 接近力竭，还能做1-2次<br>
+                                    • RPE 10: 力竭，无法完成更多次数
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 问题 3 -->
+                        <div class="faq-item bg-white rounded-2xl overflow-hidden">
+                            <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleFAQ(this)">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900 mb-1">如何标记进步组？</h3>
+                                    <p class="text-sm text-gray-500">高光时刻记录方法</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                            </div>
+                            <div class="faq-answer px-4 pb-4">
+                                <div class="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 leading-relaxed">
+                                    在训练执行页面完成一组后：<br>
+                                    1. 点击⭐"标记为进步组"按钮<br>
+                                    2. 系统会自动记录到你的进步时间线<br>
+                                    3. 教练可以看到你的高光时刻<br>
+                                    4. 这些记录会成为你的训练里程碑
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 问题 4 -->
+                        <div class="faq-item bg-white rounded-2xl overflow-hidden">
+                            <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleFAQ(this)">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900 mb-1">如何修改训练数据？</h3>
+                                    <p class="text-sm text-gray-500">数据编辑和调整</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                            </div>
+                            <div class="faq-answer px-4 pb-4">
+                                <div class="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 leading-relaxed">
+                                    方法1：在训练执行中点击"编辑"按钮<br>
+                                    方法2：在档案页面的训练历史中找到记录<br>
+                                    方法3：点击"训练记录详情"中的编辑按钮<br><br>
+                                    注意：修改后会更新1RM估算和进步曲线
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 问题 5 -->
+                        <div class="faq-item bg-white rounded-2xl overflow-hidden">
+                            <div class="p-4 flex items-center justify-between cursor-pointer" onclick="toggleFAQ(this)">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-900 mb-1">如何联系我的教练？</h3>
+                                    <p class="text-sm text-gray-500">教练沟通方式</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                            </div>
+                            <div class="faq-answer px-4 pb-4">
+                                <div class="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 leading-relaxed">
+                                    1. 在首页点击"我的教练"进入教练详情<br>
+                                    2. 点击底部的"发消息"按钮<br>
+                                    3. 在聊天页面发送文字、图片或引用训练视频<br>
+                                    4. 高级版用户可获得教练的实时指导<br><br>
+                                    AI版用户每天有3次免费答疑机会
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 问题分类 -->
+                <div class="px-4 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-folder text-blue-500 mr-2"></i>
+                        问题分类
+                    </h2>
+
+                    <div class="space-y-3">
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-user-graduate text-blue-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">新手入门</div>
+                                        <div class="text-sm text-gray-500">注册、问卷、开始训练</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-dumbbell text-green-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">训练执行</div>
+                                        <div class="text-sm text-gray-500">动作规范、数据记录</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-chart-line text-purple-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">数据档案</div>
+                                        <div class="text-sm text-gray-500">1RM计算、进步曲线</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-coins text-orange-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">订阅付费</div>
+                                        <div class="text-sm text-gray-500">AI版、高级版、支付方式</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 active:scale-95 transition">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-trophy text-red-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">排行榜</div>
+                                        <div class="text-sm text-gray-500">成绩提交、规则说明</div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 联系方式 -->
+                <div class="px-4 mb-6">
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white">
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-headset text-2xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">需要更多帮助？</h3>
+                            <p class="text-white/80 text-sm mb-4">我们的专业客服团队随时为您服务</p>
+                            <div class="flex justify-center gap-4 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-phone"></i>
+                                    <span>400-123-4567</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-envelope"></i>
+                                    <span>support@coachlink.com</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 底部 Tab Bar -->
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FAQ 折叠功能
+        function toggleFAQ(element) {
+            const faqItem = element.closest('.faq-item');
+            const arrow = element.querySelector('.fa-chevron-down');
+
+            faqItem.classList.toggle('expanded');
+            arrow.style.transform = faqItem.classList.contains('expanded') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        // 搜索功能
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const faqItems = document.querySelectorAll('.faq-item');
+
+            faqItems.forEach(item => {
+                const question = item.querySelector('h3').textContent.toLowerCase();
+                const description = item.querySelector('p').textContent.toLowerCase();
+
+                if (question.includes(searchTerm) || description.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = searchTerm ? 'none' : 'block';
+                }
+            });
+        });
+
+        // 快速入口点击
+        document.querySelectorAll('.bg-white').forEach(card => {
+            card.addEventListener('click', function() {
+                const title = this.querySelector('h3').textContent;
+                console.log(`点击快速入口: ${title}`);
+
+                // 根据不同的入口显示不同的消息
+                switch(title) {
+                    case '在线客服':
+                        alert('正在连接客服，请稍候...');
+                        break;
+                    case '视频教程':
+                        alert('跳转到视频教程页面');
+                        break;
+                    case '意见反馈':
+                        alert('打开意见反馈表单');
+                        break;
+                    case '联系我们':
+                        alert('显示联系方式详情');
+                        break;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

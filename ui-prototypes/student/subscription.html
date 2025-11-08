@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的订阅 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; background: #f5f5f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .device-frame { width: 393px; height: 852px; background: #1d1d1f; border-radius: 55px; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative; }
+        .device-screen { width: 100%; height: 100%; background: #f2f2f7; border-radius: 47px; overflow: hidden; position: relative; }
+        .status-bar { height: 54px; background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%); backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; padding-top: 10px; position: relative; z-index: 50; }
+        .status-bar-time { font-size: 15px; font-weight: 600; color: #000000; letter-spacing: -0.3px; }
+        .status-bar-icons { display: flex; align-items: center; gap: 6px; }
+        .status-bar-icon { font-size: 16px; color: #000000; }
+        .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000000; border-radius: 19px; z-index: 100; }
+        .content { height: calc(100% - 54px - 83px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .tab-bar { height: 83px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab-item.active .tab-icon { color: #007AFF; }
+        .tab-item.active .tab-label { color: #007AFF; }
+        .tab-icon { font-size: 24px; color: #8e8e93; }
+        .tab-label { font-size: 10px; color: #8e8e93; font-weight: 500; }
+        @media (max-width: 430px) { .device-frame { width: 100%; height: 100vh; border-radius: 0; padding: 0; box-shadow: none; } .device-screen { border-radius: 0; } }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <div class="dynamic-island"></div>
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="p-4">
+                    <!-- 当前订阅状态 -->
+                    <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl p-6 mb-6 text-white">
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-crown text-2xl"></i>
+                            </div>
+                            <h1 class="text-xl font-bold mb-2">高级版会员</h1>
+                            <p class="text-white/90 mb-4">享受完整训练指导服务</p>
+                            <div class="bg-white/20 rounded-2xl p-4">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <div class="text-sm opacity-90">到期时间</div>
+                                        <div class="text-lg font-bold">2024-11-23</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm opacity-90">剩余天数</div>
+                                        <div class="text-lg font-bold">45天</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 订阅权益 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-gift text-blue-500 mr-2"></i>
+                            我的权益
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="flex items-center p-3 bg-green-50 rounded-xl">
+                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">AI生成个性化训练计划</div>
+                                    <div class="text-sm text-gray-500">基于你的数据智能制定</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-green-50 rounded-xl">
+                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">7×24小时AI教练答疑</div>
+                                    <div class="text-sm text-gray-500">随时解决训练问题</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-green-50 rounded-xl">
+                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">教练亲自审核与调整</div>
+                                    <div class="text-sm text-gray-500">专业指导，精益求精</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-green-50 rounded-xl">
+                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">1对1真人教练聊天</div>
+                                    <div class="text-sm text-gray-500">直接与教练沟通交流</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center p-3 bg-green-50 rounded-xl">
+                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <div>
+                                    <div class="font-medium text-gray-900">逐条视频动作点评</div>
+                                    <div class="text-sm text-gray-500">专业动作技术指导</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 续费选项 -->
+                    <div class="bg-white rounded-2xl p-6 mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">续费选项</h2>
+                        <div class="space-y-3">
+                            <!-- 高级版月度 -->
+                            <div class="border border-gray-200 rounded-2xl p-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <div>
+                                        <div class="font-bold text-gray-900">高级版月度</div>
+                                        <div class="text-sm text-gray-500">包含所有高级功能</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-2xl font-bold text-gray-900">¥199</div>
+                                        <div class="text-sm text-gray-500">/月</div>
+                                    </div>
+                                </div>
+                                <button class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium">
+                                    立即续费
+                                </button>
+                            </div>
+
+                            <!-- AI版月度 -->
+                            <div class="border border-gray-200 rounded-2xl p-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <div>
+                                        <div class="font-bold text-gray-900">AI版月度</div>
+                                        <div class="text-sm text-gray-500">基础智能训练指导</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-2xl font-bold text-gray-900">¥99</div>
+                                        <div class="text-sm text-gray-500">/月</div>
+                                    </div>
+                                </div>
+                                <button class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-medium">
+                                    降级订阅
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 订阅历史 -->
+                    <div class="bg-white rounded-2xl p-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">订阅历史</h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                <div>
+                                    <div class="font-medium text-gray-900">高级版月度</div>
+                                    <div class="text-sm text-gray-500">2024-10-09 支付成功</div>
+                                </div>
+                                <div class="text-gray-900 font-medium">¥199</div>
+                            </div>
+                            <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                                <div>
+                                    <div class="font-medium text-gray-900">AI版月度</div>
+                                    <div class="text-sm text-gray-500">2024-09-09 支付成功</div>
+                                </div>
+                                <div class="text-gray-900 font-medium">¥99</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-6 mt-6">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <a href="home.html" class="tab-item">
+                    <i class="fas fa-home tab-icon"></i>
+                    <span class="tab-label">首页</span>
+                </a>
+                <a href="coach-discovery.html" class="tab-item">
+                    <i class="fas fa-compass tab-icon"></i>
+                    <span class="tab-label">发现</span>
+                </a>
+                <a href="training-plan.html" class="tab-item">
+                    <i class="fas fa-calendar-alt tab-icon"></i>
+                    <span class="tab-label">计划</span>
+                </a>
+                <a href="../common/chat.html" class="tab-item">
+                    <i class="fas fa-comments tab-icon"></i>
+                    <span class="tab-label">聊天</span>
+                </a>
+                <div class="tab-item active">
+                    <i class="fas fa-user tab-icon"></i>
+                    <span class="tab-label">我的</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 续费按钮点击
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function() {
+                if (this.textContent.includes('续费')) {
+                    alert('跳转到支付页面');
+                } else if (this.textContent.includes('降级')) {
+                    if (confirm('确定要降级订阅吗？')) {
+                        alert('订阅已降级');
+                    }
+                }
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.bg-white, .bg-gradient-to-br');
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    element.style.transition = 'all 0.3s ease';
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>错误页面 - 智健联盟</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* iPhone 15 Pro 设备框架 */
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: #1d1d1f;
+            border-radius: 55px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: #f2f2f7;
+            border-radius: 47px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iOS 状态栏 */
+        .status-bar {
+            height: 54px;
+            background: linear-gradient(180deg, rgba(242,242,247,0.95) 0%, rgba(242,242,247,0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            padding-top: 10px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .status-bar-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            letter-spacing: -0.3px;
+        }
+
+        .status-bar-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-bar-icon {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000000;
+            border-radius: 19px;
+            z-index: 100;
+        }
+
+        /* 内容区域 */
+        .content {
+            height: calc(100% - 54px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 错误页面样式 */
+        .error-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+            min-height: 100%;
+        }
+
+        .error-icon {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .error-404 .error-icon {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #ffffff;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .error-500 .error-icon {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+        }
+
+        .error-network .error-icon {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff;
+        }
+
+        .error-permission .error-icon {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #ffffff;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+
+        .error-message {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 32px;
+            max-width: 280px;
+        }
+
+        /* 操作按钮 */
+        .error-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 280px;
+        }
+
+        .error-button {
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .error-button-primary {
+            background: #007AFF;
+            color: #ffffff;
+        }
+
+        .error-button-primary:hover {
+            background: #0056cc;
+            transform: translateY(-2px);
+        }
+
+        .error-button-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .error-button-secondary:hover {
+            background: #e5e7eb;
+            transform: translateY(-2px);
+        }
+
+        /* 演示卡片 */
+        .demo-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .demo-button {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            margin-bottom: 12px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 430px) {
+            .device-frame {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            .device-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame">
+        <div class="device-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- iOS 状态栏 -->
+            <div class="status-bar">
+                <div class="status-bar-time">9:41</div>
+                <div class="status-bar-icons">
+                    <i class="fas fa-signal status-bar-icon"></i>
+                    <i class="fas fa-wifi status-bar-icon"></i>
+                    <i class="fas fa-battery-full status-bar-icon"></i>
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <div class="p-4">
+                    <div class="text-center mb-8">
+                        <div class="w-20 h-20 bg-gradient-to-br from-red-500 to-orange-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold text-gray-900 mb-2">错误页面组件</h1>
+                        <p class="text-gray-500">Error Pages & States</p>
+                    </div>
+
+                    <!-- 404 错误演示 -->
+                    <div class="demo-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-search text-blue-500 mr-2"></i>
+                                404 页面不存在
+                            </h2>
+                        </div>
+                        <button class="demo-button bg-blue-500 text-white" onclick="showError('404')">
+                            演示 404 错误
+                        </button>
+                        <p class="text-sm text-gray-500 mt-2">页面不存在或链接已失效</p>
+                    </div>
+
+                    <!-- 500 错误演示 -->
+                    <div class="demo-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-server text-red-500 mr-2"></i>
+                                500 服务器错误
+                            </h2>
+                        </div>
+                        <button class="demo-button bg-red-500 text-white" onclick="showError('500')">
+                            演示 500 错误
+                        </button>
+                        <p class="text-sm text-gray-500 mt-2">服务器内部错误，请稍后重试</p>
+                    </div>
+
+                    <!-- 网络错误演示 -->
+                    <div class="demo-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-wifi text-orange-500 mr-2"></i>
+                                网络连接错误
+                            </h2>
+                        </div>
+                        <button class="demo-button bg-orange-500 text-white" onclick="showError('network')">
+                            演示网络错误
+                        </button>
+                        <p class="text-sm text-gray-500 mt-2">网络连接失败，请检查网络设置</p>
+                    </div>
+
+                    <!-- 权限错误演示 -->
+                    <div class="demo-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-lock text-purple-500 mr-2"></i>
+                                权限不足
+                            </h2>
+                        </div>
+                        <button class="demo-button bg-purple-500 text-white" onclick="showError('permission')">
+                            演示权限错误
+                        </button>
+                        <p class="text-sm text-gray-500 mt-2">您没有访问此页面的权限</p>
+                    </div>
+
+                    <!-- 实际应用场景 -->
+                    <div class="demo-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                                实际应用场景
+                            </h2>
+                        </div>
+                        <div class="space-y-3">
+                            <button class="w-full bg-indigo-500 text-white py-3 rounded-xl font-medium" onclick="showNetworkError()">
+                                <i class="fas fa-wifi mr-2"></i>网络请求失败
+                            </button>
+                            <button class="w-full bg-teal-500 text-white py-3 rounded-xl font-medium" onclick="showDataError()">
+                                <i class="fas fa-database mr-2"></i>数据加载失败
+                            </button>
+                            <button class="w-full bg-pink-500 text-white py-3 rounded-xl font-medium" onclick="showAuthError()">
+                                <i class="fas fa-user-lock mr-2"></i>登录状态过期
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 错误页面预览区域 -->
+                    <div id="errorPreview" class="mt-8" style="display: none;">
+                        <div class="bg-white rounded-2xl p-6">
+                            <div class="error-page">
+                                <div class="error-icon" id="errorIcon">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <div class="error-title" id="errorTitle">页面不存在</div>
+                                <div class="error-message" id="errorMessage">
+                                    抱歉，您访问的页面不存在或链接已失效。
+                                    请检查网址是否正确，或返回首页继续浏览。
+                                </div>
+                                <div class="error-actions">
+                                    <button class="error-button error-button-primary" id="errorPrimaryAction">
+                                        <i class="fas fa-home"></i>
+                                        返回首页
+                                    </button>
+                                    <button class="error-button error-button-secondary" id="errorSecondaryAction">
+                                        <i class="fas fa-arrow-left"></i>
+                                        返回上一页
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 返回导航 -->
+                    <div class="text-center mt-8 pb-8">
+                        <a href="../index.html" class="text-gray-400 text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>返回导航
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentErrorType = '';
+
+        // 显示错误页面
+        function showError(type) {
+            currentErrorType = type;
+            const preview = document.getElementById('errorPreview');
+            const icon = document.getElementById('errorIcon');
+            const title = document.getElementById('errorTitle');
+            const message = document.getElementById('errorMessage');
+            const primaryBtn = document.getElementById('errorPrimaryAction');
+            const secondaryBtn = document.getElementById('errorSecondaryAction');
+
+            // 移除所有错误类型样式
+            preview.className = 'mt-8';
+            icon.className = 'error-icon';
+
+            switch(type) {
+                case '404':
+                    preview.className += ' error-404';
+                    icon.className += ' error-404';
+                    icon.innerHTML = '<i class="fas fa-search"></i>';
+                    title.textContent = '页面不存在';
+                    message.textContent = '抱歉，您访问的页面不存在或链接已失效。请检查网址是否正确，或返回首页继续浏览。';
+                    primaryBtn.innerHTML = '<i class="fas fa-home"></i>返回首页';
+                    secondaryBtn.innerHTML = '<i class="fas fa-arrow-left"></i>返回上一页';
+                    break;
+
+                case '500':
+                    preview.className += ' error-500';
+                    icon.className += ' error-500';
+                    icon.innerHTML = '<i class="fas fa-server"></i>';
+                    title.textContent = '服务器错误';
+                    message.textContent = '服务器内部发生错误，请稍后重试。如果问题持续存在，请联系客服获取帮助。';
+                    primaryBtn.innerHTML = '<i class="fas fa-redo"></i>重试';
+                    secondaryBtn.innerHTML = '<i class="fas fa-headset"></i>联系客服';
+                    break;
+
+                case 'network':
+                    preview.className += ' error-network';
+                    icon.className += ' error-network';
+                    icon.innerHTML = '<i class="fas fa-wifi"></i>';
+                    title.textContent = '网络连接失败';
+                    message.textContent = '无法连接到网络，请检查您的网络连接是否正常。建议刷新页面或检查网络设置。';
+                    primaryBtn.innerHTML = '<i class="fas fa-redo"></i>刷新页面';
+                    secondaryBtn.innerHTML = '<i class="fas fa-wifi"></i>检查网络';
+                    break;
+
+                case 'permission':
+                    preview.className += ' error-permission';
+                    icon.className += ' error-permission';
+                    icon.innerHTML = '<i class="fas fa-lock"></i>';
+                    title.textContent = '权限不足';
+                    message.textContent = '您没有访问此页面的权限。请联系管理员获取相应权限，或返回到您有权限的页面。';
+                    primaryBtn.innerHTML = '<i class="fas fa-arrow-left"></i>返回';
+                    secondaryBtn.innerHTML = '<i class="fas fa-user-cog"></i>联系管理员';
+                    break;
+            }
+
+            preview.style.display = 'block';
+
+            // 添加显示动画
+            preview.style.opacity = '0';
+            preview.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                preview.style.opacity = '1';
+                preview.style.transform = 'translateY(0)';
+            }, 100);
+        }
+
+        // 隐藏错误页面
+        function hideError() {
+            const preview = document.getElementById('errorPreview');
+            preview.style.opacity = '0';
+            preview.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                preview.style.display = 'none';
+            }, 300);
+        }
+
+        // 错误页面操作
+        document.getElementById('errorPrimaryAction').addEventListener('click', function() {
+            hideError();
+            showToast('操作已执行', 'info');
+        });
+
+        document.getElementById('errorSecondaryAction').addEventListener('click', function() {
+            hideError();
+            showToast('正在执行操作...', 'info');
+        });
+
+        // 实际应用场景演示
+        function showNetworkError() {
+            showError('network');
+            setTimeout(() => {
+                showToast('网络连接已恢复', 'success');
+                hideError();
+            }, 3000);
+        }
+
+        function showDataError() {
+            showError('500');
+            setTimeout(() => {
+                showToast('数据加载成功', 'success');
+                hideError();
+            }, 2500);
+        }
+
+        function showAuthError() {
+            showError('permission');
+            setTimeout(() => {
+                showToast('请重新登录', 'warning');
+                hideError();
+            }, 2000);
+        }
+
+        // Toast 提示函数
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl text-white font-medium z-[2000] transition-all duration-300`;
+            toast.style.backgroundColor = getToastColor(type);
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+            }, 100);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(-20px)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 2000);
+        }
+
+        function getToastColor(type) {
+            switch(type) {
+                case 'success': return '#10b981';
+                case 'error': return '#ef4444';
+                case 'warning': return '#f59e0b';
+                default: return '#007AFF';
+            }
+        }
+
+        // 为演示按钮添加点击效果
+        document.querySelectorAll('.demo-button').forEach(button => {
+            button.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+
+        // 键盘事件处理
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('errorPreview').style.display !== 'none') {
+                hideError();
+            }
+        });
+    </script>
+</body>
+</html>
+
