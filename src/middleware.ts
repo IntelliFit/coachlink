@@ -10,8 +10,8 @@ export async function middleware(request: NextRequest) {
     });
 
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        process.env.NEXT_SUPABASE_URL!,
+        process.env.NEXT_SUPABASE_ANON_KEY!,
         {
             cookies: {
                 get(name: string) {
@@ -85,8 +85,8 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         /*
-         * 匹配所有请求路径，除了以特定扩展名结尾的文件
+         * 匹配所有请求路径，除了以特定扩展名结尾的文件和API路由
          */
-        '/((?!_next/static|_next/image|favicon.ico|favicon.svg|themes).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico|favicon.jpg|themes).*)',
     ],
 };

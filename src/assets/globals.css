@@ -75,5 +75,5 @@ body {
 }
 
 .login-card {
-    background: linear-gradient(to right, var(--background), var(--blue-100));
+    background: linear-gradient(to right, var(--background), var(--orange-100));
 }

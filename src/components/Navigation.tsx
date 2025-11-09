@@ -83,7 +83,7 @@ export default function Navigation() {
     const logoStart = (
         <div className="flex items-center space-x-3 mr-3">
             {/* 图标 */}
-            <img src="/favicon.svg" className='h-10 w-10' />
+            <img src="/favicon.jpg" className='h-10' />
 
             {/* 名称 */}
             <span className="text-2xl font-extrabold">

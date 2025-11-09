@@ -69,5 +69,5 @@ function copyFolderRecursiveSync(source, target) {
 }
 
 // 使用示例
-copyPrimeReactTheme('lara-light-blue', 'themes');
-copyPrimeReactTheme('lara-dark-blue', 'themes');
+copyPrimeReactTheme('lara-light-amber', 'themes');
+copyPrimeReactTheme('lara-dark-amber', 'themes');

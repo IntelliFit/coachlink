@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
         description: 'Coach-Client Management Platform',
         keywords: '健身',
         icons: {
-            icon: "/favicon.svg",
+            icon: "/favicon.jpg",
         },
     };
 }

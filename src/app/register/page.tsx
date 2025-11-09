@@ -85,7 +85,7 @@ export default function RegisterPage() {
             >
                 <div className="w-full max-w-md">
                     <div className="mb-6 flex flex-col items-center">
-                        <img src="/favicon.svg" alt="CoachLink Logo" className="h-20" />
+                        <img src="/favicon.jpg" alt="CoachLink Logo" className="h-20" />
                         <h2 className="mt-3 text-xl font-bold text-center text-gray-900 dark:text-white">
                             CoachLink - 智健联盟
                         </h2>

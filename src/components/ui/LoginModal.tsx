@@ -10,6 +10,7 @@ import { FloatLabel } from 'primereact/floatlabel';
 import { useToastContext } from '@/components/ToastContext';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -31,7 +32,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
         try {
             // 模拟登录延迟
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const res = await axios.post('/api/auth/login', {
+                phone, password, verificationCode
+            });
+
+            console.log(res);
 
             showToast({
                 severity: 'success',
@@ -104,7 +109,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                         <div className="flex flex-col md:flex-row md:space-x-8 items-center justify-center">
                             {/* 左侧 Logo + 标题 */}
                             <div className="mb-6 md:mb-0 flex flex-col items-center text-center md:w-1/2">
-                                <img src="/favicon.svg" alt="CoachLink Logo" className="h-20 md:h-[150px] mb-4" />
+                                <img src="/favicon.jpg" alt="CoachLink Logo" className="h-20 md:h-[150px] mb-4" />
                                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                                     CoachLink - 智健联盟
                                 </h2>

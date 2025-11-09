@@ -4,16 +4,16 @@ import { cache } from 'react';
 import { type CookieOptions, createServerClient } from '@supabase/ssr';
 
 // 检查环境变量是否存在
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_SUPABASE_ANON_KEY;
 
 // 验证环境变量
 if (!supabaseUrl) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+  throw new Error('Missing NEXT_SUPABASE_URL environment variable');
 }
 
 if (!supabaseAnonKey) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
+  throw new Error('Missing NEXT_SUPABASE_ANON_KEY environment variable');
 }
 
 // 服务端使用（SSR）

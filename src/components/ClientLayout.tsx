@@ -14,8 +14,8 @@ export default function ClientLayout({
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
-        const lightTheme = '/themes/lara-light-blue/theme.css';
-        const darkTheme = '/themes/lara-dark-blue/theme.css';
+        const lightTheme = '/themes/lara-light-amber/theme.css';
+        const darkTheme = '/themes/lara-dark-amber/theme.css';
         const themeLinkId = 'prime-theme-link';
 
         let link = document.getElementById(themeLinkId) as HTMLLinkElement | null;

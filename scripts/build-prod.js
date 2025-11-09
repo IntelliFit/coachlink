@@ -15,8 +15,8 @@ if (!fs.existsSync(prodEnvPath)) {
 
 console.log('✓ Using .env.production for build process');
 console.log('✓ Environment variables status:');
-console.log('- NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? '[SET]' : '[NOT SET]');
-console.log('- NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '[SET]' : '[NOT SET]');
+console.log('- NEXT_SUPABASE_URL:', process.env.NEXT_SUPABASE_URL ? '[SET]' : '[NOT SET]');
+console.log('- NEXT_SUPABASE_ANON_KEY:', process.env.NEXT_SUPABASE_ANON_KEY ? '[SET]' : '[NOT SET]');
 console.log('✓ Starting Next.js build...');
 
 // 设置环境变量
