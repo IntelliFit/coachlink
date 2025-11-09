@@ -11,6 +11,7 @@ import { Avatar } from 'primereact/avatar';
 import { Tooltip } from 'primereact/tooltip';
 import { MenuItem } from 'primereact/menuitem';
 import { useTheme } from '@/context/ThemeContext';
+import { useLoginModal } from '@/components/ui/LoginModalContext';
 
 interface NavigationItem {
     name: string;
@@ -26,6 +27,7 @@ interface MenuItemWithTemplate extends MenuItem {
 export default function Navigation() {
     const pathname = usePathname();
     const { theme, toggleTheme } = useTheme();
+    const { openLoginModal } = useLoginModal();
 
     const navigation: NavigationItem[] = [
         { name: '首页', href: '/', icon: Target },
@@ -92,9 +94,14 @@ export default function Navigation() {
 
     );
 
-    // 主题切换按钮
+    // 主题切换按钮和登录按钮
     const themeToggleEnd = (
         <div className="flex items-center gap-2">
+            <Button 
+                label="登录"
+                icon="pi pi-sign-in"
+                onClick={openLoginModal}
+            />
             <Tooltip target=".theme-toggle" position="bottom" />
             <Button
                 icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}

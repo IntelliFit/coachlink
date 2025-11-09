@@ -23,6 +23,7 @@ export default function Home() {
             <Button
                 label="了解更多"
                 icon="pi pi-arrow-right"
+                size="small"
                 iconPos="right"
                 onClick={(e) => {
                     e.stopPropagation();

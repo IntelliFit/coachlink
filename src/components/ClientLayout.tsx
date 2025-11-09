@@ -3,6 +3,7 @@
 import React, { useEffect, ReactNode } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { ToastContextProvider } from "./ToastContext";
+import { LoginModalProvider } from './ui/LoginModalContext';
 
 export default function ClientLayout({
     children,
@@ -29,9 +30,11 @@ export default function ClientLayout({
 
     return (
         <ToastContextProvider>
-            <div className="min-h-screen">
-                {children}
-            </div>
+            <LoginModalProvider>
+                <div className="min-h-screen">
+                    {children}
+                </div>
+            </LoginModalProvider>
         </ToastContextProvider>
     );
 }
