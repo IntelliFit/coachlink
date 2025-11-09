@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
-import bcrypt from 'bcryptjs';
 import { signToken, verifyToken } from '@/lib/jwt';
 import { setTokenCookie, parseCookies } from '@/lib/cookie';
+import { verifyPassword } from './util';
 
 export async function POST(req: NextRequest) {
     try {
@@ -28,9 +28,11 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: '用户不存在' }, { status: 404 });
             }
 
+            
+
             // 如果有密码，则校验
             if (password) {
-                const isValid = await bcrypt.compare(password, user.password_hash);
+                const isValid = verifyPassword(password, user.password_hash);
                 if (!isValid) {
                     return NextResponse.json({ error: '密码错误' }, { status: 401 });
                 }

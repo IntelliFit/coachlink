@@ -1,5 +1,8 @@
 import * as crypto from 'crypto';
 
+
+const SALT = process.env.HASH_PASSWORD_SALT || 'smart_health_alliance_salt';
+
 /**
  * 计算密码的 SHA-256 哈希值
  * @param password - 用户提交的密码
@@ -7,9 +10,8 @@ import * as crypto from 'crypto';
  */
 export function hashPassword(password: string): string {
     // 使用与前端相同的盐值
-    const salt = 'smart_health_alliance_salt';
     const hash = crypto.createHash('sha256');
-    hash.update(password + salt);
+    hash.update(password + SALT);
     return hash.digest('hex');
 }
 
