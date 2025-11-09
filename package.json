@@ -10,6 +10,7 @@
         "check-env": "node scripts/check-env.js"
     },
     "dependencies": {
+        "@next/bundle-analyzer": "^16.0.1",
         "@supabase/ssr": "^0.7.0",
         "@supabase/supabase-js": "^2.45.6",
         "@types/node": "^22.7.5",
