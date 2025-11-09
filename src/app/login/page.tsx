@@ -17,6 +17,7 @@ import "primereact/resources/primereact.min.css";
 export default function LoginPage() {
     const [phone, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
@@ -92,10 +93,10 @@ export default function LoginPage() {
                         {/* ✅ 关键部分：左右布局 */}
                         <div className="flex flex-col md:flex-row md:space-x-8 items-center justify-center">
                             {/* 左侧 Logo + 标题 */}
-                            <div className="mb-6 md:mb-0 flex flex-col items-center md:items-start text-center md:text-left md:w-1/2">
-                                <img src="/favicon.svg" alt="CoachLink Logo" className="h-20 mb-4" />
+                            <div className="mb-6 md:mb-0 flex flex-col items-center text-center md:w-1/2">
+                                <img src="/favicon.svg" alt="CoachLink Logo" className="h-20 md:h-[150px] mb-4" />
                                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    CoachLink - 智健联盟
+                                    Coach<span className='text-primary'>Link</span> - 智健联盟
                                 </h2>
                                 <p className="mt-2 text-gray-600 dark:text-gray-300">
                                     专业教练订阅平台
@@ -139,7 +140,18 @@ export default function LoginPage() {
                                         </FloatLabel>
                                     </div>
 
-
+                                    <div>
+                                        <FloatLabel>
+                                            <InputText
+                                                id="verificationCode"
+                                                value={verificationCode}
+                                                onChange={(e) => setVerificationCode(e.target.value)}
+                                                required
+                                                className="w-full"
+                                            />
+                                            <label htmlFor="verificationCode">验证码</label>
+                                        </FloatLabel>
+                                    </div>
 
                                     <br />
 
