@@ -28,8 +28,10 @@ export default function ClientLayout({
     }, [theme]);
 
     return (
-        <div className="min-h-screen">
-            {children}
-        </div>
+        <ToastContextProvider>
+            <div className="min-h-screen">
+                {children}
+            </div>
+        </ToastContextProvider>
     );
 }

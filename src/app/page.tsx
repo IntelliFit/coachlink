@@ -4,8 +4,6 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Divider } from 'primereact/divider';
 import { Brain, Users, Trophy, CreditCard } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
-import { useTranslation } from 'react-i18next';
 
 export default function Home() {
 

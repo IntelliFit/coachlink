@@ -62,7 +62,7 @@ const config = {
                 'color-4': 'var(--color-4)',
                 'color-5': 'var(--color-5)',
                 blue: {
-                    50: '#f5f9ff',
+                    50: '#e4edfe',
                     100: '#d0e1fd',
                     200: '#abc9fb',
                     300: '#85b2f9',

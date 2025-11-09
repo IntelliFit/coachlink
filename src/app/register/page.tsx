@@ -2,22 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
 import { Card } from 'primereact/card';
-import { useTheme } from '@/context/ThemeContext';
+import { User } from 'lucide-react';
+import { FloatLabel } from 'primereact/floatlabel';
 
 export default function RegisterPage() {
-    const [email, setEmail] = useState('');
+    const [phone, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const router = useRouter();
-    const { theme } = useTheme();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,10 +30,8 @@ export default function RegisterPage() {
         setError('');
 
         try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-            });
+            // 模拟注册延迟
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             if (error) throw error;
 
@@ -48,100 +45,134 @@ export default function RegisterPage() {
 
     if (success) {
         return (
-            <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="w-full max-w-md">
-                    <Card title="注册成功" className="text-center">
-                        <p className="mb-4">
-                            请检查您的邮箱以确认账户。
-                        </p>
-                        <Button
-                            label="前往登录"
-                            onClick={() => router.push('/login')}
-                        />
-                    </Card>
+            <>
+                {/* 遮罩层 - 模糊背景 */}
+                <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50" />
+
+                {/* 成功页面 - 浮在最顶层 */}
+                <div className="fixed inset-0 min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-300 p-4 z-[51]">
+                    <div className="w-full max-w-md">
+                        <Card title="注册成功" className="text-center bg-white dark:bg-gray-800">
+                            <div className="flex flex-col items-center mb-6">
+                                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center mb-3">
+                                    <User className="text-gray-500" size={24} />
+                                </div>
+                                <h2 className="text-xl font-bold text-center">欢迎加入</h2>
+                                <p className="text-center text-gray-600 dark:text-gray-300 mt-1">
+                                    请检查您的邮箱以确认账户。
+                                </p>
+                            </div>
+                            <Button
+                                label="前往登录"
+                                onClick={() => router.push('/login')}
+                                className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 rounded-lg transition"
+                            />
+                        </Card>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-            <div className="w-full max-w-md">
-                <Card title="注册 CoachLink 账户" className="bg-white dark:bg-gray-800">
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded">
-                            {error}
-                        </div>
-                    )}
+        <>
+            {/* 遮罩层 - 模糊背景 */}
+            <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50" />
 
-                    <form onSubmit={handleRegister} className="space-y-4">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                邮箱
-                            </label>
-                            <InputText
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="w-full"
-                                placeholder="your@example.com"
+            {/* 注册表单 - 浮在最顶层 */}
+            <div
+                className={`fixed inset-0 min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-300 p-4 z-[51]`}
+            >
+                <div className="w-full max-w-md">
+                    <div className="mb-6 flex flex-col items-center">
+                        <img src="/favicon.svg" alt="CoachLink Logo" className="h-20" />
+                        <h2 className="mt-3 text-xl font-bold text-center text-gray-900 dark:text-white">
+                            CoachLink - 智健联盟
+                        </h2>
+                        <p className="mt-1 text-center text-gray-600 dark:text-gray-300">
+                            专业教练订阅平台
+                        </p>
+                    </div>
+                    <Card
+                        title="加入 CoachLink"
+                        className="w-full max-w-md shadow-xl rounded-2xl p-6 sm:p-8 login-card"
+                    >
+                        {/* Logo + 标题 */}
+
+
+                        {error && (
+                            <div className="mb-4 p-3 text-red-700 bg-red-100 rounded-md">
+                                {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleRegister} className="mb-2">
+                            <div className='mb-10'>
+                                <FloatLabel>
+                                    <InputText
+                                        id="phone"
+                                        value={phone}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="w-full"
+                                        placeholder=""
+                                    />
+                                    <label htmlFor="phone">手机号</label>
+                                </FloatLabel>
+                            </div>
+
+                            <div className='mb-10'>
+                                <FloatLabel>
+                                    <Password
+                                        id="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        className="w-full"
+                                        placeholder=" "
+                                        toggleMask
+                                        feedback={false}
+                                    />
+                                    <label htmlFor="password">密码</label>
+                                </FloatLabel>
+                            </div>
+
+                            <div className='mb-10'>
+                                <FloatLabel>
+                                    <Password
+                                        id="confirmPassword"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        required
+                                        className="w-full"
+                                        placeholder=" "
+                                        toggleMask
+                                        feedback={false}
+                                    />
+                                    <label htmlFor="confirmPassword">确认密码</label>
+                                </FloatLabel>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                label={loading ? '注册中...' : '注册'}
+                                disabled={loading}
+                                className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 rounded-lg transition"
                             />
-                        </div>
+                        </form>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                密码
-                            </label>
-                            <Password
-                                id="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                className="w-full"
-                                placeholder="••••••••"
-                                toggleMask
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                确认密码
-                            </label>
-                            <Password
-                                id="confirmPassword"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                className="w-full"
-                                placeholder="••••••••"
-                                toggleMask
-                                feedback={false}
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            label={loading ? '注册中...' : '注册'}
-                            disabled={loading}
-                            className="w-full bg-primary-600 hover:bg-primary-700"
-                        />
-                    </form>
-
-                    <div className="mt-4 text-center">
-                        <p className="text-gray-600 dark:text-gray-400">
+                        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
                             已有账户？{' '}
                             <button
                                 onClick={() => router.push('/login')}
-                                className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-medium"
+                                className="font-medium text-primary hover:underline"
                             >
                                 立即登录
                             </button>
-                        </p>
-                    </div>
-                </Card>
+                        </div>
+                    </Card>
+                </div>
             </div>
-        </div>
+        </>
     );
 }

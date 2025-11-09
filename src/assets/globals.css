@@ -8,7 +8,9 @@
 }
 
 :root {
-  --radius: 0.5rem;
+    --radius: 0.5rem;
+    --background: var(--surface-ground);
+    --foreground: var(--surface-900);
 }
 
 
@@ -70,4 +72,8 @@ body {
 .p-menubar {
     background-color: rgba(248, 249, 250, 0.5);
     backdrop-filter: blur(10px);
+}
+
+.login-card {
+    background: linear-gradient(to right, var(--background), var(--blue-100));
 }
