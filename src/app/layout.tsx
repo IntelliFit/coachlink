@@ -8,7 +8,6 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
-import { PrimeReactProvider } from "primereact/api";
 
 const inter = Inter({ subsets: ['latin'] });
 

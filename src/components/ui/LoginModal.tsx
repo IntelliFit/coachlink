@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
@@ -32,31 +33,36 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
         try {
             // 模拟登录延迟
-            const res = await axios.post('/api/auth/login', {
-                phone, password, verificationCode
+            const result = await signIn('credentials', {
+                redirect: false, // 不自动跳转
+                phone,
+                password,
             });
 
-            console.log(res);
-
-            showToast({
-                severity: 'success',
-                summary: '登录成功',
-                detail: '欢迎回来，正在跳转到仪表板...',
-                life: 3000
-            });
-
-            // 关闭模态框
-            onClose();
-            
-            // 如果提供了成功回调，则调用它
-            if (onLoginSuccess) {
-                onLoginSuccess();
+            if (result?.error) {
+                showToast({
+                    severity: 'error',
+                    summary: '登录失败',
+                    detail: result.error || '请检查手机号或密码',
+                    life: 5000,
+                });
             } else {
-                // 否则重定向到仪表板
-                router.push('/dashboard');
+                showToast({
+                    severity: 'success',
+                    summary: '登录成功',
+                    detail: '欢迎回来，正在跳转到仪表板...',
+                    life: 3000,
+                });
+
+                onClose?.();
+                if (onLoginSuccess) {
+                    onLoginSuccess();
+                } else {
+                    router.push('/');
+                }
+
+                router.refresh();
             }
-            
-            router.refresh();
         } catch (err: any) {
             showToast({
                 severity: 'error',
