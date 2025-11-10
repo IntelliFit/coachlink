@@ -17,6 +17,11 @@ export async function middleware(request: NextRequest) {
         req: request, 
         secret: process.env.NEXTAUTH_SECRET 
     });
+
+    console.log(path);
+    console.log(token);
+    
+    
     
     const isAuthenticated = !!token;
 
@@ -27,7 +32,7 @@ export async function middleware(request: NextRequest) {
 
     // 如果已认证用户访问登录或注册页面，重定向到仪表板
     if ((path === '/login' || path === '/register') && isAuthenticated) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/', request.url));
     }
 
     let response = NextResponse.next({

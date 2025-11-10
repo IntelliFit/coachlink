@@ -2,20 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-    Plus,
-    Edit,
-    Trash2,
     Eye,
     ThumbsUp,
     MessageCircle,
-    Clock,
-    Filter,
-    Search,
-    MoreHorizontal
+    Clock
 } from 'lucide-react';
 import ContentEditor from './ContentEditor';
 import { CoachContent } from '@/types/coach';
 import { coachService } from '../service/coachService';
+
+// PrimeReact imports
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
+import { Card } from 'primereact/card';
+import { DataView } from 'primereact/dataview';
 
 interface CoachContentManagerProps {
     coachId: string;
@@ -161,14 +162,14 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
 
     if (currentView === 'editor') {
         return (
-            <div className="max-w-6xl mx-auto p-6">
-                <div className="mb-6">
-                    <button
+            <div className="max-w-6xl mx-auto p-4 md:p-6">
+                <div className="mb-4 md:mb-6">
+                    <Button 
+                        icon="pi pi-arrow-left"
+                        label="返回内容管理"
+                        className="p-button-text"
                         onClick={() => setCurrentView('list')}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                        ← 返回内容管理
-                    </button>
+                    />
                 </div>
 
                 <ContentEditor
@@ -180,171 +181,175 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
         );
     }
 
-    return (
-        <div className="max-w-6xl mx-auto p-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                {/* 头部 */}
-                <div className="border-b border-gray-200 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">内容管理</h1>
-                            <p className="text-gray-500 mt-1">管理您发布的所有内容</p>
+    // 权限过滤选项
+    const tierOptions = [
+        { label: '所有权限', value: 'all' },
+        { label: '免费内容', value: 0 },
+        { label: '基础订阅', value: 1 },
+        { label: '高级订阅', value: 2 },
+        { label: 'VIP专属', value: 3 }
+    ];
+
+    // 内容列表项渲染
+    const itemTemplate = (content: CoachContent) => {
+        return (
+            <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                            <span className="text-lg">{getContentTypeIcon(content.content_type)}</span>
+                            <h3 className="text-lg font-semibold text-900">{content.title}</h3>
+                            {getTierBadge(content.required_tier)}
+                            {content.is_featured && (
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                                    ⭐ 精选
+                                </span>
+                            )}
                         </div>
 
-                        <button
+                        <p className="text-600 mb-3 line-clamp-2">
+                            {content.content.length > 100
+                                ? content.content.substring(0, 100) + '...'
+                                : content.content
+                            }
+                        </p>
+
+                        {/* 标签 */}
+                        {content.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                                {content.tags.slice(0, 4).map((tag, index) => (
+                                    <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                        #{tag}
+                                    </span>
+                                ))}
+                                {content.tags.length > 4 && (
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                        +{content.tags.length - 4}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex items-center space-x-6 text-sm text-gray-500">
+                            <div className="flex items-center space-x-1">
+                                <Eye className="w-4 h-4" />
+                                <span>{content.views_count}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                                <ThumbsUp className="w-4 h-4" />
+                                <span>{content.likes_count}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                                <MessageCircle className="w-4 h-4" />
+                                <span>{content.comments_count}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                                <Clock className="w-4 h-4" />
+                                <span>{formatRelativeTime(content.created_at)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 ml-4">
+                        <Button 
+                            icon="pi pi-pencil" 
+                            className="p-button-rounded p-button-text" 
+                            tooltip="编辑"
+                        />
+                        <Button 
+                            icon="pi pi-trash" 
+                            className="p-button-rounded p-button-text p-button-danger" 
+                            tooltip="删除"
+                        />
+                        <Button 
+                            icon="pi pi-ellipsis-v" 
+                            className="p-button-rounded p-button-text" 
+                            tooltip="更多"
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="max-w-6xl mx-auto">
+            <Card className="shadow-sm">
+                {/* 头部 */}
+                <div className="border-b border-gray-200 p-4 md:p-6">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold text-900">内容管理</h1>
+                            <p className="text-600 mt-1">管理您发布的所有内容</p>
+                        </div>
+
+                        <Button
+                            label="发布新内容"
+                            icon="pi pi-plus"
                             onClick={() => setCurrentView('editor')}
-                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>发布新内容</span>
-                        </button>
+                        />
                     </div>
 
                     {/* 搜索和过滤 */}
-                    <div className="flex space-x-4 mt-6">
-                        <div className="flex-1 relative">
-                            <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
+                    <div className="flex flex-col md:flex-row gap-4 mt-6">
+                        <div className="p-input-icon-left flex-1">
+                            <InputText
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="搜索内容..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full"
                             />
                         </div>
 
-                        <select
+                        <Dropdown
                             value={filterTier}
-                            onChange={(e) => setFilterTier(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="all">所有权限</option>
-                            <option value={0}>免费内容</option>
-                            <option value={1}>基础订阅</option>
-                            <option value={2}>高级订阅</option>
-                            <option value={3}>VIP专属</option>
-                        </select>
+                            options={tierOptions}
+                            onChange={(e) => setFilterTier(e.value)}
+                            placeholder="选择权限"
+                            className="min-w-40"
+                        />
                     </div>
                 </div>
 
                 {/* 内容列表 */}
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                     {isLoading ? (
                         <div className="text-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                            <p className="text-gray-500 mt-4">加载中...</p>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                            <p className="text-600 mt-4">加载中...</p>
                         </div>
                     ) : error ? (
                         <div className="text-center py-12">
                             <p className="text-red-500 mb-4">{error}</p>
-                            <button
+                            <Button
+                                label="重新加载"
+                                className="p-button-text"
                                 onClick={loadContents}
-                                className="text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                                重新加载
-                            </button>
+                            />
                         </div>
                     ) : filteredContents.length === 0 ? (
                         <div className="text-center py-12">
-                            <p className="text-gray-500 mb-4">
+                            <p className="text-600 mb-4">
                                 {searchTerm || filterTier !== 'all' ? '没有找到匹配的内容' : '还没有发布任何内容'}
                             </p>
                             {!searchTerm && filterTier === 'all' && (
-                                <button
+                                <Button
+                                    label="发布第一个内容"
+                                    className="p-button-text"
                                     onClick={() => setCurrentView('editor')}
-                                    className="text-blue-600 hover:text-blue-700 font-medium"
-                                >
-                                    发布第一个内容
-                                </button>
+                                />
                             )}
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            {filteredContents.map((content) => (
-                                <div key={content.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center space-x-3 mb-2">
-                                                <span className="text-lg">{getContentTypeIcon(content.content_type)}</span>
-                                                <h3 className="text-lg font-semibold text-gray-900">{content.title}</h3>
-                                                {getTierBadge(content.required_tier)}
-                                                {content.is_featured && (
-                                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                                                        ⭐ 精选
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <p className="text-gray-600 mb-3 line-clamp-2">
-                                                {content.content.length > 100
-                                                    ? content.content.substring(0, 100) + '...'
-                                                    : content.content
-                                                }
-                                            </p>
-
-                                            {/* 标签 */}
-                                            {content.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 mb-3">
-                                                    {content.tags.slice(0, 4).map((tag, index) => (
-                                                        <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                            #{tag}
-                                                        </span>
-                                                    ))}
-                                                    {content.tags.length > 4 && (
-                                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                            +{content.tags.length - 4}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            <div className="flex items-center space-x-6 text-sm text-gray-500">
-                                                <div className="flex items-center space-x-1">
-                                                    <Eye className="w-4 h-4" />
-                                                    <span>{content.views_count}</span>
-                                                </div>
-                                                <div className="flex items-center space-x-1">
-                                                    <ThumbsUp className="w-4 h-4" />
-                                                    <span>{content.likes_count}</span>
-                                                </div>
-                                                <div className="flex items-center space-x-1">
-                                                    <MessageCircle className="w-4 h-4" />
-                                                    <span>{content.comments_count}</span>
-                                                </div>
-                                                <div className="flex items-center space-x-1">
-                                                    <Clock className="w-4 h-4" />
-                                                    <span>{formatRelativeTime(content.created_at)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center space-x-2 ml-4">
-                                            <button
-                                                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-                                                title="编辑"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100"
-                                                title="删除"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-                                                title="更多"
-                                            >
-                                                <MoreHorizontal className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <DataView 
+                            value={filteredContents} 
+                            itemTemplate={itemTemplate}
+                            paginator
+                            rows={10}
+                        />
                     )}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 };
