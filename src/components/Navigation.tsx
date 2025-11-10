@@ -94,12 +94,13 @@ export default function Navigation() {
             ) : session?.user ? (
                 <div className="flex items-center gap-3">
                     <Avatar
-                        label={session.user.phone?.slice(-2) || 'U'}
+                        image={session.user.avatar_url || undefined}
+                        label={session.user.avatar_url ? undefined : (session.user.nickname?.charAt(0) || session.user.phone?.slice(0, 1) || 'U')}
                         shape="circle"
                         className="bg-primary text-white font-bold"
                         size="large"
                     />
-                    <span className="font-medium">{session.user.phone}</span>
+                    <span className="font-medium">{session.user.nickname || session.user.phone}</span>
                     <Button
                         label="退出"
                         icon="pi pi-sign-out"

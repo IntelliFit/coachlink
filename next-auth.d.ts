@@ -1,38 +1,28 @@
+import { UserProfilesRow, UsersRow } from '@/types'
 import NextAuth, { DefaultSession, DefaultUser } from 'next-auth'
 
 declare module 'next-auth' {
+
+    type CoachLinkUser = DefaultUser & UsersRow
+
     /**
      * 扩展 User 类型（数据库返回的完整结构）
      */
-    interface User extends DefaultUser {
-        id: string
-        phone: string
-        admin_role: string
-        has_drawn?: boolean
+    interface User extends CoachLinkUser {
+        email: string | null
     }
 
     /**
      * 扩展 Session 类型（给前端使用）
      */
     interface Session extends DefaultSession {
-        user: {
-            id: string
-            phone: string
-            admin_role: string
-            nickname?: string
-            avatar_url?: string
-            has_drawn?: boolean
-        } & DefaultSession['user']
+        user: DefaultSession['user'] & UsersRow
+        profile: UserProfilesRow
     }
 }
 
 declare module 'next-auth/jwt' {
     interface JWT {
-        user: {
-            id: string
-            phone: string
-            admin_role: string
-            has_drawn?: boolean
-        }
+        user: UsersRow
     }
 }
