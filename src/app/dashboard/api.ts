@@ -99,15 +99,11 @@ class CoachService {
     // 教练点评视频
     async reviewVideo(
         videoId: string,
-        coachId: string,
-        coachName: string,
         feedback: { rating?: number; comment?: string; tips?: string[] }
     ): Promise<TrainingVideo | null> {
         try {
             const res = await axios.post(`${this.apiBaseUrl}/video/review`, {
                 videoId,
-                coachId,
-                coachName,
                 feedback,
             });
             return res.data || null;
