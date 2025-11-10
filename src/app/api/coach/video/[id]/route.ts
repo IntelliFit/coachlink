@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
-import { getSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 
 // 获取单个视频详情
 export async function GET(
     req: Request,
     { params }: { params: { id: string } }
 ) {
-    const session = await getSession();
+    const session = await getServerSession();
     if (!session?.user) {
         return NextResponse.json({ success: false, message: '未登录用户' }, { status: 401 });
     }
