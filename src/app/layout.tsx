@@ -8,6 +8,7 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
+import { ProfileSetupModalProvider } from "@/components/shared/ProfileSetupModalContext";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -32,8 +33,13 @@ export default function RootLayout({
             <body className={inter.className}>
                 <ThemeProvider>
                     <ClientLayout>
-                        <Navigation />
+                        
+                        <ProfileSetupModalProvider>
+                            <Navigation />
+                        </ProfileSetupModalProvider>
+
                         {children}
+
                     </ClientLayout>
                 </ThemeProvider>
             </body>
