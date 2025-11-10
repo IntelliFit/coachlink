@@ -24,7 +24,8 @@ export async function POST(req: Request) {
         .from('training_videos')
         .select('*', { count: 'exact' })
         .is('deleted_at', null)
-        .eq('requires_review', true);
+        .eq('requires_review', true)
+        .eq('coach_id', coachId);
 
     if (reviewStatus) {
         query = query.eq('review_status', reviewStatus);
