@@ -1,12 +1,18 @@
 import { TrainingVideo } from '@/types';
-import { ReviewStatus, VideoUploadContext } from '@/types/coach';
+import { ApiData } from '@/types/api';
+import { CoachStudentItem, ReviewStatus, VideoUploadContext } from '@/types/coach';
 import axios from 'axios';
 
-class CoachVideoService {
+class CoachService {
+    constructor(
+        private readonly apiBaseUrl: string,
+    ) {
+    }
+
     // 获取视频详情
     async getVideoById(videoId: string): Promise<TrainingVideo | null> {
         try {
-            const res = await axios.get(`/api/coach/video/${videoId}`);
+            const res = await axios.get(`${this.apiBaseUrl}/video/${videoId}`);
             return res.data || null;
         } catch (err) {
             console.error('获取视频详情失败:', err);
@@ -21,7 +27,7 @@ class CoachVideoService {
         reviewStatus?: ReviewStatus
     ): Promise<{ videos: TrainingVideo[]; total: number }> {
         try {
-            const res = await axios.post(`/api/coach/video/coach-pending`, {
+            const res = await axios.post(`${this.apiBaseUrl}/video/coach-pending`, {
                 pagination: { page, limit },
                 reviewStatus,
             });
@@ -35,7 +41,7 @@ class CoachVideoService {
     // 获取用户视频列表
     async getUserVideos(userId: string, filters?: any, pagination?: { page: number; limit: number }) {
         try {
-            const res = await axios.post(`/api/coach/video/list`, {
+            const res = await axios.post(`${this.apiBaseUrl}/video/list`, {
                 userId,
                 filters,
                 pagination,
@@ -60,8 +66,14 @@ class CoachVideoService {
 
             const res = await axios.post(`/api/coach/video/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
-                onUploadProgress,
+                onUploadProgress: (evt) => {
+                    // 手动转换为类似 ProgressEvent 的对象结构
+                    if (onUploadProgress) {
+                        onUploadProgress(evt as unknown as ProgressEvent);
+                    }
+                },
             });
+
 
             return res.data || null;
         } catch (err) {
@@ -73,7 +85,7 @@ class CoachVideoService {
     // 提交视频 URL
     async submitVideoUrl(videoUrl: string, context: VideoUploadContext): Promise<TrainingVideo | null> {
         try {
-            const res = await axios.post(`/api/coach/video/submit-url`, {
+            const res = await axios.post(`${this.apiBaseUrl}/video/submit-url`, {
                 videoUrl,
                 context,
             });
@@ -92,7 +104,7 @@ class CoachVideoService {
         feedback: { rating?: number; comment?: string; tips?: string[] }
     ): Promise<TrainingVideo | null> {
         try {
-            const res = await axios.post(`/api/coach/video/review`, {
+            const res = await axios.post(`${this.apiBaseUrl}/video/review`, {
                 videoId,
                 coachId,
                 coachName,
@@ -111,7 +123,7 @@ class CoachVideoService {
         updates: Partial<Pick<TrainingVideo, 'user_notes' | 'tags' | 'requires_review'>>
     ): Promise<TrainingVideo | null> {
         try {
-            const res = await axios.post(`/api/coach/video/update`, {
+            const res = await axios.post(`${this.apiBaseUrl}/video/update`, {
                 videoId,
                 updates,
             });
@@ -125,13 +137,22 @@ class CoachVideoService {
     // 删除视频（软删除）
     async deleteVideo(videoId: string): Promise<boolean> {
         try {
-            const res = await axios.post(`/api/coach/video/delete`, { videoId });
+            const res = await axios.post(`${this.apiBaseUrl}/video/delete`, { videoId });
             return !!res.data;
         } catch (err) {
             console.error('删除视频失败:', err);
             return false;
         }
     }
+
+    async getStudents() {
+        const res = await axios.post<ApiData<CoachStudentItem[]>>(`${this.apiBaseUrl}/get-students`);
+        if (res.data && res.data.success) {
+            return res.data.data || [];
+        }
+
+        return []
+    }
 }
 
-export const coachVideoService = new CoachVideoService();
+export const coachService = new CoachService('/api/coach');

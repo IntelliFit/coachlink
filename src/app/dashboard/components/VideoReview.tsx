@@ -5,7 +5,7 @@ import { Play, MessageSquare, Star, Clock, User, Filter, Search, X, Eye } from '
 
 import { TrainingVideo } from '@/types';
 import { ReviewStatus } from '@/types/coach';
-import { coachVideoService } from '../api';
+import { coachService } from '../api';
 
 interface CoachVideoReviewProps {
     coachId: string;
@@ -38,14 +38,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
     const loadPendingReviews = async () => {
         try {
             setLoading(true);
-            const { videos: reviewVideos } = await coachVideoService.getCoachPendingReviews(
-                coachId,
-                {
-                    page: 1,
-                    limit: 100
-                },
-                filter.review_status // 传递筛选状态
-            );
+            const { videos: reviewVideos } = await coachService.getCoachPendingReviews(1, 100, filter.review_status);
             setVideos(reviewVideos);
         } catch (error) {
             console.error('加载待点评视频失败:', error);
@@ -59,7 +52,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
 
         try {
             const coachName = '教练';
-            const updatedVideo = await coachVideoService.reviewVideo(
+            const updatedVideo = await coachService.reviewVideo(
                 selectedVideo.id,
                 coachId,
                 coachName,
