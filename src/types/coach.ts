@@ -1,3 +1,7 @@
+export type VideoType = 'baseline' | 'training' | 'completion';
+export type ReviewStatus = 'pending' | 'reviewed' | 'not_required';
+export type ProcessingStatus = 'uploading' | 'processing' | 'ready' | 'failed';
+
 export interface CoachStudentItem {
     id: string; // subscription id
     student_id: string;
@@ -60,4 +64,16 @@ export interface VideoReview {
 export interface CoachDashboardProps {
     coach: Coach;
     onBack: () => void;
+}
+
+export interface VideoUploadContext {
+    type: VideoType;
+    training_plan_id?: string;
+    training_session_id?: string;
+    exercise_name?: string;
+    week_number?: number;
+    day_of_week?: string;
+    requires_review?: boolean;
+    user_notes?: string;
+    coach_id?: string; // 新增：指定教练ID
 }

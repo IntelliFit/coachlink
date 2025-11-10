@@ -21,17 +21,9 @@ import {
 } from 'lucide-react';
 import VideoReview from './components/VideoReview';
 import ContentManager from './components/ContentManager';
-import axios from 'axios';
-import { CoachDashboardProps, CoachStudentItem, PendingVideo, Student } from '@/types/coach';
+import { CoachDashboardProps, PendingVideo, Student } from '@/types/coach';
 
-async function apiGetStudents() {
-    const res = await axios.post('/api/coach/get-students');
-    if (res.data && res.data.success) {
-        return res.data;
-    }
 
-    return [];
-}
 
 const CoachDashboard: React.FC<CoachDashboardProps> = ({
     coach,
@@ -48,7 +40,7 @@ const CoachDashboard: React.FC<CoachDashboardProps> = ({
         const load = async () => {
             setLoadingStudents(true);
             try {
-                const items: CoachStudentItem[] = await apiGetStudents();
+                const items = await apiGetStudents();
                 const mapped: Student[] = items.map((it) => ({
                     id: it.student?.id || it.student_id,
                     name: it.profile?.nickname || it.student?.phone || '学员',

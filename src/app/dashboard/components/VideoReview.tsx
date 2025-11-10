@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Play, MessageSquare, Star, Clock, User, Filter, Search, X, Eye } from 'lucide-react';
 
-import { TrainingVideo, ReviewStatus } from '@/types';
+import { TrainingVideo } from '@/types';
+import { ReviewStatus } from '@/types/coach';
+import { coachVideoService } from '../api';
 
 interface CoachVideoReviewProps {
     coachId: string;
@@ -28,6 +30,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
     });
 
 
+
     useEffect(() => {
         loadPendingReviews();
     }, [coachId, filter]);
@@ -35,7 +38,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
     const loadPendingReviews = async () => {
         try {
             setLoading(true);
-            const { videos: reviewVideos } = await videoService.getCoachPendingReviews(
+            const { videos: reviewVideos } = await coachVideoService.getCoachPendingReviews(
                 coachId,
                 {
                     page: 1,
@@ -56,7 +59,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
 
         try {
             const coachName = '教练';
-            const updatedVideo = await videoService.reviewVideo(
+            const updatedVideo = await coachVideoService.reviewVideo(
                 selectedVideo.id,
                 coachId,
                 coachName,
