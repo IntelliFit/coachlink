@@ -158,7 +158,6 @@ export default function Navigation() {
                         model={userMenuItems}
                         popup
                         ref={menu}
-                        target={menuTarget as any}
                         className="min-w-48"
                     />
 
