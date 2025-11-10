@@ -1,6 +1,5 @@
 import * as crypto from 'crypto';
 
-
 const SALT = process.env.HASH_PASSWORD_SALT || 'smart_health_alliance_salt';
 
 /**
