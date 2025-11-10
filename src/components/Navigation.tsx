@@ -4,13 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menubar } from 'primereact/menubar';
-import { BreadCrumb } from 'primereact/breadcrumb';
 import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
 import { Tooltip } from 'primereact/tooltip';
 import { MenuItem } from 'primereact/menuitem';
 import { useTheme } from '@/context/ThemeContext';
-import { useLoginModal } from '@/components/ui/LoginModalContext';
+import { useLoginModal } from '@/components/auth/LoginModalContext';
 import { useSession, signOut } from 'next-auth/react';
 
 interface NavigationItem {
@@ -45,12 +44,6 @@ export default function Navigation() {
         return titles[path] || '';
     };
 
-    const breadcrumbItems = [
-        { label: '首页', url: '/' },
-        ...(pathname !== '/' && getPageTitle(pathname)
-            ? [{ label: getPageTitle(pathname), url: pathname }]
-            : []),
-    ].filter(item => item.label);
 
     const menuItems: MenuItemWithTemplate[] = navigation.map(item => ({
         label: item.name,
@@ -93,20 +86,47 @@ export default function Navigation() {
                 <span className="text-sm text-muted-color">正在加载...</span>
             ) : session?.user ? (
                 <div className="flex items-center gap-3">
-                    <Avatar
-                        image={session.user.avatar_url || undefined}
-                        label={session.user.avatar_url ? undefined : (session.user.nickname?.charAt(0) || session.user.phone?.slice(0, 1) || 'U')}
-                        shape="circle"
-                        className="bg-primary text-white font-bold"
-                        size="large"
-                    />
-                    <span className="font-medium">{session.user.nickname || session.user.phone}</span>
+                    <div className="flex items-center gap-2">
+                        <Avatar
+                            image={session.profile.avatar_url || undefined}
+                            label={session.profile.avatar_url ? undefined : (session.profile.nickname?.charAt(0) || session.user.phone?.slice(0, 1) || 'U')}
+                            shape="circle"
+                            className="bg-primary text-white font-bold flex-shrink-0"
+                            size="large"
+                        />
+                        <div className="flex flex-col">
+                            <span className="font-medium">{session.profile.nickname || session.user.phone}</span>
+                            <div className="flex gap-1">
+                                {session.user.subscription_level && (
+                                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                        session.user.subscription_level === 'basic' ? 'bg-gray-100 text-gray-600' :
+                                        session.user.subscription_level === 'advanced' ? 'bg-blue-100 text-blue-600' :
+                                        session.user.subscription_level === 'premium' ? 'bg-purple-100 text-purple-600' : ''
+                                    }`}>
+                                        {session.user.subscription_level === 'basic' ? '基础会员' :
+                                         session.user.subscription_level === 'advanced' ? '高级会员' :
+                                         session.user.subscription_level === 'premium' ? '至尊会员' : ''}
+                                    </span>
+                                )}
+                                {session.user.primary_role && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
+                                        {session.user.primary_role === 'student' ? '学员' : 
+                                         session.user.primary_role === 'coach' ? '教练' : session.user.primary_role}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <Tooltip target=".sign-out" position="bottom" />
                     <Button
-                        label="退出"
                         icon="pi pi-sign-out"
                         onClick={() => signOut({ callbackUrl: '/' })}
                         text
                         severity="secondary"
+                        className="sign-out"
+                        data-pr-tooltip="登出"
+                        aria-label="登出"
                     />
                 </div>
             ) : (
@@ -140,34 +160,6 @@ export default function Navigation() {
                 end={themeToggleEnd}
                 className="sticky top-0 z-50 border-none bg-transparent px-0 py-3"
             />
-
-            {/* 面包屑导航 */}
-            {pathname !== '/' && breadcrumbItems.length > 1 && (
-                <nav
-                    className="border-b border-surface-200 dark:border-surface-700"
-                    aria-label="面包屑导航"
-                >
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-                        <BreadCrumb
-                            model={breadcrumbItems}
-                            home={{
-                                icon: 'pi pi-home',
-                                url: '/',
-                                template: (item, options) => (
-                                    <Link
-                                        href={(item as MenuItemWithTemplate).url}
-                                        className={`${options.className} text-primary hover:text-primary/80 transition-colors duration-200`}
-                                        aria-label="首页"
-                                    >
-                                        <span className={options.iconClassName} />
-                                    </Link>
-                                ),
-                            }}
-                            className="bg-transparent border-none p-0"
-                        />
-                    </div>
-                </nav>
-            )}
         </>
     );
 }

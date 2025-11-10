@@ -11,7 +11,7 @@ import { FloatLabel } from 'primereact/floatlabel';
 import { useToastContext } from '@/components/ToastContext';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import { Loader2 } from 'lucide-react';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -172,14 +172,24 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
                                     <Button
                                         type="submit"
-                                        label={loading ? '登录中...' : '登录'}
                                         disabled={loading}
                                         className="
                                             w-full rounded-lg bg-primary py-3 
                                             text-white font-medium 
+                                            flex items-center justify-center gap-2
                                             transition-colors hover:bg-primary/90
                                         "
-                                    />
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                登录中...
+                                            </>
+                                        ) : (
+                                            '登录'
+                                        )}
+                                    </Button>
+
                                 </form>
 
                                 <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
