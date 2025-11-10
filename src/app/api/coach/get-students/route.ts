@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
-import { getSession } from '../../auth/[...nextauth]/auth';
+import { getServerSession } from '../../auth/[...nextauth]/auth';
 
 export async function POST(request: Request) {
     try {
         // ✅ 鉴权
-        const session = await getSession();
+        const session = await getServerSession();
         if (!session) {
             return NextResponse.json({ success: false, message: '未登录或会话已过期' }, { status: 401 });
         }

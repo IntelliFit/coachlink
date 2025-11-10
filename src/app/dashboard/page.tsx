@@ -19,15 +19,27 @@ import {
     Bell,
     TrendingUp
 } from 'lucide-react';
+
 import VideoReview from './components/VideoReview';
 import ContentManager from './components/ContentManager';
 import { CoachDashboardProps, CoachStudentItem, PendingVideo, Student } from '@/types/coach';
-import { coachService } from './api';
+import { useRouter } from 'next/navigation';
 
-const CoachDashboard: React.FC<CoachDashboardProps> = ({
-    coach,
-    onBack
-}) => {
+import { coachService } from './service/coachService';
+import { useSession } from 'next-auth/react';
+import { getCoach } from './util';
+
+const CoachDashboard: React.FC<CoachDashboardProps> = () => {
+    const { data: session, status } = useSession();
+    const coach = getCoach(session);
+
+    const router = useRouter();
+
+    const onBack = () => {
+        // 跳转到主页
+        router.push('/');
+    };
+
     const [activeTab, setActiveTab] = useState<'overview' | 'videos' | 'students' | 'chats' | 'content'>('overview');
     const [showVideoReview, setShowVideoReview] = useState(false);
 
@@ -40,7 +52,8 @@ const CoachDashboard: React.FC<CoachDashboardProps> = ({
             setLoadingStudents(true);
             try {
                 const items = await coachService.getStudents();
-                const mapped: Student[] = items.map((it) => ({
+                
+                const mapped: Student[] = (items || [] as CoachStudentItem[]).map((it) => ({
                     id: it.student?.id || it.student_id,
                     name: it.profile?.nickname || it.student?.phone || '学员',
                     email: undefined,

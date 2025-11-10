@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { ToastContextProvider } from "./ToastContext";
 import { LoginModalProvider } from './auth/LoginModalContext';

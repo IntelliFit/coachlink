@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 
 import supabase from '@/lib/supabaseClient';
 import { ReviewStatus } from '@/types/coach';
-import { getSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { GetPendingReviewVideosDto } from './entity';
 
 export async function POST(req: Request) {
-    const session = await getSession();
+    const session = await getServerSession();
     if (!session?.user) {
         return NextResponse.json({ success: false, message: '未登录用户' }, { status: 401 });
     }
@@ -13,10 +14,7 @@ export async function POST(req: Request) {
     const coachId = session.user.id;
 
     const body = await req.json();
-    const { pagination, reviewStatus } = body as {
-        pagination?: { page: number; limit: number };
-        reviewStatus?: ReviewStatus;
-    };
+    const { pagination, reviewStatus } = body as GetPendingReviewVideosDto;
 
     // 读取待点评视频（当前版本放宽条件，不使用 coachId 过滤）
     let query = supabase

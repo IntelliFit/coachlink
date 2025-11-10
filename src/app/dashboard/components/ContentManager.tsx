@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import ContentEditor from './ContentEditor';
 import { CoachContent } from '@/types/coach';
+import { coachService } from '../service/coachService';
 
 interface CoachContentManagerProps {
     coachId: string;
@@ -42,12 +43,8 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
         setError(null);
 
         try {
-            // 获取当前用户ID（这里需要从全局状态或context获取）
-            const currentUserId = localStorage.getItem('current_user_id') || '';
-
-            const response = await contentService.getCoachContent({
+            const response = await coachService.getContents({
                 coachId,
-                userId: currentUserId, // 当前查看者的用户ID
                 limit: 50,
                 offset: 0
             });
@@ -63,7 +60,18 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
 
     const handlePublishContent = async (contentData: any) => {
         try {
-            await contentService.publishContent(coachId, contentData);
+            await coachService.publishContent({
+                coachId,
+                title: contentData.title,
+                content: contentData.content,
+                content_type: contentData.content_type,
+                required_tier: contentData.required_tier,
+                is_featured: contentData.is_featured,
+                tags: contentData.tags,
+                media_urls: contentData.media_urls,
+                thumbnail_url: contentData.thumbnail_url,
+                isDraft: false,
+            });
             setCurrentView('list');
             loadContents(); // 重新加载列表
         } catch (error) {
@@ -73,7 +81,18 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
 
     const handleSaveDraft = async (contentData: any) => {
         try {
-            await contentService.saveDraft(coachId, contentData);
+            await coachService.publishContent({
+                coachId,
+                title: contentData.title,
+                content: contentData.content,
+                content_type: contentData.content_type,
+                required_tier: contentData.required_tier,
+                is_featured: contentData.is_featured,
+                tags: contentData.tags,
+                media_urls: contentData.media_urls,
+                thumbnail_url: contentData.thumbnail_url,
+                isDraft: false,
+            });
         } catch (error) {
             throw error; // 让ContentEditor处理错误
         }
@@ -118,6 +137,27 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
             </span>
         );
     };
+
+    const formatRelativeTime = (dateString: string): string => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInMs = now.getTime() - date.getTime();
+        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+
+        if (diffInHours < 1) {
+            const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+            return diffInMinutes < 1 ? '刚刚' : `${diffInMinutes}分钟前`;
+        } else if (diffInHours < 24) {
+            return `${diffInHours}小时前`;
+        } else {
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 30) {
+                return `${diffInDays}天前`;
+            } else {
+                return date.toLocaleDateString('zh-CN');
+            }
+        }
+    }
 
     if (currentView === 'editor') {
         return (
@@ -273,7 +313,7 @@ const CoachContentManager: React.FC<CoachContentManagerProps> = ({
                                                 </div>
                                                 <div className="flex items-center space-x-1">
                                                     <Clock className="w-4 h-4" />
-                                                    <span>{contentService.formatRelativeTime(content.created_at)}</span>
+                                                    <span>{formatRelativeTime(content.created_at)}</span>
                                                 </div>
                                             </div>
                                         </div>
