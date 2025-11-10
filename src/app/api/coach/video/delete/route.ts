@@ -1,10 +1,9 @@
 import supabase from '@/lib/supabaseClient';
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getSession } from '@/app/api/auth/[...nextauth]/auth';
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user) {
         return NextResponse.json({ success: false, message: '未登录用户' }, { status: 401 });
     }

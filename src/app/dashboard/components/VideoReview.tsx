@@ -54,8 +54,6 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
             const coachName = '教练';
             const updatedVideo = await coachService.reviewVideo(
                 selectedVideo.id,
-                coachId,
-                coachName,
                 {
                     rating: reviewForm.rating,
                     comment: reviewForm.comment,
@@ -63,7 +61,10 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
                 }
             );
 
-            setVideos(videos.map(v => v.id === updatedVideo.id ? updatedVideo : v));
+            if (updatedVideo) {
+                setVideos(videos.map(v => v.id === updatedVideo.id ? updatedVideo : v));
+            }
+
             setShowReviewModal(false);
             setSelectedVideo(null);
             setReviewForm({ rating: 0, comment: '', tips: [''] });
@@ -72,11 +73,11 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
         }
     };
 
-    const getExerciseLabel = (exerciseName?: string) => {
+    const getExerciseLabel = (exerciseName: string | null) => {
         return exerciseName || '未指定动作';
     };
 
-    const getStatusLabel = (status: ReviewStatus) => {
+    const getStatusLabel = (status: ReviewStatus | null) => {
         switch (status) {
             case 'pending': return '待点评';
             case 'reviewed': return '已点评';
@@ -85,7 +86,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
         }
     };
 
-    const getStatusColor = (status: ReviewStatus) => {
+    const getStatusColor = (status: ReviewStatus | null) => {
         switch (status) {
             case 'pending': return 'bg-yellow-100 text-yellow-800';
             case 'reviewed': return 'bg-green-100 text-green-800';
@@ -207,8 +208,8 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
                             </div>
 
                             <div className="absolute top-2 right-2">
-                                <span className={`px-2 py-1 text-xs rounded ${getStatusColor(video.review_status)}`}>
-                                    {getStatusLabel(video.review_status)}
+                                <span className={`px-2 py-1 text-xs rounded ${getStatusColor(video.review_status as any)}`}>
+                                    {getStatusLabel(video.review_status as any)}
                                 </span>
                             </div>
                         </div>
@@ -246,7 +247,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
                             <div className="flex items-center justify-between text-xs text-gray-500">
                                 <div className="flex items-center space-x-1">
                                     <Clock className="w-3 h-3" />
-                                    <span>{formatDate(video.created_at)}</span>
+                                    <span>{formatDate(video.created_at as any)}</span>
                                 </div>
 
                                 {video.review_status === 'pending' && (

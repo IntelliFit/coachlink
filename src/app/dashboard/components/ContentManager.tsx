@@ -13,7 +13,8 @@ import {
     Search,
     MoreHorizontal
 } from 'lucide-react';
-import ContentEditor, { ContentTier } from '../content/ContentEditor';
+import ContentEditor from './ContentEditor';
+import { CoachContent } from '@/types/coach';
 
 interface CoachContentManagerProps {
     coachId: string;

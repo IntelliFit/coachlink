@@ -77,3 +77,28 @@ export interface VideoUploadContext {
     user_notes?: string;
     coach_id?: string; // 新增：指定教练ID
 }
+
+export enum ContentTier {
+    FREE = 0,
+    BASIC = 1,
+    PREMIUM = 2,
+    VIP = 3
+}
+
+export interface CoachContent {
+    id: string;
+    coach_id: string;
+    title: string;
+    content: string;
+    content_type: 'text' | 'video' | 'image' | 'live' | 'plan';
+    media_urls: string[];
+    thumbnail_url?: string;
+    required_tier: ContentTier;
+    is_featured: boolean;
+    tags: string[];
+    likes_count: number;
+    views_count: number;
+    comments_count: number;
+    created_at: string;
+    updated_at: string;
+}
