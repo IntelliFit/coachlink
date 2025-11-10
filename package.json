@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "node scripts/start-dev.js",
+        "dev": "node scripts/start-dev.mjs",
         "build": "node scripts/build-prod.js",
         "start": "next start",
         "lint": "next lint",
@@ -21,6 +21,7 @@
         "classnames": "^2.5.1",
         "dotenv": "^16.4.5",
         "framer-motion": "^12.23.24",
+        "gradient-string": "^3.0.0",
         "i18next": "^23.16.4",
         "jsonwebtoken": "^9.0.2",
         "lucide-react": "^0.553.0",
