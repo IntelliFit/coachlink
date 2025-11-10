@@ -115,8 +115,8 @@ const CoachApplicationModal: React.FC<CoachApplicationModalProps> = ({
                     {/* 消息提示 */}
                     {message && (
                         <div className={`mb-6 p-4 rounded-lg flex items-center space-x-2 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                    'bg-blue-50 text-blue-700 border border-blue-200'
+                            message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                'bg-blue-50 text-blue-700 border border-blue-200'
                             }`}>
                             {message.type === 'success' ? (
                                 <CheckCircle className="w-5 h-5" />
@@ -152,8 +152,8 @@ const CoachApplicationModal: React.FC<CoachApplicationModalProps> = ({
                                     <label
                                         key={specialty}
                                         className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all ${formData.specialties.includes(specialty)
-                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                                : 'border-gray-300 hover:border-gray-400'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                            : 'border-gray-300 hover:border-gray-400'
                                             }`}
                                     >
                                         <input
@@ -290,8 +290,8 @@ const CoachApplicationModal: React.FC<CoachApplicationModalProps> = ({
                                 type="submit"
                                 disabled={isSubmitting}
                                 className={`flex-1 py-3 px-4 rounded-xl font-medium text-white transition-all ${isSubmitting
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 hover:shadow-lg'
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 hover:shadow-lg'
                                     }`}
                             >
                                 {isSubmitting ? (
