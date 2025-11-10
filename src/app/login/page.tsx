@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLoginModal } from '@/components/ui/LoginModalContext';
+import { useLoginModal } from '@/components/auth/LoginModalContext';
 
 export default function LoginPage() {
     const router = useRouter();

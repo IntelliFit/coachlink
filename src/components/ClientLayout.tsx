@@ -3,7 +3,7 @@
 import React, { useEffect, ReactNode } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { ToastContextProvider } from "./ToastContext";
-import { LoginModalProvider } from './ui/LoginModalContext';
+import { LoginModalProvider } from './auth/LoginModalContext';
 import { SessionProvider } from 'next-auth/react';
 
 export default function ClientLayout({
