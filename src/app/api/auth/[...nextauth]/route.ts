@@ -66,7 +66,7 @@ export const authOptions: AuthOptions = {
             if (profile) {
                 session.profile = profile;
             }
-            
+
             return session;
         },
     },

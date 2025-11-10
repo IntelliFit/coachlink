@@ -4,3 +4,6 @@ export type CoachLinkTable = Database['public']['Tables'];
 
 export type UsersRow = CoachLinkTable['users']['Row'];
 export type UserProfilesRow = CoachLinkTable['user_profiles']['Row'];
+
+export type TrainingVideo = CoachLinkTable['training_videos']['Row'];
+export type ReviewStatus = 'pending' | 'reviewed' | 'not_required';

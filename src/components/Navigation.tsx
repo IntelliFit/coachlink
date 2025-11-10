@@ -66,12 +66,9 @@ export default function Navigation() {
     // 用户菜单项
     const userMenuItems: MenuItem[] = [
         {
-            label: session?.user?.primary_role === 'student' ? '切换到教练端' : '切换到学员端',
-            icon: 'pi pi-user-edit',
-            command: () => {
-                // 这里可以实现角色切换逻辑
-                console.log('切换角色');
-            }
+            label: session?.user?.primary_role === 'coach' ? '控制台' : '申请成为教练',
+            icon: session?.user?.primary_role === 'coach' ? 'pi pi-desktop' : 'pi pi-user-plus',
+            url: session?.user?.primary_role === 'coach' ? '/coach' : '/dashboard'
         },
         {
             separator: true
