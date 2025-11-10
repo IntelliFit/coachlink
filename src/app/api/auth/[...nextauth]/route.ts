@@ -3,7 +3,6 @@ import NextAuth, { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import supabase from '@/lib/supabaseClient';
 import { verifyPassword } from './verify';
-import { UsersRow } from '@/types';
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -35,12 +34,7 @@ export const authOptions: AuthOptions = {
                 }
 
                 // 返回用户信息（会保存到 token / session）
-                return {
-                    id: user.id,
-                    phone: user.phone || '',
-                    email: user.email || '',
-                    admin_role: user.admin_role || 'common_user',
-                };
+                return user;
             },
         }),
     ],
@@ -55,11 +49,13 @@ export const authOptions: AuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            const user = token.user as UsersRow;
+            const user = token.user;
             if (!user) {
                 // 说明此时没有登陆
                 return session;
             }
+            
+            session.user = token.user;
 
             const { data: profile, error } = await supabase
                 .from('user_profiles')
@@ -67,17 +63,10 @@ export const authOptions: AuthOptions = {
                 .eq('user_id', user.id)
                 .single();
 
-            if (error || !profile) {
-                session.user = token.user;
-
-            } else {                
-                session.user = {
-                    ...token.user,
-                    nickname: profile.nickname || '',
-                    avatar_url: profile.avatar_url || ''
-                };
+            if (profile) {
+                session.profile = profile;
             }
-
+            
             return session;
         },
     },
