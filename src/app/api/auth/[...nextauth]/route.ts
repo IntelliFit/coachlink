@@ -2,7 +2,8 @@
 import NextAuth, { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import supabase from '@/lib/supabaseClient';
-import { verifyPassword } from '../login/util';
+import { verifyPassword } from './verify';
+import { UsersRow } from '@/types';
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -18,23 +19,27 @@ export const authOptions: AuthOptions = {
                 }
 
                 // 查询用户
-                const { data: user, error } = await supabase
+                const { data: user, error: userError } = await supabase
                     .from('users')
                     .select('*')
                     .eq('phone', credentials.phone)
                     .single();
 
-                if (error || !user) throw new Error('用户不存在');
+                if (userError || !user) {
+                    throw new Error('用户不存在' + userError?.message);
+                }
 
                 const isValid = verifyPassword(credentials.password, user.password_hash);
-                if (!isValid) throw new Error('密码错误');
+                if (!isValid) {
+                    throw new Error('密码错误');
+                }
 
                 // 返回用户信息（会保存到 token / session）
                 return {
                     id: user.id,
-                    phone: user.phone,
-                    email: user.email,
-                    admin_role: user.admin_role,
+                    phone: user.phone || '',
+                    email: user.email || '',
+                    admin_role: user.admin_role || 'common_user',
                 };
             },
         }),
@@ -44,11 +49,35 @@ export const authOptions: AuthOptions = {
     },
     callbacks: {
         async jwt({ token, user }) {
-            if (user) token.user = user;
+            if (user) {
+                token.user = user;
+            }
             return token;
         },
         async session({ session, token }) {
-            session.user = token.user as any;
+            const user = token.user as UsersRow;
+            if (!user) {
+                // 说明此时没有登陆
+                return session;
+            }
+
+            const { data: profile, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            if (error || !profile) {
+                session.user = token.user;
+
+            } else {                
+                session.user = {
+                    ...token.user,
+                    nickname: profile.nickname || '',
+                    avatar_url: profile.avatar_url || ''
+                };
+            }
+
             return session;
         },
     },
