@@ -8,6 +8,7 @@ import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
 import { Tooltip } from 'primereact/tooltip';
 import { MenuItem } from 'primereact/menuitem';
+import { Skeleton } from 'primereact/skeleton';
 import { Menu } from 'primereact/menu';
 import { useTheme } from '@/context/ThemeContext';
 import { useLoginModal } from '@/components/auth/LoginModalContext';
@@ -111,77 +112,90 @@ export default function Navigation() {
 
     // ✅ 登录状态控制
     const themeToggleEnd = (
-        <div className="flex items-center gap-2">
-            {/* 登录状态显示 */}
+        <div className="flex items-center gap-3">
             {status === 'loading' ? (
-                <span className="text-sm text-muted-color">正在加载...</span>
-            ) : session?.user ? (
                 <div className="flex items-center gap-3">
-                    <div
-                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
-                        onClick={(e) => {
-                            setMenuTarget(e.currentTarget);
-                            menu.current?.toggle(e);
-                        }}
-                    >
-                        <Avatar
-                            image={session.profile.avatar_url || undefined}
-                            label={session.profile.avatar_url ? undefined : (session.profile.nickname?.charAt(0) || session.user.phone?.slice(0, 1) || 'U')}
-                            shape="circle"
-                            className="bg-primary text-white font-bold flex-shrink-0"
-                            size="large"
-                        />
-                        <div className="flex flex-col">
-                            <span className="font-medium">{session.profile.nickname || session.user.phone}</span>
-                            <div className="flex gap-1">
-                                {session.user.subscription_level && (
-                                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${session.user.subscription_level === 'basic' ? 'bg-gray-100 text-gray-600' :
-                                        session.user.subscription_level === 'advanced' ? 'bg-blue-100 text-blue-600' :
-                                            session.user.subscription_level === 'premium' ? 'bg-purple-100 text-purple-600' : ''
-                                        }`}>
-                                        {session.user.subscription_level === 'basic' ? '基础会员' :
-                                            session.user.subscription_level === 'advanced' ? '高级会员' :
-                                                session.user.subscription_level === 'premium' ? '至尊会员' : ''}
-                                    </span>
-                                )}
-                                {session.user.primary_role && (
-                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
-                                        {session.user.primary_role === 'student' ? '学员' :
-                                            session.user.primary_role === 'coach' ? '教练' : session.user.primary_role}
-                                    </span>
-                                )}
-                            </div>
+                    <Skeleton shape="circle" size="2.5rem" className="flex-shrink-0" />
+                    <div className="flex flex-col gap-1">
+                        <Skeleton width="6rem" height="1rem" borderRadius="0.25rem" />
+                        <div className="flex gap-1">
+                            <Skeleton width="3rem" height="0.8rem" borderRadius="9999px" />
+                            <Skeleton width="3rem" height="0.8rem" borderRadius="9999px" />
                         </div>
                     </div>
-
-                    <Menu
-                        model={userMenuItems}
-                        popup
-                        ref={menu}
-                        className="min-w-48"
+                </div>
+            ) : session?.user ? (
+                <div
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
+                    onClick={(e) => {
+                        setMenuTarget(e.currentTarget);
+                        menu.current?.toggle(e);
+                    }}
+                >
+                    <Avatar
+                        image={session.profile.avatar_url || undefined}
+                        label={session.profile.avatar_url
+                            ? undefined
+                            : session.profile.nickname?.charAt(0) ||
+                            session.user.phone?.slice(0, 1) ||
+                            'U'}
+                        shape="circle"
+                        className="bg-primary text-white font-bold flex-shrink-0"
+                        size="large"
                     />
-
-                    {/* 主题切换按钮 */}
-                    <Tooltip target=".theme-toggle" position="bottom" />
-                    <Button
-                        icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}
-                        onClick={toggleTheme}
-                        rounded
-                        text
-                        className="theme-toggle"
-                        data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-                        aria-label={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-                    />
+                    <div className="flex flex-col">
+                        <span className="font-medium">
+                            {session.profile.nickname || session.user.phone}
+                        </span>
+                        <div className="flex gap-1">
+                            {session.user.subscription_level && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${session.user.subscription_level === 'basic'
+                                        ? 'bg-gray-100 text-gray-600'
+                                        : session.user.subscription_level === 'advanced'
+                                            ? 'bg-blue-100 text-blue-600'
+                                            : session.user.subscription_level === 'premium'
+                                                ? 'bg-purple-100 text-purple-600'
+                                                : ''
+                                    }`}>
+                                    {session.user.subscription_level === 'basic'
+                                        ? '基础会员'
+                                        : session.user.subscription_level === 'advanced'
+                                            ? '高级会员'
+                                            : session.user.subscription_level === 'premium'
+                                                ? '至尊会员'
+                                                : ''}
+                                </span>
+                            )}
+                            {session.user.primary_role && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
+                                    {session.user.primary_role === 'student'
+                                        ? '学员'
+                                        : session.user.primary_role === 'coach'
+                                            ? '教练'
+                                            : session.user.primary_role}
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </div>
             ) : (
-                <Button
-                    label="登录"
-                    icon="pi pi-sign-in"
-                    onClick={openLoginModal}
-                />
+                <Button label="登录" icon="pi pi-sign-in" onClick={openLoginModal} />
             )}
+
+            {/* ✅ 永远存在的主题切换按钮 */}
+            <Tooltip target=".theme-toggle" position="bottom" />
+            <Button
+                icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}
+                onClick={toggleTheme}
+                rounded
+                text
+                className="theme-toggle"
+                data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
+                aria-label={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
+            />
         </div>
     );
+
 
     return (
         <>
