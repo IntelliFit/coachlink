@@ -21,57 +21,16 @@ import {
 } from 'lucide-react';
 import VideoReview from './components/VideoReview';
 import ContentManager from './components/ContentManager';
+import axios from 'axios';
+import { CoachDashboardProps, CoachStudentItem, PendingVideo, Student } from '@/types/coach';
 
-interface Coach {
-    id: string;
-    name: string;
-    title: string;
-    rating: number;
-}
+async function apiGetStudents() {
+    const res = await axios.post('/api/coach/get-students');
+    if (res.data && res.data.success) {
+        return res.data;
+    }
 
-interface Student {
-    id: string;
-    name: string;
-    email?: string;
-    subscription_tier: number;
-    subscription_start: string | null;
-    subscription_end: string | null;
-    total_videos: number;
-    pending_videos: number;
-    avatar_url?: string;
-    last_active?: string;
-    progress_score: number;
-}
-
-interface PendingVideo {
-    id: string;
-    student_id: string;
-    student_name: string;
-    title: string;
-    description: string;
-    exercise_type: string;
-    duration: number;
-    upload_date: string;
-    video_url: string;
-    thumbnail_url: string;
-    file_size: string;
-}
-
-interface VideoReview {
-    id: string;
-    video_id: string;
-    rating: number;
-    technical_score: number;
-    form_score: number;
-    progress_score: number;
-    written_feedback: string;
-    audio_feedback?: string;
-    reviewed_at: string;
-}
-
-interface CoachDashboardProps {
-    coach: Coach;
-    onBack: () => void;
+    return [];
 }
 
 const CoachDashboard: React.FC<CoachDashboardProps> = ({
@@ -89,7 +48,7 @@ const CoachDashboard: React.FC<CoachDashboardProps> = ({
         const load = async () => {
             setLoadingStudents(true);
             try {
-                const items: CoachStudentItem[] = await coachService.getMyStudents();
+                const items: CoachStudentItem[] = await apiGetStudents();
                 const mapped: Student[] = items.map((it) => ({
                     id: it.student?.id || it.student_id,
                     name: it.profile?.nickname || it.student?.phone || '学员',

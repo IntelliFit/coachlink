@@ -151,15 +151,14 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
                 bio: formData.bio || undefined
             });
             
-            
-            if (response.data) {
+            if (response.data && response.data.success) {
                 setMessage({ type: 'success', text: '个人信息保存成功！' });
 
                 setTimeout(() => {
                     onComplete(response.data);
                 }, 1500);
             } else {
-                setMessage({ type: 'error', text: response.data.msg });
+                setMessage({ type: 'error', text: response.data.message });
             }
         } catch (error) {
             console.error('保存个人信息失败:', error);
