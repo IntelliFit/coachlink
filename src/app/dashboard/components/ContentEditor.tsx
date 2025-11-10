@@ -253,7 +253,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
                                     <Chip 
                                         key={index} 
                                         label={`#${tag}`} 
-                                        onRemove={() => handleRemoveTag(tag)}
                                         removable
                                         className="bg-primary-100 text-primary-800"
                                     />
