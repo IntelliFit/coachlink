@@ -49,7 +49,10 @@ export async function POST(request: Request) {
             .single();
 
         if (updateError) {
-            throw new Error(updateError.message);
+            return NextResponse.json({
+                success: false,
+                message: updateError.message
+            });
         }
 
         result = data;
@@ -66,7 +69,10 @@ export async function POST(request: Request) {
             .single();
 
         if (insertError) {
-            throw new Error(insertError.message);
+            return NextResponse.json({
+                success: false,
+                message: insertError.message
+            });
         }
 
         result = data;

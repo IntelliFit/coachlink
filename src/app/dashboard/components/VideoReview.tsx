@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Play, MessageSquare, Star, Clock, User, Filter, Search, X, Eye } from 'lucide-react';
-import TrainingVideoService from '../../services/trainingVideoService';
 
 import { TrainingVideo, ReviewStatus } from '@/types';
 
@@ -28,7 +27,6 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
         tips: ['']
     });
 
-    const videoService = TrainingVideoService.getInstance();
 
     useEffect(() => {
         loadPendingReviews();
