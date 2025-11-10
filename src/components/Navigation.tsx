@@ -41,15 +41,6 @@ export default function Navigation() {
         { name: '排行榜', href: '/ranking', icon: 'pi pi-chart-line' },
     ];
 
-    const getPageTitle = (path: string) => {
-        const titles: Record<string, string> = {
-            '/coach': '教练团队',
-            '/ranking': '排行榜',
-            '/profile': '个人资料',
-        };
-        return titles[path] || '';
-    };
-
     const menuItems: MenuItemWithTemplate[] = navigation.map(item => ({
         label: item.name,
         icon: item.icon,
@@ -61,7 +52,7 @@ export default function Navigation() {
                     href={(menuItem as MenuItemWithTemplate).url}
                     className={`${options.className} ${isActive
                         ? 'p-menuitem-link-active font-semibold text-primary border-b-2 border-primary'
-                        : ''
+                        : 'border-b-2 border-transparent'
                         } transition-colors duration-200`}
                     aria-current={isActive ? 'page' : undefined}
                 >
@@ -205,7 +196,7 @@ export default function Navigation() {
                 model={menuItems}
                 start={logoStart}
                 end={themeToggleEnd}
-                className="sticky top-0 z-50 border-none bg-transparent px-0 py-0"
+                className="sticky top-0 z-50 border-b border-gray-200 dark:border-gray-700 bg-surface-0 dark:bg-surface-900 px-0 py-0"
                 style={{ height: '60px' }}
             />
             
