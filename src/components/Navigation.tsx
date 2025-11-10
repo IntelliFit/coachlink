@@ -112,10 +112,10 @@ export default function Navigation() {
 
     // ✅ 登录状态控制
     const themeToggleEnd = (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 h-full">
             {status === 'loading' ? (
                 <div className="flex items-center gap-3">
-                    <Skeleton shape="circle" size="2.5rem" className="flex-shrink-0" />
+                    <Skeleton shape="circle" size="2rem" className="flex-shrink-0" />
                     <div className="flex flex-col gap-1">
                         <Skeleton width="6rem" height="1rem" borderRadius="0.25rem" />
                         <div className="flex gap-1">
@@ -126,7 +126,7 @@ export default function Navigation() {
                 </div>
             ) : session?.user ? (
                 <div
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg transition-colors"
                     onClick={(e) => {
                         setMenuTarget(e.currentTarget);
                         menu.current?.toggle(e);
@@ -141,10 +141,10 @@ export default function Navigation() {
                             'U'}
                         shape="circle"
                         className="bg-primary text-white font-bold flex-shrink-0"
-                        size="large"
+                        size="normal"
                     />
                     <div className="flex flex-col">
-                        <span className="font-medium">
+                        <span className="font-medium text-sm">
                             {session.profile.nickname || session.user.phone}
                         </span>
                         <div className="flex gap-1">
@@ -179,7 +179,7 @@ export default function Navigation() {
                     </div>
                 </div>
             ) : (
-                <Button label="登录" icon="pi pi-sign-in" onClick={openLoginModal} />
+                <Button label="登录" icon="pi pi-sign-in" onClick={openLoginModal} size="small" />
             )}
 
             {/* ✅ 永远存在的主题切换按钮 */}
@@ -205,7 +205,17 @@ export default function Navigation() {
                 model={menuItems}
                 start={logoStart}
                 end={themeToggleEnd}
-                className="sticky top-0 z-50 border-none bg-transparent px-0 py-3"
+                className="sticky top-0 z-50 border-none bg-transparent px-0 py-0"
+                style={{ height: '60px' }}
+            />
+            
+            {/* 用户菜单下拉列表 */}
+            <Menu 
+                model={userMenuItems} 
+                popup 
+                ref={menu} 
+                id="user_menu"
+                className="min-w-40"
             />
 
         </>
