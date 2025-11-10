@@ -68,7 +68,7 @@ export default function Navigation() {
         {
             label: session?.user?.primary_role === 'coach' ? '控制台' : '申请成为教练',
             icon: session?.user?.primary_role === 'coach' ? 'pi pi-desktop' : 'pi pi-user-plus',
-            url: session?.user?.primary_role === 'coach' ? '/coach' : '/dashboard'
+            url: session?.user?.primary_role === 'coach' ? '/dashboard' : '/dashboard'
         },
         {
             separator: true
@@ -193,7 +193,7 @@ export default function Navigation() {
                 model={menuItems}
                 start={logoStart}
                 end={themeToggleEnd}
-                className="sticky top-0 z-50 border-b border-gray-200 dark:border-gray-700 bg-surface-0 dark:bg-surface-900 px-0 py-0"
+                className="sticky top-0 z-50 border-b px-0 py-0 pl-4 pr-4"
                 style={{ height: '60px' }}
             />
             

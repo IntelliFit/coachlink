@@ -7,6 +7,15 @@ import { TrainingVideo } from '@/types';
 import { ReviewStatus } from '@/types/coach';
 import { coachVideoService } from '../service/coachVideoService';
 
+// PrimeReact imports
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
+import { Card } from 'primereact/card';
+import { Dialog } from 'primereact/dialog';
+import { Rating } from 'primereact/rating';
+import { InputTextarea } from 'primereact/inputtextarea';
+
 interface CoachVideoReviewProps {
     coachId: string;
 }
@@ -28,8 +37,6 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
         comment: '',
         tips: ['']
     });
-
-
 
     useEffect(() => {
         loadPendingReviews();
@@ -118,52 +125,87 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
             </div>
         );
     }
 
+    // 状态过滤选项
+    const statusOptions = [
+        { label: '所有状态', value: '' },
+        { label: '待点评', value: 'pending' },
+        { label: '已点评', value: 'reviewed' }
+    ];
+
+    // 点评模态框页脚
+    const reviewDialogFooter = (
+        <div className="flex justify-end gap-2">
+            <Button 
+                label="取消" 
+                icon="pi pi-times" 
+                className="p-button-text" 
+                onClick={() => {
+                    setShowReviewModal(false);
+                    setSelectedVideo(null);
+                }} 
+            />
+            <Button 
+                label="提交点评" 
+                icon="pi pi-check" 
+                onClick={handleReview}
+                disabled={!reviewForm.comment.trim()}
+            />
+        </div>
+    );
+
+    // 预览对话框页脚
+    const previewDialogFooter = (
+        <div className="flex justify-end">
+            <Button 
+                label="关闭" 
+                icon="pi pi-times" 
+                onClick={() => setPreviewVideo(null)} 
+            />
+        </div>
+    );
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900">学员视频点评</h1>
-                <div className="text-sm text-gray-600">
+                <h1 className="text-2xl font-bold text-900">学员视频点评</h1>
+                <div className="text-sm text-600">
                     待点评: {filteredVideos.filter(v => v.review_status === 'pending').length}
                 </div>
             </div>
 
             {/* 过滤器 */}
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row gap-4">
+            <Card className="shadow-sm">
+                <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <input
-                                type="text"
+                        <div className="p-input-icon-left w-full">
+                            <InputText
                                 placeholder="搜索学员或动作..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full"
                             />
                         </div>
                     </div>
 
-                    <select
+                    <Dropdown
                         value={filter.review_status || ''}
-                        onChange={(e) => setFilter({ ...filter, review_status: e.target.value as ReviewStatus || undefined })}
-                        className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">所有状态</option>
-                        <option value="pending">待点评</option>
-                        <option value="reviewed">已点评</option>
-                    </select>
+                        options={statusOptions}
+                        onChange={(e) => setFilter({ ...filter, review_status: e.value || undefined })}
+                        placeholder="选择状态"
+                        className="min-w-40"
+                    />
                 </div>
-            </div>
+            </Card>
 
             {/* 视频列表 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredVideos.map((video) => (
-                    <div key={video.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <Card key={video.id} className="shadow-sm hover:shadow-md transition-shadow">
                         <div className="relative">
                             <div className="aspect-video bg-gray-100 rounded-t-lg flex items-center justify-center cursor-pointer overflow-hidden">
                                 {video.thumbnail_url ? (
@@ -242,7 +284,7 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
                                     href={video.video_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-sm text-blue-600 hover:text-blue-800 break-all line-clamp-2"
+                                    className="text-sm text-primary hover:underline break-all line-clamp-2"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     {video.video_url}
@@ -260,19 +302,18 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
                                 </div>
 
                                 {video.review_status === 'pending' && (
-                                    <button
+                                    <Button 
+                                        label="点评"
                                         onClick={() => {
                                             setSelectedVideo(video);
                                             setShowReviewModal(true);
                                         }}
-                                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                    >
-                                        点评
-                                    </button>
+                                        className="p-button-sm"
+                                    />
                                 )}
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
@@ -283,99 +324,74 @@ const CoachVideoReview: React.FC<CoachVideoReviewProps> = ({ coachId }) => {
                 </div>
             )}
 
-            {/* 预览弹窗 */}
-            {previewVideo && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-4 w-full max-w-4xl mx-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold">视频预览</h3>
-                            <button className="text-gray-500 hover:text-gray-700" onClick={() => setPreviewVideo(null)}>
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                            <video controls src={previewVideo.video_url || ''} poster={previewVideo.thumbnail_url || undefined} className="w-full h-full" />
-                        </div>
-                    </div>
+            {/* 预览对话框 */}
+            <Dialog 
+                visible={!!previewVideo} 
+                onHide={() => setPreviewVideo(null)}
+                header="视频预览"
+                footer={previewDialogFooter}
+                maximizable
+                className="w-full max-w-4xl"
+            >
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                    <video 
+                        controls 
+                        src={previewVideo?.video_url || ''} 
+                        poster={previewVideo?.thumbnail_url || undefined} 
+                        className="w-full h-full" 
+                    />
                 </div>
-            )}
+            </Dialog>
 
             {/* 点评模态框 */}
-            {showReviewModal && selectedVideo && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold">视频点评</h2>
-                            <button
-                                onClick={() => {
-                                    setShowReviewModal(false);
-                                    setSelectedVideo(null);
-                                }}
-                                className="text-gray-400 hover:text-gray-600"
-                            >
-                                ×
-                            </button>
-                        </div>
+            <Dialog 
+                visible={showReviewModal && !!selectedVideo} 
+                onHide={() => {
+                    setShowReviewModal(false);
+                    setSelectedVideo(null);
+                }}
+                header="视频点评"
+                footer={reviewDialogFooter}
+                maximizable
+                className="w-full max-w-2xl"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold text-lg">{getExerciseLabel(selectedVideo?.exercise_name || null)}</h3>
+                        <p className="text-sm text-600">{selectedVideo?.user_notes || '无备注'}</p>
+                    </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="font-semibold">{getExerciseLabel(selectedVideo.exercise_name)}</h3>
-                                <p className="text-sm text-gray-600">{selectedVideo.user_notes || '无备注'}</p>
-                            </div>
+                    <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                        <video 
+                            controls 
+                            src={selectedVideo?.video_url || ''} 
+                            poster={selectedVideo?.thumbnail_url || undefined} 
+                            className="w-full h-full" 
+                        />
+                    </div>
 
-                            <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                                <video controls src={selectedVideo.video_url || ''} poster={selectedVideo.thumbnail_url || undefined} className="w-full h-full" />
-                            </div>
+                    <div className="space-y-3">
+                        <label className="block text-sm font-medium">评分 (1-5星)</label>
+                        <Rating 
+                            value={reviewForm.rating} 
+                            onChange={(e) => setReviewForm({ ...reviewForm, rating: e.value || 0 })}
+                            stars={5}
+                            cancel={false}
+                        />
+                    </div>
 
-                            <div className="space-y-3">
-                                <label className="block text-sm font-medium">评分 (1-5星)</label>
-                                <div className="flex space-x-1">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <Star
-                                            key={star}
-                                            className={`w-6 h-6 cursor-pointer ${star <= reviewForm.rating
-                                                    ? 'text-yellow-400 fill-current'
-                                                    : 'text-gray-300'
-                                                }`}
-                                            onClick={() => setReviewForm({ ...reviewForm, rating: star })}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-sm font-medium">点评内容</label>
-                                <textarea
-                                    value={reviewForm.comment}
-                                    onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
-                                    placeholder="请输入您的点评..."
-                                    rows={4}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    onClick={() => {
-                                        setShowReviewModal(false);
-                                        setSelectedVideo(null);
-                                    }}
-                                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                                >
-                                    取消
-                                </button>
-                                <button
-                                    onClick={handleReview}
-                                    disabled={!reviewForm.comment.trim()}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
-                                >
-                                    提交点评
-                                </button>
-                            </div>
-                        </div>
+                    <div className="space-y-3">
+                        <label className="block text-sm font-medium">点评内容</label>
+                        <InputTextarea
+                            value={reviewForm.comment}
+                            onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                            placeholder="请输入您的点评..."
+                            rows={4}
+                            className="w-full"
+                        />
                     </div>
                 </div>
-            )}
+            </Dialog>
         </div>
     );
 };

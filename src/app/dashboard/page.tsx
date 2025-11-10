@@ -29,6 +29,12 @@ import { coachService } from './service/coachService';
 import { useSession } from 'next-auth/react';
 import { getCoach } from './util';
 
+// PrimeReact imports
+import { Button } from 'primereact/button';
+import { Card } from 'primereact/card';
+import { TabView, TabPanel } from 'primereact/tabview';
+import { Badge } from 'primereact/badge';
+
 const CoachDashboard: React.FC<CoachDashboardProps> = () => {
     const { data: session, status } = useSession();
     const coach = getCoach(session);
@@ -40,7 +46,7 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
         router.push('/');
     };
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'videos' | 'students' | 'chats' | 'content'>('overview');
+    const [activeTab, setActiveTab] = useState(0);
     const [showVideoReview, setShowVideoReview] = useState(false);
 
     // 加载真实学员数据
@@ -166,11 +172,11 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
         <div className="space-y-6">
             {/* 统计卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">总学员数</p>
-                            <p className="text-2xl font-bold text-gray-900">{students.length}</p>
+                            <p className="text-sm text-surface-700">总学员数</p>
+                            <p className="text-2xl font-bold">{students.length}</p>
                         </div>
                         <div className="p-3 bg-blue-100 rounded-full">
                             <Users className="w-6 h-6 text-blue-600" />
@@ -178,11 +184,11 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">待点评视频</p>
-                            <p className="text-2xl font-bold text-gray-900">{pendingVideos.length}</p>
+                            <p className="text-sm text-surface-700">待点评视频</p>
+                            <p className="text-2xl font-bold">{pendingVideos.length}</p>
                         </div>
                         <div className="p-3 bg-yellow-100 rounded-full">
                             <Video className="w-6 h-6 text-yellow-600" />
@@ -190,11 +196,11 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">平均评分</p>
-                            <p className="text-2xl font-bold text-gray-900">{coach.rating}</p>
+                            <p className="text-sm text-surface-700">平均评分</p>
+                            <p className="text-2xl font-bold">{coach.rating}</p>
                         </div>
                         <div className="p-3 bg-green-100 rounded-full">
                             <Star className="w-6 h-6 text-green-600" />
@@ -202,11 +208,11 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">本月收入</p>
-                            <p className="text-2xl font-bold text-gray-900">¥2,580</p>
+                            <p className="text-sm text-surface-700">本月收入</p>
+                            <p className="text-2xl font-bold">¥2,580</p>
                         </div>
                         <div className="p-3 bg-purple-100 rounded-full">
                             <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -216,15 +222,15 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
             </div>
 
             {/* 最近活动 */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">最近活动</h3>
+            <div className="rounded-lg p-6 shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">最近活动</h3>
                 <div className="space-y-4">
                     <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                             <Video className="w-4 h-4 text-blue-600" />
                         </div>
                         <div className="flex-1">
-                            <p className="text-sm text-gray-900">张小明 上传了新的训练视频</p>
+                            <p className="text-sm">张小明 上传了新的训练视频</p>
                             <p className="text-xs text-gray-500">2小时前</p>
                         </div>
                     </div>
@@ -233,7 +239,7 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
                             <MessageCircle className="w-4 h-4 text-green-600" />
                         </div>
                         <div className="flex-1">
-                            <p className="text-sm text-gray-900">李小红 发送了新消息</p>
+                            <p className="text-sm">李小红 发送了新消息</p>
                             <p className="text-xs text-gray-500">4小时前</p>
                         </div>
                     </div>
@@ -242,7 +248,7 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
                             <Star className="w-4 h-4 text-purple-600" />
                         </div>
                         <div className="flex-1">
-                            <p className="text-sm text-gray-900">王小刚 给您的点评点赞</p>
+                            <p className="text-sm">王小刚 给您的点评点赞</p>
                             <p className="text-xs text-gray-500">6小时前</p>
                         </div>
                     </div>
@@ -260,65 +266,65 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
     const renderStudents = () => (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">我的学员</h3>
+                <h3 className="text-lg font-semibold text-900">我的学员</h3>
                 <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-600">共 {students.length} 名学员</span>
+                    <span className="text-sm text-600">共 {students.length} 名学员</span>
                 </div>
             </div>
 
             {loadingStudents ? (
-                <div className="text-gray-500">加载中...</div>
+                <div className="text-500">加载中...</div>
             ) : students.length === 0 ? (
-                <div className="text-gray-500">暂无学员订阅</div>
+                <div className="text-500">暂无学员订阅</div>
             ) : (
                 <div className="grid gap-6">
                     {students.map((student) => (
-                        <div key={student.id} className="bg-white rounded-lg p-6 shadow-sm">
-                            <div className="flex items-center justify-between">
+                        <Card key={student.id} className="shadow-sm">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                 <div className="flex items-center space-x-4">
-                                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
                                         <User className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
-                                        <h4 className="font-semibold text-gray-900">{student.name}</h4>
-                                        {student.email && <p className="text-sm text-gray-600">{student.email}</p>}
-                                        <p className="text-xs text-gray-500">
+                                        <h4 className="font-semibold text-900">{student.name}</h4>
+                                        {student.email && <p className="text-sm text-600">{student.email}</p>}
+                                        <p className="text-xs text-500">
                                             最后活跃：{getRelativeTime(student.last_active)}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-4">
+                                <div className="flex flex-col md:flex-row md:items-center gap-4">
                                     <div className="text-right">
                                         <span className={`px-2 py-1 rounded text-xs ${getTierColor(student.subscription_tier)}`}>
                                             {getTierName(student.subscription_tier)}
                                         </span>
-                                        <p className="text-sm text-gray-600 mt-1">
+                                        <p className="text-sm text-600 mt-1">
                                             进度：{student.progress_score}%
                                         </p>
                                     </div>
 
                                     <div className="text-center">
-                                        <div className="text-lg font-bold text-blue-600">{student.total_videos}</div>
-                                        <div className="text-xs text-gray-600">总视频</div>
+                                        <div className="text-lg font-bold text-primary">{student.total_videos}</div>
+                                        <div className="text-xs text-600">总视频</div>
                                     </div>
 
                                     <div className="text-center">
                                         <div className="text-lg font-bold text-yellow-600">{student.pending_videos}</div>
-                                        <div className="text-xs text-gray-600">待点评</div>
+                                        <div className="text-xs text-600">待点评</div>
                                     </div>
 
-                                    <div className="flex space-x-2">
-                                        <button
-                                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    <div className="flex gap-2">
+                                        <Button
+                                            label="查看档案"
+                                            className="p-button-sm"
                                             onClick={() => {
                                                 window.dispatchEvent(new CustomEvent('coach:view-student', { detail: { userId: student.id } }));
                                             }}
-                                        >
-                                            查看档案
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                                        />
+                                        <Button
+                                            label="制定计划"
+                                            className="p-button-sm"
                                             onClick={() => {
                                                 window.dispatchEvent(new CustomEvent('coach:create-plan', {
                                                     detail: {
@@ -327,13 +333,11 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
                                                     }
                                                 }));
                                             }}
-                                        >
-                                            制定计划
-                                        </button>
+                                        />
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             )}
@@ -343,103 +347,58 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
 
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="space-y-8">
                     {/* 头部 */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="flex items-center space-x-4">
-                            <button
+                            <Button 
+                                icon="pi pi-arrow-left" 
+                                className="p-button-rounded p-button-text" 
                                 onClick={onBack}
-                                className="text-gray-600 hover:text-gray-900"
-                            >
-                                <ArrowLeft className="w-6 h-6" />
-                            </button>
+                            />
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">教练管理台</h1>
-                                <p className="text-gray-600">欢迎回来，{coach.name}！</p>
+                                <h1 className="text-2xl font-bold text-900">教练管理台</h1>
+                                <p className="text-600">欢迎回来，{coach.name}！</p>
                             </div>
                         </div>
 
                         <div className="flex items-center space-x-3">
-                            <button className="relative p-2 text-gray-600 hover:text-gray-900">
-                                <Bell className="w-6 h-6" />
-                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                            </button>
-                            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                                <User className="w-5 h-5 text-white" />
-                            </div>
+                            <Button 
+                                icon="pi pi-bell" 
+                            >
+                                <Badge value="8"></Badge>
+                            </Button>
                         </div>
                     </div>
 
                     {/* 导航标签 */}
-                    <div className="flex space-x-1">
-                        <button
-                            onClick={() => setActiveTab('overview')}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'overview'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            概览
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('videos')}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'videos'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            视频点评
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('students')}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'students'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            我的学员
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('content')}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'content'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            内容管理
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('chats')}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${activeTab === 'chats'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            聊天管理
-                        </button>
-                    </div>
-
-                    {/* 内容区域 */}
-                    <div>
-                        {activeTab === 'overview' && renderOverview()}
-                        {activeTab === 'videos' && renderVideos()}
-                        {activeTab === 'students' && renderStudents()}
-                        {activeTab === 'content' && (
+                    <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
+                        <TabPanel header="概览">
+                            {renderOverview()}
+                        </TabPanel>
+                        <TabPanel header="视频点评">
+                            <VideoReview coachId={coach.id} />
+                        </TabPanel>
+                        <TabPanel header="我的学员">
+                            {renderStudents()}
+                        </TabPanel>
+                        <TabPanel header="内容管理">
                             <ContentManager
                                 coachId={coach.id}
                                 coachName={coach.name}
                             />
-                        )}
-                        {activeTab === 'chats' && (
+                        </TabPanel>
+                        <TabPanel header="聊天管理">
                             <div className="text-center py-12">
                                 <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">聊天管理</h3>
-                                <p className="text-gray-600">聊天管理功能开发中...</p>
+                                <h3 className="text-lg font-medium text-900 mb-2">聊天管理</h3>
+                                <p className="text-600">聊天管理功能开发中...</p>
                             </div>
-                        )}
-                    </div>
+                        </TabPanel>
+                    </TabView>
+
                 </div>
             </div>
         </div>
