@@ -16,7 +16,7 @@ const Videos = () => {
         // 模拟加载数据
         const timer = setTimeout(() => {
             setLoading(false);
-        }, 800);
+        }, 100);
         
         return () => clearTimeout(timer);
     }, []);

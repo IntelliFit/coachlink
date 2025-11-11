@@ -56,22 +56,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="space-y-8">
                     {/* 导航标签 */}
-                    <TabMenu 
-                        model={items} 
-                        activeIndex={activeIndex} 
+                    <TabMenu
+                        model={items}
+                        activeIndex={activeIndex}
                         onTabChange={(e) => {
-            setActiveIndex(e.index);
-            // 使用Next.js的路由而不是浏览器默认行为
-            const urls = [
-                '/dashboard/overview',
-                '/dashboard/videos', 
-                '/dashboard/students',
-                '/dashboard/content',
-                '/dashboard/chat'
-            ];
-            router.push(urls[e.index]);
-        }} 
-                        className="shadow-sm rounded-lg"
+                            setActiveIndex(e.index);
+                            // 使用Next.js的路由而不是浏览器默认行为
+                            const urls = [
+                                '/dashboard/overview',
+                                '/dashboard/videos',
+                                '/dashboard/students',
+                                '/dashboard/content',
+                                '/dashboard/chat'
+                            ];
+                            router.push(urls[e.index]);
+                        }}
                     />
 
                     {/* 子路由内容 */}
