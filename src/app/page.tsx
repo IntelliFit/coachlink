@@ -2,22 +2,17 @@
 
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { Divider } from 'primereact/divider';
-import { Brain, Users, Trophy, CreditCard } from 'lucide-react';
+import { Chart } from 'primereact/chart';
+import Image from 'next/image';
+import { Brain, Users, Trophy } from 'lucide-react';
+import React from 'react';
 
 export default function Home() {
 
     const navigateToProtectedPage = (page: string) => {
-        // 在实际应用中，这里会导航到受保护的页面
         console.log(`Navigating to ${page}`);
     };
 
-    const handlePaymentTest = () => {
-        // 在实际应用中，这里会处理支付测试
-        console.log('Handling payment test');
-    };
-
-    // 定义卡片底部内容
     const getFooter = (page: string) => (
         <div className="flex justify-end">
             <Button
@@ -33,103 +28,139 @@ export default function Home() {
         </div>
     );
 
-    return (
-        <main className="flex min-h-screen flex-col items-center p-4 md:p-8">
+    const chartData = {
+        labels: ['力量', '耐力', '柔韧性', '速度', '协调性'],
+        datasets: [
+            {
+                label: '当前水平',
+                data: [85, 70, 60, 80, 75],
+                backgroundColor: 'rgba(59,130,246,0.2)',
+                borderColor: 'rgb(59,130,246)',
+                pointBackgroundColor: 'rgb(59,130,246)',
+                fill: true,
+            },
+        ],
+    };
 
-            <div className="w-full max-w-6xl">
-                <div className="space-y-8">
-                    <div title={'Home'} className="shadow-sm">
+    const chartOptions = {
+        plugins: {
+            legend: {
+                labels: {
+                    color: 'var(--text-color)',
+                },
+            },
+        },
+        scales: {
+            r: {
+                grid: {
+                    color: 'var(--surface-border)',
+                },
+                pointLabels: {
+                    color: 'var(--text-color-secondary)',
+                },
+                angleLines: {
+                    color: 'var(--surface-border)',
+                },
+                ticks: {
+                    color: 'var(--text-color-secondary)',
+                },
+            },
+        },
+    };
 
-                        <Divider />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
-                            {/* AI训练计划 */}
-                            <Card
-                                title="AI训练计划"
-                                subTitle="个性化定制训练方案"
-                                className="hover:shadow-md transition-shadow"
-                                footer={getFooter('training-plans')}
-                                onClick={() => navigateToProtectedPage('training-plans')}
-                            >
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                                    <Brain className="w-6 h-6 text-primary" />
-                                </div>
-                                <p className="text-muted-color">
-                                    基于AI算法，根据您的身体状况和目标制定专属训练计划
-                                </p>
-                            </Card>
-
-                            {/* 教练服务 */}
-                            <Card
-                                title="教练服务"
-                                subTitle="专业教练指导"
-                                className="hover:shadow-md transition-shadow"
-                                footer={getFooter('coach')}
-                                onClick={() => navigateToProtectedPage('coach')}
-                            >
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                                    <Users className="w-6 h-6 text-primary" />
-                                </div>
-                                <p className="text-muted-color">
-                                    获得专业教练一对一指导，提升训练效果和安全性
-                                </p>
-                            </Card>
-
-                            {/* 排行榜 */}
-                            <Card
-                                title="排行榜"
-                                subTitle="查看各项运动排名"
-                                className="hover:shadow-md transition-shadow"
-                                footer={getFooter('ranking')}
-                                onClick={() => navigateToProtectedPage('ranking')}
-                            >
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                                    <Trophy className="w-6 h-6 text-primary" />
-                                </div>
-                                <p className="text-muted-color">
-                                    与他人竞技，激发训练动力，争夺各项运动排行榜
-                                </p>
-                            </Card>
-
-                            {/* 支付功能测试按钮 */}
-                            <Card
-                                title="支付功能测试"
-                                subTitle="测试支付系统"
-                                className="hover:shadow-md transition-shadow"
-                                footer={
-                                    <div className="flex justify-end">
-                                        <Button
-                                            label="开始测试"
-                                            icon="pi pi-credit-card"
-                                            iconPos="right"
-                                            text
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handlePaymentTest();
-                                            }}
-                                            className="p-0"
-                                        />
-                                    </div>
-                                }
-                                onClick={() => handlePaymentTest()}
-                            >
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                                    <CreditCard className="w-6 h-6 text-primary" />
-                                </div>
-                                <p className="text-muted-color">
-                                    测试支付宝扫码支付功能，测试金额：0.01元
-                                </p>
-                                <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm">
-                                    💰 仅用于测试，不会实际扣费
-                                </div>
-                            </Card>
-                        </div>
-                    </div>
+    // 通用功能卡组件
+    const FeatureCard = ({
+        icon: Icon,
+        title,
+        subTitle,
+        text,
+        page,
+        className = '',
+    }: {
+        icon: any;
+        title: string;
+        subTitle: string;
+        text: string;
+        page: string;
+        className?: string;
+    }) => (
+        <Card
+            className={`hover:shadow-lg transition-shadow cursor-pointer ${className}`}
+            footer={getFooter(page)}
+            onClick={() => navigateToProtectedPage(page)}
+        >
+            <div className="flex items-start gap-3 mb-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
+                    <Icon className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-primary mb-1">{title}</h3>
+                    <span className="text-sm text-muted-color">{subTitle}</span>
                 </div>
             </div>
-            <footer className="layout-footer w-full mt-8">
-                © 2025 CoachLink
-            </footer>
+            <p className="text-muted-color leading-relaxed">{text}</p>
+        </Card>
+    );
+
+    return (
+
+        <main className="flex flex-col md:flex-row min-h-screen px-6 md:px-12 bg-surface-50 dark:bg-surface-900 transition-colors duration-300">
+            <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-12">
+
+                {/* 左侧内容 */}
+                <section className="flex-1 flex flex-col justify-center space-y-8">
+                    <h1 className="text-4xl md:text-6xl font-bold mb-4 text-primary">
+                        欢迎来到 CoachLink
+                    </h1>
+                    <p className="text-lg text-muted-color max-w-xl">
+                        您的智能健身助手平台。通过AI训练、专业教练与量化数据分析，助您更高效地达成健身目标。
+                    </p>
+
+                    {/* 卡片区域 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+                        <FeatureCard
+                            icon={Brain}
+                            title="AI训练计划"
+                            subTitle="个性化定制方案"
+                            text="基于AI算法，根据您的身体状况和目标制定专属训练计划。"
+                            page="training-plans"
+                        />
+                        <FeatureCard
+                            icon={Users}
+                            title="教练服务"
+                            subTitle="专业教练指导"
+                            text="获得专业教练一对一指导，提升训练效果和安全性。"
+                            page="coach"
+                        />
+                        <FeatureCard
+                            icon={Trophy}
+                            title="排行榜"
+                            subTitle="竞技激励体系"
+                            text="与他人竞技，激发训练动力，争夺运动排行榜。"
+                            page="ranking"
+                            className="sm:col-span-2"
+                        />
+                    </div>
+                </section>
+
+                {/* 右侧内容 */}
+                <section className="flex-1 flex flex-col items-center justify-center space-y-8">
+                    <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden shadow-md">
+                        <Image
+                            src="/images/fitness-dashboard.jpg"
+                            alt="健身仪表盘"
+                            fill
+                            className="object-cover"
+                            priority
+                        />
+                    </div>
+
+                    <Card title="训练量化分析" className="w-full max-w-md shadow-md">
+                        <Chart type="radar" data={chartData} options={chartOptions} />
+                    </Card>
+                </section>
+
+            </div>
         </main>
     );
 }
