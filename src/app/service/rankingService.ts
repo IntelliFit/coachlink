@@ -10,6 +10,16 @@ export class RankingService extends BaseService {
 
         return;
     }
+
+
+    async submitRecord(leaderboardType: string, reqData: any) {
+        const res = await this.post<any>('submit-record', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return;
+    }
 }
 
 

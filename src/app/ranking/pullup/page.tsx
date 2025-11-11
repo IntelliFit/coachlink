@@ -1,4 +1,17 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Dialog } from 'primereact/dialog';
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { InputNumber } from 'primereact/inputnumber';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { Dropdown } from 'primereact/dropdown';
+import { Toast } from 'primereact/toast';
+import { Skeleton } from 'primereact/skeleton';
+import { Card } from 'primereact/card';
 
 import AdminPullupRecordForm from '@/components/admin/AdminPullupRecordForm'; // [新增] 导入我们的新表单模态框
 import AdminLotteryModal from '@/components/lottery/AdminLotteryModal'; // [新增] 导入管理员抽奖模态框
@@ -23,6 +36,9 @@ import {
     Gamepad2
 } from 'lucide-react';
 import { useToastContext } from '@/components/ToastContext';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { rankingService } from '@/app/service/rankingService';
 
 // 定义排行榜记录类型
 interface LeaderboardRecord {
@@ -34,10 +50,6 @@ interface LeaderboardRecord {
     video_url: string | null;
     created_at: string;
     notes: string | null;
-}
-
-interface PullupLeaderboardPageProps {
-    onNavigate: (view: string) => void;
 }
 
 // 辅助函数，用于将英文的性别转换为中文
@@ -94,12 +106,13 @@ const getRankBadge = (rank: number) => {
     }
 };
 
-const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigate }) => {
+const PullupLeaderboardPage: React.FC = () => {
     const [records, setRecords] = useState<LeaderboardRecord[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
 
     const { showToast } = useToastContext();
+    const router = useRouter();
+    const { data: session } = useSession();
 
     // [新增] 状态来控制编辑模态框
     // editingRecord 存储了当前正在被编辑的记录对象
@@ -109,10 +122,6 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
     // [新增] 抽奖相关状态
     const [showLottery, setShowLottery] = useState<boolean>(false);
     const [lotteryResult, setLotteryResult] = useState<any>(null);
-    
-    // [修改] 移除对 AuthService 的直接依赖，改为使用标准的 NextAuth
-    const [currentUser, setCurrentUser] = useState<any>(null);
-    const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
     // [新增] 用户提交相关状态
     const [showUserSubmission, setShowUserSubmission] = useState<boolean>(false);
@@ -130,28 +139,24 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
         // 每次获取数据时，都确保 editingRecord 是关闭的
         // setEditingRecord(null);
         setLoading(true);
-        setError(null);
 
         try {
             // [修改] 使用服务层调用替代直接的 supabase 调用
             // TODO: 实现通过服务层获取排行榜数据
-            // const response = await fetch('/api/ranking/pullup-leaderboard');
-            // const result = await response.json();
-            // 
-            // if (!result.success) {
-            //     throw new Error(result.message);
-            // }
-            // 
-            // setRecords(result.data || []);
-            
-            // [临时] 模拟数据获取
-            setTimeout(() => {
-                setRecords([]);
-                setLoading(false);
-            }, 1000);
+            const res = await rankingService.getLeaderboard({ leaderboardType: 'pullup' });
+            if (res) {
+                setRecords(res.data || []);
+            }
+
+            setLoading(false);
         } catch (err: any) {
             console.error('获取排行榜数据失败:', err);
-            setError('获取排行榜数据失败，请稍后再试');
+            showToast({
+                severity: 'error',
+                summary: '错误',
+                detail: '获取排行榜数据失败，请稍后再试',
+                life: 3000
+            });
             setLoading(false);
         }
     };
@@ -166,7 +171,12 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
         setIsAdding(false);       // 确保添加模态框被关闭
         setEditingRecord(null);   // 确保编辑模态框被关闭
         fetchLeaderboard();       // 重新加载数据
-        alert(`记录已成功${mode === 'edit' ? '更新' : '添加'}！`);
+        showToast({
+            severity: 'success',
+            summary: '成功',
+            detail: `记录已成功${mode === 'edit' ? '更新' : '添加'}！`,
+            life: 3000
+        });
     };
 
     // --- [新增] 抽奖相关处理函数 ---
@@ -188,9 +198,14 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
     // [新增] 处理打开用户提交表单
     const handleOpenUserSubmission = () => {
         // [修改] 检查用户是否已登录
-        if (!currentUser) {
-            alert('请先登录后再提交记录。');
-            onNavigate('login');
+        if (!session) {
+            showToast({
+                severity: 'warn',
+                summary: '警告',
+                detail: '请先登录后再提交记录。',
+                life: 3000
+            });
+            router.push('/login');
             return;
         }
 
@@ -211,28 +226,25 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
         try {
             // [修改] 使用服务层提交记录替代直接的 supabase 调用
             // TODO: 实现通过服务层提交用户记录
-            // const response = await fetch('/api/ranking/submit-pullup-record', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     body: JSON.stringify({
-            //         weight_kg: parseFloat(submissionData.weight_kg),
-            //         gender: submissionData.gender,
-            //         video_url: submissionData.video_url || null,
-            //         douyin_nickname: submissionData.douyin_nickname,
-            //         notes: submissionData.notes || null
-            //     })
-            // });
-            // 
-            // const result = await response.json();
-            // 
-            // if (!result.success) {
-            //     throw new Error(result.message);
-            // }
+            const res = await rankingService.submitRecord('', {
+                weight_kg: parseFloat(submissionData.weight_kg),
+                gender: submissionData.gender,
+                video_url: submissionData.video_url || null,
+                douyin_nickname: submissionData.douyin_nickname,
+                notes: submissionData.notes || null
+            });
+
+            if (res) {
+                showToast({
+                    severity: 'success',
+                    summary: '成功',
+                    detail: '提交成功！您的记录正在等待管理员审核。',
+                    life: 3000
+                });
+            }
             
-            alert('提交成功！您的记录正在等待管理员审核。');
             setShowUserSubmission(false);
+
             setSubmissionData({
                 weight_kg: '',
                 gender: '',
@@ -240,7 +252,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                 douyin_nickname: '',
                 notes: ''
             });
-            fetchLeaderboard(); // 重新加载排行榜
+            fetchLeaderboard();
         } catch (error: any) {
             console.error('提交失败:', error);
 
@@ -271,8 +283,6 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
         });
     };
 
-
-    // --- JSX 渲染 ---
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
             {/* 页面头部 */}
@@ -282,7 +292,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                         <div className="flex items-center">
                             <button
                                 className="mr-4 text-blue-100 hover:text-white transition-colors"
-                                onClick={() => onNavigate('leaderboard')}
+                                onClick={() => router.push('/ranking')}
                             >
                                 ← 返回
                             </button>
@@ -295,7 +305,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                         {/* 按钮组 */}
                         <div className="flex space-x-4">
                             {/* 用户按钮组 - 所有登录用户都可以看到 */}
-                            {currentUser && (
+                            {session && (
                                 <>
                                     <button
                                         onClick={handleOpenUserSubmission}
@@ -306,7 +316,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                                     </button>
 
                                     <button
-                                        onClick={() => onNavigate('user_submissions')}
+                                        onClick={() => router.push('/user-submissions')}
                                         className="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-600 transition-all transform hover:scale-105"
                                     >
                                         <Users className="w-5 h-5 inline mr-2" />
@@ -316,7 +326,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                             )}
 
                             {/* 管理员按钮组 */}
-                            {isAdmin && (
+                            {session?.user.is_admin && (
                                 <>
                                     <button
                                         onClick={() => setIsAdding(true)}
@@ -327,7 +337,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                                     </button>
 
                                     <button
-                                        onClick={() => onNavigate('admin_review')}
+                                        onClick={() => router.push('/admin-review')}
                                         className="bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-yellow-600 transition-all transform hover:scale-105"
                                     >
                                         <CheckCircle className="w-5 h-5 inline mr-2" />
@@ -567,13 +577,6 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                     <div className="flex justify-center items-center py-12">
                         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
                     </div>
-                ) : error ? (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-xl">
-                        <div className="flex items-center">
-                            <AlertTriangle className="w-5 h-5 mr-2" />
-                            {error}
-                        </div>
-                    </div>
                 ) : records.length === 0 ? (
                     <div className="text-center py-12">
                         <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -591,7 +594,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">负重重量</th>
                                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">训练视频</th>
                                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">动作评估</th>
-                                        {isAdmin && <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">管理</th>}
+                                        {session?.user.is_admin && <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">管理</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -609,8 +612,8 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                                                             <div className="text-sm font-medium text-gray-900">{rankBadge.text}</div>
                                                             {rankBadge.title && (
                                                                 <div className={`text-xs font-medium px-2 py-1 rounded-full mt-1 ${rankBadge.title === '国内顶尖'
-                                                                        ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300'
-                                                                        : 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-300'
+                                                                    ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300'
+                                                                    : 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-300'
                                                                     }`}>
                                                                     {rankBadge.title}
                                                                 </div>
@@ -627,8 +630,8 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                                                 {/* 性别 */}
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${record.gender === 'male'
-                                                            ? 'bg-blue-100 text-blue-800'
-                                                            : 'bg-pink-100 text-pink-800'
+                                                        ? 'bg-blue-100 text-blue-800'
+                                                        : 'bg-pink-100 text-pink-800'
                                                         }`}>
                                                         {formatGender(record.gender)}
                                                     </span>
@@ -665,7 +668,7 @@ const PullupLeaderboardPage: React.FC<PullupLeaderboardPageProps> = ({ onNavigat
                                                 </td>
 
                                                 {/* 管理员操作 */}
-                                                {isAdmin && (
+                                                {session?.user.is_admin && (
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                         <button
                                                             onClick={() => setEditingRecord(record)}

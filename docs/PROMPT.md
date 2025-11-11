@@ -20,7 +20,9 @@ async publishContent(reqData: PublishContentDto) {
 具体请看例子：src/app/service/coachService.ts
 
 如果前端出现了 supabase 势力进行数据库访问，你应该把这部分迁移到后端中，并在 @/app/service 中的相关函数写入对应的 API 访问并通过访问替代当前的前端直接询问 supabase
-前端代码尽量使用 toast 函数来向用户发出提醒。
+- 如果前端代码出现了 setError 或者 setMessage 的函数，则替换为 toast 函数来向用户发出提醒。
+- loading 为 true 部分的组件替换为 primereact 的骨架屏。
+- 所有改动都需要适配移动端。
 
 ---
 
