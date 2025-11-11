@@ -1,4 +1,3 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
@@ -17,12 +16,7 @@ export async function middleware(request: NextRequest) {
         req: request, 
         secret: process.env.NEXTAUTH_SECRET 
     });
-
-    console.log(path);
-    console.log(token);
-    
-    
-    
+        
     const isAuthenticated = !!token;
 
     // 如果访问受保护的路径但未认证，重定向到登录页
