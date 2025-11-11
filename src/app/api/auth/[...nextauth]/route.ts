@@ -21,14 +21,14 @@ export const authOptions: AuthOptions = {
                 const { data: user, error: userError } = await supabase
                     .from('users')
                     .select('*')
-                    .eq('phone', credentials.phone)
+                    .eq('phone', credentials.phone.trim())
                     .single();
 
                 if (userError || !user) {
-                    throw new Error('用户不存在' + userError?.message);
+                    throw new Error('用户不存在\n' + userError?.message);
                 }
 
-                const isValid = verifyPassword(credentials.password, user.password_hash);
+                const isValid = verifyPassword(credentials.password.trim(), user.password_hash);
                 if (!isValid) {
                     throw new Error('密码错误');
                 }

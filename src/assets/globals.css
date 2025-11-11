@@ -86,3 +86,8 @@ body {
 .dark .login-card {
     background: linear-gradient(to right, var(--background), var(--orange-900));
 }
+
+
+.p-icon-field > .p-input-icon {
+    margin-top: -0.65rem;
+}
