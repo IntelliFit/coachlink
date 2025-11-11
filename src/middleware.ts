@@ -2,41 +2,44 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+const PUBLIC_PATHS = new Set([
+    '/',
+    '/login',
+    '/register',
+    '/api/auth',
+    '/api/coach/get-all-coaches'
+]);
+
+// 需要仅匹配前缀的路径（如 /api/auth/...）
+const AUTH_BASE_URL = '/api/auth';
+
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
+
 export async function middleware(request: NextRequest) {
-    // 对于API路由、静态资源等不应用认证检查
-    const publicPaths = ['/login', '/register', '/', '/api/auth'];
-    const path = request.nextUrl.pathname;
-    
-    // 检查是否为公开路径
-    const isPublicPath = publicPaths.some(publicPath => 
-        path.startsWith(publicPath));
-    
-    // 检查认证状态
-    const token = await getToken({ 
-        req: request, 
-        secret: process.env.NEXTAUTH_SECRET 
-    });
-        
+    const { pathname, origin } = request.nextUrl;
+
+    // 公共路由 或者 鉴权路由直接放行
+    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+        return NextResponse.next();
+    }
+
+    // 仅当访问受保护资源时才解码 token
+    const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
 
-    // 如果访问受保护的路径但未认证，重定向到登录页
-    if (!isPublicPath && !isAuthenticated) {
-        return NextResponse.redirect(new URL('/login', request.url));
+    // 未认证访问受保护页面 → 重定向登录
+    if (!isAuthenticated) {
+        return NextResponse.redirect(`${origin}/login`);
     }
 
-    // 如果已认证用户访问登录或注册页面，重定向到仪表板
-    if ((path === '/login' || path === '/register') && isAuthenticated) {
-        return NextResponse.redirect(new URL('/', request.url));
+    // 已认证访问登录/注册 → 重定向首页
+    if ((pathname === '/login' || pathname === '/register') && isAuthenticated) {
+        return NextResponse.redirect(`${origin}/`);
     }
 
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    });
-
-    return response;
+    return NextResponse.next();
 }
+
 
 // 配置匹配路径
 export const config = {
