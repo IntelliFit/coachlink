@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menubar } from 'primereact/menubar';
 import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
@@ -16,51 +16,25 @@ import { useSession, signOut } from 'next-auth/react';
 
 export default function Navigation() {
     const pathname = usePathname();
+    const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openLoginModal } = useLoginModal();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { data: session, status } = useSession();
     const menuRef = useRef<Menu>(null);
+    const [isClient, setIsClient] = useState(false);
 
-    console.log('enter nav');
-    
+    // 客户端标识，防止 hydration 不一致
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
-    // ✅ 导航数据
-    const menuItems = [
-        {
-            label: '首页',
-            icon: 'pi pi-home',
-            command: () => (window.location.href = '/'),
-        },
-        {
-            label: '教练',
-            icon: 'pi pi-users',
-            items: [
-                {
-                    label: '我的订阅',
-                    icon: 'pi pi-book',
-                    command: () => (window.location.href = '/coach/subscription'),
-                },
-                {
-                    label: '发现教练',
-                    icon: 'pi pi-search',
-                    command: () => (window.location.href = '/coach/discovery'),
-                },
-            ],
-        },
-        {
-            label: '排行榜',
-            icon: 'pi pi-chart-line',
-            command: () => (window.location.href = '/ranking'),
-        },
-    ];
-
-    // ✅ 用户菜单
-    const userMenuItems = [
+    // ✅ 用户菜单项（依赖 session，使用 useMemo 缓存）
+    const userMenuItems = useMemo(() => [
         {
             label: session?.user?.primary_role === 'coach' ? '控制台' : '申请成为教练',
             icon: session?.user?.primary_role === 'coach' ? 'pi pi-desktop' : 'pi pi-user-plus',
-            command: () => (window.location.href = '/dashboard'),
+            command: () => router.push('/dashboard'),
         },
         { separator: true },
         {
@@ -72,6 +46,41 @@ export default function Navigation() {
             label: '退出登录',
             icon: 'pi pi-sign-out',
             command: () => signOut({ callbackUrl: '/' }),
+        },
+    ], [session, openProfileSetupModal, router]);
+
+    // ✅ 处理用户菜单展开
+    const handleUserMenuToggle = useCallback((event: React.MouseEvent) => {
+        menuRef.current?.toggle(event);
+    }, []);
+
+    // ✅ 导航数据（保持不变，也可 useMemo，但简单静态数据无需）
+    const menuItems = [
+        {
+            label: '首页',
+            icon: 'pi pi-home',
+            command: () => router.push('/'),
+        },
+        {
+            label: '教练',
+            icon: 'pi pi-users',
+            items: [
+                {
+                    label: '我的订阅',
+                    icon: 'pi pi-book',
+                    command: () => router.push('/coach/subscription'),
+                },
+                {
+                    label: '发现教练',
+                    icon: 'pi pi-search',
+                    command: () => router.push('/coach/discovery'),
+                },
+            ],
+        },
+        {
+            label: '排行榜',
+            icon: 'pi pi-chart-line',
+            command: () => router.push('/ranking'),
         },
     ];
 
@@ -102,7 +111,8 @@ export default function Navigation() {
             ) : session?.user ? (
                 <div
                     className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg transition-colors"
-                    onClick={(e) => menuRef.current?.toggle(e)}
+                    onClick={handleUserMenuToggle}
+                    aria-label="用户菜单"
                 >
                     <Avatar
                         image={session.profile.avatar_url || undefined}
@@ -172,7 +182,7 @@ export default function Navigation() {
                 onClick={toggleTheme}
                 rounded
                 text
-                className="theme-toggle"
+                className="theme-toggle shrink-0"
                 data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
             />
         </div>
@@ -187,13 +197,16 @@ export default function Navigation() {
                 className="sticky top-0 z-50 border-b shadow-sm px-4"
             />
 
-            <Menu
-                model={userMenuItems}
-                popup
-                ref={menuRef}
-                id="user_menu"
-                className="min-w-40"
-            />
+            {/* 只在客户端渲染时挂载 Menu，避免 SSR 问题 */}
+            {isClient && (
+                <Menu
+                    model={userMenuItems}
+                    popup
+                    ref={menuRef}
+                    id="user_menu"
+                    className="min-w-40"
+                />
+            )}
         </>
     );
 }
