@@ -1,4 +1,4 @@
-import { TrainingVideo } from '@/types';
+import { TrainingVideoRow } from '@/types';
 import type { ReviewStatus } from '@/types/coach';
 
 export type GetPendingReviewVideosDto = {
@@ -10,6 +10,6 @@ export type GetPendingReviewVideosDto = {
 };
 
 export type GetPendingReviewVideosResponseDto = {
-    videos: TrainingVideo[];
+    videos: TrainingVideoRow[];
     total: number;
 };

@@ -1,4 +1,4 @@
-import { TrainingVideo } from '@/types';
+import { TrainingVideoRow } from '@/types';
 import { ReviewStatus, VideoUploadContext } from '@/types/coach';
 import { BaseService } from '@/lib/baseService';
 import type { GetPendingReviewVideosDto, GetPendingReviewVideosResponseDto } from '@/app/api/coach/video/coach-pending/entity';
@@ -6,7 +6,7 @@ import type { GetPendingReviewVideosDto, GetPendingReviewVideosResponseDto } fro
 class CoachVideoService extends BaseService {
 
     // 获取视频详情
-    async getVideoById(videoId: string): Promise<TrainingVideo | null> {
+    async getVideoById(videoId: string): Promise<TrainingVideoRow | null> {
         
         try {
             const res = await this.post(videoId);
@@ -48,7 +48,7 @@ class CoachVideoService extends BaseService {
         file: File,
         context: VideoUploadContext,
         onUploadProgress?: (progressEvent: ProgressEvent) => void
-    ): Promise<TrainingVideo | null> {
+    ): Promise<TrainingVideoRow | null> {
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -73,7 +73,7 @@ class CoachVideoService extends BaseService {
     }
 
     // 提交视频 URL
-    async submitVideoUrl(videoUrl: string, context: VideoUploadContext): Promise<TrainingVideo | null> {
+    async submitVideoUrl(videoUrl: string, context: VideoUploadContext): Promise<TrainingVideoRow | null> {
         try {
             const res = await this.post('submit-url', {
                 videoUrl,
@@ -90,7 +90,7 @@ class CoachVideoService extends BaseService {
     async reviewVideo(
         videoId: string,
         feedback: { rating?: number; comment?: string; tips?: string[] }
-    ): Promise<TrainingVideo | null> {
+    ): Promise<TrainingVideoRow | null> {
         try {
             const res = await this.post('review', {
                 videoId,
@@ -106,8 +106,8 @@ class CoachVideoService extends BaseService {
     // 更新视频信息
     async updateVideo(
         videoId: string,
-        updates: Partial<Pick<TrainingVideo, 'user_notes' | 'tags' | 'requires_review'>>
-    ): Promise<TrainingVideo | null> {
+        updates: Partial<Pick<TrainingVideoRow, 'user_notes' | 'tags' | 'requires_review'>>
+    ): Promise<TrainingVideoRow | null> {
         try {
             const res = await this.post('update', {
                 videoId,
