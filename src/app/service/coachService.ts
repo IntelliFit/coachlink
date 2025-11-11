@@ -8,7 +8,7 @@ import type { GetSpecialtiesResponseDto } from "../api/coach/get-specialties/ent
 
 class CoachService extends BaseService {
     async getAllCoaches(reqData: GetAllCoachesDto) {
-        const res = await this.post<GetAllCoachesResponseDto>('get-all-coaches');
+        const res = await this.post<GetAllCoachesResponseDto>('get-all-coaches', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

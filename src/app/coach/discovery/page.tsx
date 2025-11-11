@@ -9,7 +9,7 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { coachService } from '@/app/service/coachService';
-import type { GetAllCoachesDto } from '@/app/api/coach/get-all-coaches/entity';
+import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 
 interface CoachDiscoveryPageProps {
@@ -55,11 +55,11 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     const loadCoaches = async (page: number) => {
         setIsLoading(true);
         setError(null);
-        try {            
+        try {
             const res = await coachService.getAllCoaches({
                 page: page,
                 limit: coachesPerPage,
-                search: searchTerm || undefined,
+                search: searchTerm || '',
                 specialty: selectedSpecialty
             });
             if (res) {
@@ -82,15 +82,14 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     const onSearchOrFilter = async () => {
         setIsLoading(true);
         setError(null);
+
         try {
-            const reqData: GetAllCoachesDto = {
+            const res = await coachService.getAllCoaches({
                 page: 1,
                 limit: coachesPerPage,
-                search: searchTerm || undefined,
-                specialty: selectedSpecialty !== 'all' ? selectedSpecialty : undefined
-            };
-            
-            const res = await coachService.getAllCoaches(reqData);
+                search: searchTerm || '',
+                specialty: selectedSpecialty
+            });
             if (res) {
                 setCoaches(res.coaches);
                 setTotalCount(res.count);
@@ -118,10 +117,10 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
 
     // 移除了客户端过滤，现在由服务端处理搜索和筛选
 
-    const renderCoachCard = (coach: Coach) => (
+    const renderCoachCard = (coach: CoachesRow) => (
         <div
             key={coach.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+            className="rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => onSelectCoach(coach.id)}
         >
             {coach.is_featured && (
@@ -132,7 +131,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
             )}
 
             <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                     {coach.avatar_url ? (
                         <img
                             src={coach.avatar_url}
@@ -140,7 +139,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                             className="w-16 h-16 rounded-full object-cover"
                         />
                     ) : (
-                        <span className="text-xl font-bold text-blue-600">
+                        <span className="text-xl font-bold text-primary-600">
                             {coach.name.charAt(0)}
                         </span>
                     )}
@@ -158,10 +157,10 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                     <p className="text-sm text-gray-600 mb-2">{coach.title}</p>
 
                     <div className="flex flex-wrap gap-1 mb-3">
-                        {coach.specialties.map((specialty, index) => (
+                        {coach.specialties?.map((specialty, index) => (
                             <span
                                 key={index}
-                                className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                                className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full"
                             >
                                 {specialty}
                             </span>
@@ -185,7 +184,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                         {typeof coach.subscription_price_tier1 === 'number' && (
                             <div className="text-right">
                                 <div className="text-sm text-gray-500">起价</div>
-                                <div className="text-lg font-bold text-blue-600">
+                                <div className="text-lg font-bold text-primary-600">
                                     ¥{coach.subscription_price_tier1}/月
                                 </div>
                             </div>
@@ -203,10 +202,10 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     );
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <div className="max-w-6xl mx-auto px-4 py-6">
                 {/* 头部 */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="rounded-xl shadow-sm border p-6 mb-6">
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">发现教练</h1>
@@ -242,7 +241,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                                 className="w-full"
                             />
                         </div>
-                        
+
                         <Button
                             onClick={onSearchOrFilter}
                             label="搜索"
@@ -254,9 +253,37 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                 {/* 教练列表 */}
                 <div className="space-y-4">
                     {isLoading ? (
-                        <div className="text-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                            <p className="text-gray-500 mt-4">加载教练列表...</p>
+                        <div className="space-y-4">
+                            {Array.from({ length: 5 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="rounded-xl border border-gray-200 p-6 shadow-sm"
+                                >
+                                    <div className="flex items-start space-x-4">
+                                        <Skeleton shape="circle" size="4rem" className="flex-shrink-0" />
+                                        <div className="flex-1 space-y-3">
+                                            <div className="flex justify-between">
+                                                <Skeleton width="40%" height="1rem" />
+                                                <Skeleton width="20%" height="1rem" />
+                                            </div>
+                                            <Skeleton width="60%" height="0.75rem" />
+                                            <div className="flex gap-2">
+                                                <Skeleton width="20%" height="1.25rem" borderRadius="9999px" />
+                                                <Skeleton width="15%" height="1.25rem" borderRadius="9999px" />
+                                                <Skeleton width="10%" height="1.25rem" borderRadius="9999px" />
+                                            </div>
+                                            <Skeleton width="100%" height="2.5rem" />
+                                            <div className="flex justify-between items-center mt-3">
+                                                <div className="flex space-x-4">
+                                                    <Skeleton width="5rem" height="1rem" />
+                                                    <Skeleton width="5rem" height="1rem" />
+                                                </div>
+                                                <Skeleton width="6rem" height="1.25rem" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : error ? (
                         <div className="text-center py-12">
@@ -280,9 +307,9 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                                 找到 {totalCount} 位教练
                             </div>
                             {coaches.map(renderCoachCard)}
-                            
+
                             {/* 分页器 */}
-                            <Paginator 
+                            <Paginator
                                 first={first}
                                 rows={coachesPerPage}
                                 totalRecords={totalCount}
