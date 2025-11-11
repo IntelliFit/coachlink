@@ -1,20 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { CoachDashboardProps, CoachStudentItem, Student } from '@/types/coach';
-import { coachService } from '@/app/dashboard/service/coachService';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-
-// PrimeReact imports
 import { TabMenu } from 'primereact/tabmenu';
-import { MenuItem } from 'primereact/menuitem';
+import type { MenuItem } from 'primereact/menuitem';
+import type { TabMenuTabChangeEvent } from 'primereact/tabmenu';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
 }
+
+const DASHBOARD_TABS: { label: string; icon: string; path: string }[] = [
+    { label: '概览', icon: 'pi pi-home', path: '/dashboard/overview' },
+    { label: '视频点评', icon: 'pi pi-video', path: '/dashboard/videos' },
+    { label: '我的学员', icon: 'pi pi-users', path: '/dashboard/students' },
+    { label: '内容管理', icon: 'pi pi-book', path: '/dashboard/content' },
+    { label: '聊天管理', icon: 'pi pi-comments', path: '/dashboard/chat' }
+];
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const { data: session } = useSession();
@@ -22,62 +26,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const router = useRouter();
     const pathname = usePathname();
 
-    const items: MenuItem[] = [
-        { label: '概览', icon: 'pi pi-home' },
-        { label: '视频点评', icon: 'pi pi-video' },
-        { label: '我的学员', icon: 'pi pi-users' },
-        { label: '内容管理', icon: 'pi pi-book' },
-        { label: '聊天管理', icon: 'pi pi-comments' }
-    ];
-
-    const [activeIndex, setActiveIndex] = useState(0);
-    const [students, setStudents] = useState<Student[]>([]);
-
-    // 根据当前路径设置活动标签
-    useEffect(() => {
-        if (pathname.includes('/dashboard/overview')) {
-            setActiveIndex(0);
-        } else if (pathname.includes('/dashboard/videos')) {
-            setActiveIndex(1);
-        } else if (pathname.includes('/dashboard/students')) {
-            setActiveIndex(2);
-        } else if (pathname.includes('/dashboard/content')) {
-            setActiveIndex(3);
-        } else if (pathname.includes('/dashboard/chat')) {
-            setActiveIndex(4);
-        } else {
-            setActiveIndex(0);
-        }
+    // 当前活动标签索引，通过 pathname 直接推导
+    const activeIndex = useMemo(() => {
+        const index = DASHBOARD_TABS.findIndex(tab => pathname.includes(tab.path));
+        return index >= 0 ? index : 0;
     }, [pathname]);
 
+    const handleTabChange = (e: TabMenuTabChangeEvent) => {
+        router.push(DASHBOARD_TABS[e.index].path);
+    };
 
     return (
         <div className="min-h-screen">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="space-y-8">
-                    {/* 导航标签 */}
-                    <TabMenu
-                        model={items}
-                        activeIndex={activeIndex}
-                        onTabChange={(e) => {
-                            setActiveIndex(e.index);
-                            // 使用Next.js的路由而不是浏览器默认行为
-                            const urls = [
-                                '/dashboard/overview',
-                                '/dashboard/videos',
-                                '/dashboard/students',
-                                '/dashboard/content',
-                                '/dashboard/chat'
-                            ];
-                            router.push(urls[e.index]);
-                        }}
-                    />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+                {/* 顶部导航 */}
+                <TabMenu
+                    model={DASHBOARD_TABS as MenuItem[]}
+                    activeIndex={activeIndex}
+                    onTabChange={handleTabChange}
+                />
 
-                    {/* 子路由内容 */}
-                    <div>
-                        {children}
-                    </div>
-                </div>
+                {/* 子页面内容 */}
+                <div>{children}</div>
             </div>
         </div>
     );
