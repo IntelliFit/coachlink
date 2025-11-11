@@ -217,8 +217,8 @@ const Videos: React.FC = () => {
                                 </div>
 
                                 <div className="absolute top-2 right-2">
-                                    <span className={`px-2 py-1 text-xs rounded ${getStatusColor(video.review_status)}`}>
-                                        {getStatusLabel(video.review_status)}
+                                    <span className={`px-2 py-1 text-xs rounded ${getStatusColor(video.review_status as any)}`}>
+                                        {getStatusLabel(video.review_status as any)}
                                     </span>
                                 </div>
                             </div>
