@@ -9,6 +9,7 @@ import { Calendar } from 'primereact/calendar';
 import { Message } from 'primereact/message';
 import { UserProfilesRow } from '@/types';
 import axios from 'axios';
+import { useToastContext } from '../ToastContext';
 
 interface ProfileSetupModalProps {
     isOpen: boolean;
@@ -49,6 +50,8 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
 
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { showToast } = useToastContext();
 
     // 性别选项
     const genderOptions = [
@@ -152,13 +155,11 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
             });
             
             if (response.data && response.data.success) {
-                setMessage({ type: 'success', text: '个人信息保存成功！' });
+                showToast({ severity: 'success', summary: '成功', detail: '个人信息保存成功！' });
 
-                setTimeout(() => {
-                    onComplete(response.data);
-                }, 1500);
+                onComplete(response.data);
             } else {
-                setMessage({ type: 'error', text: response.data.message });
+                showToast({ severity: 'error', summary: '错误', detail: response.data.message })
             }
         } catch (error) {
             console.error('保存个人信息失败:', error);
