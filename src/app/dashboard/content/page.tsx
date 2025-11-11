@@ -15,6 +15,8 @@ import { Skeleton } from 'primereact/skeleton';
 import ContentEditor from '@/app/dashboard/components/ContentEditor';
 import { coachService } from '@/app/dashboard/service/coachService';
 import { CoachContent } from '@/types/coach';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
 
 const Content = () => {
     const { data: session } = useSession();
@@ -151,14 +153,15 @@ const Content = () => {
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-4 mt-6">
-                        <div className="p-input-icon-left flex-1">
+                        <IconField iconPosition="left" className='w-full'>
+                            <InputIcon className="pi pi-search"> </InputIcon>
                             <InputText
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="搜索内容..."
                                 className="w-full"
                             />
-                        </div>
+                        </IconField>
                         <Dropdown
                             value={filterTier}
                             options={tierOptions}

@@ -24,6 +24,8 @@ import { Dialog } from 'primereact/dialog';
 import { Rating } from 'primereact/rating';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Skeleton } from 'primereact/skeleton';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
 
 const Videos: React.FC = () => {
     const { data: session } = useSession();
@@ -136,14 +138,15 @@ const Videos: React.FC = () => {
             <Card className="shadow-sm">
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                        <div className="p-input-icon-left w-full">
+                        <IconField iconPosition="left" className='w-full'>
+                            <InputIcon className="pi pi-search"> </InputIcon>
                             <InputText
                                 placeholder="搜索学员或动作..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full"
                             />
-                        </div>
+                        </IconField>
                     </div>
                     <Dropdown
                         value={filter.review_status || ''}
