@@ -6,3 +6,4 @@ export type UsersRow = CoachLinkTable['users']['Row'];
 export type UserProfilesRow = CoachLinkTable['user_profiles']['Row'];
 export type TrainingVideo = CoachLinkTable['training_videos']['Row'];
 export type CoachesRow = CoachLinkTable['coaches']['Row'];
+export type SpecialtiesRow = CoachLinkTable['specialties']['Row'];

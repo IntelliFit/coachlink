@@ -7,9 +7,9 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
-import { Coach } from '@/types/coach';
-import { coachService } from '@/app/dashboard/service/coachService';
+import { coachService } from '@/app/service/coachService';
 import type { GetAllCoachesDto } from '@/app/api/coach/get-all-coaches/entity';
+import { CoachesRow } from '@/types';
 
 interface CoachDiscoveryPageProps {
     onSelectCoach: (coachId: string) => void;
@@ -20,7 +20,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     onSelectCoach,
     onBack
 }) => {
-    const [coaches, setCoaches] = useState<Coach[]>([]);
+    const [coaches, setCoaches] = useState<CoachesRow[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
