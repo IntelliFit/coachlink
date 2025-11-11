@@ -13,7 +13,6 @@ export default function CoachPage() {
 
     return (
         <div className="flex min-h-screen items-center justify-center">
-            <p>正在跳转...</p>
         </div>
     );
 }
