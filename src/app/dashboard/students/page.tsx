@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { User } from 'lucide-react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
+import { Skeleton } from 'primereact/skeleton';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { coachService } from '@/app/dashboard/service/coachService';
@@ -89,12 +90,53 @@ const Students = () => {
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-900">我的学员</h3>
                 <div className="flex items-center space-x-3">
-                    <span className="text-sm text-600">共 {students.length} 名学员</span>
+                    {loadingStudents ? (
+                        <Skeleton width="5rem" height="1rem" />
+                    ) : (
+                        <span className="text-sm text-600">共 {students.length} 名学员</span>
+                    )}
                 </div>
             </div>
 
             {loadingStudents ? (
-                <div className="text-500">加载中...</div>
+                // 显示骨架屏
+                <div className="grid gap-6">
+                    {[1, 2, 3].map((index) => (
+                        <Card key={index} className="shadow-sm">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="flex items-center space-x-4">
+                                    <Skeleton shape="circle" size="3rem" />
+                                    <div>
+                                        <Skeleton width="6rem" height="1.25rem" className="mb-2" />
+                                        <Skeleton width="8rem" height="0.75rem" />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                                    <div className="text-right">
+                                        <Skeleton width="4rem" height="1rem" className="mb-2" />
+                                        <Skeleton width="5rem" height="0.75rem" />
+                                    </div>
+                                    
+                                    <div className="text-center">
+                                        <Skeleton width="1.5rem" height="1.5rem" className="mx-auto mb-1" />
+                                        <Skeleton width="3rem" height="0.75rem" />
+                                    </div>
+                                    
+                                    <div className="text-center">
+                                        <Skeleton width="1.5rem" height="1.5rem" className="mx-auto mb-1" />
+                                        <Skeleton width="3rem" height="0.75rem" />
+                                    </div>
+                                    
+                                    <div className="flex gap-2">
+                                        <Skeleton width="4rem" height="2rem" />
+                                        <Skeleton width="5rem" height="2rem" />
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
             ) : students.length === 0 ? (
                 <div className="text-500">暂无学员订阅</div>
             ) : (
