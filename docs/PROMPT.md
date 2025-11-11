@@ -3,8 +3,20 @@
 当前是一个 App Route 模式的 nextjs 项目。使用 primereact 作为UI框架，使用 tailwindcss 作为 atom css 框架。黑白主题系统 primereact 已经实现好了，不需要额外实现，除非你认为 primereact 没有涵盖这部分的定义。
 对于生成或者修改组件，请尽量使用 primereact 提供的组件完成。UI实现啀美观大方，UI组件之间保持一定的间距。如果你想要定义彩色，请尽量使用 tailwindcss 的 primary 类的 css class 定义彩色，这样可以尽量符合颜色系统。
 
-所有的网络请求，请通过当前业务文件夹下的 api.ts 来实现。你需要创建一个 XXXService 的类，并且是单例模式。这个类只有一个构造参数，baseUrl，代表当前业务的根路由，比如 /api/user
-具体请看例子：src/app/dashboard/service/coachService.ts
+所有前端发起的网络请求，请通过 `@/app/service` 来实现。你需要先检查这个文件夹中是否存在已经实现好的业务。业务和 `@/app/api` 中的服务是一一对应的。
+
+每一个 service 成员函数需要严格遵守如下格式：
+
+```typescript
+async publishContent(reqData: PublishContentDto) {
+    const res = await this.post<PublishContentResponseDto>('publish-content', reqData);
+    if (res.data && res.data.success) {
+        return res.data.data || null;
+    }
+}
+```
+
+具体请看例子：src/app/service/coachService.ts
 
 ---
 
