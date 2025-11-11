@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Video, Star, TrendingUp } from 'lucide-react';
 import { Card } from 'primereact/card';
+import { Skeleton } from 'primereact/skeleton';
 import RecentActivities from '@/app/dashboard/components/RecentActivities';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
@@ -51,7 +52,33 @@ const Overview = () => {
     }, [coach?.id]);
 
     // 模拟待点评视频数量
-    const pendingVideosCount = 3;
+    const [pendingVideosCount, setPendingVideosCount] = useState<number>(0);
+    const [loadingVideos, setLoadingVideos] = useState<boolean>(true);
+
+    useEffect(() => {
+        // 模拟加载数据
+        const timer = setTimeout(() => {
+            setPendingVideosCount(3);
+            setLoadingVideos(false);
+        }, 800);
+        
+        return () => clearTimeout(timer);
+    }, []);
+
+    // 加载教练评分数据
+    const [coachRating, setCoachRating] = useState<number>(0);
+    const [loadingRating, setLoadingRating] = useState<boolean>(true);
+
+    useEffect(() => {
+        if (coach?.rating) {
+            const timer = setTimeout(() => {
+                setCoachRating(coach.rating);
+                setLoadingRating(false);
+            }, 600);
+            
+            return () => clearTimeout(timer);
+        }
+    }, [coach?.rating]);
 
     return (
         <div className="space-y-6">
@@ -61,7 +88,11 @@ const Overview = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-surface-700">总学员数</p>
-                            <p className="text-2xl font-bold">{students.length}</p>
+                            {loadingStudents ? (
+                                <Skeleton width="2rem" height="1.5rem" className="mt-2" />
+                            ) : (
+                                <p className="text-2xl font-bold">{students.length}</p>
+                            )}
                         </div>
                         <div className="p-3 bg-blue-100 rounded-full">
                             <Users className="w-6 h-6 text-blue-600" />
@@ -73,7 +104,11 @@ const Overview = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-surface-700">待点评视频</p>
-                            <p className="text-2xl font-bold">{pendingVideosCount}</p>
+                            {loadingVideos ? (
+                                <Skeleton width="2rem" height="1.5rem" className="mt-2" />
+                            ) : (
+                                <p className="text-2xl font-bold">{pendingVideosCount}</p>
+                            )}
                         </div>
                         <div className="p-3 bg-yellow-100 rounded-full">
                             <Video className="w-6 h-6 text-yellow-600" />
@@ -85,7 +120,11 @@ const Overview = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-surface-700">平均评分</p>
-                            <p className="text-2xl font-bold">{coach?.rating || 0}</p>
+                            {loadingRating ? (
+                                <Skeleton width="2rem" height="1.5rem" className="mt-2" />
+                            ) : (
+                                <p className="text-2xl font-bold">{coachRating}</p>
+                            )}
                         </div>
                         <div className="p-3 bg-green-100 rounded-full">
                             <Star className="w-6 h-6 text-green-600" />
@@ -97,7 +136,7 @@ const Overview = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-surface-700">本月收入</p>
-                            <p className="text-2xl font-bold">¥2,580</p>
+                            <Skeleton width="3rem" height="1.5rem" className="mt-2" />
                         </div>
                         <div className="p-3 bg-purple-100 rounded-full">
                             <TrendingUp className="w-6 h-6 text-purple-600" />
