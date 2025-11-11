@@ -15,7 +15,7 @@ const AUTH_BASE_URL = '/api/auth';
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
     // 公共路由 或者 鉴权路由直接放行

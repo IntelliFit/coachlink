@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Star, Users, Award, ArrowRight, MapPin, Clock, Crown, Eye } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
+import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
 import { Coach } from '@/types/coach';
 import { coachService } from '@/app/dashboard/service/coachService';
 import type { GetAllCoachesDto } from '@/app/api/coach/get-all-coaches/entity';
@@ -174,7 +178,9 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                 </div>
 
                 <div className="flex-shrink-0">
-                    <ArrowRight className="w-5 h-5 text-gray-400" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
                 </div>
             </div>
         </div>
@@ -190,46 +196,47 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                             <h1 className="text-2xl font-bold text-gray-900">发现教练</h1>
                             <p className="text-gray-600 mt-1">找到最适合你的专业健身教练</p>
                         </div>
-                        <button
+                        <Button
                             onClick={onBack}
-                            className="text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                            ← 返回
-                        </button>
+                            label="返回"
+                            className="p-button-text"
+                        />
                     </div>
 
                     {/* 搜索和筛选 */}
-                    <div className="flex space-x-4">
-                        <div className="flex-1 relative">
-                            <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="搜索教练姓名、专长或介绍..."
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1">
+                            <IconField iconPosition="left">
+                                <InputIcon className="pi pi-search"> </InputIcon>
+                                <InputText
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="搜索教练姓名、专长或介绍..."
+                                    className="w-full"
+                                />
+                            </IconField>
                         </div>
 
-                        <select
-                            value={selectedSpecialty}
-                            onChange={(e) => setSelectedSpecialty(e.target.value)}
-                            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-40"
-                        >
-                            <option value="all">所有专长</option>
-                            {allSpecialties.map((specialty) => (
-                                <option key={specialty} value={specialty}>
-                                    {specialty}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="min-w-40">
+                            <select
+                                value={selectedSpecialty}
+                                onChange={(e) => setSelectedSpecialty(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="all">所有专长</option>
+                                {allSpecialties.map((specialty) => (
+                                    <option key={specialty} value={specialty}>
+                                        {specialty}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                         
-                        <button
+                        <Button
                             onClick={onSearchOrFilter}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                        >
-                            搜索
-                        </button>
+                            label="搜索"
+                            className="h-fit"
+                        />
                     </div>
                 </div>
 
