@@ -1,44 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-    Users,
-    Video,
-    MessageCircle,
-    Star,
-    Clock,
-    Calendar,
-    Award,
-    Play,
-    User,
-    Download,
-    Mic,
-    Edit3,
-    X,
-    ArrowLeft,
-    Bell,
-    TrendingUp
-} from 'lucide-react';
-
-import VideoReview from './components/VideoReview';
-import ContentManager from './components/ContentManager';
-import { CoachDashboardProps, CoachStudentItem, PendingVideo, Student } from '@/types/coach';
+import React, { useEffect } from 'react';
+import { ArrowLeft, User, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-import { coachService } from './service/coachService';
+import { CoachDashboardProps } from '@/types/coach';
 import { useSession } from 'next-auth/react';
-import { getCoach } from './util';
+import { getCoach } from '@/app/dashboard/util';
 
 // PrimeReact imports
 import { Button } from 'primereact/button';
-import { Card } from 'primereact/card';
-import { TabView, TabPanel } from 'primereact/tabview';
 import { Badge } from 'primereact/badge';
 
 const CoachDashboard: React.FC<CoachDashboardProps> = () => {
     const { data: session, status } = useSession();
     const coach = getCoach(session);
-
     const router = useRouter();
 
     const onBack = () => {
@@ -46,363 +21,53 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
         router.push('/');
     };
 
-    const [activeTab, setActiveTab] = useState(0);
-    const [showVideoReview, setShowVideoReview] = useState(false);
+    if (status === 'loading') {
+        return <div>加载中...</div>;
+    }
 
-    // 加载真实学员数据
-    const [students, setStudents] = useState<Student[]>([]);
-    const [loadingStudents, setLoadingStudents] = useState<boolean>(true);
+    if (!session) {
+        router.push('/login');
+        return null;
+    }
 
+    // 页面加载后直接重定向到概览页面
     useEffect(() => {
-        const load = async () => {
-            setLoadingStudents(true);
-            try {
-                const items = await coachService.getStudents();
-                
-                const mapped: Student[] = (items || [] as CoachStudentItem[]).map((it) => ({
-                    id: it.student?.id || it.student_id,
-                    name: it.profile?.nickname || it.student?.phone || '学员',
-                    email: undefined,
-                    subscription_tier: it.tier,
-                    subscription_start: it.start_date,
-                    subscription_end: it.end_date,
-                    total_videos: 0,
-                    pending_videos: 0,
-                    avatar_url: it.profile?.avatar_url || undefined,
-                    last_active: it.student?.last_login_at || undefined,
-                    progress_score: 0,
-                }));
-                setStudents(mapped);
-            } catch (e) {
-                console.error('加载学员失败', e);
-                setStudents([]);
-            } finally {
-                setLoadingStudents(false);
-            }
-        };
-        load();
-    }, []);
-
-    // 模拟待点评视频
-    const [pendingVideos] = useState<PendingVideo[]>([
-        {
-            id: '1',
-            student_id: '1',
-            student_name: '张小明',
-            title: '引体向上训练 - 第4周',
-            description: '按照教练的指导进行训练，感觉动作有了改善，请教练帮忙看看还有什么需要调整的地方',
-            exercise_type: '引体向上',
-            duration: 45,
-            upload_date: '2024-01-20T14:30:00Z',
-            video_url: '/video1.mp4',
-            thumbnail_url: '/thumb1.jpg',
-            file_size: '12.5 MB'
-        },
-        {
-            id: '2',
-            student_id: '1',
-            student_name: '张小明',
-            title: '深蹲进阶训练',
-            description: '尝试增加重量的深蹲训练，请教练检查姿势',
-            exercise_type: '深蹲',
-            duration: 35,
-            upload_date: '2024-01-20T16:15:00Z',
-            video_url: '/video2.mp4',
-            thumbnail_url: '/thumb2.jpg',
-            file_size: '8.7 MB'
-        },
-        {
-            id: '3',
-            student_id: '2',
-            student_name: '李小红',
-            title: '核心力量训练',
-            description: '平板支撑和俄罗斯转体的组合训练',
-            exercise_type: '核心训练',
-            duration: 25,
-            upload_date: '2024-01-20T18:00:00Z',
-            video_url: '/video3.mp4',
-            thumbnail_url: '/thumb3.jpg',
-            file_size: '6.2 MB'
-        }
-    ]);
-
-    const getTierName = (tier: number) => {
-        const tiers = {
-            1: 'AI计划',
-            2: '视频点评',
-            3: '一对一指导'
-        };
-        return tiers[tier as keyof typeof tiers] || '未知';
-    };
-
-    const getTierColor = (tier: number) => {
-        const colors = {
-            1: 'bg-blue-100 text-blue-800',
-            2: 'bg-green-100 text-green-800',
-            3: 'bg-purple-100 text-purple-800'
-        };
-        return colors[tier as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-    };
-
-    const getRelativeTime = (dateString?: string) => {
-        if (!dateString) return '—';
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-
-        if (diffInHours < 1) {
-            return '刚刚';
-        } else if (diffInHours < 24) {
-            return `${diffInHours}小时前`;
-        } else {
-            const diffInDays = Math.floor(diffInHours / 24);
-            return `${diffInDays}天前`;
-        }
-    };
-
-    const handleReviewVideo = () => {
-        setShowVideoReview(true);
-    };
-
-    const handleCloseVideoReview = () => {
-        setShowVideoReview(false);
-    };
-
-    const renderOverview = () => (
-        <div className="space-y-6">
-            {/* 统计卡片 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-surface-700">总学员数</p>
-                            <p className="text-2xl font-bold">{students.length}</p>
-                        </div>
-                        <div className="p-3 bg-blue-100 rounded-full">
-                            <Users className="w-6 h-6 text-blue-600" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-surface-700">待点评视频</p>
-                            <p className="text-2xl font-bold">{pendingVideos.length}</p>
-                        </div>
-                        <div className="p-3 bg-yellow-100 rounded-full">
-                            <Video className="w-6 h-6 text-yellow-600" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-surface-700">平均评分</p>
-                            <p className="text-2xl font-bold">{coach.rating}</p>
-                        </div>
-                        <div className="p-3 bg-green-100 rounded-full">
-                            <Star className="w-6 h-6 text-green-600" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-surface-700">本月收入</p>
-                            <p className="text-2xl font-bold">¥2,580</p>
-                        </div>
-                        <div className="p-3 bg-purple-100 rounded-full">
-                            <TrendingUp className="w-6 h-6 text-purple-600" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 最近活动 */}
-            <div className="rounded-lg p-6 shadow-sm">
-                <h3 className="text-lg font-semibold mb-4">最近活动</h3>
-                <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Video className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm">张小明 上传了新的训练视频</p>
-                            <p className="text-xs text-gray-500">2小时前</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <MessageCircle className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm">李小红 发送了新消息</p>
-                            <p className="text-xs text-gray-500">4小时前</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <Star className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm">王小刚 给您的点评点赞</p>
-                            <p className="text-xs text-gray-500">6小时前</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderVideos = () => (
-        <div>
-            <VideoReview coachId={coach.id} />
-        </div>
-    );
-
-    const renderStudents = () => (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-900">我的学员</h3>
-                <div className="flex items-center space-x-3">
-                    <span className="text-sm text-600">共 {students.length} 名学员</span>
-                </div>
-            </div>
-
-            {loadingStudents ? (
-                <div className="text-500">加载中...</div>
-            ) : students.length === 0 ? (
-                <div className="text-500">暂无学员订阅</div>
-            ) : (
-                <div className="grid gap-6">
-                    {students.map((student) => (
-                        <Card key={student.id} className="shadow-sm">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                <div className="flex items-center space-x-4">
-                                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                                        <User className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-900">{student.name}</h4>
-                                        {student.email && <p className="text-sm text-600">{student.email}</p>}
-                                        <p className="text-xs text-500">
-                                            最后活跃：{getRelativeTime(student.last_active)}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                    <div className="text-right">
-                                        <span className={`px-2 py-1 rounded text-xs ${getTierColor(student.subscription_tier)}`}>
-                                            {getTierName(student.subscription_tier)}
-                                        </span>
-                                        <p className="text-sm text-600 mt-1">
-                                            进度：{student.progress_score}%
-                                        </p>
-                                    </div>
-
-                                    <div className="text-center">
-                                        <div className="text-lg font-bold text-primary">{student.total_videos}</div>
-                                        <div className="text-xs text-600">总视频</div>
-                                    </div>
-
-                                    <div className="text-center">
-                                        <div className="text-lg font-bold text-yellow-600">{student.pending_videos}</div>
-                                        <div className="text-xs text-600">待点评</div>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <Button
-                                            label="查看档案"
-                                            className="p-button-sm"
-                                            onClick={() => {
-                                                window.dispatchEvent(new CustomEvent('coach:view-student', { detail: { userId: student.id } }));
-                                            }}
-                                        />
-                                        <Button
-                                            label="制定计划"
-                                            className="p-button-sm"
-                                            onClick={() => {
-                                                window.dispatchEvent(new CustomEvent('coach:create-plan', {
-                                                    detail: {
-                                                        studentId: student.id,
-                                                        studentName: student.name
-                                                    }
-                                                }));
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-
-
+        router.push('/dashboard/overview');
+    }, [router]);
 
     return (
         <div className="min-h-screen">
+            {/* 头部 */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="space-y-8">
-                    {/* 头部 */}
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="flex items-center space-x-4">
-                            <Button 
-                                icon="pi pi-arrow-left" 
-                                className="p-button-rounded p-button-text" 
-                                onClick={onBack}
-                            />
-                            <div>
-                                <h1 className="text-2xl font-bold text-900">教练管理台</h1>
-                                <p className="text-600">欢迎回来，{coach.name}！</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center space-x-3">
-                            <Button 
-                                icon="pi pi-bell" 
-                            >
-                                <Badge value="8"></Badge>
-                            </Button>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex items-center space-x-4">
+                        <Button 
+                            icon="pi pi-arrow-left" 
+                            className="p-button-rounded p-button-text" 
+                            onClick={onBack}
+                        />
+                        <div>
+                            <h1 className="text-2xl font-bold text-900">教练管理台</h1>
+                            <p className="text-600">欢迎回来，{coach?.name}！</p>
                         </div>
                     </div>
 
-                    {/* 导航标签 */}
-                    <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
-                        <TabPanel header="概览">
-                            {renderOverview()}
-                        </TabPanel>
-                        <TabPanel header="视频点评">
-                            <VideoReview coachId={coach.id} />
-                        </TabPanel>
-                        <TabPanel header="我的学员">
-                            {renderStudents()}
-                        </TabPanel>
-                        <TabPanel header="内容管理">
-                            <ContentManager
-                                coachId={coach.id}
-                                coachName={coach.name}
-                            />
-                        </TabPanel>
-                        <TabPanel header="聊天管理">
-                            <div className="text-center py-12">
-                                <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-900 mb-2">聊天管理</h3>
-                                <p className="text-600">聊天管理功能开发中...</p>
-                            </div>
-                        </TabPanel>
-                    </TabView>
-
+                    <div className="flex items-center space-x-3">
+                        <Button 
+                            icon="pi pi-bell" 
+                        >
+                            <Badge value="8"></Badge>
+                        </Button>
+                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                            <User className="w-5 h-5 text-white" />
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            {/* 默认重定向到概览页面 */}
         </div>
     );
 };
 
-export default CoachDashboard; 
+export default CoachDashboard;
