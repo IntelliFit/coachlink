@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { CoachDashboardProps, CoachStudentItem, Student } from '@/types/coach';
 import { coachService } from '@/app/dashboard/service/coachService';
@@ -22,11 +23,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const pathname = usePathname();
 
     const items: MenuItem[] = [
-        { label: '概览', icon: 'pi pi-home', url: '/dashboard/overview' },
-        { label: '视频点评', icon: 'pi pi-video', url: '/dashboard/videos' },
-        { label: '我的学员', icon: 'pi pi-users', url: '/dashboard/students' },
-        { label: '内容管理', icon: 'pi pi-book', url: '/dashboard/content' },
-        { label: '聊天管理', icon: 'pi pi-comments', url: '/dashboard/chat' }
+        { label: '概览', icon: 'pi pi-home' },
+        { label: '视频点评', icon: 'pi pi-video' },
+        { label: '我的学员', icon: 'pi pi-users' },
+        { label: '内容管理', icon: 'pi pi-book' },
+        { label: '聊天管理', icon: 'pi pi-comments' }
     ];
 
     const [activeIndex, setActiveIndex] = useState(0);
@@ -49,10 +50,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         }
     }, [pathname]);
 
-    const handleTabChange = (e: { index: number }) => {
-        setActiveIndex(e.index);
-        router.push(items[e.index].url || '/dashboard/overview');
-    };
 
     return (
         <div className="min-h-screen">
@@ -62,7 +59,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     <TabMenu 
                         model={items} 
                         activeIndex={activeIndex} 
-                        onTabChange={handleTabChange} 
+                        onTabChange={(e) => {
+            setActiveIndex(e.index);
+            // 使用Next.js的路由而不是浏览器默认行为
+            const urls = [
+                '/dashboard/overview',
+                '/dashboard/videos', 
+                '/dashboard/students',
+                '/dashboard/content',
+                '/dashboard/chat'
+            ];
+            router.push(urls[e.index]);
+        }} 
                         className="shadow-sm rounded-lg"
                     />
 
