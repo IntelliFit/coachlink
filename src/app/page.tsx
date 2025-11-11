@@ -147,7 +147,7 @@ export default function Home() {
                 <section className="flex-1 flex flex-col items-center justify-center space-y-8">
                     <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden shadow-md">
                         <Image
-                            src="/images/fitness-dashboard.jpg"
+                            src="/images/cover_1.jpg"
                             alt="健身仪表盘"
                             fill
                             className="object-cover"

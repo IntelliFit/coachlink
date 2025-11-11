@@ -22,6 +22,9 @@ export default function Navigation() {
     const { data: session, status } = useSession();
     const menuRef = useRef<Menu>(null);
 
+    console.log('enter nav');
+    
+
     // ✅ 导航数据
     const menuItems = [
         {
