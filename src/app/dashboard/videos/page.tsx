@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { TrainingVideo } from '@/types';
+import { TrainingVideoRow } from '@/types';
 import { ReviewStatus } from '@/types/coach';
 import { coachVideoService } from '../../service/coachVideoService';
 
@@ -31,13 +31,13 @@ const Videos: React.FC = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
 
-    const [videos, setVideos] = useState<TrainingVideo[]>([]);
+    const [videos, setVideos] = useState<TrainingVideoRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(null);
+    const [selectedVideo, setSelectedVideo] = useState<TrainingVideoRow | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [filter, setFilter] = useState<{ review_status?: ReviewStatus }>({ review_status: 'pending' });
     const [searchTerm, setSearchTerm] = useState('');
-    const [previewVideo, setPreviewVideo] = useState<TrainingVideo | null>(null);
+    const [previewVideo, setPreviewVideo] = useState<TrainingVideoRow | null>(null);
     const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
 
     useEffect(() => {

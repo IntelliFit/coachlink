@@ -12,15 +12,7 @@ import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 
-interface CoachDiscoveryPageProps {
-    onSelectCoach: (coachId: string) => void;
-    onBack: () => void;
-}
-
-const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
-    onSelectCoach,
-    onBack
-}) => {
+const CoachDiscoveryPage: React.FC = () => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
     const [specialties, setSpecialties] = useState<{ label: string; value: string }[]>([{ label: '所有专长', value: 'all' }]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +23,10 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     const [currentPage, setCurrentPage] = useState(0);
     const [first, setFirst] = useState(0);
     const coachesPerPage = 10;
+
+    const onSelectCoach = (coachId: string) => {
+        console.log('selectedCoachId:', coachId);
+    };
 
     useEffect(() => {
         loadCoaches(1);
