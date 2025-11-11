@@ -101,7 +101,7 @@ export default function Home() {
     );
 
     return (
-        <main className="flex flex-col min-h-screen transition-colors duration-300 p-4 md:p-12 bg-white dark:bg-gray-900">
+        <main className="flex flex-col min-h-screen transition-colors duration-300 p-4 md:p-12">
             <div className="w-full max-w-[1440px] mx-auto flex flex-col align-top md:flex-row gap-12">
 
                 {/* 左侧内容 */}
