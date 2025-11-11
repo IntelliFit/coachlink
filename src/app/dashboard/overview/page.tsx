@@ -7,7 +7,7 @@ import { Skeleton } from 'primereact/skeleton';
 import RecentActivities from '@/app/dashboard/components/RecentActivities';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { coachService } from '@/app/dashboard/service/coachService';
+import { coachService } from '@/app/service/coachService';
 import { CoachStudentItem, Student } from '@/types/coach';
 
 const Overview = () => {

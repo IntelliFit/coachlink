@@ -13,7 +13,7 @@ import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { TrainingVideo } from '@/types';
 import { ReviewStatus } from '@/types/coach';
-import { coachVideoService } from '../service/coachVideoService';
+import { coachVideoService } from '../../service/coachVideoService';
 
 // PrimeReact imports
 import { Button } from 'primereact/button';

@@ -13,7 +13,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
 import ContentEditor from '@/app/dashboard/components/ContentEditor';
-import { coachService } from '@/app/dashboard/service/coachService';
+import { coachService } from '@/app/service/coachService';
 import { CoachContent } from '@/types/coach';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';

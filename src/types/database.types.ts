@@ -557,6 +557,7 @@ export type Database = {
           baseline_video_urls: string[] | null
           coach_id: string | null
           created_at: string | null
+          exercise_prs: Json | null
           id: string
           updated_at: string | null
           user_id: string
@@ -566,6 +567,7 @@ export type Database = {
           baseline_video_urls?: string[] | null
           coach_id?: string | null
           created_at?: string | null
+          exercise_prs?: Json | null
           id?: string
           updated_at?: string | null
           user_id: string
@@ -575,6 +577,7 @@ export type Database = {
           baseline_video_urls?: string[] | null
           coach_id?: string | null
           created_at?: string | null
+          exercise_prs?: Json | null
           id?: string
           updated_at?: string | null
           user_id?: string
@@ -822,6 +825,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      specialties: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       training_exercises: {
         Row: {
@@ -1353,7 +1371,15 @@ export type Database = {
           week_number?: number | null
           workout_log_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_training_videos_coach_id"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {

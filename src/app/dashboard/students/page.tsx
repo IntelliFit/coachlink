@@ -7,7 +7,7 @@ import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { coachService } from '@/app/dashboard/service/coachService';
+import { coachService } from '@/app/service/coachService';
 import { CoachStudentItem, Student } from '@/types/coach';
 
 const Students = () => {
