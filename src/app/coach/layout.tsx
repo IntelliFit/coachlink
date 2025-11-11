@@ -32,13 +32,6 @@ const CoachLayout: React.FC<CoachLayoutProps> = ({ children }) => {
     return (
         <div className="min-h-screen">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-                {/* 顶部导航 */}
-                <TabMenu
-                    model={COACH_TABS as MenuItem[]}
-                    activeIndex={activeIndex}
-                    onTabChange={handleTabChange}
-                />
-
                 {/* 子页面内容 */}
                 <div>{children}</div>
             </div>
