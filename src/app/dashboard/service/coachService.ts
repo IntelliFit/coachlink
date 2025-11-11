@@ -1,10 +1,19 @@
 import { BaseService } from "@/lib/baseService";
 import { ApiData } from "@/types/api";
-import { CoachStudentItem } from "@/types/coach";
+import { Coach, CoachStudentItem } from "@/types/coach";
 import type { GetContentsDto } from '../../api/coach/get-contents/entity';
 import type { PublishContentDto, PublishContentResponseDto } from "@/app/api/coach/publish-content/entity";
 
 class CoachService extends BaseService {
+    async getAllCoaches() {
+        const res = await this.post<Coach[]>('get-all-coaches');
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
+    }
+
     async getStudents() {
         const res = await this.post<CoachStudentItem[]>('get-students');
         if (res.data && res.data.success) {
