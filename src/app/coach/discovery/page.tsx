@@ -7,6 +7,7 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
+import { Dropdown } from 'primereact/dropdown';
 import { coachService } from '@/app/service/coachService';
 import type { GetAllCoachesDto } from '@/app/api/coach/get-all-coaches/entity';
 import { CoachesRow } from '@/types';
@@ -21,6 +22,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     onBack
 }) => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
+    const [specialties, setSpecialties] = useState<{ label: string; value: string }[]>([{ label: '所有专长', value: 'all' }]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
@@ -32,7 +34,23 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
 
     useEffect(() => {
         loadCoaches(1);
+        loadSpecialties();
     }, []);
+
+    const loadSpecialties = async () => {
+        try {
+            const specialtiesData = await coachService.getAllSpecialties();
+            if (specialtiesData) {
+                const formattedSpecialties = specialtiesData.map(specialty => ({
+                    label: specialty.name,
+                    value: specialty.name
+                }));
+                setSpecialties([{ label: '所有专长', value: 'all' }, ...formattedSpecialties]);
+            }
+        } catch (e) {
+            console.error('加载专长列表失败:', e);
+        }
+    };
 
     const loadCoaches = async (page: number) => {
         setIsLoading(true);
@@ -42,7 +60,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                 page: page,
                 limit: coachesPerPage,
                 search: searchTerm || undefined,
-                specialty: selectedSpecialty !== 'all' ? selectedSpecialty : undefined
+                specialty: selectedSpecialty
             });
             if (res) {
                 setCoaches(res.coaches);
@@ -99,8 +117,6 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     };
 
     // 移除了客户端过滤，现在由服务端处理搜索和筛选
-
-    const allSpecialties = Array.from(new Set(coaches.flatMap(coach => coach.specialties || [])));
 
     const renderCoachCard = (coach: Coach) => (
         <div
@@ -218,18 +234,13 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                         </div>
 
                         <div className="min-w-40">
-                            <select
+                            <Dropdown
                                 value={selectedSpecialty}
-                                onChange={(e) => setSelectedSpecialty(e.target.value)}
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                <option value="all">所有专长</option>
-                                {allSpecialties.map((specialty) => (
-                                    <option key={specialty} value={specialty}>
-                                        {specialty}
-                                    </option>
-                                ))}
-                            </select>
+                                options={specialties}
+                                onChange={(e) => setSelectedSpecialty(e.value)}
+                                placeholder="选择专长"
+                                className="w-full"
+                            />
                         </div>
                         
                         <Button
