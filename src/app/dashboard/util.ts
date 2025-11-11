@@ -51,6 +51,6 @@ export function getCoach(session: SessionContextValue['data'] | null) {
         id: '',
         name: '',
         title: '',
-        rating: ''
+        rating: 0
     }
 }
