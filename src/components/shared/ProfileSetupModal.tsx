@@ -8,7 +8,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { UserProfilesRow } from '@/types';
 import axios from 'axios';
-import { useToastContext } from '../ToastContext';
+import { useToastContext } from '../../context/ToastContext';
 
 interface ProfileSetupModalProps {
     isOpen: boolean;
