@@ -96,7 +96,7 @@ const config = {
                     700: 'var(--surface-700)',
                     800: 'var(--surface-800)',
                     900: 'var(--surface-900)',
-                    DEFAULT: 'var(--surface-500)',
+                    DEFAULT: 'var(--surface-0)',
                 },
                 sidebar: {
                     DEFAULT: 'var(--sidebar-background)',

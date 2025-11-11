@@ -177,11 +177,11 @@ const CoachDiscoveryPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {typeof coach.subscription_price_tier1 === 'number' && (
+                        {typeof (coach as any).subscription_price_tier1 === 'number' && (
                             <div className="text-right">
                                 <div className="text-sm text-gray-500">起价</div>
                                 <div className="text-lg font-bold text-primary-600">
-                                    ¥{coach.subscription_price_tier1}/月
+                                    ¥{(coach as any).subscription_price_tier1}/月
                                 </div>
                             </div>
                         )}

@@ -5,7 +5,6 @@ import { Button } from 'primereact/button';
 import { Chart } from 'primereact/chart';
 import Image from 'next/image';
 import { Brain, Users, Trophy } from 'lucide-react';
-import React from 'react';
 
 export default function Home() {
 
@@ -68,7 +67,6 @@ export default function Home() {
         },
     };
 
-    // 通用功能卡组件
     const FeatureCard = ({
         icon: Icon,
         title,
@@ -90,7 +88,7 @@ export default function Home() {
             onClick={() => navigateToProtectedPage(page)}
         >
             <div className="flex items-start gap-3 mb-3">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 shrink-0">
                     <Icon className="w-6 h-6 text-primary" />
                 </div>
                 <div>
@@ -103,16 +101,15 @@ export default function Home() {
     );
 
     return (
-
-        <main className="flex flex-col md:flex-row min-h-screen px-6 md:px-12 bg-surface-50 dark:bg-surface-900 transition-colors duration-300">
-            <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-12">
+        <main className="flex flex-col min-h-screen transition-colors duration-300 p-4 md:p-12 bg-white dark:bg-gray-900">
+            <div className="w-full max-w-[1440px] mx-auto flex flex-col align-top md:flex-row gap-12">
 
                 {/* 左侧内容 */}
-                <section className="flex-1 flex flex-col justify-center space-y-8">
-                    <h1 className="text-4xl md:text-6xl font-bold mb-4 text-primary">
+                <section className="flex-1 flex flex-col justify-start space-y-8 md:pt-20">
+                    <h1 className="text-3xl md:text-6xl font-bold text-primary">
                         欢迎来到 CoachLink
                     </h1>
-                    <p className="text-lg text-muted-color max-w-xl">
+                    <p className="text-base md:text-lg text-muted-color max-w-xl">
                         您的智能健身助手平台。通过AI训练、专业教练与量化数据分析，助您更高效地达成健身目标。
                     </p>
 
@@ -144,10 +141,10 @@ export default function Home() {
                 </section>
 
                 {/* 右侧内容 */}
-                <section className="flex-1 flex flex-col items-center justify-center space-y-8">
-                    <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden shadow-md">
+                <section className="flex-1 flex flex-col items-center justify-start space-y-8 mt-8 md:mt-0">
+                    <div className="relative w-full max-w-lg md:max-w-xl aspect-square rounded-2xl overflow-hidden shadow-md">
                         <Image
-                            src="/images/cover_1.jpg"
+                            src="/images/cover_2.jpg"
                             alt="健身仪表盘"
                             fill
                             className="object-cover"
@@ -155,12 +152,13 @@ export default function Home() {
                         />
                     </div>
 
-                    <Card title="训练量化分析" className="w-full max-w-md shadow-md">
+                    <Card title="训练量化分析" className="w-full max-w-lg md:max-w-xl shadow-md">
                         <Chart type="radar" data={chartData} options={chartOptions} />
                     </Card>
                 </section>
 
             </div>
         </main>
+
     );
 }

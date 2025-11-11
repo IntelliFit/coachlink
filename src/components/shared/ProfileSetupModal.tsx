@@ -6,7 +6,6 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
-import { Message } from 'primereact/message';
 import { UserProfilesRow } from '@/types';
 import axios from 'axios';
 import { useToastContext } from '../ToastContext';
@@ -48,7 +47,6 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
         bio: ''
     });
 
-    const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { showToast } = useToastContext();
@@ -98,42 +96,35 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
         }
     }, [isOpen, initialProfile]);
 
-    // 清除消息
-    useEffect(() => {
-        if (message) {
-            const timer = setTimeout(() => setMessage(null), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [message]);
 
     // 提交个人信息
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!formData.nickname.trim()) {
-            setMessage({ type: 'error', text: '请输入昵称！' });
+            showToast({ severity: 'error', summary: '错误', detail: '请输入昵称！' });
             return;
         }
 
         if (!formData.phone.trim()) {
-            setMessage({ type: 'error', text: '请输入手机号！' });
+            showToast({ severity: 'error', summary: '错误', detail: '请输入手机号！' });
             return;
         }
 
         // 验证手机号格式
         const phoneRegex = /^1[3-9]\d{9}$/;
         if (!phoneRegex.test(formData.phone)) {
-            setMessage({ type: 'error', text: '手机号格式不正确！' });
+            showToast({ severity: 'error', summary: '错误', detail: '手机号格式不正确！' });
             return;
         }
 
         if (!formData.address.trim()) {
-            setMessage({ type: 'error', text: '请输入详细地址！' });
+            showToast({ severity: 'error', summary: '错误', detail: '请输入详细地址！' });
             return;
         }
 
         if (formData.address.length < 10) {
-            setMessage({ type: 'error', text: '地址信息过于简单，请填写详细地址！' });
+            showToast({ severity: 'error', summary: '错误', detail: '地址信息过于简单，请填写详细地址！' });
             return;
         }
 
@@ -163,7 +154,7 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
             }
         } catch (error) {
             console.error('保存个人信息失败:', error);
-            setMessage({ type: 'error', text: '保存失败，请稍后重试！' });
+            showToast({ severity: 'error', summary: '错误', detail: '保存失败，请稍后重试！' });
         } finally {
             setIsSubmitting(false);
         }
@@ -227,17 +218,6 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
                                 }}
                             >
                                 <div className="p-4">
-                                    {/* 消息提示 */}
-                                    {message && (
-                                        <div className="mb-4">
-                                            <Message
-                                                severity={message.type === 'success' ? 'success' : message.type === 'error' ? 'error' : 'info'}
-                                                text={message.text}
-                                                className="w-full"
-                                            />
-                                        </div>
-                                    )}
-
                                     {/* 重要提示 */}
                                     <div className="mb-6 p-4 bg-primary-100 border-round">
                                         <div className="flex align-items-center mb-2">
