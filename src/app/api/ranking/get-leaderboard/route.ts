@@ -1,0 +1,37 @@
+import supabase from "@/lib/supabaseClient";
+import { NextResponse } from "next/server";
+import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { GetLeaderboardDto } from "./entity";
+
+export async function POST(req: Request) {
+    // const session = await getServerSession();
+    // if (!session) {
+    //     return NextResponse.json({
+    //         success: false,
+    //         message: "Unauthorized"
+    //     });
+    // }
+
+    const {
+        leaderboardType = 'pullup'
+    } = await req.json() as GetLeaderboardDto;
+
+    const { data: leaderboard, error } = await supabase.functions.invoke('get-leaderboard', {
+        body: { type: leaderboardType }
+    });
+
+    if (error) {
+        return NextResponse.json({
+            success: false,
+            message: error.message
+        });
+    }
+
+    return NextResponse.json({
+        success: true,
+        message: '获取成功',
+        data: {
+            leaderboard
+        }
+    });
+}

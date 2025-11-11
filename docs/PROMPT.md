@@ -16,7 +16,11 @@ async publishContent(reqData: PublishContentDto) {
 }
 ```
 
+鉴权通过 NextAuth 的 getSession() 方法获取用户信息
 具体请看例子：src/app/service/coachService.ts
+
+如果前端出现了 supabase 势力进行数据库访问，你应该把这部分迁移到后端中，并在 @/app/service 中的相关函数写入对应的 API 访问并通过访问替代当前的前端直接询问 supabase
+前端代码尽量使用 toast 函数来向用户发出提醒。
 
 ---
 
