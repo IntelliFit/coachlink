@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Star, Users, Award, ArrowRight, MapPin, Clock, Crown, Eye } from 'lucide-react';
+import { Paginator } from 'primereact/paginator';
 import { Coach } from '@/types/coach';
 import { coachService } from '@/app/dashboard/service/coachService';
+import type { GetAllCoachesDto } from '@/app/api/coach/get-all-coaches/entity';
 
 interface CoachDiscoveryPageProps {
     onSelectCoach: (coachId: string) => void;
@@ -19,35 +21,80 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
     const [error, setError] = useState<string | null>(null);
+    const [totalCount, setTotalCount] = useState(0);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [first, setFirst] = useState(0);
+    const coachesPerPage = 10;
 
     useEffect(() => {
-        const load = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const list = await coachService.getAllCoaches();
-                setCoaches(list as any);
-            } catch (e) {
-                console.error(e);
-                setError('加载教练列表失败');
-                setCoaches([]);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        load();
+        loadCoaches(1);
     }, []);
 
-    const filteredCoaches = coaches.filter(coach => {
-        const matchesSearch = coach.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            coach.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            coach.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+    const loadCoaches = async (page: number) => {
+        setIsLoading(true);
+        setError(null);
+        try {            
+            const res = await coachService.getAllCoaches({
+                page: page,
+                limit: coachesPerPage,
+                search: searchTerm || undefined,
+                specialty: selectedSpecialty !== 'all' ? selectedSpecialty : undefined
+            });
+            if (res) {
+                setCoaches(res.coaches);
+                setTotalCount(res.count);
+            } else {
+                setCoaches([]);
+                setTotalCount(0);
+            }
+        } catch (e) {
+            console.error(e);
+            setError('加载教练列表失败');
+            setCoaches([]);
+            setTotalCount(0);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        const matchesSpecialty = selectedSpecialty === 'all' ||
-            coach.specialties.includes(selectedSpecialty);
+    const onSearchOrFilter = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const reqData: GetAllCoachesDto = {
+                page: 1,
+                limit: coachesPerPage,
+                search: searchTerm || undefined,
+                specialty: selectedSpecialty !== 'all' ? selectedSpecialty : undefined
+            };
+            
+            const res = await coachService.getAllCoaches(reqData);
+            if (res) {
+                setCoaches(res.coaches);
+                setTotalCount(res.count);
+                setCurrentPage(0);
+                setFirst(0);
+            } else {
+                setCoaches([]);
+                setTotalCount(0);
+            }
+        } catch (e) {
+            console.error(e);
+            setError('加载教练列表失败');
+            setCoaches([]);
+            setTotalCount(0);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        return matchesSearch && matchesSpecialty;
-    });
+    const onPageChange = (event: any) => {
+        setCurrentPage(event.page);
+        setFirst(event.first);
+        loadCoaches(event.page + 1);
+    };
+
+    // 移除了客户端过滤，现在由服务端处理搜索和筛选
 
     const allSpecialties = Array.from(new Set(coaches.flatMap(coach => coach.specialties || [])));
 
@@ -176,6 +223,13 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                                 </option>
                             ))}
                         </select>
+                        
+                        <button
+                            onClick={onSearchOrFilter}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                            搜索
+                        </button>
                     </div>
                 </div>
 
@@ -191,7 +245,7 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                             <h3 className="text-lg font-medium text-gray-900 mb-2">{error}</h3>
                             <p className="text-gray-600">稍后再试或刷新页面</p>
                         </div>
-                    ) : filteredCoaches.length === 0 ? (
+                    ) : coaches.length === 0 ? (
                         <div className="text-center py-12">
                             <Eye className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 mb-2">没有找到教练</h3>
@@ -205,9 +259,18 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                     ) : (
                         <>
                             <div className="text-sm text-gray-500 mb-4">
-                                找到 {filteredCoaches.length} 位教练
+                                找到 {totalCount} 位教练
                             </div>
-                            {filteredCoaches.map(renderCoachCard)}
+                            {coaches.map(renderCoachCard)}
+                            
+                            {/* 分页器 */}
+                            <Paginator 
+                                first={first}
+                                rows={coachesPerPage}
+                                totalRecords={totalCount}
+                                onPageChange={onPageChange}
+                                className="mt-6"
+                            />
                         </>
                     )}
                 </div>
