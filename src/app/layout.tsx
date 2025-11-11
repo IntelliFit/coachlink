@@ -8,7 +8,7 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
-import { PrimeReactProvider } from 'primereact/api';
+import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primereact/api';
 import { ProfileSetupModalProvider } from "@/components/shared/ProfileSetupModalContext";
 
 const inter = Inter({ subsets: ['latin'] });
@@ -29,13 +29,18 @@ export default function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
+
+    const primereactConfig: Partial<PrimeReactOptions> = {
+        ripple: true,
+        locale: 'en',
+    };
+
     return (
         <html lang="en">
             <body className={inter.className}>
                 <ThemeProvider>
                     <ClientLayout>
-                        <PrimeReactProvider>
-
+                        <PrimeReactProvider value={primereactConfig}>
                             <ProfileSetupModalProvider>
                                 <Navigation />
                             </ProfileSetupModalProvider>

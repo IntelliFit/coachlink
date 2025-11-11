@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { TabView, TabPanel } from 'primereact/tabview';
 import { useRouter, usePathname } from 'next/navigation';
+import { TabMenu } from 'primereact/tabmenu';
+import type { MenuItem } from 'primereact/menuitem';
+import type { TabMenuTabChangeEvent } from 'primereact/tabmenu';
 
 interface CoachLayoutProps {
     children: React.ReactNode;
 }
 
-const COACH_TABS = [
+const COACH_TABS: { label: string; path: string }[] = [
     { label: '我的订阅', path: '/coach/subscription' },
     { label: '发现教练', path: '/coach/discovery' }
 ];
@@ -23,33 +25,22 @@ const CoachLayout: React.FC<CoachLayoutProps> = ({ children }) => {
         return index >= 0 ? index : 0;
     }, [pathname]);
 
-    const handleTabChange = (index: number) => {
-        router.push(COACH_TABS[index].path);
+    const handleTabChange = (e: TabMenuTabChangeEvent) => {
+        router.push(COACH_TABS[e.index].path);
     };
 
     return (
-        <div className="flex min-h-screen flex-col p-4 md:p-8">
-            <div className="w-full max-w-6xl mx-auto space-y-8">
-                {/* 顶部标题 */}
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl md:text-3xl font-bold">教练</h1>
-                </div>
+        <div className="min-h-screen">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+                {/* 顶部导航 */}
+                <TabMenu
+                    model={COACH_TABS as MenuItem[]}
+                    activeIndex={activeIndex}
+                    onTabChange={handleTabChange}
+                />
 
-                {/* 主体卡片 */}
-                <div className="">
-                    <div className="p-4 md:p-6">
-                        <TabView
-                            activeIndex={activeIndex}
-                            onTabChange={(e) => handleTabChange(e.index)}
-                        >
-                            {COACH_TABS.map((tab) => (
-                                <TabPanel key={tab.path} header={tab.label} />
-                            ))}
-                        </TabView>
-
-                        <div className="py-4">{children}</div>
-                    </div>
-                </div>
+                {/* 子页面内容 */}
+                <div>{children}</div>
             </div>
         </div>
     );

@@ -211,11 +211,6 @@ const CoachDiscoveryPage: React.FC<CoachDiscoveryPageProps> = ({
                             <h1 className="text-2xl font-bold text-gray-900">发现教练</h1>
                             <p className="text-gray-600 mt-1">找到最适合你的专业健身教练</p>
                         </div>
-                        <Button
-                            onClick={onBack}
-                            label="返回"
-                            className="p-button-text"
-                        />
                     </div>
 
                     {/* 搜索和筛选 */}
