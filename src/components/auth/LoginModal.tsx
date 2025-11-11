@@ -8,7 +8,7 @@ import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
 import { Card } from 'primereact/card';
 import { FloatLabel } from 'primereact/floatlabel';
-import { useToastContext } from '@/components/ToastContext';
+import { useToastContext } from '@/context/ToastContext';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';

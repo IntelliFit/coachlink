@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode, useState } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { ToastContextProvider } from "./ToastContext";
+import { ToastContextProvider } from "../context/ToastContext";
 import { LoginModalProvider } from './auth/LoginModalContext';
 import { SessionProvider } from 'next-auth/react';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 
 export default function ClientLayout({
     children,
@@ -12,6 +14,26 @@ export default function ClientLayout({
     children: ReactNode;
 }) {
     const { theme } = useTheme();
+
+    const [lenis, setLenis] = useState<Lenis | null>(null);
+
+    const preventLenisOnSide = () => {
+        (document.querySelectorAll('aside') || []).forEach(el => {
+            el.setAttribute('data-lenis-prevent', '');
+        });
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const lenisInstance = new Lenis({
+            autoRaf: true,
+        });
+
+        setLenis(lenisInstance);
+
+        return () => lenisInstance.destroy();
+    }, []);
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
