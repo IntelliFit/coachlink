@@ -5,6 +5,7 @@ import { Toast } from 'primereact/toast';
 import { useSession } from 'next-auth/react';
 import { rankingService } from '@/app/service/rankingService';
 import { useParams } from 'next/navigation';
+import { Card } from 'primereact/card';
 
 import LeaderboardHeader from './LeaderboardHeader';
 import ActivityInfo from './ActivityInfo';
@@ -15,6 +16,20 @@ import SubmissionDialog from './SubmissionDialog';
 export default function PullupLeaderboardPage() {
     const params = useParams();
     const action = params.action || '';
+    
+    // 如果action不是pullup，显示敬请期待信息
+    if (action !== 'pullup') {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 p-4 sm:p-6 md:p-10">
+                <div className="max-w-6xl mx-auto flex flex-col gap-10">
+                    <Card className="text-center p-8">
+                        <h1 className="text-2xl font-bold mb-4">活动尚未开始</h1>
+                        <p className="text-lg">敬请期待更多精彩的活动内容！</p>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
     
     const { data: session } = useSession();
     const [records, setRecords] = useState<any[]>([]);
