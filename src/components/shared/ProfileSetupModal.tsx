@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
@@ -93,9 +93,16 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
                 fitness_level: initialProfile.fitness_level as any || '',
                 bio: initialProfile.bio || ''
             });
+
+            const timer = setTimeout(() => {
+                document.querySelectorAll('.p-dialog-content').forEach(el => {
+                    el.setAttribute('data-lenis-prevent', '');
+                });
+            }, 0);
+
+            return () => clearTimeout(timer);
         }
     }, [isOpen, initialProfile]);
-
 
     // 提交个人信息
     const handleSubmit = async (e: React.FormEvent) => {
@@ -144,7 +151,7 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
                 fitness_level: formData.fitness_level || undefined,
                 bio: formData.bio || undefined
             });
-            
+
             if (response.data && response.data.success) {
                 showToast({ severity: 'success', summary: '成功', detail: '个人信息保存成功！' });
 
