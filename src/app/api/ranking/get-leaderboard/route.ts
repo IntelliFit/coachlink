@@ -27,11 +27,14 @@ export async function POST(req: Request) {
         });
     }
 
+    const records = leaderboard.data || [];
+    const success = leaderboard.success ?? true;
+
     return NextResponse.json({
-        success: true,
+        success,
         message: '获取成功',
         data: {
-            leaderboard
+            records
         }
     });
 }

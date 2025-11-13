@@ -3,5 +3,5 @@ export interface GetLeaderboardDto {
 }
 
 export interface GetLeaderboardResponseDto {
-    data: any
+    records: any[]
 }
