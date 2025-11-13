@@ -34,6 +34,7 @@ export const authOptions: AuthOptions = {
                 }
 
                 // 返回用户信息（会保存到 token / session）
+                (user as any).password_hash = undefined;
                 return user;
             },
         }),
@@ -44,6 +45,7 @@ export const authOptions: AuthOptions = {
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
+                (user as any).password_hash = undefined;
                 token.user = user;
             }
             return token;
@@ -54,7 +56,8 @@ export const authOptions: AuthOptions = {
                 // 说明此时没有登陆
                 return session;
             }
-            
+
+            (user as any).password_hash = undefined;
             session.user = token.user;
 
             const { data: profile, error } = await supabase
