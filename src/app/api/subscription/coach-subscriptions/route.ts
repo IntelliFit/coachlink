@@ -23,6 +23,8 @@ async function embeddingCaochesIntoSubscriptions(subscriptions: CoachSubscriptio
             coach: coaches.get(subscription.coach_id) as CoachesRow | null
         });
     }
+
+    return querySubscriptions;
 }
 
 export async function POST(req: Request) {
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
     const {
         studentId = '',
         coachId = '',    
-    } = await req.json() as CoachSubscriptionGetDto;
+    } = await req.json() as CoachSubscriptionGetDto;    
 
     if (studentId) {
         const { data: subscriptions, error: subscriptionsError } = await supabase
@@ -48,7 +50,7 @@ export async function POST(req: Request) {
             .eq('student_id', studentId)
             .eq('status', 'active')
             .order('created_at', { ascending: false });
-
+            
         if (subscriptionsError || !subscriptions) {
             return NextResponse.json({
                 success: false,
@@ -59,9 +61,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true,
-            message: '获取训练计划成功',
+            message: '获取订阅教练成功',
             data: {
-                subscriptions: embeddingCaochesIntoSubscriptions(subscriptions),
+                subscriptions: await embeddingCaochesIntoSubscriptions(subscriptions),
                 studentId
             },
         });
@@ -83,9 +85,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true,
-            message: '获取训练计划成功',
+            message: '获取订阅教练成功',
             data: {
-                subscriptions: embeddingCaochesIntoSubscriptions(subscriptions),
+                subscriptions: await embeddingCaochesIntoSubscriptions(subscriptions),
                 coachId
             },
         });
