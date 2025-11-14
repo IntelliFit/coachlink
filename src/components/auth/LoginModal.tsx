@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
@@ -47,11 +47,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     life: 5000,
                 });
             } else {
+                
                 showToast({
                     severity: 'success',
                     summary: '登录成功',
-                    detail: '欢迎回来，正在跳转到仪表板...',
-                    life: 3000,
+                    detail: '欢迎回来',
                 });
 
                 onClose?.();

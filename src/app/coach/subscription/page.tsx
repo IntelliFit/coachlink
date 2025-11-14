@@ -123,8 +123,8 @@ const SubscriptionDashboard = () => {
             <div className="text-center py-12">
                 <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">还没有订阅任何教练</h3>
-                <p className="text-gray-600 mb-6">选择专业教练，开始您的健身之旅</p>
-                <Button label="浏览教练" className="bg-primary px-6 py-3 rounded-lg" onClick={() => router.push('/coach/discovery')} />
+                <p className="text-gray-600 mb-6 dark:text-gray-400">选择专业教练，开始您的健身之旅</p>
+                <Button label="浏览教练" className="p-button-primary px-6 py-3" onClick={() => router.push('/coach/discovery')} />
             </div>
         )
 
@@ -136,15 +136,15 @@ const SubscriptionDashboard = () => {
 
                     const available = getServicesByTier(subscription.tier).filter(x => x.available)
                     return (
-                        <Card key={subscription.id} className="overflow-hidden">
-                            <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-6 text-surface">
+                        <div key={subscription.id} className="shadow-sm rounded-lg overflow-hidden p-card">
+                            <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-surface">
                                 <div className="flex items-center space-x-4">
                                     <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
                                         <span className="text-xl font-bold">{subscription.coach?.name.charAt(0)}</span>
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="text-lg font-semibold">{subscription.coach?.name}</h3>
-                                        <p className="text-blue-100 text-sm">{subscription.coach?.title}</p>
+                                        <p className="text-primary-100 text-sm">{subscription.coach?.title}</p>
                                         <div className="flex items-center space-x-1 mt-1">
                                             <Star className="w-4 h-4 text-yellow-300 fill-current" />
                                             <span className="text-sm">{subscription.coach?.rating}</span>
@@ -153,80 +153,81 @@ const SubscriptionDashboard = () => {
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
                                     <div>
-                                        <div className="text-sm text-blue-100">订阅等级</div>
+                                        <div className="text-sm text-primary-100">订阅等级</div>
                                         <div className="text-lg font-bold">Tier {subscription.tier}</div>
                                     </div>
                                     <Tag value={status.text} severity={status.color as any} className="text-xs font-medium px-3 py-1" />
                                 </div>
                             </div>
                             <div className="p-6">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-4">可用服务</h4>
+                                <h4 className="text-sm font-semibold text-gray-700 mb-4 dark:text-gray-300">可用服务</h4>
                                 <div className="space-y-3">
                                     {available.map(service => {
                                         const Icon = service.icon
                                         return (
-                                            <Button
+                                            <div
                                                 key={service.id}
                                                 onClick={() => onAccessService(service.id, subscription.coach_id)}
-                                                className="w-full justify-start bg-gray-50 hover:bg-gray-100 text-left p-3 rounded-lg flex items-center space-x-3"
+                                                className="w-full justify-start p-button-text text-left p-3 rounded-lg cursor-pointer
+                                                          flex items-center space-x-3 bg-surface-100 hover:bg-surface-200"
                                             >
                                                 <div className={`w-10 h-10 ${service.color} rounded-lg flex items-center justify-center`}>
                                                     <Icon className="w-5 h-5 text-surface" />
                                                 </div>
                                                 <div className="flex-1 text-left">
                                                     <div className="text-sm font-medium">{service.name}</div>
-                                                    <div className="text-xs text-gray-500">{service.desc}</div>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400">{service.desc}</div>
                                                 </div>
                                                 <ArrowRight className="w-4 h-4 text-gray-400" />
-                                            </Button>
+                                            </div>
                                         )
                                     })}
                                 </div>
                                 {status.status === 'expiring' && (
-                                    <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                                    <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg dark:bg-primary-900 dark:border-primary-700">
                                         <div className="flex items-center space-x-2">
-                                            <Clock className="w-4 h-4 text-primary-600" />
-                                            <span className="text-sm text-primary-800">订阅即将到期</span>
+                                            <Clock className="w-4 h-4 text-primary-600 dark:text-primary-300" />
+                                            <span className="text-sm text-primary-800 dark:text-primary-200">订阅即将到期</span>
                                         </div>
-                                        <Button label="立即续费" className="mt-2 w-full bg-primary-500 text-surface text-sm" />
+                                        <Button label="立即续费" className="mt-2 w-full p-button-primary text-sm" />
                                     </div>
                                 )}
                             </div>
-                        </Card>
+                        </div>
                     )
                 })}
             </div>
 
-            <Card className="p-6">
+            <div className="p-6 shadow-sm rounded-lg p-card">
                 <h3 className="text-lg font-semibold mb-6">训练统计</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <Stat icon={Brain} color="bg-blue-100 text-blue-600" value={stats.aiPlans} label="AI训练计划" />
-                    <Stat icon={Video} color="bg-green-100 text-green-600" value={stats.videoReviews} label="视频点评" />
-                    <Stat icon={MessageCircle} color="bg-purple-100 text-purple-600" value={stats.messages} label="聊天消息" />
-                    <Stat icon={BarChart3} color="bg-primary-100 text-primary-600" value={stats.trainingDays} label="训练天数" />
+                    <Stat icon={Brain} color="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300" value={stats.aiPlans} label="AI训练计划" />
+                    <Stat icon={Video} color="bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300" value={stats.videoReviews} label="视频点评" />
+                    <Stat icon={MessageCircle} color="bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300" value={stats.messages} label="聊天消息" />
+                    <Stat icon={BarChart3} color="bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-300" value={stats.trainingDays} label="训练天数" />
                 </div>
-            </Card>
+            </div>
 
-            <Card className="p-6">
+            <div className="p-6 shadow-sm rounded-lg p-card">
                 <h3 className="text-lg font-semibold mb-6">最近活动</h3>
                 {activities.length === 0 ? (
-                    <div className="text-center text-gray-500">暂无活动</div>
+                    <div className="text-center text-gray-500 dark:text-gray-400">暂无活动</div>
                 ) : (
                     <div className="space-y-4">
                         {activities.map((a, i) => (
-                            <div key={i} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                            <div key={i} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg dark:bg-gray-800">
                                 <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                                     <Target className="w-5 h-5 text-surface" />
                                 </div>
                                 <div className="flex-1">
                                     <div className="text-sm font-medium">{a.text}</div>
-                                    <div className="text-xs text-gray-500">{new Date(a.time).toLocaleString()}</div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">{new Date(a.time).toLocaleString()}</div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-            </Card>
+            </div>
         </div>
     )
 }
@@ -237,7 +238,7 @@ const Stat = ({ icon: Icon, color, value, label }: any) => (
             <Icon className="w-6 h-6" />
         </div>
         <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm text-gray-600">{label}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">{label}</div>
     </div>
 )
 
