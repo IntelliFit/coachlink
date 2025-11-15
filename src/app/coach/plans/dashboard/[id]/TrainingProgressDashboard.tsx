@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { userService } from '@/app/service/userService';
 import {
     TrendingUp,
     Award,
@@ -11,48 +11,22 @@ import {
     XCircle,
     RotateCcw
 } from 'lucide-react';
+import type { GetTrainingProgressResponseDto } from '@/app/api/user/get-training-progress/entity';
+import type { GetPersonalRecordsResponseDto } from '@/app/api/user/get-personal-records/entity';
+import type { GetWeeklyProgressResponseDto } from '@/app/api/user/get-weekly-progress/entity';
 
 interface TrainingProgressDashboardProps {
     userId: string;
     trainingPlanId?: string;
 }
 
-interface ProgressStats {
-    totalSessions: number;
-    completedSessions: number;
-    skippedSessions: number;
-    currentStreak: number;
-    totalExercises: number;
-    completedExercises: number;
-    totalVolume: number;
-    avgRPE: number;
-    progressPercentage: number;
-    lastTrainingDate?: string;
-}
-
-interface PersonalRecord {
-    id: string;
-    exercise_name: string;
-    max_weight: number;
-    max_reps: number;
-    date_achieved: string;
-    notes?: string;
-}
-
-interface WeeklyProgress {
-    week: number;
-    completed: number;
-    total: number;
-    percentage: number;
-}
-
 const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
     userId,
     trainingPlanId
 }) => {
-    const [stats, setStats] = useState<ProgressStats | null>(null);
-    const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
-    const [weeklyProgress, setWeeklyProgress] = useState<WeeklyProgress[]>([]);
+    const [stats, setStats] = useState<GetTrainingProgressResponseDto | null>(null);
+    const [personalRecords, setPersonalRecords] = useState<GetPersonalRecordsResponseDto['personalRecords']>([]);
+    const [weeklyProgress, setWeeklyProgress] = useState<GetWeeklyProgressResponseDto['weeklyProgress']>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTimeRange, setSelectedTimeRange] = useState<'week' | 'month' | 'all'>('week');
 
@@ -74,146 +48,46 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
     };
 
     const loadTrainingStats = async () => {
-        // 以真实数据为准：training_plan_details + workout_logs
-        // 1) 计划总天次
-        const { data: details } = await supabase
-            .from('training_plan_details')
-            .select('week_number, day_of_week, main_exercises, accessory_exercises')
-            .eq('training_plan_id', trainingPlanId);
-
-        const totalSessions = details?.length || 0;
-        const totalExercises = (details || []).reduce((sum: number, d: any) => {
-            const mainCount = Array.isArray(d?.main_exercises) ? d.main_exercises.length : 0;
-            const accCount = Array.isArray(d?.accessory_exercises) ? d.accessory_exercises.length : 0;
-            return sum + mainCount + accCount;
-        }, 0);
-
-        // 2) 已完成天次和训练量、最近一次训练
-        const { data: logs } = await supabase
-            .from('workout_logs')
-            .select('id, week_number, log_date, entries')
-            .eq('user_id', userId)
-            .eq('training_plan_id', trainingPlanId);
-
-        const completedSessions = logs?.length || 0;
-        const lastTrainingDate = logs && logs.length > 0
-            ? logs.map((l: any) => l.log_date).sort().slice(-1)[0]
-            : undefined;
-
-        // 估算总训练量：对 entries 中的每个动作，取 load_actual*reps_completed 的和
-        const parseReps = (val: any): number => {
-            if (typeof val === 'number') return val;
-            if (typeof val === 'string') {
-                const m = val.match(/\d+/g);
-                return m ? m.map(Number).reduce((a, b) => a + b, 0) : 0;
+        try {
+            const data = await userService.getTrainingProgress({ 
+                user_id: userId, 
+                training_plan_id: trainingPlanId 
+            });
+            
+            if (data) {
+                setStats(data);
             }
-            return 0;
-        };
-        const totalVolume = (logs || []).reduce((sum: number, log: any) => {
-            const list = Array.isArray(log.entries) ? log.entries : [];
-            const vol = list.reduce((s: number, e: any) => {
-                const reps = parseReps(e?.reps_completed ?? e?.reps_planned ?? 0);
-                const load = Number(e?.load_actual ?? e?.load_planned ?? 0) || 0;
-                return s + reps * load;
-            }, 0);
-            return sum + vol;
-        }, 0);
-
-        // 3) 连续天数：从今天起向前检查连续有日志的天数
-        const logSet = new Set((logs || []).map((l: any) => String(l.log_date)));
-        let currentStreak = 0;
-        const today = new Date();
-        for (let i = 0; i < 30; i++) { // 最多回溯30天
-            const d = new Date(today);
-            d.setDate(today.getDate() - i);
-            const key = d.toISOString().split('T')[0];
-            if (logSet.has(key)) currentStreak++;
-            else break;
+        } catch (error) {
+            console.error('加载训练统计数据失败:', error);
         }
-
-        const progressPercentage = totalSessions > 0
-            ? Math.min(100, Math.round((completedSessions / totalSessions) * 100))
-            : 0;
-
-        setStats({
-            totalSessions,
-            completedSessions,
-            skippedSessions: Math.max(0, totalSessions - completedSessions),
-            currentStreak,
-            totalExercises,
-            completedExercises: 0,
-            totalVolume,
-            avgRPE: 0,
-            progressPercentage,
-            lastTrainingDate,
-        });
     };
 
     const loadPersonalRecords = async () => {
-        const { data, error } = await supabase
-            .from('personal_records')
-            .select('*')
-            .eq('user_id', userId)
-            .order('date_achieved', { ascending: false })
-            .limit(10);
-
-        if (!error && data) {
-            setPersonalRecords(data);
+        try {
+            const data = await userService.getPersonalRecords({ user_id: userId });
+            
+            if (data) {
+                setPersonalRecords(data.personalRecords);
+            }
+        } catch (error) {
+            console.error('加载个人记录失败:', error);
         }
     };
 
     const loadWeeklyProgress = async () => {
-        // 以计划明细和日志聚合构建每周进度
-        const { data: plan } = await supabase
-            .from('training_plans')
-            .select('duration_weeks')
-            .eq('id', trainingPlanId)
-            .single();
-        const durationWeeks = plan?.duration_weeks || 6;
-
-        const { data: details } = await supabase
-            .from('training_plan_details')
-            .select('week_number')
-            .eq('training_plan_id', trainingPlanId);
-        const totalPerWeek: Record<number, number> = {};
-        (details || []).forEach((d: any) => {
-            totalPerWeek[d.week_number] = (totalPerWeek[d.week_number] || 0) + 1;
-        });
-
-        const { data: logs } = await supabase
-            .from('workout_logs')
-            .select('week_number')
-            .eq('user_id', userId)
-            .eq('training_plan_id', trainingPlanId);
-        const completedPerWeek: Record<number, number> = {};
-        (logs || []).forEach((l: any) => {
-            completedPerWeek[l.week_number] = (completedPerWeek[l.week_number] || 0) + 1;
-        });
-
-        const allWeeks: WeeklyProgress[] = [];
-        for (let w = 1; w <= durationWeeks; w++) {
-            const total = totalPerWeek[w] || 0;
-            const completed = Math.min(total, completedPerWeek[w] || 0);
-            allWeeks.push({
-                week: w,
-                completed,
-                total,
-                percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+        try {
+            const data = await userService.getWeeklyProgress({ 
+                user_id: userId, 
+                training_plan_id: trainingPlanId,
+                time_range: selectedTimeRange
             });
+            
+            if (data) {
+                setWeeklyProgress(data.weeklyProgress);
+            }
+        } catch (error) {
+            console.error('加载周进度失败:', error);
         }
-
-        // 根据选择范围筛选显示
-        const latestWeek = (logs || []).reduce((m: number, l: any) => Math.max(m, l.week_number || 1), 1) || 1;
-        let display: WeeklyProgress[] = allWeeks;
-        if (selectedTimeRange === 'week') {
-            display = allWeeks.filter(w => w.week === latestWeek);
-        } else if (selectedTimeRange === 'month') {
-            const start = Math.max(1, latestWeek);
-            const end = Math.min(durationWeeks, start + 3);
-            display = allWeeks.filter(w => w.week >= start && w.week <= end);
-        }
-
-        setWeeklyProgress(display);
     };
 
     const formatDate = (dateString: string) => {
