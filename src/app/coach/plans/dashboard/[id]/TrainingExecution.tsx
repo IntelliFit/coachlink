@@ -18,6 +18,7 @@ import {
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
 import studentService from '@/app/service/studentService';
+import { Skeleton } from 'primereact/skeleton';
 
 interface Exercise {
     id?: string;
@@ -608,8 +609,12 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="space-y-4">
+                <Skeleton width="100%" height="8rem" />
+                <Skeleton width="100%" height="4rem" />
+                <Skeleton width="100%" height="6rem" />
+                <Skeleton width="100%" height="4rem" />
+                <Skeleton width="100%" height="6rem" />
             </div>
         );
     }
@@ -655,8 +660,8 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             {/* 消息提示 */}
             {message && (
                 <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-800' :
-                        message.type === 'error' ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
+                    message.type === 'error' ? 'bg-red-100 text-red-800' :
+                        'bg-blue-100 text-blue-800'
                     }`}>
                     {message.text}
                     <button

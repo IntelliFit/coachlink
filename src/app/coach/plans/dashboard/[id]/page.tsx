@@ -140,84 +140,99 @@ const TrainingPlanDashboard: React.FC = () => {
         <div className="max-w-6xl mx-auto p-4">
 
             {/* 训练计划头部 */}
-            {trainingPlan && (
-                <div className="bg-gradient-to-r from-primary-500 to-red-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
-                    <div className="flex flex-column md:flex-row justify-content-between gap-4">
+            <div className="mb-6">
 
-                        {/* 左侧信息 */}
-                        <div className="flex-1">
-                            {/* 返回按钮 + 标题 */}
-                            <div className="flex align-items-center mb-4">
-                                <Button
-                                    icon="pi pi-arrow-left"
-                                    className="p-button-rounded p-button-text text-white mr-3 hover:bg-white/20 transition-colors"
-                                    onClick={() => router.back()}
-                                />
-                                <h1 className="text-2xl font-bold tracking-wide m-0">
-                                    {trainingPlan.title}
-                                </h1>
-                            </div>
-
-                            {/* 描述 */}
-                            <p className="opacity-90 mb-4 leading-relaxed">
-                                {trainingPlan.description}
-                            </p>
-
-                            {/* 信息标签组 */}
-                            <div className="flex flex-wrap align-items-center gap-3 text-sm opacity-95">
-
-                                <div className="flex align-items-center bg-white/10 px-3 py-1 rounded-full">
-                                    <Clock className="w-4 h-4 mr-2" />
-                                    <span>{trainingPlan.duration_weeks}周</span>
+                {/* 加载中 —— 使用 Skeleton 骨架屏 */}
+                {loading && (
+                    <div className="bg-gray-200 dark:bg-gray-800 rounded-2xl p-6 shadow-md animate-pulse">
+                        <div className="flex flex-column md:flex-row justify-content-between gap-4">
+                            <div className="flex-1">
+                                {/* 返回按钮 + 标题骨架 */}
+                                <div className="flex align-items-center mb-4">
+                                    <div className="w-3rem h-3rem bg-gray-300 dark:bg-gray-700 rounded-full mr-3"></div>
+                                    <div className="h-2rem w-10rem bg-gray-300 dark:bg-gray-700 rounded"></div>
                                 </div>
 
-                                <div className="flex align-items-center bg-white/10 px-3 py-1 rounded-full capitalize">
-                                    <Target className="w-4 h-4 mr-2" />
-                                    <span>{trainingPlan.difficulty_level}</span>
+                                {/* 描述骨架 */}
+                                <div className="h-1rem w-3/4 bg-gray-300 dark:bg-gray-700 rounded mb-3"></div>
+                                <div className="h-1rem w-2/4 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
+
+                                {/* 信息标签骨架 */}
+                                <div className="flex gap-3">
+                                    <div className="h-2rem w-6rem bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                                    <div className="h-2rem w-6rem bg-gray-300 dark:bg-gray-700 rounded-full"></div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 右上图标 */}
-                        <div className="flex justify-content-center md:justify-content-end">
-                            <Award className="w-12 h-12 opacity-80 drop-shadow-md" />
+                            {/* 右侧图标骨架 */}
+                            <div className="flex justify-content-center md:justify-content-end">
+                                <div className="w-12 h-12 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                            </div>
                         </div>
-
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* 数据加载完成后显示实际 UI */}
+                {!loading && trainingPlan && (
+                    <div className="bg-gradient-to-r from-primary-500 to-red-500 rounded-2xl p-6 text-white shadow-lg">
+                        <div className="flex flex-column md:flex-row justify-content-between gap-4">
+
+                            {/* 左侧信息 */}
+                            <div className="flex-1">
+                                <div className="flex align-items-center mb-4">
+                                    <Button
+                                        icon="pi pi-arrow-left"
+                                        className="p-button-rounded p-button-text text-white mr-3 hover:bg-white/20 transition-colors"
+                                        onClick={() => router.back()}
+                                    />
+                                    <h1 className="text-2xl font-bold tracking-wide m-0">
+                                        {trainingPlan.title}
+                                    </h1>
+                                </div>
+
+                                <p className="opacity-90 mb-4 leading-relaxed">
+                                    {trainingPlan.description}
+                                </p>
+
+                                <div className="flex flex-wrap align-items-center gap-3 text-sm opacity-95">
+                                    <div className="flex align-items-center bg-white/10 px-3 py-1 rounded-full">
+                                        <Clock className="w-4 h-4 mr-2" />
+                                        <span>{trainingPlan.duration_weeks}周</span>
+                                    </div>
+
+                                    <div className="flex align-items-center bg-white/10 px-3 py-1 rounded-full capitalize">
+                                        <Target className="w-4 h-4 mr-2" />
+                                        <span>{trainingPlan.difficulty_level}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-content-center md:justify-content-end">
+                                <Award className="w-12 h-12 opacity-80 drop-shadow-md" />
+                            </div>
+
+                        </div>
+                    </div>
+                )}
+
+            </div>
+
 
             {/* 标签页导航 */}
             <div>
                 <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
                     <TabPanel header="今日训练" leftIcon="pi pi-play mr-2">
-                        {loading ? (
-                            <div className="flex flex-column gap-3">
-                                <Skeleton width="100%" height="150px" />
-                                <Skeleton width="100%" height="50px" />
-                                <Skeleton width="100%" height="200px" />
-                            </div>
-                        ) : (
-                            <TrainingExecution
-                                trainingPlanId={trainingPlanId as string}
-                                userId={session?.user?.id || ''}
-                                onSessionComplete={handleSessionComplete}
-                            />
-                        )}
+                        <TrainingExecution
+                            trainingPlanId={trainingPlanId as string}
+                            userId={session?.user?.id || ''}
+                            onSessionComplete={handleSessionComplete}
+                        />
                     </TabPanel>
                     <TabPanel header="训练进度" leftIcon="pi pi-chart-line mr-2">
-                        {loading ? (
-                            <div className="flex flex-column gap-3">
-                                <Skeleton width="100%" height="200px" />
-                                <Skeleton width="100%" height="150px" />
-                                <Skeleton width="100%" height="100px" />
-                            </div>
-                        ) : (
-                            <TrainingProgressDashboard
-                                userId={session?.user?.id || ''}
-                                trainingPlanId={trainingPlanId as string}
-                            />
-                        )}
+                        <TrainingProgressDashboard
+                            userId={session?.user?.id || ''}
+                            trainingPlanId={trainingPlanId as string}
+                        />
                     </TabPanel>
                     <TabPanel header="训练计划" leftIcon="pi pi-calendar mr-2">
                         {loading ? (
@@ -242,17 +257,10 @@ const TrainingPlanDashboard: React.FC = () => {
                         )}
                     </TabPanel>
                     <TabPanel header="训练提醒" leftIcon="pi pi-bell mr-2">
-                        {loading ? (
-                            <div className="flex flex-column gap-3">
-                                <Skeleton width="100%" height="100px" />
-                                <Skeleton width="100%" height="200px" />
-                            </div>
-                        ) : (
-                            <TrainingReminder
-                                userId={session?.user?.id || ''}
-                                trainingPlanId={trainingPlanId as string}
-                            />
-                        )}
+                        <TrainingReminder
+                            userId={session?.user?.id || ''}
+                            trainingPlanId={trainingPlanId as string}
+                        />
                     </TabPanel>
                 </TabView>
             </div>

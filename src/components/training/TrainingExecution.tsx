@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Award
 } from 'lucide-react';
+import { Skeleton } from 'primereact/skeleton';
 
 interface Exercise {
   id?: string;
@@ -616,8 +617,12 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="space-y-4">
+        <Skeleton width="100%" height="8rem" />
+        <Skeleton width="100%" height="4rem" />
+        <Skeleton width="100%" height="6rem" />
+        <Skeleton width="100%" height="4rem" />
+        <Skeleton width="100%" height="6rem" />
       </div>
     );
   }
@@ -625,11 +630,11 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
   if (!currentSession) {
     return (
       <div className="text-center py-8">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Target className="w-8 h-8 text-gray-400" />
+        <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
+          <Target className="w-8 h-8 text-400" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">今日无训练安排</h3>
-        <p className="text-gray-600">休息日是恢复的重要部分</p>
+        <h3 className="text-lg font-medium text-900 mb-2">今日无训练安排</h3>
+        <p className="text-600">休息日是恢复的重要部分</p>
       </div>
     );
   }
@@ -640,8 +645,8 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Check className="w-8 h-8 text-green-600" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">今日训练已完成！</h3>
-        <p className="text-gray-600">继续保持，期待明天的训练</p>
+        <h3 className="text-lg font-medium text-900 mb-2">今日训练已完成！</h3>
+        <p className="text-600">继续保持，期待明天的训练</p>
       </div>
     );
   }
@@ -652,8 +657,8 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
         <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <RotateCcw className="w-8 h-8 text-yellow-600" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">今日训练已跳过</h3>
-        <p className="text-gray-600">{currentSession.notes || '明天继续加油！'}</p>
+        <h3 className="text-lg font-medium text-900 mb-2">今日训练已跳过</h3>
+        <p className="text-600">{currentSession.notes || '明天继续加油！'}</p>
       </div>
     );
   }
@@ -677,14 +682,14 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
         </div>
       )}
       {/* 头部信息 */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white">
+      <div className="bg-gradient-to-r from-primary-500 to-purple-600 rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">{currentSession.session_focus}</h2>
-            <p className="text-blue-100">第{currentSession.week_number}周 · {getDayOfWeekFromDate(currentSession.day_of_week)}</p>
+            <p className="text-primary-100">第{currentSession.week_number}周 · {getDayOfWeekFromDate(currentSession.day_of_week)}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-blue-100">{currentSession.exercises.length}个动作</p>
+            <p className="text-sm text-primary-100">{currentSession.exercises.length}个动作</p>
             <p className="text-2xl font-bold">{currentSession.exercises.reduce((acc, ex) => acc + ex.sets_planned, 0)}组</p>
           </div>
         </div>
@@ -710,14 +715,14 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             <div key={index} className="border rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-gray-900">{exercise.name}</h3>
-                  <p className="text-sm text-gray-600">{exercise.sets_planned}组 × {exercise.reps_planned}</p>
+                  <h3 className="font-semibold text-900">{exercise.name}</h3>
+                  <p className="text-sm text-600">{exercise.sets_planned}组 × {exercise.reps_planned}</p>
                 </div>
                 <div className="text-right">
                   {exercise.load_planned && (
-                    <p className="text-sm font-medium text-gray-900">{exercise.load_planned}kg</p>
+                    <p className="text-sm font-medium text-900">{exercise.load_planned}kg</p>
                   )}
-                  <p className="text-sm text-gray-600">休息{exercise.rest_time || 180}s</p>
+                  <p className="text-sm text-600">休息{exercise.rest_time || 180}s</p>
                 </div>
               </div>
 
@@ -725,7 +730,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
               <div className="space-y-2">
                 {Array.from({ length: exercise.sets_planned }, (_, i) => i + 1).map(setNumber => (
                   <div key={setNumber} className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm font-medium"
+                    <div className="w-8 h-8 rounded-full border-2 border-300 flex items-center justify-center text-sm font-medium"
                       style={{
                         backgroundColor: (exercise.sets_completed || 0) >= setNumber ? '#10B981' : 'transparent',
                         color: (exercise.sets_completed || 0) >= setNumber ? 'white' : '#374151',
@@ -752,7 +757,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                             }
                           }}
                         />
-                        <span className="text-sm text-gray-600">次</span>
+                        <span className="text-sm text-600">次</span>
                       </div>
                     )}
                   </div>
@@ -761,7 +766,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
               {/* 动作说明 */}
               {exercise.notes && (
-                <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-600">
+                <div className="mt-3 p-3 bg-surface-50 rounded text-sm text-600">
                   {exercise.notes}
                 </div>
               )}
@@ -773,16 +778,16 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
       {/* 休息时间 */}
       {isResting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 text-center">
-            <Clock className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+          <div className="bg-surface rounded-lg p-8 text-center">
+            <Clock className="w-12 h-12 text-primary-600 mx-auto mb-4" />
             <h3 className="text-xl font-bold mb-2">休息时间</h3>
-            <p className="text-3xl font-mono text-blue-600">{formatTime(restTimeLeft)}</p>
+            <p className="text-3xl font-mono text-primary-600">{formatTime(restTimeLeft)}</p>
             <button
               onClick={() => {
                 setIsResting(false);
                 setRestTimeLeft(0);
               }}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
               跳过休息
             </button>
@@ -792,11 +797,11 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
       {/* 会话完成 */}
       {currentSession.status === 'in_progress' && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-6 p-4 bg-surface-50 rounded-lg">
           <h3 className="font-semibold mb-3">训练完成</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">训练感受 (RPE 1-10)</label>
+              <label className="block text-sm font-medium text-700 mb-1">训练感受 (RPE 1-10)</label>
               <select
                 className="w-full px-3 py-2 border rounded-lg"
                 onChange={(e) => {
@@ -811,7 +816,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">精力水平 (1-10)</label>
+              <label className="block text-sm font-medium text-700 mb-1">精力水平 (1-10)</label>
               <select
                 className="w-full px-3 py-2 border rounded-lg"
                 onChange={(e) => {
@@ -826,7 +831,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+              <label className="block text-sm font-medium text-700 mb-1">备注</label>
               <textarea
                 className="w-full px-3 py-2 border rounded-lg"
                 rows={2}
@@ -839,7 +844,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">训练视频（可选）</label>
+              <label className="block text-sm font-medium text-700 mb-1">训练视频（可选）</label>
               <TrainingVideoUploader
                 userId={userId}
                 context={{
@@ -865,7 +870,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
           <div className="flex justify-end space-x-3 mt-4">
             <button
               onClick={() => skipSession('用户主动跳过')}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-300 rounded-lg text-700 hover:bg-surface-50"
             >
               跳过训练
             </button>
@@ -884,7 +889,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                 }
               }}
               disabled={isSubmittingVideo}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-400"
             >
               {isSubmittingVideo ? '提交中...' : '完成训练'}
             </button>
