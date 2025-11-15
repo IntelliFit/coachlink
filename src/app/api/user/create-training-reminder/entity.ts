@@ -2,7 +2,6 @@
 
 export interface TrainingReminder {
     id?: string;
-    user_id: string;
     training_plan_id: string;
     reminder_type: 'daily' | 'weekly' | 'custom';
     reminder_time: string;

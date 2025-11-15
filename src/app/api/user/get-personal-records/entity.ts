@@ -1,7 +1,6 @@
 // 获取个人记录请求和响应的类型定义
 
 export interface GetPersonalRecordsDto {
-    user_id: string;
 }
 
 export interface PersonalRecord {

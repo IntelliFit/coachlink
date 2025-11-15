@@ -4,7 +4,6 @@ import { TrainingVideo, VideoUploadContext, VideoUploadProgress } from '@/types/
 export type { TrainingVideo, VideoUploadContext, VideoUploadProgress };
 
 export interface UploadVideoDto {
-    userId: string;
     context: VideoUploadContext;
 }
 

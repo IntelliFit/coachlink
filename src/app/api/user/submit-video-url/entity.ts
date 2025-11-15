@@ -4,7 +4,6 @@ import { TrainingVideo, VideoUploadContext } from '@/types/video';
 export type { TrainingVideo, VideoUploadContext };
 
 export interface SubmitVideoUrlDto {
-    userId: string;
     videoUrl: string;
     context: VideoUploadContext;
 }

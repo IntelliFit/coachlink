@@ -2,7 +2,6 @@
 
 export interface DeleteVideoDto {
     videoId: string;
-    userId: string;
 }
 
 export interface DeleteVideoResponseDto {

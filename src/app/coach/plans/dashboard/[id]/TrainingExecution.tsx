@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { studentService } from '../services/studentService';
-import TrainingVideoService from '../services/trainingVideoService';
+
 import TrainingVideoUploader from '@/components/video/TrainingVideoUploader';
 
 import {
@@ -17,6 +16,9 @@ import {
     TrendingUp,
     Award
 } from 'lucide-react';
+import { userService } from '@/app/service/userService';
+import { useToastContext } from '@/context/ToastContext';
+import studentService from '@/app/service/studentService';
 
 interface Exercise {
     id?: string;
@@ -66,6 +68,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
     const [trainingVideoIds, setTrainingVideoIds] = useState<string[]>([]);
     const [isSubmittingVideo, setIsSubmittingVideo] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+    const { showToast } = useToastContext();
 
     useEffect(() => {
         loadTodaySession();
@@ -130,15 +133,16 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             console.log('今天是:', todayDay);
 
             // 获取训练计划详情
-            const { data: planDetails, error: planError } = await supabase
-                .from('training_plan_details')
-                .select('*')
-                .eq('training_plan_id', trainingPlanId);
 
-            if (planError) {
-                console.error('获取训练计划详情失败:', planError);
+            const res = await userService.getTrainingPlanDetail({ id: trainingPlanId.toString() });
+
+
+            if (!res) {
+                showToast({ severity: 'error', summary: '获取训练计划详情失败' });
                 return;
             }
+
+            const planDetails = res.details;
 
             if (!planDetails || planDetails.length === 0) {
                 console.log('没有找到训练计划详情');
@@ -163,7 +167,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             const exercises: Exercise[] = [];
 
             // 添加热身动作
-            if (todayDetail.warmup) {
+            if (todayDetail.warmup && Array.isArray(todayDetail.warmup)) {
                 todayDetail.warmup.forEach((ex: any) => {
                     exercises.push({
                         name: ex.name,
@@ -177,7 +181,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             }
 
             // 添加主项动作
-            if (todayDetail.main_exercises) {
+            if (todayDetail.main_exercises && Array.isArray(todayDetail.main_exercises)) {
                 todayDetail.main_exercises.forEach((ex: any) => {
                     exercises.push({
                         name: ex.name,
@@ -192,7 +196,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             }
 
             // 添加辅助动作
-            if (todayDetail.accessory_exercises) {
+            if (todayDetail.accessory_exercises && Array.isArray(todayDetail.accessory_exercises)) {
                 todayDetail.accessory_exercises.forEach((ex: any) => {
                     exercises.push({
                         name: ex.name,
@@ -207,7 +211,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             }
 
             // 添加拉伸动作
-            if (todayDetail.cooldown) {
+            if (todayDetail.cooldown && Array.isArray(todayDetail.cooldown)) {
                 todayDetail.cooldown.forEach((ex: any) => {
                     exercises.push({
                         name: ex.name,
@@ -225,7 +229,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                 id: `virtual-${today}`,
                 week_number: todayDetail.week_number,
                 day_of_week: todayDetail.day_of_week,
-                session_focus: todayDetail.session_focus,
+                session_focus: todayDetail.session_focus || '',
                 scheduled_date: today,
                 status: 'scheduled',
                 exercises: exercises
@@ -283,17 +287,14 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
             }
 
             // 获取当前周的训练详情
-            const { data: detailsData, error: detailsError } = await supabase
-                .from('training_plan_details')
-                .select('*')
-                .eq('training_plan_id', trainingPlanId)
-                .order('week_number', { ascending: true })
-                .order('order_index', { ascending: true });
+            const res = await userService.getTrainingPlanDetail({ id: trainingPlanId.toString() });
 
-            if (detailsError) {
-                console.error('获取训练详情失败:', detailsError);
+            if (!res) {
+                showToast({ severity: 'error', summary: '获取训练计划详情失败' });
                 return;
             }
+
+            const detailsData = res.details;
 
             if (detailsData && detailsData.length > 0) {
                 const today = new Date().toISOString().split('T')[0];
@@ -305,7 +306,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
                 if (todayDetails.length > 0) {
                     const exercises: Exercise[] = todayDetails.map(detail => ([
-                        ...(detail.main_exercises || []).map((ex: any) => ({
+                        ...((detail.main_exercises as any[]) || []).map(ex => ({
                             name: ex.name,
                             exercise_type: 'main',
                             sets_planned: ex.sets,
@@ -314,7 +315,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                             rest_time: ex.rest_sec || 180,
                             notes: ex.notes
                         })),
-                        ...(detail.accessory_exercises || []).map((ex: any) => ({
+                        ...((detail.accessory_exercises as any[]) || []).map(ex => ({
                             name: ex.name,
                             exercise_type: 'accessory',
                             sets_planned: ex.sets,
@@ -328,7 +329,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                     const newSession: TrainingSession = {
                         week_number: todayDetails[0].week_number,
                         day_of_week: todayDetails[0].day_of_week,
-                        session_focus: todayDetails[0].session_focus,
+                        session_focus: todayDetails[0].session_focus || '',
                         scheduled_date: today,
                         status: 'scheduled',
                         exercises: exercises
@@ -451,9 +452,10 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
     };
 
     const completeSession = async (notes?: string, rpe?: number, energyLevel?: number) => {
-        if (!currentSession || !userId) return;
+        if (!currentSession || !userId) {
+            return;
+        }
 
-        const videoService = TrainingVideoService.getInstance();
 
         // 提交训练总结视频
         try {

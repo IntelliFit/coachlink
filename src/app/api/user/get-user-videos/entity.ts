@@ -4,7 +4,6 @@ import { TrainingVideo, VideoFilters } from '@/types/video';
 export type { TrainingVideo, VideoFilters };
 
 export interface GetUserVideosDto {
-    userId: string;
     filters?: VideoFilters;
     pagination?: { page: number; limit: number };
 }

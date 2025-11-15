@@ -1,7 +1,6 @@
 // 提交训练日志请求和响应的类型定义
 
 export interface WorkoutLogPayload {
-    userId?: string;
     training_session_id?: string;
     training_plan_id?: string;
     week_number?: number;
@@ -10,6 +9,7 @@ export interface WorkoutLogPayload {
     entries?: any;
     notes?: string;
     video_urls?: string[];
+    video_ids?: string[];
 }
 
 export interface SubmitWorkoutLogDto {
