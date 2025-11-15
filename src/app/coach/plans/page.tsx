@@ -8,7 +8,7 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
-import { trainingPlanService } from '@/app/service/trainingPlanService';
+import { trainingPlanService } from '@/app/service/userService';
 import { useRef } from 'react';
 
 interface PlanItem {

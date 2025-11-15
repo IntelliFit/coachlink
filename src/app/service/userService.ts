@@ -1,4 +1,5 @@
 import { BaseService } from "@/lib/baseService";
+import type { UpdateProfileResponseDto, UpdateProileDto } from "../api/user/update-profile/entity";
 
 interface PlanItem {
   id: string
@@ -14,7 +15,7 @@ interface GetTrainingPlansResponse {
   plans: PlanItem[]
 }
 
-class TrainingPlanService extends BaseService {
+class UserPlanService extends BaseService {
     async getTrainingPlans() {
         const res = await this.post<GetTrainingPlansResponse>('get-training-plans');
         if (res.data && res.data.success) {
@@ -32,6 +33,14 @@ class TrainingPlanService extends BaseService {
 
         return null;
     }
+
+    async updateProfile(reqData: UpdateProileDto) {
+        const res = await this.post<UpdateProfileResponseDto>('update-profile', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
 }
 
-export const trainingPlanService = new TrainingPlanService('/api/training');
+export const userService = new UserPlanService('/api/user');
