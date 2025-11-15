@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Clock, Calendar, Settings, ToggleLeft, ToggleRight, Plus, X } from 'lucide-react';
 import { userService } from '@/app/service/userService';
-
-interface TrainingReminder {
-    id?: string;
-    user_id: string;
-    training_plan_id: string;
-    reminder_type: 'daily' | 'weekly' | 'custom';
-    reminder_time: string;
-    days_of_week?: string[];
-    is_active: boolean;
-    created_at?: string;
-}
+import type { GetTrainingRemindersResponseDto, TrainingReminder } from '@/app/api/user/get-training-reminders/entity';
 
 interface TrainingReminderProps {
     userId: string;
@@ -22,7 +12,7 @@ const TrainingReminder: React.FC<TrainingReminderProps> = ({
     userId,
     trainingPlanId
 }) => {
-    const [reminders, setReminders] = useState<TrainingReminder[]>([]);
+    const [reminders, setReminders] = useState<GetTrainingRemindersResponseDto['reminders']>([]);
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
     const [formData, setFormData] = useState({
