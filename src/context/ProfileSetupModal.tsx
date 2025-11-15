@@ -6,15 +6,16 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
-import { UserProfilesRow } from '@/types';
 import axios from 'axios';
 import { useToastContext } from './ToastContext';
+import { userService } from '@/app/service/userService';
+import type { UpdateProfileResponseDto } from '@/app/api/user/update-profile/entity';
 
 interface ProfileSetupModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onComplete: (profile: UserProfilesRow) => void;
-    initialProfile?: Partial<UserProfilesRow>;
+    onComplete: (profile: UpdateProfileResponseDto) => void;
+    initialProfile?: Partial<UpdateProfileResponseDto>;
     userId?: string;
 }
 
@@ -138,26 +139,30 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
         setIsSubmitting(true);
 
         try {
-            const response = await axios.post('/api/user/update-profile', {
-                full_name: formData.full_name || undefined,
+            const res = await userService.updateProfile({
+                full_name: formData.full_name || null,
                 nickname: formData.nickname,
                 phone: formData.phone,
                 address: formData.address,
-                gender: formData.gender || undefined,
-                birth_date: formData.birth_date ? formData.birth_date.toISOString().split('T')[0] : undefined,
-                height: formData.height ? parseInt(formData.height) : undefined,
-                weight: formData.weight ? parseInt(formData.weight) : undefined,
-                fitness_goal: formData.fitness_goal || undefined,
-                fitness_level: formData.fitness_level || undefined,
-                bio: formData.bio || undefined
+                gender: formData.gender || null,
+                birth_date: formData.birth_date ? formData.birth_date.toISOString().split('T')[0] : null,
+                height: formData.height ? parseInt(formData.height) : null,
+                weight: formData.weight ? parseInt(formData.weight) : null,
+                fitness_goal: formData.fitness_goal || null,
+                fitness_level: formData.fitness_level || null,
+                bio: formData.bio || null
             });
 
-            if (response.data && response.data.success) {
-                showToast({ severity: 'success', summary: '成功', detail: '个人信息保存成功！' });
+            if (res) {
+                setTimeout(() => {
+                    showToast({ severity: 'success', summary: '成功', detail: '个人信息保存成功！' });
+                }, 200);
 
-                onComplete(response.data);
+                onComplete(res);
             } else {
-                showToast({ severity: 'error', summary: '错误', detail: response.data.message })
+                setTimeout(() => {
+                    showToast({ severity: 'error', summary: '发生错误，无法更新个人信息' })
+                }, 200);
             }
         } catch (error) {
             console.error('保存个人信息失败:', error);
