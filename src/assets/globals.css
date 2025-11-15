@@ -16,24 +16,6 @@
 }
 
 
-/* 修复PrimeReact按钮样式被Tailwind覆盖的问题 */
-.p-button {
-    background-color: var(--primary-color) !important;
-    background-image: none !important;
-}
-
-.p-button.p-button-outlined {
-    background-color: transparent !important;
-}
-
-.p-button.p-button-text {
-    background-color: transparent !important;
-}
-
-.p-button:disabled {
-    opacity: 0.6 !important;
-}
-
 body {
 
     background-color: var(--surface-ground);
@@ -53,7 +35,6 @@ body {
 
 
 @media screen and (max-width: 1199px) {
-
     .layout-content,
     .layout-footer {
         padding-left: 2rem;

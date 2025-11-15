@@ -33,10 +33,10 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
 
 
     const onAccessService = (serviceId: string, coachId: string) => {
-        console.log(serviceId, coachId);
+
         switch (serviceId) {
             case 'ai_plan':
-                router.push('/coach/plans');
+                router.push(`/coach/plans?coachId=${coachId}`, { scroll: true });
                 break;
         
             default:
