@@ -68,7 +68,7 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                 
                 return (
                     <div key={subscription.id} className="rounded-lg overflow-hidden p-card">
-                        <div className="bg-gradient-to-r from-primary-500 to-primary-700 p-6 text-surface">
+                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-surface">
                             <div className="flex items-center space-x-4">
                                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
                                     <span className="text-xl font-bold">{subscription.coach?.name.charAt(0)}</span>

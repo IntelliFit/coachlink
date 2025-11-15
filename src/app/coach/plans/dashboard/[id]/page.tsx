@@ -125,11 +125,11 @@ const TrainingPlanDashboard: React.FC = () => {
         return (
             <div className="max-w-6xl mx-auto p-4">
                 <Card className="text-center py-8">
-                    <div className="w-3rem h-3rem bg-gray-100 dark:bg-gray-800 border-circle flex align-items-center justify-content-center mx-auto mb-3">
+                    <div className="w-3rem h-3rem bg-surface border-circle flex align-items-center justify-content-center mx-auto mb-3">
                         <BookOpen className="w-2rem h-2rem text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">未找到训练计划</h3>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">请先生成一个训练计划</p>
+                    <h3 className="text-lg font-medium text-900 mb-2">未找到训练计划</h3>
+                    <p className="text-600 mb-4">请先生成一个训练计划</p>
                     <Button label="返回" icon="pi pi-arrow-left" onClick={() => router.back()} />
                 </Card>
             </div>
@@ -141,42 +141,54 @@ const TrainingPlanDashboard: React.FC = () => {
 
             {/* 训练计划头部 */}
             {trainingPlan && (
-                <div className="bg-gradient-to-r from-primary-500 to-purple-600 rounded-lg p-6 mb-6 text-white">
-                    <div className="flex flex-column md:flex-row align-items-start justify-content-between">
-                        <div className="flex-1 mb-4 md:mb-0">
+                <div className="bg-gradient-to-r from-primary-500 to-red-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
+                    <div className="flex flex-column md:flex-row justify-content-between gap-4">
+
+                        {/* 左侧信息 */}
+                        <div className="flex-1">
+                            {/* 返回按钮 + 标题 */}
                             <div className="flex align-items-center mb-4">
                                 <Button
                                     icon="pi pi-arrow-left"
-                                    className="p-button-rounded p-button-text text-white mr-3"
+                                    className="p-button-rounded p-button-text text-white mr-3 hover:bg-white/20 transition-colors"
                                     onClick={() => router.back()}
                                 />
-                                <h1 className="text-2xl font-bold m-0">{trainingPlan.title}</h1>
+                                <h1 className="text-2xl font-bold tracking-wide m-0">
+                                    {trainingPlan.title}
+                                </h1>
                             </div>
-                            <p className="text-blue-100 mb-3">{trainingPlan.description}</p>
-                            <div className="flex flex-wrap align-items-center gap-3 text-sm">
-                                <div className="flex align-items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
+
+                            {/* 描述 */}
+                            <p className="opacity-90 mb-4 leading-relaxed">
+                                {trainingPlan.description}
+                            </p>
+
+                            {/* 信息标签组 */}
+                            <div className="flex flex-wrap align-items-center gap-3 text-sm opacity-95">
+
+                                <div className="flex align-items-center bg-white/10 px-3 py-1 rounded-full">
+                                    <Clock className="w-4 h-4 mr-2" />
                                     <span>{trainingPlan.duration_weeks}周</span>
                                 </div>
-                                <div className="flex align-items-center">
-                                    <Target className="w-4 h-4 mr-1" />
-                                    <span className="capitalize">{trainingPlan.difficulty_level}</span>
+
+                                <div className="flex align-items-center bg-white/10 px-3 py-1 rounded-full capitalize">
+                                    <Target className="w-4 h-4 mr-2" />
+                                    <span>{trainingPlan.difficulty_level}</span>
                                 </div>
-                                {trainingPlan.ai_generated && (
-                                    <div className="bg-blue-500 px-2 py-1 border-round text-xs flex align-items-center">
-                                        <span className="mr-1">AI生成</span>
-                                        <Badge value="AI" className="p-badge-success" />
-                                    </div>
-                                )}
                             </div>
                         </div>
-                        <Award className="w-3rem h-3rem text-blue-200" />
+
+                        {/* 右上图标 */}
+                        <div className="flex justify-content-center md:justify-content-end">
+                            <Award className="w-12 h-12 opacity-80 drop-shadow-md" />
+                        </div>
+
                     </div>
                 </div>
             )}
 
             {/* 标签页导航 */}
-            <Card>
+            <div>
                 <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
                     <TabPanel header="今日训练" leftIcon="pi pi-play mr-2">
                         {loading ? (
@@ -221,11 +233,11 @@ const TrainingPlanDashboard: React.FC = () => {
                             />
                         ) : (
                             <div className="text-center py-8">
-                                <div className="w-3rem h-3rem bg-gray-100 dark:bg-gray-800 border-circle flex align-items-center justify-content-center mx-auto mb-3">
+                                <div className="w-3rem h-3rem bg-surface border-circle flex align-items-center justify-content-center mx-auto mb-3">
                                     <Target className="w-2rem h-2rem text-gray-400" />
                                 </div>
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">暂无训练计划详情</h3>
-                                <p className="text-gray-600 dark:text-gray-300">无法加载训练计划详情</p>
+                                <h3 className="text-lg font-medium text-900 mb-2">暂无训练计划详情</h3>
+                                <p className="text-600">无法加载训练计划详情</p>
                             </div>
                         )}
                     </TabPanel>
@@ -243,7 +255,7 @@ const TrainingPlanDashboard: React.FC = () => {
                         )}
                     </TabPanel>
                 </TabView>
-            </Card>
+            </div>
         </div>
     );
 };

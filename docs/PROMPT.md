@@ -24,6 +24,8 @@ async publishContent(reqData: PublishContentDto) {
 - loading 为 true 部分的组件替换为 primereact 的骨架屏。
 - 所有改动都需要适配移动端。
 
+请不要使用 bg-gray-100 这样具体的颜色，而是使用 bg-primary（主题色） 或者 bg-surface（背景色）
+
 ---
 
 ## 后端部分

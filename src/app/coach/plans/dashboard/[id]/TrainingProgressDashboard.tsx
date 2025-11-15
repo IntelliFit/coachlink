@@ -50,7 +50,6 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
     const loadTrainingStats = async () => {
         try {
             const data = await userService.getTrainingProgress({ 
-                user_id: userId, 
                 training_plan_id: trainingPlanId 
             });
             
@@ -77,7 +76,6 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
     const loadWeeklyProgress = async () => {
         try {
             const data = await userService.getWeeklyProgress({ 
-                user_id: userId, 
                 training_plan_id: trainingPlanId,
                 time_range: selectedTimeRange
             });
