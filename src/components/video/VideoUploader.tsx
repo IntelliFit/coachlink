@@ -99,7 +99,10 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                     ...context,
                     user_notes: urlNotes
                 };
-                const video = await videoService.submitVideoUrl(userId, url.trim(), uploadContext);
+                const video = await videoService.submitVideoUrl({
+                    videoUrl: url.trim(),
+                    context: uploadContext
+                });
                 uploadedVideos.push(video);
             } else if (files.length > 0) {
                 // Upload each file individually
