@@ -121,7 +121,7 @@ const TrainingPlansHome: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen bg-surface-0 dark:bg-surface-900">
+        <div className="min-h-screen">
             <Toast ref={toast} />
             <ConfirmDialog />
 
