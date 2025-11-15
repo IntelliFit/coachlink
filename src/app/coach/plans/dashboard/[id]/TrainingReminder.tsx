@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { Bell, Clock, Calendar, Settings, ToggleLeft, ToggleRight, Plus, X } from 'lucide-react';
+import { userService } from '@/app/service/userService';
 
 interface TrainingReminder {
     id?: string;
@@ -48,15 +48,10 @@ const TrainingReminder: React.FC<TrainingReminderProps> = ({
 
     const loadReminders = async () => {
         try {
-            const { data, error } = await supabase
-                .from('training_reminders')
-                .select('*')
-                .eq('user_id', userId)
-                .eq('training_plan_id', trainingPlanId)
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setReminders(data || []);
+            const res = await userService.getTrainingReminders({ training_plan_id: trainingPlanId });
+            if (res) {
+                setReminders(res.reminders || []);
+            }
         } catch (error) {
             console.error('加载提醒失败:', error);
         } finally {
@@ -66,27 +61,24 @@ const TrainingReminder: React.FC<TrainingReminderProps> = ({
 
     const createReminder = async () => {
         try {
-            // 通过 Edge Function 写入，由后端从 JWT 识别 user.id，避免外键冲突
-            const { data, error } = await supabase.functions.invoke('create-training-reminder', {
-                body: {
-                    training_plan_id: trainingPlanId,
-                    reminder_type: formData.reminder_type,
-                    reminder_time: formData.reminder_time,
-                    days_of_week: formData.reminder_type === 'weekly' ? formData.days_of_week : null,
-                    is_active: formData.is_active
-                }
+            const data = await userService.createTrainingReminder({
+                training_plan_id: trainingPlanId,
+                reminder_type: formData.reminder_type,
+                reminder_time: formData.reminder_time,
+                days_of_week: formData.reminder_type === 'weekly' ? formData.days_of_week : undefined,
+                is_active: formData.is_active
             });
 
-            if (error || !data?.success) throw (error || new Error(data?.message || '创建提醒失败'));
-
-            await loadReminders();
-            setShowAddForm(false);
-            setFormData({
-                reminder_type: 'daily',
-                reminder_time: '09:00',
-                days_of_week: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                is_active: true
-            });
+            if (data) {
+                await loadReminders();
+                setShowAddForm(false);
+                setFormData({
+                    reminder_type: 'daily',
+                    reminder_time: '09:00',
+                    days_of_week: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    is_active: true
+                });
+            }
         } catch (error) {
             console.error('创建提醒失败:', error);
         }
@@ -94,12 +86,7 @@ const TrainingReminder: React.FC<TrainingReminderProps> = ({
 
     const updateReminder = async (id: string, updates: Partial<TrainingReminder>) => {
         try {
-            const { error } = await supabase
-                .from('training_reminders')
-                .update(updates)
-                .eq('id', id);
-
-            if (error) throw error;
+            await userService.updateTrainingReminder({ id, updates });
             await loadReminders();
         } catch (error) {
             console.error('更新提醒失败:', error);
@@ -108,12 +95,7 @@ const TrainingReminder: React.FC<TrainingReminderProps> = ({
 
     const deleteReminder = async (id: string) => {
         try {
-            const { error } = await supabase
-                .from('training_reminders')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
+            await userService.deleteTrainingReminder({ id });
             await loadReminders();
         } catch (error) {
             console.error('删除提醒失败:', error);
