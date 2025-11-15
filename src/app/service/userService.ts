@@ -18,6 +18,20 @@ import type { UpsertTrainingPlanDetailsDto, UpsertTrainingPlanDetailsResponseDto
 import type { SubmitWorkoutLogDto, SubmitWorkoutLogResponseDto, WorkoutLogPayload } from "../api/user/submit-workout-log/entity";
 import type { SubmitLifestyleLogDto, SubmitLifestyleLogResponseDto, LifestyleLogPayload } from "../api/user/submit-lifestyle-log/entity";
 
+interface PlanItem {
+  id: string
+  title: string
+  description: string
+  duration_weeks: number
+  difficulty_level: string
+  ai_generated: boolean
+  created_at: string
+}
+
+interface GetTrainingPlansResponse {
+  plans: PlanItem[]
+}
+
 class UserPlanService extends BaseService {
     async getTrainingPlans(reqData: GetTrainingPlansDto) {
         const res = await this.post<GetTrainingPlansResponseDto>('get-training-plans', reqData);
@@ -166,7 +180,6 @@ class UserPlanService extends BaseService {
 }
 
 export const userService = new UserPlanService('/api/user');
-
 export type { 
     PlanDetailItem,
     WorkoutLogPayload,

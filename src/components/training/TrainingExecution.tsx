@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { studentService, type WorkoutLogPayload } from '@/app/service/studentService';
+import { videoService } from '@/app/service/videoService';
 import TrainingVideoService from '../services/trainingVideoService';
 import TrainingVideoUploader from './video/TrainingVideoUploader';
 import {
