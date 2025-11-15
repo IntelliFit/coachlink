@@ -9,7 +9,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
 import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primereact/api';
-import { ProfileSetupModalProvider } from "@/components/shared/ProfileSetupModalContext";
+import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
 
 const inter = Inter({ subsets: ['latin'] });
 
