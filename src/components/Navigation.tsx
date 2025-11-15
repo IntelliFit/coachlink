@@ -11,7 +11,7 @@ import { Menu } from 'primereact/menu';
 import { Skeleton } from 'primereact/skeleton';
 import { useTheme } from '@/context/ThemeContext';
 import { useLoginModal } from '@/components/auth/LoginModalContext';
-import { useProfileSetupModal } from '@/components/shared/ProfileSetupModalContext';
+import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 
 export default function Navigation() {
