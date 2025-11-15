@@ -214,7 +214,7 @@ const TrainingPlansHome: React.FC = () => {
                                         <Button
                                             label="查看/开始"
                                             className="p-button-primary"
-                                            onClick={() => router.push(`/training/${plan.id}`)}
+                                            onClick={() => router.push(`/coach/plans/dashboard/${plan.id}`)}
                                         />
                                         <Button
                                             label="删除"
