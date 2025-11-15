@@ -42,11 +42,6 @@ const SubscriptionDashboard = () => {
         fetchSubscriptions();
     }, [session?.user?.id]); // 依赖 session id
 
-    const onAccessService = (serviceId: string, coachId: string) => {
-        console.log('serviceId:', serviceId);
-        console.log('coachId:', coachId);
-    }
-
     // 骨架屏组件
     const LoadingSkeleton = () => (
         <div className="space-y-8">
@@ -111,7 +106,7 @@ const SubscriptionDashboard = () => {
 
     return (
         <div className="space-y-8">
-            <CoachList subscriptions={subscriptions} onAccessService={onAccessService} />
+            <CoachList subscriptions={subscriptions}/>
             <TrainingSummary />
             <RecentActivity />
         </div>

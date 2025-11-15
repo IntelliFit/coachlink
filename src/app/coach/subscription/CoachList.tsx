@@ -3,6 +3,7 @@ import { Brain, MessageCircle, Star, Clock, ArrowRight } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import { useRouter } from 'next/navigation';
 
 // 定义订阅状态的类型
 type SubscriptionStatus = {
@@ -13,10 +14,12 @@ type SubscriptionStatus = {
 
 interface CoachListProps {
     subscriptions: QueryCoachSubscription[];
-    onAccessService: (serviceId: string, coachId: string) => void;
 }
 
-const CoachList: React.FC<CoachListProps> = ({ subscriptions, onAccessService }) => {
+const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
+
+    const router = useRouter();
+
     const getServicesByTier = (tier: number) => {
         const base = [
             { id: 'ai_plan', name: 'AI训练计划', desc: '个性化AI训练方案', icon: Brain, color: 'bg-blue-500', available: tier >= 1 }
@@ -26,6 +29,19 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions, onAccessService })
         else
             base.push({ id: 'chat_demo', name: '🎯 体验聊天功能', desc: '免费体验一对一聊天 (演示版)', icon: MessageCircle, color: 'bg-primary-500', available: true })
         return base
+    }
+
+
+    const onAccessService = (serviceId: string, coachId: string) => {
+        console.log(serviceId, coachId);
+        switch (serviceId) {
+            case 'ai_plan':
+                router.push('/coach/plans');
+                break;
+        
+            default:
+                break;
+        }
     }
 
     const getSubscriptionStatus = (subscription: QueryCoachSubscription): SubscriptionStatus => {
