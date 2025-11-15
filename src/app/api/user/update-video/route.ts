@@ -13,16 +13,18 @@ export async function POST(request: Request) {
             }, { status: 401 });
         }
 
-        const { videoId, userId, updates } = await request.json();
+        const { videoId, updates } = await request.json();
 
         // 验证必要参数
-        if (!videoId || !userId) {
+        if (!videoId) {
             return NextResponse.json({
                 success: false,
                 message: '缺少必要参数',
                 data: null
             }, { status: 400 });
         }
+
+        const userId = session.user.id;
 
         const { data, error } = await supabase
             .from('training_videos')

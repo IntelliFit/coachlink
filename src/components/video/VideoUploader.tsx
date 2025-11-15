@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload, X, Video, AlertCircle } from 'lucide-react';
 import { VideoUploadContext } from '../../types/video';
-import TrainingVideoService from '../../services/trainingVideoService';
+import { videoService } from '@/app/service/videoService';
 
 interface VideoFile {
     file: File;
@@ -37,8 +37,6 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
     const [error, setError] = useState('');
     const [useUrl, setUseUrl] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const videoService = TrainingVideoService.getInstance();
 
     const validateFile = useCallback((file: File): string | null => {
         if (!acceptedFormats.includes(file.type)) {

@@ -1,7 +1,6 @@
 // 获取训练进度请求和响应的类型定义
 
 export interface GetTrainingProgressDto {
-    user_id: string;
     training_plan_id?: string;
 }
 

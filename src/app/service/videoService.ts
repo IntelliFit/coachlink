@@ -8,7 +8,6 @@ import type { ReviewVideoDto, ReviewVideoResponseDto } from "../api/user/review-
 import type { DeleteVideoDto, DeleteVideoResponseDto } from "../api/user/delete-video/entity";
 import type { UpdateVideoDto, UpdateVideoResponseDto } from "../api/user/update-video/entity";
 import type { GetVideoByIdDto, GetVideoByIdResponseDto } from "../api/user/get-video-by-id/entity";
-import type { TrainingVideo } from "@/types/video";
 
 class VideoService extends BaseService {
 
