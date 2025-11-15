@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { studentService } from '../services/studentService';
+import { studentService, type WorkoutLogPayload } from '@/app/service/studentService';
 import TrainingVideoService from '../services/trainingVideoService';
 import TrainingVideoUploader from './video/TrainingVideoUploader';
 import {
@@ -602,6 +601,16 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const submitWorkoutLog = async (payload: WorkoutLogPayload) => {
+    try {
+      // 使用新的 studentService
+      await studentService.submitWorkoutLog(payload);
+    } catch (error) {
+      console.error('提交训练日志失败:', error);
+      throw error;
+    }
   };
 
   if (loading) {

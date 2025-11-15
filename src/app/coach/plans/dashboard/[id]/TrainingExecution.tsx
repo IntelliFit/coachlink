@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { studentService } from '../services/studentService';
 import TrainingVideoService from '../services/trainingVideoService';
-import TrainingVideoUploader from './video/TrainingVideoUploader';
+import TrainingVideoUploader from '@/components/video/TrainingVideoUploader';
 
 import {
     Play,
