@@ -11,7 +11,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { userService } from '@/app/service/userService';
 import { Play, TrendingUp, Calendar, Bell, Target, Clock, Award, BookOpen, ArrowLeft, Check } from 'lucide-react';
 
-import TrainingExecution from './TrainingExecution';
+// import TrainingExecution from './TrainingExecution';
 import TrainingProgressDashboard from './TrainingProgressDashboard';
 import TrainingReminder from './TrainingReminder';
 import TrainingPlanPreview from './TrainingPlanPreview';
@@ -186,11 +186,12 @@ const TrainingPlanDashboard: React.FC = () => {
                                 <Skeleton width="100%" height="200px" />
                             </div>
                         ) : (
-                            <TrainingExecution
-                                trainingPlanId={trainingPlanId as string}
-                                userId={session?.user?.id || ''}
-                                onSessionComplete={handleSessionComplete}
-                            />
+                            // <TrainingExecution
+                            //     trainingPlanId={trainingPlanId as string}
+                            //     userId={session?.user?.id || ''}
+                            //     onSessionComplete={handleSessionComplete}
+                            // />
+                            <div></div>
                         )}
                     </TabPanel>
                     <TabPanel header="训练进度" leftIcon="pi pi-chart-line mr-2">
