@@ -58,7 +58,6 @@ import type { ApiData } from '@/types/api';
 import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from './entity';
 
 export async function POST(req: Request) {
-    // 重要！ 不能套 try catch 块
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({

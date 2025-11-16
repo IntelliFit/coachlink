@@ -42,7 +42,7 @@ export async function POST(req: Request) {
                 .limit(1)
                 .single();
 
-            if (!existingRecord || (exercise.load_actual > existingRecord.max_weight)) {
+            if (!existingRecord || (existingRecord.max_weight && exercise.load_actual > existingRecord.max_weight)) {
                 await supabase.from('personal_records').insert({
                     user_id: userId,
                     exercise_name: exercise.name,

@@ -274,18 +274,6 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
     const createTodaySession = async () => {
         try {
-            // 获取训练计划详情
-            const { data: planData, error: planError } = await supabase
-                .from('training_plans')
-                .select('*')
-                .eq('id', trainingPlanId)
-                .single();
-
-            if (planError) {
-                console.error('获取训练计划失败:', planError);
-                return;
-            }
-
             // 获取当前周的训练详情
             const res = await userService.getTrainingPlanDetail({ id: trainingPlanId.toString() });
 
