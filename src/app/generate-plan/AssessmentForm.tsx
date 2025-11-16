@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { studentService } from '../service/studentService';
 import TrainingVideoUploader from '@/components/video/TrainingVideoUploader';
 
 import {
@@ -13,6 +12,7 @@ import {
     ChevronLeft,
     ChevronRight
 } from 'lucide-react';
+import { coachService } from '../service/coachService';
 
 interface FormField {
     name: string;
@@ -56,15 +56,18 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
         try {
             setLoading(true);
 
-            // 通过学生服务获取表单配置
-            const res = await studentService.getFormSchema({ coachId, domain });
-            
-            if (res?.formSchema?.fields) {
-                setFormFields(res.formSchema.fields);
+            // 查询对应动作域的规则包
+            const rulepackData = await coachService.getCoachRulepacks({
+                coach_id: coachId,
+                domain: domain
+            });
+
+            if (rulepackData?.form_schema?.fields) {
+                setFormFields(rulepackData.form_schema.fields);
             } else {
                 setFormFields(getDefaultFields(domain));
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error('加载表单配置错误:', error);
             setFormFields(getDefaultFields(domain));
         } finally {
