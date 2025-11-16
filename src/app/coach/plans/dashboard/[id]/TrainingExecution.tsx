@@ -469,7 +469,6 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
         try {
             // 1) 写入 workout_logs（带上完整的训练数据和视频URL）
             await studentService.submitWorkoutLog({
-                userId: userId,
                 training_plan_id: trainingPlanId,
                 training_session_id: currentSession.id?.startsWith('virtual-') ? undefined : currentSession.id,
                 week_number: currentSession.week_number,
@@ -527,29 +526,17 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
         if (!currentSession) return;
 
         try {
-            for (const exercise of currentSession.exercises) {
-                if (exercise.load_actual && exercise.sets_completed) {
-                    // 检查是否是新的个人记录
-                    const { data: existingRecord } = await supabase
-                        .from('personal_records')
-                        .select('*')
-                        .eq('user_id', userId)
-                        .eq('exercise_name', exercise.name)
-                        .order('max_weight', { ascending: false })
-                        .limit(1)
-                        .single();
-
-                    if (!existingRecord || (exercise.load_actual > existingRecord.max_weight)) {
-                        await supabase.from('personal_records').insert({
-                            user_id: userId,
-                            exercise_name: exercise.name,
-                            max_weight: exercise.load_actual,
-                            date_achieved: new Date().toISOString().split('T')[0],
-                            notes: `训练计划完成：${currentSession.week_number}周${currentSession.day_of_week}`
-                        });
-                    }
-                }
-            }
+            // 使用 userService 更新个人记录
+            await userService.updatePersonalRecords({
+                userId: userId,
+                exercises: currentSession.exercises.map(ex => ({
+                    name: ex.name,
+                    load_actual: ex.load_actual,
+                    sets_completed: ex.sets_completed,
+                    week_number: currentSession.week_number,
+                    day_of_week: currentSession.day_of_week
+                }))
+            });
         } catch (error) {
             console.error('更新个人记录失败:', error);
             // 不阻塞主要流程

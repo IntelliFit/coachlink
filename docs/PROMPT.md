@@ -32,10 +32,57 @@ async publishContent(reqData: PublishContentDto) {
 
 我现在有如下的一个 POST 函数代码
 
-文件路径：src/app/api/coach/get-contents/route.ts
-
 请根据我后续的要求，把最对应的其他请求转换为和上面的风格、代码依赖一致的 nextjs POST 代码，重点：
 1. 使用 NextResponse 返回 JSON。（内容严格为 success,message,data）
 2. 依赖统一：import supabase from '@/lib/supabaseClient' import { getServerSession } from '../../auth/[...nextauth]/auth'
+3. 接口里面应该尽量不要设置 userId，因为可以疼痛感 getServerSession() 方法获取 session，通过 session.user 或者 session.profile 来获取用户信息。
 
-除此之外，你还需要根据接口理解，在对应文件夹下生成对应的 entity 文件，并以 type 形式导入。
+除此之外，你还需要根据接口理解，在对应文件夹下生成对应的 entity 文件，并以 type 形式导入。entity 文件往往以接口文件夹的名字设置如下两个接口：
+
+```typescript
+// 请求参数的接口类型
+export interface GetUserProfileDto {}
+// 返回参数的接口类型
+export interface GetUserProfileResponseDto {}
+```
+
+然后你必须在 route.ts 文件中使用上面两个类型，一个事例如下：
+
+```typescript
+import { NextResponse } from 'next/server';
+import { getServerSession } from '../../auth/[...nextauth]/auth';
+import supabase from '@/lib/supabaseClient';
+
+// 重要！必须以 import type 引入接口类型
+import type { ApiData } from '@/types/api';
+import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from './entity';
+
+export async function POST(req: Request) {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+        return NextResponse.json({
+            success: false,
+            message: '用户未登录',
+            data: null
+        }, { status: 401 });
+    }
+
+    // 重点！通过 session 获取用户 ID
+    const userId = session.user.id;
+
+    const {
+        exercises
+    } = await req.json() as UpdatePersonalRecordsDto;
+
+    // 更新个人记录
+    // 具体的访问数据库的操作
+    // ... code ...
+
+    // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
+    return NextResponse.json<ApiData<UpdatePersonalRecordsResponseDto>>({
+        success: true,
+        message: '个人记录更新成功',
+        data: null
+    });
+}
+```
