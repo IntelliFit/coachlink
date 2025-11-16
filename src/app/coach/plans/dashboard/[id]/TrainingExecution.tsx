@@ -246,16 +246,16 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
     const createTodaySessionViaFunction = async () => {
         try {
-            const { data, error } = await supabase.functions.invoke('create-today-session', {
-                body: {
-                    training_plan_id: trainingPlanId,
-                    user_id: userId
-                }
+
+            const data = await userService.createTodaySession({
+                training_plan_id: trainingPlanId
             });
 
-            if (error) throw error;
+            if (!data) {
+                throw new Error('创建虚拟训练会话失败');
+            }
 
-            if (data?.success) {
+            if (!data) {
                 if (data.no_training) {
                     console.log('今日无训练安排');
                     setCurrentSession(null);

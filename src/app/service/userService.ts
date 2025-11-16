@@ -26,6 +26,9 @@ import type { CreateTrainingExercisesDto, CreateTrainingExercisesResponseDto } f
 import type { UpdateTrainingExerciseDto, UpdateTrainingExerciseResponseDto } from "../api/user/update-training-exercise/entity";
 import { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../api/user/update-training-session/entity";
 
+// 导入今日会话相关的类型定义
+import type { CreateTodaySessionDto, CreateTodaySessionResponseDto } from "../api/user/create-today-session/entity";
+
 class UserPlanService extends BaseService {
     async getTrainingPlans(reqData: GetTrainingPlansDto) {
         const res = await this.post<GetTrainingPlansResponseDto>('get-training-plans', reqData);
@@ -192,6 +195,7 @@ class UserPlanService extends BaseService {
         return null;
     }
 
+
     async updateTrainingSession(reqData: UpdateTrainingSessionDto) {
         const res = await this.post<UpdateTrainingSessionResponseDto>('update-training-session', reqData);
         if (res.data && res.data.success) {
@@ -200,7 +204,7 @@ class UserPlanService extends BaseService {
         
         return null;
     }
-
+    
     // 训练动作相关方法
     async createTrainingExercises(reqData: CreateTrainingExercisesDto) {
         const res = await this.post<CreateTrainingExercisesResponseDto>('create-training-exercises', reqData);
@@ -213,6 +217,16 @@ class UserPlanService extends BaseService {
     
     async updateTrainingExercise(reqData: UpdateTrainingExerciseDto) {
         const res = await this.post<UpdateTrainingExerciseResponseDto>('update-training-exercise', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    // 今日会话相关方法
+    async createTodaySession(reqData: CreateTodaySessionDto) {
+        const res = await this.post<CreateTodaySessionResponseDto>('create-today-session', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
