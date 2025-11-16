@@ -1,4 +1,3 @@
-import { BaseService } from "@/lib/baseService";
 import type { UpdateProfileResponseDto, UpdateProileDto } from "../api/user/update-profile/entity";
 import type { GetTrainingPlansDto, GetTrainingPlansResponseDto } from "../api/user/get-training-plans/entity";
 import type { GetTrainingPlansDetailDto, GetTrainingPlansDetailResponseDto } from "../api/user/get-training-detail/entity";
@@ -19,7 +18,10 @@ import type { SubmitWorkoutLogDto, SubmitWorkoutLogResponseDto, WorkoutLogPayloa
 import type { SubmitLifestyleLogDto, SubmitLifestyleLogResponseDto, LifestyleLogPayload } from "../api/user/submit-lifestyle-log/entity";
 // 导入个人记录相关的类型定义
 import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from "../api/user/update-personal-records/entity";
-
+// 导入训练会话相关的类型定义
+import type { CreateTrainingSessionDto, CreateTrainingSessionResponseDto } from "../api/user/create-training-session/entity";
+import type { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../api/user/update-training-session/entity";
+import { BaseService } from "@/lib/baseService";
 
 class UserPlanService extends BaseService {
     async getTrainingPlans(reqData: GetTrainingPlansDto) {
@@ -170,6 +172,25 @@ class UserPlanService extends BaseService {
     // 个人记录相关方法
     async updatePersonalRecords(reqData: UpdatePersonalRecordsDto) {
         const res = await this.post<UpdatePersonalRecordsResponseDto>('update-personal-records', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    // 训练会话相关方法
+    async createTrainingSession(reqData: CreateTrainingSessionDto) {
+        const res = await this.post<CreateTrainingSessionResponseDto>('create-training-session', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    async updateTrainingSession(reqData: UpdateTrainingSessionDto) {
+        const res = await this.post<UpdateTrainingSessionResponseDto>('complete-training-session', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
