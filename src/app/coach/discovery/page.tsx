@@ -11,6 +11,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
+import { useRouter } from 'next/navigation';
 
 const CoachDiscoveryPage: React.FC = () => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
@@ -23,9 +24,11 @@ const CoachDiscoveryPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(0);
     const [first, setFirst] = useState(0);
     const coachesPerPage = 10;
+    const router = useRouter();
 
     const onSelectCoach = (coachId: string) => {
         console.log('selectedCoachId:', coachId);
+        router.push('/coach/profile/' + coachId);
     };
 
     useEffect(() => {
@@ -116,7 +119,7 @@ const CoachDiscoveryPage: React.FC = () => {
     const renderCoachCard = (coach: CoachesRow) => (
         <div
             key={coach.id}
-            className="rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+            className="rounded-xl shadow-sm border border-surface-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => onSelectCoach(coach.id)}
         >
             {coach.is_featured && (
@@ -143,14 +146,14 @@ const CoachDiscoveryPage: React.FC = () => {
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">{coach.name}</h3>
+                        <h3 className="text-lg font-bold text-surface-900">{coach.name}</h3>
                         <div className="flex items-center space-x-1">
                             <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                            <span className="text-sm font-medium text-gray-700">{coach.rating}</span>
+                            <span className="text-sm font-medium text-surface-700">{coach.rating}</span>
                         </div>
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-2">{coach.title}</p>
+                    <p className="text-sm text-surface-600 mb-2">{coach.title}</p>
 
                     <div className="flex flex-wrap gap-1 mb-3">
                         {coach.specialties?.map((specialty, index) => (
@@ -163,10 +166,10 @@ const CoachDiscoveryPage: React.FC = () => {
                         ))}
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{coach.bio}</p>
+                    <p className="text-sm text-surface-600 mb-4 line-clamp-2">{coach.bio}</p>
 
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <div className="flex items-center space-x-4 text-sm text-surface-500">
                             <div className="flex items-center space-x-1">
                                 <Users className="w-4 h-4" />
                                 <span>{coach.total_students}学员</span>
@@ -179,7 +182,7 @@ const CoachDiscoveryPage: React.FC = () => {
 
                         {typeof (coach as any).subscription_price_tier1 === 'number' && (
                             <div className="text-right">
-                                <div className="text-sm text-gray-500">起价</div>
+                                <div className="text-sm text-surface-500">起价</div>
                                 <div className="text-lg font-bold text-primary-600">
                                     ¥{(coach as any).subscription_price_tier1}/月
                                 </div>
@@ -189,7 +192,7 @@ const CoachDiscoveryPage: React.FC = () => {
                 </div>
 
                 <div className="flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                     </svg>
                 </div>
@@ -201,11 +204,11 @@ const CoachDiscoveryPage: React.FC = () => {
         <div className="min-h-screen">
             <div className="max-w-6xl mx-auto px-4 py-6">
                 {/* 头部 */}
-                <div className="rounded-xl shadow-sm border p-6 mb-6">
+                <div className="rounded-xl mb-6">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">发现教练</h1>
-                            <p className="text-gray-600 mt-1">找到最适合你的专业健身教练</p>
+                            <h1 className="text-2xl font-bold text-surface-900">发现教练</h1>
+                            <p className="text-surface-600 mt-1">找到最适合你的专业健身教练</p>
                         </div>
                     </div>
 
@@ -248,7 +251,7 @@ const CoachDiscoveryPage: React.FC = () => {
                             {Array.from({ length: 5 }).map((_, index) => (
                                 <div
                                     key={index}
-                                    className="rounded-xl border border-gray-200 p-6 shadow-sm"
+                                    className="rounded-xl border border-surface-200 p-6 shadow-sm"
                                 >
                                     <div className="flex items-start space-x-4">
                                         <Skeleton shape="circle" size="4rem" className="flex-shrink-0" />
@@ -278,14 +281,14 @@ const CoachDiscoveryPage: React.FC = () => {
                         </div>
                     ) : error ? (
                         <div className="text-center py-12">
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">{error}</h3>
-                            <p className="text-gray-600">稍后再试或刷新页面</p>
+                            <h3 className="text-lg font-medium text-surface-900 mb-2">{error}</h3>
+                            <p className="text-surface-600">稍后再试或刷新页面</p>
                         </div>
                     ) : coaches.length === 0 ? (
                         <div className="text-center py-12">
-                            <Eye className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">没有找到教练</h3>
-                            <p className="text-gray-600">
+                            <Eye className="w-16 h-16 text-surface-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-surface-900 mb-2">没有找到教练</h3>
+                            <p className="text-surface-600">
                                 {searchTerm || selectedSpecialty !== 'all'
                                     ? '请尝试调整搜索条件'
                                     : '暂无可用教练'
@@ -294,7 +297,7 @@ const CoachDiscoveryPage: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="text-sm text-gray-500 mb-4">
+                            <div className="text-sm text-surface-500 mb-4">
                                 找到 {totalCount} 位教练
                             </div>
                             {coaches.map(renderCoachCard)}
