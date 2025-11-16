@@ -149,7 +149,7 @@ const TrainingPlansHome: React.FC = () => {
                         label="生成新计划"
                         icon="pi pi-plus"
                         className="p-button-primary"
-                        onClick={() => router.push('/training')}
+                        onClick={() => router.push(`/generate-plan?coachId=${coachId}`)}
                     />
                 </div>
 

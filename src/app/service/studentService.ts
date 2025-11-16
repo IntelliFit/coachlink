@@ -2,6 +2,9 @@ import { userService, type PlanDetailItem, type WorkoutLogPayload, type Lifestyl
 
 export type { PlanDetailItem, WorkoutLogPayload, LifestyleLogPayload };
 
+// 导入表单配置相关的类型定义
+import type { GetFormSchemaDto, GetFormSchemaResponseDto } from "../api/user/get-form-schema/entity";
+
 export interface OnboardingPayload {
     coachId?: string;
     answers: Record<string, any>;
@@ -49,9 +52,11 @@ class StudentService {
             payload
         });
     }
+
+    async getFormSchema(reqData: GetFormSchemaDto) {
+        return await userService.getFormSchema(reqData);
+    }
 }
 
 export const studentService = new StudentService();
 export default studentService;
-
-
