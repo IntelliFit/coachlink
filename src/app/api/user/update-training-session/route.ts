@@ -16,15 +16,16 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const payload = await req.json() as UpdateTrainingSessionDto;
+    const {
+        id,
+        update
+    } = await req.json() as UpdateTrainingSessionDto;
 
     // 更新训练会话状态为已完成
     const { data, error } = await supabase
         .from('training_sessions')
-        .update({
-            ...payload
-        })
-        .eq('id', payload.id)
+        .update(update)
+        .eq('id', id)
         .eq('user_id', session.user.id) // 确保用户只能更新自己的会话
         .select()
         .single();

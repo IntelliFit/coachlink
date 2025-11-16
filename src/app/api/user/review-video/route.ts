@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+import { ApiData } from '@/types/api';
+import { ReviewVideoResponseDto } from './entity';
 
 export async function POST(request: Request) {
     const session = await getServerSession();
@@ -45,10 +47,9 @@ export async function POST(request: Request) {
         throw new Error(`更新点评失败: ${error.message}`);
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<ReviewVideoResponseDto>>({
         success: true,
         message: '点评视频成功',
-        data
+        data: '点评视频成功'
     });
-
 }

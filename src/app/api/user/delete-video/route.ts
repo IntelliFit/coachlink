@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
-import { DeleteVideoDto } from './entity';
+import { DeleteVideoDto, DeleteVideoResponseDto } from './entity';
+import { ApiData } from '@/types/api';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -38,9 +39,9 @@ export async function POST(req: Request) {
         throw new Error(`删除视频失败: ${error.message}`);
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<DeleteVideoResponseDto>>({
         success: true,
         message: '删除视频成功',
-        data: null
+        data: '删除视频成功'
     });
 }

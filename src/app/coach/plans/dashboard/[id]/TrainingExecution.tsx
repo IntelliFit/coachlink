@@ -324,20 +324,24 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                     };
 
                     const res = await userService.createTrainingSession({
-                        user_id: userId,
-                        training_plan_id: trainingPlanId,
-                        week_number: newSession.week_number,
-                        day_of_week: newSession.day_of_week,
-                        session_focus: newSession.session_focus,
-                        scheduled_date: newSession.scheduled_date,
-                        status: 'scheduled'
+                        insert: {
+                            user_id: userId,
+                            training_plan_id: trainingPlanId,
+                            week_number: newSession.week_number,
+                            day_of_week: newSession.day_of_week,
+                            session_focus: newSession.session_focus,
+                            scheduled_date: newSession.scheduled_date,
+                            status: 'scheduled'
+                        }
                     });
 
-                    if (!res) {
+                    const trainingSessionId = res?.id;
+
+                    if (!trainingSessionId) {
                         throw new Error('Failed to insert training session');
                     } else {
                         const exerciseInserts = exercises.map(ex => ({
-                            training_session_id: res.id,
+                            training_session_id: trainingSessionId,
                             exercise_name: ex.name,
                             exercise_type: ex.exercise_type,
                             sets_planned: ex.sets_planned,
@@ -347,13 +351,16 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                             notes: ex.notes
                         }));
 
-                        const { error: exercisesError } = await supabase
-                            .from('training_exercises')
-                            .insert(exerciseInserts);
+                        const res = await userService.createTrainingExercises({
+                            training_session_id: trainingSessionId,
+                            insert: exerciseInserts
+                        });
 
-                        if (exercisesError) throw exercisesError;
-
-                        await loadTodaySession();
+                        if (!res) {
+                            showToast({ severity: 'error', summary: '错误', detail: '创建训练计划失败！' });
+                        } else {
+                            await loadTodaySession();
+                        }
                     }
                 } else {
                     console.log('今日无训练安排');
@@ -369,18 +376,21 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
         try {
             // 如果是虚拟会话，直接更新状态，不写数据库
-            if (currentSession.id?.startsWith('virtual-')) {
+            if (!currentSession.id || currentSession.id.startsWith('virtual-')) {
                 setCurrentSession(prev => prev ? { ...prev, status: 'in_progress' } : null);
                 return;
             }
 
-            // 如果是真实会话，更新数据库
-            const { error } = await supabase
-                .from('training_sessions')
-                .update({ status: 'in_progress' })
-                .eq('id', currentSession.id);
+            const res = await userService.updateTrainingSession({
+                id: currentSession.id,
+                update: {
+                    status: 'in_progress'
+                }
+            });
 
-            if (error) throw error;
+            if (!res) {
+                throw new Error('更新训练会话失败');
+            }
 
             setCurrentSession(prev => prev ? { ...prev, status: 'in_progress' } : null);
         } catch (error) {
@@ -414,23 +424,22 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
     };
 
     const completeExercise = async (exercise: Exercise, notes?: string) => {
-        if (!currentSession || !currentSession.id) return;
+        if (!currentSession || !currentSession.id) {
+            return;
+        }
 
-        try {
-            const { error } = await supabase
-                .from('training_exercises')
-                .update({
-                    sets_completed: exercise.sets_completed,
-                    reps_completed: exercise.reps_completed,
-                    load_actual: exercise.load_actual,
-                    notes: notes || exercise.notes
-                })
-                .eq('training_session_id', currentSession.id)
-                .eq('exercise_name', exercise.name);
+        const res = await userService.updateTrainingExercise({
+            training_session_id: currentSession.id,
+            exercise_name: exercise.name,
+            sets_completed: exercise.sets_completed,
+            reps_completed: exercise.reps_completed,
+            load_actual: exercise.load_actual,
+            notes: notes || exercise.notes
+        });
 
-            if (error) throw error;
-        } catch (error) {
-            console.error('保存训练动作失败:', error);
+        if (!res) {
+            console.error('保存训练动作失败');
+            showToast({ severity: 'error', summary: '错误', detail: '保存训练动作失败！' });
         }
     };
 
@@ -478,12 +487,19 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
 
             // 3) 标记本地会话完成，并同步更新后端 training_sessions 状态
             setCurrentSession(prev => prev ? { ...prev, status: 'completed', notes, rpe, energy_level: energyLevel } : null);
+
             // 仅当为真实会话时才更新数据库，虚拟ID不做PATCH
             if (currentSession.id && !currentSession.id.startsWith('virtual-')) {
-                try {
-                    await supabase.from('training_sessions').update({ status: 'completed', notes }).eq('id', currentSession.id);
-                } catch (e) {
-                    console.warn('同步更新会话状态失败（忽略继续）:', e);
+                const res = await userService.updateTrainingSession({
+                    id: currentSession.id,
+                    update: {
+                        status: 'completed',
+                        notes
+                    }
+                });
+
+                if (!res) {
+                    showToast({ severity: 'error', summary: 'Error', detail: '同步更新会话状态失败' });
                 }
             }
 
@@ -527,22 +543,22 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
     };
 
     const skipSession = async (reason?: string) => {
-        if (!currentSession || !currentSession.id) return;
+        if (!currentSession || !currentSession.id) {
+            return;
+        }
 
-        try {
-            const { error } = await supabase
-                .from('training_sessions')
-                .update({
-                    status: 'skipped',
-                    notes: reason || '用户跳过训练'
-                })
-                .eq('id', currentSession.id);
+        const res = await userService.updateTrainingSession({
+            id: currentSession.id,
+            update: {
+                status: 'skipped',
+                notes: reason || '用户跳过训练'
+            }
+        });
 
-            if (error) throw error;
-
+        if (!res) {
+            showToast({ severity: 'error', summary: '跳过训练失败' });
+        } else {
             setCurrentSession(prev => prev ? { ...prev, status: 'skipped', notes: reason } : null);
-        } catch (error) {
-            console.error('跳过训练失败:', error);
         }
     };
 

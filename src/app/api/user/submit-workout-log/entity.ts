@@ -17,8 +17,4 @@ export interface SubmitWorkoutLogDto {
     payload: WorkoutLogPayload;
 }
 
-export interface SubmitWorkoutLogResponseDto {
-    success: boolean;
-    message: string;
-    data: any;
-}
+export type SubmitWorkoutLogResponseDto = any;

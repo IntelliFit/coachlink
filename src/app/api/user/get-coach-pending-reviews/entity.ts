@@ -10,10 +10,6 @@ export interface GetCoachPendingReviewsDto {
 }
 
 export interface GetCoachPendingReviewsResponseDto {
-    success: boolean;
-    message: string;
-    data: {
-        videos: TrainingVideo[];
-        total: number;
-    };
+    videos: TrainingVideo[];
+    total: number;
 }

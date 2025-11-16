@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+import { ApiData } from '@/types/api';
+import { GetStudentProfileResponseDto } from './entity';
 
 export async function POST(request: Request) {
     const session = await getServerSession();
@@ -32,10 +34,9 @@ export async function POST(request: Request) {
         throw new Error(data?.message || error?.message || '获取学员档案失败');
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<GetStudentProfileResponseDto>>({
         success: true,
         message: '获取学员档案成功',
         data: data.data
     });
-
 }

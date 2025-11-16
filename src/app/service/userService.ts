@@ -1,3 +1,4 @@
+import { BaseService } from "@/lib/baseService";
 import type { UpdateProfileResponseDto, UpdateProileDto } from "../api/user/update-profile/entity";
 import type { GetTrainingPlansDto, GetTrainingPlansResponseDto } from "../api/user/get-training-plans/entity";
 import type { GetTrainingPlansDetailDto, GetTrainingPlansDetailResponseDto } from "../api/user/get-training-detail/entity";
@@ -20,8 +21,10 @@ import type { SubmitLifestyleLogDto, SubmitLifestyleLogResponseDto, LifestyleLog
 import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from "../api/user/update-personal-records/entity";
 // 导入训练会话相关的类型定义
 import type { CreateTrainingSessionDto, CreateTrainingSessionResponseDto } from "../api/user/create-training-session/entity";
-import type { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../api/user/update-training-session/entity";
-import { BaseService } from "@/lib/baseService";
+// 导入训练动作相关的类型定义
+import type { CreateTrainingExercisesDto, CreateTrainingExercisesResponseDto } from "../api/user/create-training-exercises/entity";
+import type { UpdateTrainingExerciseDto, UpdateTrainingExerciseResponseDto } from "../api/user/update-training-exercise/entity";
+import { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../api/user/update-training-session/entity";
 
 class UserPlanService extends BaseService {
     async getTrainingPlans(reqData: GetTrainingPlansDto) {
@@ -188,9 +191,28 @@ class UserPlanService extends BaseService {
         
         return null;
     }
-    
+
     async updateTrainingSession(reqData: UpdateTrainingSessionDto) {
-        const res = await this.post<UpdateTrainingSessionResponseDto>('complete-training-session', reqData);
+        const res = await this.post<UpdateTrainingSessionResponseDto>('update-training-session', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+
+    // 训练动作相关方法
+    async createTrainingExercises(reqData: CreateTrainingExercisesDto) {
+        const res = await this.post<CreateTrainingExercisesResponseDto>('create-training-exercises', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    async updateTrainingExercise(reqData: UpdateTrainingExerciseDto) {
+        const res = await this.post<UpdateTrainingExerciseResponseDto>('update-training-exercise', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

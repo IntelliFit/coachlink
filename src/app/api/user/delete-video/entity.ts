@@ -4,8 +4,4 @@ export interface DeleteVideoDto {
     videoId: string;
 }
 
-export interface DeleteVideoResponseDto {
-    success: boolean;
-    message: string;
-    data: null;
-}
+export type DeleteVideoResponseDto = string;

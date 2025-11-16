@@ -2,4 +2,4 @@ export interface DeleteTrainingReminderDto {
     id: string;
 }
 
-export type DeleteTrainingReminderResponseDto = null;
+export type DeleteTrainingReminderResponseDto = string;
