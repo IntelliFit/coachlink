@@ -58,6 +58,7 @@ import type { ApiData } from '@/types/api';
 import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from './entity';
 
 export async function POST(req: Request) {
+    // 重要！ 不能套 try catch 块
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
     return NextResponse.json<ApiData<UpdatePersonalRecordsResponseDto>>({
         success: true,
         message: '个人记录更新成功',
+        // UpdatePersonalRecordsResponseDto 反应的就是这个地方 data 的数据结构
         data: null
     });
 }
