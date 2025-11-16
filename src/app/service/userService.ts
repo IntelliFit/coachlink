@@ -17,6 +17,9 @@ import type { GetStudentProfileDto, GetStudentProfileResponseDto } from "../api/
 import type { UpsertTrainingPlanDetailsDto, UpsertTrainingPlanDetailsResponseDto, PlanDetailItem } from "../api/user/upsert-training-plan-details/entity";
 import type { SubmitWorkoutLogDto, SubmitWorkoutLogResponseDto, WorkoutLogPayload } from "../api/user/submit-workout-log/entity";
 import type { SubmitLifestyleLogDto, SubmitLifestyleLogResponseDto, LifestyleLogPayload } from "../api/user/submit-lifestyle-log/entity";
+// 导入个人记录相关的类型定义
+import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from "../api/user/update-personal-records/entity";
+
 
 class UserPlanService extends BaseService {
     async getTrainingPlans(reqData: GetTrainingPlansDto) {
@@ -52,121 +55,131 @@ class UserPlanService extends BaseService {
             return res.data.data;
         }
     }
-
+    
     // 训练提醒相关方法
     async getTrainingReminders(reqData: GetTrainingRemindersDto) {
         const res = await this.post<GetTrainingRemindersResponseDto>('get-training-reminders', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async createTrainingReminder(reqData: CreateTrainingReminderDto) {
         const res = await this.post<CreateTrainingReminderResponseDto>('create-training-reminder', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async updateTrainingReminder(reqData: UpdateTrainingReminderDto) {
         const res = await this.post<UpdateTrainingReminderResponseDto>('update-training-reminder', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async deleteTrainingReminder(reqData: DeleteTrainingReminderDto) {
         const res = await this.post<DeleteTrainingReminderResponseDto>('delete-training-reminder', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     // 训练进度相关方法
     async getTrainingProgress(reqData: GetTrainingProgressDto) {
         const res = await this.post<GetTrainingProgressResponseDto>('get-training-progress', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async getPersonalRecords(reqData: GetPersonalRecordsDto) {
         const res = await this.post<GetPersonalRecordsResponseDto>('get-personal-records', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async getWeeklyProgress(reqData: GetWeeklyProgressDto) {
         const res = await this.post<GetWeeklyProgressResponseDto>('get-weekly-progress', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     // 学生服务相关方法
     async submitOnboarding(reqData: SubmitOnboardingDto) {
         const res = await this.post<SubmitOnboardingResponseDto>('submit-onboarding', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async getStudentProfile(reqData: GetStudentProfileDto) {
         const res = await this.post<GetStudentProfileResponseDto>('get-student-profile', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async upsertTrainingPlanDetails(reqData: UpsertTrainingPlanDetailsDto) {
         const res = await this.post<UpsertTrainingPlanDetailsResponseDto>('upsert-training-plan-details', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async submitWorkoutLog(reqData: SubmitWorkoutLogDto) {
         const res = await this.post<SubmitWorkoutLogResponseDto>('submit-workout-log', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
         return null;
     }
-
+    
     async submitLifestyleLog(reqData: SubmitLifestyleLogDto) {
         const res = await this.post<SubmitLifestyleLogResponseDto>('submit-lifestyle-log', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
-
+        
+        return null;
+    }
+    
+    // 个人记录相关方法
+    async updatePersonalRecords(reqData: UpdatePersonalRecordsDto) {
+        const res = await this.post<UpdatePersonalRecordsResponseDto>('update-personal-records', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
         return null;
     }
 }
 
 export const userService = new UserPlanService('/api/user');
-export type {
+export type { 
     PlanDetailItem,
     WorkoutLogPayload,
     LifestyleLogPayload
