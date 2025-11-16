@@ -26,12 +26,20 @@ import type { CreateTrainingExercisesDto, CreateTrainingExercisesResponseDto } f
 import type { UpdateTrainingExerciseDto, UpdateTrainingExerciseResponseDto } from "../api/user/update-training-exercise/entity";
 import { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../api/user/update-training-session/entity";
 
+// 导入表单配置相关的类型定义
+import type { GetFormSchemaDto, GetFormSchemaResponseDto } from "../api/user/get-form-schema/entity";
+
 // 导入今日会话相关的类型定义
 import type { CreateTodaySessionDto, CreateTodaySessionResponseDto } from "../api/user/create-today-session/entity";
 
 class UserPlanService extends BaseService {
-    async getTrainingPlans(reqData: GetTrainingPlansDto) {
-        const res = await this.post<GetTrainingPlansResponseDto>('get-training-plans', reqData);
+    /**
+     * @description 获取训练计划
+     * @param reqData 如果查找当前登录用户的全部计划，不需要输入任何参数。如果查找计划明或者某个教练的计划，输入对应的 id
+     * @returns 
+     */
+    async getTrainingPlans(reqData?: GetTrainingPlansDto) {
+        const res = await this.post<GetTrainingPlansResponseDto>('get-training-plans', reqData || {});
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -39,8 +47,27 @@ class UserPlanService extends BaseService {
         return null;
     }
 
-    async getTrainingPlanDetail(reqData: GetTrainingPlansDetailDto) {
+    /**
+     * @description 根据 ID 获取训练计划详情，通过 getTrainingPlans 获取对应的 ID 数组
+     * @param reqData 
+     * @returns 
+     */
+    async getTrainingPlansDetail(reqData: GetTrainingPlansDetailDto) {
         const res = await this.post<GetTrainingPlansDetailResponseDto>('get-training-detail', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
+    }
+
+    /**
+     * @description 获取表单配置
+     * @param reqData 
+     * @returns 
+     */
+    async getFormSchema(reqData: GetFormSchemaDto) {
+        const res = await this.post<GetFormSchemaResponseDto>('get-form-schema', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

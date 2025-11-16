@@ -22,7 +22,7 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
 
     const getServicesByTier = (tier: number) => {
         const base = [
-            { id: 'ai_plan', name: 'AI训练计划', desc: '个性化AI训练方案', icon: Brain, color: 'bg-blue-500', available: tier >= 1 }
+            { id: 'ai_plan', name: '训练计划', desc: '获取教练专属训练计划', icon: Brain, color: 'bg-blue-500', available: tier >= 1 }
         ]
         if (tier >= 3)
             base.push({ id: 'chat', name: '一对一聊天', desc: '与教练实时沟通交流', icon: MessageCircle, color: 'bg-purple-500', available: true })
