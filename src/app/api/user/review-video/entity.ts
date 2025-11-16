@@ -14,8 +14,4 @@ export interface ReviewVideoDto {
     };
 }
 
-export interface ReviewVideoResponseDto {
-    success: boolean;
-    message: string;
-    data: TrainingVideo;
-}
+export type ReviewVideoResponseDto = string;

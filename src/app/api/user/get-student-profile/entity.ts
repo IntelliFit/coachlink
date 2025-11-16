@@ -11,8 +11,4 @@ export interface StudentProfileData {
     lifestyle: any[];
 }
 
-export interface GetStudentProfileResponseDto {
-    success: boolean;
-    message: string;
-    data: StudentProfileData;
-}
+export type GetStudentProfileResponseDto = StudentProfileData;

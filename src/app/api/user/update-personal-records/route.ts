@@ -57,6 +57,6 @@ export async function POST(req: Request) {
     return NextResponse.json<ApiData<UpdatePersonalRecordsResponseDto>>({
         success: true,
         message: '个人记录更新成功',
-        data: null
+        data: '个人记录更新成功'
     });
 }

@@ -11,4 +11,4 @@ export interface UpdatePersonalRecordsDto {
     }[];
 }
 
-export type UpdatePersonalRecordsResponseDto = null;
+export type UpdatePersonalRecordsResponseDto = string;

@@ -7,8 +7,4 @@ export interface SubmitOnboardingDto {
     baseline_video_urls?: string[];
 }
 
-export interface SubmitOnboardingResponseDto {
-    success: boolean;
-    message: string;
-    data: any;
-}
+export type SubmitOnboardingResponseDto = any;

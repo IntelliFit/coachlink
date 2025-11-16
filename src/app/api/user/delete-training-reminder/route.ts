@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
-import { DeleteTrainingReminderDto } from './entity';
+import { DeleteTrainingReminderDto, DeleteTrainingReminderResponseDto } from './entity';
+import { ApiData } from '@/types/api';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -51,10 +52,9 @@ export async function POST(req: Request) {
         throw new Error(error.message);
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<DeleteTrainingReminderResponseDto>>({
         success: true,
         message: '删除训练提醒成功',
-        data: null
+        data: '删除训练提醒成功'
     });
-
 }

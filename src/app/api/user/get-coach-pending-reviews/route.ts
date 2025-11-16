@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+import { ApiData } from '@/types/api';
+import { GetCoachPendingReviewsResponseDto } from './entity';
 
 export async function POST(request: Request) {
     const session = await getServerSession();
@@ -47,11 +49,11 @@ export async function POST(request: Request) {
         throw new Error(`获取待点评视频失败: ${error.message}`);
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<GetCoachPendingReviewsResponseDto>>({
         success: true,
         message: '获取待点评视频成功',
         data: {
-            videos: data || [],
+            videos: (data as any[]) || [],
             total: count || 0
         }
     });

@@ -17,8 +17,4 @@ export interface UpsertTrainingPlanDetailsDto {
     details: PlanDetailItem[];
 }
 
-export interface UpsertTrainingPlanDetailsResponseDto {
-    success: boolean;
-    message: string;
-    data: any[];
-}
+export type UpsertTrainingPlanDetailsResponseDto = any[];

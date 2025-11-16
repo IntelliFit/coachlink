@@ -8,8 +8,4 @@ export interface SubmitVideoUrlDto {
     context: VideoUploadContext;
 }
 
-export interface SubmitVideoUrlResponseDto {
-    success: boolean;
-    message: string;
-    data: TrainingVideo;
-}
+export type SubmitVideoUrlResponseDto = TrainingVideo;

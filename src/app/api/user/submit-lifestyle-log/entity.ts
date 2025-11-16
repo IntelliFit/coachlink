@@ -13,8 +13,4 @@ export interface SubmitLifestyleLogDto {
     payload: LifestyleLogPayload;
 }
 
-export interface SubmitLifestyleLogResponseDto {
-    success: boolean;
-    message: string;
-    data: any;
-}
+export type SubmitLifestyleLogResponseDto = any;

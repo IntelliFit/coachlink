@@ -19,11 +19,7 @@ export async function POST(req: Request) {
     const user_id = session.user.id;
 
     const {
-        training_plan_id,
-        week_number,
-        day_of_week,
-        session_focus,
-        scheduled_date
+        insert
     } = await req.json() as CreateTrainingSessionDto;
 
     // 验证用户权限
@@ -37,15 +33,7 @@ export async function POST(req: Request) {
     // 插入训练会话
     const { data, error } = await supabase
         .from('training_sessions')
-        .insert({
-            user_id,
-            training_plan_id,
-            week_number,
-            day_of_week,
-            session_focus,
-            scheduled_date,
-            status: 'scheduled'
-        })
+        .insert(insert)
         .select()
         .single();
 
