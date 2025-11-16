@@ -25,8 +25,6 @@ export default function ClientLayout({
     };
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-
         const lenisInstance = new Lenis({
             autoRaf: true,
         });

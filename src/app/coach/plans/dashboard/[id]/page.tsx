@@ -35,7 +35,6 @@ const TrainingPlanDashboard: React.FC = () => {
     const router = useRouter();
     const { id: trainingPlanId } = useParams();
     const { data: session } = useSession();
-
     const { showToast } = useToastContext();
 
     // 状态管理

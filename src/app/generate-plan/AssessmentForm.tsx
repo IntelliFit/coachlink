@@ -1,5 +1,15 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import TrainingVideoUploader from '@/components/video/TrainingVideoUploader';
+import { Skeleton } from 'primereact/skeleton';
+import { Button } from 'primereact/button';
+import { InputNumber } from 'primereact/inputnumber';
+import { Dropdown } from 'primereact/dropdown';
+import { MultiSelect } from 'primereact/multiselect';
+import { Checkbox } from 'primereact/checkbox';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { ProgressBar } from 'primereact/progressbar';
+import type { GetCoachRulepacksDto } from '@/app/api/coach/get-coach-rulepacks/entity';
 
 import {
     User,
@@ -13,6 +23,7 @@ import {
     ChevronRight
 } from 'lucide-react';
 import { coachService } from '../service/coachService';
+import VideoUploader from '@/components/video/VideoUploader';
 
 interface FormField {
     name: string;
@@ -51,6 +62,10 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
     useEffect(() => {
         loadFormSchema();
     }, [domain, coachId]);
+
+    useEffect(() => {
+        console.log('currentStep: ', currentStep);
+    }, [currentStep]);
 
     const loadFormSchema = async () => {
         try {
@@ -367,17 +382,17 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <input
-                            type="number"
-                            min={field.min}
-                            max={field.max}
-                            value={value || ''}
-                            onChange={(e) => {
-                                setFormData({ ...formData, [field.name]: e.target.value });
+                        <InputNumber
+                            value={value || null}
+                            onValueChange={(e) => {
+                                setFormData({ ...formData, [field.name]: e.value });
                                 setErrors({ ...errors, [field.name]: '' });
                             }}
-                            className={baseClass}
+                            min={field.min}
+                            max={field.max}
                             placeholder={field.placeholder}
+                            className="w-full"
+                            inputClassName={error ? 'border-red-500' : ''}
                         />
                         {error && <p className="text-sm text-red-600">{error}</p>}
                     </div>
@@ -386,93 +401,84 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
             case 'select':
                 return (
                     <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-surface-700">
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <select
+                        <Dropdown
                             value={value || ''}
                             onChange={(e) => {
-                                setFormData({ ...formData, [field.name]: e.target.value });
+                                setFormData({ ...formData, [field.name]: e.value });
                                 setErrors({ ...errors, [field.name]: '' });
                             }}
-                            className={baseClass}
-                        >
-                            <option value="">请选择...</option>
-                            {field.options?.map(option => (
-                                <option key={option} value={option}>{option}</option>
-                            ))}
-                        </select>
+                            options={(field.options || []).map(option => ({ label: option, value: option }))}
+                            placeholder="请选择..."
+                            className="w-full"
+                        />
                         {error && <p className="text-sm text-red-600">{error}</p>}
                     </div>
                 );
 
             case 'multiselect':
                 return (
-                    <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-700">
+                    <div className="space-y-1" data-lenis-prevent>
+                        <label className="block text-sm font-medium text-surface-700">
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {field.options?.map(option => (
-                                <label key={option} className="flex items-center space-x-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={Array.isArray(value) && value.includes(option)}
-                                        onChange={(e) => {
-                                            const current = Array.isArray(value) ? value : [];
-                                            const updated = e.target.checked
-                                                ? [...current, option]
-                                                : current.filter(item => item !== option);
-                                            setFormData({ ...formData, [field.name]: updated });
-                                            setErrors({ ...errors, [field.name]: '' });
-                                        }}
-                                        className="rounded text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm">{option}</span>
-                                </label>
-                            ))}
-                        </div>
+                        <MultiSelect
+                            value={Array.isArray(value) ? value : []}
+                            onChange={(e) => {
+                                setFormData({ ...formData, [field.name]: e.value });
+                                setErrors({ ...errors, [field.name]: '' });
+                            }}
+                            options={(field.options || []).map(option => ({ label: option, value: option }))}
+                            placeholder="请选择..."
+                            className="w-full"
+                            onShow={() => {
+                                (document.querySelectorAll('.p-multiselect-items-wrapper') || []).forEach(el => {
+                                    el.setAttribute('data-lenis-prevent', '');
+                                });
+                            }}
+                        />
                         {error && <p className="text-sm text-red-600">{error}</p>}
                     </div>
                 );
 
             case 'boolean':
                 return (
-                    <label className="flex items-center space-x-3">
-                        <input
-                            type="checkbox"
+                    <div className="flex items-center space-x-3">
+                        <Checkbox
                             checked={value || false}
                             onChange={(e) => {
-                                setFormData({ ...formData, [field.name]: e.target.checked });
+                                setFormData({ ...formData, [field.name]: e.checked });
                                 setErrors({ ...errors, [field.name]: '' });
                             }}
-                            className="rounded text-blue-600 focus:ring-blue-500"
+                            inputId={field.name}
                         />
-                        <div>
-                            <span className="text-sm font-medium text-gray-700">{field.label}</span>
+                        <label htmlFor={field.name} className="text-sm font-medium text-surface-700">
+                            {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </div>
-                    </label>
+                        </label>
+                    </div>
                 );
 
             case 'textarea':
                 return (
                     <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-surface-700">
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <textarea
+                        <InputTextarea
                             value={value || ''}
                             onChange={(e) => {
                                 setFormData({ ...formData, [field.name]: e.target.value });
                                 setErrors({ ...errors, [field.name]: '' });
                             }}
-                            className={baseClass}
-                            rows={3}
                             placeholder={field.placeholder}
+                            rows={3}
+                            className="w-full"
                         />
                         {error && <p className="text-sm text-red-600">{error}</p>}
                     </div>
@@ -489,8 +495,26 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="bg-white rounded-xl shadow-sm p-8">
+                <div className="mb-6">
+                    <Skeleton width="100%" height="2rem" className="mb-4" />
+                    <Skeleton width="100%" height="1.5rem" className="mb-4" />
+                    <Skeleton width="100%" height="1rem" className="mb-2" />
+                </div>
+
+                <div className="space-y-6 mb-8">
+                    {[1, 2, 3, 4].map((item) => (
+                        <div key={item} className="space-y-3">
+                            <Skeleton width="30%" height="1rem" />
+                            <Skeleton width="100%" height="3rem" />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex justify-between">
+                    <Skeleton width="6rem" height="2.5rem" />
+                    <Skeleton width="6rem" height="2.5rem" />
+                </div>
             </div>
         );
     }
@@ -512,29 +536,27 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
         <div className="bg-white rounded-xl shadow-sm p-8">
             <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <button
+                    <Button
                         onClick={onBack}
-                        className="flex items-center text-gray-600 hover:text-gray-900"
-                    >
-                        <ChevronLeft className="w-5 h-5 mr-1" />
-                        返回选择
-                    </button>
-                    <div className="text-sm text-gray-500">
+                        icon="pi pi-arrow-left"
+                        label="返回选择"
+                        className="p-button-text p-button-secondary"
+                    />
+                    <div className="text-sm text-surface-500">
                         步骤 {currentStep + 1} / {totalSteps}
                     </div>
                 </div>
 
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                    <div
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
-                    />
-                </div>
+                <ProgressBar
+                    value={((currentStep + 1) / totalSteps) * 100}
+                    displayValueTemplate={() => `${currentStep + 1}/${totalSteps}`}
+                    className="mb-4"
+                />
 
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-xl font-semibold text-surface-900 mb-2">
                     {categoryTitles[categoryName] || categoryName}
                 </h2>
-                <p className="text-gray-600 text-sm">
+                <p className="text-surface-600 text-sm">
                     请根据您的实际情况填写以下信息
                 </p>
             </div>
@@ -547,13 +569,13 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
 
             {/* 基线视频上传 - 只在最后一步显示 */}
             {currentStep === totalSteps - 1 && userId && (
-                <div className="mb-8 p-6 bg-blue-50 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">基线能力视频（可选）</h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                <div className="mb-8 p-6 bg-primary-50 rounded-lg">
+                    <h3 className="text-lg font-semibold text-surface-900 mb-3">基线能力视频（可选）</h3>
+                    <p className="text-sm text-surface-600 mb-4">
                         上传一些展示您当前运动能力的视频，帮助教练更好地了解您的初始状态，制定更适合的训练计划。
                     </p>
 
-                    <TrainingVideoUploader
+                    <VideoUploader
                         userId={userId}
                         context={{
                             type: 'baseline',
@@ -574,31 +596,20 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
             )}
 
             <div className="flex justify-between">
-                <button
+                <Button
                     onClick={handlePrevious}
                     disabled={currentStep === 0}
-                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <ChevronLeft className="w-4 h-4 inline mr-1" />
-                    上一步
-                </button>
+                    icon="pi pi-arrow-left"
+                    label="上一步"
+                    className="p-button-secondary"
+                />
 
-                <button
+                <Button
                     onClick={handleNext}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                    {currentStep === totalSteps - 1 ? (
-                        <>
-                            生成计划
-                            <CheckCircle className="w-4 h-4 inline ml-1" />
-                        </>
-                    ) : (
-                        <>
-                            下一步
-                            <ChevronRight className="w-4 h-4 inline ml-1" />
-                        </>
-                    )}
-                </button>
+                    label={currentStep === totalSteps - 1 ? "生成计划" : "下一步"}
+                    icon={currentStep === totalSteps - 1 ? "pi pi-check" : "pi pi-arrow-right"}
+                    iconPos={currentStep === totalSteps - 1 ? "right" : "right"}
+                />
             </div>
         </div>
     );
