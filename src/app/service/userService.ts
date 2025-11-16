@@ -26,9 +26,6 @@ import type { CreateTrainingExercisesDto, CreateTrainingExercisesResponseDto } f
 import type { UpdateTrainingExerciseDto, UpdateTrainingExerciseResponseDto } from "../api/user/update-training-exercise/entity";
 import { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../api/user/update-training-session/entity";
 
-// 导入表单配置相关的类型定义
-import type { GetFormSchemaDto, GetFormSchemaResponseDto } from "../api/user/get-form-schema/entity";
-
 // 导入今日会话相关的类型定义
 import type { CreateTodaySessionDto, CreateTodaySessionResponseDto } from "../api/user/create-today-session/entity";
 
@@ -52,22 +49,8 @@ class UserPlanService extends BaseService {
      * @param reqData 
      * @returns 
      */
-    async getTrainingPlansDetail(reqData: GetTrainingPlansDetailDto) {
+    async getTrainingPlanDetail(reqData: GetTrainingPlansDetailDto) {
         const res = await this.post<GetTrainingPlansDetailResponseDto>('get-training-detail', reqData);
-        if (res.data && res.data.success) {
-            return res.data.data;
-        }
-
-        return null;
-    }
-
-    /**
-     * @description 获取表单配置
-     * @param reqData 
-     * @returns 
-     */
-    async getFormSchema(reqData: GetFormSchemaDto) {
-        const res = await this.post<GetFormSchemaResponseDto>('get-form-schema', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

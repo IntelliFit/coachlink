@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
-import studentService from '@/app/service/studentService';
+import { studentService } from '@/app/service/studentService';
 import { Skeleton } from 'primereact/skeleton';
 
 interface Exercise {

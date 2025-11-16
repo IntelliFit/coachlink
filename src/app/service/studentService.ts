@@ -1,62 +1,113 @@
-import { userService, type PlanDetailItem, type WorkoutLogPayload, type LifestyleLogPayload } from './userService';
+import { BaseService } from "@/lib/baseService";
 
-export type { PlanDetailItem, WorkoutLogPayload, LifestyleLogPayload };
-
-// 导入表单配置相关的类型定义
+// 导入所有需要的类型定义
 import type { GetFormSchemaDto, GetFormSchemaResponseDto } from "../api/user/get-form-schema/entity";
+import type { SubmitOnboardingDto, SubmitOnboardingResponseDto } from "../api/user/submit-onboarding/entity";
+import type { GetStudentProfileDto, GetStudentProfileResponseDto } from "../api/user/get-student-profile/entity";
+import type { UpsertTrainingPlanDetailsDto, UpsertTrainingPlanDetailsResponseDto, PlanDetailItem } from "../api/user/upsert-training-plan-details/entity";
+import type { SubmitWorkoutLogDto, SubmitWorkoutLogResponseDto, WorkoutLogPayload } from "../api/user/submit-workout-log/entity";
+import type { SubmitLifestyleLogDto, SubmitLifestyleLogResponseDto, LifestyleLogPayload } from "../api/user/submit-lifestyle-log/entity";
 
-export interface OnboardingPayload {
-    coachId?: string;
-    answers: Record<string, any>;
-    baseline_video_urls?: string[];
-}
+class StudentService extends BaseService {    
 
-class StudentService {
-    private getCurrentUserId(): string {
-        const userId = localStorage.getItem('current_user_id');
-        if (!userId) throw new Error('未登录，无法执行该操作');
-        return userId;
+    /**
+     * @description 提交新手入门信息
+     * @param payload 
+     * @returns 
+     */
+    // async submitOnboarding(payload: OnboardingPayload) {
+    //     const reqData: SubmitOnboardingDto = {
+    //         coachId: payload.coachId,
+    //         answers: payload.answers,
+    //         baseline_video_urls: payload.baseline_video_urls
+    //     };
+        
+    //     const res = await this.post<SubmitOnboardingResponseDto>('submit-onboarding', reqData);
+    //     if (res.data && res.data.success) {
+    //         return res.data.data;
+    //     }
+
+    //     return null;
+    // }
+
+    /**
+     * @description 获取学生档案
+     * @param userId 
+     * @returns 
+     */
+    async getStudentProfile() {        
+        const res = await this.post<GetStudentProfileResponseDto>('get-student-profile', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
     }
 
-    async submitOnboarding(payload: OnboardingPayload) {
-        const userId = this.getCurrentUserId();
-        return await userService.submitOnboarding({
-            userId,
-            coachId: payload.coachId,
-            answers: payload.answers,
-            baseline_video_urls: payload.baseline_video_urls
-        });
-    }
-
-    async getStudentProfile(userId?: string) {
-        const effectiveUserId = userId || this.getCurrentUserId();
-        return await userService.getStudentProfile({ userId: effectiveUserId });
-    }
-
+    /**
+     * @description 更新训练计划详情
+     * @param training_plan_id 
+     * @param details 
+     * @returns 
+     */
     async upsertTrainingPlanDetails(training_plan_id: string, details: PlanDetailItem[]) {
-        return await userService.upsertTrainingPlanDetails({ training_plan_id, details });
+        const reqData: UpsertTrainingPlanDetailsDto = { training_plan_id, details };
+        
+        const res = await this.post<UpsertTrainingPlanDetailsResponseDto>('upsert-training-plan-details', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
     }
 
+    /**
+     * @description 提交训练日志
+     * @param payload 
+     * @returns 
+     */
     async submitWorkoutLog(payload: WorkoutLogPayload) {
         const userId = this.getCurrentUserId();
-        return await userService.submitWorkoutLog({
-            userId,
-            payload
-        });
+        const reqData: SubmitWorkoutLogDto = { userId, payload };
+        
+        const res = await this.post<SubmitWorkoutLogResponseDto>('submit-workout-log', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
     }
 
+    /**
+     * @description 提交生活方式日志
+     * @param payload 
+     * @returns 
+     */
     async submitLifestyleLog(payload: LifestyleLogPayload) {
         const userId = this.getCurrentUserId();
-        return await userService.submitLifestyleLog({
-            userId,
-            payload
-        });
+        const reqData: SubmitLifestyleLogDto = { userId, payload };
+        
+        const res = await this.post<SubmitLifestyleLogResponseDto>('submit-lifestyle-log', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
     }
 
-    async getFormSchema(reqData: GetFormSchemaDto) {
-        return await userService.getFormSchema(reqData);
-    }
+    /**
+     * @description 获取表单配置
+     * @param reqData 
+     * @returns 
+     */
+    // async getFormSchema(reqData: GetFormSchemaDto) {
+    //     const res = await this.post<GetFormSchemaResponseDto>('get-form-schema', reqData);
+    //     if (res.data && res.data.success) {
+    //         return res.data.data;
+    //     }
+
+    //     return null;
+    // }
 }
 
-export const studentService = new StudentService();
-export default studentService;
+export const studentService = new StudentService('/api/student');
