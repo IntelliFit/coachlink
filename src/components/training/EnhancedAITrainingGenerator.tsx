@@ -13,7 +13,7 @@ import {
     Zap
 } from 'lucide-react';
 import { studentService } from '../services/studentService';
-import { VideoService } from '../services/videoService';
+import { videoService } from '@/app/service/videoService';
 
 interface EnhancedAITrainingGeneratorProps {
     coachId: string;
@@ -48,15 +48,23 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
 
         try {
             const userId = localStorage.getItem('current_user_id') || '';
-            const videoService = VideoService.getInstance();
 
             // 1) 上传基线视频文件（如果有）
-            const uploadedUrls: string[] = [];
+            const uploadedVideos: any[] = [];
             if (Array.isArray(data.baseline_files) && data.baseline_files.length > 0) {
                 for (const file of data.baseline_files as File[]) {
                     try {
-                        const res = await videoService.submitVideoFile({ userId, file, purpose: 'baseline' });
-                        if (res?.video_url) uploadedUrls.push(res.video_url);
+                        const res = await videoService.uploadVideoFile(
+                            userId,
+                            file,
+                            {
+                                type: 'baseline',
+                                requires_review: true,
+                                coach_id: coachId,
+                                exercise_name: 'baseline_assessment'
+                            }
+                        );
+                        if (res) uploadedVideos.push(res);
                     } catch (e) {
                         console.warn('基线视频文件上传失败，已跳过:', e);
                     }
@@ -66,7 +74,7 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
             // 2) 合并URL（文本框粘贴的 + 文件上传返回的）
             const allUrls = [
                 ...(Array.isArray(data.baseline_video_urls) ? data.baseline_video_urls : []),
-                ...uploadedUrls
+                ...uploadedVideos.map(v => v.video_url).filter(Boolean)
             ];
 
             // 3) 提交问卷（包含基线视频URL）

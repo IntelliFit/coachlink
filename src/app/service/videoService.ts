@@ -1,4 +1,5 @@
 import { BaseService } from "@/lib/baseService";
+import supabaseBrowser from "@/lib/supabaseBrowserClient";
 // 导入视频服务相关的类型定义
 import type { UploadVideoDto, UploadVideoResponseDto, VideoUploadContext, VideoUploadProgress } from "../api/user/upload-video/entity";
 import type { SubmitVideoUrlDto, SubmitVideoUrlResponseDto } from "../api/user/submit-video-url/entity";
@@ -18,6 +19,41 @@ class VideoService extends BaseService {
             return res.data.data;
         }
         
+        return null;
+    }
+
+    // 以 form-data 上传真实视频文件（组件在用）
+    async uploadVideoFile(
+        userId: string,
+        file: File,
+        context: VideoUploadContext,
+        onUploadProgress?: (progress: VideoUploadProgress) => void
+    ) {
+        // 前端直传到 Supabase Storage，避免 Next.js 开发模式偶发的 Request body lock
+        onUploadProgress?.({ loaded: 0, total: file.size, percentage: 0 });
+
+        const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+        const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+        const filePath = `${userId}/${safeName}`;
+
+        const { error: uploadError } = await supabaseBrowser.storage.from('videos').upload(filePath, file, { upsert: false });
+        if (uploadError) {
+            throw uploadError as unknown as Error;
+        }
+
+        const { data: { publicUrl } } = supabaseBrowser.storage.from('videos').getPublicUrl(filePath);
+
+        // 写入数据库记录，复用 submit-video-url 接口（仅 JSON）
+        const res = await this.post<SubmitVideoUrlResponseDto>('submit-video-url', {
+            videoUrl: publicUrl,
+            context: { ...context, user_id: userId }
+        });
+
+        onUploadProgress?.({ loaded: file.size, total: file.size, percentage: 100 });
+
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
         return null;
     }
     
