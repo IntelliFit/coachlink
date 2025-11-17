@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, MessageSquare, Clock, Filter, Search, Trash2, Eye, X } from 'lucide-react';
-import TrainingVideoService from '../../services/trainingVideoService';
-import { TrainingVideo, VideoType, ReviewStatus } from '../../types/video';
+import { videoService } from '@/app/service/videoService';
+import { TrainingVideo, VideoType, ReviewStatus } from '@/types/video';
 
 interface VideoManagementProps {
   userId: string;
@@ -25,8 +25,6 @@ const VideoManagement: React.FC<VideoManagementProps> = ({
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [previewVideo, setPreviewVideo] = useState<TrainingVideo | null>(null);
 
-  const videoService = TrainingVideoService.getInstance();
-
   useEffect(() => {
     loadVideos();
   }, [userId, filter]);
@@ -34,12 +32,15 @@ const VideoManagement: React.FC<VideoManagementProps> = ({
   const loadVideos = async () => {
     try {
       setLoading(true);
-      const { videos: videoData } = await videoService.getUserVideos(userId, {
-        ...filter,
-        date_from: undefined,
-        date_to: undefined
+      const result = await videoService.getUserVideos({
+        filters: {
+          ...filter,
+        },
+        pagination: { page: 1, limit: 100 }
       });
-      setVideos(videoData);
+      if (result) {
+        setVideos(result.videos);
+      }
     } catch (error) {
       console.error('加载视频失败:', error);
     } finally {
@@ -51,7 +52,7 @@ const VideoManagement: React.FC<VideoManagementProps> = ({
     if (!confirm('确定要删除这个视频吗？')) return;
     
     try {
-      await videoService.deleteVideo(videoId, userId);
+      await videoService.deleteVideo({ videoId });
       setVideos(videos.filter(v => v.id !== videoId));
     } catch (error) {
       alert('删除视频失败: ' + (error as Error).message);

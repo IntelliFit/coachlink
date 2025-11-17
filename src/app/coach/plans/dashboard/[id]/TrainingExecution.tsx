@@ -481,11 +481,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
                 video_ids: trainingVideoIds,
             });
 
-            // 2) 可选：提示是否上传训练视频，若有视频URL可在此调用（示例注释）
-            // const videoService = VideoService.getInstance();
-            // await videoService.submitVideo(userId, { video_url: 'https://...', purpose: 'workout' });
-
-            // 3) 标记本地会话完成，并同步更新后端 training_sessions 状态
+            // 2) 标记本地会话完成，并同步更新后端 training_sessions 状态
             setCurrentSession(prev => prev ? { ...prev, status: 'completed', notes, rpe, energy_level: energyLevel } : null);
 
             // 仅当为真实会话时才更新数据库，虚拟ID不做PATCH

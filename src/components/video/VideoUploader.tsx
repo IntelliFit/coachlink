@@ -105,8 +105,9 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                 });
                 uploadedVideos.push(video);
             } else if (files.length > 0) {
-                // Upload each file individually
-                for (const videoFile of files) {
+                // Upload each file individually with delay to avoid Next.js Request body lock
+                for (let i = 0; i < files.length; i++) {
+                    const videoFile = files[i];
                     const uploadContext = {
                         ...context,
                         user_notes: videoFile.notes
@@ -124,6 +125,11 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                         }
                     );
                     uploadedVideos.push(video);
+
+                    // Add 300ms delay between uploads to avoid Next.js 16 Request body lock issue
+                    if (i < files.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
                 }
             } else {
                 throw new Error('请选择文件或输入URL');
