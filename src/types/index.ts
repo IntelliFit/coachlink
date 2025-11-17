@@ -11,3 +11,4 @@ export type SpecialtiesRow = CoachLinkTable['specialties']['Row'];
 export type TrainingPlanRow = CoachLinkTable['training_plans']['Row'];
 export type TrainingDetailRow = CoachLinkTable['training_plan_details']['Row'];
 export type CoachSubscriptionRow = CoachLinkTable['coach_subscriptions']['Row'];
+export type CoachContentRow = CoachLinkTable['coach_contents']['Row'];

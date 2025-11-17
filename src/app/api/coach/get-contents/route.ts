@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { CoachesRow } from '@/types';
-import type { GetContentsDto } from './entity';
+import type { GetContentsDto, GetContentsResponseDto } from './entity';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { ApiData } from '@/types/api';
 
 async function getAccessTier(userId: string | null, coach: Partial<CoachesRow> | null) {
     if (userId && coach) {
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
         });
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<GetContentsResponseDto>>({
         success: true,
         message: '获取内容成功',
         data: {

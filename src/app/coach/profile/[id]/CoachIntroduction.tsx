@@ -9,7 +9,7 @@ interface CoachIntroductionProps {
     userSubscription: any;
 }
 
-const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription }) => {
+const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription }) => {    
     // 安全默认值，避免真实教练缺少字段导致崩溃
     const safeSpecialties = Array.isArray(coach.specialties) ? coach.specialties : [];
     const safeTitle = coach.title || '专业健身教练';

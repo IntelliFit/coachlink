@@ -119,7 +119,7 @@ const CoachDiscoveryPage: React.FC = () => {
     const renderCoachCard = (coach: CoachesRow) => (
         <div
             key={coach.id}
-            className="rounded-xl shadow-sm border border-surface-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+            className="rounded-xl shadow-sm p-card p-6 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => onSelectCoach(coach.id)}
         >
             {coach.is_featured && (
@@ -251,7 +251,7 @@ const CoachDiscoveryPage: React.FC = () => {
                             {Array.from({ length: 5 }).map((_, index) => (
                                 <div
                                     key={index}
-                                    className="rounded-xl border border-surface-200 p-6 shadow-sm"
+                                    className="rounded-xl border border-surface-200 p-6 shadow-sm bg-surface"
                                 >
                                     <div className="flex items-start space-x-4">
                                         <Skeleton shape="circle" size="4rem" className="flex-shrink-0" />

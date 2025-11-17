@@ -18,31 +18,12 @@ import CoachIntroduction from './CoachIntroduction';
 import CoachContent from './CoachContent';
 import CoachSubscription from './CoachSubscription';
 
-// 临时定义ServiceCoachContent类型，直到找到真正的定义
-type ServiceCoachContent = {
-    id: string;
-    title: string;
-    content: string;
-    required_tier: number;
-    is_featured: boolean;
-    views_count: number;
-    likes_count: number;
-    comments_count: number;
-    created_at: string;
-    tags: string[];
-    media_urls: string[];
-    thumbnail_url: string | null;
-    content_type: string;
-};
-
 const CoachProfilePage: React.FC = () => {
     const searchParam = useSearchParams();
 
     const [activeTab, setActiveTab] = useState<number>(parseInt(searchParam.get('tab') || '0'));
 
-    const [coachContent, setCoachContent] = useState<ServiceCoachContent[]>([]);
     const [isLoadingContent, setIsLoadingContent] = useState(false);
-    const [contentError, setContentError] = useState<string | null>(null);
     const [isSubscribing, setIsSubscribing] = useState(false);
     const [mySubscriptions, setMySubscriptions] = useState<QueryCoachSubscription[]>([]);
     const [userSubscription, setUserSubscription] = useState<QueryCoachSubscription | null>(null);
@@ -88,7 +69,7 @@ const CoachProfilePage: React.FC = () => {
         try {
             setIsLoadingCoach(true);
             const res = await coachService.getCoach({ id: coachId?.toString() || '' });
-            if (res) {
+            if (res && res.coach) {
                 setCoach(res.coach);
             } else {
                 showToast({ severity: 'error', summary: '获取教练信息失败' });
@@ -102,93 +83,24 @@ const CoachProfilePage: React.FC = () => {
     };
 
     const initSubscriptions = async () => {
-        const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });
+        const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });        
         if (res) {
             setMySubscriptions(res.subscriptions || []);
+            console.log('enter');
             setUserSubscription(res.subscriptions.find(sub => sub.coach_id === coachId) || null);
         }
     }
-
-    // 初始化拉取订阅与教练内容
-    useEffect(() => {
-        initSubscriptions();
+    // 检查URL参数以设置初始活动标签
+    useEffect(() => {        
+        const tabId = parseInt(searchParams.get('tab') || '0');
+        setActiveTab(tabId);
         initCoach();
     }, []);
 
-    // 检查URL参数以设置初始活动标签
     useEffect(() => {
-        const tabParam = searchParams.get('tab');
-        if (tabParam && ['about', 'content', 'reviews'].includes(tabParam)) {
-            setActiveTab(tabParam as 'about' | 'content' | 'reviews');
-        }
-    }, []);
+        initSubscriptions();
+    }, [session]);
 
-    // 获取教练内容
-    useEffect(() => {
-        const loadCoachContent = async () => {
-            if (activeTab !== 1 || !coach) {
-                return;
-            }
-
-            setIsLoadingContent(true);
-            setContentError(null);
-
-            try {
-                // TODO: 实现获取教练内容的逻辑
-                // const response = await contentService.getCoachContent({
-                //     coachId: coach.id,
-                //     userId: getCurrentUserId(),
-                //     limit: 20,
-                //     offset: 0
-                // });
-
-                // setCoachContent(response.contents);
-
-                // 临时模拟数据
-                setCoachContent([
-                    {
-                        id: '1',
-                        title: '高强度间歇训练指南',
-                        content: '本指南将教你如何进行高效的HIIT训练，帮助你在短时间内燃烧更多卡路里，提高心肺功能。',
-                        required_tier: 2,
-                        is_featured: true,
-                        views_count: 1250,
-                        likes_count: 86,
-                        comments_count: 12,
-                        created_at: '2023-06-15T10:30:00Z',
-                        tags: ['HIIT', '燃脂', '心肺功能'],
-                        media_urls: [],
-                        thumbnail_url: null,
-                        content_type: 'article'
-                    },
-                    {
-                        id: '2',
-                        title: '增肌饮食计划',
-                        content: '科学的增肌饮食是健身成功的关键。本计划将为你提供详细的营养建议和食谱。',
-                        required_tier: 3,
-                        is_featured: false,
-                        views_count: 980,
-                        likes_count: 64,
-                        comments_count: 8,
-                        created_at: '2023-06-10T14:15:00Z',
-                        tags: ['增肌', '营养', '饮食'],
-                        media_urls: [],
-                        thumbnail_url: null,
-                        content_type: 'article'
-                    }
-                ]);
-            } catch (error) {
-                console.error('获取教练内容失败:', error);
-                setContentError('获取内容失败，请稍后重试');
-                // 如果API失败，使用模拟数据
-                setCoachContent([]);
-            } finally {
-                setIsLoadingContent(false);
-            }
-        };
-
-        loadCoachContent();
-    }, [activeTab, coach]);
 
     // 添加骨架屏组件
     const renderCoachSkeleton = () => (
@@ -307,9 +219,6 @@ const CoachProfilePage: React.FC = () => {
                 coach={coach}
                 coachId={coach.id}
                 userSubscription={userSubscription}
-                isLoading={isLoadingContent}
-                contentError={contentError}
-                coachContent={coachContent}
                 onSubscribeSuccess={() => handleSubscribeSuccess()}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}

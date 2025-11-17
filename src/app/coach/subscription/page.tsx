@@ -13,8 +13,7 @@ import TrainingSummary from '@/app/coach/subscription/TrainingSummary';
 import RecentActivity from '@/app/coach/subscription/RecentActivity';
 
 const SubscriptionDashboard = () => {
-
-    const { data: session } = useSession();
+    const { data: session } = useSession();    
     const router = useRouter();
 
     const [subscriptions, setSubscriptions] = useState<QueryCoachSubscription[]>([]);
