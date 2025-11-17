@@ -48,10 +48,14 @@ export async function POST(req: Request) {
     const session = await getServerSession();
     const { data: coach, error: coachError } = await supabase
         .from('coaches')
-        .select('id, user_id, name, status')
-        .eq('user_id', coachId)
+        .select('*')
+        .eq('id', coachId)
         .single();
 
+    console.log(coachId);
+    console.log(coachError);
+    
+    
     if (coachError || !coach) {
         return NextResponse.json({
             success: false,
