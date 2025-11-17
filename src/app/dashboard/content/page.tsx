@@ -14,15 +14,15 @@ import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
 import ContentEditor from '@/app/dashboard/components/ContentEditor';
 import { coachService } from '@/app/service/coachService';
-import { CoachContent } from '@/types/coach';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
+import { CoachContentRow } from '@/types';
 
 const Content = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
 
-    const [contents, setContents] = useState<CoachContent[]>([]);
+    const [contents, setContents] = useState<CoachContentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
@@ -39,19 +39,19 @@ const Content = () => {
         setLoading(true);
         setError(null);
 
-        try {
-            const response = await coachService.getContents({
-                coachId: coach.id,
-                limit: 50,
-                offset: 0,
-            });
-            setContents(response.contents);
-        } catch (err) {
-            console.error(err);
+        const res = await coachService.getContents({
+            coachId: coach.id,
+            limit: 50,
+            offset: 0,
+        });
+
+        if (res) {
+            setContents(res.contents || []);
+        } else {
             setError('加载内容失败，请重试');
-        } finally {
-            setLoading(false);
         }
+
+        setLoading(false);
     };
 
     const handlePublishContent = async (contentData: any) => {

@@ -84,21 +84,3 @@ export enum ContentTier {
     PREMIUM = 2,
     VIP = 3
 }
-
-export interface CoachContent {
-    id: string;
-    coach_id: string;
-    title: string;
-    content: string;
-    content_type: 'text' | 'video' | 'image' | 'live' | 'plan';
-    media_urls: string[];
-    thumbnail_url?: string;
-    required_tier: ContentTier;
-    is_featured: boolean;
-    tags: string[];
-    likes_count: number;
-    views_count: number;
-    comments_count: number;
-    created_at: string;
-    updated_at: string;
-}
