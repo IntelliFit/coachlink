@@ -46,17 +46,34 @@ export async function POST(req: Request) {
     }
 
     const session = await getServerSession();
-    const { data: coach, error: coachError } = await supabase
+    // 兼容两种传参：
+    // - coachId 为 coaches.id（学员端/教练主页）
+    // - coachId 误传为 users.id（教练后台当前实现）
+    //   这里做一次回退查询，避免前端传参不一致导致“教练不存在”
+    let { data: coach, error: coachError } = await supabase
         .from('coaches')
         .select('*')
         .eq('id', coachId)
         .single();
 
-    console.log(coachId);
-    console.log(coachError);
-    
-    
     if (coachError || !coach) {
+        const { data: coachByUserId, error: coachByUserError } = await supabase
+            .from('coaches')
+            .select('*')
+            .eq('user_id', coachId)
+            .single();
+
+        if (coachByUserError || !coachByUserId) {
+            return NextResponse.json({
+                success: false,
+                message: '教练不存在'
+            });
+        }
+
+        coach = coachByUserId;
+    }
+
+    if (!coach) {
         return NextResponse.json({
             success: false,
             message: '教练不存在'
@@ -72,7 +89,7 @@ export async function POST(req: Request) {
     let query = supabase
         .from('coach_contents')
         .select('*', { count: 'exact' })
-        .eq('coach_id', coachId)
+        .eq('coach_id', coach.id as string)
         .lte('required_tier', accessTier)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
