@@ -5,19 +5,8 @@ import {
     Star,
     Users,
     Award,
-    Calendar,
     MessageCircle,
-    Brain,
-    Clock,
-    CheckCircle,
-    Heart,
-    Share2,
-    ArrowLeft,
-    Play,
-    Image,
-    ThumbsUp,
-    Eye,
-    Lock
+    ArrowLeft
 } from 'lucide-react';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useParams, useRouter } from 'next/navigation';
@@ -25,8 +14,27 @@ import { useSession } from 'next-auth/react';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
-import { CoachesRow } from '@/types'; // 添加这一行导入
-// import { contentService, ServiceCoachContent } from '@/app/service/contentService'; // 补充导入
+import { CoachesRow } from '@/types';
+import CoachIntroduction from './CoachIntroduction';
+import CoachContent from './CoachContent';
+import CoachSubscription from './CoachSubscription';
+
+// 临时定义ServiceCoachContent类型，直到找到真正的定义
+type ServiceCoachContent = {
+    id: string;
+    title: string;
+    content: string;
+    required_tier: number;
+    is_featured: boolean;
+    views_count: number;
+    likes_count: number;
+    comments_count: number;
+    created_at: string;
+    tags: string[];
+    media_urls: string[];
+    thumbnail_url: string | null;
+    content_type: string;
+};
 
 const CoachProfilePage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'about' | 'content' | 'reviews'>('about');
@@ -35,8 +43,29 @@ const CoachProfilePage: React.FC = () => {
     const [contentError, setContentError] = useState<string | null>(null);
     const [isSubscribing, setIsSubscribing] = useState(false);
     const [mySubscriptions, setMySubscriptions] = useState<QueryCoachSubscription[]>([]);
+    const [userSubscription, setUserSubscription] = useState<QueryCoachSubscription | null>(null);
+
     const [selectedTier, setSelectedTier] = useState<number | null>(null);
-    const [coach, setCoach] = useState<CoachesRow | null>(null);
+    const [coach, setCoach] = useState<CoachesRow>({
+        achievements: [],
+        avatar_url: null,
+        bio: null,
+        created_at: null,
+        id: '',
+        is_featured: null,
+        name: '',
+        rating: null,
+        search_vector: '',
+        specialties: [],
+        status: null,
+        title: null,
+        total_students: null,
+        updated_at: null,
+        user_id: null,
+        years_experience: null,
+    });
+    const safeAchievements = Array.isArray(coach.achievements) ? coach.achievements : [];
+    const safeCertification = Array.isArray((coach as any).certification) ? (coach as any).certification : [];
     const [isLoadingCoach, setIsLoadingCoach] = useState(true);
 
     const router = useRouter();
@@ -71,6 +100,7 @@ const CoachProfilePage: React.FC = () => {
         const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });
         if (res) {
             setMySubscriptions(res.subscriptions || []);
+            setUserSubscription(res.subscriptions.find(sub => sub.coach_id === coachId) || null);
         }
     }
 
@@ -89,14 +119,49 @@ const CoachProfilePage: React.FC = () => {
             setContentError(null);
 
             try {
-                const response = await contentService.getCoachContent({
-                    coachId: coach.id,
-                    userId: getCurrentUserId(),
-                    limit: 20,
-                    offset: 0
-                });
+                // TODO: 实现获取教练内容的逻辑
+                // const response = await contentService.getCoachContent({
+                //     coachId: coach.id,
+                //     userId: getCurrentUserId(),
+                //     limit: 20,
+                //     offset: 0
+                // });
 
-                setCoachContent(response.contents);
+                // setCoachContent(response.contents);
+
+                // 临时模拟数据
+                setCoachContent([
+                    {
+                        id: '1',
+                        title: '高强度间歇训练指南',
+                        content: '本指南将教你如何进行高效的HIIT训练，帮助你在短时间内燃烧更多卡路里，提高心肺功能。',
+                        required_tier: 2,
+                        is_featured: true,
+                        views_count: 1250,
+                        likes_count: 86,
+                        comments_count: 12,
+                        created_at: '2023-06-15T10:30:00Z',
+                        tags: ['HIIT', '燃脂', '心肺功能'],
+                        media_urls: [],
+                        thumbnail_url: null,
+                        content_type: 'article'
+                    },
+                    {
+                        id: '2',
+                        title: '增肌饮食计划',
+                        content: '科学的增肌饮食是健身成功的关键。本计划将为你提供详细的营养建议和食谱。',
+                        required_tier: 3,
+                        is_featured: false,
+                        views_count: 980,
+                        likes_count: 64,
+                        comments_count: 8,
+                        created_at: '2023-06-10T14:15:00Z',
+                        tags: ['增肌', '营养', '饮食'],
+                        media_urls: [],
+                        thumbnail_url: null,
+                        content_type: 'article'
+                    }
+                ]);
             } catch (error) {
                 console.error('获取教练内容失败:', error);
                 setContentError('获取内容失败，请稍后重试');
@@ -110,53 +175,46 @@ const CoachProfilePage: React.FC = () => {
         loadCoachContent();
     }, [activeTab, coach]);
 
-    // 临时函数：获取当前用户ID（需要根据实际认证系统实现）
-    const getCurrentUserId = (): string | undefined => {
-        // 这里需要从你的认证系统获取当前用户ID
-        // 可能从localStorage、Context或其他地方获取
-        return localStorage.getItem('current_user_id') || undefined;
-    };
-
     // 添加骨架屏组件
     const renderCoachSkeleton = () => (
-        <div className="bg-white animate-pulse">
+        <div className="bg-surface animate-pulse">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* 头像区域骨架 */}
                     <div className="flex-shrink-0">
-                        <div className="w-32 h-32 bg-gray-200 rounded-full mb-4"></div>
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg"></div>
+                        <div className="w-32 h-32 bg-surface-200 rounded-full mb-4"></div>
+                        <div className="w-20 h-20 bg-surface-200 rounded-lg"></div>
                     </div>
 
                     {/* 详细信息区域骨架 */}
                     <div className="flex-1">
-                        <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-                        <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div>
+                        <div className="h-8 bg-surface-200 rounded w-1/3 mb-4"></div>
+                        <div className="h-6 bg-surface-200 rounded w-1/4 mb-6"></div>
 
                         {/* 统计信息骨架 */}
                         <div className="flex space-x-4 mb-6">
-                            <div className="h-4 bg-gray-200 rounded w-16"></div>
-                            <div className="h-4 bg-gray-200 rounded w-16"></div>
-                            <div className="h-4 bg-gray-200 rounded w-16"></div>
-                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                            <div className="h-4 bg-surface-200 rounded w-16"></div>
+                            <div className="h-4 bg-surface-200 rounded w-16"></div>
+                            <div className="h-4 bg-surface-200 rounded w-16"></div>
+                            <div className="h-4 bg-surface-200 rounded w-16"></div>
                         </div>
 
                         {/* 专业领域骨架 */}
                         <div className="space-y-3 mb-6">
-                            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                            <div className="h-4 bg-surface-200 rounded w-1/4"></div>
                             <div className="flex space-x-2">
-                                <div className="h-6 bg-gray-200 rounded-full w-16"></div>
-                                <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-                                <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+                                <div className="h-6 bg-surface-200 rounded-full w-16"></div>
+                                <div className="h-6 bg-surface-200 rounded-full w-20"></div>
+                                <div className="h-6 bg-surface-200 rounded-full w-16"></div>
                             </div>
                         </div>
 
                         {/* 简介骨架 */}
                         <div className="space-y-3">
-                            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                            <div className="h-4 bg-gray-200 rounded w-full"></div>
-                            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                            <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+                            <div className="h-4 bg-surface-200 rounded w-1/4"></div>
+                            <div className="h-4 bg-surface-200 rounded w-full"></div>
+                            <div className="h-4 bg-surface-200 rounded w-5/6"></div>
+                            <div className="h-4 bg-surface-200 rounded w-4/6"></div>
                         </div>
                     </div>
                 </div>
@@ -167,18 +225,18 @@ const CoachProfilePage: React.FC = () => {
     // 在教练信息加载完成前显示骨架屏
     if (isLoadingCoach) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-surface-50">
                 {/* 顶部导航骨架 */}
-                <div className="bg-white shadow-sm border-b border-gray-200">
+                <div className="bg-surface shadow-sm border-b border-surface-200">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between h-16">
                             <div className="flex items-center space-x-2">
-                                <div className="h-5 w-5 bg-gray-200 rounded"></div>
-                                <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                                <div className="h-5 w-5 bg-surface-200 rounded"></div>
+                                <div className="h-4 w-20 bg-surface-200 rounded"></div>
                             </div>
                             <div className="flex items-center space-x-4">
-                                <div className="h-5 w-5 bg-gray-200 rounded"></div>
-                                <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                                <div className="h-5 w-5 bg-surface-200 rounded"></div>
+                                <div className="h-5 w-5 bg-surface-200 rounded"></div>
                             </div>
                         </div>
                     </div>
@@ -188,255 +246,151 @@ const CoachProfilePage: React.FC = () => {
         );
     }
 
-
-    // 安全默认值，避免真实教练缺少字段导致崩溃
-    const safeSpecialties = Array.isArray(coach.specialties) ? coach.specialties : [];
-    const safeAchievements = Array.isArray(coach.achievements) ? coach.achievements : [];
-    const safeCertification = Array.isArray((coach as any).certification) ? (coach as any).certification : [];
-    const price1 = typeof coach.subscription_price_tier1 === 'number' ? coach.subscription_price_tier1 : 99;
-    const price2 = typeof coach.subscription_price_tier2 === 'number' ? coach.subscription_price_tier2 : 199;
-    const price3 = typeof coach.subscription_price_tier3 === 'number' ? coach.subscription_price_tier3 : 399;
-    const safeTitle = coach.title || '专业健身教练';
-    const safeRating = typeof coach.rating === 'number' ? coach.rating : 4.8;
-    const safeStudents = typeof coach.total_students === 'number' ? coach.total_students : 0;
-    const safeYears = typeof coach.years_experience === 'number' ? coach.years_experience : 1;
-    const safeRespHrs = (coach as any).response_time_hours ?? 24;
-    const safeFitnessLevel = (coach as any).fitness_level || '专业级';
-
-    const subscriptionTiers = [
-        {
-            tier: 1,
-            name: 'AI训练计划',
-            price: price1,
-            features: [
-                '个性化AI训练计划生成',
-                '基础动作指导',
-                '每月计划更新',
-                '社区讨论权限'
-            ],
-            popular: false
-        },
-        {
-            tier: 2,
-            name: 'AI计划 + 视频点评',
-            price: price2,
-            features: [
-                '包含第一层所有功能',
-                '上传训练视频',
-                '专业动作点评',
-                '语音/文字反馈',
-                '训练建议优化'
-            ],
-            popular: true
-        },
-        {
-            tier: 3,
-            name: '全方位私教服务',
-            price: price3,
-            features: [
-                '包含前两层所有功能',
-                '一对一实时聊天',
-                '24小时内回复',
-                '私人定制计划',
-                '营养指导建议',
-                '优先客服支持'
-            ],
-            popular: false
+    const handleSubscribeSuccess = (tier?: number) => {
+        // 如果传入了tier，说明是订阅操作，需要刷新订阅列表
+        if (tier !== undefined) {
+            initSubscriptions();
         }
-    ];
-
-    const onSubscribe = async (tier: number) => {
-        if (!session?.user?.id) {
-            showToast({ severity: 'error', summary: '请先登录' });
-            return;
-        }
-
-        try {
-            setIsSubscribing(true);
-
-            // 检查是否已有活跃订阅
-            const existingSubscription = mySubscriptions.find(
-                sub => sub.coach_id === coach?.id && sub.status === 'active'
-            );
-
-            if (existingSubscription) {
-                showToast({ severity: 'info', summary: '您已订阅该教练' });
-                return;
-            }
-
-            // 执行订阅操作
-            const result = await subscriptionService.subscribe(
-                coach!.id,
-                tier,
-                tier === 1 ? price1 : tier === 2 ? price2 : price3
-            );
-
-            if (result.success) {
-                showToast({ severity: 'success', summary: '订阅成功' });
-                // 刷新订阅列表
-                await initSubscriptions();
-            } else {
-                showToast({ severity: 'error', summary: result.message || '订阅失败' });
-            }
-        } catch (error) {
-            console.error('订阅过程中出现错误:', error);
-            showToast({ severity: 'error', summary: '订阅过程中出现错误' });
-        } finally {
-            setIsSubscribing(false);
-        }
+        // 如果没有传入tier，说明是内容订阅，只需刷新当前组件
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-surface-50">
             {/* 顶部导航 */}
-            <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="bg-surface shadow-sm border-b border-surface-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center space-x-2">
                             <ArrowLeft
-                                className="h-5 w-5 text-gray-500 hover:text-gray-700 cursor-pointer"
+                                className="h-5 w-5 text-surface-500 hover:text-surface-700 cursor-pointer"
                                 onClick={() => router.push('/coach')}
                             />
-                            <div className="text-gray-700 font-bold">{safeTitle}</div>
+                            <div className="text-surface-700 font-bold">{coach.title || '专业健身教练'}</div>
                         </div>
                         <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-1 text-gray-500">
+                            <div className="flex items-center space-x-1 text-surface-500">
                                 <Star className="h-5 w-5" />
-                                <div>{safeRating}</div>
+                                <div>{typeof coach.rating === 'number' ? coach.rating : 4.8}</div>
                             </div>
-                            <div className="flex items-center space-x-1 text-gray-500">
+                            <div className="flex items-center space-x-1 text-surface-500">
                                 <Users className="h-5 w-5" />
-                                <div>{safeStudents}</div>
+                                <div>{typeof coach.total_students === 'number' ? coach.total_students : 0}</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* 主体内容 */}
+            {/* 教练介绍部分 */}
+            <CoachIntroduction
+                coach={coach}
+                userSubscription={userSubscription}
+            />
+
+            {/* 标签页导航 */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="border-b border-surface-200">
+                    <nav className="-mb-px flex space-x-8">
+                        <button
+                            onClick={() => setActiveTab('about')}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'about'
+                                ? 'border-primary-500 text-primary-600'
+                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
+                                }`}
+                        >
+                            关于教练
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('content')}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'content'
+                                ? 'border-primary-500 text-primary-600'
+                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
+                                }`}
+                        >
+                            教学内容
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('reviews')}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'reviews'
+                                ? 'border-primary-500 text-primary-600'
+                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
+                                }`}
+                        >
+                            学员评价
+                        </button>
+                    </nav>
+                </div>
+            </div>
+
+            {/* 标签页内容 */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex flex-col md:flex-row gap-8">
-                    {/* 头像区域 */}
-                    <div className="flex-shrink-0">
-                        <div className="w-32 h-32 bg-gray-200 rounded-full mb-4">
-                            <img
-                                src={coach.avatar_url || '/default-avatar.png'}
-                                alt={`${coach.name} avatar`}
-                                className="w-full h-full rounded-full object-cover"
-                            />
-                        </div>
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg">
-                            <img
-                                src={coach.featured_video_url || '/default-video.png'}
-                                alt={`${coach.name} featured video`}
-                                className="w-full h-full rounded-lg object-cover"
-                            />
-                        </div>
-                    </div>
-
-                    {/* 详细信息区域 */}
-                    <div className="flex-1">
-                        <div className="text-gray-700 font-bold text-2xl mb-4">{coach.name}</div>
-                        <div className="text-gray-500 text-lg mb-6">{coach.bio}</div>
-
-                        {/* 统计信息 */}
-                        <div className="flex space-x-4 mb-6">
-                            <div className="flex items-center space-x-1 text-gray-500">
-                                <Award className="h-4 w-4" />
-                                <div>{coach.success_stories} 成功案例</div>
-                            </div>
-                            <div className="flex items-center space-x-1 text-gray-500">
-                                <Calendar className="h-4 w-4" />
-                                <div>{safeYears} 年经验</div>
-                            </div>
-                            <div className="flex items-center space-x-1 text-gray-500">
-                                <MessageCircle className="h-4 w-4" />
-                                <div>{safeRespHrs} 小时响应</div>
-                            </div>
-                            <div className="flex items-center space-x-1 text-gray-500">
-                                <Brain className="h-4 w-4" />
-                                <div>{safeFitnessLevel}</div>
-                            </div>
+                {activeTab === 'about' && (
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 mb-4">训练理念</h3>
+                            <p className="text-gray-600 leading-relaxed">
+                                {coach.training_philosophy || '专注于科学训练方法，结合个人特点制定专属计划，追求效率与安全的完美平衡。'}
+                            </p>
                         </div>
 
-                        {/* 专业领域 */}
-                        <div className="space-y-3 mb-6">
-                            <div className="text-gray-700 font-bold">专业领域</div>
-                            <div className="flex space-x-2">
-                                {safeSpecialties.map((specialty, index) => (
-                                    <div key={index} className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full">
-                                        {specialty}
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 mb-4">专业认证</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {safeCertification.map((cert: string, index: number) => (
+                                    <div key={index} className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                                        <Award className="w-6 h-6 text-yellow-600" />
+                                        <span className="text-gray-700">{cert}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* 简介 */}
-                        <div className="space-y-3">
-                            <div className="text-gray-700 font-bold">简介</div>
-                            <div className="text-gray-500">{coach.bio}</div>
-                            <div className="text-gray-500">{coach.training_philosophy}</div>
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 mb-4">成就奖项</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {safeAchievements.map((achievement, index) => (
+                                    <div key={index} className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+                                        <Star className="w-6 h-6 text-blue-600" />
+                                        <span className="text-gray-700">{achievement}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            {/* 订阅计划区域 */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">选择您的订阅计划</h2>
-                    <p className="text-gray-500">选择最适合您需求的服务层级</p>
-                </div>
+                )}
 
-                <div className="grid md:grid-cols-3 gap-6">
-                    {subscriptionTiers.map((tier) => (
-                        <div
-                            key={tier.tier}
-                            className={`relative p-6 rounded-xl border-2 ${tier.popular
-                                    ? 'border-blue-500 bg-blue-50 shadow-lg'
-                                    : 'border-gray-200 bg-white hover:shadow-md'
-                                } transition-all duration-200`}
-                        >
-                            {tier.popular && (
-                                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                    <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                        推荐
-                                    </span>
-                                </div>
-                            )}
+                {/* 教学内容 */}
+                {activeTab === 'content' && (
+                    <CoachContent
+                        coachId={coach.id}
+                        userSubscription={userSubscription}
+                        isLoading={isLoadingContent}
+                        contentError={contentError}
+                        coachContent={coachContent}
+                        onSubscribeSuccess={() => handleSubscribeSuccess()}
+                    />
+                )}
 
-                            <div className="text-center mb-6">
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">{tier.name}</h3>
-                                <div className="flex items-baseline justify-center">
-                                    <span className="text-3xl font-bold text-gray-900">¥{tier.price}</span>
-                                    <span className="text-gray-500 ml-1">/月</span>
-                                </div>
-                            </div>
-
-                            <ul className="space-y-3 mb-8">
-                                {tier.features.map((feature, index) => (
-                                    <li key={index} className="flex items-start">
-                                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                                        <span className="text-gray-700 text-sm">{feature}</span>
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <button
-                                onClick={() => onSubscribe(tier.tier)}
-                                disabled={isSubscribing}
-                                className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${tier.popular
-                                        ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:shadow-xl'
-                                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                                    } ${isSubscribing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {isSubscribing ? '处理中...' : '立即订阅'}
-                            </button>
+                {/* 学员评价 */}
+                {activeTab === 'reviews' && (
+                    <div className="space-y-6">
+                        <div className="text-center py-12">
+                            <MessageCircle className="w-16 h-16 text-surface-400 mx-auto mb-4" />
+                            <p className="text-surface-600 text-lg">学员评价功能正在开发中...</p>
                         </div>
-                    ))}
-                </div>
+                    </div>
+                )}
             </div>
-        </div>
 
+            {/* 订阅计划区域 */}
+            <CoachSubscription
+                coach={coach}
+                mySubscriptions={mySubscriptions}
+                onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
+                isSubscribing={isSubscribing}
+                setIsSubscribing={setIsSubscribing}
+            />
+        </div>
     );
 };
 
