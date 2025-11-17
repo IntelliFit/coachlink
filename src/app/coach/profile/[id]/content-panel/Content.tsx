@@ -1,31 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import CoachContentItem from '../CoachContentItem';
-import CoachContentSkeleton from '../CoachContentSkeleton';
+import ContentItem from './ContentItem';
+import ContentSkeleton from './ContentSkeleton';
 import { coachService } from '@/app/service/coachService';
+import { CoachContentRow } from '@/types';
 
-// 临时定义ServiceCoachContent类型，直到找到真正的定义
-type ServiceCoachContent = {
-    id: string;
-    title: string;
-    content: string;
-    required_tier: number;
-    is_featured: boolean;
-    views_count: number;
-    likes_count: number;
-    comments_count: number;
-    created_at: string;
-    tags: string[];
-    media_urls: string[];
-    thumbnail_url: string | null;
-    content_type: string;
-};
 
 interface CoachContentPanelProps {
     isLoading: boolean;
-    contentError: string | null;
-    coachContent: ServiceCoachContent[];
     coachId: string;
     userSubscription: any;
     onSubscribeSuccess: () => void;
@@ -38,21 +21,41 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
 }) => {
     const [loading, setLoading] = useState<boolean>(true);
     const [contentError, setContentError] = useState<string | null>(null);
-    
-    const load = async () => { 
-        const res = await coachService.getContents({
-            coachId,
-            limit: 50,
-            offset: 0,
-        })
+    const [coachContent, setCoachContent] = useState<CoachContentRow[]>([]);
+
+    const load = async () => {
+        if (!coachId) return;
+
+        setLoading(true);
+        setContentError(null);
+
+        try {
+            const res = await coachService.getContents({
+                coachId,
+                limit: 50,
+                offset: 0,
+            });
+
+            if (res && res.contents) {
+                setCoachContent(res.contents);
+            } else {
+                setCoachContent([]);
+            }
+        } catch (error: any) {
+            console.error('获取教练内容失败:', error);
+            setContentError(error?.message || '获取内容失败，请稍后重试');
+            setCoachContent([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-
-    });
+        load();
+    }, [coachId]);
 
     if (loading) {
-        return <CoachContentSkeleton />;
+        return <ContentSkeleton />;
     }
 
     if (contentError) {
@@ -69,7 +72,7 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
         );
     }
 
-    if (coachContent.length === 0) {
+    if (!coachContent || coachContent.length === 0) {
         return (
             <div className="text-center py-12">
                 <p className="text-surface-500">该教练还没有发布任何内容</p>
@@ -80,7 +83,7 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
     return (
         <div className="space-y-6">
             {coachContent.map((content) => (
-                <CoachContentItem
+                <ContentItem
                     key={content.id}
                     content={content}
                     coachId={coachId}
