@@ -19,18 +19,6 @@ import { TrainingPlanRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 
 
-interface TrainingPlanDetail {
-    id: string;
-    training_plan_id: string;
-    week_number: number;
-    day_of_week: string;
-    session_focus: string;
-    main_exercises: any[];
-    accessory_exercises: any[];
-    order_index: number;
-    notes: string;
-}
-
 const TrainingPlanDashboard: React.FC = () => {
     const router = useRouter();
     const { id: trainingPlanId } = useParams();

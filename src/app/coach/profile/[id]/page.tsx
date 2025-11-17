@@ -5,11 +5,10 @@ import {
     Star,
     Users,
     Award,
-    MessageCircle,
     ArrowLeft
 } from 'lucide-react';
 import { subscriptionService } from '@/app/service/subscriptionService';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useToastContext } from '@/context/ToastContext';
@@ -37,7 +36,10 @@ type ServiceCoachContent = {
 };
 
 const CoachProfilePage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'about' | 'content' | 'reviews'>('about');
+    const searchParam = useSearchParams();
+
+    const [activeTab, setActiveTab] = useState<number>(parseInt(searchParam.get('tab') || '0'));
+
     const [coachContent, setCoachContent] = useState<ServiceCoachContent[]>([]);
     const [isLoadingContent, setIsLoadingContent] = useState(false);
     const [contentError, setContentError] = useState<string | null>(null);
@@ -75,6 +77,9 @@ const CoachProfilePage: React.FC = () => {
         router.push('/coach');
     }
 
+    // 获取当前URL的搜索参数
+    const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+
     const { showToast } = useToastContext();
     const { data: session } = useSession();
 
@@ -110,10 +115,20 @@ const CoachProfilePage: React.FC = () => {
         initCoach();
     }, []);
 
+    // 检查URL参数以设置初始活动标签
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['about', 'content', 'reviews'].includes(tabParam)) {
+            setActiveTab(tabParam as 'about' | 'content' | 'reviews');
+        }
+    }, []);
+
     // 获取教练内容
     useEffect(() => {
         const loadCoachContent = async () => {
-            if (activeTab !== 'content' || !coach) return;
+            if (activeTab !== 1 || !coach) {
+                return;
+            }
 
             setIsLoadingContent(true);
             setContentError(null);
@@ -287,100 +302,18 @@ const CoachProfilePage: React.FC = () => {
                 userSubscription={userSubscription}
             />
 
-            {/* 标签页导航 */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="border-b border-surface-200">
-                    <nav className="-mb-px flex space-x-8">
-                        <button
-                            onClick={() => setActiveTab('about')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'about'
-                                ? 'border-primary-500 text-primary-600'
-                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
-                                }`}
-                        >
-                            关于教练
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('content')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'content'
-                                ? 'border-primary-500 text-primary-600'
-                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
-                                }`}
-                        >
-                            教学内容
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('reviews')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'reviews'
-                                ? 'border-primary-500 text-primary-600'
-                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
-                                }`}
-                        >
-                            学员评价
-                        </button>
-                    </nav>
-                </div>
-            </div>
-
-            {/* 标签页内容 */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {activeTab === 'about' && (
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">训练理念</h3>
-                            <p className="text-gray-600 leading-relaxed">
-                                {coach.training_philosophy || '专注于科学训练方法，结合个人特点制定专属计划，追求效率与安全的完美平衡。'}
-                            </p>
-                        </div>
-
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">专业认证</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {safeCertification.map((cert: string, index: number) => (
-                                    <div key={index} className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-                                        <Award className="w-6 h-6 text-yellow-600" />
-                                        <span className="text-gray-700">{cert}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">成就奖项</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {safeAchievements.map((achievement, index) => (
-                                    <div key={index} className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
-                                        <Star className="w-6 h-6 text-blue-600" />
-                                        <span className="text-gray-700">{achievement}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* 教学内容 */}
-                {activeTab === 'content' && (
-                    <CoachContent
-                        coachId={coach.id}
-                        userSubscription={userSubscription}
-                        isLoading={isLoadingContent}
-                        contentError={contentError}
-                        coachContent={coachContent}
-                        onSubscribeSuccess={() => handleSubscribeSuccess()}
-                    />
-                )}
-
-                {/* 学员评价 */}
-                {activeTab === 'reviews' && (
-                    <div className="space-y-6">
-                        <div className="text-center py-12">
-                            <MessageCircle className="w-16 h-16 text-surface-400 mx-auto mb-4" />
-                            <p className="text-surface-600 text-lg">学员评价功能正在开发中...</p>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* 教练内容部分（包含标签页） */}
+            <CoachContent
+                coach={coach}
+                coachId={coach.id}
+                userSubscription={userSubscription}
+                isLoading={isLoadingContent}
+                contentError={contentError}
+                coachContent={coachContent}
+                onSubscribeSuccess={() => handleSubscribeSuccess()}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+            />
 
             {/* 订阅计划区域 */}
             <CoachSubscription
