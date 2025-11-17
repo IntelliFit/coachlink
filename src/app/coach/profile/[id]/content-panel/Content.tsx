@@ -5,10 +5,9 @@ import ContentItem from './ContentItem';
 import ContentSkeleton from './ContentSkeleton';
 import { coachService } from '@/app/service/coachService';
 import { CoachContentRow } from '@/types';
-
+import { Paginator, PaginatorPageChangeEvent } from 'primereact/paginator';
 
 interface CoachContentPanelProps {
-    isLoading: boolean;
     coachId: string;
     userSubscription: any;
     onSubscribeSuccess: () => void;
@@ -22,8 +21,11 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
     const [loading, setLoading] = useState<boolean>(true);
     const [contentError, setContentError] = useState<string | null>(null);
     const [coachContent, setCoachContent] = useState<CoachContentRow[]>([]);
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
 
-    const load = async () => {
+    const load = async (page: number = 0, limit: number = 10) => {
         if (!coachId) return;
 
         setLoading(true);
@@ -32,27 +34,37 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
         try {
             const res = await coachService.getContents({
                 coachId,
-                limit: 50,
-                offset: 0,
+                limit: limit,
+                offset: page * limit,
             });
 
             if (res && res.contents) {
                 setCoachContent(res.contents);
+                setTotalRecords(res.total || res.contents.length);
             } else {
                 setCoachContent([]);
+                setTotalRecords(0);
             }
         } catch (error: any) {
             console.error('获取教练内容失败:', error);
             setContentError(error?.message || '获取内容失败，请稍后重试');
             setCoachContent([]);
+            setTotalRecords(0);
         } finally {
             setLoading(false);
         }
     };
 
+    const onPageChange = (event: PaginatorPageChangeEvent) => {
+        setFirst(event.first);
+        setRows(event.rows);
+        load(event.page, event.rows);
+    };
+
     useEffect(() => {
-        load();
-    }, [coachId]);
+        load(0, rows);
+
+    }, [coachId, rows]);
 
     if (loading) {
         return <ContentSkeleton />;
@@ -91,6 +103,13 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
                     onSubscribeSuccess={onSubscribeSuccess}
                 />
             ))}
+            <Paginator
+                first={first}
+                rows={rows}
+                totalRecords={totalRecords}
+                onPageChange={onPageChange}
+                className="mt-6"
+            />
         </div>
     );
 };
