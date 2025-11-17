@@ -6,26 +6,10 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { useToastContext } from '@/context/ToastContext';
 import { subscriptionService } from '@/app/service/subscriptionService';
-
-// 临时定义ServiceCoachContent类型，直到找到真正的定义
-type ServiceCoachContent = {
-    id: string;
-    title: string;
-    content: string;
-    required_tier: number;
-    is_featured: boolean;
-    views_count: number;
-    likes_count: number;
-    comments_count: number;
-    created_at: string;
-    tags: string[];
-    media_urls: string[];
-    thumbnail_url: string | null;
-    content_type: string;
-};
+import { CoachContentRow } from '@/types';
 
 interface CoachContentItemProps {
-    content: ServiceCoachContent;
+    content: CoachContentRow;
     coachId: string;
     userSubscription: any;
     onSubscribeSuccess: () => void;
