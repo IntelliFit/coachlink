@@ -15,28 +15,21 @@ class StudentService extends BaseService {
      * @param payload 
      * @returns 
      */
-    // async submitOnboarding(payload: OnboardingPayload) {
-    //     const reqData: SubmitOnboardingDto = {
-    //         coachId: payload.coachId,
-    //         answers: payload.answers,
-    //         baseline_video_urls: payload.baseline_video_urls
-    //     };
-        
-    //     const res = await this.post<SubmitOnboardingResponseDto>('submit-onboarding', reqData);
-    //     if (res.data && res.data.success) {
-    //         return res.data.data;
-    //     }
-
-    //     return null;
-    // }
+    async submitOnboarding(reqData: SubmitOnboardingDto) {
+        const res = await this.post<SubmitOnboardingResponseDto>('submit-onboarding', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
 
     /**
      * @description 获取学生档案
      * @param userId 
      * @returns 
      */
-    async getStudentProfile() {        
-        const res = await this.post<GetStudentProfileResponseDto>('get-student-profile', reqData);
+    async getStudentProfile(userId?: string) {        
+        const res = await this.post<GetStudentProfileResponseDto>('get-student-profile', userId ? { userId } : {});
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -67,10 +60,7 @@ class StudentService extends BaseService {
      * @returns 
      */
     async submitWorkoutLog(payload: WorkoutLogPayload) {
-        const userId = this.getCurrentUserId();
-        const reqData: SubmitWorkoutLogDto = { userId, payload };
-        
-        const res = await this.post<SubmitWorkoutLogResponseDto>('submit-workout-log', reqData);
+        const res = await this.post<SubmitWorkoutLogResponseDto>('submit-workout-log', payload);
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -84,10 +74,7 @@ class StudentService extends BaseService {
      * @returns 
      */
     async submitLifestyleLog(payload: LifestyleLogPayload) {
-        const userId = this.getCurrentUserId();
-        const reqData: SubmitLifestyleLogDto = { userId, payload };
-        
-        const res = await this.post<SubmitLifestyleLogResponseDto>('submit-lifestyle-log', reqData);
+        const res = await this.post<SubmitLifestyleLogResponseDto>('submit-lifestyle-log', payload);
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -110,4 +97,9 @@ class StudentService extends BaseService {
     // }
 }
 
-export const studentService = new StudentService('/api/student');
+export const studentService = new StudentService('/api/user');
+export type { 
+    PlanDetailItem,
+    WorkoutLogPayload,
+    LifestyleLogPayload
+};

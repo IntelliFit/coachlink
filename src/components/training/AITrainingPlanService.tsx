@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import supabase from '@/lib/supabaseClient';
 import { generatePlanByCoachRules } from '../services/planEngine';
 import AIEnhancementService from '../services/aiEnhancementService';
 import { 

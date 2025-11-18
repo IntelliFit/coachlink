@@ -15,28 +15,24 @@ export async function POST(request: Request) {
     }
 
     const { userId } = await request.json();
+    const targetUserId = userId || session.user.id;
 
-    // 验证用户ID
-    if (!userId) {
-        return NextResponse.json({
-            success: false,
-            message: '缺少用户ID',
-            data: null
-        }, { status: 400 });
-    }
-
-    // 调用Supabase函数
-    const { data, error } = await supabase.functions.invoke('get-student-profile', {
-        body: { userId },
-    });
-
-    if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || '获取学员档案失败');
-    }
+    // 直接数据库查询聚合：用户档案、最近问卷、视频、生活记录
+    const [{ data: profile }, { data: questionnaire }, { data: videos }, { data: lifestyle }] = await Promise.all([
+        supabase.from('user_profiles').select('*').eq('user_id', targetUserId).maybeSingle(),
+        supabase.from('onboarding_questionnaires').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('training_videos').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }).limit(20),
+        supabase.from('lifestyle_logs').select('*').eq('user_id', targetUserId).order('log_date', { ascending: false }).limit(14),
+    ]);
 
     return NextResponse.json<ApiData<GetStudentProfileResponseDto>>({
         success: true,
         message: '获取学员档案成功',
-        data: data.data
+        data: {
+            profile: profile || null,
+            questionnaire: questionnaire || null,
+            videos: videos || [],
+            lifestyle: lifestyle || []
+        }
     });
 }

@@ -13,29 +13,14 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
-
     const {
+        userId: targetUserId,
         filters,
         pagination
     } = await req.json() as GetUserVideosDto;
 
-    // 验证用户ID
-    if (!userId) {
-        return NextResponse.json({
-            success: false,
-            message: '缺少用户ID',
-            data: null
-        }, { status: 400 });
-    }
-
-    // 优先用 auth.uid，否则使用传入的 userId；并支持通过 metadata.storage_folder 或 URL 路径匹配
-    let effectiveId: string | null = null;
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        effectiveId = user?.id ?? null;
-    } catch { }
-    if (!effectiveId) effectiveId = userId;
+    // 确定要查询的用户ID：如果传入了 userId，则查询该用户；否则查询当前登录用户
+    const effectiveId = targetUserId || session.user.id;
 
     let query = supabase
         .from('training_videos')

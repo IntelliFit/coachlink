@@ -26,7 +26,9 @@ export default function TrainingPage() {
                 setLoading(true);
                 const res = await userService.getTrainingPlans();
                 if (res) {
-                    setPlans(res.plans || []);
+                    // 过滤掉没有教练ID的计划，避免显示历史“孤儿计划”
+                    const filtered = (res.plans || []).filter((p: any) => !!p.coach_id);
+                    setPlans(filtered);
                 }
             } catch (err: any) {
                 setError(err.message || '获取训练计划失败');

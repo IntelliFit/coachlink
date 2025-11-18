@@ -15,28 +15,28 @@ export async function POST(request: Request) {
 
         const { userId, coachId, answers, baseline_video_urls } = await request.json();
 
-        // 验证用户ID
-        if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: '缺少用户ID',
-                data: null
-            }, { status: 400 });
-        }
+        const effectiveUserId = userId || session.user.id;
 
-        // 调用Supabase函数
-        const { data, error } = await supabase.functions.invoke('submit-onboarding', {
-            body: { userId, coachId, answers, baseline_video_urls },
-        });
+        const { data, error } = await supabase
+            .from('onboarding_questionnaires')
+            .insert({
+                user_id: effectiveUserId,
+                coach_id: coachId ?? null,
+                answers,
+                baseline_video_urls: Array.isArray(baseline_video_urls) ? baseline_video_urls : [],
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-        if (error || !data?.success) {
-            throw new Error(data?.message || error?.message || '提交问卷失败');
+        if (error) {
+            throw new Error(error.message);
         }
 
         return NextResponse.json({
             success: true,
             message: '提交问卷成功',
-            data: data.data
+            data
         });
     } catch (error: any) {
         console.error('提交问卷失败:', error);

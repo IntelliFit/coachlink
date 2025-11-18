@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import supabase from '@/lib/supabaseClient';
 import { generatePlanByCoachRules, EnhancedPlanInput } from '../services/planEngine';
 import AIEnhancementService from '../services/aiEnhancementService';
 import ActionDomainSelector from './ActionDomainSelector';
@@ -12,7 +12,7 @@ import {
     ArrowLeft,
     Zap
 } from 'lucide-react';
-import { studentService } from '../services/studentService';
+import { studentService } from '@/app/service/studentService';
 import { videoService } from '@/app/service/videoService';
 
 interface EnhancedAITrainingGeneratorProps {

@@ -32,11 +32,15 @@ const GeneratePlanPage: React.FC = () => {
         console.log('提交表单数据:', data);
         // 这里应该调用API提交表单数据并生成训练计划
         // 实现完成后跳转到计划详情页
-        router.push('/dashboard');
+		if (coachId) {
+			router.push(`/generate-plan/waiting?coachId=${coachId}`);
+		} else {
+			router.push('/coach/discovery');
+		}
     };
 
     if (!coachId) {
-        router.push('/coach');
+		router.push('/coach/discovery');
         return null;
     }
 

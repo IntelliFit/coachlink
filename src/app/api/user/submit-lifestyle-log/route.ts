@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+import { LifestyleLogPayload } from './entity';
 
 export async function POST(request: Request) {
     try {
@@ -13,30 +14,30 @@ export async function POST(request: Request) {
             }, { status: 401 });
         }
 
-        const { userId, payload } = await request.json();
+        const payload = await request.json() as LifestyleLogPayload;
+        const userId = session.user.id;
 
-        // 验证用户ID
-        if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: '缺少用户ID',
-                data: null
-            }, { status: 400 });
-        }
+        const { data, error } = await supabase
+            .from('lifestyle_logs')
+            .insert({
+                user_id: userId,
+                log_date: payload.log_date || new Date().toISOString().slice(0, 10),
+                sleep_hours: payload.sleep_hours ?? null,
+                sleep_quality: payload.sleep_quality ?? null,
+                diet_notes: payload.diet_notes ?? null,
+                meal_photos: payload.meal_photos ?? []
+            })
+            .select()
+            .single();
 
-        // 调用Supabase函数
-        const { data, error } = await supabase.functions.invoke('submit-lifestyle-log', {
-            body: { userId, ...payload },
-        });
-
-        if (error || !data?.success) {
-            throw new Error(data?.message || error?.message || '提交生活记录失败');
+        if (error) {
+            throw new Error(error.message);
         }
 
         return NextResponse.json({
             success: true,
             message: '提交生活记录成功',
-            data: data.data
+            data
         });
     } catch (error: any) {
         console.error('提交生活记录失败:', error);

@@ -4,6 +4,7 @@ import { TrainingVideo, VideoFilters } from '@/types/video';
 export type { TrainingVideo, VideoFilters };
 
 export interface GetUserVideosDto {
+    userId?: string; // 可选：教练查看学员视频时传入学员ID
     filters?: VideoFilters;
     pagination?: { page: number; limit: number };
 }

@@ -2,101 +2,61 @@ import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 
-export async function POST(request: Request) {
-    try {
-        // ✅ 鉴权
-        const session = await getServerSession();
-        if (!session) {
-            return NextResponse.json({ success: false, message: '未登录或会话已过期' }, { status: 401 });
-        }
+export async function POST() {
+	const session = await getServerSession();
+	if (!session?.user?.id) {
+		return NextResponse.json({ success: false, message: '未登录用户', data: null }, { status: 401 });
+	}
 
-        const userId = session.user.id;
+	// 找到教练行
+	const { data: coachRow, error: coachErr } = await supabase
+		.from('coaches')
+		.select('id')
+		.eq('user_id', session.user.id)
+		.maybeSingle();
 
-        // ✅ 获取当前用户对应的教练记录（仅限已审核通过的教练）
-        const { data: coachRow, error: coachErr } = await supabase
-            .from('coaches')
-            .select('id, name, status')
-            .eq('user_id', userId)
-            .maybeSingle();
+	if (coachErr || !coachRow?.id) {
+		return NextResponse.json({ success: false, message: '未找到教练身份', data: null }, { status: 400 });
+	}
 
-        if (coachErr) {
-            console.error('查询教练失败:', coachErr);
-            return NextResponse.json({ success: false, message: '查询教练失败' }, { status: 500 });
-        }
+	// 活跃订阅
+	const { data: subs, error: subsErr } = await supabase
+		.from('coach_subscriptions')
+		.select('id, student_id, tier, status, start_date, end_date, updated_at')
+		.eq('coach_id', coachRow.id)
+		.eq('status', 'active')
+		.order('updated_at', { ascending: false });
 
-        if (!coachRow) {
-            return NextResponse.json({
-                success: false,
-                message: '未找到对应教练记录，无法获取学员列表'
-            }, { status: 403 });
-        }
+	if (subsErr) {
+		return NextResponse.json({ success: false, message: subsErr.message, data: null }, { status: 500 });
+	}
 
-        // ✅ 拉取该教练的活跃学员订阅
-        const { data: subs, error: subsErr } = await supabase
-            .from('coach_subscriptions')
-            .select('id, student_id, tier, status, start_date, end_date, updated_at')
-            .eq('coach_id', coachRow.id)
-            .eq('status', 'active')
-            .order('updated_at', { ascending: false });
+	const studentIds = Array.from(new Set((subs || []).map((s) => s.student_id))).filter(Boolean);
 
-        if (subsErr) {
-            console.error('获取学员订阅失败:', subsErr);
-            return NextResponse.json({ success: false, message: '获取学员订阅失败' }, { status: 500 });
-        }
+	// 用户与档案
+	let users: any[] = [];
+	let profiles: any[] = [];
+	if (studentIds.length > 0) {
+		const [{ data: usersRows }, { data: profilesRows }] = await Promise.all([
+			supabase.from('users').select('id, email, nickname, primary_role').in('id', studentIds as string[]),
+			supabase.from('user_profiles').select('user_id, nickname, avatar_url, fitness_level').in('user_id', studentIds as string[])
+		]);
+		users = usersRows || [];
+		profiles = profilesRows || [];
+	}
 
-        const studentIds = (subs || []).map(s => s.student_id).filter(Boolean);
-        const uniqueIds = Array.from(new Set(studentIds));
+	const userMap = new Map(users.map((u) => [u.id, u]));
+	const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
 
-        let usersMap: Record<string, any> = {};
-        let profilesMap: Record<string, any> = {};
+	const enriched = (subs || []).map((s) => ({
+		...s,
+		user: userMap.get(s.student_id) || null,
+		profile: profileMap.get(s.student_id) || null
+	}));
 
-        // ✅ 查询用户基本信息
-        if (uniqueIds.length > 0) {
-            const { data: usersRows, error: usersErr } = await supabase
-                .from('users')
-                .select('id, phone, last_login_at')
-                .in('id', uniqueIds);
-
-            if (usersErr) {
-                console.warn('获取用户基本信息失败（忽略继续）:', usersErr);
-            } else {
-                usersMap = Object.fromEntries(
-                    (usersRows || []).map(u => [u.id, u])
-                );
-            }
-
-            // ✅ 查询用户档案信息
-            const { data: profilesRows, error: profilesErr } = await supabase
-                .from('user_profiles')
-                .select('user_id, nickname, avatar_url')
-                .in('user_id', uniqueIds);
-
-            if (profilesErr) {
-                console.warn('获取用户档案失败（忽略继续）:', profilesErr);
-            } else {
-                profilesMap = Object.fromEntries(
-                    (profilesRows || []).map(p => [p.user_id, p])
-                );
-            }
-        }
-
-        // ✅ 合并结果
-        const enriched = (subs || []).map(s => ({
-            ...s,
-            student: usersMap[s.student_id] || null,
-            profile: profilesMap[s.student_id] || null,
-        }));
-
-        return NextResponse.json({
-            success: true,
-            data: enriched,
-        });
-
-    } catch (error) {
-        console.error('获取订阅错误:', error);
-        return NextResponse.json({
-            success: false,
-            message: '服务器错误',
-        }, { status: 500 });
-    }
+	return NextResponse.json({
+		success: true,
+		message: 'ok',
+		data: { students: enriched }
+	});
 }
