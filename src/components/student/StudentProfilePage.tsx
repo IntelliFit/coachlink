@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { studentService } from '../services/studentService';
-import VideoManagement from './video/VideoManagement';
+import { studentService } from '@/app/service/studentService';
+import VideoManagement from '@/components/video/VideoManagement';
 
 interface StudentProfilePageProps {
   userId?: string;

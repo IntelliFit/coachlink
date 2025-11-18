@@ -33,6 +33,7 @@ const VideoManagement: React.FC<VideoManagementProps> = ({
     try {
       setLoading(true);
       const result = await videoService.getUserVideos({
+        userId: userId, // 传入要查询的用户ID
         filters: {
           ...filter,
         },

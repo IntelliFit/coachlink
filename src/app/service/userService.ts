@@ -44,6 +44,14 @@ class UserPlanService extends BaseService {
         return null;
     }
 
+    async cleanupOrphanPlans() {
+        const res = await this.post('cleanup-orphan-plans', {});
+        if (res.data && res.data.success) {
+            return res.data.data as { deleted: number };
+        }
+        return null;
+    }
+
     /**
      * @description 根据 ID 获取训练计划详情，通过 getTrainingPlans 获取对应的 ID 数组
      * @param reqData 

@@ -37,6 +37,13 @@ export default function Navigation() {
             command: () => router.push('/dashboard'),
         },
         { separator: true },
+        ...(session?.user?.primary_role !== 'coach'
+            ? [{
+                label: '我的档案',
+                icon: 'pi pi-id-card',
+                command: () => router.push('/me/profile'),
+            }]
+            : []),
         {
             label: '个人设置',
             icon: 'pi pi-cog',

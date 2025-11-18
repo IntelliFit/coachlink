@@ -153,6 +153,30 @@ const TrainingPlansHome: React.FC = () => {
                     />
                 </div>
 
+                <div className="flex justify-end mb-4">
+                    <Button
+                        label="清理无教练计划"
+                        className="p-button-text p-button-secondary"
+                        icon="pi pi-trash"
+                        onClick={async () => {
+                            const res = await userService.cleanupOrphanPlans();
+                            if (res) {
+                                toast.current?.show({
+                                    severity: 'success',
+                                    summary: '已清理',
+                                    detail: `删除 ${res.deleted} 个无教练计划`,
+                                });
+                            } else {
+                                toast.current?.show({
+                                    severity: 'warn',
+                                    summary: '无可清理项',
+                                    detail: '或清理失败，请稍后重试',
+                                });
+                            }
+                        }}
+                    />
+                </div>
+
                 {/* 内容 */}
                 {loading ? (
                     <div className="grid gap-4">

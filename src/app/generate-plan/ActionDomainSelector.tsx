@@ -31,7 +31,7 @@ const ActionDomainSelector: React.FC<ActionDomainSelectorProps> = ({
     const coachId = searchParams.get('coachId');
 
     if (!coachId) {
-        router.push('/coach');
+		router.push('/coach/discovery');
     }
 
     const domains: ActionDomain[] = [
