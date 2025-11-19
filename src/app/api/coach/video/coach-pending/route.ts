@@ -89,7 +89,13 @@ export async function POST(req: Request) {
                 .select('user_id, full_name, nickname')
                 .in('user_id', userIds);
             const map: Record<string, { full_name: string | null; nickname: string | null }> = {};
-            (profiles || []).forEach(p => { map[p.user_id] = { full_name: p.full_name, nickname: p.nickname }; });
+
+            for (const p of profiles || []) {
+                if (p.user_id) {
+                    map[p.user_id] = { full_name: p.full_name, nickname: p.nickname };
+                }
+            }
+
             videos = videos.map(v => ({
                 ...v,
                 profile: v.user_id ? map[v.user_id] || null : null
