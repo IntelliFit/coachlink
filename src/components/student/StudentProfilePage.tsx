@@ -2,22 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { studentService } from '@/app/service/studentService';
 import VideoManagement from '@/components/video/VideoManagement';
 import { Skeleton } from 'primereact/skeleton';
+import { useSession } from 'next-auth/react';
 
 interface StudentProfilePageProps {
-    userId?: string;
     onBack?: () => void;
 }
 
-const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ userId, onBack }) => {
+const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const { data: session } = useSession();
 
     useEffect(() => {
         (async () => {
             try {
                 setLoading(true);
-                const profile = await studentService.getStudentProfile(userId);
+                const profile = await studentService.getStudentProfile(session?.user.id);
                 setData(profile);
             } catch (e: any) {
                 setError(e?.message || '加载失败');
@@ -25,7 +27,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ userId, onBack 
                 setLoading(false);
             }
         })();
-    }, [userId]);
+    }, [session?.user.id]);
 
     if (loading) {
         return (
@@ -115,7 +117,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ userId, onBack 
 
             <section className="bg-white rounded-xl border p-4">
                 <h3 className="font-medium mb-2">训练视频管理</h3>
-                <VideoManagement userId={userId} />
+                <VideoManagement />
             </section>
 
             <section className="bg-white rounded-xl border p-4">
