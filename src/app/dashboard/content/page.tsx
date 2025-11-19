@@ -139,7 +139,7 @@ const Content = () => {
         <div className="max-w-6xl mx-auto">
             <Card className="shadow-sm">
                 {/* 顶部区域 */}
-                <div className="border-b border-gray-200 p-4 md:p-6">
+                <div className="border-b border-surface-200 p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-bold text-900">内容管理</h1>
@@ -174,15 +174,14 @@ const Content = () => {
                 {/* 内容区域 */}
                 <div className="p-4 md:p-6">
                     {loading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 gap-6">
                             {[1, 2, 3, 4, 5, 6].map(i => (
                                 <div key={i} className="border rounded-lg p-4">
-                                    <Skeleton width="100%" height="8rem" className="mb-4" />
+                                    <Skeleton width="100%" height="2rem" className="mb-4" />
                                     <Skeleton width="80%" height="1.25rem" className="mb-2" />
-                                    <Skeleton width="60%" height="1rem" className="mb-3" />
                                     <div className="flex justify-between mt-4">
-                                        <Skeleton width="4rem" height="2rem" />
-                                        <Skeleton width="4rem" height="2rem" />
+                                        <Skeleton width="4rem" height="1rem" />
+                                        <Skeleton width="4rem" height="1rem" />
                                     </div>
                                 </div>
                             ))}
@@ -205,7 +204,7 @@ const Content = () => {
                         <DataView
                             value={filteredContents}
                             itemTemplate={(content) => (
-                                <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                                <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 mb-2">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center space-x-3 mb-2">
@@ -217,7 +216,7 @@ const Content = () => {
                                                     ? content.content.slice(0, 100) + '...'
                                                     : content.content}
                                             </p>
-                                            <div className="flex items-center space-x-6 text-sm text-gray-500">
+                                            <div className="flex items-center space-x-6 text-sm text-surface-500">
                                                 <div className="flex items-center space-x-1"><Eye className="w-4 h-4" /><span>{content.views_count}</span></div>
                                                 <div className="flex items-center space-x-1"><ThumbsUp className="w-4 h-4" /><span>{content.likes_count}</span></div>
                                                 <div className="flex items-center space-x-1"><MessageCircle className="w-4 h-4" /><span>{content.comments_count}</span></div>
