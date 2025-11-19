@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { GetStudentsDto } from './entity';
 
-export async function POST() {
+export async function POST(req: Request) {
 	const session = await getServerSession();
 	if (!session?.user?.id) {
 		return NextResponse.json({ success: false, message: '未登录用户', data: null }, { status: 401 });
 	}
+
+    const {
+        pagination
+    } = await req.json() as GetStudentsDto;
 
 	// 找到教练行
 	const { data: coachRow, error: coachErr } = await supabase

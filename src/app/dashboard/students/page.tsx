@@ -18,24 +18,19 @@ export default function StudentsPage() {
     const router = useRouter();
     const { status, data: session } = useSession();
 
-    useEffect(() => {
-        if (status === 'loading') return;
-
-        if (!session) {
-            router.push('/login');
-            return;
+    const load = async () => {
+        const data = await coachService.getStudents();
+        console.log(data);
+        
+        if (data) {
+            setStudents(data.students || []);
         }
 
-        (async () => {
-            try {
-                const data = await coachService.getStudents();
-                if (data) {
-                    setStudents(data.students || []);
-                }
-            } finally {
-                setLoading(false);
-            }
-        })();
+        setLoading(false);
+    }
+
+    useEffect(() => {
+        load();
     }, [status, session, router]);
 
     // 学员信息列模板
