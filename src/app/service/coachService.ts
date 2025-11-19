@@ -19,8 +19,10 @@ class CoachService extends BaseService {
         return null;
     }
 
-    async getStudents() {
-        const res = await this.post<GetStudentsResponseDto>('get-students');
+    async getStudents(pagination?: { page: number; limit: number }) {
+        const res = await this.post<GetStudentsResponseDto>('get-students', {
+            pagination: pagination || { page: 0, limit: 20 }
+        });
         if (res.data && res.data.success) {
             return res.data.data;
         }

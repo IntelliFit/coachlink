@@ -5,8 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
-import { CoachStudentItem } from '@/types/coach';
-import { StudentSubscription } from '@/app/api/coach/get-students/entity';
+import { StudentSubscription, GetStudentsResponseDto } from '@/app/api/coach/get-students/entity';
 import { Avatar } from 'primereact/avatar';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
@@ -15,23 +14,44 @@ import { Column } from 'primereact/column';
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
     const [loading, setLoading] = useState(true);
+    const [first, setFirst] = useState(0);
+    const [rows, setRows] = useState(10);
+    const [totalRecords, setTotalRecords] = useState(0);
     const router = useRouter();
     const { status, data: session } = useSession();
 
-    const load = async () => {
-        const data = await coachService.getStudents();
-        console.log(data);
-        
-        if (data) {
-            setStudents(data.students || []);
+    const loadStudents = async (page: number = 0, limit: number = 10) => {
+        try {
+            setLoading(true);
+            const data = await coachService.getStudents({ page, limit });
+            if (data) {
+                setStudents(data.students || []);
+                setTotalRecords(data.pagination.total);
+            }
+        } catch (error) {
+            console.error('获取学生列表失败:', error);
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
-    }
+    };
 
     useEffect(() => {
-        load();
-    }, [status, session, router]);
+        if (status === 'loading') return;
+
+        if (!session) {
+            router.push('/login');
+            return;
+        }
+
+        loadStudents(0, rows);
+    }, [status, session, router, rows]);
+
+    const onPage = (event: any) => {
+        setFirst(event.first);
+        setRows(event.rows);
+        const pageIndex = event.page;
+        loadStudents(pageIndex, event.rows);
+    };
 
     // 学员信息列模板
     const studentTemplate = (student: StudentSubscription) => {
@@ -43,16 +63,16 @@ export default function StudentsPage() {
                         student.profile?.avatar_url
                             ? undefined
                             : student.profile?.nickname?.charAt(0) ||
-                            student.user?.email.slice(0, 1) ||
+                            student.profile?.phone?.slice(0, 1) ||
                             'U'
                     }
                     shape="circle"
-                    className="bg-primary text-white font-bold flex-shrink-0"
+                    className="bg-primary text-surface font-bold flex-shrink-0"
                     size="normal"
                 />
                 <div>
                     <div className="font-medium">{student.profile?.nickname}</div>
-                    <div className="text-surface-500">{student.user?.email}</div>
+                    <div className="text-surface-500">{student.profile?.phone}</div>
                 </div>
             </div>
         );
@@ -74,11 +94,11 @@ export default function StudentsPage() {
         );
     };
 
-    if (loading) {
+    if (loading && students.length === 0) {
         return (
             <div className="p-6">
                 <Skeleton width="150px" height="32px" className="mb-6" />
-                <div className="bg-white rounded-xl border">
+                <div className="bg-surface rounded-xl border">
                     <div className="p-4 border-b">
                         <Skeleton width="100%" height="24px" />
                     </div>
@@ -102,12 +122,16 @@ export default function StudentsPage() {
     return (
         <div className="min-h-screen p-6">
             <h1 className="text-2xl font-semibold mb-4">我的学员</h1>
-            <div className="bg-white rounded-xl border">
+            <div className="bg-surface rounded-xl border">
                 <DataTable 
                     value={students} 
                     className="rounded-xl"
                     paginator
-                    rows={10}
+                    rows={rows}
+                    totalRecords={totalRecords}
+                    first={first}
+                    onPage={onPage}
+                    lazy
                     removableSort
                 >
                     <Column 
