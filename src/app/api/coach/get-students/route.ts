@@ -16,7 +16,7 @@ async function getVideoStats(studentIds: string[]) {
                 .in('user_id', [id]); // 这里使用 IN 但只有一个元素
 
             const uploaded = videos?.length || 0;
-            const reviewed = videos?.filter(v => !!v.coach_feedback).length || 0;
+            const reviewed = videos?.filter(v => (!!v.coach_feedback && Object.keys(v.coach_feedback).length > 0)).length || 0;
 
             return {
                 student_id: id,

@@ -90,6 +90,22 @@ export default function StudentsPage() {
         );
     };
 
+    // 视频数量列模板
+    const videoStatsTemplate = (student: StudentSubscription) => {
+        const unreviewed = student.uploaded - student.reviewed;
+        return (
+            <div className="flex flex-col">
+                <div className="text-sm">
+                    <span className="font-medium">{student.uploaded}</span>
+                    <span className="text-surface-500"> 个视频</span>
+                </div>
+                <div className="text-xs text-orange-500">
+                    {unreviewed} 个未评阅
+                </div>
+            </div>
+        );
+    };
+
     // 操作列模板
     const actionTemplate = (student: StudentSubscription) => {
         return (
@@ -131,6 +147,7 @@ export default function StudentsPage() {
                                     <Skeleton width="120px" height="20px" className="mb-2" />
                                     <Skeleton width="200px" height="16px" />
                                 </div>
+                                <Skeleton width="60px" height="16px" />
                                 <Skeleton width="80px" height="32px" />
                             </div>
                         </div>
@@ -165,6 +182,12 @@ export default function StudentsPage() {
                         field="start_date" 
                         header="注册时间" 
                         body={startDateTemplate}
+                        sortable
+                    />
+                    <Column 
+                        field="uploaded" 
+                        header="视频数量" 
+                        body={videoStatsTemplate}
                         sortable
                     />
                     <Column 
@@ -228,6 +251,18 @@ export default function StudentsPage() {
                                 <div className="text-surface-500 text-sm mb-1">健身水平</div>
                                 <div className="font-medium">
                                     {selectedStudent.profile?.fitness_level || '未设置'}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-surface-500 text-sm mb-1">上传视频</div>
+                                <div className="font-medium">
+                                    {selectedStudent.uploaded} 个
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-surface-500 text-sm mb-1">待评阅视频</div>
+                                <div className="font-medium">
+                                    {selectedStudent.uploaded - selectedStudent.reviewed} 个
                                 </div>
                             </div>
                         </div>
