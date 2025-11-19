@@ -177,7 +177,7 @@ export default function StudentsPage() {
 
             {/* 学员详情对话框 */}
             <Dialog
-                header={selectedStudent ? `学员详情 - ${selectedStudent.profile?.nickname || selectedStudent.user?.email}` : "学员详情"}
+                header={selectedStudent ? `学员详情 - ${selectedStudent.profile?.nickname || selectedStudent.profile?.phone}` : "学员详情"}
                 visible={dialogVisible}
                 style={{ width: '500px' }}
                 onHide={() => setDialogVisible(false)}
@@ -192,7 +192,7 @@ export default function StudentsPage() {
                                     selectedStudent.profile?.avatar_url
                                         ? undefined
                                         : selectedStudent.profile?.nickname?.charAt(0) ||
-                                        selectedStudent.user?.email.slice(0, 1) ||
+                                        selectedStudent.profile?.phone?.slice(0, 1) ||
                                         'U'
                                 }
                                 size="xlarge"
@@ -204,7 +204,7 @@ export default function StudentsPage() {
                                     {selectedStudent.profile?.nickname || '未设置昵称'}
                                 </div>
                                 <div className="text-surface-500">
-                                    {selectedStudent.user?.email}
+                                    {selectedStudent.profile?.phone || '未设置手机号'}
                                 </div>
                             </div>
                         </div>
