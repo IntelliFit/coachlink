@@ -48,7 +48,7 @@ export async function POST() {
 	const userMap = new Map(users.map((u) => [u.id, u]));
 	const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
 
-	const enriched = (subs || []).map((s) => ({
+	const students = (subs || []).map((s) => ({
 		...s,
 		user: userMap.get(s.student_id) || null,
 		profile: profileMap.get(s.student_id) || null
@@ -57,6 +57,8 @@ export async function POST() {
 	return NextResponse.json({
 		success: true,
 		message: 'ok',
-		data: { students: enriched }
+		data: {
+            students
+        }
 	});
 }
