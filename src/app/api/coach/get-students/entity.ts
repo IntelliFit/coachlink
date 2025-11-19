@@ -1,8 +1,11 @@
+import { UserProfilesRow } from "@/types";
+
 export interface GetStudentsDto {
     pagination: {
         page: number;
         limit: number;
     };
+    needTrainingDetails?: boolean;
 }
 
 export interface StudentSubscription {
@@ -10,23 +13,17 @@ export interface StudentSubscription {
     student_id: string;
     tier: string;
     status: string;
-    start_date: string | null;
-    end_date: string | null;
+    start_date: string;
+    end_date: string;
     updated_at: string;
-    user: {
-        id: string;
-        email: string;
-        nickname: string | null;
-        primary_role: string | null;
-    } | null;
-    profile: {
-        user_id: string;
-        nickname: string | null;
-        avatar_url: string | null;
-        fitness_level: string | null;
-    } | null;
+    profile: UserProfilesRow | null;
 }
 
 export interface GetStudentsResponseDto {
     students: StudentSubscription[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+    };
 }
