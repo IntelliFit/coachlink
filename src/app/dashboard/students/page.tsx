@@ -66,7 +66,7 @@ export default function StudentsPage() {
                         student.profile?.avatar_url
                             ? undefined
                             : student.profile?.nickname?.charAt(0) ||
-                            student.user?.email.slice(0, 1) ||
+                            student.profile?.phone?.slice(0, 1) ||
                             'U'
                     }
                     shape="circle"
@@ -75,7 +75,7 @@ export default function StudentsPage() {
                 />
                 <div>
                     <div className="font-medium">{student.profile?.nickname}</div>
-                    <div className="text-surface-500">{student.user?.email}</div>
+                    <div className="text-surface-500">{student.profile?.phone}</div>
                 </div>
             </div>
         );
