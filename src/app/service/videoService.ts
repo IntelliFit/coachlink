@@ -1,5 +1,5 @@
 import { BaseService } from "@/lib/baseService";
-import supabaseBrowser from "@/lib/supabaseBrowserClient";
+
 // 导入视频服务相关的类型定义
 import type { UploadVideoDto, UploadVideoResponseDto, VideoUploadContext, VideoUploadProgress } from "../api/user/upload-video/entity";
 import type { SubmitVideoUrlDto, SubmitVideoUrlResponseDto } from "../api/user/submit-video-url/entity";
