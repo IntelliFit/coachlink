@@ -7,6 +7,7 @@ import type { GetAllCoachesDto, GetAllCoachesResponseDto } from "@/app/api/coach
 import type { GetSpecialtiesResponseDto } from "../api/coach/get-specialties/entity";
 import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto } from "../api/coach/get-coach-rulepacks/entity";
 import { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/entity";
+import { GetStudentsResponseDto } from "../api/coach/get-students/entity";
 
 class CoachService extends BaseService {
     async getAllCoaches(reqData: GetAllCoachesDto) {
@@ -19,7 +20,7 @@ class CoachService extends BaseService {
     }
 
     async getStudents() {
-        const res = await this.post<CoachStudentItem[]>('get-students');
+        const res = await this.post<GetStudentsResponseDto>('get-students');
         if (res.data && res.data.success) {
             return res.data.data;
         }
