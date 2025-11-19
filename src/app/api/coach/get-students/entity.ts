@@ -1,5 +1,8 @@
 export interface GetStudentsDto {
-
+    pagination: {
+        page: number;
+        limit: number;
+    };
 }
 
 export interface StudentSubscription {
