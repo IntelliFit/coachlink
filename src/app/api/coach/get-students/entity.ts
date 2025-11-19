@@ -17,6 +17,8 @@ export interface StudentSubscription {
     end_date: string;
     updated_at: string;
     profile: UserProfilesRow | null;
+    uploaded: number;
+    reviewed: number;
 }
 
 export interface GetStudentsResponseDto {
