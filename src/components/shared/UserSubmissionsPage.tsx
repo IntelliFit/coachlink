@@ -182,119 +182,38 @@ const UserSubmissionsPage: React.FC<UserSubmissionsPageProps> = ({ onNavigate })
             </button>
           </div>
         ) : (
-          <div className="grid gap-6">
-            {submissions.map((submission) => {
-              const statusDisplay = getStatusDisplay(submission.status);
-              
-              return (
-                <div key={submission.id} className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center">
-                      <User className="w-5 h-5 text-gray-500 mr-2" />
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        {submission.douyin_nickname}
-                      </h3>
-                      <span className={`ml-3 px-2 py-1 rounded-full text-xs font-medium ${
-                        submission.gender === 'male' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-pink-100 text-pink-800'
-                      }`}>
-                        {formatGender(submission.gender)}
-                      </span>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <Skeleton width="200px" height="36px" />
+              <Skeleton width="120px" height="36px" />
+            </div>
+            
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex-shrink-0">
+                    <Skeleton width="200px" height="150px" className="rounded-lg" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-4 mb-3">
+                      <Skeleton width="100px" height="24px" />
+                      <Skeleton width="80px" height="20px" />
                     </div>
-                    
-                    <div className={`flex items-center px-3 py-1 rounded-full border ${statusDisplay.className}`}>
-                      {statusDisplay.icon}
-                      <span className="ml-2 text-sm font-medium">{statusDisplay.text}</span>
+                    <Skeleton width="100%" height="20px" className="mb-2" />
+                    <Skeleton width="80%" height="20px" className="mb-4" />
+                    <div className="flex flex-wrap gap-2">
+                      <Skeleton width="60px" height="28px" />
+                      <Skeleton width="60px" height="28px" />
+                      <Skeleton width="60px" height="28px" />
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center">
-                      <Weight className="w-4 h-4 text-gray-500 mr-2" />
-                      <span className="text-gray-700">
-                        负重: <strong>{submission.weight_kg} 公斤</strong>
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-gray-500 mr-2" />
-                      <span className="text-gray-700">
-                        提交时间: {formatDate(submission.submitted_at)}
-                      </span>
-                    </div>
-                    {submission.reviewed_at && (
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-gray-500 mr-2" />
-                        <span className="text-gray-700">
-                          审核时间: {formatDate(submission.reviewed_at)}
-                        </span>
-                      </div>
-                    )}
+                  <div className="flex flex-col gap-2">
+                    <Skeleton width="80px" height="36px" />
+                    <Skeleton width="80px" height="36px" />
                   </div>
-
-                  {submission.video_url && (
-                    <div className="flex items-center mb-4">
-                      <Video className="w-4 h-4 text-gray-500 mr-2" />
-                      <a
-                        href={submission.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        查看提交视频
-                      </a>
-                    </div>
-                  )}
-
-                  {submission.notes && (
-                    <div className="mb-4">
-                      <div className="flex items-start">
-                        <MessageSquare className="w-4 h-4 text-gray-500 mr-2 mt-1" />
-                        <div>
-                          <p className="text-sm text-gray-600 font-medium mb-1">提交备注:</p>
-                          <p className="text-gray-700">{submission.notes}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {submission.admin_feedback && (
-                    <div className={`p-4 rounded-lg border-l-4 ${
-                      submission.status === 'approved' 
-                        ? 'bg-green-50 border-green-400' 
-                        : 'bg-red-50 border-red-400'
-                    }`}>
-                      <div className="flex items-start">
-                        <MessageSquare className={`w-4 h-4 mr-2 mt-1 ${
-                          submission.status === 'approved' ? 'text-green-600' : 'text-red-600'
-                        }`} />
-                        <div>
-                          <p className={`text-sm font-medium mb-1 ${
-                            submission.status === 'approved' ? 'text-green-800' : 'text-red-800'
-                          }`}>
-                            管理员反馈:
-                          </p>
-                          <p className={submission.status === 'approved' ? 'text-green-700' : 'text-red-700'}>
-                            {submission.admin_feedback}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {submission.status === 'pending' && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-yellow-600 mr-2" />
-                        <p className="text-yellow-800 text-sm">
-                          您的记录正在审核中，请耐心等待管理员处理
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>

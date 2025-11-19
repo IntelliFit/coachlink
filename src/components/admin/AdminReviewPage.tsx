@@ -188,6 +188,40 @@ const AdminReviewPage: React.FC<AdminReviewPageProps> = ({ onNavigate }) => {
               <p className="text-gray-600">加载中...</p>
             </div>
           </div>
+        ) : pendingRecords.length === 0 ? (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <Skeleton width="200px" height="36px" />
+              <Skeleton width="120px" height="36px" />
+            </div>
+            
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex-shrink-0">
+                    <Skeleton width="200px" height="150px" className="rounded-lg" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-4 mb-3">
+                      <Skeleton width="100px" height="24px" />
+                      <Skeleton width="80px" height="20px" />
+                    </div>
+                    <Skeleton width="100%" height="20px" className="mb-2" />
+                    <Skeleton width="80%" height="20px" className="mb-4" />
+                    <div className="flex flex-wrap gap-2">
+                      <Skeleton width="60px" height="28px" />
+                      <Skeleton width="60px" height="28px" />
+                      <Skeleton width="60px" height="28px" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Skeleton width="80px" height="36px" />
+                    <Skeleton width="80px" height="36px" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />

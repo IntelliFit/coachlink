@@ -1,28 +1,37 @@
-'use client'
+'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Button } from 'primereact/button';
+import { coachService } from '@/app/service/coachService';
+import { Skeleton } from 'primereact/skeleton';
 
-export default function CoachStudentsPage() {
-	const { data: session, status } = useSession();
-	const router = useRouter();
+interface Student {
+	id: string;
+	name: string;
+	email: string;
+	avatar_url: string;
+	created_at: string;
+}
+
+export default function StudentsPage() {
+	const [students, setStudents] = useState<Student[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [students, setStudents] = useState<any[]>([]);
+	const router = useRouter();
+	const { status, data: session } = useSession();
 
 	useEffect(() => {
 		if (status === 'loading') return;
+
 		if (!session) {
 			router.push('/login');
 			return;
 		}
+
 		(async () => {
 			try {
-				setLoading(true);
-				const resp = await fetch('/api/coach/get-students', { method: 'POST' });
-				const data = await resp.json();
-				if (resp.ok && data?.success) {
+				const data = await coachService.getStudents();
+				if (data) {
 					setStudents(data.data.students || []);
 				}
 			} finally {
@@ -31,7 +40,30 @@ export default function CoachStudentsPage() {
 		})();
 	}, [status, session, router]);
 
-	if (loading) return <div className="p-6">加载中...</div>;
+	if (loading) {
+		return (
+			<div className="p-6">
+				<Skeleton width="150px" height="32px" className="mb-6" />
+				<div className="bg-white rounded-xl border">
+					<div className="p-4 border-b">
+						<Skeleton width="100%" height="24px" />
+					</div>
+					{[1, 2, 3].map((item) => (
+						<div key={item} className="p-4 border-b last:border-b-0">
+							<div className="flex items-center space-x-4">
+								<Skeleton width="40px" height="40px" borderRadius="50%" />
+								<div className="flex-1">
+									<Skeleton width="120px" height="20px" className="mb-2" />
+									<Skeleton width="200px" height="16px" />
+								</div>
+								<Skeleton width="80px" height="32px" />
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-screen p-6">
@@ -39,25 +71,35 @@ export default function CoachStudentsPage() {
 			<div className="bg-white rounded-xl border">
 				<table className="w-full text-sm">
 					<thead>
-						<tr className="text-gray-500">
-							<th className="text-left p-3">昵称</th>
-							<th className="text-left p-3">邮箱</th>
-							<th className="text-left p-3">订阅档位</th>
-							<th className="text-left p-3">操作</th>
+						<tr className="border-b text-left text-gray-500">
+							<th className="p-4 font-medium">学员</th>
+							<th className="p-4 font-medium">注册时间</th>
+							<th className="p-4 font-medium">操作</th>
 						</tr>
 					</thead>
 					<tbody>
-						{students.map((s) => (
-							<tr key={s.id} className="border-t">
-								<td className="p-3">{s?.profile?.nickname || s?.user?.nickname || '-'}</td>
-								<td className="p-3">{s?.user?.email || '-'}</td>
-								<td className="p-3">{s?.tier}</td>
-								<td className="p-3">
-									<Button
-										label="查看档案"
-										className="p-button-sm"
-										onClick={() => router.push(`/dashboard/students/${s.student_id}`)}
-									/>
+						{students.map((student) => (
+							<tr key={student.id} className="border-b hover:bg-gray-50">
+								<td className="p-4">
+									<div className="flex items-center space-x-3">
+										<img
+											src={student.avatar_url || '/default-avatar.png'}
+											alt={student.name}
+											className="w-10 h-10 rounded-full object-cover"
+										/>
+										<div>
+											<div className="font-medium">{student.name}</div>
+											<div className="text-gray-500">{student.email}</div>
+										</div>
+									</div>
+								</td>
+								<td className="p-4 text-gray-500">
+									{new Date(student.created_at).toLocaleDateString()}
+								</td>
+								<td className="p-4">
+									<button className="text-blue-600 hover:text-blue-700 font-medium">
+										查看详情
+									</button>
 								</td>
 							</tr>
 						))}
