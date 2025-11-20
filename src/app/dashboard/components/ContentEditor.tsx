@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Save,
     Eye,
@@ -49,12 +49,14 @@ interface ContentEditorProps {
     coachId: string;
     onPublish: (content: ContentForm) => Promise<void>;
     onSaveDraft: (content: ContentForm) => Promise<void>;
+    initialContent?: CoachContentRow | null;
 }
 
 const ContentEditor: React.FC<ContentEditorProps> = ({
     coachId,
     onPublish,
     onSaveDraft,
+    initialContent = null,
 }) => {
     const [form, setForm] = useState<ContentForm>({
         title: '',
@@ -78,6 +80,31 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
         { value: ContentTier.PREMIUM, label: '高级订阅', icon: Crown, color: 'text-purple-600', border: 'border-purple-500', bgColor: 'bg-purple-100' },
         { value: ContentTier.VIP, label: 'VIP专属', icon: Gem, color: 'text-amber-600', border: 'border-primary', bgColor: 'bg-primary-100' }
     ];
+
+    useEffect(() => {
+        if (initialContent) {
+            setForm({
+                title: initialContent.title,
+                content: initialContent.content,
+                content_type: initialContent.content_type as 'text' | 'video' | 'image' | 'live' | 'plan',
+                required_tier: initialContent.required_tier,
+                is_featured: initialContent.is_featured || false,
+                tags: initialContent.tags || [],
+                media_urls: initialContent.media_urls || []
+            });
+        } else {
+            // 重置表单为默认值
+            setForm({
+                title: '',
+                content: '',
+                content_type: 'text',
+                required_tier: ContentTier.FREE,
+                is_featured: false,
+                tags: [],
+                media_urls: []
+            });
+        }
+    }, [initialContent]);
 
     const handleInputChange = (field: keyof ContentForm, value: any) => {
         setForm(prev => ({

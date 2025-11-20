@@ -28,6 +28,7 @@ const Content = () => {
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTier, setFilterTier] = useState<number | 'all'>('all');
+    const [editingContent, setEditingContent] = useState<CoachContentRow | null>(null);
 
     // 加载内容
     useEffect(() => {
@@ -55,21 +56,50 @@ const Content = () => {
     };
 
     const handlePublishContent = async (contentData: any) => {
-        await coachService.publishContent({
-            coachId: coach.id,
-            ...contentData,
-            isDraft: false,
-        });
+        if (editingContent) {
+            // 更新现有内容
+            await coachService.updateContent({
+                id: editingContent.id,
+                ...contentData,
+                isDraft: false,
+            });
+        } else {
+            // 发布新内容
+            await coachService.publishContent({
+                coachId: coach.id,
+                ...contentData,
+                isDraft: false,
+            });
+        }
         setCurrentView('list');
+        setEditingContent(null);
         loadContents();
     };
 
     const handleSaveDraft = async (contentData: any) => {
-        await coachService.publishContent({
-            coachId: coach.id,
-            ...contentData,
-            isDraft: true,
-        });
+        if (editingContent) {
+            // 更新现有内容草稿
+            await coachService.updateContent({
+                id: editingContent.id,
+                ...contentData,
+                isDraft: true,
+            });
+        } else {
+            // 保存新内容草稿
+            await coachService.publishContent({
+                coachId: coach.id,
+                ...contentData,
+                isDraft: true,
+            });
+        }
+        setCurrentView('list');
+        setEditingContent(null);
+        loadContents();
+    };
+
+    const handleEditContent = (content: CoachContentRow) => {
+        setEditingContent(content);
+        setCurrentView('editor');
     };
 
     const getTierBadge = (tier: number) => {
@@ -114,14 +144,18 @@ const Content = () => {
             <div className="max-w-6xl mx-auto p-4 md:p-6">
                 <Button
                     icon="pi pi-arrow-left"
-                    label="返回内容管理"
+                    label={editingContent ? "取消编辑" : "返回内容管理"}
                     className="p-button-text mb-4"
-                    onClick={() => setCurrentView('list')}
+                    onClick={() => {
+                        setCurrentView('list');
+                        setEditingContent(null);
+                    }}
                 />
                 <ContentEditor
                     coachId={coach.id}
                     onPublish={handlePublishContent}
                     onSaveDraft={handleSaveDraft}
+                    initialContent={editingContent}
                 />
             </div>
         );
@@ -224,7 +258,12 @@ const Content = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center space-x-2 ml-4">
-                                            <Button icon="pi pi-pencil" className="p-button-rounded p-button-text" tooltip="编辑" />
+                                            <Button 
+                                                icon="pi pi-pencil" 
+                                                className="p-button-rounded p-button-text" 
+                                                tooltip="编辑" 
+                                                onClick={() => handleEditContent(content)}
+                                            />
                                             <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger" tooltip="删除" />
                                         </div>
                                     </div>

@@ -9,6 +9,11 @@ import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto } from "../api/
 import { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/entity";
 import { GetStudentsResponseDto } from "../api/coach/get-students/entity";
 
+// 添加UpdateContentDto类型
+interface UpdateContentDto extends Partial<PublishContentDto> {
+    id: string;
+}
+
 class CoachService extends BaseService {
     async getAllCoaches(reqData: GetAllCoachesDto) {
         const res = await this.post<GetAllCoachesResponseDto>('get-all-coaches', reqData);
@@ -39,6 +44,14 @@ class CoachService extends BaseService {
 
     async publishContent(reqData: PublishContentDto) {
         const res = await this.post<PublishContentResponseDto>('publish-content', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    // 添加更新内容的方法
+    async updateContent(reqData: UpdateContentDto) {
+        const res = await this.post<PublishContentResponseDto>('update-content', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
