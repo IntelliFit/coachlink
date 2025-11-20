@@ -17,6 +17,8 @@ import { coachService } from '@/app/service/coachService';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { CoachContentRow } from '@/types';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { useToastContext } from '@/context/ToastContext';
 
 const Content = () => {
     const { data: session } = useSession();
@@ -29,6 +31,8 @@ const Content = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTier, setFilterTier] = useState<number | 'all'>('all');
     const [editingContent, setEditingContent] = useState<CoachContentRow | null>(null);
+
+    const { showToast } = useToastContext();
 
     // 加载内容
     useEffect(() => {
@@ -102,6 +106,27 @@ const Content = () => {
         setCurrentView('editor');
     };
 
+    const handleDeleteContent = (content: CoachContentRow) => {
+        confirmDialog({
+            message: `确定要删除内容"${content.title}"吗？此操作无法撤销。`,
+            header: '删除确认',
+            icon: 'pi pi-exclamation-triangle',
+            accept: () => deleteContent(content.id),
+            reject: () => {}
+        });
+    };
+
+    const deleteContent = async (contentId: string) => {
+        try {
+            await coachService.deleteContent(contentId);
+            loadContents();
+            showToast({ severity: 'success', summary: '删除成功' });
+        } catch (err) {
+            console.error('删除内容失败:', err);
+            showToast({ severity: 'error', summary: '删除内容失败' });
+        }
+    };
+
     const getTierBadge = (tier: number) => {
         const configs = {
             0: { label: '免费', color: 'bg-green-100 text-green-800' },
@@ -171,6 +196,7 @@ const Content = () => {
 
     return (
         <div className="max-w-6xl mx-auto">
+            <ConfirmDialog />
             <Card className="shadow-sm">
                 {/* 顶部区域 */}
                 <div className="border-b border-surface-200 p-4 md:p-6">
@@ -264,7 +290,12 @@ const Content = () => {
                                                 tooltip="编辑" 
                                                 onClick={() => handleEditContent(content)}
                                             />
-                                            <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger" tooltip="删除" />
+                                            <Button 
+                                                icon="pi pi-trash" 
+                                                className="p-button-rounded p-button-text p-button-danger" 
+                                                tooltip="删除" 
+                                                onClick={() => handleDeleteContent(content)}
+                                            />
                                         </div>
                                     </div>
                                 </div>
