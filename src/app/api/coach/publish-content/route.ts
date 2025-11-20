@@ -4,9 +4,8 @@ import { getServerSession } from '../../auth/[...nextauth]/auth';
 import type { PublishContentDto, PublishContentResponseDto } from './entity';
 
 export async function POST(req: Request) {
+
     const {
-        userId,
-        coachId,
         title,
         content,
         content_type,
@@ -20,16 +19,16 @@ export async function POST(req: Request) {
 
     // 获取当前登录用户
     const session = await getServerSession();
-    const callerUserId = session?.user?.id || userId || null;
+    const userId = session?.user?.id || null;
 
-    if (!callerUserId) {
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: '缺少用户ID'
         }, { status: 401 });
     }
 
-    if (!coachId || !title || !content) {
+    if (!title || !content) {
         return NextResponse.json({
             success: false,
             message: '缺少必要参数'
@@ -54,10 +53,10 @@ export async function POST(req: Request) {
     const { data: coach, error: coachError } = await supabase
         .from('coaches')
         .select('id, user_id, status')
-        .eq('id', coachId)
-        .eq('user_id', callerUserId)
+        .eq('user_id', userId)
         .eq('status', 'approved')
         .single();
+
 
     if (coachError || !coach) {
         return NextResponse.json({
@@ -68,7 +67,7 @@ export async function POST(req: Request) {
 
     // 插入内容记录
     const contentData = {
-        coach_id: coachId,
+        coach_id: coach.id,
         title: title.trim(),
         content: content.trim(),
         content_type,

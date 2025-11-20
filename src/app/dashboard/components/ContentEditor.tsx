@@ -130,6 +130,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
                 tags: [],
                 media_urls: []
             });
+
+            showToast({ severity: 'success', summary: '发布成功' });
         } catch (error) {
             console.error('发布失败:', error);
             showToast({ severity: 'error', summary: '发布失败，请重试' });
