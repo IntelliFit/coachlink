@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 计划模板库</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="flex justify-between items-center mb-lg">
+                    <h2 class="text-xl font-bold">计划模板库</h2>
+                    <button class="btn btn-primary" onclick="window.location.href='plan-editor.html?mode=new_template'">
+                        <i data-lucide="Plus" size="18" class="mr-2"></i> 新建计划模板
+                    </button>
+                </div>
+
+                <div class="filter-bar mb-md flex gap-md">
+                    <input type="text" class="input-field" placeholder="搜索模板..." style="max-width: 300px;">
+                    <select class="input-field" style="width: auto;">
+                        <option>所有分类</option>
+                        <option>增肌</option>
+                        <option>减脂</option>
+                        <option>力量举</option>
+                    </select>
+                </div>
+
+                <div class="template-grid" id="template-list">
+                    <!-- Populated by JS -->
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            renderTemplates();
+        });
+
+        function renderTemplates() {
+            const list = document.getElementById('template-list');
+            const templates = Store.get('templates');
+
+            if (!templates || templates.length === 0) {
+                list.innerHTML = `
+                    <div class="col-span-full text-center py-xl text-secondary">
+                        <i data-lucide="FileText" size="48" class="mx-auto mb-md opacity-50"></i>
+                        <p>暂无计划模板，点击右上角新建</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            list.innerHTML = templates.map(tpl => `
+                <div class="card p-md flex flex-col justify-between hover:shadow-md transition-all">
+                    <div>
+                        <div class="flex justify-between items-start mb-sm">
+                            <h4 class="font-semibold text-lg">${tpl.name}</h4>
+                            <span class="badge badge-primary text-xs">增肌</span>
+                        </div>
+                        <p class="text-secondary text-sm mb-md line-clamp-2">${tpl.description || '暂无描述'}</p>
+                        <div class="flex gap-sm mb-md">
+                            <span class="badge badge-secondary text-xs"><i data-lucide="Calendar" size="12" class="mr-1"></i> 4周</span>
+                            <span class="badge badge-secondary text-xs"><i data-lucide="Dumbbell" size="12" class="mr-1"></i> ${tpl.exercises.length}个动作</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-sm pt-sm border-t border-gray-100">
+                        <button class="btn btn-secondary btn-sm flex-1" onclick="window.location.href='plan-editor.html?id=${tpl.id}'">
+                            <i data-lucide="Edit2" size="14" class="mr-1"></i> 编辑
+                        </button>
+                        <button class="btn btn-secondary btn-sm flex-1">
+                            <i data-lucide="Copy" size="14" class="mr-1"></i> 复制
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

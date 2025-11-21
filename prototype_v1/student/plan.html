@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 我的训练计划</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .update-log {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .update-log-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .update-log-content {
+            color: #78350f;
+            font-size: 0.9rem;
+        }
+        
+        .week-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: var(--spacing-md);
+            overflow: hidden;
+        }
+        
+        .week-header {
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all var(--transition-fast);
+        }
+        
+        .week-header:hover {
+            background: linear-gradient(135deg, #c7d2fe 0%, #ddd6fe 100%);
+        }
+        
+        .week-header.collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+        
+        .chevron {
+            transition: transform var(--transition-fast);
+        }
+        
+        .week-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .week-content.collapsed {
+            max-height: 0;
+        }
+        
+        .day-card {
+            border-bottom: 1px solid var(--border-color);
+            padding: var(--spacing-md);
+        }
+        
+        .day-card:last-child {
+            border-bottom: none;
+        }
+        
+        .day-card.highlight-today {
+            background: #f0fdf4;
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            cursor: pointer;
+        }
+        
+        .day-header:hover .day-title {
+            color: var(--primary-color);
+        }
+        
+        .day-exercises {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .day-exercises.collapsed {
+            max-height: 0;
+        }
+        
+        .exercise-item {
+            background: var(--background-color);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .exercise-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .exercise-info {
+            flex: 1;
+        }
+        
+        .exercise-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .exercise-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .exercise-detail-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+        
+        .rest-day {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        /* Execution Status Styles */
+        .execution-status {
+            margin-top: var(--spacing-md);
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        
+        .execution-status-header {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--success-color);
+            border-bottom: 1px solid #bbf7d0;
+        }
+
+        
+        .execution-table {
+            width: 100%;
+            font-size: 0.875rem;
+            border-collapse: collapse;
+        }
+        
+        .execution-table th {
+            background: var(--background-color);
+            padding: var(--spacing-sm);
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8125rem;
+        }
+        
+        .execution-table td {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .execution-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .execution-table tr:hover {
+            background: var(--background-color);
+        }
+        
+        .video-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            text-decoration: underline;
+        }
+        
+        .video-link:hover {
+            color: var(--primary-dark);
+        }
+        
+        .set-number {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+    </style>
+
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <!-- Page Header -->
+                <div class="flex justify-between items-center mb-lg">
+                    <div>
+                        <h1 class="text-2xl font-bold mb-xs">我的训练计划</h1>
+                        <p class="text-secondary">完整的训练周期安排</p>
+                    </div>
+                    <a href="dashboard.html" class="btn btn-secondary">
+                        <i data-lucide="ArrowLeft" class="mr-2"></i> 返回首页
+                    </a>
+                </div>
+
+                <!-- Coach Selector (for multiple coaches) -->
+                <div class="card mb-lg" style="padding: var(--spacing-md);">
+                    <div class="text-sm text-secondary mb-sm">选择教练查看计划:</div>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-primary" onclick="switchCoach('zhang')" id="coach-zhang">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 0.5rem;">
+                            教练张健
+                        </button>
+                        <button class="btn btn-secondary" onclick="switchCoach('li')" id="coach-li">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=li" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 0.5rem;">
+                            教练李明
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Update Log -->
+                <div class="update-log">
+                    <div class="update-log-header">
+                        <i data-lucide="Bell"></i>
+                        计划更新 - 2024年11月20日
+                    </div>
+                    <div class="update-log-content">
+                        本周为你增加了5kg重量,你的力量进步很明显!记得注意动作质量,保持稳定的节奏。加油!💪
+                    </div>
+                </div>
+
+                <!-- Week 1 -->
+                <div class="week-section">
+                    <div class="week-header" onclick="toggleWeek(this)">
+                        <div>
+                            <div class="font-bold text-lg">第 1 周 - 力量基础期</div>
+                            <div class="text-sm text-secondary mt-xs">11月18日 - 11月24日</div>
+                        </div>
+                        <i data-lucide="ChevronDown" class="chevron"></i>
+                    </div>
+                    <div class="week-content">
+                        
+                        <!-- Monday -->
+                        <div class="day-card">
+                            <div class="day-header" onclick="toggleDay(this)">
+                                <div>
+                                    <div class="font-semibold day-title">周一 · 胸部+三头</div>
+                                    <div class="text-xs text-secondary">11月18日</div>
+                                </div>
+                                <span class="badge badge-primary">6个动作</span>
+                            </div>
+                            <div class="day-exercises">
+                                <div class="exercise-item">
+                                    <div class="exercise-info">
+                                        <div class="exercise-name">杠铃卧推</div>
+                                        <div class="exercise-details">
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Layers" size="14"></i>
+                                                <span>4 组 × 8-12 次</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Scale" size="14"></i>
+                                                <span>60 kg</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Activity" size="14"></i>
+                                                <span>RPE 8</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="showVideoDemo(event, '杠铃卧推')">
+                                        <i data-lucide="Video"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Execution Status for Completed Exercise -->
+                                <div class="execution-status">
+                                    <div class="execution-status-header">学员执行情况</div>
+                                    <table class="execution-table">
+                                        <thead>
+                                            <tr>
+                                                <th>组数</th>
+                                                <th>重量</th>
+                                                <th>次数</th>
+                                                <th>RPE</th>
+                                                <th>组间休息</th>
+                                                <th>备注</th>
+                                                <th>动作视频</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="set-number">第 1 组</td>
+                                                <td>100kg</td>
+                                                <td>8</td>
+                                                <td>10</td>
+                                                <td>3min</td>
+                                                <td>感觉很重,动作有变形</td>
+                                                <td>
+                                                    <span class="video-link" onclick="playExecutionVideo('bench-set1')">
+                                                        <i data-lucide="Video" size="14"></i>
+                                                        查看
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="set-number">第 2 组</td>
+                                                <td>97.5kg</td>
+                                                <td>8</td>
+                                                <td>9</td>
+                                                <td>3min</td>
+                                                <td>-</td>
+                                                <td>
+                                                    <span class="video-link" onclick="playExecutionVideo('bench-set2')">
+                                                        <i data-lucide="Video" size="14"></i>
+                                                        查看
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="set-number">第 3 组</td>
+                                                <td>95kg</td>
+                                                <td>8</td>
+                                                <td>8.5</td>
+                                                <td>3min</td>
+                                                <td>-</td>
+                                                <td>
+                                                    <span class="video-link" onclick="playExecutionVideo('bench-set3')">
+                                                        <i data-lucide="Video" size="14"></i>
+                                                        查看
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="set-number">第 4 组</td>
+                                                <td>95kg</td>
+                                                <td>8</td>
+                                                <td>9</td>
+                                                <td>3min</td>
+                                                <td>-</td>
+                                                <td>
+                                                    <span class="video-link" onclick="playExecutionVideo('bench-set4')">
+                                                        <i data-lucide="Video" size="14"></i>
+                                                        查看
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="exercise-item">
+                                    <div class="exercise-info">
+                                        <div class="exercise-name">哑铃飞鸟</div>
+                                        <div class="exercise-details">
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Layers" size="14"></i>
+                                                <span>3 组 × 12-15 次</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Scale" size="14"></i>
+                                                <span>20 kg</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Activity" size="14"></i>
+                                                <span>RPE 7</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="showVideoDemo(event, '哑铃飞鸟')">
+                                        <i data-lucide="Video"></i>
+                                    </button>
+                                </div>
+
+                                <div class="exercise-item">
+                                    <div class="exercise-info">
+                                        <div class="exercise-name">上斜卧推</div>
+                                        <div class="exercise-details">
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Layers" size="14"></i>
+                                                <span>3 组 × 10-12 次</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Scale" size="14"></i>
+                                                <span>50 kg</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Activity" size="14"></i>
+                                                <span>RPE 8</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="showVideoDemo(event, '上斜卧推')">
+                                        <i data-lucide="Video"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tuesday -->
+                        <div class="day-card">
+                            <div class="day-header" onclick="toggleDay(this)">
+                                <div>
+                                    <div class="font-semibold day-title">周二 · 休息日</div>
+                                    <div class="text-xs text-secondary">11月19日</div>
+                                </div>
+                                <span class="badge badge-secondary">休息</span>
+                            </div>
+                            <div class="day-exercises">
+                                <div class="rest-day">
+                                    <i data-lucide="Coffee" size="32" class="mb-sm"></i>
+                                    <div>今天好好休息,恢复体力</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Wednesday (Today) -->
+                        <div class="day-card highlight-today">
+                            <div class="day-header" onclick="toggleDay(this)">
+                                <div>
+                                    <div class="font-semibold day-title">周三 · 背部+二头</div>
+                                    <div class="text-xs text-secondary">11月20日 · 今天</div>
+                                </div>
+                                <span class="badge badge-success">今日训练</span>
+                            </div>
+                            <div class="day-exercises">
+                                <div class="exercise-item">
+                                    <div class="exercise-info">
+                                        <div class="exercise-name">引体向上</div>
+                                        <div class="exercise-details">
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Layers" size="14"></i>
+                                                <span>4 组 × 8-10 次</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Scale" size="14"></i>
+                                                <span>体重</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Activity" size="14"></i>
+                                                <span>RPE 8</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="showVideoDemo(event, '引体向上')">
+                                        <i data-lucide="Video"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="exercise-item">
+                                    <div class="exercise-info">
+                                        <div class="exercise-name">杠铃划船</div>
+                                        <div class="exercise-details">
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Layers" size="14"></i>
+                                                <span>4 组 × 8-12 次</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Scale" size="14"></i>
+                                                <span>70 kg</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Activity" size="14"></i>
+                                                <span>RPE 8</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="showVideoDemo(event, '杠铃划船')">
+                                        <i data-lucide="Video"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="text-center mt-md">
+                                    <a href="execution.html" class="btn btn-primary">
+                                        <i data-lucide="Play" class="mr-2"></i> 开始今日训练
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Thursday -->
+                        <div class="day-card">
+                            <div class="day-header" onclick="toggleDay(this)">
+                                <div>
+                                    <div class="font-semibold day-title">周四 · 休息日</div>
+                                    <div class="text-xs text-secondary">11月21日</div>
+                                </div>
+                                <span class="badge badge-secondary">休息</span>
+                            </div>
+                            <div class="day-exercises collapsed">
+                                <div class="rest-day">
+                                    <i data-lucide="Coffee" size="32" class="mb-sm"></i>
+                                    <div>今天好好休息,恢复体力</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Friday -->
+                        <div class="day-card">
+                            <div class="day-header" onclick="toggleDay(this)">
+                                <div>
+                                    <div class="font-semibold day-title">周五 · 腿部</div>
+                                    <div class="text-xs text-secondary">11月22日</div>
+                                </div>
+                                <span class="badge badge-primary">5个动作</span>
+                            </div>
+                            <div class="day-exercises collapsed">
+                                <div class="exercise-item">
+                                    <div class="exercise-info">
+                                        <div class="exercise-name">深蹲</div>
+                                        <div class="exercise-details">
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Layers" size="14"></i>
+                                                <span>5 组 × 5 次</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Scale" size="14"></i>
+                                                <span>100 kg</span>
+                                            </div>
+                                            <div class="exercise-detail-item">
+                                                <i data-lucide="Activity" size="14"></i>
+                                                <span>RPE 9</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="showVideoDemo(event, '深蹲')">
+                                        <i data-lucide="Video"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        function toggleWeek(header) {
+            header.classList.toggle('collapsed');
+            const content = header.nextElementSibling;
+            content.classList.toggle('collapsed');
+            lucide.createIcons();
+        }
+
+        function toggleDay(header) {
+            const exercises = header.nextElementSibling;
+            exercises.classList.toggle('collapsed');
+            lucide.createIcons();
+        }
+
+        function showVideoDemo(event, exerciseName) {
+            event.stopPropagation();
+            alert(`播放 ${exerciseName} 的动作演示视频`);
+        }
+        
+        function playExecutionVideo(videoId) {
+            alert(`播放执行视频: ${videoId}\n(实际应用中会打开全屏视频播放器)`);
+        }
+
+        function switchCoach(coachId) {
+
+            // Update button states
+            document.querySelectorAll('[id^="coach-"]').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            });
+            document.getElementById(`coach-${coachId}`).classList.remove('btn-secondary');
+            document.getElementById(`coach-${coachId}`).classList.add('btn-primary');
+            
+            // In real app, fetch and display the selected coach's plan
+            alert(`切换到${coachId === 'zhang' ? '张健' : '李明'}教练的计划`);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            lucide.createIcons();
+            
+            // Check URL for coach parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const coach = urlParams.get('coach');
+            if (coach) {
+                switchCoach(coach);
+            }
+        });
+    </script>
+</body>
+</html>
