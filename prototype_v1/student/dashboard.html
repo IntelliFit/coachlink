@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 我的训练</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .calendar-strip {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-lg);
+            background: white;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        .calendar-day {
+            text-align: center;
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            flex: 1;
+        }
+        .calendar-day:hover { background: var(--background-color); }
+        .calendar-day.active { background: var(--primary-color); color: white; }
+        .calendar-day.today { border: 1px solid var(--primary-color); }
+        
+        .coach-training-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .coach-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius-full);
+            margin-bottom: var(--spacing-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .coach-avatar-small {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--radius-full);
+            border: 2px solid white;
+        }
+        
+        .training-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .exercise-preview {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-sm);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .exercise-preview:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Day Detail Modal */
+        .day-detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+        
+        .day-detail-modal.active {
+            display: flex;
+        }
+        
+        .day-detail-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .day-detail-header {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .day-detail-body {
+            padding: var(--spacing-lg);
+        }
+        
+        .close-modal {
+            background: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+        
+        .close-modal:hover {
+            background: var(--background-color);
+        }
+        
+        .execution-status {
+            margin-top: var(--spacing-md);
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        
+        .execution-status-header {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--success-color);
+            border-bottom: 1px solid #bbf7d0;
+        }
+        
+        .execution-table {
+            width: 100%;
+            font-size: 0.875rem;
+            border-collapse: collapse;
+        }
+        
+        .execution-table th {
+            background: var(--background-color);
+            padding: var(--spacing-sm);
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8125rem;
+        }
+        
+        .execution-table td {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .execution-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .execution-table tr:hover {
+            background: var(--background-color);
+        }
+        
+        .video-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            text-decoration: underline;
+        }
+        
+        .set-number {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <!-- Weekly Calendar -->
+                <div class="calendar-strip">
+                    <div class="calendar-day" onclick="showDayDetail('monday', '周一', '11月18日', true)">
+                        <div class="text-xs opacity-70">周一</div>
+                        <div class="font-bold">18</div>
+                    </div>
+                    <div class="calendar-day" onclick="showDayDetail('tuesday', '周二', '11月19日', true)">
+                        <div class="text-xs opacity-70">周二</div>
+                        <div class="font-bold">19</div>
+                    </div>
+                    <div class="calendar-day active today" onclick="showDayDetail('wednesday', '周三', '11月20日', false)">
+                        <div class="text-xs opacity-70">周三</div>
+                        <div class="font-bold">20</div>
+                    </div>
+                    <div class="calendar-day" onclick="showDayDetail('thursday', '周四', '11月21日', false)">
+                        <div class="text-xs opacity-70">周四</div>
+                        <div class="font-bold">21</div>
+                    </div>
+                    <div class="calendar-day" onclick="showDayDetail('friday', '周五', '11月22日', false)">
+                        <div class="text-xs opacity-70">周五</div>
+                        <div class="font-bold">22</div>
+                    </div>
+                    <div class="calendar-day" onclick="showDayDetail('saturday', '周六', '11月23日', false)">
+                        <div class="text-xs opacity-70">周六</div>
+                        <div class="font-bold">23</div>
+                    </div>
+                    <div class="calendar-day" onclick="showDayDetail('sunday', '周日', '11月24日', false)">
+                        <div class="text-xs opacity-70">周日</div>
+                        <div class="font-bold">24</div>
+                    </div>
+                </div>
+
+                <!-- Today's Training Section -->
+                <h2 class="text-xl font-bold mb-md">今日训练</h2>
+
+                <!-- Coach A's Training -->
+                <div class="coach-training-card">
+                    <div class="coach-badge">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" alt="张健" class="coach-avatar-small">
+                        教练: 张健
+                    </div>
+                    
+                    <div class="training-summary">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-xs">胸部力量强化</h3>
+                            <p class="text-secondary">预计时长 60 分钟 · 6 个动作</p>
+                        </div>
+                        <a href="execution.html?coach=zhang" class="btn btn-primary btn-lg">
+                            <i data-lucide="Play" class="mr-2"></i> 开始训练
+                        </a>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="exercise-preview">
+                            <div class="flex items-center gap-md">
+                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">1</div>
+                                <div>
+                                    <div class="font-semibold">杠铃卧推</div>
+                                    <div class="text-xs text-secondary">4 组 x 8-12 次</div>
+                                </div>
+                            </div>
+                            <a href="plan.html?coach=zhang" class="text-sm text-primary">查看计划 ›</a>
+                        </div>
+                        <div class="exercise-preview">
+                            <div class="flex items-center gap-md">
+                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">2</div>
+                                <div>
+                                    <div class="font-semibold">哑铃飞鸟</div>
+                                    <div class="text-xs text-secondary">3 组 x 12-15 次</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coach B's Training (Example of multiple coaches) -->
+                <div class="coach-training-card" style="border-left-color: #ec4899;">
+                    <div class="coach-badge" style="background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); color: #ec4899;">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=li" alt="李明" class="coach-avatar-small">
+                        教练: 李明
+                    </div>
+                    
+                    <div class="training-summary">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-xs">腿部基础训练</h3>
+                            <p class="text-secondary">预计时长 45 分钟 · 5 个动作</p>
+                        </div>
+                        <a href="execution.html?coach=li" class="btn btn-primary btn-lg" style="background: #ec4899;">
+                            <i data-lucide="Play" class="mr-2"></i> 开始训练
+                        </a>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="exercise-preview">
+                            <div class="flex items-center gap-md">
+                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">1</div>
+                                <div>
+                                    <div class="font-semibold">深蹲</div>
+                                    <div class="text-xs text-secondary">5 组 x 5 次</div>
+                                </div>
+                            </div>
+                            <a href="plan.html?coach=li" class="text-sm" style="color: #ec4899;">查看计划 ›</a>
+                        </div>
+                        <div class="exercise-preview">
+                            <div class="flex items-center gap-md">
+                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">2</div>
+                                <div>
+                                    <div class="font-semibold">腿举</div>
+                                    <div class="text-xs text-secondary">4 组 x 12 次</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Summary -->
+                <h3 class="text-lg font-semibold mb-md mt-lg">本周进度</h3>
+                <div class="flex gap-md">
+                    <div class="card flex-1 p-md flex items-center gap-md">
+                        <div class="p-md bg-green-100 text-green-600 rounded-full">
+                            <i data-lucide="CheckCircle"></i>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">4/8</div>
+                            <div class="text-secondary text-sm">已完成训练</div>
+                        </div>
+                    </div>
+                    <div class="card flex-1 p-md flex items-center gap-md">
+                        <div class="p-md bg-blue-100 text-blue-600 rounded-full">
+                            <i data-lucide="Scale"></i>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">58.3t</div>
+                            <div class="text-secondary text-sm">总容量</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+        
+        <!-- Day Detail Modal -->
+        <div class="day-detail-modal" id="dayDetailModal">
+            <div class="day-detail-content">
+                <div class="day-detail-header">
+                    <div>
+                        <h2 class="text-2xl font-bold" id="modalTitle">周一 · 11月18日</h2>
+                        <p class="text-secondary mt-xs" id="modalSubtitle">胸部力量强化</p>
+                    </div>
+                    <button class="close-modal" onclick="closeDayDetail()">
+                        <i data-lucide="X"></i>
+                    </button>
+                </div>
+                <div class="day-detail-body" id="modalBody">
+                    <!-- Content will be dynamically inserted -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        function showDayDetail(dayId, dayName, date, isCompleted) {
+            const modal = document.getElementById('dayDetailModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            // Set title
+            modalTitle.textContent = `${dayName} · ${date}`;
+            
+            // Mock data for different days
+            const dayData = {
+                monday: { title: '胸部力量强化', exercises: ['杠铃卧推', '哑铃飞鸟', '上斜卧推'] },
+                tuesday: { title: '背部+二头', exercises: ['引体向上', '杠铃划船', '哑铃弯举'] },
+                wednesday: { title: '胸部力量强化', exercises: ['杠铃卧推', '哑铃飞鸟'] },
+                thursday: { title: '休息日', exercises: [] },
+                friday: { title: '腿部基础训练', exercises: ['深蹲', '腿举', '腿屈伸'] },
+                saturday: { title: '肩部+三头', exercises: ['推举', '侧平举', '三头下压'] },
+                sunday: { title: '休息日', exercises: [] }
+            };
+            
+            const data = dayData[dayId];
+            modalSubtitle.textContent = data.title;
+            
+            // Build content based on completion status
+            let content = '';
+            
+            if (dayId === 'thursday' || dayId === 'sunday') {
+                // Rest day
+                content = `
+                    <div class="text-center p-lg">
+                        <i data-lucide="Coffee" size="48" class="mb-md" style="color: var(--text-secondary);"></i>
+                        <h3 class="text-xl font-semibold mb-sm">今天好好休息</h3>
+                        <p class="text-secondary">恢复体力,为下次训练做准备</p>
+                    </div>
+                `;
+            } else if (isCompleted) {
+                // Completed training - show plan + execution
+                content = `
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-lg">训练计划</h3>
+                        <div class="card p-md">
+                            <div class="exercise-preview mb-sm">
+                                <div>
+                                    <div class="font-semibold">杠铃卧推</div>
+                                    <div class="text-xs text-secondary">4 组 × 8-12 次 · 60 kg</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Execution Status -->
+                        <div class="execution-status">
+                            <div class="execution-status-header">学员执行情况</div>
+                            <table class="execution-table">
+                                <thead>
+                                    <tr>
+                                        <th>组数</th>
+                                        <th>重量</th>
+                                        <th>次数</th>
+                                        <th>RPE</th>
+                                        <th>组间休息</th>
+                                        <th>备注</th>
+                                        <th>视频</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="set-number">第 1 组</td>
+                                        <td>100kg</td>
+                                        <td>8</td>
+                                        <td>10</td>
+                                        <td>3min</td>
+                                        <td>感觉很重</td>
+                                        <td>
+                                            <span class="video-link" onclick="playExecutionVideo('set1')">
+                                                <i data-lucide="Video" size="14"></i>
+                                                查看
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="set-number">第 2 组</td>
+                                        <td>97.5kg</td>
+                                        <td>8</td>
+                                        <td>9</td>
+                                        <td>3min</td>
+                                        <td>-</td>
+                                        <td>
+                                            <span class="video-link" onclick="playExecutionVideo('set2')">
+                                                <i data-lucide="Video" size="14"></i>
+                                                查看
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="set-number">第 3 组</td>
+                                        <td>95kg</td>
+                                        <td>8</td>
+                                        <td>8.5</td>
+                                        <td>3min</td>
+                                        <td>-</td>
+                                        <td>
+                                            <span class="video-link" onclick="playExecutionVideo('set3')">
+                                                <i data-lucide="Video" size="14"></i>
+                                                查看
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="set-number">第 4 组</td>
+                                        <td>95kg</td>
+                                        <td>8</td>
+                                        <td>9</td>
+                                        <td>3min</td>
+                                        <td>-</td>
+                                        <td>
+                                            <span class="video-link" onclick="playExecutionVideo('set4')">
+                                                <i data-lucide="Video" size="14"></i>
+                                                查看
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else if (dayId === 'wednesday') {
+                // Today - show current training with start button
+                content = `
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-lg mb-md">今日训练</h3>
+                        <div class="card p-md">
+                            <div class="exercise-preview mb-sm">
+                                <div>
+                                    <div class="font-semibold">杠铃卧推</div>
+                                    <div class="text-xs text-secondary">4 组 × 8-12 次 · 60 kg</div>
+                                </div>
+                            </div>
+                            <div class="exercise-preview mb-sm">
+                                <div>
+                                    <div class="font-semibold">哑铃飞鸟</div>
+                                    <div class="text-xs text-secondary">3 组 × 12-15 次 · 20 kg</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <a href="execution.html" class="btn btn-primary btn-lg">
+                                <i data-lucide="Play" class="mr-2"></i>
+                                开始训练
+                            </a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Future training - show plan only
+                content = `
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-lg mb-md">计划训练</h3>
+                        <div class="card p-md">
+                            ${data.exercises.map((ex, idx) => `
+                                <div class="exercise-preview ${idx < data.exercises.length - 1 ? 'mb-sm' : ''}">
+                                    <div>
+                                        <div class="font-semibold">${ex}</div>
+                                        <div class="text-xs text-secondary">4 组 × 8-12 次</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="text-secondary text-sm text-center">训练日到来时可以查看详细计划并开始训练</p>
+                    </div>
+                `;
+            }
+            
+            modalBody.innerHTML = content;
+            modal.classList.add('active');
+            
+            // Re-initialize Lucide icons for dynamically added content
+            setTimeout(() => lucide.createIcons(), 100);
+        }
+        
+        function closeDayDetail() {
+            const modal = document.getElementById('dayDetailModal');
+            modal.classList.remove('active');
+        }
+        
+        function playExecutionVideo(videoId) {
+            alert(`播放执行视频: ${videoId}\n(实际应用中会打开全屏视频播放器)`);
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('dayDetailModal');
+            if (e.target === modal) {
+                closeDayDetail();
+            }
+        });
+    
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

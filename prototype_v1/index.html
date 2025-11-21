@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 登录</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+        .role-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .role-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .role-btn.active {
+            border-color: var(--primary-color);
+            background-color: #e0e7ff;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="text-center mb-md">
+                <div class="flex items-center justify-center gap-sm text-2xl text-primary mb-sm">
+                    <i data-lucide="Activity"></i>
+                    CoachLink
+                </div>
+                <p class="text-secondary">专业教练与学员的连接平台</p>
+            </div>
+
+            <div class="role-selector">
+                <div class="role-btn active" onclick="selectRole('coach')">我是教练</div>
+                <div class="role-btn" onclick="selectRole('student')">我是学员</div>
+            </div>
+
+            <form onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label class="input-label">账号</label>
+                    <input type="text" class="input-field" value="admin" placeholder="请输入账号">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">密码</label>
+                    <input type="password" class="input-field" value="123456" placeholder="请输入密码">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">登录</button>
+            </form>
+            
+            <div class="text-center mt-md text-sm text-secondary">
+                <a href="#">忘记密码?</a> | <a href="#">注册新账号</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let currentRole = 'coach';
+
+        function selectRole(role) {
+            currentRole = role;
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(role === 'coach' ? '教练' : '学员')) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            // Mock Login Logic
+            if (currentRole === 'coach') {
+                window.location.href = 'coach/dashboard.html';
+            } else {
+                window.location.href = 'student/dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>

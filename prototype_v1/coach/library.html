@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 动作与模板库</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .library-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: var(--spacing-lg);
+        }
+        .tab-item {
+            padding: var(--spacing-md) var(--spacing-lg);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .tab-item.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        .filter-bar {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+        .exercise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .template-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+        /* Rich Text Mock */
+        .rich-text-editor {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            min-height: 100px;
+            padding: var(--spacing-sm);
+            background: #f9fafb;
+        }
+        .rte-toolbar {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: var(--spacing-xs);
+            margin-bottom: var(--spacing-xs);
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+        .rte-btn {
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            background: white;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="flex justify-between items-center mb-lg">
+                    <h2 class="text-xl font-bold">动作库</h2>
+                    <button class="btn btn-primary" id="create-btn" onclick="openExerciseModal()">
+                        <i data-lucide="Plus" size="18" class="mr-2"></i> 新建动作
+                    </button>
+                </div>
+
+                <!-- Exercises View -->
+                <div id="view-exercises">
+                    <div class="filter-bar">
+                        <input type="text" class="input-field" placeholder="搜索动作..." style="max-width: 300px;">
+                        <select class="input-field" style="width: auto;">
+                            <option>所有部位</option>
+                            <option>胸部</option>
+                            <option>背部</option>
+                            <option>腿部</option>
+                        </select>
+                    </div>
+                    <div class="exercise-grid" id="exercise-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Exercise Modal -->
+    <div class="modal-overlay" id="exercise-modal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="card-header">
+                <h3 class="text-lg font-semibold" id="modal-title">添加新动作</h3>
+                <button onclick="closeExerciseModal()"><i data-lucide="X"></i></button>
+            </div>
+            <div class="card-body">
+                <div class="input-group">
+                    <label class="input-label">动作名称 <span class="text-danger">*</span></label>
+                    <input type="text" class="input-field" id="ex-name" placeholder="例如：杠铃深蹲">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">目标部位</label>
+                    <select class="input-field" id="ex-muscle">
+                        <option value="chest">胸部</option>
+                        <option value="back">背部</option>
+                        <option value="legs">腿部</option>
+                        <option value="shoulders">肩部</option>
+                        <option value="arms">手臂</option>
+                        <option value="core">核心</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">动作演示 (视频/URL) <span class="text-danger">*</span></label>
+                    <div class="flex gap-sm mb-sm">
+                        <button class="btn btn-secondary btn-sm active">上传视频</button>
+                        <button class="btn btn-secondary btn-sm">输入链接</button>
+                    </div>
+                    <div class="border-2 border-dashed border-gray-200 rounded-lg p-lg text-center cursor-pointer hover:bg-gray-50">
+                        <i data-lucide="UploadCloud" class="mx-auto mb-sm text-secondary"></i>
+                        <p class="text-sm text-secondary">点击上传或拖拽视频文件到此处</p>
+                    </div>
+                    <input type="text" class="input-field mt-sm hidden" id="ex-url" placeholder="https://...">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">动作执行细节 (支持富文本)</label>
+                    <div class="rich-text-editor">
+                        <div class="rte-toolbar">
+                            <button class="rte-btn"><b>B</b></button>
+                            <button class="rte-btn"><i>I</i></button>
+                            <button class="rte-btn">List</button>
+                        </div>
+                        <textarea class="input-field" id="ex-details" style="border:none; background:transparent; height:80px; resize:none;" placeholder="输入详细的动作说明..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-md mt-lg">
+                    <button class="btn btn-secondary" onclick="closeExerciseModal()">取消</button>
+                    <button class="btn btn-primary" onclick="saveExercise()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            renderExercises();
+        });
+
+        function renderExercises() {
+            const list = document.getElementById('exercise-list');
+            const exercises = Store.get('exercises');
+            
+            list.innerHTML = exercises.map(ex => `
+                <div class="card p-md hover:shadow-md transition-all cursor-pointer" onclick="openExerciseModal('${ex.id}')">
+                    <div class="flex justify-between items-start mb-sm">
+                        <span class="badge badge-primary">${ex.muscle}</span>
+                        <i data-lucide="Edit2" class="text-secondary hover:text-primary" size="16"></i>
+                    </div>
+                    <h4 class="font-semibold mb-xs text-lg">${ex.name}</h4>
+                    <p class="text-sm text-secondary line-clamp-2 mb-sm">${ex.details || '暂无详细说明'}</p>
+                    <div class="flex items-center gap-xs text-xs text-secondary">
+                        <i data-lucide="Video" size="12"></i> ${ex.videoUrl ? '包含演示' : '无演示'}
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+
+        function openExerciseModal(id = null) {
+            const modal = document.getElementById('exercise-modal');
+            const title = document.getElementById('modal-title');
+            
+            if (id) {
+                const ex = Store.get('exercises').find(e => e.id === id);
+                title.textContent = '编辑动作';
+                document.getElementById('ex-name').value = ex.name;
+                document.getElementById('ex-muscle').value = ex.muscle;
+                document.getElementById('ex-details').value = ex.details || '';
+                // Mock filling other fields
+            } else {
+                title.textContent = '添加新动作';
+                document.getElementById('ex-name').value = '';
+                document.getElementById('ex-details').value = '';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeExerciseModal() {
+            document.getElementById('exercise-modal').classList.remove('active');
+        }
+
+        function saveExercise() {
+            alert('动作已保存！(演示)');
+            closeExerciseModal();
+            // In real app, update Store and re-render
+        }
+    </script>
+</body>
+</html>
+
