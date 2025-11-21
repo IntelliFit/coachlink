@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 教练主页</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .profile-header {
+            position: relative;
+            height: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-bottom: 80px;
+        }
+        
+        .profile-avatar-container {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        
+        .profile-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: var(--radius-full);
+            border: 6px solid white;
+            box-shadow: var(--shadow-lg);
+            object-fit: cover;
+        }
+        
+        .profile-name {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: var(--spacing-md);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .profile-bio {
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto var(--spacing-md);
+        }
+        
+        .profile-specialties {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        
+        .section-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-lg);
+            text-align: center;
+            padding: var(--spacing-lg);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+        }
+        
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-big-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .pricing-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+        }
+        
+        .pricing-card {
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            transition: all var(--transition-fast);
+        }
+        
+        .pricing-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .pricing-card.premium {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 10%);
+        }
+        
+        .pricing-tier {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .pricing-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .pricing-amount {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .pricing-period {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .feature-list {
+            list-style: none;
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .feature-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .feature-list li::before {
+            content: "✓";
+            color: var(--success-color);
+            font-weight: 700;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        
+        .success-story {
+            border-left: 4px solid var(--primary-color);
+            padding: var(--spacing-md);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .success-story-title {
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .success-story-content {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .success-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--spacing-sm);
+        }
+        
+        .success-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: var(--radius-md);
+        }
+        
+        .content-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .content-item:hover {
+            background: var(--background-color);
+        }
+        
+        .content-item.locked {
+            opacity: 0.6;
+        }
+        
+        .review-item {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .review-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .review-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-full);
+        }
+        
+        .review-rating {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .coach-reply {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: #f0fdf4;
+            border-left: 3px solid var(--success-color);
+            border-radius: var(--radius-md);
+        }
+        
+        .reply-badge {
+            display: inline-block;
+            background: var(--success-color);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content" style="padding: 0;">
+                
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <div class="profile-avatar-container">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" alt="张健" class="profile-avatar">
+                    </div>
+                </div>
+
+                <div style="padding: 0 var(--spacing-lg);">
+                    <!-- Profile Info -->
+                    <div style="text-align: center; margin-bottom: var(--spacing-xl);">
+                        <h1 class="profile-name">张健</h1>
+                        <p class="profile-bio">10年力量举经验 | 国家级运动员 | 帮助超过150名学员实现目标</p>
+                        <div class="profile-specialties">
+                            <span class="badge badge-primary">力量举</span>
+                            <span class="badge badge-primary">增肌</span>
+                        </div>
+                    </div>
+
+                    <!-- Data Stats -->
+                    <div class="section-card">
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <div class="stat-big-value">
+                                    <i data-lucide="Star" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                    4.9
+                                </div>
+                                <div class="text-secondary">平均评分</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-big-value">156</div>
+                                <div class="text-secondary">学员总数</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-big-value">89</div>
+                                <div class="text-secondary">总评价数</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Services & Pricing -->
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <i data-lucide="DollarSign"></i>
+                            服务与定价
+                        </h2>
+                        <div class="pricing-comparison">
+                            <!-- AI Version -->
+                            <div class="pricing-card">
+                                <div class="pricing-tier">AI版</div>
+                                <div class="pricing-subtitle">基础智能训练服务</div>
+                                <div class="pricing-amount">¥99</div>
+                                <div class="pricing-period">/月</div>
+                                <ul class="feature-list">
+                                    <li>AI生成个性化训练计划</li>
+                                    <li>训练进度与数据追踪</li>
+                                    <li>AI教练7x24h答疑(有限次)</li>
+                                    <li>访问所有免费教学内容</li>
+                                </ul>
+                                <button class="btn btn-secondary" style="width: 100%;">
+                                    立即订阅
+                                </button>
+                            </div>
+
+                            <!-- Premium Version -->
+                            <div class="pricing-card premium">
+                                <div class="pricing-tier">高级版</div>
+                                <div class="pricing-subtitle">真人教练1对1指导</div>
+                                <div class="pricing-amount">¥299</div>
+                                <div class="pricing-period">/月</div>
+                                <ul class="feature-list">
+                                    <li>包含AI版所有权益</li>
+                                    <li>教练亲自审核与调整计划</li>
+                                    <li>真人教练1对1聊天答疑</li>
+                                    <li>逐条视频动作点评</li>
+                                </ul>
+                                <button class="btn btn-primary" style="width: 100%;">
+                                    立即订阅
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- About Me -->
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <i data-lucide="User"></i>
+                            关于我
+                        </h2>
+                        <div style="line-height: 1.8;">
+                            <p class="mb-md">大家好,我是张健,专注力量举训练10年,国家级运动健将。我的训练理念是<strong>"科学训练,持续进步"</strong>。</p>
+                            <p class="mb-md">我相信每个人都有潜力突破自己的极限。通过系统化的训练计划和精准的动作指导,我已经帮助超过150名学员实现了他们的健身目标。</p>
+                            <p><strong>资质认证:</strong></p>
+                            <ul style="list-style: disc; margin-left: 2rem; line-height: 2;">
+                                <li>国家级运动健将</li>
+                                <li>NSCA-CPT认证私人教练</li>
+                                <li>10年力量举训练经验</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Success Stories -->
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <i data-lucide="Trophy"></i>
+                            学员成功案例
+                        </h2>
+                        
+                        <div class="success-story">
+                            <div class="success-story-title">帮助学员三个月卧推提升20kg</div>
+                            <div class="success-story-content">
+                                "跟着张教练训练3个月,卧推从60kg突破到80kg!教练不仅给我科学的计划,还每天监督我的动作视频,纠正细节。非常专业!" - 学员小李
+                            </div>
+                            <div class="success-images">
+                                <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&h=300&fit=crop" class="success-image" alt="训练前">
+                                <img src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=300&h=300&fit=crop" class="success-image" alt="训练后">
+                            </div>
+                        </div>
+
+                        <div class="success-story">
+                            <div class="success-story-title">6个月增重12kg纯肌肉</div>
+                            <div class="success-story-content">
+                                "作为一个瘦子,增肌一直是我的难题。张教练为我定制了详细的训练+饮食方案,半年时间我从65kg增到77kg,体脂率还降了!" - 学员王强
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Teaching Content -->
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <i data-lucide="FileText"></i>
+                            教学内容
+                        </h2>
+                        
+                        <div class="content-item">
+                            <div>
+                                <div class="font-semibold mb-xs">力量举三大项完整教学</div>
+                                <div class="text-sm text-secondary">深蹲、卧推、硬拉的标准动作要领</div>
+                            </div>
+                            <span class="badge badge-success">免费</span>
+                        </div>
+
+                        <div class="content-item">
+                            <div>
+                                <div class="font-semibold mb-xs">如何突破训练平台期</div>
+                                <div class="text-sm text-secondary">5个实用技巧帮你持续进步</div>
+                            </div>
+                            <span class="badge badge-success">免费</span>
+                        </div>
+
+                        <div class="content-item locked">
+                            <div>
+                                <div class="font-semibold mb-xs">
+                                    <i data-lucide="Lock" size="16" style="display: inline; vertical-align: middle;"></i>
+                                    高级增肌营养方案
+                                </div>
+                                <div class="text-sm text-secondary">订阅后可查看完整内容</div>
+                            </div>
+                            <span class="badge badge-warning">付费学员</span>
+                        </div>
+                    </div>
+
+                    <!-- Reviews -->
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <i data-lucide="MessageSquare"></i>
+                            学员评价 (89条)
+                        </h2>
+
+                        <!-- Review 1 -->
+                        <div class="review-item">
+                            <div class="review-header">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=student1" class="review-avatar" alt="学员">
+                                <div>
+                                    <div class="font-semibold">李明</div>
+                                    <div class="review-rating">
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-sm text-secondary text-sm">2024年11月10日</div>
+                            <div>张教练非常专业,每次训练都会详细讲解动作要领,还会根据我的进度调整计划。跟练2个月,力量提升明显!</div>
+                            
+                            <!-- Coach Reply -->
+                            <div class="coach-reply">
+                                <div class="reply-badge">教练回复</div>
+                                <div>感谢认可!你的进步也离不开自己的努力和坚持。继续保持,下个月我们冲击新的目标!💪</div>
+                            </div>
+                        </div>
+
+                        <!-- Review 2 -->
+                        <div class="review-item">
+                            <div class="review-header">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=student2" class="review-avatar" alt="学员">
+                                <div>
+                                    <div class="font-semibold">王芳</div>
+                                    <div class="review-rating">
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                        <i data-lucide="Star" size="16" style="fill: #e5e7eb; stroke: #d1d5db;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-sm text-secondary text-sm">2024年11月5日</div>
+                            <div>教练很负责,会看我上传的视频并给出详细的反馈。唯一建议是希望回复能再快一点。</div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

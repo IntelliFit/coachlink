@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 发现教练</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .search-bar-container {
+            background: white;
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .search-input-wrapper {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+        
+        .filter-tag {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-full);
+            background: white;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .filter-tag:hover {
+            border-color: var(--primary-color);
+            background: #e0e7ff;
+        }
+        
+        .filter-tag.active {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .coaches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: var(--spacing-lg);
+        }
+        
+        .coach-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .coach-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-color);
+        }
+        
+        .coach-avatar-section {
+            position: relative;
+            height: 140px;
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .coach-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: var(--radius-full);
+            border: 4px solid white;
+            object-fit: cover;
+        }
+        
+        .coach-info {
+            padding: var(--spacing-lg);
+        }
+        
+        .coach-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-primary);
+        }
+        
+        .coach-specialties {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xs);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .specialty-tag {
+            padding: 0.25rem 0.5rem;
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .coach-stats {
+            display: flex;
+            justify-content: space-around;
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <!-- Page Header -->
+                <div class="mb-lg">
+                    <h1 class="text-2xl font-bold mb-xs">发现教练</h1>
+                    <p class="text-secondary">寻找最适合你的专业教练</p>
+                </div>
+
+                <!-- Search and Filter Bar -->
+                <div class="search-bar-container">
+                    <div class="search-input-wrapper">
+                        <input 
+                            type="text" 
+                            class="search-input" 
+                            placeholder="搜索教练姓名..." 
+                            id="searchInput"
+                            oninput="filterCoaches()"
+                        >
+                        <button class="btn btn-primary" onclick="filterCoaches()">
+                            <i data-lucide="Search"></i> 搜索
+                        </button>
+                    </div>
+                    
+                    <div class="filter-tags" id="filterTags">
+                        <div class="filter-tag active" data-filter="all" onclick="selectFilter(this, 'all')">
+                            全部专长
+                        </div>
+                        <div class="filter-tag" data-filter="strength" onclick="selectFilter(this, 'strength')">
+                            力量举
+                        </div>
+                        <div class="filter-tag" data-filter="muscle" onclick="selectFilter(this, 'muscle')">
+                            增肌
+                        </div>
+                        <div class="filter-tag" data-filter="fat-loss" onclick="selectFilter(this, 'fat-loss')">
+                            减脂
+                        </div>
+                        <div class="filter-tag" data-filter="bodybuilding" onclick="selectFilter(this, 'bodybuilding')">
+                            健美
+                        </div>
+                        <div class="filter-tag" data-filter="rehab" onclick="selectFilter(this, 'rehab')">
+                            康复训练
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coaches Grid -->
+                <div class="coaches-grid" id="coachesGrid">
+                    <!-- Coach cards will be generated here -->
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        // Mock coach data
+        const coaches = [
+            {
+                id: 1,
+                name: "张健",
+                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhang",
+                specialties: ["力量举", "增肌"],
+                rating: 4.9,
+                studentCount: 156,
+                filters: ["strength", "muscle"]
+            },
+            {
+                id: 2,
+                name: "李明",
+                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=li",
+                specialties: ["减脂", "增肌"],
+                rating: 4.7,
+                studentCount: 89,
+                filters: ["fat-loss", "muscle"]
+            },
+            {
+                id: 3,
+                name: "王强",
+                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=wang",
+                specialties: ["健美", "力量举"],
+                rating: 4.8,
+                studentCount: 234,
+                filters: ["bodybuilding", "strength"]
+            },
+            {
+                id: 4,
+                name: "赵云",
+                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhao",
+                specialties: ["康复训练", "减脂"],
+                rating: 4.6,
+                studentCount: 67,
+                filters: ["rehab", "fat-loss"]
+            },
+            {
+                id: 5,
+                name: "陈思",
+                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=chen",
+                specialties: ["增肌", "健美"],
+                rating: 4.9,
+                studentCount: 178,
+                filters: ["muscle", "bodybuilding"]
+            },
+            {
+                id: 6,
+                name: "刘洋",
+                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=liu",
+                specialties: ["力量举"],
+                rating: 5.0,
+                studentCount: 312,
+                filters: ["strength"]
+            }
+        ];
+
+        let currentFilter = 'all';
+        let searchTerm = '';
+
+        function renderCoaches() {
+            const grid = document.getElementById('coachesGrid');
+            
+            // Filter coaches
+            let filteredCoaches = coaches.filter(coach => {
+                const matchesFilter = currentFilter === 'all' || coach.filters.includes(currentFilter);
+                const matchesSearch = searchTerm === '' || 
+                    coach.name.toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesFilter && matchesSearch;
+            });
+
+            // Render
+            grid.innerHTML = filteredCoaches.map(coach => `
+                <div class="coach-card" onclick="viewCoachProfile(${coach.id})">
+                    <div class="coach-avatar-section">
+                        <img src="${coach.avatar}" alt="${coach.name}" class="coach-avatar">
+                    </div>
+                    <div class="coach-info">
+                        <div class="coach-name">${coach.name}</div>
+                        <div class="coach-specialties">
+                            ${coach.specialties.map(s => `<span class="specialty-tag">${s}</span>`).join('')}
+                        </div>
+                        <div class="coach-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">
+                                    <i data-lucide="Star" size="18" style="fill: #fbbf24; stroke: #fbbf24;"></i>
+                                    ${coach.rating}
+                                </div>
+                                <div class="stat-label">评分</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">
+                                    <i data-lucide="Users" size="18"></i>
+                                    ${coach.studentCount}
+                                </div>
+                                <div class="stat-label">学员</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function selectFilter(element, filter) {
+            // Update active state
+            document.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            element.classList.add('active');
+            
+            currentFilter = filter;
+            renderCoaches();
+        }
+
+        function filterCoaches() {
+            searchTerm = document.getElementById('searchInput').value;
+            renderCoaches();
+        }
+
+        function viewCoachProfile(coachId) {
+            window.location.href = `coach-profile.html?id=${coachId}`;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            renderCoaches();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

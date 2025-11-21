@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 训练进行中</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Immersive Dark Theme Override */
+        body {
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+        }
+        .execution-header {
+            padding: var(--spacing-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            background: #1e293b;
+        }
+        .execution-container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: var(--spacing-lg) var(--spacing-md)100px;
+        }
+
+        .exercise-title-card {
+            background: linear-gradient(135deg, #312e81 0%, #4c1d95 100%);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            text-align: center;
+        }
+
+        .set-card {
+            background: #1e293b; /* Slate 800 */
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+            border: 2px solid #334155;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .set-card.completed {
+            border-color: #22c55e;
+            background: #1e293b;
+            opacity: 0.7;
+        }
+
+        .set-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            right: var(--spacing-lg);
+            transform: translateY(-50%);
+            font-size: 3rem;
+            color: #22c55e;
+            opacity: 0.3;
+        }
+
+        .set-card.progress-marked {
+            border-color: #fbbf24;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+        }
+
+        .set-card.progress-marked::before {
+            content: '✨';
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 2rem;
+            animation: sparkle 2s infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.2) rotate(180deg); }
+        }
+
+        .set-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .set-number {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #a5b4fc;
+        }
+
+        .btn-progress-mark {
+            background: none;
+            border: 2px solid #fbbf24;
+            color: #fbbf24;
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .btn-progress-mark:hover {
+            background: #fbbf24;
+            color: #0f172a;
+        }
+
+        .btn-progress-mark.marked {
+            background: #fbbf24;
+            color: #0f172a;
+        }
+
+        .set-plan-info {
+            background: #0f172a;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            border-left: 3px solid #6366f1;
+        }
+
+        .set-plan-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .set-plan-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .set-inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .input-group-compact {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group-compact label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
+        }
+
+        .dark-input {
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: white;
+            text-align: center;
+            padding: 0.625rem;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .dark-input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .dark-textarea {
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: white;
+            padding: 0.625rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            margin-bottom: var(--spacing-md);
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .dark-textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .set-actions {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-complete-set {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.875rem;
+            border-radius: var(--radius-md);
+            font-weight: 700;
+            font-size: 1.125rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            grid-column: span 2;
+        }
+
+        .btn-complete-set:hover {
+            background: #16a34a;
+            transform: translateY(-2px);
+        }
+
+        .btn-upload-video, .btn-skip-set {
+            background: #334155;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            padding: 0.625rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-upload-video:hover, .btn-skip-set:hover {
+            background: #475569;
+        }
+
+        .add-set-section {
+            text-align: center;
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-lg);
+            background: #1e293b;
+            border-radius: var(--radius-lg);
+            border: 2px dashed #334155;
+        }
+
+        .btn-add-set {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0 0.25rem;
+        }
+
+        .btn-add-set:hover {
+            background: #4f46e5;
+        }
+
+        .timer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            padding: var(--spacing-md);
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .btn-finish {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: var(--radius-full);
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .btn-finish:hover {
+            background: #16a34a;
+        }
+
+        .exercise-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            padding: var(--spacing-sm);
+            background: #1e293b;
+            border-radius: var(--radius-md);
+        }
+
+        .btn-nav {
+            background: #334155;
+            color: #e2e8f0;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-nav:hover {
+            background: #475569;
+        }
+
+        .btn-nav:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="execution-header">
+        <div class="flex items-center gap-sm text-gray-400" onclick="confirmExit()" style="cursor: pointer">
+            <i data-lucide="X"></i> 结束训练
+        </div>
+        <div>
+            <div class="font-bold">胸部力量强化</div>
+            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;" id="coach-info">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" style="width: 16px; height: 16px; border-radius: 50%; display: inline; vertical-align: middle; margin-right: 0.25rem;">
+                教练: 张健
+            </div>
+        </div>
+        <div class="text-primary font-mono" id="total-timer">00:00</div>
+    </div>
+
+    <div class="execution-container">
+        
+        <!-- Exercise Title -->
+        <div class="exercise-title-card">
+            <h2 class="text-2xl font-bold mb-xs">杠铃卧推</h2>
+            <p class="text-gray-300 text-sm">目标: 4 组 × 8-12 次 @ RPE 8</p>
+            <button class="mt-sm" style="background: none; color: #a5b4fc; border: 1px solid #a5b4fc; padding: 0.375rem 0.875rem; border-radius: 20px;" onclick="showVideoDemo()">
+                <i data-lucide="Video" size="16"></i> 动作演示
+            </button>
+        </div>
+
+        <!-- Exercise Navigation -->
+        <div class="exercise-nav">
+            <button class="btn-nav" disabled>
+                <i data-lucide="ChevronLeft"></i> 上一动作
+            </button>
+            <span class="text-sm text-gray-400">动作 1/6</span>
+            <button class="btn-nav">
+                下一动作 <i data-lucide="ChevronRight"></i>
+            </button>
+        </div>
+
+        <!-- Set 1 -->
+        <div class="set-card" id="set-1">
+            <div class="set-header">
+                <span class="set-number">第 1 组</span>
+                <button class="btn-progress-mark" onclick="toggleProgressMark(1)">
+                    ✨ 标记为进步组
+                </button>
+            </div>
+
+            <div class="set-plan-info">
+                <div class="set-plan-label">教练计划</div>
+                <div class="set-plan-value">60 kg × 10 次 @ RPE 8</div>
+            </div>
+
+            <div class="set-inputs">
+                <div class="input-group-compact">
+                    <label>重量 (kg)</label>
+                    <input type="number" class="dark-input" value="60" id="weight-1">
+                </div>
+                <div class="input-group-compact">
+                    <label>次数</label>
+                    <input type="number" class="dark-input" value="10" id="reps-1">
+                </div>
+                <div class="input-group-compact">
+                    <label>RPE</label>
+                    <input type="number" class="dark-input" value="8" min="1" max="10" id="rpe-1">
+                </div>
+            </div>
+
+            <textarea class="dark-textarea" placeholder="添加备注 (可选)" id="notes-1"></textarea>
+
+            <div class="set-actions">
+                <button class="btn-upload-video" onclick="uploadVideo(1)">
+                    📹 上传视频
+                </button>
+                <button class="btn-skip-set" onclick="skipSet(1)">
+                    跳过本组
+                </button>
+                <button class="btn-complete-set" onclick="completeSet(1)">
+                    ✓ 完成本组
+                </button>
+            </div>
+        </div>
+
+        <!-- Set 2 -->
+        <div class="set-card" id="set-2">
+            <div class="set-header">
+                <span class="set-number">第 2 组</span>
+                <button class="btn-progress-mark" onclick="toggleProgressMark(2)">
+                    ✨ 标记为进步组
+                </button>
+            </div>
+
+            <div class="set-plan-info">
+                <div class="set-plan-label">教练计划</div>
+                <div class="set-plan-value">60 kg × 10 次 @ RPE 8</div>
+            </div>
+
+            <div class="set-inputs">
+                <div class="input-group-compact">
+                    <label>重量 (kg)</label>
+                    <input type="number" class="dark-input" value="60" id="weight-2">
+                </div>
+                <div class="input-group-compact">
+                    <label>次数</label>
+                    <input type="number" class="dark-input" value="10" id="reps-2">
+                </div>
+                <div class="input-group-compact">
+                    <label>RPE</label>
+                    <input type="number" class="dark-input" value="8" min="1" max="10" id="rpe-2">
+                </div>
+            </div>
+
+            <textarea class="dark-textarea" placeholder="添加备注 (可选)" id="notes-2"></textarea>
+
+            <div class="set-actions">
+                <button class="btn-upload-video" onclick="uploadVideo(2)">
+                    📹 上传视频
+                </button>
+                <button class="btn-skip-set" onclick="skipSet(2)">
+                    跳过本组
+                </button>
+                <button class="btn-complete-set" onclick="completeSet(2)">
+                    ✓ 完成本组
+                </button>
+            </div>
+        </div>
+
+        <!-- Set 3 -->
+        <div class="set-card" id="set-3">
+            <div class="set-header">
+                <span class="set-number">第 3 组</span>
+                <button class="btn-progress-mark" onclick="toggleProgressMark(3)">
+                    ✨ 标记为进步组
+                </button>
+            </div>
+
+            <div class="set-plan-info">
+                <div class="set-plan-label">教练计划</div>
+                <div class="set-plan-value">60 kg × 10 次 @ RPE 8</div>
+            </div>
+
+            <div class="set-inputs">
+                <div class="input-group-compact">
+                    <label>重量 (kg)</label>
+                    <input type="number" class="dark-input" value="60" id="weight-3">
+                </div>
+                <div class="input-group-compact">
+                    <label>次数</label>
+                    <input type="number" class="dark-input" value="10" id="reps-3">
+                </div>
+                <div class="input-group-compact">
+                    <label>RPE</label>
+                    <input type="number" class="dark-input" value="8" min="1" max="10" id="rpe-3">
+                </div>
+            </div>
+
+            <textarea class="dark-textarea" placeholder="添加备注 (可选)" id="notes-3"></textarea>
+
+            <div class="set-actions">
+                <button class="btn-upload-video" onclick="uploadVideo(3)">
+                    📹 上传视频
+                </button>
+                <button class="btn-skip-set" onclick="skipSet(3)">
+                    跳过本组
+                </button>
+                <button class="btn-complete-set" onclick="completeSet(3)">
+                    ✓ 完成本组
+                </button>
+            </div>
+        </div>
+
+        <!-- Set 4 -->
+        <div class="set-card" id="set-4">
+            <div class="set-header">
+                <span class="set-number">第 4 组</span>
+                <button class="btn-progress-mark" onclick="toggleProgressMark(4)">
+                    ✨ 标记为进步组
+                </button>
+            </div>
+
+            <div class="set-plan-info">
+                <div class="set-plan-label">教练计划</div>
+                <div class="set-plan-value">60 kg × 10 次 @ RPE 8</div>
+            </div>
+
+            <div class="set-inputs">
+                <div class="input-group-compact">
+                    <label>重量 (kg)</label>
+                    <input type="number" class="dark-input" value="60" id="weight-4">
+                </div>
+                <div class="input-group-compact">
+                    <label>次数</label>
+                    <input type="number" class="dark-input" value="10" id="reps-4">
+                </div>
+                <div class="input-group-compact">
+                    <label>RPE</label>
+                    <input type="number" class="dark-input" value="8" min="1" max="10" id="rpe-4">
+                </div>
+            </div>
+
+            <textarea class="dark-textarea" placeholder="添加备注 (可选)" id="notes-4"></textarea>
+
+            <div class="set-actions">
+                <button class="btn-upload-video" onclick="uploadVideo(4)">
+                    📹 上传视频
+                </button>
+                <button class="btn-skip-set" onclick="skipSet(4)">
+                    跳过本组
+                </button>
+                <button class="btn-complete-set" onclick="completeSet(4)">
+                    ✓ 完成本组
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Set Section -->
+        <div class="add-set-section">
+            <div class="text-sm text-gray-400 mb-md">需要额外加练?</div>
+            <button class="btn-add-set" onclick="repeatLastSet()">
+                <i data-lucide="Copy"></i> 重复上一组
+            </button>
+            <button class="btn-add-set" onclick="addFromLibrary()">
+                <i data-lucide="Plus"></i> 从动作库添加
+            </button>
+        </div>
+
+    </div>
+
+    <div class="timer-bar">
+        <div class="flex items-center gap-md">
+            <div class="text-gray-400 text-sm">组间休息</div>
+            <div class="font-mono text-xl font-bold text-primary">01:30</div>
+            <button class="btn btn-secondary btn-sm text-white border-gray-600">+30s</button>
+        </div>
+        <button class="btn-finish" onclick="finishWorkout()">完成训练</button>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        
+        // Simple Timer Logic
+        let seconds = 0;
+        setInterval(() => {
+            seconds++;
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('total-timer').textContent = `${mins}:${secs}`;
+        }, 1000);
+
+        function toggleProgressMark(setNum) {
+            const card = document.getElementById(`set-${setNum}`);
+            const btn = card.querySelector('.btn-progress-mark');
+            
+            if (card.classList.contains('progress-marked')) {
+                card.classList.remove('progress-marked');
+                btn.classList.remove('marked');
+                btn.innerHTML = '✨ 标记为进步组';
+            } else {
+                card.classList.add('progress-marked');
+                btn.classList.add('marked');
+                btn.innerHTML = '🏆 已标记进步';
+            }
+        }
+
+        function completeSet(setNum) {
+            const card = document.getElementById(`set-${setNum}`);
+            const weight = document.getElementById(`weight-${setNum}`).value;
+            const reps = document.getElementById(`reps-${setNum}`).value;
+            const rpe = document.getElementById(`rpe-${setNum}`).value;
+            const notes = document.getElementById(`notes-${setNum}`).value;
+            
+            console.log(`Set ${setNum} completed:`, { weight, reps, rpe, notes });
+            
+            card.classList.add('completed');
+            card.querySelectorAll('input, textarea, button').forEach(el => {
+                if (!el.classList.contains('btn-progress-mark')) {
+                    el.disabled = true;
+                }
+            });
+            
+            // Scroll to next set
+            const nextSet = document.getElementById(`set-${setNum + 1}`);
+            if (nextSet) {
+                setTimeout(() => {
+                    nextSet.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        }
+
+        function skipSet(setNum) {
+            if (confirm('确定要跳过这一组吗?')) {
+                const card = document.getElementById(`set-${setNum}`);
+                card.style.opacity = '0.3';
+                card.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
+            }
+        }
+
+        function uploadVideo(setNum) {
+            alert(`上传第 ${setNum} 组的训练视频\n(实际应用中会打开文件选择器)`);
+        }
+
+        function repeatLastSet() {
+            alert('重复上一组\n(实际应用中会动态添加一个新的组卡片,参数与上一组相同)');
+        }
+
+        function addFromLibrary() {
+            alert('从动作库添加\n(实际应用中会打开动作库选择器)');
+        }
+
+        function showVideoDemo() {
+            alert('播放杠铃卧推动作演示视频\n(实际应用中会打开视频播放器)');
+        }
+
+        function confirmExit() {
+            if(confirm('训练尚未完成,确定要退出吗?')) {
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        function finishWorkout() {
+            if(confirm('确定结束本次训练吗?')) {
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        // Re-init lucide icons after dynamic changes
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
