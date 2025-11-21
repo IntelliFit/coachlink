@@ -81,7 +81,7 @@
 
 
 .top-header {
-    display: none; /* Hidden as navbar is now at top */
+    display: none; /* 使用单行顶栏，隐藏二级Header */
 }
 
 .page-content {

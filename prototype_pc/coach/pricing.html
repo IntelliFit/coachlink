@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 服务与定价</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="flex items-center justify-between mb-lg">
+                    <div>
+                        <h1 class="text-2xl font-bold">服务与定价</h1>
+                        <p class="text-secondary mt-xs">设置 AI版 与 高级版 的月度价格</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">价格设置</h3>
+                    </div>
+                    <div class="p-lg">
+                        <form id="pricing-form" onsubmit="savePricing(event)">
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">
+                                <div>
+                                    <label class="block font-medium mb-xs">AI版价格 (￥/月)</label>
+                                    <input type="number" step="1" min="1" id="aiPrice" class="w-full p-sm border border-gray-300 rounded" required>
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">高级版价格 (￥/月)</label>
+                                    <input type="number" step="1" min="1" id="premiumPrice" class="w-full p-sm border border-gray-300 rounded" required>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-md mt-lg">
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-lucide="Save" size="16"></i>
+                                    保存
+                                </button>
+                                <span id="save-tip" class="text-secondary" style="display:none;">已保存</span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mt-lg">
+                    <div class="card-header">
+                        <h3 class="font-semibold">展示规则</h3>
+                    </div>
+                    <div class="p-md text-secondary">
+                        <ul style="list-style: disc; margin-left: 1.25rem; line-height: 1.9;">
+                            <li>价格必须为正数。</li>
+                            <li>高级版价格必须高于 AI版价格。</li>
+                            <li>学员侧教练主页中的“服务与定价”模块将实时读取此处设置。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let coachId = 'coach_001';
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            const pricingMap = Store.get('coachPricing') || {};
+            const pricing = pricingMap[coachId] || { aiMonthly: 99, premiumMonthly: 299 };
+            document.getElementById('aiPrice').value = pricing.aiMonthly;
+            document.getElementById('premiumPrice').value = pricing.premiumMonthly;
+            lucide.createIcons();
+        });
+
+        function savePricing(e) {
+            e.preventDefault();
+            const ai = parseFloat(document.getElementById('aiPrice').value);
+            const premium = parseFloat(document.getElementById('premiumPrice').value);
+            if (!(ai > 0) || !(premium > 0)) return alert('价格必须为正数');
+            if (!(premium > ai)) return alert('高级版价格必须高于AI版');
+            const map = Store.get('coachPricing') || {};
+            map[coachId] = { aiMonthly: Math.round(ai), premiumMonthly: Math.round(premium) };
+            Store.set('coachPricing', map);
+            const tip = document.getElementById('save-tip');
+            tip.style.display = 'inline';
+            setTimeout(() => tip.style.display = 'none', 1500);
+        }
+    </script>
+</body>
+</html>
+
+

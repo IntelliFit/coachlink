@@ -79,6 +79,73 @@ const MockData = {
         { id: 'stu_003', name: '赵铁柱', plan: '力量举备赛', status: 'inactive', lastActive: '5天前', subscriptionMonths: 3 }
     ],
 
+    // Coach profiles (homepage editable data)
+    coachProfiles: {
+        'coach_001': {
+            name: '张健',
+            avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
+            tagline: '10年力量举经验 | 国家级运动员 | 帮助超过150名学员实现目标',
+            specialties: ['力量举', '增肌'],
+            aboutHtml: '<p class="mb-md">大家好，我是张健，专注力量举训练10年，国家级运动健将。我的训练理念是<strong>“科学训练，持续进步”</strong>。</p><p class="mb-md">我相信每个人都有潜力突破自己的极限。通过系统化的训练计划和精准的动作指导，我已经帮助超过150名学员实现了他们的健身目标。</p><p><strong>资质认证:</strong></p><ul style="list-style: disc; margin-left: 2rem; line-height: 2;"><li>国家级运动健将</li><li>NSCA-CPT认证私人教练</li><li>10年力量举训练经验</li></ul>',
+            successStories: [
+                {
+                    title: '帮助学员三个月卧推提升20kg',
+                    content: '跟着张教练训练3个月，卧推从60kg突破到80kg！教练不仅给我科学的计划，还每天监督我的动作视频，纠正细节。非常专业！ - 学员小李',
+                    images: [
+                        'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&h=300&fit=crop',
+                        'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=300&h=300&fit=crop'
+                    ]
+                },
+                {
+                    title: '6个月增重12kg纯肌肉',
+                    content: '作为一个瘦子，增肌一直是我的难题。张教练为我定制了详细的训练+饮食方案，半年时间我从65kg增到77kg，体脂率还降了！ - 学员王强',
+                    images: []
+                }
+            ]
+        },
+        'coach_002': {
+            name: '李明',
+            avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=coach-li',
+            tagline: '国家二级运动员 | 私教8年 | 专注减脂与动作纠正',
+            specialties: ['减脂', '动作纠正'],
+            aboutHtml: '<p>我是李明教练，擅长通过循序渐进的方法帮你减脂并建立健康的运动习惯。</p>',
+            successStories: [
+                { title: '三个月减脂8kg', content: '配合饮食与有氧力量结合，健康降脂。', images: [] }
+            ]
+        }
+    },
+
+    // Coach pricing (Services & Pricing)
+    coachPricing: {
+        'coach_001': { aiMonthly: 99, premiumMonthly: 299 },
+        'coach_002': { aiMonthly: 79, premiumMonthly: 259 }
+    },
+
+    // Coach published contents
+    coachContent: {
+        'coach_001': [
+            { id: 'cnt_001', title: '力量举三大项完整教学', summary: '深蹲、卧推、硬拉的标准动作要领', type: 'article', url: '#', visibility: 'public' },
+            { id: 'cnt_002', title: '如何突破训练平台期', summary: '5个实用技巧帮你持续进步', type: 'article', url: '#', visibility: 'public' },
+            { id: 'cnt_003', title: '高级增肌营养方案', summary: '订阅后可查看完整内容', type: 'article', url: '#', visibility: 'paid' }
+        ],
+        'coach_002': [
+            { id: 'cnt_101', title: '热量赤字与饮食规划', summary: '科学饮食的核心原则', type: 'article', url: '#', visibility: 'public' }
+        ]
+    },
+
+    // Simple subscriptions map: which student subscribed to which coach and tier
+    subscriptions: {
+        'student_001': { 'coach_001': 'ai', 'coach_002': 'premium' } // 'none' | 'ai' | 'premium'
+    },
+
+    // Subscription settings (e.g., auto renew)
+    subscriptionSettings: {
+        'student_001': {
+            'coach_001': { autoRenew: true, nextBillingDate: '2025-12-01' },
+            'coach_002': { autoRenew: false, nextBillingDate: '2025-12-10' }
+        }
+    },
+
     clientPlans: {
         'stu_001': [ // Plan for Li Tongxue (Muscle Gain Plan A)
             {
@@ -229,6 +296,21 @@ const Store = {
         }
         if (!localStorage.getItem('coachlink_submissions')) {
             Store.set('submissions', MockData.submissions);
+        }
+        if (!localStorage.getItem('coachlink_coachProfiles')) {
+            Store.set('coachProfiles', MockData.coachProfiles);
+        }
+        if (!localStorage.getItem('coachlink_coachPricing')) {
+            Store.set('coachPricing', MockData.coachPricing);
+        }
+        if (!localStorage.getItem('coachlink_coachContent')) {
+            Store.set('coachContent', MockData.coachContent);
+        }
+        if (!localStorage.getItem('coachlink_subscriptions_map')) {
+            Store.set('subscriptions', MockData.subscriptions);
+        }
+        if (!localStorage.getItem('coachlink_subscriptionSettings')) {
+            Store.set('subscriptionSettings', MockData.subscriptionSettings);
         }
         // Always update these for development/testing of new features
         Store.set('clientPlans', MockData.clientPlans);

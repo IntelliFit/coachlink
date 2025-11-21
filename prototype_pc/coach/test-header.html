@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试头像菜单 - CoachLink</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">头像菜单测试页</h3>
+                    </div>
+                    <div class="p-lg">
+                        <p class="mb-md">请点击右上角的头像，查看下拉菜单是否正常工作。</p>
+                        <p class="mb-md">应该能看到：</p>
+                        <ul style="list-style: disc; margin-left: 2rem; line-height: 2;">
+                            <li>我的主页</li>
+                            <li>服务与定价</li>
+                            <li>教学内容</li>
+                            <li>退出登录</li>
+                        </ul>
+                        <div class="mt-lg">
+                            <button class="btn btn-primary" onclick="testMenu()">
+                                <i data-lucide="Info"></i>
+                                测试菜单状态
+                            </button>
+                        </div>
+                        <div id="test-output" class="mt-md p-md" style="background: var(--color-bg); border-radius: var(--radius-md); font-family: monospace; font-size: 0.875rem; display: none;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            lucide.createIcons();
+        });
+
+        function testMenu() {
+            const trigger = document.getElementById('user-profile-trigger');
+            const menu = document.getElementById('user-menu');
+            const output = document.getElementById('test-output');
+            
+            output.style.display = 'block';
+            output.innerHTML = `
+                <strong>调试信息：</strong><br><br>
+                头像触发器存在: ${trigger ? '✓ 是' : '✗ 否'}<br>
+                菜单元素存在: ${menu ? '✓ 是' : '✗ 否'}<br>
+                当前菜单显示状态: ${menu ? menu.style.display : 'N/A'}<br>
+                触发器有点击事件: ${trigger && trigger.onclick ? '✓ 是 (inline)' : '使用 addEventListener'}<br><br>
+                <strong>手动测试步骤：</strong><br>
+                1. 点击右上角头像区域<br>
+                2. 观察是否出现白色下拉菜单<br>
+                3. 点击页面空白处，菜单应自动关闭<br>
+            `;
+            
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
+
