@@ -13,6 +13,7 @@ const App = {
 
         // Determine if we are in coach or student view based on URL or simple check
         const isCoach = window.location.pathname.includes('/coach/');
+        const user = MockData.currentUser;
         
         const menuItems = isCoach ? [
             { name: '概览', icon: 'LayoutDashboard', link: 'dashboard.html' },
@@ -40,14 +41,21 @@ const App = {
                     <i data-lucide="Activity"></i>
                     CoachLink
                 </div>
+                <nav class="sidebar-nav">
+                    ${navHtml}
+                </nav>
             </div>
-            <nav class="sidebar-nav">
-                ${navHtml}
-            </nav>
-            <div class="p-md border-t border-gray-200">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <div class="user-profile">
+                    <div class="text-right mr-2">
+                        <div class="text-sm font-medium">${user.name}</div>
+                        <div class="text-xs text-secondary">${user.role === 'coach' ? '专业教练' : '学员'}</div>
+                    </div>
+                    <div class="avatar">${user.avatar}</div>
+                </div>
                 <a href="../index.html" class="nav-item text-danger">
                     <i data-lucide="LogOut" class="nav-icon"></i>
-                    <span>退出登录</span>
+                    <span>退出</span>
                 </a>
             </div>
         `;

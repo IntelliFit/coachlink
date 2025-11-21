@@ -135,3 +135,11 @@ button {
 .hidden {
     display: none !important;
 }
+
+.mr-2 {
+    margin-right: 0.5rem;
+}
+
+.font-medium {
+    font-weight: 500;
+}

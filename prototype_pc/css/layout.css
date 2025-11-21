@@ -1,29 +1,30 @@
 /* Layout Structure */
 .app-layout {
     display: flex;
+    flex-direction: column;
     min-height: 100vh;
 }
 
-/* Sidebar */
+/* Top Navigation Bar (formerly Sidebar) */
 .sidebar {
-    width: 260px;
+    width: 100%;
+    height: 64px;
     background-color: var(--surface-color);
-    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     position: fixed;
     top: 0;
-    bottom: 0;
     left: 0;
-    z-index: 10;
+    right: 0;
+    z-index: 100;
+    padding: 0 var(--spacing-lg);
 }
 
 .sidebar-header {
-    height: 64px;
     display: flex;
     align-items: center;
-    padding: 0 var(--spacing-lg);
-    border-bottom: 1px solid var(--border-color);
 }
 
 .logo {
@@ -33,22 +34,24 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    margin-right: var(--spacing-xl);
 }
 
 .sidebar-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     flex: 1;
-    padding: var(--spacing-md);
-    overflow-y: auto;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    padding: 0.75rem var(--spacing-md);
+    padding: 0.5rem var(--spacing-md);
     color: var(--text-secondary);
     border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-xs);
     transition: all var(--transition-fast);
+    white-space: nowrap;
 }
 
 .nav-item:hover {
@@ -63,36 +66,32 @@
 }
 
 .nav-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: var(--spacing-md);
+    width: 18px;
+    height: 18px;
+    margin-right: var(--spacing-sm);
 }
 
 /* Main Content */
 .main-content {
     flex: 1;
-    margin-left: 260px; /* Match sidebar width */
+    margin-top: 64px; /* Match navbar height */
     display: flex;
     flex-direction: column;
 }
 
+
 .top-header {
-    height: 64px;
-    background-color: var(--surface-color);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--spacing-lg);
-    position: sticky;
-    top: 0;
-    z-index: 9;
+    display: none; /* Hidden as navbar is now at top */
 }
 
 .page-content {
     padding: var(--spacing-lg);
     flex: 1;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
 }
+
 
 /* User Profile in Header */
 .user-profile {

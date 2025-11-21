@@ -63,9 +63,9 @@ const MockData = {
     ],
 
     clients: [
-        { id: 'stu_001', name: '李同学', plan: '增肌计划 A', status: 'active', lastActive: '2小时前' },
-        { id: 'stu_002', name: '王小明', plan: '减脂冲刺', status: 'active', lastActive: '1天前' },
-        { id: 'stu_003', name: '赵铁柱', plan: '力量举备赛', status: 'inactive', lastActive: '5天前' }
+        { id: 'stu_001', name: '李同学', plan: '增肌计划 A', status: 'active', lastActive: '2小时前', subscriptionMonths: 4 },
+        { id: 'stu_002', name: '王小明', plan: '减脂冲刺', status: 'active', lastActive: '1天前', subscriptionMonths: 1 },
+        { id: 'stu_003', name: '赵铁柱', plan: '力量举备赛', status: 'inactive', lastActive: '5天前', subscriptionMonths: 3 }
     ],
 
     clientPlans: {

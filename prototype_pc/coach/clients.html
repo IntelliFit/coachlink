@@ -398,6 +398,10 @@
                             <i data-lucide="Users"></i>
                             <span>已订阅 2 位教练</span>
                         </div>
+                        <div class="profile-meta-item">
+                            <i data-lucide="Clock"></i>
+                            <span id="profile-subscription">订阅时长: 4个月 (16周)</span>
+                        </div>
                         <div class="subscription-tag">
                             <i data-lucide="Crown"></i>
                             高级版
@@ -650,7 +654,17 @@
             const overlay = document.getElementById('drawer-overlay');
             
             // In a real app, we would fetch client data here based on clientId
-            // For prototype, we just show the static content
+            // For prototype, we just show the static content or update from mock
+            const client = Store.get('clients').find(c => c.id === clientId);
+            if (client) {
+                document.querySelector('#profile-drawer .text-2xl').textContent = client.name;
+                document.querySelector('#profile-drawer .profile-avatar-large').textContent = client.name.charAt(0);
+                
+                if (client.subscriptionMonths) {
+                    const weeks = client.subscriptionMonths * 4;
+                    document.getElementById('profile-subscription').textContent = `订阅时长: ${client.subscriptionMonths}个月 (${weeks}周)`;
+                }
+            }
             
             drawer.classList.add('open');
             overlay.classList.add('open');
