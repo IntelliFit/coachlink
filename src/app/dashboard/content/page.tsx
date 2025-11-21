@@ -17,6 +17,8 @@ import { coachService } from '@/app/service/coachService';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { CoachContentRow } from '@/types';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { useToastContext } from '@/context/ToastContext';
 
 const Content = () => {
     const { data: session } = useSession();
@@ -28,6 +30,9 @@ const Content = () => {
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTier, setFilterTier] = useState<number | 'all'>('all');
+    const [editingContent, setEditingContent] = useState<CoachContentRow | null>(null);
+
+    const { showToast } = useToastContext();
 
     // 加载内容
     useEffect(() => {
@@ -55,21 +60,71 @@ const Content = () => {
     };
 
     const handlePublishContent = async (contentData: any) => {
-        await coachService.publishContent({
-            coachId: coach.id,
-            ...contentData,
-            isDraft: false,
-        });
+        if (editingContent) {
+            // 更新现有内容
+            await coachService.updateContent({
+                id: editingContent.id,
+                ...contentData,
+                isDraft: false,
+            });
+        } else {
+            // 发布新内容
+            await coachService.publishContent({
+                coachId: coach.id,
+                ...contentData,
+                isDraft: false,
+            });
+        }
         setCurrentView('list');
+        setEditingContent(null);
         loadContents();
     };
 
     const handleSaveDraft = async (contentData: any) => {
-        await coachService.publishContent({
-            coachId: coach.id,
-            ...contentData,
-            isDraft: true,
+        if (editingContent) {
+            // 更新现有内容草稿
+            await coachService.updateContent({
+                id: editingContent.id,
+                ...contentData,
+                isDraft: true,
+            });
+        } else {
+            // 保存新内容草稿
+            await coachService.publishContent({
+                coachId: coach.id,
+                ...contentData,
+                isDraft: true,
+            });
+        }
+        setCurrentView('list');
+        setEditingContent(null);
+        loadContents();
+    };
+
+    const handleEditContent = (content: CoachContentRow) => {
+        setEditingContent(content);
+        setCurrentView('editor');
+    };
+
+    const handleDeleteContent = (content: CoachContentRow) => {
+        confirmDialog({
+            message: `确定要删除内容"${content.title}"吗？此操作无法撤销。`,
+            header: '删除确认',
+            icon: 'pi pi-exclamation-triangle',
+            accept: () => deleteContent(content.id),
+            reject: () => {}
         });
+    };
+
+    const deleteContent = async (contentId: string) => {
+        try {
+            await coachService.deleteContent(contentId);
+            loadContents();
+            showToast({ severity: 'success', summary: '删除成功' });
+        } catch (err) {
+            console.error('删除内容失败:', err);
+            showToast({ severity: 'error', summary: '删除内容失败' });
+        }
     };
 
     const getTierBadge = (tier: number) => {
@@ -114,14 +169,18 @@ const Content = () => {
             <div className="max-w-6xl mx-auto p-4 md:p-6">
                 <Button
                     icon="pi pi-arrow-left"
-                    label="返回内容管理"
+                    label={editingContent ? "取消编辑" : "返回内容管理"}
                     className="p-button-text mb-4"
-                    onClick={() => setCurrentView('list')}
+                    onClick={() => {
+                        setCurrentView('list');
+                        setEditingContent(null);
+                    }}
                 />
                 <ContentEditor
                     coachId={coach.id}
                     onPublish={handlePublishContent}
                     onSaveDraft={handleSaveDraft}
+                    initialContent={editingContent}
                 />
             </div>
         );
@@ -137,9 +196,10 @@ const Content = () => {
 
     return (
         <div className="max-w-6xl mx-auto">
+            <ConfirmDialog />
             <Card className="shadow-sm">
                 {/* 顶部区域 */}
-                <div className="border-b border-gray-200 p-4 md:p-6">
+                <div className="border-b border-surface-200 p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-bold text-900">内容管理</h1>
@@ -174,15 +234,14 @@ const Content = () => {
                 {/* 内容区域 */}
                 <div className="p-4 md:p-6">
                     {loading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 gap-6">
                             {[1, 2, 3, 4, 5, 6].map(i => (
                                 <div key={i} className="border rounded-lg p-4">
-                                    <Skeleton width="100%" height="8rem" className="mb-4" />
+                                    <Skeleton width="100%" height="2rem" className="mb-4" />
                                     <Skeleton width="80%" height="1.25rem" className="mb-2" />
-                                    <Skeleton width="60%" height="1rem" className="mb-3" />
                                     <div className="flex justify-between mt-4">
-                                        <Skeleton width="4rem" height="2rem" />
-                                        <Skeleton width="4rem" height="2rem" />
+                                        <Skeleton width="4rem" height="1rem" />
+                                        <Skeleton width="4rem" height="1rem" />
                                     </div>
                                 </div>
                             ))}
@@ -205,7 +264,7 @@ const Content = () => {
                         <DataView
                             value={filteredContents}
                             itemTemplate={(content) => (
-                                <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                                <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 mb-2">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center space-x-3 mb-2">
@@ -217,7 +276,7 @@ const Content = () => {
                                                     ? content.content.slice(0, 100) + '...'
                                                     : content.content}
                                             </p>
-                                            <div className="flex items-center space-x-6 text-sm text-gray-500">
+                                            <div className="flex items-center space-x-6 text-sm text-surface-500">
                                                 <div className="flex items-center space-x-1"><Eye className="w-4 h-4" /><span>{content.views_count}</span></div>
                                                 <div className="flex items-center space-x-1"><ThumbsUp className="w-4 h-4" /><span>{content.likes_count}</span></div>
                                                 <div className="flex items-center space-x-1"><MessageCircle className="w-4 h-4" /><span>{content.comments_count}</span></div>
@@ -225,8 +284,18 @@ const Content = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center space-x-2 ml-4">
-                                            <Button icon="pi pi-pencil" className="p-button-rounded p-button-text" tooltip="编辑" />
-                                            <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger" tooltip="删除" />
+                                            <Button 
+                                                icon="pi pi-pencil" 
+                                                className="p-button-rounded p-button-text" 
+                                                tooltip="编辑" 
+                                                onClick={() => handleEditContent(content)}
+                                            />
+                                            <Button 
+                                                icon="pi pi-trash" 
+                                                className="p-button-rounded p-button-text p-button-danger" 
+                                                tooltip="删除" 
+                                                onClick={() => handleDeleteContent(content)}
+                                            />
                                         </div>
                                     </div>
                                 </div>

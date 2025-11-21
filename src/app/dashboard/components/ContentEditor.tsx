@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Save,
     Eye,
@@ -23,6 +23,7 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Card } from 'primereact/card';
 import { Chip } from 'primereact/chip';
 import { Checkbox } from 'primereact/checkbox';
+import { useToastContext } from '@/context/ToastContext';
 
 // 内容类型枚举
 export enum ContentTier {
@@ -48,14 +49,14 @@ interface ContentEditorProps {
     coachId: string;
     onPublish: (content: ContentForm) => Promise<void>;
     onSaveDraft: (content: ContentForm) => Promise<void>;
-    isPublishing?: boolean;
+    initialContent?: CoachContentRow | null;
 }
 
 const ContentEditor: React.FC<ContentEditorProps> = ({
     coachId,
     onPublish,
     onSaveDraft,
-    isPublishing = false
+    initialContent = null,
 }) => {
     const [form, setForm] = useState<ContentForm>({
         title: '',
@@ -69,14 +70,41 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
 
     const [currentTag, setCurrentTag] = useState('');
     const [isPreview, setIsPreview] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const { showToast } = useToastContext();
 
     // 订阅等级配置
     const tierOptions = [
-        { value: ContentTier.FREE, label: '免费内容', icon: Users, color: 'text-green-600', bgColor: 'bg-green-100' },
-        { value: ContentTier.BASIC, label: '基础订阅', icon: Lock, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-        { value: ContentTier.PREMIUM, label: '高级订阅', icon: Crown, color: 'text-purple-600', bgColor: 'bg-purple-100' },
-        { value: ContentTier.VIP, label: 'VIP专属', icon: Gem, color: 'text-amber-600', bgColor: 'bg-amber-100' }
+        { value: ContentTier.FREE, label: '免费内容', icon: Users, color: 'text-green-600', border: 'border-green-500', bgColor: 'bg-green-100' },
+        { value: ContentTier.BASIC, label: '基础订阅', icon: Lock, color: 'text-blue-600', border: 'border-blue-500', bgColor: 'bg-blue-100' },
+        { value: ContentTier.PREMIUM, label: '高级订阅', icon: Crown, color: 'text-purple-600', border: 'border-purple-500', bgColor: 'bg-purple-100' },
+        { value: ContentTier.VIP, label: 'VIP专属', icon: Gem, color: 'text-amber-600', border: 'border-primary', bgColor: 'bg-primary-100' }
     ];
+
+    useEffect(() => {
+        if (initialContent) {
+            setForm({
+                title: initialContent.title,
+                content: initialContent.content,
+                content_type: initialContent.content_type as 'text' | 'video' | 'image' | 'live' | 'plan',
+                required_tier: initialContent.required_tier,
+                is_featured: initialContent.is_featured || false,
+                tags: initialContent.tags || [],
+                media_urls: initialContent.media_urls || []
+            });
+        } else {
+            // 重置表单为默认值
+            setForm({
+                title: '',
+                content: '',
+                content_type: 'text',
+                required_tier: ContentTier.FREE,
+                is_featured: false,
+                tags: [],
+                media_urls: []
+            });
+        }
+    }, [initialContent]);
 
     const handleInputChange = (field: keyof ContentForm, value: any) => {
         setForm(prev => ({
@@ -111,13 +139,15 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
 
     const handlePublish = async () => {
         if (!form.title.trim() || !form.content.trim()) {
-            alert('请填写标题和内容');
+            showToast({ severity: 'warn', summary: '请填写标题和内容' });
             return;
         }
 
+        setIsPublishing(true);
+
         try {
             await onPublish(form);
-            // 重置表单
+
             setForm({
                 title: '',
                 content: '',
@@ -127,19 +157,29 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
                 tags: [],
                 media_urls: []
             });
+
+            showToast({ severity: 'success', summary: '发布成功' });
         } catch (error) {
             console.error('发布失败:', error);
-            alert('发布失败，请重试');
+            showToast({ severity: 'error', summary: '发布失败，请重试' });
         }
+
+        setIsPublishing(false);
     };
 
     const handleSaveDraft = async () => {
         try {
             await onSaveDraft(form);
-            alert('草稿已保存');
+            showToast({
+                severity: 'success',
+                summary: '草稿已保存'
+            })
         } catch (error) {
             console.error('保存草稿失败:', error);
-            alert('保存草稿失败，请重试');
+            showToast({
+                severity: 'error',
+                summary: '保存草稿失败，请重试'
+            })
         }
     };
 
@@ -212,8 +252,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
                                         key={tier.value}
                                         onClick={() => handleInputChange('required_tier', tier.value)}
                                         className={`p-3 border-2 rounded-lg transition-all cursor-pointer ${isSelected
-                                                ? `border-primary ${tier.bgColor}`
-                                                : 'border-gray-200 hover:border-gray-300'
+                                                ? `${tier.border} ${tier.bgColor}`
+                                                : 'border-surface-200 hover:border-surface-300'
                                             }`}
                                         type="button"
                                     >
@@ -296,7 +336,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
                                 {form.tags.map((tag, index) => (
                                     <span
                                         key={index}
-                                        className="px-2 py-1 bg-gray-100 text-gray-600 text-sm rounded"
+                                        className="px-2 py-1 bg-surface-100 text-surface-600 text-sm rounded"
                                     >
                                         #{tag}
                                     </span>
@@ -314,7 +354,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
             )}
 
             {/* 底部操作按钮 */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-8 pt-6 border-t border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-8 pt-6 border-t border-surface-200">
                 <div className="text-sm text-500">
                     {form.required_tier === ContentTier.FREE ? '所有人可见' : `${selectedTier?.label}可见`}
                 </div>
@@ -330,7 +370,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
 
                     <Button
                         icon="pi pi-send"
-                        label={isPublishing ? '发布中...' : '立即发布'}
+                        loading={isPublishing}
+                        label='发布'
                         onClick={handlePublish}
                         disabled={isPublishing || !form.title.trim() || !form.content.trim()}
                     />

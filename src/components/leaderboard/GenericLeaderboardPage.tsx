@@ -278,9 +278,34 @@ const GenericLeaderboardPage: React.FC<GenericLeaderboardPageProps> = ({
           </div>
           
           {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-sm text-gray-500">加载中...</p>
+            <div className="space-y-4">
+              <div className="flex justify-between p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="flex items-center space-x-4">
+                  <Skeleton width="32px" height="32px" borderRadius="50%" />
+                  <div>
+                    <Skeleton width="120px" height="20px" />
+                    <Skeleton width="80px" height="16px" className="mt-1" />
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <Skeleton width="60px" height="24px" />
+                </div>
+              </div>
+              
+              {[1, 2, 3, 4, 5].map((item) => (
+                <div key={item} className="flex justify-between p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                  <div className="flex items-center space-x-4">
+                    <Skeleton width="24px" height="24px" borderRadius="50%" />
+                    <div>
+                      <Skeleton width="100px" height="20px" />
+                      <Skeleton width="60px" height="16px" className="mt-1" />
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <Skeleton width="50px" height="20px" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : error ? (
             <div className="text-center py-8">

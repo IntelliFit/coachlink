@@ -11,17 +11,19 @@ import { Toast } from 'primereact/toast';
 import { userService } from '@/app/service/userService';
 import { TrainingPlanRow } from '@/types';
 import { Skeleton } from 'primereact/skeleton';
+import { useToastContext } from '@/context/ToastContext';
 
 const TrainingPlansHome: React.FC = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: session } = useSession();
-    const toast = useRef<Toast>(null);
+    const { showToast } = useToastContext();
 
     const coachId = searchParams.get('coachId');
 
     const [plans, setPlans] = useState<TrainingPlanRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [deletingPlans, setDeletingPlans] = useState<Set<string>>(new Set());
 
     // --------- 跳转判断（避免闪烁）---------
     useEffect(() => {
@@ -46,7 +48,7 @@ const TrainingPlansHome: React.FC = () => {
                 }
             } catch (e) {
                 setPlans([]);
-                toast.current?.show({
+                showToast({
                     severity: 'error',
                     summary: '加载失败',
                     detail: '无法加载训练计划列表，请稍后重试',
@@ -85,20 +87,33 @@ const TrainingPlansHome: React.FC = () => {
             });
 
         if (await confirm()) {
+            // 设置删除loading状态
+            setDeletingPlans(prev => new Set(prev).add(planId));
+            
             try {
-                await userService.deleteTrainingPlan(planId);
-                setPlans((prev) => prev.filter((p) => p.id !== planId));
+                const res = await userService.deleteTrainingPlan(planId);
 
-                toast.current?.show({
-                    severity: 'success',
-                    summary: '删除成功',
-                    detail: '训练计划已成功删除',
-                });
-            } catch {
-                toast.current?.show({
-                    severity: 'error',
-                    summary: '删除失败',
-                    detail: '删除训练计划失败，请稍后重试',
+                if (!res) {
+                    showToast({
+                        severity: 'error',
+                        summary: '删除失败',
+                        detail: '删除训练计划失败，请稍后重试',
+                    });
+                } else {
+                    setPlans((prev) => prev.filter((p) => p.id !== planId));
+
+                    showToast({
+                        severity: 'success',
+                        summary: '删除成功',
+                        detail: '训练计划已成功删除',
+                    });
+                }
+            } finally {
+                // 清除删除loading状态
+                setDeletingPlans(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(planId);
+                    return newSet;
                 });
             }
         }
@@ -122,7 +137,6 @@ const TrainingPlansHome: React.FC = () => {
 
     return (
         <div className="min-h-screen">
-            <Toast ref={toast} />
             <ConfirmDialog />
 
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -161,13 +175,13 @@ const TrainingPlansHome: React.FC = () => {
                         onClick={async () => {
                             const res = await userService.cleanupOrphanPlans();
                             if (res) {
-                                toast.current?.show({
+                                showToast({
                                     severity: 'success',
                                     summary: '已清理',
                                     detail: `删除 ${res.deleted} 个无教练计划`,
                                 });
                             } else {
-                                toast.current?.show({
+                                showToast({
                                     severity: 'warn',
                                     summary: '无可清理项',
                                     detail: '或清理失败，请稍后重试',
@@ -242,6 +256,7 @@ const TrainingPlansHome: React.FC = () => {
                                         />
                                         <Button
                                             label="删除"
+                                            loading={deletingPlans.has(plan.id)}
                                             severity="danger"
                                             onClick={() => handleDeletePlan(plan.id, plan.title)}
                                         />
