@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 模板编辑器</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .split-container {
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 140px);
+            gap: var(--spacing-md);
+            overflow: hidden;
+        }
+
+        .editor-layout {
+            display: flex;
+            gap: var(--spacing-lg);
+            height: 100%;
+            flex: 1;
+            min-width: 0;
+            transition: all 0.3s ease;
+        }
+
+        .profile-panel {
+            width: 0;
+            background: white;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            overflow: hidden;
+            border-radius: var(--radius-lg);
+        }
+        
+        .profile-panel.open {
+            width: 450px;
+            opacity: 1;
+            border: 1px solid var(--border-color);
+        }
+        
+        .profile-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .week-sidebar {
+            width: 240px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+        }
+        .week-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .week-header {
+            padding: var(--spacing-md);
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .day-item {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .day-item:hover { background: var(--background-color); }
+        .day-item.active { background: #e0e7ff; color: var(--primary-color); border-left: 3px solid var(--primary-color); }
+        
+        .editor-main {
+            flex: 1;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+        }
+        .editor-header {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        .exercise-row:hover { border-color: var(--primary-color); }
+        
+        .row-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+        
+        .row-details {
+            padding: var(--spacing-sm);
+            background: #f8fafc;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .param-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr 1fr;
+            gap: var(--spacing-md);
+            align-items: end;
+        }
+        
+        .global-notes {
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+        }
+    </style>
+    <style>
+        /* Profile Panel Styles */
+        .profile-content-scroll {
+            height: 100%;
+            overflow-y: auto;
+            padding: var(--spacing-md);
+        }
+        
+        .profile-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--text-primary);
+        }
+        
+        .profile-header {
+            text-align: center;
+            padding: var(--spacing-md) 0;
+        }
+        
+        .profile-avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0 auto var(--spacing-md);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .profile-meta {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        
+        .profile-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .subscription-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.25rem 0.5rem;
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            color: var(--primary-color);
+            border-radius: var(--radius-full);
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        
+        /* Progress Chart */
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .chart-switcher {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        
+        .chart-tab {
+            padding: 0.375rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: white;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 0.75rem;
+        }
+        
+        .chart-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* Progress Timeline */
+        .timeline {
+            position: relative;
+            padding-left: var(--spacing-lg);
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 9px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #6366f1 0%, #e0e7ff 100%);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: var(--spacing-lg);
+            background: white;
+            border: 1px solid #e0e7ff;
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            transition: all var(--transition-fast);
+        }
+        
+        .timeline-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .timeline-item::before {
+            content: '🏆';
+            position: absolute;
+            left: -38px;
+            top: var(--spacing-md);
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border: 3px solid white;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .timeline-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .timeline-exercise {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .timeline-stats {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        
+        .timeline-stat {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .timeline-video {
+            position: relative;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: var(--spacing-sm);
+            cursor: pointer;
+        }
+        
+        .timeline-video img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        .timeline-video-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+        
+        .timeline-video:hover .timeline-video-overlay {
+            opacity: 1;
+        }
+        
+        .timeline-video-play {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.9);
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+        }
+        
+        .timeline-note {
+            background: var(--background-color);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.75rem;
+        }
+        
+        .timeline-coach-comment {
+            background: #fef3c7;
+            border-left: 3px solid #f59e0b;
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+        }
+        
+        .timeline-coach-comment-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        /* Coach Notes */
+        .coach-notes-content {
+            background: var(--background-color);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+        }
+        
+        .info-item {
+            padding: var(--spacing-sm);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="flex justify-between items-center mb-md">
+                    <div>
+                        <div class="flex items-center gap-sm">
+                            <h2 class="text-xl font-bold" contenteditable="true">未命名模板</h2>
+                            <i data-lucide="Edit2" size="16" class="text-secondary"></i>
+                        </div>
+                        <p class="text-secondary text-sm mt-xs" contenteditable="true">点击此处添加模板说明...</p>
+                    </div>
+                    <div class="flex gap-sm">
+                        <button class="btn btn-secondary" id="view-profile-btn" onclick="toggleProfile()" style="display: none;">
+                            <i data-lucide="User" size="16" class="mr-1"></i> 学员档案
+                        </button>
+
+                        <button class="btn btn-primary" id="save-template-btn">保存模板</button>
+                    </div>
+                </div>
+
+                <div class="split-container">
+                    <div class="editor-layout">
+                        <!-- Week/Day Navigation -->
+                        <div class="week-sidebar">
+                            <div class="week-list" id="week-list-container">
+                                <!-- Populated by JS -->
+                            </div>
+                            <div class="p-md border-t">
+                                <button class="btn btn-secondary w-full text-sm" onclick="addWeek()">+ 添加一周</button>
+                            </div>
+                        </div>
+
+                        <!-- Main Editor Area -->
+                        <div class="editor-main">
+                            <div class="editor-header">
+                                <div class="flex items-center gap-md">
+                                    <h3 class="font-semibold text-lg" id="current-day-title">Day 1</h3>
+                                    <label class="flex items-center gap-xs text-sm cursor-pointer select-none">
+                                        <input type="checkbox" class="w-4 h-4" id="is-rest-day"> 设为休息日
+                                    </label>
+                                </div>
+                                <div class="flex gap-sm items-center">
+                                    <select class="input-field text-sm py-xs" id="import-day-select" onchange="importDayContent(this.value)" style="width: 140px;">
+                                        <option value="">复制往日内容...</option>
+                                    </select>
+                                    <button class="btn btn-primary btn-sm" onclick="openAddExerciseModal()">
+                                        <i data-lucide="Plus" size="16" class="mr-1"></i> 添加动作
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="editor-content" id="day-content">
+                                <!-- Exercise Row Example -->
+                                <div class="exercise-row">
+                                    <div class="row-header">
+                                        <div class="cursor-move text-secondary"><i data-lucide="GripVertical"></i></div>
+                                        <div class="flex-1">
+                                            <div class="font-semibold text-lg">杠铃卧推</div>
+                                            <div class="text-xs text-secondary">胸部 · 杠铃</div>
+                                        </div>
+                                        <button class="text-danger p-sm hover:bg-red-50 rounded"><i data-lucide="Trash2" size="18"></i></button>
+                                    </div>
+                                    
+                                    <!-- Execution Details (Auto-filled & Editable) -->
+                                    <div class="row-details" contenteditable="true">
+                                        仰卧于平凳，双手持哑铃，推起至手臂伸直，下放至胸部两侧。
+                                    </div>
+
+                                    <!-- Parameters -->
+                                    <div class="param-grid">
+                                        <div>
+                                            <label class="text-xs text-secondary block mb-1">组数</label>
+                                            <input type="text" class="input-field" value="4">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-secondary block mb-1">次数</label>
+                                            <input type="text" class="input-field" value="8-12">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-secondary block mb-1">重量/强度逻辑</label>
+                                            <select class="input-field">
+                                                <option>绝对力量 (f(1RM))</option>
+                                                <option>相对力量 (f(1RM) - BW)</option>
+                                                <option>RPE (自觉运动强度)</option>
+                                                <option>固定重量</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-secondary block mb-1">组间休息</label>
+                                            <input type="text" class="input-field" value="90s">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Global Notes -->
+                                <div class="global-notes">
+                                    <h4 class="font-semibold mb-sm">全局/本日备注</h4>
+                                    <textarea class="input-field" style="min-height: 80px;" placeholder="填写热身流程、注意事项等..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Panel (Hidden by default) -->
+                    <!-- Profile Panel (Direct Embed) -->
+                    <div class="profile-panel" id="profile-panel">
+                        <div class="profile-content-scroll">
+                            <!-- Profile Header -->
+                            <div class="profile-section">
+                                <div class="profile-header">
+                                    <div class="profile-avatar-large" id="profile-avatar">李</div>
+                                    <h1 class="text-2xl font-bold mb-xs" id="profile-name">李明</h1>
+                                    <p class="text-secondary mb-sm">学员</p>
+                                    
+                                    <!-- Profile Meta Info -->
+                                    <div class="profile-meta">
+                                        <div class="profile-meta-item">
+                                            <i data-lucide="Users"></i>
+                                            <span>已订阅 2 位教练</span>
+                                        </div>
+                                        <div class="subscription-tag">
+                                            <i data-lucide="Crown"></i>
+                                            高级版
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Personal Info -->
+                            <div class="profile-section">
+                                <h2 class="section-title">
+                                    <i data-lucide="User"></i>
+                                    个人信息
+                                </h2>
+                                
+                                <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-label">姓名</div>
+                                        <div class="info-value" id="info-name">李明</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">年龄</div>
+                                        <div class="info-value">28岁</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">性别</div>
+                                        <div class="info-value">男</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">地理位置</div>
+                                        <div class="info-value">上海</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">职业</div>
+                                        <div class="info-value">软件工程师</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">加入时长</div>
+                                        <div class="info-value">120天</div>
+                                    </div>
+                                </div>
+                                
+                                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-label">深蹲 1RM</div>
+                                        <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">卧推 1RM</div>
+                                        <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">硬拉 1RM</div>
+                                        <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">总和</div>
+                                        <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
+                                    </div>
+                                </div>
+                                
+                                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">身体数据</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-label">身高</div>
+                                        <div class="info-value">175 cm</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">当前体重</div>
+                                        <div class="info-value">75 kg</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">体脂率</div>
+                                        <div class="info-value">15%</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">腕围</div>
+                                        <div class="info-value">17 cm</div>
+                                    </div>
+                                </div>
+                                
+                                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">训练背景</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <div class="info-label">系统训练时长</div>
+                                        <div class="info-value">2年</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">训练频率</div>
+                                        <div class="info-value">每周4-5次</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">主要目标</div>
+                                        <div class="info-value">增肌 + 力量</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">恢复能力</div>
+                                        <div class="info-value">良好</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- My Progress Section -->
+                            <div class="profile-section">
+                                <h2 class="section-title">
+                                    <i data-lucide="TrendingUp"></i>
+                                    进步趋势
+                                </h2>
+                                
+                                <!-- Chart Switcher -->
+                                <div class="chart-switcher">
+                                    <button class="chart-tab active" onclick="switchChart('weight')">体重变化</button>
+                                    <button class="chart-tab" onclick="switchChart('bench')">卧推1RM</button>
+                                    <button class="chart-tab" onclick="switchChart('squat')">深蹲1RM</button>
+                                </div>
+                                
+                                <!-- Chart Container -->
+                                <div class="chart-container">
+                                    <canvas id="progressChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Progress Timeline -->
+                            <div class="profile-section">
+                                <h2 class="section-title">
+                                    <i data-lucide="Award"></i>
+                                    进步时间线
+                                </h2>
+                                <p class="text-secondary mb-md">记录每一个值得骄傲的突破时刻</p>
+                                
+                                <div class="timeline">
+                                    <!-- Timeline Item 1 -->
+                                    <div class="timeline-item">
+                                        <div class="timeline-header">
+                                            <div>
+                                                <div class="timeline-exercise">卧推</div>
+                                                <div class="timeline-date">2024年11月15日</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="timeline-stats">
+                                            <div class="timeline-stat">
+                                                <i data-lucide="Weight"></i>
+                                                <span>100 kg × 8 次</span>
+                                            </div>
+                                            <div class="timeline-stat">
+                                                <i data-lucide="Zap"></i>
+                                                <span>RPE 9</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="timeline-video" onclick="playVideo('video1')">
+                                            <img src="https://placehold.co/600x400/6366f1/white?text=Training+Video" alt="Training Video">
+                                            <div class="timeline-video-overlay">
+                                                <div class="timeline-video-play">
+                                                    <i data-lucide="Play"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="timeline-note">
+                                            <strong>我的感受:</strong> 第一次卧推突破100kg！感觉太棒了！💪
+                                        </div>
+                                        
+                                        <div class="timeline-coach-comment">
+                                            <div class="timeline-coach-comment-header">
+                                                <i data-lucide="MessageSquare"></i>
+                                                我的点评
+                                            </div>
+                                            <div>做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Timeline Item 2 -->
+                                    <div class="timeline-item">
+                                        <div class="timeline-header">
+                                            <div>
+                                                <div class="timeline-exercise">深蹲</div>
+                                                <div class="timeline-date">2024年11月10日</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="timeline-stats">
+                                            <div class="timeline-stat">
+                                                <i data-lucide="Weight"></i>
+                                                <span>120 kg × 5 次</span>
+                                            </div>
+                                            <div class="timeline-stat">
+                                                <i data-lucide="Zap"></i>
+                                                <span>RPE 8.5</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="timeline-video" onclick="playVideo('video2')">
+                                            <img src="https://placehold.co/600x400/ec4899/white?text=Squat+Training" alt="Squat Video">
+                                            <div class="timeline-video-overlay">
+                                                <div class="timeline-video-play">
+                                                    <i data-lucide="Play"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="timeline-note">
+                                            <strong>我的感受:</strong> 深蹲蹲得很深，膝盖稳定性提升明显！
+                                        </div>
+                                        
+                                        <div class="timeline-coach-comment">
+                                            <div class="timeline-coach-comment-header">
+                                                <i data-lucide="MessageSquare"></i>
+                                                我的点评
+                                            </div>
+                                            <div>深度控制得很好！注意保持核心收紧，髋部启动。</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Coach's Observations -->
+                            <div class="profile-section">
+                                <div class="flex justify-between items-center mb-md">
+                                    <h2 class="section-title mb-0">
+                                        <i data-lucide="Eye"></i>
+                                        我的观察与建议
+                                    </h2>
+                                    <button class="btn btn-secondary btn-sm">
+                                        <i data-lucide="Edit" class="w-4 h-4 mr-1"></i>
+                                        编辑
+                                    </button>
+                                </div>
+                                <p class="text-secondary text-sm mb-md">记录对学员的专业观察和长期建议</p>
+                                
+                                <div class="coach-notes-content">
+                                    <p><strong>动作模式评估:</strong> 卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。</p>
+                                    <p class="mt-sm"><strong>训练建议:</strong> 近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。</p>
+                                    <p class="mt-sm"><strong>下阶段目标:</strong> 重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Exercise Modal -->
+    <div class="modal-overlay" id="add-exercise-modal">
+        <div class="modal">
+            <div class="card-header">
+                <h3 class="text-lg font-semibold">从动作库添加</h3>
+                <button onclick="closeAddExerciseModal()"><i data-lucide="X"></i></button>
+            </div>
+            <div class="card-body">
+                <input type="text" class="input-field mb-md" placeholder="搜索动作...">
+                <div class="h-64 overflow-y-auto" id="modal-exercise-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Import Week Modal -->
+    <div class="modal-overlay" id="import-week-modal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="font-bold text-lg">导入周内容</h3>
+                <button onclick="closeImportWeekModal()"><i data-lucide="X"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary mb-md">选择要从哪一周导入内容到 <span id="import-target-week-name" class="font-semibold"></span>：</p>
+                <select class="input-field mb-lg" id="import-week-select">
+                    <!-- Populated by JS -->
+                </select>
+                <div class="flex justify-end gap-sm">
+                    <button class="btn btn-secondary" onclick="closeImportWeekModal()">取消</button>
+                    <button class="btn btn-primary" onclick="confirmImportWeek()">导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Template Modal (Client Mode) -->
+    <div class="modal-overlay" id="import-template-modal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="font-bold text-lg">导入计划模板</h3>
+                <button onclick="closeImportTemplateModal()"><i data-lucide="X"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary mb-md">该学员暂无计划，请选择一个模板作为初始计划：</p>
+                <div class="h-64 overflow-y-auto border border-gray-200 rounded-lg mb-lg" id="template-select-list">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="flex justify-end gap-sm">
+                    <button class="btn btn-secondary" onclick="closeImportTemplateModal()">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let planData = [];
+        let currentWeekIndex = 0; // 0-based
+        let currentDayIndex = 0; // 0-based (0-6)
+        let importTargetWeekIndex = null;
+        let clientId = null;
+        let templateId = null;
+        let clientMode = false;
+        const STORAGE_KEY = 'coachlink_plan_data';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            populateModalExercises();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            clientId = urlParams.get('clientId');
+            templateId = urlParams.get('id');
+            const mode = urlParams.get('mode');
+            
+            if (mode === 'new_template') {
+                createNewTemplate();
+            } else if (clientId) {
+                clientMode = true;
+                initClientMode();
+            } else if (templateId) {
+                initTemplateMode();
+            } else {
+                initPlanData();
+            }
+            
+            // Auto-save on close
+            window.addEventListener('beforeunload', () => {
+                saveCurrentDayState();
+                savePlanData();
+            });
+        });
+
+        function initClientMode() {
+            const clients = Store.get('clients');
+            const client = clients.find(c => c.id === clientId);
+            if (!client) {
+                alert('未找到学员信息');
+                window.location.href = 'clients.html';
+                return;
+            }
+
+            // Populate Profile Data
+            document.getElementById('profile-name').textContent = client.name;
+            document.getElementById('info-name').textContent = client.name;
+            document.getElementById('profile-avatar').textContent = client.name.charAt(0);
+
+            // Update Header
+            document.querySelector('.text-xl').textContent = `${client.name} 的训练计划`;
+            document.querySelector('.text-secondary.text-sm').textContent = client.plan || '暂无计划';
+            
+            // Show Profile Button
+            document.getElementById('view-profile-btn').style.display = 'inline-flex';
+            
+            // Hide Save Template Button (Client Mode)
+            document.getElementById('save-template-btn').style.display = 'none';
+
+            // Load Client Plan
+            const clientPlans = Store.get('clientPlans') || {};
+            if (clientPlans[clientId] && clientPlans[clientId].length > 0) {
+                planData = clientPlans[clientId];
+                renderSidebar();
+                switchDay(0, 0);
+            } else {
+                // No plan, prompt to import template
+                planData = []; // Empty state
+                renderSidebar(); // Will show empty or basic structure
+                openImportTemplateModal();
+            }
+        }
+
+        function toggleProfile() {
+            const panel = document.getElementById('profile-panel');
+            const btn = document.getElementById('view-profile-btn');
+            
+            if (panel.classList.contains('open')) {
+                panel.classList.remove('open');
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            } else {
+                panel.classList.add('open');
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+                
+                // Initialize chart if not already done
+                if (!progressChart) {
+                    setTimeout(() => {
+                        initChart();
+                        lucide.createIcons();
+                    }, 300);
+                }
+            }
+        }
+
+        // --- Profile Chart & Logic ---
+        let progressChart;
+        const chartData = {
+            weight: {
+                labels: ['10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19'],
+                data: [78, 77.5, 77, 76.5, 76, 75.5, 75.2, 75],
+                label: '体重 (kg)',
+                color: 'rgb(99, 102, 241)'
+            },
+            bench: {
+                labels: ['10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19'],
+                data: [85, 87, 89, 91, 93, 95, 98, 100],
+                label: '卧推1RM (kg)',
+                color: 'rgb(236, 72, 153)'
+            },
+            squat: {
+                labels: ['10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19'],
+                data: [100, 102, 105, 108, 110, 113, 117, 120],
+                label: '深蹲1RM (kg)',
+                color: 'rgb(16, 185, 129)'
+            }
+        };
+
+        function initChart() {
+            const canvas = document.getElementById('progressChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const data = chartData.weight;
+            
+            progressChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: data.label,
+                        data: data.data,
+                        borderColor: data.color,
+                        backgroundColor: data.color + '20',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: data.color,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                 callback: function(value) {
+                                    return value + ' kg';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchChart(type) {
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const data = chartData[type];
+            progressChart.data.labels = data.labels;
+            progressChart.data.datasets[0].label = data.label;
+            progressChart.data.datasets[0].data = data.data;
+            progressChart.data.datasets[0].borderColor = data.color;
+            progressChart.data.datasets[0].backgroundColor = data.color + '20';
+            progressChart.data.datasets[0].pointBackgroundColor = data.color;
+            progressChart.update();
+        }
+
+        function playVideo(videoId) {
+            alert(`播放视频: ${videoId}\n(实际应用中会打开全屏视频播放器)`);
+        }
+
+        function initTemplateMode() {
+            const templates = Store.get('templates');
+            const template = templates.find(t => t.id === templateId);
+            
+            if (!template) {
+                alert('未找到模板');
+                window.location.href = 'templates.html';
+                return;
+            }
+
+            // Update Header
+            document.querySelector('.text-xl').textContent = `编辑模板: ${template.name}`;
+            document.querySelector('.text-secondary.text-sm').textContent = template.description || '';
+
+            // Load Plan Data
+            if (template.planData) {
+                planData = template.planData;
+            } else {
+                // Convert simple exercises list to planData (Mock conversion)
+                // Create a 4-week plan
+                planData = [];
+                for (let i = 1; i <= 4; i++) {
+                    planData.push({
+                        id: i,
+                        title: `第 ${i} 周`,
+                        days: Array.from({length: 7}, (_, j) => ({
+                            id: j + 1,
+                            title: `Day ${j + 1}`,
+                            content: j % 2 === 0 ? `<div class="p-md text-center text-secondary">Mock Content from ${template.name}</div>` : '',
+                            isRestDay: j % 2 !== 0
+                        }))
+                    });
+                }
+            }
+            
+            renderSidebar();
+            switchDay(0, 0);
+        }
+
+        function createNewTemplate() {
+            // Initialize empty plan
+            planData = [];
+            addWeek(false); // Add first week
+            
+            // Generate a new ID
+            templateId = 'tpl_' + Date.now();
+            
+            // Update Header
+            document.querySelector('.text-xl').textContent = `新建计划模板`;
+            document.querySelector('.text-secondary.text-sm').textContent = '请添加训练内容...';
+            
+            renderSidebar();
+            switchDay(0, 0);
+        }
+
+        function openImportTemplateModal() {
+            const modal = document.getElementById('import-template-modal');
+            const list = document.getElementById('template-select-list');
+            const templates = Store.get('templates');
+
+            list.innerHTML = templates.map(tpl => `
+                <div class="p-md border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center" onclick="importTemplate('${tpl.id}')">
+                    <div>
+                        <div class="font-semibold">${tpl.name}</div>
+                        <div class="text-xs text-secondary">${tpl.description}</div>
+                    </div>
+                    <i data-lucide="ChevronRight" size="16" class="text-secondary"></i>
+                </div>
+            `).join('');
+            lucide.createIcons();
+            modal.classList.add('active');
+        }
+
+        function closeImportTemplateModal() {
+            document.getElementById('import-template-modal').classList.remove('active');
+        }
+
+        function importTemplate(tplId) {
+            const templates = Store.get('templates');
+            const template = templates.find(t => t.id === tplId);
+            
+            if (!template) return;
+
+            // Mock conversion of template to planData structure (simplified)
+            // In a real app, this would be a more complex mapping
+            const newWeek = {
+                id: 1,
+                title: '第 1 周',
+                days: Array.from({length: 7}, (_, i) => ({
+                    id: i + 1,
+                    title: `Day ${i + 1}`,
+                    content: i < template.exercises.length ? `<div class="p-md text-center text-secondary">已导入 ${template.name} 内容 (Mock)</div>` : '',
+                    isRestDay: false
+                }))
+            };
+
+            // For demo, let's just use the mock plan structure we defined in mock_data.js for stu_001 if available, or generate a basic one
+            // Actually, let's just create a 4-week plan based on the template
+            planData = [];
+            for (let i = 1; i <= 4; i++) {
+                planData.push({
+                    id: i,
+                    title: `第 ${i} 周`,
+                    days: Array.from({length: 7}, (_, j) => ({
+                        id: j + 1,
+                        title: `Day ${j + 1}`,
+                        content: j % 2 === 0 ? `<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">示例动作</div><div class="text-xs text-secondary">来自模板: ${template.name}</div></div></div></div>` : '',
+                        isRestDay: j % 2 !== 0
+                    }))
+                });
+            }
+
+            savePlanData();
+            renderSidebar();
+            switchDay(0, 0);
+            closeImportTemplateModal();
+            showToast(`已导入模板：${template.name}`);
+            
+            // Update client plan name in mock store
+            const clients = Store.get('clients');
+            const clientIndex = clients.findIndex(c => c.id === clientId);
+            if (clientIndex > -1) {
+                clients[clientIndex].plan = template.name;
+                Store.set('clients', clients);
+                document.querySelector('.text-secondary.text-sm').textContent = template.name;
+            }
+        }
+
+        function savePlanData() {
+            if (clientMode) {
+                const clientPlans = Store.get('clientPlans') || {};
+                clientPlans[clientId] = planData;
+                Store.set('clientPlans', clientPlans);
+            } else if (templateId) {
+                const templates = Store.get('templates') || [];
+                let templateIndex = templates.findIndex(t => t.id === templateId);
+                
+                if (templateIndex === -1) {
+                    // New template
+                    templates.push({
+                        id: templateId,
+                        name: '新计划模板 ' + new Date().toLocaleDateString(),
+                        description: 'Created via Plan Editor',
+                        exercises: [], 
+                        planData: planData
+                    });
+                } else {
+                    // Update existing
+                    templates[templateIndex].planData = planData;
+                }
+                Store.set('templates', templates);
+            } else {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(planData));
+            }
+        }
+
+        function initPlanData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    planData = JSON.parse(stored);
+                    renderSidebar();
+                    
+                    // Load content for the first day
+                    const day = planData[0].days[0];
+                    if (day.content) {
+                        document.getElementById('day-content').innerHTML = day.content;
+                    }
+                    document.getElementById('current-day-title').textContent = day.title;
+                    document.getElementById('is-rest-day').checked = day.isRestDay || false;
+                    
+                    updateImportDropdown();
+                    return;
+                } catch (e) {
+                    console.error('Failed to load plan data', e);
+                }
+            }
+
+            // Initialize with one week
+            addWeek(false); 
+            
+            // Capture initial content for Week 1 Day 1 from the DOM
+            const initialContent = document.getElementById('day-content').innerHTML;
+            planData[0].days[0].content = initialContent;
+            
+            renderSidebar();
+            updateImportDropdown();
+            savePlanData();
+        }
+
+        function addWeek(shouldRender = true) {
+            const weekNum = planData.length + 1;
+            const newWeek = {
+                id: weekNum,
+                title: `第 ${weekNum} 周`,
+                days: []
+            };
+
+            for (let i = 1; i <= 7; i++) {
+                newWeek.days.push({
+                    id: i,
+                    title: `Day ${i}`,
+                    content: null, // null means empty
+                    isRestDay: false
+                });
+            }
+
+            planData.push(newWeek);
+            savePlanData();
+
+            if (shouldRender) {
+                renderSidebar();
+                showToast(`已添加第 ${weekNum} 周`);
+                
+                // Prompt for import if it's not the first week
+                if (planData.length > 1) {
+                    if(confirm('是否从之前的周复制内容？')) {
+                        openImportWeekModal(planData.length - 1); // Index of the new week
+                    }
+                }
+            }
+        }
+
+        function deleteWeek(wIndex, event) {
+            event.stopPropagation();
+            
+            if (planData.length <= 1) {
+                showToast('至少保留一周训练计划', 'error');
+                return;
+            }
+
+            if (!confirm(`确定要删除 ${planData[wIndex].title} 吗？此操作不可撤销。`)) return;
+
+            planData.splice(wIndex, 1);
+            
+            // Re-index titles
+            planData.forEach((week, index) => {
+                week.id = index + 1;
+                week.title = `第 ${index + 1} 周`;
+            });
+
+            // Adjust current indices
+            if (currentWeekIndex === wIndex) {
+                // Deleted current week, go to previous or 0
+                currentWeekIndex = Math.max(0, wIndex - 1);
+            } else if (currentWeekIndex > wIndex) {
+                // Deleted a week before current, shift index down
+                currentWeekIndex--;
+            }
+            
+            savePlanData();
+            renderSidebar();
+            switchDay(currentWeekIndex, currentDayIndex);
+            showToast('已删除训练周');
+        }
+
+        function switchDay(weekIndex, dayIndex) {
+            // Save current day state first
+            saveCurrentDayState();
+
+            currentWeekIndex = weekIndex;
+            currentDayIndex = dayIndex;
+            
+            const week = planData[weekIndex];
+            const day = week.days[dayIndex];
+            
+            // Update UI
+            document.querySelectorAll('.day-item').forEach(el => el.classList.remove('active'));
+            const activeItem = document.querySelector(`.day-item[onclick="switchDay(${weekIndex}, ${dayIndex})"]`);
+            if (activeItem) activeItem.classList.add('active');
+
+            document.getElementById('current-day-title').textContent = day.title;
+            document.getElementById('is-rest-day').checked = day.isRestDay || false;
+            
+            // Render Content
+            const contentContainer = document.getElementById('day-content');
+            if (day.content) {
+                contentContainer.innerHTML = day.content;
+            } else {
+                contentContainer.innerHTML = `
+                    <div class="text-center p-lg border-2 border-dashed border-gray-200 rounded-lg text-secondary">
+                        <i data-lucide="Plus" class="mx-auto mb-2"></i>
+                        <p>此训练日暂无内容</p>
+                        <button class="btn btn-primary btn-sm mt-sm" onclick="openAddExerciseModal()">添加动作</button>
+                    </div>
+                    <div class="global-notes">
+                        <h4 class="font-semibold mb-sm">全局/本日备注</h4>
+                        <textarea class="input-field" style="min-height: 80px;" placeholder="填写热身流程、注意事项等..."></textarea>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+            
+            updateImportDropdown();
+
+            // Render Execution Review if in Client Mode
+            if (clientMode) {
+                renderClientExecution(weekIndex, dayIndex);
+            }
+        }
+
+        function saveCurrentDayState() {
+            if (planData[currentWeekIndex] && planData[currentWeekIndex].days[currentDayIndex]) {
+                // Clone the content to clean it up
+                const contentClone = document.getElementById('day-content').cloneNode(true);
+                
+                // Remove execution details
+                contentClone.querySelectorAll('.execution-details').forEach(el => el.remove());
+                
+                // Remove read-only styling and re-enable inputs
+                contentClone.querySelectorAll('.read-only-row').forEach(row => {
+                    row.classList.remove('read-only-row');
+                    row.querySelectorAll('input, select, textarea').forEach(el => el.removeAttribute('disabled'));
+                    row.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = 'true');
+                });
+
+                planData[currentWeekIndex].days[currentDayIndex].content = contentClone.innerHTML;
+                planData[currentWeekIndex].days[currentDayIndex].isRestDay = document.getElementById('is-rest-day').checked;
+            }
+        }
+
+        function renderClientExecution(weekIndex, dayIndex) {
+            // Clear existing global feedback first
+            document.querySelectorAll('.global-execution-feedback').forEach(el => el.remove());
+
+            const executionData = Store.get('clientExecution') || {};
+            const clientExec = executionData[clientId];
+            const key = `week_${weekIndex + 1}_day_${dayIndex + 1}`;
+            
+            if (!clientExec || !clientExec[key]) return;
+            
+            const data = clientExec[key];
+            const exerciseRows = document.querySelectorAll('.exercise-row');
+            
+            exerciseRows.forEach(row => {
+                const nameEl = row.querySelector('.font-semibold.text-lg');
+                if (!nameEl) return;
+                
+                const exerciseName = nameEl.textContent.trim();
+                const execData = data.exercises.find(e => e.name === exerciseName);
+                
+                if (execData) {
+                    // Disable Plan Inputs for this row
+                    row.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
+                    row.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = false);
+                    row.classList.add('read-only-row');
+
+                    // Create Execution HTML
+                    const execHtml = `
+                        <div class="execution-details mt-md bg-white rounded-lg border border-blue-200 overflow-hidden shadow-sm">
+                            <div class="flex justify-between items-center px-md py-sm cursor-pointer hover:bg-blue-50 transition-colors border-b border-blue-200 bg-blue-50" onclick="toggleExecution(this)">
+                                <div class="flex items-center gap-sm">
+                                    <i data-lucide="CheckCircle2" size="18" class="text-blue-600"></i>
+                                    <span class="font-semibold text-base text-blue-900">学员执行情况</span>
+                                </div>
+                                <i data-lucide="ChevronDown" size="18" class="text-blue-600 transform transition-transform"></i>
+                            </div>
+                            <div class="execution-content hidden">
+                                ${execData.sets && execData.sets.length > 0 ? `
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-gray-50 border-b border-gray-200">
+                                            <tr>
+                                                <th class="px-md py-sm text-left font-semibold text-gray-700" style="width: 80px;">组数</th>
+                                                <th class="px-md py-sm text-left font-semibold text-gray-700" style="width: 100px;">重量</th>
+                                                <th class="px-md py-sm text-left font-semibold text-gray-700" style="width: 80px;">次数</th>
+                                                <th class="px-md py-sm text-left font-semibold text-gray-700" style="width: 80px;">RPE</th>
+                                                <th class="px-md py-sm text-left font-semibold text-gray-700" style="width: 100px;">组间休息</th>
+                                                <th class="px-md py-sm text-left font-semibold text-gray-700">备注</th>
+                                                <th class="px-md py-sm text-center font-semibold text-gray-700" style="width: 100px;">动作视频</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${execData.sets.map((set, idx) => `
+                                                <tr class="border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
+                                                    <td class="px-md py-sm font-medium text-blue-900">第 ${idx + 1} 组</td>
+                                                    <td class="px-md py-sm font-semibold text-gray-900">${set.weight}</td>
+                                                    <td class="px-md py-sm font-semibold text-gray-900">${set.reps}</td>
+                                                    <td class="px-md py-sm">
+                                                        ${set.rpe ? `<span class="inline-block bg-orange-50 text-orange-700 px-2 py-0.5 rounded border border-orange-200 font-medium">${set.rpe}</span>` : '-'}
+                                                    </td>
+                                                    <td class="px-md py-sm text-gray-700">${set.rest || '-'}</td>
+                                                    <td class="px-md py-sm">
+                                                        ${set.note ? `<span class="text-orange-600 text-xs">${set.note}</span>` : '-'}
+                                                    </td>
+                                                    <td class="px-md py-sm text-center">
+                                                        ${set.video ? `
+                                                            <a href="${set.video}" target="_blank" class="inline-flex items-center gap-1 text-primary hover:text-blue-700 font-medium hover:underline transition-colors">
+                                                                <i data-lucide="Video" size="14"></i>
+                                                                查看
+                                                            </a>
+                                                        ` : '-'}
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                ` : '<div class="text-sm text-gray-500 p-md text-center">无详细组数据</div>'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Insert after the row details or param grid
+                    row.insertAdjacentHTML('beforeend', execHtml);
+                }
+            });
+            
+            // Also render general feedback if present
+            if (data.feedback) {
+                const feedbackHtml = `
+                    <div class="global-execution-feedback mt-lg p-md bg-orange-50 rounded-lg border border-orange-100">
+                        <h4 class="font-semibold text-orange-800 mb-xs flex items-center gap-xs">
+                            <i data-lucide="MessageSquare" size="18"></i> 学员今日反馈
+                        </h4>
+                        <p class="text-sm text-orange-900">"${data.feedback}"</p>
+                    </div>
+                `;
+                document.querySelector('.editor-main').insertAdjacentHTML('beforeend', feedbackHtml);
+            }
+            
+            lucide.createIcons();
+        }
+
+        function toggleExecution(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('[data-lucide="ChevronDown"]');
+            
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('week-list-container');
+            container.innerHTML = '';
+
+            planData.forEach((week, wIndex) => {
+                const weekHeader = document.createElement('div');
+                weekHeader.className = 'week-header';
+                weekHeader.innerHTML = `
+                    <div class="flex justify-between items-center w-full">
+                        <span>${week.title}</span>
+                        <div class="flex gap-xs">
+                            <button class="btn-icon-xs" title="从其他周导入" onclick="openImportWeekModal(${wIndex})">
+                                <i data-lucide="Import" size="14"></i>
+                            </button>
+                            <button class="btn-icon-xs text-danger" title="删除本周" onclick="deleteWeek(${wIndex}, event)">
+                                <i data-lucide="Trash2" size="14"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(weekHeader);
+
+                week.days.forEach((day, dIndex) => {
+                    const dayItem = document.createElement('div');
+                    dayItem.className = `day-item ${wIndex === currentWeekIndex && dIndex === currentDayIndex ? 'active' : ''}`;
+                    dayItem.onclick = () => switchDay(wIndex, dIndex);
+                    dayItem.innerHTML = `<span>${day.title}</span>`;
+                    container.appendChild(dayItem);
+                });
+            });
+            lucide.createIcons();
+        }
+
+        function updateImportDropdown() {
+            const select = document.getElementById('import-day-select');
+            select.innerHTML = '<option value="">复制往日内容...</option>';
+            
+            let hasOptions = false;
+            
+            // Iterate through all previous days
+            planData.forEach((week, wIndex) => {
+                week.days.forEach((day, dIndex) => {
+                    const isPrevious = (wIndex < currentWeekIndex) || (wIndex === currentWeekIndex && dIndex < currentDayIndex);
+                    
+                    if (isPrevious && day.content) {
+                        const option = document.createElement('option');
+                        option.value = `${wIndex}-${dIndex}`;
+                        option.textContent = `${week.title} - ${day.title}`;
+                        select.appendChild(option);
+                        hasOptions = true;
+                    }
+                });
+            });
+            
+            if (!hasOptions) {
+                select.disabled = true;
+                select.firstElementChild.textContent = "无往日内容";
+            } else {
+                select.disabled = false;
+            }
+        }
+
+        function importDayContent(value) {
+            if (!value) return;
+            
+            const [wIndex, dIndex] = value.split('-').map(Number);
+            const sourceContent = planData[wIndex].days[dIndex].content;
+
+            if (!sourceContent) {
+                showToast('暂无内容可复制', 'error');
+                return;
+            }
+
+            const sourceTitle = `${planData[wIndex].title} - ${planData[wIndex].days[dIndex].title}`;
+
+            if (confirm(`确定要将 ${sourceTitle} 的内容覆盖到当前训练日吗？`)) {
+                document.getElementById('day-content').innerHTML = sourceContent;
+                planData[currentWeekIndex].days[currentDayIndex].content = sourceContent;
+                
+                // Reset rest day status when importing content
+                planData[currentWeekIndex].days[currentDayIndex].isRestDay = false;
+                document.getElementById('is-rest-day').checked = false;
+                
+                savePlanData();
+                showToast(`已成功导入 ${sourceTitle} 的内容`);
+                lucide.createIcons();
+            }
+            
+            document.getElementById('import-day-select').value = "";
+        }
+
+        function openImportWeekModal(targetWIndex) {
+            importTargetWeekIndex = targetWIndex;
+            const select = document.getElementById('import-week-select');
+            select.innerHTML = '';
+            
+            const targetWeekTitle = planData[targetWIndex].title;
+            document.getElementById('import-target-week-name').textContent = targetWeekTitle;
+
+            let hasOptions = false;
+            planData.forEach((week, wIndex) => {
+                if (wIndex < targetWIndex) {
+                    const hasContent = week.days.some(d => d.content);
+                    if (hasContent) {
+                        const option = document.createElement('option');
+                        option.value = wIndex;
+                        option.textContent = week.title;
+                        select.appendChild(option);
+                        hasOptions = true;
+                    }
+                }
+            });
+
+            if (!hasOptions) {
+                showToast('没有其他有内容的周可供导入', 'error');
+                return;
+            }
+
+            document.getElementById('import-week-modal').classList.add('active');
+        }
+
+        function closeImportWeekModal() {
+            document.getElementById('import-week-modal').classList.remove('active');
+            importTargetWeekIndex = null;
+        }
+
+        function confirmImportWeek() {
+            const select = document.getElementById('import-week-select');
+            const sourceWIndex = parseInt(select.value);
+            
+            if (isNaN(sourceWIndex)) return;
+
+            const sourceWeek = planData[sourceWIndex];
+            const targetWeek = planData[importTargetWeekIndex];
+
+            if (confirm(`确定要将 ${sourceWeek.title} 的所有内容覆盖到 ${targetWeek.title} 吗？此操作不可撤销。`)) {
+                sourceWeek.days.forEach((sDay, i) => {
+                    targetWeek.days[i].content = sDay.content;
+                    targetWeek.days[i].isRestDay = sDay.isRestDay;
+                });
+
+                savePlanData();
+                if (currentWeekIndex === importTargetWeekIndex) {
+                    switchDay(currentWeekIndex, currentDayIndex);
+                } else {
+                    showToast(`已成功导入 ${sourceWeek.title} 的内容`);
+                    closeImportWeekModal();
+                }
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#22c55e' : '#ef4444'};
+                color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 9999;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        function openAddExerciseModal() {
+            document.getElementById('add-exercise-modal').classList.add('active');
+        }
+
+        function closeAddExerciseModal() {
+            document.getElementById('add-exercise-modal').classList.remove('active');
+        }
+
+        function populateModalExercises() {
+            const list = document.getElementById('modal-exercise-list');
+            const exercises = Store.get('exercises');
+            
+            list.innerHTML = exercises.map(ex => `
+                <div class="p-sm hover:bg-gray-50 cursor-pointer border-b flex justify-between items-center" onclick="addExerciseToPlan('${ex.id}')">
+                    <div>
+                        <div class="font-medium">${ex.name}</div>
+                        <div class="text-xs text-secondary">${ex.muscle}</div>
+                    </div>
+                    <i data-lucide="PlusCircle" class="text-primary"></i>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addExerciseToPlan(id) {
+            const ex = Store.get('exercises').find(e => e.id === id);
+            const container = document.querySelector('.global-notes');
+            const parent = document.getElementById('day-content');
+            
+            if (parent.querySelector('.text-center.p-lg')) {
+                parent.innerHTML = `
+                    <div class="global-notes">
+                        <h4 class="font-semibold mb-sm">全局/本日备注</h4>
+                        <textarea class="input-field" style="min-height: 80px;" placeholder="填写热身流程、注意事项等..."></textarea>
+                    </div>
+                `;
+            }
+
+            const newRow = document.createElement('div');
+            newRow.className = 'exercise-row';
+            newRow.innerHTML = `
+                <div class="row-header">
+                    <div class="cursor-move text-secondary"><i data-lucide="GripVertical"></i></div>
+                    <div class="flex-1">
+                        <div class="font-semibold text-lg text-primary hover:underline cursor-pointer" onclick="viewExerciseDetails('${ex.id}')">${ex.name}</div>
+                        <div class="text-xs text-secondary">${ex.muscle} · ${ex.equipment}</div>
+                    </div>
+                    <button class="text-danger p-sm hover:bg-red-50 rounded" onclick="this.closest('.exercise-row').remove()"><i data-lucide="Trash2" size="18"></i></button>
+                </div>
+                
+                <div class="row-details" contenteditable="true">
+                    ${ex.details || '暂无执行细节，点击编辑...'}
+                </div>
+
+                <div class="param-grid">
+                    <div>
+                        <label class="text-xs text-secondary block mb-1">组数</label>
+                        <input type="text" class="input-field" value="3">
+                    </div>
+                    <div>
+                        <label class="text-xs text-secondary block mb-1">次数</label>
+                        <input type="text" class="input-field" value="10">
+                    </div>
+                    <div>
+                        <label class="text-xs text-secondary block mb-1">重量/强度逻辑</label>
+                        <select class="input-field">
+                            <option>绝对力量 (f(1RM))</option>
+                            <option>相对力量 (f(1RM) - BW)</option>
+                            <option>RPE (自觉运动强度)</option>
+                            <option>固定重量</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-secondary block mb-1">组间休息</label>
+                        <input type="text" class="input-field" value="60s">
+                    </div>
+                </div>
+            `;
+            
+            // Insert before the global notes
+            const notes = parent.querySelector('.global-notes');
+            if (notes) {
+                parent.insertBefore(newRow, notes);
+            } else {
+                parent.appendChild(newRow);
+            }
+            
+            lucide.createIcons();
+            closeAddExerciseModal();
+        }
+
+        function viewExerciseDetails(id) {
+            const ex = Store.get('exercises').find(e => e.id === id);
+            if (!ex) {
+                showToast('未找到动作详情', 'error');
+                return;
+            }
+            
+            document.getElementById('view-ex-title').textContent = ex.name;
+            document.getElementById('view-ex-muscle').textContent = ex.muscle;
+            document.getElementById('view-ex-equipment').textContent = ex.equipment;
+            document.getElementById('view-ex-desc').textContent = ex.details || '暂无详情';
+            
+            const videoContainer = document.getElementById('view-ex-video-container');
+            if (ex.videoUrl) {
+                videoContainer.innerHTML = `<video src="${ex.videoUrl}" controls class="w-full h-full object-cover"></video>`;
+            } else {
+                videoContainer.innerHTML = `
+                    <div class="text-center">
+                        <i data-lucide="VideoOff" size="32" class="mb-xs opacity-50 mx-auto"></i>
+                        <div class="text-sm opacity-75">暂无演示视频</div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('view-exercise-modal').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeViewExerciseModal() {
+            document.getElementById('view-exercise-modal').classList.remove('active');
+            const video = document.querySelector('#view-ex-video-container video');
+            if (video) video.pause();
+        }
+
+        // Add CSS animation for toast
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+    <!-- View Exercise Modal -->
+    <div id="view-exercise-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="font-semibold text-lg" id="view-ex-title">动作详情</h3>
+                <button class="btn-icon" onclick="closeViewExerciseModal()"><i data-lucide="X"></i></button>
+            </div>
+            <div class="modal-body p-md">
+                <div class="mb-md">
+                    <span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded" id="view-ex-muscle"></span>
+                    <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded ml-2" id="view-ex-equipment"></span>
+                    <p class="text-secondary mt-sm text-sm leading-relaxed" id="view-ex-desc"></p>
+                </div>
+                <div id="view-ex-video-container" class="rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center text-white">
+                    <!-- Video or Placeholder -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary w-full" onclick="closeViewExerciseModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+
