@@ -91,11 +91,69 @@
                         <button class="btn btn-secondary btn-sm flex-1">
                             <i data-lucide="Copy" size="14" class="mr-1"></i> 复制
                         </button>
+                        <button class="btn btn-secondary btn-sm" onclick="confirmDeleteTemplate('${tpl.id}', '${tpl.name.replace(/'/g, "\\'")}')">
+                            <i data-lucide="Trash2" size="14" style="color: var(--danger-color);"></i>
+                        </button>
                     </div>
                 </div>
             `).join('');
             lucide.createIcons();
         }
+
+        function confirmDeleteTemplate(templateId, templateName) {
+            if (confirm(`确定要删除模板 "${templateName}" 吗？\n\n删除后将无法恢复。`)) {
+                deleteTemplate(templateId);
+            }
+        }
+
+        function deleteTemplate(templateId) {
+            let templates = Store.get('templates');
+            templates = templates.filter(t => t.id !== templateId);
+            Store.set('templates', templates);
+            
+            // Show success message
+            showToast('模板已删除');
+            
+            // Re-render the list
+            renderTemplates();
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#22c55e' : '#ef4444'};
+                color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 9999;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // Add CSS animation for toast
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
