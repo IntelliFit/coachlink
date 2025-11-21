@@ -7,6 +7,17 @@ import type { GetAllCoachesDto, GetAllCoachesResponseDto } from "@/app/api/coach
 import type { GetSpecialtiesResponseDto } from "../api/coach/get-specialties/entity";
 import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto } from "../api/coach/get-coach-rulepacks/entity";
 import { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/entity";
+import { GetStudentsResponseDto } from "../api/coach/get-students/entity";
+
+// 添加DeleteContentDto类型
+interface DeleteContentDto {
+    id: string;
+}
+
+// 添加UpdateContentDto类型
+interface UpdateContentDto extends Partial<PublishContentDto> {
+    id: string;
+}
 
 class CoachService extends BaseService {
     async getAllCoaches(reqData: GetAllCoachesDto) {
@@ -18,8 +29,10 @@ class CoachService extends BaseService {
         return null;
     }
 
-    async getStudents() {
-        const res = await this.post<CoachStudentItem[]>('get-students');
+    async getStudents(pagination?: { page: number; limit: number }) {
+        const res = await this.post<GetStudentsResponseDto>('get-students', {
+            pagination: pagination || { page: 0, limit: 20 }
+        });
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -36,6 +49,22 @@ class CoachService extends BaseService {
 
     async publishContent(reqData: PublishContentDto) {
         const res = await this.post<PublishContentResponseDto>('publish-content', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    // 添加更新内容的方法
+    async updateContent(reqData: UpdateContentDto) {
+        const res = await this.post<PublishContentResponseDto>('update-content', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    // 添加删除内容的方法
+    async deleteContent(contentId: string) {
+        const res = await this.post<DeleteContentDto>('delete-content', { id: contentId });
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

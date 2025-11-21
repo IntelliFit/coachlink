@@ -37,7 +37,7 @@ export async function POST(req: Request) {
             success: false,
             message: '找不到该训练计划或无权限操作',
             data: null
-        }, { status: 404 });
+        });
     }
 
     // 先删依赖项，再删主表（按外键/引用顺序）
