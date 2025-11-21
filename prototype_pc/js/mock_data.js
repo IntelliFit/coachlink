@@ -3,22 +3,33 @@
 const MockData = {
     // Dynamically determine user based on URL
     get currentUser() {
-        const isCoach = window.location.pathname.includes('/coach/');
-        return isCoach ? {
-            id: 'coach_001',
-            name: '张教练',
-            role: 'coach',
-            avatar: '张'
-        } : {
-            id: 'student_001',
-            name: '李明',
-            role: 'student',
-            avatar: '李'
-        };
+        const path = window.location.pathname;
+        if (path.includes('/coach/')) {
+            return {
+                id: 'coach_001',
+                name: '张教练',
+                role: 'coach',
+                avatar: '张'
+            };
+        } else if (path.includes('/admin/')) {
+            return {
+                id: 'admin_001',
+                name: '系统管理员',
+                role: 'admin',
+                avatar: '🛡️'
+            };
+        } else {
+            return {
+                id: 'student_001',
+                name: '李明',
+                role: 'student',
+                avatar: '李'
+            };
+        }
     },
     
     exercises: [
-        { id: 'ex_001', name: '引体向上', type: 'strength', muscle: 'back', equipment: 'bar', details: '双手宽握单杠，核心收紧，背部发力将身体拉起，直至下巴过杠。', videoUrl: 'https://example.com/pullup.mp4' },
+        { id: 'ex_001', name: '引体向上', type: 'strength', muscle: 'back', equipment: 'bar', details: '双手宽握单杠，核心收紧，背部发力将身体拉起,直至下巴过杠。', videoUrl: 'https://example.com/pullup.mp4' },
         { id: 'ex_002', name: '俯卧撑', type: 'strength', muscle: 'chest', equipment: 'bodyweight', details: '双手略宽于肩，身体呈一条直线，屈肘下放至胸部贴近地面，推起还原。', videoUrl: '' },
         { id: 'ex_003', name: '深蹲', type: 'strength', muscle: 'legs', equipment: 'barbell', details: '双脚开立与肩同宽，背部挺直，屈髋屈膝下蹲，直至大腿平行地面。', videoUrl: '' },
         { id: 'ex_004', name: '平板支撑', type: 'core', muscle: 'abs', equipment: 'bodyweight', details: '前臂撑地，身体呈一条直线，保持核心收紧。', videoUrl: '' },
@@ -121,10 +132,86 @@ const MockData = {
                 ]
             }
         }
-    }
+    },
+
+    // Leaderboard Submissions
+    submissions: [
+        {
+            id: 'sub_001',
+            userId: 'student_001',
+            userName: '李明',
+            userAvatar: '李',
+            leaderboardId: 'pullup_weighted',
+            value: 120.5,
+            details: { weight: 50, bodyweight: 70.5, reps: 1, ruleType: 'strict' },
+            videoUrl: 'https://example.com/video1.mp4',
+            status: 'approved',
+            timestamp: Date.now() - 86400000 * 7,
+            reviewedAt: Date.now() - 86400000 * 6,
+            reviewerId: 'coach_001',
+            reviewerName: '张教练'
+        },
+        {
+            id: 'sub_002',
+            userId: 'student_002',
+            userName: '王强',
+            userAvatar: '王',
+            leaderboardId: 'pullup_weighted',
+            value: 135.0,
+            details: { weight: 60, bodyweight: 75, reps: 1, ruleType: 'strict' },
+            videoUrl: 'https://example.com/video2.mp4',
+            status: 'approved',
+            timestamp: Date.now() - 86400000 * 5,
+            reviewedAt: Date.now() - 86400000 * 4,
+            reviewerId: 'coach_001',
+            reviewerName: '张教练'
+        },
+        {
+            id: 'sub_003',
+            userId: 'student_001',
+            userName: '李明',
+            userAvatar: '李',
+            leaderboardId: 'squat',
+            value: 150,
+            details: { weight: 150, bodyweight: 70.5 },
+            videoUrl: 'https://example.com/video3.mp4',
+            status: 'pending',
+            timestamp: Date.now() - 86400000 * 1
+        },
+        {
+            id: 'sub_004',
+            userId: 'student_003',
+            userName: '赵丽',
+            userAvatar: '赵',
+            leaderboardId: 'pullup_bodyweight',
+            value: 25,
+            details: { reps: 25, bodyweight: 58 },
+            videoUrl: 'https://example.com/video4.mp4',
+            status: 'approved',
+            timestamp: Date.now() - 86400000 * 10,
+            reviewedAt: Date.now() - 86400000 * 9,
+            reviewerId: 'coach_001',
+            reviewerName: '张教练'
+        },
+        {
+            id: 'sub_005',
+            userId: 'student_004',
+            userName: '孙浩',
+            userAvatar: '孙',
+            leaderboardId: 'bench_press',
+            value: 120,
+            details: { weight: 120, bodyweight: 80, ruleType: 'competition' },
+            videoUrl: 'https://example.com/video5.mp4',
+            status: 'approved',
+            timestamp: Date.now() - 86400000 * 3,
+            reviewedAt: Date.now() - 86400000 * 2,
+            reviewerId: 'coach_001',
+            reviewerName: '张教练'
+        }
+    ]
 };
 
-// Simple LocalStorage Wrapper to persist changes during session
+// Simple Store wrapper for localStorage
 const Store = {
     get: (key) => {
         const data = localStorage.getItem(`coachlink_${key}`);
@@ -139,6 +226,9 @@ const Store = {
         }
         if (!localStorage.getItem('coachlink_templates')) {
             Store.set('templates', MockData.templates);
+        }
+        if (!localStorage.getItem('coachlink_submissions')) {
+            Store.set('submissions', MockData.submissions);
         }
         // Always update these for development/testing of new features
         Store.set('clientPlans', MockData.clientPlans);

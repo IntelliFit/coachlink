@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交成绩 - CoachLink</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <!-- Back Button -->
+                <div class="mb-md">
+                    <button class="btn btn-secondary btn-sm" onclick="goBack()" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <i data-lucide="ArrowLeft" size="16"></i>
+                        <span>返回排行榜</span>
+                    </button>
+                </div>
+
+                <h1 class="text-2xl font-bold mb-md">提交成绩</h1>
+
+                <!-- Leaderboard Selection -->
+                <div class="card mb-lg" id="selection-card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">1. 选择挑战项目</h3>
+                    </div>
+                    <div class="p-md">
+                        <div class="grid grid-cols-3 gap-md" id="leaderboard-selection">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submission Form -->
+                <div class="card" id="submission-form-container" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="font-semibold">2. 填写成绩数据</h3>
+                        <p class="text-sm text-secondary mt-xs" id="form-description"></p>
+                    </div>
+                    <div class="p-lg">
+                        <form id="submission-form" onsubmit="submitRecord(event)">
+                            <div id="dynamic-form-fields">
+                                <!-- Dynamically generated based on config -->
+                            </div>
+
+                            <div class="flex gap-md mt-lg">
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-lucide="Send" size="16"></i>
+                                    提交成绩
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="resetForm()">重置</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/leaderboard_config.js"></script>
+    <script src="../js/app.js"></script>
+    
+    <script>
+        let selectedLeaderboardId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            renderLeaderboardSelection();
+            
+            // Check for URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const leaderboardId = urlParams.get('leaderboardId');
+            const variantId = urlParams.get('variantId');
+            
+            if (leaderboardId) {
+                // Hide selection card
+                document.getElementById('selection-card').style.display = 'none';
+                
+                // Update form header title to remove numbering
+                const formHeader = document.querySelector('#submission-form-container .card-header h3');
+                if (formHeader) formHeader.textContent = '填写成绩数据';
+                
+                selectLeaderboard(leaderboardId, variantId);
+            }
+        });
+
+        function renderLeaderboardSelection() {
+            const container = document.getElementById('leaderboard-selection');
+            const leaderboards = getAllLeaderboards();
+            
+            container.innerHTML = leaderboards.map(lb => `
+                <div 
+                    class="p-lg text-center rounded-lg cursor-pointer transition-all hover:shadow-md"
+                    style="border: 2px solid var(--color-border); background: white;"
+                    id="select-${lb.id}"
+                    onclick="selectLeaderboard('${lb.id}')">
+                    <i data-lucide="${lb.icon}" size="32" class="text-primary mx-auto"></i>
+                    <div class="font-semibold mt-sm">${lb.title}</div>
+                    <div class="text-xs text-secondary mt-xs">${lb.description || ''}</div>
+                </div>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        function selectLeaderboard(leaderboardId, variantId = null) {
+            selectedLeaderboardId = leaderboardId;
+            const config = getLeaderboardConfig(leaderboardId);
+            
+            // Update selection styling
+            document.querySelectorAll('[id^="select-"]').forEach(card => {
+                card.style.borderColor = 'var(--color-border)';
+                card.style.background = 'white';
+            });
+            const selectedCard = document.getElementById(`select-${leaderboardId}`);
+            if (selectedCard) {
+                selectedCard.style.borderColor = 'var(--color-primary)';
+                selectedCard.style.background = 'var(--color-bg)';
+            }
+            
+            // Show form
+            document.getElementById('submission-form-container').style.display = 'block';
+            document.getElementById('form-description').textContent = config.description || '';
+            
+            // Generate form fields
+            renderFormFields(config);
+            
+            // Pre-select variant if provided
+            if (variantId) {
+                const variantSelect = document.querySelector('select[name="variant"]');
+                if (variantSelect) {
+                    variantSelect.value = variantId;
+                }
+            }
+            
+            // Scroll to form
+            document.getElementById('submission-form-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderFormFields(config) {
+            const container = document.getElementById('dynamic-form-fields');
+            
+            container.innerHTML = config.formFields.map(field => {
+                if (field.type === 'select') {
+                    return `
+                        <div class="mb-md">
+                            <label class="block font-medium mb-xs">${field.label}${field.required ? ' *' : ''}</label>
+                            <select 
+                                name="${field.name}" 
+                                class="w-full p-sm border border-gray-300 rounded"
+                                ${field.required ? 'required' : ''}>
+                                <option value="">请选择</option>
+                                ${field.options.map(opt => {
+                                    const ruleName = config.rules && config.rules[opt] ? config.rules[opt].name : opt;
+                                    return `<option value="${opt}">${ruleName}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="mb-md">
+                            <label class="block font-medium mb-xs">${field.label}${field.required ? ' *' : ''}</label>
+                            <input 
+                                type="${field.type}" 
+                                name="${field.name}" 
+                                class="w-full p-sm border border-gray-300 rounded"
+                                ${field.min !== undefined ? `min="${field.min}"` : ''}
+                                ${field.step !== undefined ? `step="${field.step}"` : ''}
+                                ${field.required ? 'required' : ''}
+                                placeholder="${field.label}">
+                        </div>
+                    `;
+                }
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        function submitRecord(event) {
+            event.preventDefault();
+            
+            if (!selectedLeaderboardId) {
+                alert('请先选择挑战项目');
+                return;
+            }
+            
+            const config = getLeaderboardConfig(selectedLeaderboardId);
+            const formData = new FormData(event.target);
+            const details = {};
+            
+            // Collect form data
+            for (let [key, value] of formData.entries()) {
+                details[key] = value;
+            }
+            
+            // Calculate score
+            const score = config.calculateScore(details);
+            
+            // Create submission
+            const submission = {
+                id: 'sub_' + Date.now(),
+                userId: MockData.currentUser.id,
+                userName: MockData.currentUser.name,
+                userAvatar: MockData.currentUser.avatar,
+                leaderboardId: selectedLeaderboardId,
+                value: score,
+                details: details,
+                videoUrl: details.videoUrl || '',
+                status: 'pending',
+                timestamp: Date.now()
+            };
+            
+            // Save to store
+            const submissions = Store.get('submissions') || [];
+            submissions.push(submission);
+            Store.set('submissions', submissions);
+            
+            // Show success message
+            if (confirm('成绩提交成功！正在等待教练审核。\n\n是否返回排行榜页面？')) {
+                window.location.href = 'leaderboard.html';
+            } else {
+                resetForm();
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('submission-form').reset();
+            document.getElementById('submission-form-container').style.display = 'none';
+            selectedLeaderboardId = null;
+            
+            // Reset selection styling
+            document.querySelectorAll('[id^="select-"]').forEach(card => {
+                card.style.borderColor = 'var(--color-border)';
+                card.style.background = 'white';
+            });
+        }
+
+        function goBack() {
+            window.location.href = 'leaderboard.html';
+        }
+    </script>
+
+    <style>
+        .grid {
+            display: grid;
+        }
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        @media (max-width: 768px) {
+            .grid-cols-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</body>
+</html>

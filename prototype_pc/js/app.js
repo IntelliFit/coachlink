@@ -13,19 +13,31 @@ const App = {
 
         // Determine if we are in coach or student view based on URL or simple check
         const isCoach = window.location.pathname.includes('/coach/');
+        const isAdmin = window.location.pathname.includes('/admin/');
         const user = MockData.currentUser;
         
-        const menuItems = isCoach ? [
-            { name: '概览', icon: 'LayoutDashboard', link: 'dashboard.html' },
-            { name: '动作库', icon: 'Dumbbell', link: 'library.html' },
-            { name: '模板库', icon: 'FileText', link: 'templates.html' },
-            { name: '学员管理', icon: 'Users', link: 'clients.html' },
-        ] : [
-            { name: '我的训练', icon: 'Calendar', link: 'dashboard.html' },
-            { name: '训练计划', icon: 'FileText', link: 'plan.html' },
-            { name: '发现教练', icon: 'Search', link: 'discover-coaches.html' },
-            { name: '个人档案', icon: 'User', link: 'profile.html' },
-        ];
+        let menuItems = [];
+        if (isAdmin) {
+            menuItems = [
+                { name: '成绩审核', icon: 'ClipboardCheck', link: 'review.html' },
+                // Add more admin links here if needed
+            ];
+        } else if (isCoach) {
+            menuItems = [
+                { name: '概览', icon: 'LayoutDashboard', link: 'dashboard.html' },
+                { name: '动作库', icon: 'Dumbbell', link: 'library.html' },
+                { name: '模板库', icon: 'FileText', link: 'templates.html' },
+                { name: '学员管理', icon: 'Users', link: 'clients.html' },
+            ];
+        } else {
+            menuItems = [
+                { name: '我的训练', icon: 'Calendar', link: 'dashboard.html' },
+                { name: '训练计划', icon: 'FileText', link: 'plan.html' },
+                { name: '排行榜', icon: 'Trophy', link: 'leaderboard.html' },
+                { name: '发现教练', icon: 'Search', link: 'discover-coaches.html' },
+                { name: '个人档案', icon: 'User', link: 'profile.html' },
+            ];
+        }
 
 
         const navHtml = menuItems.map(item => `
@@ -49,7 +61,7 @@ const App = {
                 <div class="user-profile">
                     <div class="text-right mr-2">
                         <div class="text-sm font-medium">${user.name}</div>
-                        <div class="text-xs text-secondary">${user.role === 'coach' ? '专业教练' : '学员'}</div>
+                        <div class="text-xs text-secondary">${user.role === 'admin' ? '管理员' : (user.role === 'coach' ? '专业教练' : '学员')}</div>
                     </div>
                     <div class="avatar">${user.avatar}</div>
                 </div>
@@ -75,7 +87,7 @@ const App = {
             <div class="user-profile">
                 <div class="text-right mr-2">
                     <div class="text-sm font-medium">${user.name}</div>
-                    <div class="text-xs text-secondary">${user.role === 'coach' ? '专业教练' : '学员'}</div>
+                    <div class="text-xs text-secondary">${user.role === 'admin' ? '管理员' : (user.role === 'coach' ? '专业教练' : '学员')}</div>
                 </div>
                 <div class="avatar">${user.avatar}</div>
             </div>
