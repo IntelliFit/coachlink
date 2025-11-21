@@ -399,32 +399,7 @@
                             教学内容
                         </h2>
                         
-                        <div class="content-item">
-                            <div>
-                                <div class="font-semibold mb-xs">力量举三大项完整教学</div>
-                                <div class="text-sm text-secondary">深蹲、卧推、硬拉的标准动作要领</div>
-                            </div>
-                            <span class="badge badge-success">免费</span>
-                        </div>
-
-                        <div class="content-item">
-                            <div>
-                                <div class="font-semibold mb-xs">如何突破训练平台期</div>
-                                <div class="text-sm text-secondary">5个实用技巧帮你持续进步</div>
-                            </div>
-                            <span class="badge badge-success">免费</span>
-                        </div>
-
-                        <div class="content-item locked">
-                            <div>
-                                <div class="font-semibold mb-xs">
-                                    <i data-lucide="Lock" size="16" style="display: inline; vertical-align: middle;"></i>
-                                    高级增肌营养方案
-                                </div>
-                                <div class="text-sm text-secondary">订阅后可查看完整内容</div>
-                            </div>
-                            <span class="badge badge-warning">付费学员</span>
-                        </div>
+                        <div id="teaching-content-list"></div>
                     </div>
 
                     <!-- Reviews -->
@@ -491,8 +466,135 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+
+            // Map discover-coaches?id to an internal coachId used in Store
+            const urlParams = new URLSearchParams(window.location.search);
+            const pageCoachNumericId = urlParams.get('id'); // e.g., "1"
+            const coachId = (pageCoachNumericId === '2') ? 'coach_002' : 'coach_001';
+
+            // Load profile/pricing/content
+            const profiles = Store.get('coachProfiles') || {};
+            const pricingMap = Store.get('coachPricing') || {};
+            const contentsMap = Store.get('coachContent') || {};
+            const subscriptions = Store.get('subscriptions') || {};
+            const currentUserId = MockData.currentUser.id;
+
+            const profile = profiles[coachId];
+            const pricing = pricingMap[coachId] || { aiMonthly: 99, premiumMonthly: 299 };
+            const contents = contentsMap[coachId] || [];
+            const myTier = (subscriptions[currentUserId] && subscriptions[currentUserId][coachId]) || 'none';
+
+            // Header info
+            if (profile) {
+                const avatarImg = document.querySelector('.profile-avatar');
+                if (avatarImg && profile.avatarUrl) avatarImg.src = profile.avatarUrl;
+                const nameEl = document.querySelector('.profile-name');
+                if (nameEl && profile.name) nameEl.textContent = profile.name;
+                const bioEl = document.querySelector('.profile-bio');
+                if (bioEl && profile.tagline) bioEl.textContent = profile.tagline;
+                const specWrap = document.querySelector('.profile-specialties');
+                if (specWrap && Array.isArray(profile.specialties)) {
+                    specWrap.innerHTML = profile.specialties.map(t => `<span class="badge badge-primary">${t}</span>`).join('');
+                }
+            }
+
+            // Pricing
+            const aiAmount = document.querySelector('.pricing-comparison .pricing-card .pricing-amount');
+            if (aiAmount) aiAmount.textContent = `¥${pricing.aiMonthly}`;
+            const premiumAmount = document.querySelector('.pricing-comparison .pricing-card.premium .pricing-amount');
+            if (premiumAmount) premiumAmount.textContent = `¥${pricing.premiumMonthly}`;
+
+            // About me
+            if (profile && profile.aboutHtml) {
+                // 找到“关于我”模块内容容器（h2之后的第一个div）
+                const aboutHeader = Array.from(document.querySelectorAll('.section-title')).find(el => el.textContent.includes('关于我'));
+                if (aboutHeader) {
+                    const container = aboutHeader.parentElement.querySelector('div:nth-of-type(2)') || aboutHeader.parentElement.querySelector('div');
+                    if (container) container.innerHTML = profile.aboutHtml;
+                }
+            }
+
+            // Success stories
+            if (profile && Array.isArray(profile.successStories)) {
+                const ssHeader = Array.from(document.querySelectorAll('.section-title')).find(el => el.textContent.includes('学员成功案例'));
+                const ssSection = ssHeader ? ssHeader.parentElement : null;
+                if (ssSection) {
+                    // 清空旧内容（保留标题）
+                    const oldItems = Array.from(ssSection.querySelectorAll('.success-story'));
+                    oldItems.forEach(el => el.remove());
+                    const itemsHtml = profile.successStories.map(story => `
+                        <div class="success-story">
+                            <div class="success-story-title">${story.title}</div>
+                            <div class="success-story-content">${story.content}</div>
+                            ${Array.isArray(story.images) && story.images.length ? `
+                                <div class="success-images">
+                                    ${story.images.map(src => `<img src="${src}" class="success-image" alt="成功案例">`).join('')}
+                                </div>` : ''}
+                        </div>
+                    `).join('');
+                    ssSection.insertAdjacentHTML('beforeend', itemsHtml);
+                }
+            }
+
+            // Teaching content
+            {
+                const list = document.getElementById('teaching-content-list');
+                const listHtml = contents.map((item, idx) => {
+                    const isLocked = item.visibility === 'paid' && (myTier === 'none');
+                    return `
+                        <div class="content-item ${isLocked ? 'locked' : ''}" ${!isLocked ? `onclick="openContentPreview('${coachId}', ${idx})"` : ''}>
+                            <div>
+                                <div class="font-semibold mb-xs">
+                                    ${isLocked ? '<i data-lucide="Lock" size="16" style="display:inline;vertical-align:middle;"></i> ' : ''}${item.title}
+                                </div>
+                                <div class="text-sm text-secondary">${item.summary || ''}</div>
+                            </div>
+                            <span class="badge ${isLocked ? 'badge-warning' : 'badge-success'}">${item.visibility === 'paid' ? '付费学员' : '免费'}</span>
+                        </div>`;
+                }).join('');
+                list.innerHTML = listHtml || '<div class="p-md text-secondary">暂无内容</div>';
+            }
+
             lucide.createIcons();
         });
+
+        // 内容预览模态框
+        function openContentPreview(coachId, index) {
+            const profiles = Store.get('coachProfiles') || {};
+            const contentsMap = Store.get('coachContent') || {};
+            const items = contentsMap[coachId] || [];
+            const item = items[index];
+            if (!item) return;
+
+            const modalHtml = `
+                <div id="content-modal" class="modal-overlay" style="display:flex; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+                    <div class="modal-content" style="background: #fff; width: 92%; max-width: 900px; border-radius: 12px; overflow: auto; max-height: 90vh;">
+                        <div class="flex justify-between items-center p-md" style="border-bottom: 1px solid var(--color-border);">
+                            <div class="font-semibold">${item.title}</div>
+                            <button class="btn btn-secondary btn-sm" onclick="closeContentPreview()"><i data-lucide='X' size='16'></i> 关闭</button>
+                        </div>
+                        <div class="p-lg">
+                            ${assembleBlocksHtml(item.blocks || [])}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            lucide.createIcons();
+        }
+        function closeContentPreview() {
+            const modal = document.getElementById('content-modal');
+            if (modal) modal.remove();
+        }
+        function assembleBlocksHtml(arr) {
+            if (!arr || arr.length === 0) return `<div class="text-secondary">（无内容）</div>`;
+            return arr.map(b => {
+                if (b.type === 'text') return `<p style="line-height:1.9; margin: 0 0 12px 0;">${(b.content || '').replace(/\\n/g, '<br>')}</p>`;
+                if (b.type === 'image') return `<div class="mb-sm"><img src="${b.url}" style="max-width:100%; border-radius:8px;" /></div>`;
+                if (b.type === 'video') return `<div class="mb-sm"><video src="${b.url}" controls style="width:100%; max-height:420px; background:#000; border-radius:8px;"></video></div>`;
+                return '';
+            }).join('');
+        }
     </script>
 </body>
 </html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 教学内容管理</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="mb-lg">
+                    <h1 class="text-2xl font-bold">我的教学内容</h1>
+                    <p class="text-secondary mt-xs">发布/管理文章或视频，设置观看权限</p>
+                </div>
+
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <h3 class="font-semibold">新增内容（图文/视频混排）</h3>
+                    </div>
+                    <div class="p-lg">
+                        <form id="content-form" onsubmit="addContent(event)">
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">
+                                <div>
+                                    <label class="block font-medium mb-xs">标题</label>
+                                    <input type="text" id="title" class="w-full p-sm border border-gray-300 rounded" required>
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">可见性</label>
+                                    <select id="visibility" class="w-full p-sm border border-gray-300 rounded">
+                                        <option value="public">公开免费</option>
+                                        <option value="paid">付费学员可见</option>
+                                    </select>
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="block font-medium mb-xs">摘要（可选，用于列表展示）</label>
+                                    <input type="text" id="summary" class="w-full p-sm border border-gray-300 rounded" placeholder="不填将自动取首段文字前80字">
+                                </div>
+                            </div>
+
+                            <div class="mb-md">
+                                <div class="flex gap-sm">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="addTextBlock()">
+                                        <i data-lucide=\"Text\"></i> 添加段落
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="triggerImageUpload()">
+                                        <i data-lucide=\"Image\"></i> 添加图片
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="triggerVideoUpload()">
+                                        <i data-lucide=\"Video\"></i> 添加视频
+                                    </button>
+                                </div>
+                                <input type=\"file\" id=\"imageFile\" accept=\"image/*\" style=\"display:none\" />
+                                <input type=\"file\" id=\"videoFile\" accept=\"video/*\" style=\"display:none\" />
+                            </div>
+
+                            <div id="blocks-container">
+                                <!-- 动态块 -->
+                            </div>
+
+                            <div class="flex gap-md mt-lg">
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-lucide="Plus" size="16"></i>
+                                    发布
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="previewContent()">预览</button>
+                                <button type="button" class="btn btn-secondary" onclick="resetForm()">重置</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">已发布</h3>
+                    </div>
+                    <div class="p-md" id="content-list"></div>
+                </div>
+
+                <!-- 预览模态框 -->
+                <div id="content-preview-modal" class="modal-overlay" style="display:none; position: fixed; inset:0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+                    <div class="modal-content" style="background:#fff; width: 92%; max-width: 900px; border-radius: 12px; overflow: auto; max-height: 90vh;">
+                        <div class="flex justify-between items-center p-md" style="border-bottom:1px solid var(--color-border)">
+                            <div class="font-semibold">内容预览</div>
+                            <button class="btn btn-secondary btn-sm" onclick="closePreviewModal()"><i data-lucide=\"X\" size=\"16\"></i> 关闭</button>
+                        </div>
+                        <div id="preview-body" class="p-lg"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let coachId = 'coach_001';
+        let blocks = []; // {type: 'text'|'image'|'video', content?: string, url?: string}
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            bindUploaders();
+            renderBlocks();
+            renderList();
+            lucide.createIcons();
+        });
+
+        function getMap() {
+            return Store.get('coachContent') || {};
+        }
+        function setMap(map) {
+            Store.set('coachContent', map);
+        }
+
+        function bindUploaders() {
+            const imageFile = document.getElementById('imageFile');
+            const videoFile = document.getElementById('videoFile');
+            imageFile.addEventListener('change', async (e) => {
+                if (!e.target.files || !e.target.files[0]) return;
+                const file = e.target.files[0];
+                const dataUrl = await fileToDataUrl(file);
+                blocks.push({ type: 'image', url: dataUrl });
+                renderBlocks();
+                imageFile.value = '';
+            });
+            videoFile.addEventListener('change', async (e) => {
+                if (!e.target.files || !e.target.files[0]) return;
+                const file = e.target.files[0];
+                const dataUrl = await fileToDataUrl(file);
+                blocks.push({ type: 'video', url: dataUrl });
+                renderBlocks();
+                videoFile.value = '';
+            });
+        }
+        function triggerImageUpload() { document.getElementById('imageFile').click(); }
+        function triggerVideoUpload() { document.getElementById('videoFile').click(); }
+
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function addTextBlock() {
+            blocks.push({ type: 'text', content: '' });
+            renderBlocks();
+        }
+        function removeBlock(idx) {
+            blocks.splice(idx, 1);
+            renderBlocks();
+        }
+        function replaceMedia(idx, kind) {
+            const input = document.getElementById(kind === 'image' ? 'imageFile' : 'videoFile');
+            input.onchange = async (e) => {
+                if (!e.target.files || !e.target.files[0]) return;
+                const file = e.target.files[0];
+                const dataUrl = await fileToDataUrl(file);
+                blocks[idx].url = dataUrl;
+                renderBlocks();
+                bindUploaders(); // 恢复默认绑定
+            };
+            input.click();
+        }
+
+        function renderBlocks() {
+            const container = document.getElementById('blocks-container');
+            if (!container) return;
+            if (blocks.length === 0) {
+                container.innerHTML = `<div class="p-md text-secondary" style="border:1px dashed var(--color-border); border-radius: var(--radius-md);">点击上方按钮添加“段落/图片/视频”块</div>`;
+                return;
+            }
+            container.innerHTML = blocks.map((b, idx) => {
+                if (b.type === 'text') {
+                    return `
+                        <div class="p-md mb-sm" style="border:1px solid var(--color-border); border-radius: var(--radius-md);">
+                            <div class="flex justify-between items-center mb-xs"><div class="text-sm text-secondary">段落</div><button class="btn btn-secondary btn-sm" onclick="removeBlock(${idx})">删除</button></div>
+                            <textarea rows="4" class="w-full p-sm border border-gray-300 rounded" oninput="blocks[${idx}].content=this.value">${b.content || ''}</textarea>
+                        </div>
+                    `;
+                } else if (b.type === 'image') {
+                    return `
+                        <div class="p-md mb-sm" style="border:1px solid var(--color-border); border-radius: var(--radius-md);">
+                            <div class="flex justify-between items-center mb-xs"><div class="text-sm text-secondary">图片</div><div class="flex gap-sm"><button class="btn btn-secondary btn-sm" onclick="replaceMedia(${idx}, 'image')">替换</button><button class="btn btn-secondary btn-sm" onclick="removeBlock(${idx})">删除</button></div></div>
+                            <img src="${b.url || ''}" alt="image" style="max-width: 100%; border-radius: 8px;"/>
+                            <div class="mt-xs"><input type="url" class="w-full p-sm border border-gray-300 rounded" placeholder="或粘贴图片URL" value="${b.url || ''}" oninput="blocks[${idx}].url=this.value"></div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="p-md mb-sm" style="border:1px solid var(--color-border); border-radius: var(--radius-md);">
+                            <div class="flex justify-between items-center mb-xs"><div class="text-sm text-secondary">视频</div><div class="flex gap-sm"><button class="btn btn-secondary btn-sm" onclick="replaceMedia(${idx}, 'video')">替换</button><button class="btn btn-secondary btn-sm" onclick="removeBlock(${idx})">删除</button></div></div>
+                            <video src="${b.url || ''}" controls style="width:100%; max-height: 360px; background:#000; border-radius:8px;"></video>
+                            <div class="mt-xs"><input type="url" class="w-full p-sm border border-gray-300 rounded" placeholder="或粘贴可播放的视频URL" value="${b.url || ''}" oninput="blocks[${idx}].url=this.value"></div>
+                        </div>
+                    `;
+                }
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function previewContent() {
+            const modal = document.getElementById('content-preview-modal');
+            const body = document.getElementById('preview-body');
+            body.innerHTML = assembleBlocksHtml(blocks);
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+        function closePreviewModal() {
+            const modal = document.getElementById('content-preview-modal');
+            const body = document.getElementById('preview-body');
+            body.innerHTML = '';
+            modal.style.display = 'none';
+        }
+        function assembleBlocksHtml(arr) {
+            if (!arr || arr.length === 0) return `<div class="text-secondary">（无内容）</div>`;
+            return arr.map(b => {
+                if (b.type === 'text') return `<p style="line-height:1.9; margin: 0 0 12px 0;">${(b.content || '').replace(/\\n/g, '<br>')}</p>`;
+                if (b.type === 'image') return `<div class="mb-sm"><img src="${b.url}" style="max-width:100%; border-radius:8px;" /></div>`;
+                if (b.type === 'video') return `<div class="mb-sm"><video src="${b.url}" controls style="width:100%; max-height:420px; background:#000; border-radius:8px;"></video></div>`;
+                return '';
+            }).join('');
+        }
+
+        function addContent(e) {
+            e.preventDefault();
+            const title = document.getElementById('title').value.trim();
+            const summaryInput = document.getElementById('summary').value.trim();
+            const visibility = document.getElementById('visibility').value;
+            if (!title) return alert('请填写标题');
+            if (blocks.length === 0) return alert('请至少添加一个内容块');
+
+            const autoSummary = (blocks.find(b => b.type === 'text')?.content || '').slice(0, 80);
+            const summary = summaryInput || autoSummary;
+
+            const map = getMap();
+            const arr = map[coachId] || [];
+            arr.push({ id: 'cnt_' + Date.now(), title, summary, visibility, blocks });
+            map[coachId] = arr;
+            setMap(map);
+
+            resetForm();
+            renderList();
+        }
+
+        function resetForm() {
+            document.getElementById('content-form').reset();
+            blocks = [];
+            renderBlocks();
+        }
+
+        function removeItem(id) {
+            const map = getMap();
+            const arr = (map[coachId] || []).filter(i => i.id !== id);
+            map[coachId] = arr;
+            setMap(map);
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById('content-list');
+            const map = getMap();
+            const items = map[coachId] || [];
+            if (items.length === 0) {
+                list.innerHTML = '<div class="p-lg text-center text-secondary">暂无内容</div>';
+                return;
+            }
+            list.innerHTML = items.map((it, idx) => {
+                const images = (it.blocks || []).filter(b => b.type === 'image').length;
+                const videos = (it.blocks || []).filter(b => b.type === 'video').length;
+                return `
+                    <div class="p-md flex justify-between items-center" style="border-bottom: 1px solid var(--color-border);">
+                        <div class="flex items-center gap-md">
+                            <i data-lucide="FileText"></i>
+                            <div>
+                                <div class="font-semibold">${it.title}</div>
+                                <div class="text-sm text-secondary">${it.summary || ''}</div>
+                                <div class="text-xs text-secondary mt-xs">${images ? images + ' 张图片 · ' : ''}${videos ? videos + ' 个视频' : ''}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-sm">
+                            <span class="badge ${it.visibility === 'paid' ? 'badge-warning' : 'badge-success'}">${it.visibility === 'paid' ? '付费学员可见' : '公开免费'}</span>
+                            <button class="btn btn-secondary btn-sm" onclick="openPreviewFromList(${idx})">预览</button>
+                            <button class="btn btn-secondary btn-sm" onclick="removeItem('${it.id}')">删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function openPreviewFromList(idx) {
+            const map = getMap();
+            const items = map[coachId] || [];
+            const item = items[idx];
+            const modal = document.getElementById('content-preview-modal');
+            const body = document.getElementById('preview-body');
+            body.innerHTML = `
+                <h2 class="text-xl font-semibold mb-md">${item.title}</h2>
+                ${assembleBlocksHtml(item.blocks || [])}
+            `;
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
+
+
