@@ -1,99 +1,79 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
-import type { UpdateActionDto, UpdateActionResponseDto } from './entity';
+import { NextRequest } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { UpdateActionRequest, UpdateActionResponse } from "./entity";
+import { Database } from "@/types/database.types";
 
-export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: '用户未登录',
-            data: null
-        }, { status: 401 });
+export async function POST(req: NextRequest) {
+  const supabase = createRouteHandlerClient<Database>({ cookies });
+  
+  try {
+    const body: UpdateActionRequest = await req.json();
+    const { id, ...updateData } = body;
+    
+    // Check if user is logged in and has coach role
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
     }
 
-    const {
-        id,
-        name,
-        description,
-        video_url,
-        type
-    } = await req.json() as UpdateActionDto;
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single();
 
-    // 验证必要参数
-    if (!id) {
-        return NextResponse.json({
-            success: false,
-            message: '缺少动作ID',
-            data: null
-        }, { status: 400 });
+    if (!profile || profile.role !== "coach") {
+      return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 });
     }
 
-    // 验证动作是否存在且属于当前教练
-    const { data: existingAction, error: actionError } = await supabase
-        .from('exercise_actions')
-        .select('coach_id')
-        .eq('id', id)
-        .single();
+    // Check if action belongs to this coach
+    const { data: existingAction, error: fetchError } = await supabase
+      .from("coach_actions")
+      .select("id")
+      .eq("id", id)
+      .eq("coach_id", session.user.id)
+      .single();
 
-    if (actionError || !existingAction) {
-        return NextResponse.json<ApiData<UpdateActionResponseDto>>({
-            success: false,
-            message: '动作不存在',
-            data: null
-        }, { status: 404 });
+    if (fetchError || !existingAction) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Action not found or unauthorized" 
+      }), { status: 404 });
     }
 
-    // 验证教练身份
-    const { data: coach, error: coachError } = await supabase
-        .from('coaches')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('id', existingAction.coach_id)
-        .single();
-
-    if (coachError || !coach) {
-        return NextResponse.json<ApiData<UpdateActionResponseDto>>({
-            success: false,
-            message: '无权限访问此资源',
-            data: null
-        }, { status: 403 });
-    }
-
-    // 构建更新数据
-    const updateData: any = {
+    // Update action
+    const { data: action, error } = await supabase
+      .from("coach_actions")
+      .update({
+        ...updateData,
         updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .eq("coach_id", session.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating action:", error);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Failed to update action" 
+      }), { status: 500 });
+    }
+
+    const response: UpdateActionResponse = {
+      success: true,
+      action
     };
 
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (video_url !== undefined) updateData.video_url = video_url;
-    if (type !== undefined) updateData.type = type;
-
-    // 更新动作
-    const { data: action, error: updateError } = await supabase
-        .from('exercise_actions')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-
-    if (updateError) {
-        console.error('更新动作失败:', updateError);
-        return NextResponse.json<ApiData<UpdateActionResponseDto>>({
-            success: false,
-            message: '更新动作失败',
-            data: null
-        }, { status: 500 });
-    }
-
-    return NextResponse.json<ApiData<UpdateActionResponseDto>>({
-        success: true,
-        message: '更新动作成功',
-        data: {
-            action
-        }
-    });
+    return new Response(JSON.stringify(response), { status: 200 });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      message: "Internal server error" 
+    }), { status: 500 });
+  }
 }

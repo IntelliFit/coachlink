@@ -1,3 +1,15 @@
+import { CoachActionRow } from "@/types";
+
+export type UpdateActionRequest = Partial<CoachActionRow> & {
+  id: string;
+};
+
+export type UpdateActionResponse = {
+  success: boolean;
+  action?: CoachActionRow;
+  message?: string;
+};
+
 export interface UpdateActionDto {
     id: string;
     name?: string;

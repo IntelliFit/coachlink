@@ -1,16 +1,11 @@
-export interface GetActionDto {
-    id: string;
-}
+import { CoachActionRow } from "@/types";
 
-export interface GetActionResponseDto {
-    action: {
-        id: string;
-        coach_id: string;
-        name: string;
-        description: string;
-        video_url?: string;
-        type: 'strength' | 'cardio' | 'flexibility' | 'other';
-        created_at: string;
-        updated_at: string;
-    };
-}
+export type GetActionRequest = {
+  id: string;
+};
+
+export type GetActionResponse = {
+  action?: CoachActionRow;
+  success: boolean;
+  message?: string;
+};

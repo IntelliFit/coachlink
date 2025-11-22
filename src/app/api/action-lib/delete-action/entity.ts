@@ -2,7 +2,11 @@ export interface DeleteActionDto {
     id: string;
 }
 
-export type DeleteActionResponseDto = {
-    success: boolean;
-    message: string;
+export type DeleteActionRequest = {
+  id: string;
+};
+
+export type DeleteActionResponse = {
+  success: boolean;
+  message?: string;
 };

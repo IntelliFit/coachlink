@@ -1,81 +1,63 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
-import type { AddActionDto, AddActionResponseDto } from './entity';
+import { NextRequest } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { AddActionRequest, AddActionResponse } from "./entity";
+import { Database } from "@/types/database.types";
 
-export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: '用户未登录',
-            data: null
-        }, { status: 401 });
+export async function POST(req: NextRequest) {
+  const supabase = createRouteHandlerClient<Database>({ cookies });
+  
+  try {
+    const body: AddActionRequest = await req.json();
+    
+    // Check if user is logged in and has coach role
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
     }
 
-    const {
-        coach_id,
-        name,
-        description,
-        video_url,
-        type
-    } = await req.json() as AddActionDto;
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single();
 
-    // 验证必要参数
-    if (!coach_id || !name || !description || !type) {
-        return NextResponse.json({
-            success: false,
-            message: '缺少必要参数',
-            data: null
-        }, { status: 400 });
+    if (!profile || profile.role !== "coach") {
+      return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 });
     }
 
-    // 验证教练身份
-    const { data: coach, error: coachError } = await supabase
-        .from('coaches')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('id', coach_id)
-        .single();
+    // Insert new action
+    const { data: action, error } = await supabase
+      .from("coach_actions")
+      .insert({
+        ...body,
+        coach_id: session.user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-    if (coachError || !coach) {
-        return NextResponse.json<ApiData<AddActionResponseDto>>({
-            success: false,
-            message: '无权限访问此资源',
-            data: null
-        }, { status: 403 });
+    if (error) {
+      console.error("Error adding action:", error);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Failed to add action" 
+      }), { status: 500 });
     }
 
-    // 插入新动作
-    const { data: action, error: insertError } = await supabase
-        .from('exercise_actions')
-        .insert({
-            coach_id,
-            name,
-            description,
-            video_url,
-            type,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+    const response: AddActionResponse = {
+      success: true,
+      action
+    };
 
-    if (insertError) {
-        console.error('添加动作失败:', insertError);
-        return NextResponse.json<ApiData<AddActionResponseDto>>({
-            success: false,
-            message: '添加动作失败',
-            data: null
-        }, { status: 500 });
-    }
-
-    return NextResponse.json<ApiData<AddActionResponseDto>>({
-        success: true,
-        message: '添加动作成功',
-        data: {
-            action
-        }
-    });
+    return new Response(JSON.stringify(response), { status: 200 });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      message: "Internal server error" 
+    }), { status: 500 });
+  }
 }

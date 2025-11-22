@@ -1,67 +1,66 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
-import type { GetActionDto, GetActionResponseDto } from './entity';
+import { NextRequest } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { GetActionRequest, GetActionResponse } from "./entity";
+import { Database } from "@/types/database.types";
 
-export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: '用户未登录',
-            data: null
-        }, { status: 401 });
+export async function POST(req: NextRequest) {
+  const supabase = createRouteHandlerClient<Database>({ cookies });
+  
+  try {
+    const { id }: GetActionRequest = await req.json();
+    
+    // Check if user is logged in and has coach role
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
     }
 
-    const { id } = await req.json() as GetActionDto;
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single();
 
-    // 验证必要参数
-    if (!id) {
-        return NextResponse.json({
-            success: false,
-            message: '缺少动作ID',
-            data: null
-        }, { status: 400 });
+    if (!profile || profile.role !== "coach") {
+      return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 });
     }
 
-    // 获取动作详情
+    // Fetch action
     const { data: action, error } = await supabase
-        .from('exercise_actions')
-        .select('*')
-        .eq('id', id)
-        .single();
+      .from("coach_actions")
+      .select("*")
+      .eq("id", id)
+      .eq("coach_id", session.user.id)
+      .single();
 
     if (error) {
-        console.error('获取动作详情失败:', error);
-        return NextResponse.json<ApiData<GetActionResponseDto>>({
-            success: false,
-            message: '获取动作详情失败',
-            data: null
-        }, { status: 500 });
+      console.error("Error fetching action:", error);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Failed to fetch action" 
+      }), { status: 500 });
     }
 
-    // 验证教练身份
-    const { data: coach, error: coachError } = await supabase
-        .from('coaches')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('id', action.coach_id)
-        .single();
-
-    if (coachError || !coach) {
-        return NextResponse.json<ApiData<GetActionResponseDto>>({
-            success: false,
-            message: '无权限访问此资源',
-            data: null
-        }, { status: 403 });
+    if (!action) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Action not found" 
+      }), { status: 404 });
     }
 
-    return NextResponse.json<ApiData<GetActionResponseDto>>({
-        success: true,
-        message: '获取动作详情成功',
-        data: {
-            action
-        }
-    });
+    const response: GetActionResponse = {
+      success: true,
+      action
+    };
+
+    return new Response(JSON.stringify(response), { status: 200 });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      message: "Internal server error" 
+    }), { status: 500 });
+  }
 }
