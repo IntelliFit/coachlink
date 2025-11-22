@@ -13,6 +13,8 @@ import { useToastContext } from '@/context/ToastContext';
 import { actionLibService } from '@/app/service/actionLibService';
 import ActionEditDialog from './ActionEditDialog';
 import { ExerciseAction } from '@/app/api/action-lib/get-actions/entity';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
 
 const ActionLib = () => {
     const { data: session } = useSession();
@@ -216,8 +218,8 @@ const ActionLib = () => {
 
                     <div className="flex flex-col md:flex-row gap-4 mt-6">
                         <div className="flex-1">
-                            <div className="p-input-icon-left w-full">
-                                <i className="pi pi-search" />
+                            <IconField iconPosition="left" className='w-full'>
+                                <InputIcon className="pi pi-search"> </InputIcon>
                                 <InputText
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -225,7 +227,8 @@ const ActionLib = () => {
                                     placeholder="搜索动作名称或描述..."
                                     className="w-full"
                                 />
-                            </div>
+                            </IconField>
+
                         </div>
                         <Button
                             label="搜索"
