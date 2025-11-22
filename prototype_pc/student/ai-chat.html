@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 在线咨询</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/chat.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .ai-chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .ai-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: var(--spacing-md) var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ai-avatar-lg {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4f46e5;
+            font-size: 24px;
+            margin-right: var(--spacing-md);
+        }
+
+        .chat-option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 15px;
+            margin-top: 8px;
+            background: white;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chat-option-btn:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .subscribe-card {
+            background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);
+            border: 1px solid #c7d2fe;
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            margin-top: var(--spacing-sm);
+        }
+    </style>
+</head>
+<body>
+    <div class="ai-chat-container">
+        <div class="ai-header">
+            <div class="flex items-center">
+                <div class="ai-avatar-lg">
+                    <i data-lucide="MessageCircle"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg">在线咨询</h1>
+                    <p class="text-sm opacity-80">张健教练的智能助理</p>
+                </div>
+            </div>
+            <button class="btn btn-icon text-white" onclick="handleBackNavigation()">
+                <i data-lucide="X"></i>
+            </button>
+        </div>
+
+        <div class="chat-messages bg-gray-50" id="chat-box">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <input type="text" class="chat-input" id="user-input" placeholder="输入您的问题..." disabled>
+                <button class="send-btn disabled" disabled>
+                    <i data-lucide="Send" size="18"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEYS = {
+            sessions: 'coachlink_chatSessions',
+            messages: 'coachlink_messages',
+            coaches: 'coachlink_coachProfiles'
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentCoachId = urlParams.get('from') || 'coach_001';
+        const currentUserId = 'student_001';
+        const sessionId = `chat_${currentUserId}_${currentCoachId}`;
+
+        const coachProfiles = getStored(STORAGE_KEYS.coaches, {});
+        const coachProfile = coachProfiles[currentCoachId] || {};
+        const coachName = coachProfile.name || '教练';
+
+        const chatBox = document.getElementById('chat-box');
+
+        const steps = [
+            {
+                msg: `您好！我是${coachName}教练的智能助理。很高兴为您服务。请问您是想了解关于教练的什么信息呢？`,
+                options: [
+                    '教练擅长什么？',
+                    '高级版服务包含什么？',
+                    '我是新手，适合吗？'
+                ]
+            },
+            {
+                trigger: '教练擅长什么？',
+                msg: `${coachName}教练拥有10年力量举经验，是国家级运动健将。尤其擅长【力量举三大项】（深蹲、卧推、硬拉）的成绩突破，以及科学的【增肌塑形】。`,
+                nextOptions: ['听起来不错，我想试着训练']
+            },
+            {
+                trigger: '高级版服务包含什么？',
+                msg: `高级版（¥299/月）是${coachName}教练亲自指导的方案。除了AI生成的计划外，您还将获得：\n1. 每周的计划人工审核与调整\n2. 1对1的视频动作分析与点评\n3. 优先的答疑通道\n这非常适合希望快速突破瓶颈的学员。`,
+                nextOptions: ['如何订阅？']
+            },
+            {
+                trigger: '我是新手，适合吗？',
+                msg: `完全适合！${coachName}教练非常注重基础动作模式的建立。我们会根据您的初始问卷，为您生成适合新手适应期的训练计划，循序渐进，确保不受伤。`,
+                nextOptions: ['我想开始改变']
+            },
+            {
+                msg: `如果您准备好了，建议您可以先从【AI版】开始体验，或者直接订阅${coachName}教练的【高级版】获得最专业的指导。`,
+                card: true
+            }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            const subtitleEl = document.querySelector('.ai-header p');
+            if (subtitleEl) {
+                subtitleEl.textContent = `${coachName}教练的智能助理`;
+            }
+            document.title = `CoachLink - ${coachName} 在线咨询`;
+
+            ensureSession();
+
+            const history = getMessagesForSession();
+            if (history.length > 0) {
+                history.forEach(msg => renderMessage(msg.content, msg.senderId !== currentUserId));
+            } else {
+                appendMessage(currentCoachId, steps[0].msg);
+            }
+
+            setTimeout(() => addOptions(steps[0].options), 500);
+        });
+
+        function renderMessage(text, isBot = true) {
+            const div = document.createElement('div');
+            div.className = `message ${isBot ? 'received' : 'sent'}`;
+            div.innerHTML = `<div class="message-content">${text.replace(/\n/g, '<br>')}</div>`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addOptions(options) {
+            if (!options || options.length === 0) return;
+            removeActiveOptions();
+            const div = document.createElement('div');
+            div.className = 'message received chat-options';
+            let html = '<div style="width: 100%; max-width: 280px;">';
+            options.forEach(opt => {
+                html += `<button class="chat-option-btn" onclick="handleUserChoice('${opt}')">${opt}</button>`;
+            });
+            html += '</div>';
+            div.innerHTML = html;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function removeActiveOptions() {
+            const optionsBlocks = chatBox.querySelectorAll('.chat-options');
+            optionsBlocks.forEach(block => block.remove());
+        }
+
+        function addSubscribeCard() {
+            const div = document.createElement('div');
+            div.className = 'message received';
+            div.innerHTML = `
+                <div class="subscribe-card">
+                    <h3 class="font-bold text-primary mb-xs">立即开启蜕变之旅</h3>
+                    <p class="text-sm text-secondary mb-md">选择最适合您的方案</p>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm flex-1" onclick="alert('跳转支付：AI版')">AI版 ¥99</button>
+                        <button class="btn btn-primary btn-sm flex-1" onclick="alert('跳转支付：高级版')">高级版 ¥299</button>
+                    </div>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleUserChoice(choice) {
+            removeActiveOptions();
+            appendMessage(currentUserId, choice);
+
+            setTimeout(() => {
+                const nextStep = steps.find(s => s.trigger === choice);
+                if (nextStep) {
+                    appendMessage(currentCoachId, nextStep.msg);
+                    if (nextStep.nextOptions) {
+                        setTimeout(() => addOptions(nextStep.nextOptions), 500);
+                    } else {
+                        setTimeout(() => {
+                            appendMessage(currentCoachId, steps[4].msg);
+                            setTimeout(addSubscribeCard, 500);
+                        }, 600);
+                    }
+                } else {
+                    appendMessage(currentCoachId, steps[4].msg);
+                    setTimeout(addSubscribeCard, 500);
+                }
+            }, 600);
+        }
+
+        function appendMessage(senderId, content) {
+            const timestamp = Date.now();
+            const messages = getStored(STORAGE_KEYS.messages, []);
+            messages.push({
+                id: `msg_${timestamp}`,
+                sessionId,
+                senderId,
+                content,
+                type: 'text',
+                timestamp,
+                read: senderId !== currentCoachId
+            });
+            saveStored(STORAGE_KEYS.messages, messages);
+            ensureSession();
+            updateSessionMeta(content, senderId, timestamp);
+            renderMessage(content, senderId !== currentUserId);
+        }
+
+        function ensureSession() {
+            const sessions = getStored(STORAGE_KEYS.sessions, []);
+            let session = sessions.find(s => s.id === sessionId);
+            if (!session) {
+                session = {
+                    id: sessionId,
+                    participants: [currentUserId, currentCoachId],
+                    lastMessage: '',
+                    lastMessageTime: Date.now(),
+                    unreadCount: { [currentUserId]: 0, [currentCoachId]: 0 }
+                };
+                sessions.push(session);
+            } else {
+                session.participants = session.participants || [currentUserId, currentCoachId];
+                session.unreadCount = session.unreadCount || {};
+                session.unreadCount[currentUserId] = session.unreadCount[currentUserId] || 0;
+                session.unreadCount[currentCoachId] = session.unreadCount[currentCoachId] || 0;
+            }
+            saveStored(STORAGE_KEYS.sessions, sessions);
+        }
+
+        function getMessagesForSession() {
+            const messages = getStored(STORAGE_KEYS.messages, []);
+            return messages
+                .filter(m => m.sessionId === sessionId)
+                .sort((a, b) => a.timestamp - b.timestamp);
+        }
+
+        function updateSessionMeta(lastContent, senderId, timestamp) {
+            const sessions = getStored(STORAGE_KEYS.sessions, []);
+            const session = sessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            session.lastMessage = lastContent;
+            session.lastMessageTime = timestamp;
+
+            if (!session.unreadCount) session.unreadCount = {};
+            if (senderId === currentUserId) {
+                session.unreadCount[currentCoachId] = (session.unreadCount[currentCoachId] || 0) + 1;
+                session.unreadCount[currentUserId] = 0;
+            } else {
+                session.unreadCount[currentUserId] = 0;
+            }
+
+            saveStored(STORAGE_KEYS.sessions, sessions);
+        }
+
+        function getStored(key, fallback) {
+            const raw = localStorage.getItem(key);
+            if (!raw) return fallback;
+            try {
+                return JSON.parse(raw);
+            } catch (_) {
+                return fallback;
+            }
+        }
+
+        function saveStored(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
+        function handleBackNavigation() {
+            const fromCoachId = urlParams.get('from');
+            if (fromCoachId) {
+                const pageId = fromCoachId === 'coach_002' ? '2' : '1';
+                window.location.href = `coach-profile.html?id=${pageId}`;
+            } else {
+                window.history.back();
+            }
+        }
+    </script>
+</body>
+</html>
+
