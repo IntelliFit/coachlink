@@ -1,11 +1,9 @@
 import { CoachActionRow } from "@/types";
 
-export type GetActionRequest = {
-  id: string;
+export type GetActionDto = {
+    id: string;
 };
 
-export type GetActionResponse = {
-  action?: CoachActionRow;
-  success: boolean;
-  message?: string;
+export type GetActionResponseDto = {
+    action: CoachActionRow;
 };
