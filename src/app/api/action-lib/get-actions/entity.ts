@@ -5,6 +5,19 @@ export interface GetActionsDto {
     limit: number;
 }
 
+export type GetActionsRequest = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
+export type GetActionsResponse = {
+  actions: CoachActionRow[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+};
+
 export interface ExerciseAction {
     id: string;
     coach_id: string;
