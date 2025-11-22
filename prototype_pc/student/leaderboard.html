@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排行榜 - CoachLink</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="flex justify-between items-center mb-lg">
+                    <div>
+                        <h1 class="text-2xl font-bold">排行榜</h1>
+                        <p class="text-secondary mt-xs">展示实力，挑战极限</p>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Selection Tabs -->
+                <div class="flex gap-md mb-md overflow-x-auto pb-2" id="leaderboard-tabs">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Variant Tabs (Sub-boards) -->
+                <div id="variant-tabs-container" class="mb-lg" style="display: none;">
+                    <div class="flex gap-sm p-xs bg-gray-100 rounded-lg inline-flex" id="variant-tabs">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Leaderboard Content -->
+                <div class="card">
+                    <div class="card-header" style="border-bottom: 1px solid var(--color-border);">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 id="current-leaderboard-title" class="font-semibold text-lg">加载中...</h3>
+                                <p id="current-leaderboard-description" class="text-sm text-secondary mt-xs"></p>
+                            </div>
+                            <div class="flex items-center gap-sm">
+                                <span class="badge badge-primary" id="total-participants">0 人参与</span>
+                                <button class="btn btn-primary btn-sm" onclick="goToSubmit()">
+                                    <i data-lucide="Plus" size="14"></i>
+                                    提交成绩
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x: auto;">
+                        <table class="table-auto w-full">
+                            <thead style="background: var(--color-bg); border-bottom: 2px solid var(--color-border);">
+                                <tr>
+                                    <th class="p-md text-left" style="width: 80px;">排名</th>
+                                    <th class="p-md text-left">姓名</th>
+                                    <th class="p-md text-left">成绩</th>
+                                    <th class="p-md text-left">体重</th>
+                                    <th class="p-md text-left">视频</th>
+                                    <th class="p-md text-left">提交时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-table-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="empty-state" class="p-xl text-center text-secondary" style="display: none;">
+                        <i data-lucide="Trophy" size="48" style="opacity: 0.3;"></i>
+                        <p class="mt-md">暂无记录</p>
+                        <p class="text-sm mt-xs">成为第一个提交成绩的选手！</p>
+                    </div>
+                </div>
+
+                <!-- Video Preview Modal -->
+                <div id="video-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+                    <div class="modal-content" style="background: #fff; width: 90%; max-width: 900px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                        <div class="flex justify-between items-center p-md" style="border-bottom: 1px solid var(--color-border);">
+                            <div class="font-semibold">视频预览</div>
+                            <button class="btn btn-secondary btn-sm" onclick="closeVideoModal()">
+                                <i data-lucide="X" size="16"></i>
+                                关闭
+                            </button>
+                        </div>
+                        <div id="video-modal-body" class="p-md">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Submissions -->
+                <div class="card mt-lg">
+                    <div class="card-header">
+                        <h3 class="font-semibold">我的提交记录</h3>
+                    </div>
+                    <div id="my-submissions-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/leaderboard_config.js"></script>
+    <script src="../js/app.js"></script>
+    
+    <script>
+        let currentLeaderboardId = null;
+        let currentVariantId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            renderLeaderboardTabs();
+            // Select first leaderboard by default
+            const firstLeaderboard = getAllLeaderboards()[0];
+            if (firstLeaderboard) {
+                selectLeaderboard(firstLeaderboard.id);
+            }
+            renderMySubmissions();
+        });
+
+        function renderLeaderboardTabs() {
+            const tabsContainer = document.getElementById('leaderboard-tabs');
+            const leaderboards = getAllLeaderboards();
+            
+            tabsContainer.innerHTML = leaderboards.map(lb => `
+                <button 
+                    class="px-lg py-md rounded-lg font-medium transition-all flex items-center gap-sm whitespace-nowrap shadow-sm hover:shadow-md border border-gray-200 bg-white text-gray-700"
+                    style="min-width: 120px; justify-content: center;"
+                    id="tab-${lb.id}"
+                    onclick="selectLeaderboard('${lb.id}')">
+                    <i data-lucide="${lb.icon}" size="20"></i>
+                    <span>${lb.title}</span>
+                </button>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        function selectLeaderboard(leaderboardId) {
+            currentLeaderboardId = leaderboardId;
+            displayedCount = 10;
+            const config = getLeaderboardConfig(leaderboardId);
+            
+            // Update active tab styling
+            document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+                tab.className = 'px-lg py-md rounded-lg font-medium transition-all flex items-center gap-sm whitespace-nowrap shadow-sm hover:shadow-md border border-gray-200 bg-white text-gray-700';
+            });
+            const activeTab = document.getElementById(`tab-${leaderboardId}`);
+            activeTab.className = 'px-lg py-md rounded-lg font-medium transition-all flex items-center gap-sm whitespace-nowrap shadow-sm hover:shadow-md border border-primary bg-primary text-white ring-2 ring-primary ring-opacity-50';
+            
+            // Handle Variants
+            const variantContainer = document.getElementById('variant-tabs-container');
+            const variantTabs = document.getElementById('variant-tabs');
+            
+            if (config.hasVariants) {
+                variantContainer.style.display = 'block';
+                const variants = Object.values(config.variants);
+                
+                variantTabs.innerHTML = variants.map(v => `
+                    <button 
+                        class="px-md py-xs rounded-md text-sm font-medium transition-all text-gray-600 hover:text-gray-900"
+                        id="variant-${v.id}"
+                        onclick="selectVariant('${v.id}')">
+                        ${v.name}
+                    </button>
+                `).join('');
+                
+                // Select first variant by default if none selected or invalid
+                if (!currentVariantId || !config.variants[currentVariantId]) {
+                    selectVariant(variants[0].id);
+                } else {
+                    selectVariant(currentVariantId);
+                }
+            } else {
+                variantContainer.style.display = 'none';
+                currentVariantId = null;
+                updateHeaderInfo();
+                renderLeaderboardTable();
+            }
+        }
+
+        function selectVariant(variantId) {
+            currentVariantId = variantId;
+            displayedCount = 10;
+            
+            // Update variant tab styling
+            document.querySelectorAll('[id^="variant-"]').forEach(tab => {
+                tab.className = 'px-md py-xs rounded-md text-sm font-medium transition-all text-gray-600 hover:text-gray-900';
+            });
+            const activeTab = document.getElementById(`variant-${variantId}`);
+            if (activeTab) {
+                activeTab.className = 'px-md py-xs rounded-md text-sm font-medium transition-all bg-white text-primary shadow-sm';
+            }
+            
+            updateHeaderInfo();
+            renderLeaderboardTable();
+        }
+
+        function updateHeaderInfo() {
+            const config = getLeaderboardConfig(currentLeaderboardId);
+            let title = config.title;
+            let description = config.description;
+            
+            if (currentVariantId && config.variants && config.variants[currentVariantId]) {
+                const variant = config.variants[currentVariantId];
+                title += ` - ${variant.name}`;
+                description = variant.description || description;
+            }
+            
+            document.getElementById('current-leaderboard-title').textContent = title;
+            document.getElementById('current-leaderboard-description').textContent = description || '';
+            lucide.createIcons();
+        }
+
+        let displayedCount = 10;
+
+        function renderLeaderboardTable() {
+            const tbody = document.getElementById('leaderboard-table-body');
+            const emptyState = document.getElementById('empty-state');
+            const loadMoreBtn = document.getElementById('load-more-btn'); // Need to add this button in HTML
+            const config = getLeaderboardConfig(currentLeaderboardId);
+            
+            // Get all approved submissions for this leaderboard
+            const submissions = Store.get('submissions') || [];
+            let leaderboardSubmissions = submissions
+                .filter(s => s.leaderboardId === currentLeaderboardId && s.status === 'approved');
+            
+            // Filter by variant if applicable
+            if (currentVariantId) {
+                leaderboardSubmissions = leaderboardSubmissions.filter(s => {
+                    const variantKey = s.details ? (s.details.variant || s.details.ruleType) : null;
+                    return variantKey === currentVariantId;
+                });
+            }
+                
+            leaderboardSubmissions.sort((a, b) => b.value - a.value); // Sort by value descending
+            
+            document.getElementById('total-participants').textContent = `${leaderboardSubmissions.length} 人参与`;
+            
+            if (leaderboardSubmissions.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                if(loadMoreBtn) loadMoreBtn.style.display = 'none';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            const visibleSubmissions = leaderboardSubmissions.slice(0, displayedCount);
+            
+            tbody.innerHTML = visibleSubmissions.map((sub, index) => {
+                const rank = index + 1;
+                const rankBadge = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+                const isCurrentUser = sub.userId === MockData.currentUser.id;
+                
+                return `
+                    <tr style="border-bottom: 1px solid var(--color-border); ${isCurrentUser ? 'background: #FFF9E6;' : ''}">
+                        <td class="p-md">
+                            <span class="text-xl font-bold" style="color: ${rank <= 3 ? 'var(--color-primary)' : 'var(--color-secondary)'}">
+                                ${rankBadge}
+                            </span>
+                        </td>
+                        <td class="p-md">
+                            <div class="flex items-center gap-sm">
+                                <div class="avatar avatar-sm">${sub.userAvatar}</div>
+                                <span class="font-medium">${sub.userName}</span>
+                                ${isCurrentUser ? '<span class="badge badge-primary badge-sm ml-xs">我</span>' : ''}
+                            </div>
+                        </td>
+                        <td class="p-md">
+                            <span class="font-semibold text-lg" style="color: var(--color-primary);">
+                                ${formatScore(sub, config)}
+                            </span>
+                        </td>
+                        <td class="p-md">${sub.details.bodyweight ? sub.details.bodyweight + ' kg' : '-'}</td>
+                        <td class="p-md">
+                            ${sub.videoUrl ? `<button class="btn btn-secondary btn-sm" onclick="openVideoModal('${sub.videoUrl}')">预览</button>` : '-'}
+                        </td>
+                        <td class="p-md text-secondary text-sm">${formatDate(sub.timestamp)}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Handle Load More button
+            if (leaderboardSubmissions.length > displayedCount) {
+                if (!loadMoreBtn) {
+                    const btnRow = document.createElement('div');
+                    btnRow.id = 'load-more-container';
+                    btnRow.className = 'text-center p-md';
+                    btnRow.innerHTML = `<button id="load-more-btn" class="btn btn-secondary btn-sm" onclick="loadMore()">加载更多</button>`;
+                    tbody.parentElement.parentElement.appendChild(btnRow);
+                } else {
+                    loadMoreBtn.parentElement.style.display = 'block';
+                }
+            } else {
+                if (loadMoreBtn) loadMoreBtn.parentElement.style.display = 'none';
+            }
+            
+            lucide.createIcons();
+        }
+
+        function loadMore() {
+            displayedCount += 10;
+            renderLeaderboardTable();
+        }
+
+        function formatScore(submission, config) {
+            if (config.type === 'weight') {
+                if (submission.details.weight !== undefined) {
+                    const totalWeight = parseFloat(submission.details.bodyweight) + parseFloat(submission.details.weight);
+                    return `${totalWeight} ${config.unit} (${submission.details.weight}kg负重)`;
+                }
+                return `${submission.value} ${config.unit}`;
+            } else if (config.type === 'reps') {
+                return `${submission.value} 次`;
+            } else if (config.type === 'time') {
+                return `${submission.value} 秒`;
+            }
+            return submission.value + ' ' + (config.unit || '');
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return '今天';
+            if (days === 1) return '昨天';
+            if (days < 7) return `${days}天前`;
+            if (days < 30) return `${Math.floor(days / 7)}周前`;
+            return date.toLocaleDateString('zh-CN');
+        }
+
+        function renderMySubmissions() {
+            const container = document.getElementById('my-submissions-list');
+            const submissions = Store.get('submissions') || [];
+            const mySubmissions = submissions
+                .filter(s => s.userId === MockData.currentUser.id)
+                .sort((a, b) => b.timestamp - a.timestamp);
+            
+            if (mySubmissions.length === 0) {
+                container.innerHTML = `
+                    <div class="p-lg text-center text-secondary">
+                        <p>暂无提交记录</p>
+                        <button class="btn btn-primary mt-md" onclick="goToSubmit()">提交第一个成绩</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = mySubmissions.map(sub => {
+                const config = getLeaderboardConfig(sub.leaderboardId);
+                const statusBadge = sub.status === 'approved' ? '<span class="badge badge-success">已通过</span>' :
+                                   sub.status === 'pending' ? '<span class="badge badge-warning">待审核</span>' :
+                                   '<span class="badge badge-danger">已拒绝</span>';
+                
+                let variantName = '';
+                const variantKey = sub.details ? (sub.details.variant || sub.details.ruleType) : null;
+                if (variantKey && config.variants && config.variants[variantKey]) {
+                    variantName = ` - ${config.variants[variantKey].name}`;
+                }
+                
+                return `
+                    <div class="p-md flex justify-between items-center" style="border-bottom: 1px solid var(--color-border);">
+                        <div class="flex items-center gap-md flex-1">
+                            <i data-lucide="${config.icon}" size="24" class="text-primary"></i>
+                            <div class="flex-1">
+                                <div class="font-semibold">${config.title}${variantName}</div>
+                                <div class="text-sm text-secondary mt-xs">
+                                    成绩: ${formatScore(sub, config)} · ${formatDate(sub.timestamp)}
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            ${statusBadge}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        function goToSubmit() {
+            let url = 'leaderboard-submit.html';
+            if (currentLeaderboardId) {
+                url += `?leaderboardId=${currentLeaderboardId}`;
+                if (currentVariantId) {
+                    url += `&variantId=${currentVariantId}`;
+                }
+            }
+            window.location.href = url;
+        }
+
+        // Video modal helpers
+        function openVideoModal(url) {
+            const modal = document.getElementById('video-modal');
+            const body = document.getElementById('video-modal-body');
+
+            // Simple detector: use iframe for known platforms, otherwise use <video>
+            const isIframe = /(youtube\.com|youtu\.be|bilibili\.com|vimeo\.com)/i.test(url);
+            let content = '';
+            if (isIframe) {
+                // Try to embed as iframe (assumes url supports embedding in prototype)
+                content = `
+                    <div style="position: relative; padding-top: 56.25%; background: #000;">
+                        <iframe src="${url}" frameborder="0" allowfullscreen
+                            style="position: absolute; inset: 0; width: 100%; height: 100%;"></iframe>
+                    </div>`;
+            } else {
+                content = `<video src="${url}" controls style="width: 100%; max-height: 70vh; background: #000;"></video>`;
+            }
+
+            body.innerHTML = content;
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function closeVideoModal() {
+            const modal = document.getElementById('video-modal');
+            const body = document.getElementById('video-modal-body');
+            body.innerHTML = '';
+            modal.style.display = 'none';
+        }
+
+        // Close modal on overlay click and Esc key
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('video-modal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target && e.target.id === 'video-modal') {
+                        closeVideoModal();
+                    }
+                });
+            }
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeVideoModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的订阅 - CoachLink</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="mb-lg">
+                    <h1 class="text-2xl font-bold">我的订阅</h1>
+                    <p class="text-secondary">查看当前订阅状态与续费设置</p>
+                </div>
+
+                <div id="subscription-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            renderSubscription();
+            lucide.createIcons();
+        });
+
+        function renderSubscription() {
+            const container = document.getElementById('subscription-container');
+            const subsMap = Store.get('subscriptions') || {};
+            const settingsMap = Store.get('subscriptionSettings') || {};
+            const coachProfiles = Store.get('coachProfiles') || {};
+            const me = MockData.currentUser.id; // student_001
+            const mySubs = subsMap[me] || {};
+            const entries = Object.entries(mySubs).filter(([cid, tier]) => tier && tier !== 'none');
+
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div class="card p-xl text-center">
+                        <i data-lucide="Info" size="40" class="text-secondary" style="margin-bottom: 8px;"></i>
+                        <div class="text-secondary mb-md">你还没有订阅任何教练</div>
+                        <a class="btn btn-primary" href="discover-coaches.html">
+                            去发现教练
+                        </a>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const cards = entries.map(([coachId, tier]) => {
+                const coach = coachProfiles[coachId] || { name: '教练', avatarUrl: '' };
+                const tierLabel = tier === 'ai' ? 'AI版' : (tier === 'premium' ? '高级版' : tier);
+                const settings = (settingsMap[me] && settingsMap[me][coachId]) || { autoRenew: true, nextBillingDate: '' };
+                return `
+                    <div class="card mb-lg">
+                        <div class="card-header">
+                            <h3 class="font-semibold">订阅：${coach.name}</h3>
+                        </div>
+                        <div class="p-lg">
+                            <div class="flex items-center gap-md mb-lg">
+                                <img src="${coach.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=coach'}" alt="${coach.name}" style="width:56px; height:56px; border-radius: 9999px; border: 2px solid var(--color-border);">
+                                <div>
+                                    <div class="font-semibold">${coach.name}</div>
+                                    <div class="text-sm text-secondary">${tierLabel}</div>
+                                </div>
+                            </div>
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">
+                                <div>
+                                    <div class="text-xs text-secondary mb-xs">下次扣费日期</div>
+                                    <div class="font-medium">${settings.nextBillingDate || '—'}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-secondary mb-xs">自动续费</div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="autoRenewToggle_${coachId}" ${settings.autoRenew ? 'checked' : ''} onchange="toggleAutoRenew('${coachId}', this.checked)">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mt-lg flex gap-md">
+                                <button class="btn btn-secondary" onclick="gotoCoach('${coachId}')">前往教练主页</button>
+                                <button class="btn btn-danger" onclick="cancelSubscription('${coachId}')">取消订阅（占位）</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            container.innerHTML = cards;
+            injectSwitchStyles();
+            lucide.createIcons();
+        }
+
+        function injectSwitchStyles() {
+            if (document.getElementById('switch-style')) return;
+            const style = document.createElement('style');
+            style.id = 'switch-style';
+            style.textContent = `
+                .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+                .switch input { display:none; }
+                .slider { position: absolute; cursor: pointer; top:0; left:0; right:0; bottom:0;
+                    background: var(--color-border); transition: .2s; border-radius: 9999px; }
+                .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left:4px; top:3px; background: white; transition: .2s; border-radius: 9999px; box-shadow: var(--shadow-sm); }
+                input:checked + .slider { background: var(--color-primary); }
+                input:checked + .slider:before { transform: translateX(22px); }
+            `;
+            document.head.appendChild(style);
+        }
+
+        function toggleAutoRenew(coachId, val) {
+            const me = MockData.currentUser.id;
+            const map = Store.get('subscriptionSettings') || {};
+            map[me] = map[me] || {};
+            map[me][coachId] = map[me][coachId] || {};
+            map[me][coachId].autoRenew = !!val;
+            Store.set('subscriptionSettings', map);
+        }
+
+        function gotoCoach(coachId) {
+            // 简单映射：coach_001 -> id=1, coach_002 -> id=2
+            const id = coachId === 'coach_002' ? 2 : 1;
+            window.location.href = 'coach-profile.html?id=' + id;
+        }
+
+        function cancelSubscription(coachId) {
+            alert('这里是占位交互：取消 ' + coachId + ' 的订阅。实际实现需走确认弹窗与后端逻辑。');
+        }
+    </script>
+</body>
+</html>
+
+

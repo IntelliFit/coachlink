@@ -59,6 +59,7 @@
             <div class="role-selector">
                 <div class="role-btn active" onclick="selectRole('coach')">我是教练</div>
                 <div class="role-btn" onclick="selectRole('student')">我是学员</div>
+                <div class="role-btn" onclick="selectRole('admin')">管理员</div>
             </div>
 
             <form onsubmit="handleLogin(event)">
@@ -87,10 +88,13 @@
             currentRole = role;
             document.querySelectorAll('.role-btn').forEach(btn => {
                 btn.classList.remove('active');
-                if (btn.textContent.includes(role === 'coach' ? '教练' : '学员')) {
-                    btn.classList.add('active');
-                }
             });
+            
+            // Find the button that was clicked or matches the role
+            const buttons = document.querySelectorAll('.role-btn');
+            if (role === 'coach') buttons[0].classList.add('active');
+            else if (role === 'student') buttons[1].classList.add('active');
+            else if (role === 'admin') buttons[2].classList.add('active');
         }
 
         function handleLogin(e) {
@@ -98,6 +102,8 @@
             // Mock Login Logic
             if (currentRole === 'coach') {
                 window.location.href = 'coach/dashboard.html';
+            } else if (currentRole === 'admin') {
+                window.location.href = 'admin/review.html';
             } else {
                 window.location.href = 'student/dashboard.html';
             }

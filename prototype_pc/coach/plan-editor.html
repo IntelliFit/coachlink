@@ -126,6 +126,36 @@
             padding-top: var(--spacing-lg);
             border-top: 1px solid var(--border-color);
         }
+
+        /* Editable Title and Description Styles */
+        .editable-title,
+        .editable-description {
+            cursor: text;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+            position: relative;
+            min-width: 200px;
+        }
+
+        .editable-title:hover,
+        .editable-description:hover {
+            background: var(--background-color);
+        }
+
+        .editable-title:focus,
+        .editable-description:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+            background: white;
+        }
+
+        .editable-title:empty:before,
+        .editable-description:empty:before {
+            content: attr(data-placeholder);
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
     </style>
     <style>
         /* Profile Panel Styles */
@@ -420,20 +450,37 @@
             <header class="top-header" id="header"></header>
             <div class="page-content">
                 
+                <!-- Back Button -->
+                <div class="mb-md">
+                    <button class="btn btn-secondary btn-sm" onclick="goBack()" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <i data-lucide="ArrowLeft" size="16"></i>
+                        <span id="back-button-text">返回</span>
+                    </button>
+                </div>
+
                 <div class="flex justify-between items-center mb-md">
-                    <div>
+                    <div style="flex: 1;">
                         <div class="flex items-center gap-sm">
-                            <h2 class="text-xl font-bold" contenteditable="true">未命名模板</h2>
+                            <h2 class="text-xl font-bold editable-title" 
+                                contenteditable="true" 
+                                id="template-title" 
+                                data-placeholder="点击输入模板名称...">未命名模板</h2>
                             <i data-lucide="Edit2" size="16" class="text-secondary"></i>
                         </div>
-                        <p class="text-secondary text-sm mt-xs" contenteditable="true">点击此处添加模板说明...</p>
+                        <p class="text-secondary text-sm mt-xs editable-description" 
+                           contenteditable="true" 
+                           id="template-description"
+                           data-placeholder="点击添加模板说明...">点击此处添加模板说明...</p>
                     </div>
                     <div class="flex gap-sm">
                         <button class="btn btn-secondary" id="view-profile-btn" onclick="toggleProfile()" style="display: none;">
                             <i data-lucide="User" size="16" class="mr-1"></i> 学员档案
                         </button>
 
-                        <button class="btn btn-primary" id="save-template-btn">保存模板</button>
+                        <button class="btn btn-primary" id="save-template-btn" onclick="saveTemplate()">
+                            <i data-lucide="Save" size="16" class="mr-1"></i>
+                            保存模板
+                        </button>
                     </div>
                 </div>
 
@@ -536,6 +583,10 @@
                                         <div class="profile-meta-item">
                                             <i data-lucide="Users"></i>
                                             <span>已订阅 2 位教练</span>
+                                        </div>
+                                        <div class="profile-meta-item">
+                                            <i data-lucide="Clock"></i>
+                                            <span id="profile-subscription">订阅时长: 4个月 (16周)</span>
                                         </div>
                                         <div class="subscription-tag">
                                             <i data-lucide="Crown"></i>
@@ -861,6 +912,16 @@
             templateId = urlParams.get('id');
             const mode = urlParams.get('mode');
             
+            // Set back button text based on mode
+            const backButtonText = document.getElementById('back-button-text');
+            if (clientId) {
+                backButtonText.textContent = '返回学员列表';
+            } else if (templateId || mode === 'new_template') {
+                backButtonText.textContent = '返回模板库';
+            } else {
+                backButtonText.textContent = '返回';
+            }
+            
             if (mode === 'new_template') {
                 createNewTemplate();
             } else if (clientId) {
@@ -892,6 +953,12 @@
             document.getElementById('profile-name').textContent = client.name;
             document.getElementById('info-name').textContent = client.name;
             document.getElementById('profile-avatar').textContent = client.name.charAt(0);
+
+            if (client.subscriptionMonths) {
+                const weeks = client.subscriptionMonths * 4;
+                const subEl = document.getElementById('profile-subscription');
+                if(subEl) subEl.textContent = `订阅时长: ${client.subscriptionMonths}个月 (${weeks}周)`;
+            }
 
             // Update Header
             document.querySelector('.text-xl').textContent = `${client.name} 的训练计划`;
@@ -1045,9 +1112,9 @@
                 return;
             }
 
-            // Update Header
-            document.querySelector('.text-xl').textContent = `编辑模板: ${template.name}`;
-            document.querySelector('.text-secondary.text-sm').textContent = template.description || '';
+            // Update Header - use editable elements
+            document.getElementById('template-title').textContent = template.name || '未命名模板';
+            document.getElementById('template-description').textContent = template.description || '点击此处添加模板说明...';
 
             // Load Plan Data
             if (template.planData) {
@@ -1082,12 +1149,64 @@
             // Generate a new ID
             templateId = 'tpl_' + Date.now();
             
-            // Update Header
-            document.querySelector('.text-xl').textContent = `新建计划模板`;
-            document.querySelector('.text-secondary.text-sm').textContent = '请添加训练内容...';
+            // Update Header - use editable elements
+            document.getElementById('template-title').textContent = '新建计划模板';
+            document.getElementById('template-description').textContent = '请添加训练内容...';
             
             renderSidebar();
             switchDay(0, 0);
+        }
+
+        function saveTemplate() {
+            if (!templateId) {
+                showToast('无法保存:未找到模板ID', 'error');
+                return;
+            }
+
+            // Get title and description from editable elements
+            const title = document.getElementById('template-title').textContent.trim();
+            const description = document.getElementById('template-description').textContent.trim();
+
+            if (!title || title === '未命名模板' || title === '新建计划模板') {
+                if (!confirm('模板标题为空或使用默认名称,确定要保存吗?')) {
+                    return;
+                }
+            }
+
+            const templates = Store.get('templates') || [];
+            let templateIndex = templates.findIndex(t => t.id === templateId);
+            
+            if (templateIndex === -1) {
+                // New template
+                templates.push({
+                    id: templateId,
+                    name: title,
+                    description: description === '点击此处添加模板说明...' ? '' : description,
+                    exercises: [], 
+                    planData: planData
+                });
+                showToast('模板已创建');
+            } else {
+                // Update existing
+                templates[templateIndex].name = title;
+                templates[templateIndex].description = description === '点击此处添加模板说明...' ? '' : description;
+                templates[templateIndex].planData = planData;
+                showToast('模板已更新');
+            }
+            
+            Store.set('templates', templates);
+        }
+
+        function goBack() {
+            // Determine where to go back based on mode
+            if (clientMode) {
+                window.location.href = 'clients.html';
+            } else if (templateId || window.location.search.includes('mode=new_template')) {
+                window.location.href = 'templates.html';
+            } else {
+                // Default fallback
+                window.history.back();
+            }
         }
 
         function openImportTemplateModal() {

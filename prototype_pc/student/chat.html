@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 消息中心</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/chat.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            
+            <div class="chat-layout">
+                <!-- Chat List Sidebar -->
+                <div class="chat-sidebar">
+                    <div class="p-md border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="font-bold text-lg">消息中心</h2>
+                    </div>
+                    <!-- Tabs -->
+                    <div class="flex border-b border-gray-200">
+                        <button class="flex-1 py-3 text-sm font-semibold text-primary border-b-2 border-primary" id="tab-chats" onclick="switchTab('chats')">会话</button>
+                        <button class="flex-1 py-3 text-sm font-semibold text-secondary hover:bg-gray-50" id="tab-notifications" onclick="switchTab('notifications')">通知</button>
+                    </div>
+                    
+                    <div class="chat-list" id="coach-list">
+                        <!-- Populated by JS (Chats or Notifications) -->
+                    </div>
+                </div>
+
+                <!-- Main Chat Window -->
+                <div class="chat-main" id="chat-main-view">
+                    <div class="chat-header">
+                        <div class="flex items-center gap-md">
+                            <img src="" alt="" class="chat-avatar" id="current-coach-avatar" style="display:none;">
+                            <div>
+                                <div class="font-bold text-lg" id="current-coach-name">选择一位教练开始聊天</div>
+                                <div class="text-sm text-secondary" id="current-coach-status"></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-icon">
+                            <i data-lucide="MoreVertical"></i>
+                        </button>
+                    </div>
+
+                    <div class="chat-messages" id="message-container">
+                        <div class="flex flex-col items-center justify-center h-full text-secondary">
+                            <i data-lucide="MessageSquare" size="48" class="mb-md opacity-50"></i>
+                            <p>暂无消息</p>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area" id="input-area" style="display:none;">
+                        <div class="chat-toolbar">
+                            <button class="tool-btn" onclick="openVideoModal()" title="引用训练视频">
+                                <i data-lucide="Video"></i>
+                            </button>
+                            <button class="tool-btn" title="发送图片">
+                                <i data-lucide="Image"></i>
+                            </button>
+                            <button class="tool-btn" title="发送语音">
+                                <i data-lucide="Mic"></i>
+                            </button>
+                        </div>
+                        <div class="input-wrapper">
+                            <textarea class="chat-input" id="message-input" placeholder="输入消息..." onkeydown="handleKeyPress(event)"></textarea>
+                            <button class="send-btn" onclick="sendMessage()">
+                                <i data-lucide="Send" size="18"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Detail View (Simple Placeholder) -->
+                <div class="chat-main hidden" id="notification-view" style="display:none; align-items: center; justify-content: center; background: #f9fafb;">
+                    <div class="text-center p-xl">
+                        <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-md">
+                            <i data-lucide="Bell" size="32"></i>
+                        </div>
+                        <h2 class="text-xl font-bold mb-sm">通知详情</h2>
+                        <p class="text-secondary">点击左侧通知查看详情</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- ... (Modals remain same) ... -->
+    
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let currentSessionId = null;
+        let currentCoachId = null;
+        let currentTab = 'chats';
+        const currentUserId = MockData.currentUser.id;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            loadCoachList(); // Default to chats
+        });
+
+        function switchTab(tab) {
+            currentTab = tab;
+            // Update Tab Styles
+            const tabChats = document.getElementById('tab-chats');
+            const tabNotifs = document.getElementById('tab-notifications');
+            
+            if (tab === 'chats') {
+                tabChats.className = 'flex-1 py-3 text-sm font-semibold text-primary border-b-2 border-primary';
+                tabChats.style.color = 'var(--primary-color)';
+                tabNotifs.className = 'flex-1 py-3 text-sm font-semibold text-secondary hover:bg-gray-50';
+                tabNotifs.style.color = 'var(--text-secondary)';
+                
+                document.getElementById('chat-main-view').style.display = 'flex';
+                document.getElementById('notification-view').style.display = 'none';
+                
+                loadCoachList();
+            } else {
+                tabNotifs.className = 'flex-1 py-3 text-sm font-semibold text-primary border-b-2 border-primary';
+                tabNotifs.style.color = 'var(--primary-color)';
+                tabChats.className = 'flex-1 py-3 text-sm font-semibold text-secondary hover:bg-gray-50';
+                tabChats.style.color = 'var(--text-secondary)';
+                
+                document.getElementById('chat-main-view').style.display = 'none';
+                document.getElementById('notification-view').style.display = 'flex';
+                
+                loadNotifications();
+            }
+        }
+
+        function loadNotifications() {
+            const listEl = document.getElementById('coach-list');
+            // Mock Notifications
+            const notifications = [
+                { id: 1, title: '系统通知', content: '欢迎加入 CoachLink！', time: Date.now(), type: 'system', read: true },
+                { id: 2, title: '点赞', content: '张教练 点赞了你的视频', time: Date.now() - 3600000, type: 'like', read: false },
+                { id: 3, title: '评论', content: '李明 回复了你的评论', time: Date.now() - 7200000, type: 'comment', read: false },
+            ];
+
+            listEl.innerHTML = notifications.map(notif => `
+                <div class="chat-item" onclick="viewNotification(${notif.id})">
+                    <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-gray-600">
+                        <i data-lucide="${getIconForType(notif.type)}" size="20"></i>
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-name">
+                            ${notif.title}
+                            <span class="chat-time">${formatTime(notif.time)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="chat-preview">${notif.content}</div>
+                            ${!notif.read ? `<span class="unread-badge"></span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function getIconForType(type) {
+            if (type === 'like') return 'Heart';
+            if (type === 'comment') return 'MessageCircle';
+            return 'Bell';
+        }
+        
+        function viewNotification(id) {
+             document.getElementById('notification-view').innerHTML = `
+                <div class="p-xl max-w-lg w-full bg-white rounded-lg shadow-sm">
+                    <h2 class="text-xl font-bold mb-md">通知详情</h2>
+                    <p class="text-lg mb-sm">这是一个模拟的通知详情视图 (ID: ${id})</p>
+                    <p class="text-secondary">在实际应用中，这里会显示具体的评论内容、点赞来源或系统公告全文。</p>
+                </div>
+             `;
+        }
+
+        function loadCoachList() {
+            const listEl = document.getElementById('coach-list');
+            const sessions = Store.get('chatSessions') || [];
+            const subscriptions = Store.get('subscriptions') || {};
+            const mySubs = subscriptions[currentUserId] || {};
+            const profiles = Store.get('coachProfiles') || {};
+
+            const coachIdsSet = new Set(Object.keys(mySubs));
+
+            sessions.forEach(session => {
+                let targetId = null;
+                if (Array.isArray(session.participants) && session.participants.includes(currentUserId)) {
+                    targetId = session.participants.find(p => p !== currentUserId);
+                } else if (session.id && session.id.startsWith(`chat_${currentUserId}_`)) {
+                    targetId = session.id.replace(`chat_${currentUserId}_`, '');
+                }
+                if (targetId) coachIdsSet.add(targetId);
+            });
+
+            const coachIds = Array.from(coachIdsSet);
+
+            if (coachIds.length === 0) {
+                listEl.innerHTML = '<div class="p-md text-secondary text-center">暂无会话，去教练主页发起咨询吧</div>';
+                return;
+            }
+
+            listEl.innerHTML = coachIds.map(coachId => {
+                const profile = profiles[coachId] || { name: '未知教练', avatarUrl: '' };
+                const sessionId = `chat_${currentUserId}_${coachId}`;
+                const session = sessions.find(s => s.id === sessionId);
+
+                const lastMessage = session ? session.lastMessage : '开始聊天吧';
+                const lastTime = session ? session.lastMessageTime : Date.now();
+                const unread = session && session.unreadCount
+                    ? (session.unreadCount[currentUserId] || 0)
+                    : 0;
+
+                const avatarHtml = profile.avatarUrl
+                    ? `<img src="${profile.avatarUrl}" class="chat-avatar">`
+                    : `<div class="chat-avatar bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">${profile.name.charAt(0)}</div>`;
+
+                return `
+                <div class="chat-item" onclick="selectCoach('${coachId}')" id="item-${coachId}">
+                    ${avatarHtml}
+                    <div class="chat-info">
+                        <div class="chat-name">
+                            ${profile.name}
+                            <span class="chat-time">${formatTime(lastTime)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="chat-preview">${lastMessage}</div>
+                            ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function selectCoach(coachId) {
+            currentCoachId = coachId;
+            currentSessionId = `chat_${currentUserId}_${coachId}`;
+            
+            // Update UI Styles
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+            const activeItem = document.getElementById(`item-${coachId}`);
+            if(activeItem) activeItem.classList.add('active');
+
+            // Update Header
+            const profiles = Store.get('coachProfiles') || {};
+            const profile = profiles[coachId] || { name: '教练', avatarUrl: '' };
+            document.getElementById('current-coach-name').textContent = profile.name;
+            document.getElementById('current-coach-status').textContent = '在线';
+            const avatar = document.getElementById('current-coach-avatar');
+            if (profile.avatarUrl) {
+                avatar.src = profile.avatarUrl;
+                avatar.style.display = 'block';
+            } else {
+                avatar.style.display = 'none';
+            }
+
+            // Show Input
+            document.getElementById('input-area').style.display = 'block';
+
+            // Load Messages
+            renderMessages();
+            
+            // Mark as read (simulated)
+            // In real app we would update store
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('message-container');
+            const allMessages = Store.get('messages') || [];
+            const sessionMessages = allMessages
+                .filter(m => m.sessionId === currentSessionId)
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            if (sessionMessages.length === 0) {
+                container.innerHTML = '<div class="p-lg text-center text-secondary">开始新的对话...</div>';
+                return;
+            }
+
+            container.innerHTML = sessionMessages.map(msg => {
+                const isMe = msg.senderId === currentUserId;
+                let contentHtml = '';
+
+                if (msg.type === 'text') {
+                    contentHtml = `<div class="message-content">${msg.content}</div>`;
+                } else if (msg.type === 'quote') {
+                    const data = msg.quoteData;
+                    contentHtml = `
+                        <div class="quote-card" onclick="playVideo('${data.videoUrl}')">
+                            <div class="quote-thumbnail">
+                                <img src="${data.thumbnail}" alt="Video">
+                                <div class="quote-play-icon"><i data-lucide="Play" size="16"></i></div>
+                            </div>
+                            <div class="quote-info bg-white">
+                                <div class="quote-title text-black">${data.exercise}</div>
+                                <div class="quote-detail text-gray-500">${data.details} · ${data.date}</div>
+                            </div>
+                        </div>
+                        ${msg.content ? `<div class="message-content mt-xs">${msg.content}</div>` : ''}
+                    `;
+                }
+
+                return `
+                    <div class="message ${isMe ? 'sent' : 'received'}">
+                        ${contentHtml}
+                        <div class="message-time">${formatTime(msg.timestamp)}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.scrollTop = container.scrollHeight;
+            lucide.createIcons();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendMessage(type = 'text', payload = null) {
+            const input = document.getElementById('message-input');
+            const content = input.value.trim();
+
+            if (type === 'text' && !content) return;
+
+            const newMessage = {
+                id: 'msg_' + Date.now(),
+                sessionId: currentSessionId,
+                senderId: currentUserId,
+                content: content,
+                type: type,
+                quoteData: payload,
+                timestamp: Date.now(),
+                read: false
+            };
+
+            // Save to Store
+            const messages = Store.get('messages') || [];
+            messages.push(newMessage);
+            Store.set('messages', messages);
+
+            // Update Session
+            const sessions = Store.get('chatSessions') || [];
+            let session = sessions.find(s => s.id === currentSessionId);
+            if (!session) {
+                session = { 
+                    id: currentSessionId, 
+                    participants: [currentUserId, currentCoachId],
+                    unreadCount: {} 
+                };
+                sessions.push(session);
+            }
+            session.lastMessage = type === 'text' ? content : '[引用视频]';
+            session.lastMessageTime = Date.now();
+            session.unreadCount[currentCoachId] = (session.unreadCount[currentCoachId] || 0) + 1;
+            Store.set('chatSessions', sessions);
+
+            // Clear input and re-render
+            if (type === 'text') input.value = '';
+            renderMessages();
+            loadCoachList(); // Refresh sidebar preview
+
+            // Simulate Reply
+            if (type === 'quote') {
+                setTimeout(() => {
+                    receiveMockReply("收到视频了，我稍后仔细看一下给你反馈。");
+                }, 2000);
+            }
+        }
+
+        function receiveMockReply(text) {
+             const reply = {
+                id: 'msg_' + Date.now(),
+                sessionId: currentSessionId,
+                senderId: currentCoachId,
+                content: text,
+                type: 'text',
+                timestamp: Date.now(),
+                read: false
+            };
+            const messages = Store.get('messages') || [];
+            messages.push(reply);
+            Store.set('messages', messages);
+            renderMessages();
+        }
+
+        // --- Video Modal Logic ---
+        function openVideoModal() {
+            const modal = document.getElementById('video-modal');
+            const grid = document.getElementById('video-grid');
+            
+            const videos = Store.get('videos') || [];
+            // Filter my videos (mock: all belong to current user)
+            
+            grid.innerHTML = videos.map(v => `
+                <div class="video-item" onclick="selectVideo('${v.id}')">
+                    <img src="${v.thumbnail}" alt="${v.exercise}">
+                    <div class="video-item-info">
+                        <div class="font-bold">${v.exercise}</div>
+                        <div class="text-xs text-secondary">${v.date}</div>
+                        <div class="text-xs text-secondary">${v.weight} x ${v.reps}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            modal.classList.add('active');
+        }
+
+        function closeVideoModal() {
+            document.getElementById('video-modal').classList.remove('active');
+        }
+
+        function selectVideo(videoId) {
+            const videos = Store.get('videos');
+            const video = videos.find(v => v.id === videoId);
+            
+            if (video) {
+                sendMessage('quote', {
+                    videoId: video.id,
+                    videoUrl: video.url,
+                    thumbnail: video.thumbnail,
+                    date: video.date,
+                    exercise: video.exercise,
+                    details: `${video.weight} x ${video.reps}`
+                });
+                closeVideoModal();
+            }
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.getHours() + ':' + date.getMinutes().toString().padStart(2, '0');
+        }
+
+        function playVideo(url) {
+            alert('播放视频: ' + url);
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 学员沟通</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/chat.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Reuse Drawer Styles from clients.html */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: -600px;
+            width: 600px;
+            height: 100vh;
+            background: white;
+            z-index: 1001;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .drawer.open {
+            right: 0;
+        }
+
+        .drawer-header {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            z-index: 10;
+        }
+
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-lg);
+        }
+        
+        /* Header Profile Clickable */
+        .chat-header-profile {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: var(--radius-md);
+            transition: background 0.2s;
+        }
+        .chat-header-profile:hover {
+            background: #f3f4f6;
+        }
+
+        .drawer-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0 auto var(--spacing-sm);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .drawer-tier-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .drawer-meta {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+            margin-top: var(--spacing-sm);
+        }
+
+        .drawer-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--text-secondary);
+            font-size: 0.8125rem;
+        }
+
+        .drawer-section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .drawer-section-title {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .drawer-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .drawer-info-item {
+            padding: var(--spacing-md);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+        }
+
+        .drawer-info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .drawer-info-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .drawer-callout {
+            border-left: 4px solid var(--primary-color);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+        }
+
+        .drawer-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .drawer-timeline-item {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+        }
+
+        .drawer-timeline-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .drawer-timeline-stats {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .drawer-timeline-thumb {
+            position: relative;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .drawer-timeline-thumb img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+        }
+
+        .drawer-timeline-thumb::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.1));
+        }
+
+        .drawer-timeline-play {
+            position: absolute;
+            left: 16px;
+            bottom: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+        }
+
+        .drawer-notes {
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            
+            <div class="chat-layout">
+                <!-- Student List Sidebar -->
+                <div class="chat-sidebar">
+                    <div class="p-md border-b border-gray-200">
+                        <h2 class="font-bold text-lg">学员列表</h2>
+                    </div>
+                    <div class="chat-list" id="student-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Main Chat Window -->
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <div class="chat-header-profile" onclick="openProfileDrawer()">
+                            <div class="w-10 h-10 bg-indigo-500 text-white rounded-full flex items-center justify-center text-lg font-bold" id="current-student-avatar" style="display:none;"></div>
+                            <div>
+                                <div class="font-bold text-lg" id="current-student-name">选择一位学员</div>
+                                <div class="text-sm text-secondary flex items-center gap-1">
+                                    点击查看档案
+                                    <i data-lucide="ChevronRight" size="14"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-icon">
+                            <i data-lucide="MoreVertical"></i>
+                        </button>
+                    </div>
+
+                    <div class="chat-messages" id="message-container">
+                        <div class="flex flex-col items-center justify-center h-full text-secondary">
+                            <i data-lucide="MessageSquare" size="48" class="mb-md opacity-50"></i>
+                            <p>暂无消息</p>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area" id="input-area" style="display:none;">
+                        <!-- AI Suggestions -->
+                        <div class="ai-suggestions mb-sm" id="ai-suggestions" style="display:none;">
+                            <div class="flex items-center text-xs text-secondary mr-2">
+                                <i data-lucide="Sparkles" size="14" class="mr-1 text-purple-500"></i> AI建议:
+                            </div>
+                            <button class="suggestion-bubble" onclick="useSuggestion('我看了一下视频，深蹲深度还需要再加深一点。')">
+                                深蹲深度不够
+                            </button>
+                            <button class="suggestion-bubble" onclick="useSuggestion('动作很标准，重量可以尝试加5kg。')">
+                                增加重量
+                            </button>
+                            <button class="suggestion-bubble" onclick="useSuggestion('腰背要挺直，注意核心收紧。')">
+                                核心收紧
+                            </button>
+                        </div>
+
+                        <div class="chat-toolbar">
+                            <button class="tool-btn" title="发送图片">
+                                <i data-lucide="Image"></i>
+                            </button>
+                            <button class="tool-btn" title="发送语音">
+                                <i data-lucide="Mic"></i>
+                            </button>
+                        </div>
+                        <div class="input-wrapper">
+                            <textarea class="chat-input" id="message-input" placeholder="输入消息..." onkeydown="handleKeyPress(event)"></textarea>
+                            <button class="send-btn" onclick="sendMessage()">
+                                <i data-lucide="Send" size="18"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Profile Drawer (Simplified from clients.html) -->
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeProfileDrawer()"></div>
+    <div class="drawer" id="profile-drawer">
+        <div class="drawer-header">
+            <h3 class="text-lg font-bold">学员档案</h3>
+            <button class="btn btn-icon" onclick="closeProfileDrawer()">
+                <i data-lucide="X"></i>
+            </button>
+        </div>
+        <div class="drawer-content" id="drawer-content">
+            <div class="text-center text-secondary text-sm">选择学员后查看完整档案</div>
+        </div>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let currentSessionId = null;
+        let currentStudentId = null;
+        const currentUserId = MockData.currentUser.id; // Should be coach_001
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            loadStudentList();
+        });
+
+        function loadStudentList() {
+            const listEl = document.getElementById('student-list');
+            const sessions = Store.get('chatSessions') || [];
+            const clients = Store.get('clients') || [];
+            
+            if (clients.length === 0) {
+                listEl.innerHTML = '<div class="p-md text-secondary text-center">暂无学员</div>';
+                return;
+            }
+
+            listEl.innerHTML = clients.map(client => {
+                const sessionId = `chat_${client.id}_${currentUserId}`;
+                // Try to find existing session, or mock one
+                const session = sessions.find(s => s.id === sessionId) || {
+                    lastMessage: '新学员',
+                    lastMessageTime: Date.now(),
+                    unreadCount: {}
+                };
+                const unread = (session.unreadCount && session.unreadCount[currentUserId]) || 0;
+
+                return `
+                <div class="chat-item" onclick="selectStudent('${client.id}')" id="item-${client.id}">
+                    <div class="chat-avatar bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                        ${client.name.charAt(0)}
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-name">
+                            ${client.name}
+                            <span class="chat-time">${formatTime(session.lastMessageTime)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="chat-preview">${session.lastMessage}</div>
+                            ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+            
+            // Auto select first
+             const urlParams = new URLSearchParams(window.location.search);
+            const targetId = urlParams.get('studentId');
+            if (targetId) {
+                selectStudent(targetId);
+            }
+            
+            lucide.createIcons();
+        }
+
+        function selectStudent(studentId) {
+            currentStudentId = studentId;
+            currentSessionId = `chat_${studentId}_${currentUserId}`;
+            
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+            const activeItem = document.getElementById(`item-${studentId}`);
+            if(activeItem) activeItem.classList.add('active');
+
+            // Update Header
+            const clients = Store.get('clients');
+            const client = clients.find(c => c.id === studentId);
+            
+            document.getElementById('current-student-name').textContent = client.name;
+            const avatar = document.getElementById('current-student-avatar');
+            avatar.textContent = client.name.charAt(0);
+            avatar.style.display = 'flex';
+
+            // Show Input
+            document.getElementById('input-area').style.display = 'block';
+
+            renderMessages();
+
+            const drawer = document.getElementById('profile-drawer');
+            if (drawer && drawer.classList.contains('open')) {
+                renderStudentProfile(studentId);
+            }
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('message-container');
+            const allMessages = Store.get('messages') || [];
+            const sessionMessages = allMessages
+                .filter(m => m.sessionId === currentSessionId)
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            container.innerHTML = sessionMessages.map(msg => {
+                const isMe = msg.senderId === currentUserId;
+                let contentHtml = '';
+
+                if (msg.type === 'text') {
+                    contentHtml = `<div class="message-content">${msg.content}</div>`;
+                } else if (msg.type === 'quote') {
+                    const data = msg.quoteData;
+                    contentHtml = `
+                        <div class="quote-card" onclick="playVideo('${data.videoUrl}')">
+                            <div class="quote-thumbnail">
+                                <img src="${data.thumbnail}" alt="Video">
+                                <div class="quote-play-icon"><i data-lucide="Play" size="16"></i></div>
+                            </div>
+                            <div class="quote-info bg-white">
+                                <div class="quote-title text-black">${data.exercise}</div>
+                                <div class="quote-detail text-gray-500">${data.details} · ${data.date}</div>
+                            </div>
+                        </div>
+                        ${msg.content ? `<div class="message-content mt-xs">${msg.content}</div>` : ''}
+                    `;
+                }
+
+                return `
+                    <div class="message ${isMe ? 'sent' : 'received'}">
+                        ${contentHtml}
+                        <div class="message-time">${formatTime(msg.timestamp)}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.scrollTop = container.scrollHeight;
+            
+            // Check if last message is from student to show AI suggestions
+            const lastMsg = sessionMessages[sessionMessages.length - 1];
+            const aiDiv = document.getElementById('ai-suggestions');
+            if (lastMsg && lastMsg.senderId !== currentUserId) {
+                aiDiv.style.display = 'flex';
+            } else {
+                aiDiv.style.display = 'none';
+            }
+
+            lucide.createIcons();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendMessage(textOverride = null) {
+            const input = document.getElementById('message-input');
+            const content = textOverride || input.value.trim();
+
+            if (!content) return;
+
+            const newMessage = {
+                id: 'msg_' + Date.now(),
+                sessionId: currentSessionId,
+                senderId: currentUserId,
+                content: content,
+                type: 'text',
+                timestamp: Date.now(),
+                read: false
+            };
+
+            // Save
+            const messages = Store.get('messages') || [];
+            messages.push(newMessage);
+            Store.set('messages', messages);
+
+            // Update Session
+            const sessions = Store.get('chatSessions') || [];
+            let session = sessions.find(s => s.id === currentSessionId);
+            if (!session) {
+                 // Create if not exists
+                session = { 
+                    id: currentSessionId, 
+                    participants: [currentStudentId, currentUserId],
+                    unreadCount: {} 
+                };
+                sessions.push(session);
+            }
+            session.lastMessage = content;
+            session.lastMessageTime = Date.now();
+            session.unreadCount[currentStudentId] = (session.unreadCount[currentStudentId] || 0) + 1;
+            Store.set('chatSessions', sessions);
+
+            input.value = '';
+            renderMessages();
+            loadStudentList();
+        }
+
+        function useSuggestion(text) {
+            sendMessage(text);
+        }
+
+        // --- Drawer Logic ---
+        function openProfileDrawer() {
+            if (!currentStudentId) return;
+            
+            const drawer = document.getElementById('profile-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            renderStudentProfile(currentStudentId);
+            
+            drawer.classList.add('open');
+            overlay.classList.add('open');
+        }
+
+        function closeProfileDrawer() {
+            document.getElementById('profile-drawer').classList.remove('open');
+            document.getElementById('drawer-overlay').classList.remove('open');
+        }
+
+        function renderStudentProfile(studentId) {
+            const contentEl = document.getElementById('drawer-content');
+            if (!contentEl) return;
+
+            const profiles = Store.get('studentProfiles') || {};
+            const profile = profiles[studentId];
+
+            if (!profile) {
+                contentEl.innerHTML = '<div class="text-center text-secondary text-sm">暂无档案数据</div>';
+                return;
+            }
+
+            const headerMeta = [];
+            if (profile.subscribedCoaches !== undefined) {
+                headerMeta.push(`
+                    <div class="drawer-meta-item">
+                        <i data-lucide="Users" size="14"></i>
+                        <span>已订阅 ${profile.subscribedCoaches} 位教练</span>
+                    </div>
+                `);
+            }
+
+            const headerHtml = `
+                <div class="text-center mb-lg">
+                    <div class="drawer-avatar">${profile.avatarText || (profile.displayName || '').charAt(0)}</div>
+                    <h2 class="text-xl font-bold mb-xs">${profile.displayName || ''}</h2>
+                    <p class="text-secondary text-sm mb-sm">${profile.role || ''}</p>
+                    ${profile.subscriptionTier ? `<div class="drawer-tier-tag"><i data-lucide="Crown" size="14"></i>${profile.subscriptionTier}</div>` : ''}
+                    ${headerMeta.length ? `<div class="drawer-meta">${headerMeta.join('')}</div>` : ''}
+                </div>
+            `;
+
+            const sections = [
+                headerHtml,
+                buildSection('个人信息', 'User', buildInfoGrid(profile.personalInfo)),
+                buildSection('力量数据', 'Activity', buildInfoGrid(profile.strengthData)),
+                buildSection('身体数据', 'Scale', buildInfoGrid(profile.bodyMetrics)),
+                buildSection('训练背景', 'BookOpen', buildInfoGrid(profile.trainingBackground)),
+                buildSection('最近训练', 'Flame', buildRecentTraining(profile.recentTraining)),
+                buildSection('进步时间线', 'Award', buildTimeline(profile.timeline)),
+                buildSection('教练观察与建议', 'Eye', buildCoachNotes(profile.coachNotes))
+            ].filter(Boolean);
+
+            contentEl.innerHTML = sections.join('');
+            setTimeout(() => lucide.createIcons(), 0);
+        }
+
+        function buildSection(title, icon, content) {
+            if (!content) return '';
+            return `
+                <div class="drawer-section">
+                    <h3 class="drawer-section-title">
+                        <i data-lucide="${icon}"></i>
+                        ${title}
+                    </h3>
+                    ${content}
+                </div>
+            `;
+        }
+
+        function buildInfoGrid(items) {
+            if (!items || !items.length) return '';
+            return `
+                <div class="drawer-info-grid">
+                    ${items.map(item => `
+                        <div class="drawer-info-item">
+                            <div class="drawer-info-label">${item.label || ''}</div>
+                            <div class="drawer-info-value"${item.accent ? ` style="color:${item.accent};"` : ''}>
+                                ${item.value || ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function buildRecentTraining(training) {
+            if (!training) return '';
+            return `
+                <div class="drawer-callout">
+                    <div class="text-xs text-secondary">${training.date || ''}</div>
+                    <div class="font-semibold mt-xs">${training.title || ''}</div>
+                    <div class="text-xs text-secondary mt-xs">${training.summary || ''}</div>
+                </div>
+            `;
+        }
+
+        function buildTimeline(timeline) {
+            if (!timeline || !timeline.length) return '';
+            return `
+                <div class="drawer-timeline">
+                    ${timeline.map(item => `
+                        <div class="drawer-timeline-item">
+                            <div class="drawer-timeline-header">
+                                <div>
+                                    <div class="font-semibold">${item.exercise || ''}</div>
+                                    <div class="text-xs text-secondary">${item.date || ''}</div>
+                                </div>
+                            </div>
+                            <div class="drawer-timeline-stats">
+                                ${(item.stats || []).map(stat => `<span>${stat}</span>`).join('')}
+                            </div>
+                            ${item.videoThumbnail ? `
+                                <div class="drawer-timeline-thumb" onclick="handleTimelineVideo('${item.videoUrl || ''}')">
+                                    <img src="${item.videoThumbnail}" alt="${item.exercise || '训练视频'}">
+                                    <div class="drawer-timeline-play">
+                                        <i data-lucide="Play" size="18"></i>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${item.note ? `<div class="text-sm mb-sm"><strong>我的感受:</strong> ${item.note}</div>` : ''}
+                            ${item.coachComment ? `<div class="text-sm text-secondary"><strong>教练点评:</strong> ${item.coachComment}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function buildCoachNotes(notes) {
+            if (!notes || !notes.length) return '';
+            return `
+                <div class="drawer-notes">
+                    ${notes.map(note => `<p><strong>${note.title || ''}:</strong> ${note.content || ''}</p>`).join('')}
+                </div>
+            `;
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.getHours() + ':' + date.getMinutes().toString().padStart(2, '0');
+        }
+        
+        function playVideo(url) {
+             alert('播放视频: ' + url);
+        }
+
+        function handleTimelineVideo(url) {
+            if (url) {
+                alert('播放视频: ' + url);
+            } else {
+                alert('示例视频（敬请期待正式版本）');
+            }
+        }
+    </script>
+</body>
+</html>
+
