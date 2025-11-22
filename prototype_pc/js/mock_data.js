@@ -79,6 +79,81 @@ const MockData = {
         { id: 'stu_003', name: '赵铁柱', plan: '力量举备赛', status: 'inactive', lastActive: '5天前', subscriptionMonths: 3 }
     ],
 
+    studentProfiles: {
+        'stu_001': {
+            displayName: '李明',
+            nickname: '李同学',
+            avatarText: '李',
+            role: '学员',
+            subscriptionTier: '高级版',
+            subscribedCoaches: 2,
+            personalInfo: [
+                { label: '姓名', value: '李明' },
+                { label: '年龄', value: '28岁' },
+                { label: '性别', value: '男' },
+                { label: '地理位置', value: '上海' },
+                { label: '职业', value: '软件工程师' },
+                { label: '加入时长', value: '120天' }
+            ],
+            strengthData: [
+                { label: '深蹲 1RM', value: '120 kg', accent: 'rgb(16, 185, 129)' },
+                { label: '卧推 1RM', value: '100 kg', accent: 'rgb(236, 72, 153)' },
+                { label: '硬拉 1RM', value: '140 kg', accent: 'rgb(249, 115, 22)' },
+                { label: '总和', value: '360 kg', accent: 'rgb(99, 102, 241)' }
+            ],
+            bodyMetrics: [
+                { label: '身高', value: '175 cm' },
+                { label: '当前体重', value: '75 kg' },
+                { label: '体脂率', value: '15%' },
+                { label: '腕围', value: '17 cm' }
+            ],
+            trainingBackground: [
+                { label: '系统训练时长', value: '2年' },
+                { label: '训练频率', value: '每周4-5次' },
+                { label: '主要目标', value: '增肌 + 力量' },
+                { label: '恢复能力', value: '良好' }
+            ],
+            recentTraining: {
+                date: '昨天',
+                title: '胸部力量强化',
+                summary: '完成度 100% · RPE 8.5'
+            },
+            timeline: [
+                {
+                    exercise: '卧推',
+                    date: '2024年11月15日',
+                    stats: ['100 kg × 8 次', 'RPE 9'],
+                    videoThumbnail: 'https://placehold.co/600x400/6366f1/white?text=Training+Video',
+                    videoUrl: 'https://example.com/bench_set3.mp4',
+                    note: '第一次卧推突破100kg！感觉太棒了！💪',
+                    coachComment: '做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。'
+                },
+                {
+                    exercise: '深蹲',
+                    date: '2024年11月10日',
+                    stats: ['120 kg × 5 次', 'RPE 8.5'],
+                    videoThumbnail: 'https://placehold.co/600x400/ec4899/white?text=Squat+Training',
+                    videoUrl: 'https://example.com/squat_highlight.mp4',
+                    note: '深蹲蹲得很深，膝盖稳定性提升明显！',
+                    coachComment: '深度控制得很好！注意保持核心收紧，髋部启动。'
+                },
+                {
+                    exercise: '硬拉',
+                    date: '2024年11月5日',
+                    stats: ['140 kg × 3 次', 'RPE 9'],
+                    videoThumbnail: 'https://placehold.co/600x400/10b981/white?text=Deadlift',
+                    videoUrl: 'https://example.com/deadlift_pr.mp4',
+                    note: '首次硬拉140kg，背部感觉很稳！'
+                }
+            ],
+            coachNotes: [
+                { title: '动作模式评估', content: '卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。' },
+                { title: '训练建议', content: '近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。' },
+                { title: '下阶段目标', content: '重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。' }
+            ]
+        }
+    },
+
     // Coach profiles (homepage editable data)
     coachProfiles: {
         'coach_001': {
@@ -275,6 +350,83 @@ const MockData = {
             reviewerId: 'coach_001',
             reviewerName: '张教练'
         }
+    ],
+
+    // Chat Messages
+    messages: [
+        {
+            id: 'msg_001',
+            sessionId: 'chat_stu001_coach001',
+            senderId: 'student_001',
+            content: '教练，我的深蹲感觉腰有点不舒服。',
+            type: 'text', // text, image, voice, quote
+            timestamp: Date.now() - 86400000 * 1, // 1 day ago
+            read: true
+        },
+        {
+            id: 'msg_002',
+            sessionId: 'chat_stu001_coach001',
+            senderId: 'coach_001',
+            content: '发个视频我看看？',
+            type: 'text',
+            timestamp: Date.now() - 86400000 * 1 + 3600000,
+            read: true
+        },
+        {
+            id: 'msg_003',
+            sessionId: 'chat_stu001_coach001',
+            senderId: 'student_001',
+            content: '教练，请看我这组深蹲',
+            type: 'quote',
+            quoteData: {
+                 videoId: 'vid_001',
+                 videoUrl: 'https://example.com/squat.mp4',
+                 thumbnail: 'https://placehold.co/300x200/333/fff?text=Squat',
+                 date: '2023-11-20',
+                 exercise: '深蹲',
+                 details: '100kg x 5'
+            },
+            timestamp: Date.now() - 3600000,
+            read: false
+        }
+    ],
+
+    // Active Chat Sessions
+    chatSessions: [
+        {
+            id: 'chat_stu001_coach001',
+            participants: ['student_001', 'coach_001'],
+            lastMessage: '教练，请看我这组深蹲',
+            lastMessageTime: Date.now() - 3600000,
+            unreadCount: {
+                'student_001': 0,
+                'coach_001': 1
+            }
+        }
+    ],
+
+    // Student Videos (for quoting)
+    videos: [
+        {
+            id: 'vid_001',
+            userId: 'student_001',
+            date: '2023-11-20',
+            exercise: '深蹲',
+            weight: '100kg',
+            reps: '5',
+            thumbnail: 'https://placehold.co/300x200/333/fff?text=Squat',
+            url: 'https://example.com/squat.mp4'
+        },
+        {
+            id: 'vid_002',
+            userId: 'student_001',
+            date: '2023-11-18',
+            exercise: '卧推',
+            weight: '80kg',
+            reps: '8',
+            thumbnail: 'https://placehold.co/300x200/333/fff?text=Bench',
+            url: 'https://example.com/bench.mp4'
+        }
     ]
 };
 
@@ -312,9 +464,22 @@ const Store = {
         if (!localStorage.getItem('coachlink_subscriptionSettings')) {
             Store.set('subscriptionSettings', MockData.subscriptionSettings);
         }
+        
+        // Chat related data initialization
+        if (!localStorage.getItem('coachlink_messages')) {
+            Store.set('messages', MockData.messages);
+        }
+        if (!localStorage.getItem('coachlink_chatSessions')) {
+            Store.set('chatSessions', MockData.chatSessions);
+        }
+        if (!localStorage.getItem('coachlink_videos')) {
+            Store.set('videos', MockData.videos);
+        }
+
         // Always update these for development/testing of new features
         Store.set('clientPlans', MockData.clientPlans);
         Store.set('clientExecution', MockData.clientExecution);
+        Store.set('studentProfiles', MockData.studentProfiles);
     }
 };
 

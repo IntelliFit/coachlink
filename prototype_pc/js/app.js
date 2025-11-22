@@ -17,6 +17,8 @@ const App = {
         const user = MockData.currentUser;
         
         let menuItems = [];
+        const messageLink = isCoach ? 'chat.html' : (isAdmin ? '#' : 'chat.html');
+
         if (isAdmin) {
             menuItems = [
                 { name: '成绩审核', icon: 'ClipboardCheck', link: 'review.html' },
@@ -66,7 +68,13 @@ const App = {
                             <div class="text-xs text-secondary">${user.role === 'admin' ? '管理员' : (user.role === 'coach' ? '专业教练' : '学员')}</div>
                         </div>
                         <div class="avatar">${user.avatar}</div>
-                        <div id="user-menu-nav" style="display:none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 180px; z-index: 100;">
+                        <div id="user-menu-nav" style="display:none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 200px; z-index: 100;">
+                            ${(user.role === 'coach' || user.role === 'student') ? `
+                                <a href="${messageLink}" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px;">
+                                    <i data-lucide="MessageSquare" size="16"></i><span>消息中心</span>
+                                </a>
+                                <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                            ` : ''}
                             ${user.role === 'coach' ? `
                                 <a href="../coach/my-homepage.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px;">
                                     <i data-lucide="Home" size="16"></i><span>我的主页</span>
@@ -115,27 +123,47 @@ const App = {
 
         const user = MockData.currentUser; // In real app, get from auth
 
+        const messageLink = user.role === 'student' || user.role === 'coach' ? 'chat.html' : '#';
+
         header.innerHTML = `
             <h2 class="text-lg font-semibold" id="page-title">页面标题</h2>
-            <div class="user-profile" id="user-profile-trigger" style="position: relative; cursor: pointer;">
-                <div class="text-right mr-2">
-                    <div class="text-sm font-medium">${user.name}</div>
-                    <div class="text-xs text-secondary">${user.role === 'admin' ? '管理员' : (user.role === 'coach' ? '专业教练' : '学员')}</div>
-                </div>
-                <div class="avatar">${user.avatar}</div>
-                <div id="user-menu" style="display:none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 180px; z-index: 100;">
-                    ${user.role === 'coach' ? `
-                        <a href="my-homepage.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
-                            <i data-lucide="Home" size="16"></i><span>我的主页</span>
+            <div class="flex items-center gap-lg">
+                <a href="${messageLink}" class="relative p-2 text-secondary hover:text-primary transition-colors" title="消息中心">
+                    <i data-lucide="Bell"></i>
+                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </a>
+                <div class="user-profile" id="user-profile-trigger" style="position: relative; cursor: pointer;">
+                    <div class="text-right mr-2">
+                        <div class="text-sm font-medium">${user.name}</div>
+                        <div class="text-xs text-secondary">${user.role === 'admin' ? '管理员' : (user.role === 'coach' ? '专业教练' : '学员')}</div>
+                    </div>
+                    <div class="avatar">${user.avatar}</div>
+                    <div id="user-menu" style="display:none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 180px; z-index: 100;">
+                        ${(user.role === 'coach' || user.role === 'student') ? `
+                            <a href="${messageLink}" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
+                                <i data-lucide="MessageSquare" size="16"></i><span>消息中心</span>
+                            </a>
+                            <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                        ` : ''}
+                        ${user.role === 'coach' ? `
+                            <a href="my-homepage.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
+                                <i data-lucide="Home" size="16"></i><span>我的主页</span>
+                            </a>
+                            <a href="pricing.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
+                                <i data-lucide="DollarSign" size="16"></i><span>服务与定价</span>
+                            </a>
+                            <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                        ` : ''}
+                        ${user.role === 'student' ? `
+                            <a href="subscription.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
+                                <i data-lucide="CreditCard" size="16"></i><span>我的订阅</span>
+                            </a>
+                            <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                        ` : ''}
+                        <a href="../index.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color: var(--danger-color); transition: background 0.2s;">
+                            <i data-lucide="LogOut" size="16"></i><span>退出登录</span>
                         </a>
-                        <a href="pricing.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
-                            <i data-lucide="DollarSign" size="16"></i><span>服务与定价</span>
-                        </a>
-                        <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
-                    ` : ''}
-                    <a href="../index.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color: var(--danger-color); transition: background 0.2s;">
-                        <i data-lucide="LogOut" size="16"></i><span>退出登录</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         `;

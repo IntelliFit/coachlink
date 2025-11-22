@@ -282,6 +282,12 @@
                             <span class="badge badge-primary">力量举</span>
                             <span class="badge badge-primary">增肌</span>
                         </div>
+                        <div class="flex justify-center mt-md">
+                            <button class="btn btn-primary btn-lg" onclick="startConsultation()">
+                                <i data-lucide="MessageCircle" class="mr-2"></i>
+                                在线咨询
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Data Stats -->
@@ -594,6 +600,16 @@
                 if (b.type === 'video') return `<div class="mb-sm"><video src="${b.url}" controls style="width:100%; max-height:420px; background:#000; border-radius:8px;"></video></div>`;
                 return '';
             }).join('');
+        }
+
+        function startConsultation() {
+            // Get current coach ID from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const coachId = urlParams.get('id') || '1';
+            const coachInternalId = coachId === '2' ? 'coach_002' : 'coach_001';
+            
+            // Navigate to AI chat with referrer info
+            window.location.href = `ai-chat.html?from=${coachInternalId}`;
         }
     </script>
 </body>
