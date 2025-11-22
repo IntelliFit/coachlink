@@ -12,22 +12,22 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
 import { actionLibService } from '@/app/service/actionLibService';
 import ActionEditDialog from './ActionEditDialog';
-import { ExerciseAction } from '@/app/api/action-lib/get-actions/entity';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
+import { CoachActionRow } from '@/types';
 
 const ActionLib = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
 
-    const [actions, setActions] = useState<ExerciseAction[]>([]);
+    const [actions, setActions] = useState<CoachActionRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
-    const [editingAction, setEditingAction] = useState<ExerciseAction | null>(null);
+    const [editingAction, setEditingAction] = useState<CoachActionRow | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
-    const [selectedAction, setSelectedAction] = useState<ExerciseAction | null>(null);
+    const [selectedAction, setSelectedAction] = useState<CoachActionRow | null>(null);
 
     const { showToast } = useToastContext();
     const itemsPerPage = 12;
@@ -43,16 +43,16 @@ const ActionLib = () => {
 
         setLoading(true);
         try {
-            const res = await actionLibService.getActions({
-                coach_id: coach.id,
+            const res = await actionLibService.listActions({
                 search: searchTerm || undefined,
                 page: currentPage,
                 limit: itemsPerPage
             });
 
             if (res) {
+
                 setActions(res.actions);
-                setTotalRecords(res.total);
+                setTotalRecords(res.totalCount);
             }
         } catch (error) {
             console.error('加载动作列表失败:', error);
@@ -67,7 +67,7 @@ const ActionLib = () => {
         setDialogVisible(true);
     };
 
-    const handleEditAction = async (action: ExerciseAction) => {
+    const handleEditAction = async (action: CoachActionRow) => {
         try {
             const res = await actionLibService.getAction({ id: action.id });
             if (res?.action) {
@@ -80,7 +80,7 @@ const ActionLib = () => {
         }
     };
 
-    const handleDeleteAction = (action: ExerciseAction) => {
+    const handleDeleteAction = (action: CoachActionRow) => {
         confirmDialog({
             message: `确定要删除动作"${action.name}"吗？此操作无法撤销。`,
             header: '删除确认',
@@ -101,7 +101,7 @@ const ActionLib = () => {
         }
     };
 
-    const handleSaveAction = async (actionData: Partial<ExerciseAction>) => {
+    const handleSaveAction = async (actionData: Partial<CoachActionRow>) => {
         try {
             if (editingAction) {
                 // 更新动作
@@ -115,11 +115,10 @@ const ActionLib = () => {
                 if (!coach?.id) return;
 
                 await actionLibService.addAction({
-                    coach_id: coach.id,
                     name: actionData.name || '',
-                    description: actionData.description || '',
-                    video_url: actionData.video_url,
-                    type: actionData.type || 'strength'
+                    detail: actionData.detail || '',
+                    url: actionData.url || '',
+                    position: actionData.position || ''
                 });
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
@@ -142,20 +141,20 @@ const ActionLib = () => {
         setCurrentPage(newPage);
     };
 
-    const renderActionCard = (action: ExerciseAction) => {
+    const renderActionCard = (action: CoachActionRow) => {
         return (
             <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors">
                 <div className="flex items-start justify-between">
                     <div className="flex-1">
                         <h3 className="text-lg font-semibold text-900 mb-2">{action.name}</h3>
                         <p className="text-600 mb-3 line-clamp-2">
-                            {action.description}
+                            {action.detail}
                         </p>
                         <div className="flex items-center gap-2">
                             <span className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full">
-                                {getActionTypeLabel(action.type)}
+                                {action.position}
                             </span>
-                            {action.video_url && (
+                            {action.url && (
                                 <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
                                     有视频
                                 </span>
@@ -181,16 +180,6 @@ const ActionLib = () => {
         );
     };
 
-    const getActionTypeLabel = (type: string) => {
-        const typeLabels: Record<string, string> = {
-            'strength': '力量',
-            'cardio': '心肺',
-            'flexibility': '柔韧性',
-            'other': '其他'
-        };
-        return typeLabels[type] || type;
-    };
-
     return (
         <div className="max-w-6xl mx-auto">
             <ConfirmDialog />
@@ -203,40 +192,45 @@ const ActionLib = () => {
 
             <Card className="shadow-sm">
                 {/* 顶部区域 */}
-                <div className="border-b border-surface-200 p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-900">动作库管理</h1>
-                            <p className="text-600 mt-1">管理您的训练动作库</p>
+                {actions.length > 0 ? (
+                    <div className="border-b border-surface-200 p-4 md:p-6">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-900">动作库管理</h1>
+                                <p className="text-600 mt-1">管理您的训练动作库</p>
+                            </div>
+                            <Button
+                                label="添加动作"
+                                icon="pi pi-plus"
+                                onClick={handleAddAction}
+                            />
                         </div>
-                        <Button
-                            label="添加动作"
-                            icon="pi pi-plus"
-                            onClick={handleAddAction}
-                        />
-                    </div>
 
-                    <div className="flex flex-col md:flex-row gap-4 mt-6">
-                        <div className="flex-1">
-                            <IconField iconPosition="left" className='w-full'>
-                                <InputIcon className="pi pi-search"> </InputIcon>
-                                <InputText
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                    placeholder="搜索动作名称或描述..."
-                                    className="w-full"
-                                />
-                            </IconField>
+                        <div className="flex flex-col md:flex-row gap-4 mt-6">
+                            <div className="flex-1">
+                                <IconField iconPosition="left" className='w-full'>
+                                    <InputIcon className="pi pi-search"> </InputIcon>
+                                    <InputText
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                        placeholder="搜索动作名称或描述..."
+                                        className="w-full"
+                                    />
+                                </IconField>
 
+                            </div>
+                            <Button
+                                label="搜索"
+                                icon="pi pi-search"
+                                onClick={handleSearch}
+                            />
                         </div>
-                        <Button
-                            label="搜索"
-                            icon="pi pi-search"
-                            onClick={handleSearch}
-                        />
                     </div>
-                </div>
+                ) : (
+                    <div></div>
+                )}
+
 
                 {/* 动作列表区域 */}
                 <div className="p-4 md:p-6">
@@ -257,11 +251,8 @@ const ActionLib = () => {
                                 </div>
                             ))}
                         </div>
-                    ) : actions.length === 0 ? (
+                    ) : actions.length === 0 && !searchTerm ? (
                         <div className="text-center py-12">
-                            <div className="bg-surface-100 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                                <i className="pi pi-bolt text-2xl text-surface-500"></i>
-                            </div>
                             <h3 className="text-lg font-semibold text-900 mb-2">暂无动作</h3>
                             <p className="text-600 mb-6">开始添加您的第一个训练动作</p>
                             <Button

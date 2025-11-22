@@ -6,7 +6,7 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
-import { ExerciseAction } from '@/app/api/action-lib/get-actions/entity';
+import { ExerciseAction } from '@/app/api/action-lib/list-actions/entity';
 
 interface ActionEditDialogProps {
     visible: boolean;

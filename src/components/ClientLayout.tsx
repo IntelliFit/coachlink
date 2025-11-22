@@ -24,15 +24,15 @@ export default function ClientLayout({
         });
     };
 
-    useEffect(() => {
-        const lenisInstance = new Lenis({
-            autoRaf: true,
-        });
+    // useEffect(() => {
+    //     const lenisInstance = new Lenis({
+    //         autoRaf: true,
+    //     });
 
-        setLenis(lenisInstance);
+    //     setLenis(lenisInstance);
 
-        return () => lenisInstance.destroy();
-    }, []);
+    //     return () => lenisInstance.destroy();
+    // }, []);
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
