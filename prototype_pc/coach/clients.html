@@ -626,6 +626,8 @@
                 const actionButton = hasPlan
                     ? `<button class="btn btn-secondary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">查看/调整</button>`
                     : `<button class="btn btn-primary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">制定计划</button>`;
+                
+                const chatButton = `<button class="btn btn-icon btn-sm ml-sm" title="聊天" onclick="window.location.href='chat.html?studentId=${client.id}'"><i data-lucide="MessageSquare" size="16"></i></button>`;
 
                 return `
                 <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -642,6 +644,7 @@
                     <td class="p-md text-secondary text-sm">${client.lastActive}</td>
                     <td class="p-md">
                         ${actionButton}
+                        ${chatButton}
                     </td>
                 </tr>
                 `;
