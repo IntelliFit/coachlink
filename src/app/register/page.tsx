@@ -9,13 +9,14 @@ import { Card } from 'primereact/card';
 import { User } from 'lucide-react';
 import { FloatLabel } from 'primereact/floatlabel';
 import { useToastContext } from '@/context/ToastContext';
+import { authService } from '../service/authService';
 
 export default function RegisterPage() {
     const [phone, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
     const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
     const router = useRouter();
 
     const { showToast } = useToastContext();
@@ -30,71 +31,48 @@ export default function RegisterPage() {
 
         setLoading(true);
 
-        try {
-            // 模拟注册延迟
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        const res = await authService.register({
+            phone: phone.trim(),
+            password: password.trim(),
+            verifyCode: verificationCode.trim(),
+        });
 
-            setSuccess(true);
-        } catch (err: any) {
-            showToast({ severity: 'error', summary: err.message || '注册失败' })
-        } finally {
-            setLoading(false);
+        if (res) {
+            showToast({ severity: 'success', summary: '注册成功' });
+            router.push('/login');
+        } else {
+            showToast({ severity: 'error', summary: '注册失败' });
         }
+
+        setLoading(false);
     };
 
-    if (success) {
-        return (
-            <>
-                {/* 遮罩层 - 模糊背景 */}
-                <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50" />
+    const [sendingCode, setSendingCode] = useState(false);
 
-                {/* 成功页面 - 浮在最顶层 */}
-                <div className="fixed inset-0 min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-900 transition-colors duration-300 p-4 z-[51]">
-                    <div className="w-full max-w-md">
-                        <Card title="注册成功" className="text-center bg-surface dark:bg-surface-800">
-                            <div className="flex flex-col items-center mb-6">
-                                <div className="bg-surface-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center mb-3">
-                                    <User className="text-surface-500" size={24} />
-                                </div>
-                                <h2 className="text-xl font-bold text-center">欢迎加入</h2>
-                                <p className="text-center text-surface-600 dark:text-surface-300 mt-1">
-                                    请检查您的邮箱以确认账户。
-                                </p>
-                            </div>
-                            <Button
-                                label="前往登录"
-                                onClick={() => router.push('/login')}
-                                className="w-full bg-primary hover:bg-primary/90 text-surface font-medium py-3 rounded-lg transition"
-                            />
-                        </Card>
-                    </div>
-                </div>
-            </>
-        );
-    }
+    const sendVerificationCode = () => {
+        // 模拟发送验证码
+        setSendingCode(true);
+        showToast({ severity: 'info', summary: '验证码已发送', detail: '验证码为：123456' });
+        setTimeout(() => setSendingCode(false), 3000);
+    };
 
     return (
         <>
-            {/* 遮罩层 - 模糊背景 */}
-            <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50" />
 
             {/* 注册表单 - 浮在最顶层 */}
             <div
-                className={`fixed inset-0 min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-900 transition-colors duration-300 p-4 z-[51]`}
+                className={`fixed inset-0 min-h-screen flex items-center justify-center bg-gradient-to-r from-primary-200 to-primary-600 transition-colors duration-300 p-4 z-[51]`}
             >
                 <div className="w-full max-w-md">
                     <div className="mb-6 flex flex-col items-center">
                         <img src="/favicon.jpg" alt="CoachLink Logo" className="h-20" />
-                        <h2 className="mt-3 text-xl font-bold text-center text-surface-900 dark:text-surface">
-                            CoachLink - 智健联盟
-                        </h2>
                         <p className="mt-1 text-center text-surface-600 dark:text-surface-300">
                             专业教练订阅平台
                         </p>
                     </div>
                     <Card
                         title="加入 CoachLink"
-                        className="w-full max-w-md shadow-xl rounded-2xl p-6 sm:p-8 login-card"
+                        className="w-full max-w-md shadow-xl rounded-2xl p-6 sm:p-8"
                     >
 
                         <form onSubmit={handleRegister} className="mb-2">
@@ -122,7 +100,11 @@ export default function RegisterPage() {
                                         className="w-full"
                                         placeholder=" "
                                         toggleMask
-                                        feedback={false}
+                                        promptLabel="请选择密码"
+                                        weakLabel="密码太简单"
+                                        mediumLabel="密码复杂度一般"
+                                        strongLabel="密码复杂度较高"
+                                        feedback={true}
                                     />
                                     <label htmlFor="password">密码</label>
                                 </FloatLabel>
@@ -141,6 +123,28 @@ export default function RegisterPage() {
                                         feedback={false}
                                     />
                                     <label htmlFor="confirmPassword">确认密码</label>
+                                </FloatLabel>
+                            </div>
+
+                            <div className='mb-10'>
+                                <FloatLabel>
+                                    <div className="flex gap-2">
+                                        <InputText
+                                            id="verificationCode"
+                                            value={verificationCode}
+                                            onChange={(e) => setVerificationCode(e.target.value)}
+                                            className="w-[50%]"
+                                            required
+                                        />
+                                        <Button
+                                            type="button"
+                                            label='发送验证码'
+                                            onClick={sendVerificationCode}
+                                            loading={sendingCode}
+                                            className='w-[50%]'
+                                        />
+                                    </div>
+                                    <label htmlFor="verificationCode">验证码</label>
                                 </FloatLabel>
                             </div>
 
