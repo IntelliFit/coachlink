@@ -7,84 +7,49 @@ import { DeleteActionRequest, DeleteActionResponse } from "@/app/api/action-lib/
 import { GetActionRequest, GetActionResponse } from "@/app/api/action-lib/get-action/entity";
 
 export class ActionLibService extends BaseService {
-    async getActions(request: GetActionsRequest): Promise<GetActionsResponse> {
-        const res = await fetch("/api/action-lib/get-actions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(request),
-        });
-
-        if (!res.ok) {
-            throw new Error("Failed to fetch actions");
+    async getActions(reqData: GetActionsRequest) {
+        const res = await this.post<GetActionsResponse>('get-actions', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
         }
 
-        return res.json();
+        return null;
     }
 
-    async getAction(request: GetActionRequest): Promise<GetActionResponse> {
-        const res = await fetch("/api/action-lib/get-action", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(request),
-        });
-
-        if (!res.ok) {
-            throw new Error("Failed to fetch action");
+    async getAction(reqData: GetActionRequest) {
+        const res = await this.post<GetActionResponse>('get-action', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
         }
 
-        return res.json();
+        return null;
     }
 
-    async addAction(action: AddActionRequest): Promise<AddActionResponse> {
-        const res = await fetch("/api/action-lib/add-action", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(action),
-        });
-
-        if (!res.ok) {
-            throw new Error("Failed to add action");
+    async addAction(reqData: AddActionRequest) {
+        const res = await this.post<AddActionResponse>('add-action', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
         }
 
-        return res.json();
+        return null;
     }
 
-    async updateAction(action: UpdateActionRequest): Promise<UpdateActionResponse> {
-        const res = await fetch("/api/action-lib/update-action", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(action),
-        });
-
-        if (!res.ok) {
-            throw new Error("Failed to update action");
+    async updateAction(reqData: UpdateActionRequest) {
+        const res = await this.post<UpdateActionResponse>('update-action', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
         }
 
-        return res.json();
+        return null;
     }
 
-    async deleteAction(request: DeleteActionRequest): Promise<DeleteActionResponse> {
-        const res = await fetch("/api/action-lib/delete-action", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(request),
-        });
-
-        if (!res.ok) {
-            throw new Error("Failed to delete action");
+    async deleteAction(reqData: DeleteActionRequest) {
+        const res = await this.post<DeleteActionResponse>('delete-action', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
         }
 
-        return res.json();
+        return null;
     }
 }
 
