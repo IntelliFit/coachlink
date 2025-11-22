@@ -9,9 +9,10 @@ import { Button } from 'primereact/button';
 import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
 import { userService } from '@/app/service/userService';
+import { trainingService } from '@/app/service/trainingService';
 import { Play, TrendingUp, Calendar, Bell, Target, Clock, Award, BookOpen, ArrowLeft, Check } from 'lucide-react';
 
-import TrainingExecution from './TrainingExecution';
+import TodayTraining from './TodayTraining';
 import TrainingProgressDashboard from './TrainingProgressDashboard';
 import TrainingReminder from './TrainingReminder';
 import TrainingPlanPreview from './TrainingPlanPreview';
@@ -30,6 +31,7 @@ const TrainingPlanDashboard: React.FC = () => {
     const [trainingPlan, setTrainingPlan] = useState<TrainingPlanRow | null>(null);
     const [planPreview, setPlanPreview] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
+    const [progressRefreshKey, setProgressRefreshKey] = useState(0);
 
     // 加载训练计划数据
     useEffect(() => {
@@ -38,51 +40,40 @@ const TrainingPlanDashboard: React.FC = () => {
         }
     }, [trainingPlanId, session?.user?.id]);
 
+    // 监听 URL 参数变化，处理训练完成后的刷新
+    useEffect(() => {
+        // 检查 URL 中是否有 refresh 参数
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('refresh') === 'true') {
+            // 触发刷新
+            handleSessionComplete();
+            
+            // 清除 URL 参数
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, []);
 
     const loadData = async () => {
         try {
             setLoading(true);
 
-            // 获取训练计划详细内容用于预览
-            const res = await userService.getTrainingPlanDetail({ id: trainingPlanId?.toString() || '' });
+            // 使用 trainingService 获取训练中心数据和计划预览
+            const [hubData, preview] = await Promise.all([
+                trainingService.getHubData({ training_plan_id: trainingPlanId?.toString() || '' }),
+                trainingService.getPlanPreview({ training_plan_id: trainingPlanId?.toString() || '' })
+            ]);
 
-            if (res) {
-                setTrainingPlan(res.plan);
+            if (hubData?.training_plan) {
+                setTrainingPlan(hubData.training_plan as any);
+            }
 
-                const weeksMap: Record<number, { week: number; sessions: any[] }> = {};
-                for (const row of res.details ?? []) {
-                    if (!weeksMap[row.week_number]) {
-                        weeksMap[row.week_number] = { week: row.week_number, sessions: [] };
-                    }
-                    weeksMap[row.week_number].sessions.push({
-                        day: row.day_of_week,
-                        focus: row.session_focus,
-                        main: row.main_exercises || [],
-                        accessories: row.accessory_exercises || [],
-                        notes: row.notes || ''
-                    });
-                }
-
-                const weeks = Object.values(weeksMap).sort((a, b) => a.week - b.week);
-                const frequencyPerWeek = weeks.length > 0 ? Math.max(...weeks.map(w => w.sessions.length)) : 0;
-
-                setPlanPreview({
-                    meta: {
-                        title: res.plan.title || '',
-                        duration_weeks: res.plan.duration_weeks || 6,
-                        frequency_per_week: frequencyPerWeek || 3,
-                        goal: res.plan.difficulty_level || '',
-                        experience_level: res.plan.difficulty_level || '',
-                        global_warmup: [],
-                        cooldown: [],
-                        safety_notes: []
-                    },
-                    weeks
-                });
+            if (preview) {
+                setPlanPreview(preview);
             }
 
         } catch (error) {
-
+            console.error('加载训练计划数据失败:', error);
             showToast({
                 severity: 'error',
                 summary: '加载失败',
@@ -98,6 +89,8 @@ const TrainingPlanDashboard: React.FC = () => {
     const handleSessionComplete = () => {
         // 重新加载数据以更新统计数据
         loadData();
+        // 触发训练进度组件刷新
+        setProgressRefreshKey(prev => prev + 1);
 
         showToast({
             severity: 'success',
@@ -170,7 +163,14 @@ const TrainingPlanDashboard: React.FC = () => {
                                     <Button
                                         icon="pi pi-arrow-left"
                                         className="p-button-rounded p-button-text text-white mr-3 hover:bg-white/20 transition-colors"
-                                        onClick={() => router.back()}
+                                        onClick={() => {
+                                            // 返回到教练计划列表页面，携带该计划的 coach_id
+                                            if (trainingPlan?.coach_id) {
+                                                router.push(`/coach/plans?coachId=${trainingPlan.coach_id}`);
+                                            } else {
+                                                router.push('/coach/plans');
+                                            }
+                                        }}
                                     />
                                     <h1 className="text-2xl font-bold tracking-wide m-0">
                                         {trainingPlan.title}
@@ -209,7 +209,7 @@ const TrainingPlanDashboard: React.FC = () => {
             <div>
                 <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
                     <TabPanel header="今日训练" leftIcon="pi pi-play mr-2">
-                        <TrainingExecution
+                        <TodayTraining
                             trainingPlanId={trainingPlanId as string}
                             userId={session?.user?.id || ''}
                             onSessionComplete={handleSessionComplete}
@@ -219,6 +219,7 @@ const TrainingPlanDashboard: React.FC = () => {
                         <TrainingProgressDashboard
                             userId={session?.user?.id || ''}
                             trainingPlanId={trainingPlanId as string}
+                            refreshKey={progressRefreshKey}
                         />
                     </TabPanel>
                     <TabPanel header="训练计划" leftIcon="pi pi-calendar mr-2">

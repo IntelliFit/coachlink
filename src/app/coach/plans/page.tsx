@@ -146,7 +146,7 @@ const TrainingPlansHome: React.FC = () => {
                         <Button
                             icon="pi pi-arrow-left"
                             className="p-button-rounded p-button-text"
-                            onClick={() => router.back()}
+                            onClick={() => router.push('/coach/subscription')}
                         />
 
                         <div>
