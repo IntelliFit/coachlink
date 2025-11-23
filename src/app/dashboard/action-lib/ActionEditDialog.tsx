@@ -6,12 +6,12 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
-import { ExerciseAction } from '@/app/api/action-lib/list-actions/entity';
+import { CoachActionRow } from '@/types';
 
 interface ActionEditDialogProps {
     visible: boolean;
-    action?: ExerciseAction | null;
-    onSave: (action: Partial<ExerciseAction>) => Promise<void>;
+    action?: CoachActionRow | null;
+    onSave: (action: Partial<CoachActionRow>) => Promise<void>;
     onCancel: () => void;
 }
 
@@ -22,41 +22,44 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     onCancel
 }) => {
     const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [videoUrl, setVideoUrl] = useState('');
-    const [type, setType] = useState<'strength' | 'cardio' | 'flexibility' | 'other'>('strength');
+    const [detail, setDetail] = useState('');
+    const [url, setUrl] = useState('');
+    const [position, setPosition] = useState<string>('手臂');
     const [loading, setLoading] = useState(false);
 
     const actionTypes = [
-        { label: '力量训练', value: 'strength' },
-        { label: '心肺训练', value: 'cardio' },
-        { label: '柔韧性训练', value: 'flexibility' },
-        { label: '其他', value: 'other' }
+        { label: '胸部', value: '胸部' },
+        { label: '背部', value: '背部' },
+        { label: '腿部', value: '腿部' },
+        { label: '肩部', value: '肩部' },
+        { label: '手臂', value: '手臂' },
+        { label: '核心', value: '核心' },
+        { label: '其他', value: '其他' }
     ];
 
     useEffect(() => {
         if (action) {
             setName(action.name);
-            setDescription(action.description);
-            setVideoUrl(action.video_url || '');
-            setType(action.type);
+            setDetail(action.detail || '');
+            setUrl(action.url || '');
+            setPosition(action.position || '其他');
         } else {
             // 重置表单
             setName('');
-            setDescription('');
-            setVideoUrl('');
-            setType('strength');
+            setDetail('');
+            setUrl('');
+            setPosition('手臂');
         }
     }, [action, visible]);
 
     const handleSave = async () => {
         setLoading(true);
         try {
-            const actionData: Partial<ExerciseAction> = {
+            const actionData: Partial<CoachActionRow> = {
                 name,
-                description,
-                video_url: videoUrl || undefined,
-                type
+                detail,
+                url: url || undefined,
+                position
             };
 
             if (action) {
@@ -91,7 +94,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         <Dialog
             header={action ? "编辑动作" : "添加动作"}
             visible={visible}
-            style={{ width: '500px' }}
+            style={{ width: '800px' }}
             onHide={onCancel}
             footer={footerContent}
         >
@@ -107,34 +110,36 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="description" className="font-medium">动作描述 *</label>
+                    <label htmlFor="position" className="font-medium">动作类型</label>
+                    <Dropdown
+                        id="position"
+                        value={position}
+                        options={actionTypes}
+                        onChange={(e) => setPosition(e.value)}
+                        placeholder="选择动作类型"
+                        className="w-full"
+                        appendTo='self'
+                    />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="detail" className="font-medium">动作描述 *</label>
                     <InputTextarea
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        id="detail"
+                        value={detail}
+                        onChange={(e) => setDetail(e.target.value)}
                         rows={4}
                         required
                     />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="videoUrl" className="font-medium">视频链接</label>
+                    <label htmlFor="url" className="font-medium">视频链接</label>
                     <InputText
-                        id="videoUrl"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
+                        id="url"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
                         placeholder="https://example.com/video.mp4"
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="type" className="font-medium">动作类型</label>
-                    <Dropdown
-                        id="type"
-                        value={type}
-                        options={actionTypes}
-                        onChange={(e) => setType(e.value)}
-                        placeholder="选择动作类型"
                     />
                 </div>
             </div>
