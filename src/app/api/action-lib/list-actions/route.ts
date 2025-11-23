@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     // Apply search filter if provided
     if (search) {
-        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,detail.ilike.%${search}%`);
     }
 
     // Apply pagination
