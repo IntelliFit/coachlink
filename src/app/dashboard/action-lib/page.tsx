@@ -124,7 +124,7 @@ const ActionLib = () => {
                     name: actionData.name || '',
                     detail: actionData.detail || '',
                     url: actionData.url || '',
-                    position: actionData.position || ''
+                    positions: actionData.positions || []
                 });
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
@@ -175,6 +175,9 @@ const ActionLib = () => {
     };
 
     const renderActionCard = (action: CoachActionRow) => {
+        // 处理动作类型显示，支持单个或多个类型
+        const positions = action.positions || [];
+
         return (
             <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors">
                 <div className="flex items-start justify-between">
@@ -183,10 +186,15 @@ const ActionLib = () => {
                         <p className="text-600 mb-3 line-clamp-2">
                             {action.detail}
                         </p>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full">
-                                {action.position}
-                            </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {positions.map((pos, index) => (
+                                <span 
+                                    key={index} 
+                                    className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full"
+                                >
+                                    {pos}
+                                </span>
+                            ))}
                             {action.url && (
                                 <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
                                     包含演示

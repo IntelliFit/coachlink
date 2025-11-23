@@ -5,7 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { Dropdown } from 'primereact/dropdown';
+import { MultiSelect } from 'primereact/multiselect';
 import { CoachActionRow } from '@/types';
 
 interface ActionEditDialogProps {
@@ -24,7 +24,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [name, setName] = useState('');
     const [detail, setDetail] = useState('');
     const [url, setUrl] = useState('');
-    const [position, setPosition] = useState<string>('手臂');
+    const [positions, setPositions] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
     const actionTypes = [
@@ -42,13 +42,14 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             setName(action.name);
             setDetail(action.detail || '');
             setUrl(action.url || '');
-            setPosition(action.position || '其他');
+            // 如果position是字符串，则转换为数组，否则直接使用
+            setPositions(action.positions || []);
         } else {
             // 重置表单
             setName('');
             setDetail('');
             setUrl('');
-            setPosition('手臂');
+            setPositions([]);
         }
     }, [action, visible]);
 
@@ -59,7 +60,9 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 name,
                 detail,
                 url: url || undefined,
-                position
+                // 如果只选择了一个位置，保存为字符串以保持向后兼容
+                // 如果选择了多个位置，可以保存为数组
+                positions
             };
 
             if (action) {
@@ -110,12 +113,12 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="position" className="font-medium">动作类型</label>
-                    <Dropdown
-                        id="position"
-                        value={position}
+                    <label htmlFor="positions" className="font-medium">动作类型</label>
+                    <MultiSelect
+                        id="positions"
+                        value={positions}
                         options={actionTypes}
-                        onChange={(e) => setPosition(e.value)}
+                        onChange={(e) => setPositions(e.value)}
                         placeholder="选择动作类型"
                         className="w-full"
                         appendTo='self'

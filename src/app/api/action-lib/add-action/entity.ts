@@ -1,12 +1,7 @@
-import { CoachActionRow } from "@/types";
+import { CoachActionRow, CoachLinkTable } from "@/types";
 
 
-export interface AddActionDto {
-    name: string;
-    detail: string;
-    url?: string;
-    position: string;
-}
+export type AddActionDto = Partial<CoachLinkTable['coach_actions']['Insert']>;
 
 export interface AddActionResponseDto {
     action: CoachActionRow
