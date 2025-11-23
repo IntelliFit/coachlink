@@ -9,7 +9,7 @@ export async function POST(req: Request) {
         name,
         detail,
         url = '',
-        position,
+        positions = [],
     } = await req.json() as AddActionDto;
 
     // Check if user is logged in and has coach role
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (!name || !detail || !position) {
+    if (!name || !detail || !positions?.length) {
         return NextResponse.json({
             success: false,
             message: "缺少必要参数"
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
             name,
             detail,
             url,
-            position,
+            positions,
             coach_id: userId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
