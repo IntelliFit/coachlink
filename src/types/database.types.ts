@@ -369,6 +369,8 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          rest_days: number | null
+          training_days: number | null
           type: string
           updated_at: string | null
         }
@@ -378,6 +380,8 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          rest_days?: number | null
+          training_days?: number | null
           type: string
           updated_at?: string | null
         }
@@ -387,6 +391,8 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          rest_days?: number | null
+          training_days?: number | null
           type?: string
           updated_at?: string | null
         }

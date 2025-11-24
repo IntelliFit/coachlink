@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
-import { UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
+import { CoachPlanTemplatesUpdate, UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 
@@ -38,10 +38,23 @@ export async function POST(req: Request) {
     }
 
     // 更新模板基本信息
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (type !== undefined) updateData.type = type;
+    const updateData: CoachPlanTemplatesUpdate = {};
+
+    if (name !== undefined) {
+        updateData.name = name;
+    }
+    if (description !== undefined) {
+        updateData.description = description;
+    }
+    if (type !== undefined) {
+        updateData.type = type;
+    }
+
+    // 统计训练天数和休息天数
+    if (days) {
+        updateData.training_days = days.filter(day => day.type === "training").length;
+        updateData.rest_days = days.filter(day => day.type === "rest").length;
+    }
 
     let template;
     if (Object.keys(updateData).length > 0) {
@@ -155,6 +168,10 @@ export async function POST(req: Request) {
 
             // 处理动作组（如果提供了action_sets数据）
             if (day.action_sets) {
+                day.action_sets.map((actionSet, index) => {
+                    actionSet.set_order = index + 1;
+                });
+
                 // 获取当前计划日下的所有动作组
                 const { data: existingActionSets, error: fetchActionSetsError } = await supabase
                     .from("coach_plan_action_sets")
@@ -203,11 +220,11 @@ export async function POST(req: Request) {
                         const { error: actionSetError } = await supabase
                             .from("coach_plan_action_sets")
                             .insert({
-                                day_id: createdDay.id,
                                 action_id: actionSet.action_id,
                                 set_order: actionSet.set_order,
                                 sets: actionSet.sets,
                                 reps: actionSet.reps,
+                                day_id: createdDay.id,
                                 intensity: actionSet.intensity || null,
                                 rest_seconds: actionSet.rest_seconds || null
                             });
