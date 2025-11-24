@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabaseAdmin from '@/lib/supabaseAdmin';
+import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { MarkAsReadDto, MarkAsReadResponseDto } from './entity';
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     try {
         // 构建更新查询
-        let query = supabaseAdmin
+        let query = supabase
             .from('coach_messages')
             .update({ is_read: true })
             .eq('conversation_id', conversation_id)

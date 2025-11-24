@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabaseAdmin from '@/lib/supabaseAdmin';
+import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetConversationsDto, GetConversationsResponseDto, ConversationItem } from './entity';
 
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
     try {
         // 判断用户是教练还是学员
-        const { data: coachData } = await supabaseAdmin
+        const { data: coachData } = await supabase
             .from('coaches')
             .select('id')
             .eq('user_id', userId)
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         const coachId = coachData?.id;
 
         // 查询会话
-        let query = supabaseAdmin
+        let query = supabase
             .from('conversations' as any)
             .select('*', { count: 'exact' })
             .eq('is_archived', false)
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
         // 获取教练信息
         const conversationsArray = conversations as any[];
         const coachIds = [...new Set(conversationsArray.map((c: any) => c.coach_id))];
-        const { data: coaches } = await supabaseAdmin
+        const { data: coaches } = await supabase
             .from('coaches')
             .select('id, name, avatar_url')
             .in('id', coachIds);
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
         // 获取学员信息
         const studentIds = [...new Set(conversationsArray.map((c: any) => c.student_id))];
-        const { data: profiles } = await supabaseAdmin
+        const { data: profiles } = await supabase
             .from('user_profiles')
             .select('user_id, nickname, avatar_url')
             .in('user_id', studentIds);

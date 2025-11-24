@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabaseAdmin from '@/lib/supabaseAdmin';
 import type { ApiData } from '@/types/api';
 import type { GetMessagesDto, GetMessagesResponseDto, MessageItem } from './entity';
+import supabase from '@/lib/supabaseClient';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -27,13 +27,13 @@ export async function POST(req: Request) {
 
     try {
         // 验证用户是否为会话参与者
-        const { data: conversation } = await supabaseAdmin
-            .from('conversations' as any)
+        const { data: conversation, error: conversationError } = await supabase
+            .from('conversations')
             .select('student_id, coach_id')
             .eq('id', conversation_id)
-            .single() as any;
+            .single();
 
-        if (!conversation) {
+        if (conversationError || !conversation) {
             return NextResponse.json({
                 success: false,
                 message: '会话不存在',
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         }
 
         // 检查是否为教练
-        const { data: coachData } = await supabaseAdmin
+        const { data: coachData } = await supabase
             .from('coaches')
             .select('id')
             .eq('user_id', userId)
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         }
 
         // 查询消息
-        let query = supabaseAdmin
+        let query = supabase
             .from('coach_messages')
             .select('*', { count: 'exact' })
             .eq('conversation_id', conversation_id)
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
         if (before_id) {
             // 加载更早的消息
-            const { data: beforeMsg } = await supabaseAdmin
+            const { data: beforeMsg } = await supabase
                 .from('coach_messages')
                 .select('created_at')
                 .eq('id', before_id)
@@ -107,12 +107,12 @@ export async function POST(req: Request) {
         // 获取发送者信息
         const senderIds = [...new Set(messages.map(m => m.sender_id))];
         
-        const { data: profiles } = await supabaseAdmin
+        const { data: profiles } = await supabase
             .from('user_profiles')
             .select('user_id, nickname, avatar_url')
             .in('user_id', senderIds);
 
-        const { data: coaches } = await supabaseAdmin
+        const { data: coaches } = await supabase
             .from('coaches')
             .select('user_id, name, avatar_url')
             .in('user_id', senderIds);
