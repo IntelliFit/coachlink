@@ -5,6 +5,7 @@ import { getServerSession } from '../../auth/[...nextauth]/auth';
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
 import type { GetFormSchemaDto, GetFormSchemaResponseDto } from './entity';
+import { RulepackFormSchema } from '../../coach/get-coach-rulepacks/entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
             success: true,
             message: '成功获取表单配置',
             data: {
-                formSchema: data?.form_schema || null
+                formSchema: data?.form_schema as unknown as RulepackFormSchema || null
             }
         });
     } catch (error: any) {
