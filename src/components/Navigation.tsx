@@ -13,6 +13,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useLoginModal } from '@/components/auth/LoginModalContext';
 import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
+import { MessageBadge } from '@/components/chat/MessageBadge';
 
 export default function Navigation() {
     const pathname = usePathname();
@@ -101,7 +102,7 @@ export default function Navigation() {
         </Link>
     );
 
-    // ✅ 右侧区域：登录状态 + 主题切换
+    // ✅ 右侧区域：登录状态 + 消息 + 主题切换
     const end = (
         <div className="flex items-center gap-3 h-full">
             {status === 'loading' ? (
@@ -116,62 +117,79 @@ export default function Navigation() {
                     </div>
                 </div>
             ) : session?.user ? (
-                <div
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg transition-colors"
-                    onClick={handleUserMenuToggle}
-                    aria-label="用户菜单"
-                >
-                    <Avatar
-                        image={session.profile.avatar_url || undefined}
-                        label={
-                            session.profile.avatar_url
-                                ? undefined
-                                : session.profile.nickname?.charAt(0) ||
-                                  session.user.phone?.slice(0, 1) ||
-                                  'U'
-                        }
-                        shape="circle"
-                        className="bg-primary text-white font-bold flex-shrink-0"
-                        size="normal"
-                    />
-                    <div className="flex flex-col">
-                        <span className="font-medium text-sm">
-                            {session.profile.nickname || session.user.phone}
-                        </span>
-                        <div className="flex gap-1">
-                            {session.user.subscription_level && (
-                                <span
-                                    className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                        session.user.subscription_level === 'basic'
-                                            ? 'bg-gray-100 text-gray-600'
+                <>
+                    {/* 消息按钮 */}
+                    <Tooltip target=".message-button" position="bottom" />
+                    <div className="relative">
+                        <Button
+                            icon="pi pi-comment"
+                            onClick={() => router.push('/messages')}
+                            rounded
+                            text
+                            className="message-button shrink-0"
+                            data-pr-tooltip="消息"
+                        />
+                        <MessageBadge className="absolute -top-1 -right-1" />
+                    </div>
+
+                    {/* 用户头像和信息 */}
+                    <div
+                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg transition-colors"
+                        onClick={handleUserMenuToggle}
+                        aria-label="用户菜单"
+                    >
+                        <Avatar
+                            image={session.profile?.avatar_url || undefined}
+                            label={
+                                session.profile?.avatar_url
+                                    ? undefined
+                                    : session.profile?.nickname?.charAt(0) ||
+                                      session.user.phone?.slice(0, 1) ||
+                                      'U'
+                            }
+                            shape="circle"
+                            className="bg-primary text-white font-bold flex-shrink-0"
+                            size="normal"
+                        />
+                        <div className="flex flex-col">
+                            <span className="font-medium text-sm">
+                                {session.profile?.nickname || session.user.phone}
+                            </span>
+                            <div className="flex gap-1">
+                                {session.user.subscription_level && (
+                                    <span
+                                        className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                            session.user.subscription_level === 'basic'
+                                                ? 'bg-gray-100 text-gray-600'
+                                                : session.user.subscription_level === 'advanced'
+                                                ? 'bg-blue-100 text-blue-600'
+                                                : session.user.subscription_level === 'premium'
+                                                ? 'bg-purple-100 text-purple-600'
+                                                : ''
+                                        }`}
+                                    >
+                                        {session.user.subscription_level === 'basic'
+                                            ? '基础会员'
                                             : session.user.subscription_level === 'advanced'
-                                            ? 'bg-blue-100 text-blue-600'
+                                            ? '高级会员'
                                             : session.user.subscription_level === 'premium'
-                                            ? 'bg-purple-100 text-purple-600'
-                                            : ''
-                                    }`}
-                                >
-                                    {session.user.subscription_level === 'basic'
-                                        ? '基础会员'
-                                        : session.user.subscription_level === 'advanced'
-                                        ? '高级会员'
-                                        : session.user.subscription_level === 'premium'
-                                        ? '至尊会员'
-                                        : ''}
-                                </span>
-                            )}
-                            {session.user.primary_role && (
-                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
-                                    {session.user.primary_role === 'student'
-                                        ? '学员'
-                                        : session.user.primary_role === 'coach'
-                                        ? '教练'
-                                        : session.user.primary_role}
-                                </span>
-                            )}
+                                            ? '至尊会员'
+                                            : ''}
+                                    </span>
+                                )}
+                                {session.user.primary_role && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
+                                        {session.user.primary_role === 'student'
+                                            ? '学员'
+                                            : session.user.primary_role === 'coach'
+                                            ? '教练'
+                                            : session.user.primary_role}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                </>
             ) : (
                 <Button
                     label="登录"
