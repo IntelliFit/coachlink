@@ -1,11 +1,53 @@
 'use client';
 
 import React from 'react';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachActionRow } from '@/types';
+
+// 定义动作选项的接口
+interface ActionOption {
+    label: string;
+    value: string;
+    action: CoachActionRow;
+}
+
+// 自定义选项模板组件
+const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) => {
+    return (
+        <div className="flex align-items-center">
+            <div className="ml-2 flex-grow">
+                <div className="flex align-items-center gap-2">
+                    <div className="font-bold">{action.name}</div>
+                    {(action.positions || []).map(position => (
+                        <div className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                            {position}
+                        </div>
+                    ))}
+                </div>
+                {action.detail && (
+                    <div className="text-sm text-surface-500 mt-1">{action.detail}</div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// 自定义选中值模板组件
+const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = ({ action }) => {
+    if (!action) {
+        return <span>选择动作</span>;
+    }
+
+    return (
+        <div className="flex align-items-center">
+            <div className="ml-2">
+                <div>{action.name}</div>
+            </div>
+        </div>
+    );
+};
 
 interface ActionSet {
     actionId: string;
@@ -55,6 +97,18 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     saving,
     totalDays
 }) => {
+    // 将CoachActionRow数组转换为Dropdown选项
+    const actionOptions: ActionOption[] = actions.map(action => ({
+        label: action.name,
+        value: action.id,
+        action: action
+    }));
+
+    // 根据ID查找动作
+    const findActionById = (id: string): CoachActionRow | null => {
+        return actions.find(action => action.id === id) || null;
+    };
+
     return (
         <div className="p-5">
             {/* Header */}
@@ -109,7 +163,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         <Button
                             label="添加动作"
                             icon="pi pi-plus"
-                            onClick={() => onAddActionSet(dayIndex)}
+                            onClick={() => onAddActionSet(day.dayIndex)}
                             disabled={saving}
                             className="p-button-sm p-button-outlined"
                         />
@@ -145,18 +199,18 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                         <div className="md:col-span-2">
                                             <label className="block text-900 text-xs mb-1">动作 *</label>
                                             <Dropdown
-                                                value={set.actionId}
-                                                options={actions.map((action) => ({
-                                                    label: action.name,
-                                                    value: action.id,
-                                                }))}
+                                                value={findActionById(set.actionId)}
+                                                options={actionOptions}
                                                 onChange={(e) =>
-                                                    onActionSetChange(dayIndex, setIndex, 'actionId', e.value)
+                                                    onActionSetChange(dayIndex, setIndex, 'actionId', e.value?.action?.id || '')
                                                 }
+                                                optionLabel="label"
                                                 placeholder="选择动作"
                                                 filter
                                                 className="w-full"
                                                 disabled={saving}
+                                                itemTemplate={(option) => <ActionOptionTemplate action={option.action} />}
+                                                valueTemplate={(option) => <ActionValueTemplate action={option?.action || null} />}
                                             />
                                         </div>
 
