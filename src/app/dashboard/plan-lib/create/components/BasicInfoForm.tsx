@@ -70,16 +70,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                     />
                 </div>
 
-                {/* 右侧：保存按钮 */}
-                <div className="flex flex-col md:w-60 gap-3">
-                    <Button
-                        label="保存模板"
-                        icon="pi pi-save"
-                        className="p-button-sm w-full"
-                        onClick={onSave}
-                        loading={saving}
-                    />
-                </div>
             </div>
 
         </div>
