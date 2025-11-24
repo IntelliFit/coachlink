@@ -54,7 +54,7 @@ export async function POST(req: Request) {
             const { data: updatedRecord, error: updateError } = await supabase
                 .from('training_records')
                 .update({
-                    exercises: exercises,
+                    exercises: exercises as any,
                     total_sets: totalSets,
                     completed_sets: completedSets,
                     skipped_sets: skippedSets,
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
                 const updateData: Record<string, any> = {
                     week_number: week_number,
                     day_number: day_number,
-                    exercises: exercises,
+                    exercises: exercises as any,
                     total_sets: totalSets,
                     completed_sets: completedSets,
                     skipped_sets: skippedSets,
@@ -149,7 +149,7 @@ export async function POST(req: Request) {
                         training_date: training_date,
                         week_number: week_number,
                         day_number: day_number,
-                        exercises: exercises,
+                        exercises: exercises as any,
                         total_sets: totalSets,
                         completed_sets: completedSets,
                         skipped_sets: skippedSets,

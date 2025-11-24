@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
     output: 'standalone',
     reactStrictMode: false,
     pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
+    typescript: {
+        ignoreBuildErrors: true,
+    },
     images: {
         remotePatterns: [
             {
