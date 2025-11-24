@@ -1,4 +1,5 @@
 // Main Application Logic
+const ROLE_GUARD_ENABLED = false;
 
 const App = {
     init: () => {
@@ -17,7 +18,10 @@ const App = {
         const activeRole = user.role;
         const isAdmin = path.includes('/admin/') || activeRole === 'admin';
         const isCoach = !isAdmin && activeRole === 'coach';
-        
+        const isStudent = !isAdmin && !isCoach;
+        const canApplyForCoach = isStudent && !(user.roles || []).includes('coach');
+        const coachApplyLink = App.resolveStudentLink('coach-application.html');
+
         let menuItems = [];
         const messageLink = isAdmin ? '#' : 'chat.html';
 
@@ -95,6 +99,12 @@ const App = {
                                 </a>
                                 <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
                             ` : ''}
+                            ${canApplyForCoach ? `
+                                <a href="${coachApplyLink}" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px;">
+                                    <i data-lucide="ClipboardCheck" size="16"></i><span>申请成为教练</span>
+                                </a>
+                                <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                            ` : ''}
                             ${(canSwitchToCoach || canSwitchToStudent) ? `
                                 ${canSwitchToCoach ? `
                                     <button class="nav-item" data-role-switch="coach" style="display:flex; align-items:center; gap:8px; padding:10px 16px; background:none; border:none; width:100%; text-align:left;">
@@ -140,9 +150,12 @@ const App = {
         const header = document.getElementById('header');
         if (!header) return;
 
+        const path = window.location.pathname;
         const user = MockData.currentUser; // In real app, get from auth
         const canSwitchToCoach = (user.roles || []).includes('coach') && user.role !== 'coach';
         const canSwitchToStudent = (user.roles || []).includes('student') && user.role !== 'student';
+        const canApplyForCoach = user.role === 'student' && !(user.roles || []).includes('coach');
+        const coachApplyLink = App.resolveStudentLink('coach-application.html');
 
         const messageLink = user.role === 'student' || user.role === 'coach' ? 'chat.html' : '#';
 
@@ -178,6 +191,12 @@ const App = {
                         ${user.role === 'student' ? `
                             <a href="subscription.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
                                 <i data-lucide="CreditCard" size="16"></i><span>我的订阅</span>
+                            </a>
+                            <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                        ` : ''}
+                        ${canApplyForCoach ? `
+                            <a href="${coachApplyLink}" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
+                                <i data-lucide="ClipboardCheck" size="16"></i><span>申请成为教练</span>
                             </a>
                             <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
                         ` : ''}
@@ -231,6 +250,7 @@ const App = {
     },
 
     ensureRoleAccess: () => {
+        if (!ROLE_GUARD_ENABLED) return;
         if (typeof UserService === 'undefined') return;
         const path = window.location.pathname;
         if (path.includes('/admin/')) return;
@@ -285,6 +305,13 @@ const App = {
                 RoleManager.switchRole(role);
             });
         });
+    },
+
+    resolveStudentLink: (subPath) => {
+        const path = window.location.pathname;
+        if (path.includes('/student/')) return subPath;
+        if (path.includes('/coach/') || path.includes('/admin/')) return `../student/${subPath}`;
+        return `student/${subPath}`;
     }
 };
 

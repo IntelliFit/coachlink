@@ -824,11 +824,6 @@ const RoleManager = {
         return user?.coachProfileId || user?.id;
     },
     switchRole(role, options = {}) {
-        const user = UserService.getCurrentUser();
-        if (!user?.roles?.includes(role)) {
-            alert('当前账号尚未拥有该角色权限');
-            return false;
-        }
         UserService.updateSession({ activeRole: role });
         if (!options.silent) {
             window.location.href = RoleManager.getRedirectPath(role);

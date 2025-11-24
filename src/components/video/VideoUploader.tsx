@@ -10,7 +10,6 @@ interface VideoFile {
 }
 
 interface VideoUploaderProps {
-    userId: string;
     context: VideoUploadContext;
     onUploadSuccess?: (videos: any[]) => void;
     onUploadError?: (error: Error) => void;
@@ -21,7 +20,6 @@ interface VideoUploaderProps {
 }
 
 const VideoUploader: React.FC<VideoUploaderProps> = ({
-    userId,
     context,
     onUploadSuccess,
     onUploadError,
@@ -36,6 +34,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
     const [progress, setProgress] = useState<{ [key: string]: number }>({});
     const [error, setError] = useState('');
     const [useUrl, setUseUrl] = useState(false);
+    const [uploadedCount, setUploadedCount] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const validateFile = useCallback((file: File): string | null => {
@@ -56,9 +55,15 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
         const newFiles: VideoFile[] = [];
         let hasError = false;
 
-        // Check if adding these files would exceed the limit
-        if (files.length + selectedFiles.length > maxFiles) {
-            setError(`最多只能上传 ${maxFiles} 个视频文件`);
+        const alreadyCommitted = uploadedCount;
+        const selectableSlots = maxFiles - alreadyCommitted - files.length;
+        if (selectableSlots <= 0) {
+            setError(`已达到 ${maxFiles} 个视频的上限`);
+            return;
+        }
+
+        if (selectedFiles.length > selectableSlots) {
+            setError(`最多还能选择 ${selectableSlots} 个视频`);
             return;
         }
 
@@ -84,16 +89,26 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
             setError('');
             setUseUrl(false);
         }
-    }, [validateFile, files.length, maxFiles]);
+    }, [validateFile, files.length, maxFiles, uploadedCount]);
 
     const handleUpload = async () => {
         try {
             setUploading(true);
             setError('');
 
+            if (uploadedCount >= maxFiles) {
+                setError(`已达到 ${maxFiles} 个视频的上限`);
+                return;
+            }
+
             const uploadedVideos: any[] = [];
 
             if (useUrl && url.trim()) {
+                if (uploadedCount >= maxFiles) {
+                    setError(`已达到 ${maxFiles} 个视频的上限`);
+                    return;
+                }
+
                 const urlNotes = files.find(f => f.id === 'url')?.notes || '';
                 const uploadContext = {
                     ...context,
@@ -114,7 +129,6 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                     };
 
                     const video = await videoService.uploadVideoFile(
-                        userId,
                         videoFile.file,
                         uploadContext,
                         (progressData) => {
@@ -136,6 +150,11 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
             }
 
             onUploadSuccess?.(uploadedVideos);
+
+            const successfulUploads = uploadedVideos.filter(Boolean).length;
+            if (successfulUploads > 0) {
+                setUploadedCount(prev => Math.min(maxFiles, prev + successfulUploads));
+            }
 
             // 重置状态
             setFiles([]);
@@ -240,7 +259,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                                         支持: {acceptedFormats.map(f => f.split('/')[1]).join(', ')}，最大 {maxFileSize}MB，最多 {maxFiles} 个文件
                                     </p>
                                     <p className="text-xs text-blue-600">
-                                        已选择 {files.length}/{maxFiles} 个文件
+                                        已上传 {uploadedCount}/{maxFiles} 个，可再选择 {Math.max(0, maxFiles - uploadedCount - files.length)} 个
                                     </p>
                                 </div>
                             </div>
