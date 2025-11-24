@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from 'primereact/button';
-import { ScrollPanel } from 'primereact/scrollpanel';
+import { Dialog } from 'primereact/dialog';
 
 interface WeekCalendarProps {
     days: {
@@ -26,10 +26,21 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     onDeleteWeek,
     saving
 }) => {
+    const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+    const [pendingDeleteWeekIndex, setPendingDeleteWeekIndex] = useState<number | null>(null);
+
     const weeks = [];
     for (let i = 0; i < days.length; i += 7) {
         weeks.push(days.slice(i, i + 7));
     }
+
+    const confirmDelete = () => {
+        if (pendingDeleteWeekIndex !== null) {
+            onDeleteWeek(pendingDeleteWeekIndex);
+        }
+        setDeleteConfirmVisible(false);
+        setPendingDeleteWeekIndex(null);
+    };
 
     return (
         <div className="h-full border-1">
@@ -56,13 +67,17 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         >
                             <div className="flex justify-between items-center mb-3">
                                 <span className="font-medium text-800">第 {weekNumber} 周</span>
+
                                 {weeks.length > 1 && (
                                     <Button
                                         icon="pi pi-trash"
                                         className="p-button-text p-button-danger p-button-sm"
-                                        onClick={() => onDeleteWeek(weekStartIndex)}
                                         disabled={saving}
                                         tooltip="删除整周"
+                                        onClick={() => {
+                                            setPendingDeleteWeekIndex(weekStartIndex);
+                                            setDeleteConfirmVisible(true);
+                                        }}
                                     />
                                 )}
                             </div>
@@ -80,21 +95,27 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                                 cursor-pointer border-round p-3 shadow-sm 
                                                 border-1 transition-all 
                                                 flex flex-col items-center justify-center gap-1
-
                                                 ${isSelected
                                                     ? 'border-primary-500 ring-2 ring-primary-200'
                                                     : 'border-surface-200 hover:bg-surface-50'}
                                             `}
                                             style={{
-                                                borderLeft: `6px solid ${isTraining ? 'var(--primary-400)' : 'var(--surface-400)'
-                                                    }`
+                                                borderLeft: `6px solid ${
+                                                    isTraining
+                                                        ? 'var(--primary-400)'
+                                                        : 'var(--surface-400)'
+                                                }`
                                             }}
                                         >
                                             <span className="text-xs opacity-70">
                                                 第{day.dayIndex}天
                                             </span>
 
-                                            <span className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'}`}>
+                                            <span
+                                                className={`text-xl ${
+                                                    isTraining ? 'text-primary-600' : 'text-600'
+                                                }`}
+                                            >
                                                 {isTraining ? (
                                                     <i className="pi pi-bolt"></i>
                                                 ) : (
@@ -105,7 +126,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                     );
                                 })}
 
-                                {/* 空白占位日 */}
                                 {Array.from({ length: 7 - week.length }).map((_, i) => (
                                     <div
                                         key={`empty-${i}`}
@@ -116,11 +136,36 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                     </div>
                                 ))}
                             </div>
-
                         </div>
                     );
                 })}
             </div>
+
+            {/* 删除确认对话框 */}
+            <Dialog
+                header="确认删除"
+                visible={deleteConfirmVisible}
+                onHide={() => setDeleteConfirmVisible(false)}
+                style={{ width: '350px' }}
+                modal
+            >
+                <p className="mb-4">确定要删除这一整周的所有训练日吗？</p>
+
+                <div className="flex justify-end gap-2">
+                    <Button
+                        label="取消"
+                        className="p-button-text"
+                        onClick={() => setDeleteConfirmVisible(false)}
+                    />
+                    <Button
+                        label="删除"
+                        icon="pi pi-trash"
+                        className="p-button-danger"
+                        onClick={confirmDelete}
+                        disabled={saving}
+                    />
+                </div>
+            </Dialog>
         </div>
     );
 };
