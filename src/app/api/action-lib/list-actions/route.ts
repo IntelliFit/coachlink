@@ -39,7 +39,8 @@ export async function POST(req: Request) {
     let query = supabase
         .from("coach_actions")
         .select("*", { count: "exact" })
-        .eq("coach_id", userId);
+        .eq("coach_id", userId)
+        .order("created_at", { ascending: false }); // 默认按创建时间倒序排序
 
     // Apply search filter if provided
     if (search) {

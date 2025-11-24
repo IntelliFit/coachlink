@@ -175,34 +175,45 @@ const ActionLib = () => {
     };
 
     const renderActionCard = (action: CoachActionRow) => {
-        // 处理动作类型显示，支持单个或多个类型
         const positions = action.positions || [];
 
         return (
-            <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors">
-                <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-900 mb-2">{action.name}</h3>
-                        <p className="text-600 mb-3 line-clamp-2">
+            <div className="border border-surface-200 rounded-lg p-4 hover:shadow-sm transition-all mb-2">
+                <div className="flex justify-between gap-3">
+
+                    {/* 左侧内容 */}
+                    <div className="flex-1 min-w-0">
+                        {/* 名称 */}
+                        <h3 className="text-lg font-semibold text-900 mb-2 line-clamp-1">
+                            {action.name}
+                        </h3>
+
+                        {/* 描述 */}
+                        <p className="text-600 text-sm mb-3 line-clamp-2">
                             {action.detail}
                         </p>
-                        <div className="flex items-center gap-2 flex-wrap">
+
+                        {/* 标签区域 */}
+                        <div className="flex flex-wrap gap-2 mt-2">
                             {positions.map((pos, index) => (
-                                <span 
-                                    key={index} 
-                                    className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full"
+                                <span
+                                    key={index}
+                                    className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-700"
                                 >
                                     {pos}
                                 </span>
                             ))}
+
                             {action.url && (
-                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
                                     包含演示
                                 </span>
                             )}
                         </div>
                     </div>
-                    <div className="flex gap-1 ml-2">
+
+                    {/* 右侧操作按钮 */}
+                    <div className="flex flex-col items-center gap-2 shrink-0">
                         <Button
                             icon="pi pi-pencil"
                             className="p-button-rounded p-button-text"
