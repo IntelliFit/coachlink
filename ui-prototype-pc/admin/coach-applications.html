@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教练申请审核 - CoachLink Admin</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .application-card {
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--spacing-lg) 0;
+        }
+        .application-card:last-child {
+            border-bottom: none;
+        }
+        .application-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .application-meta div {
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+        }
+        .application-meta label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+        .application-content {
+            margin-top: var(--spacing-md);
+        }
+        .application-content h4 {
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+        .badge.badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .badge.badge-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                <div class="flex justify-between items-center mb-lg">
+                    <div>
+                        <h1 class="text-2xl font-bold">教练申请审核</h1>
+                        <p class="text-secondary mt-xs">查看学员提交的教练申请，审核其资质与资料。</p>
+                    </div>
+                    <div class="flex items-center gap-md">
+                        <label class="text-sm text-secondary">状态筛选</label>
+                        <select id="status-filter" class="p-sm border border-gray-300 rounded">
+                            <option value="">全部</option>
+                            <option value="pending" selected>待审核</option>
+                            <option value="approved">已通过</option>
+                            <option value="rejected">已拒绝</option>
+                            <option value="draft">草稿</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header flex justify-between items-center">
+                        <h3 class="font-semibold">申请列表</h3>
+                        <span class="badge badge-secondary" id="application-count">0 条</span>
+                    </div>
+                    <div class="p-lg" id="application-list">
+                        <div class="text-center text-secondary py-xl">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let applications = [];
+        let currentFilter = 'pending';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            document.getElementById('status-filter').addEventListener('change', (e) => {
+                currentFilter = e.target.value;
+                renderApplications();
+            });
+            loadApplications();
+            renderApplications();
+            lucide.createIcons();
+        });
+
+        function loadApplications() {
+            applications = CoachApplicationService.getAll() || [];
+        }
+
+        function renderApplications() {
+            const container = document.getElementById('application-list');
+            let list = applications;
+            if (currentFilter) {
+                list = list.filter(app => app.status === currentFilter);
+            }
+            document.getElementById('application-count').textContent = `${list.length} 条`;
+
+            if (!list.length) {
+                container.innerHTML = `
+                    <div class="text-center text-secondary py-xl">
+                        <i data-lucide="Inbox" size="48" style="opacity:0.4;"></i>
+                        <p class="mt-md">${currentFilter === 'pending' ? '暂无待审核申请' : '暂无符合条件的申请'}</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = list
+                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+                .map(renderApplicationCard)
+                .join('');
+            lucide.createIcons();
+        }
+
+        function renderApplicationCard(app) {
+            const user = UserService.findUserById(app.userId) || { name: '未知用户', avatar: 'U' };
+            const form = app.formData || {};
+            const statusBadge = getStatusBadge(app.status);
+            const submitted = app.submittedAt ? new Date(app.submittedAt).toLocaleString('zh-CN') : '未提交';
+            const certificates = Array.isArray(form.certificates) ? form.certificates : [];
+            const isPending = app.status === 'pending';
+
+            return `
+                <div class="application-card">
+                    <div class="flex justify-between items-start gap-md">
+                        <div>
+                            <div class="flex items-center gap-sm mb-xs">
+                                <span class="avatar">${(user.avatar || user.name || 'U').charAt(0)}</span>
+                                <div>
+                                    <div class="font-semibold text-lg">${form.realName || user.name}</div>
+                                    <div class="text-sm text-secondary">申请人：${user.name} · ${submitted}</div>
+                                </div>
+                            </div>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    <div class="application-meta mt-md">
+                        <div>
+                            <label>一句话简介</label>
+                            <div>${form.tagline || '-'}</div>
+                        </div>
+                        <div>
+                            <label>专长标签</label>
+                            <div>${Array.isArray(form.specialties) && form.specialties.length ? form.specialties.join('、') : '-'}</div>
+                        </div>
+                        <div>
+                            <label>教学年限</label>
+                            <div>${form.experienceYears ? `${form.experienceYears} 年` : '-'}</div>
+                        </div>
+                        <div>
+                            <label>核心服务权益</label>
+                            <div>${form.services || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="application-content">
+                        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--spacing-lg);">
+                            <div>
+                                <h4>自我介绍 / 教学理念</h4>
+                                <p class="text-sm text-secondary">${form.bio || '—'}</p>
+                            </div>
+                            <div>
+                                <h4>代表案例</h4>
+                                <p class="text-sm text-secondary">${form.cases || '—'}</p>
+                            </div>
+                            <div>
+                                <h4>资质 / 证书</h4>
+                                <ul class="text-sm text-secondary" style="list-style: disc; margin-left: 1.25rem;">
+                                    ${certificates.length ? certificates.map(item => `<li>${formatCertificate(item)}</li>`).join('') : '<li>—</li>'}
+                                </ul>
+                            </div>
+                            <div>
+                                <h4>其他成就</h4>
+                                <p class="text-sm text-secondary">${form.achievements || '—'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-sm mt-md">
+                        ${isPending ? `
+                            <button class="btn btn-success btn-sm" onclick="handleApprove('${app.id}')">
+                                <i data-lucide="Check" size="16"></i> 通过
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="handleReject('${app.id}')">
+                                <i data-lucide="X" size="16"></i> 拒绝
+                            </button>
+                        ` : ''}
+                        ${app.status === 'rejected' && app.rejectionReason ? `
+                            <div class="text-sm text-danger flex items-center gap-xs">
+                                <i data-lucide="AlertTriangle" size="14"></i>
+                                驳回理由：${app.rejectionReason}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getStatusBadge(status) {
+            if (status === 'pending') return '<span class="badge badge-warning">审核中</span>';
+            if (status === 'approved') return '<span class="badge badge-success">已通过</span>';
+            if (status === 'rejected') return '<span class="badge badge-danger">已拒绝</span>';
+            if (status === 'draft') return '<span class="badge badge-secondary">草稿</span>';
+            return '<span class="badge badge-secondary">未知</span>';
+        }
+
+        function formatCertificate(item) {
+            if (/^https?:\\/\\//.test(item)) {
+                return `<a href="${item}" target="_blank" class="text-primary underline">证书链接</a>`;
+            }
+            return item;
+        }
+
+        function handleApprove(appId) {
+            if (!confirm('确认通过此申请？通过后申请人将获得教练权限。')) return;
+            CoachApplicationService.approve(appId, MockData.currentUser);
+            loadApplications();
+            renderApplications();
+            alert('已通过申请并开通教练端功能');
+        }
+
+        function handleReject(appId) {
+            const reason = prompt('请输入拒绝理由');
+            if (reason === null) return;
+            CoachApplicationService.reject(appId, MockData.currentUser, reason || '资料不符合要求');
+            loadApplications();
+            renderApplications();
+        }
+    </script>
+</body>
+</html>
+

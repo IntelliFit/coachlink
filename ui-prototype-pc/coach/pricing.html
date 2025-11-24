@@ -73,6 +73,7 @@
         let coachId = 'coach_001';
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            coachId = (typeof RoleManager !== 'undefined' ? RoleManager.getActiveCoachProfileId() : MockData.currentUser.id) || coachId;
             const pricingMap = Store.get('coachPricing') || {};
             const pricing = pricingMap[coachId] || { aiMonthly: 99, premiumMonthly: 299 };
             document.getElementById('aiPrice').value = pricing.aiMonthly;

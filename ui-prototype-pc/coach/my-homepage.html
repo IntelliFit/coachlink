@@ -109,6 +109,7 @@
         let profile = null;
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            coachId = (typeof RoleManager !== 'undefined' ? RoleManager.getActiveCoachProfileId() : MockData.currentUser.id) || coachId;
             const map = Store.get('coachProfiles') || {};
             profile = map[coachId] || { name: '', avatarUrl: '', tagline: '', specialties: [], aboutHtml: '', successStories: [] };
             hydrateForm();
