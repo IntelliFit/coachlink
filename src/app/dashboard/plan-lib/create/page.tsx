@@ -14,7 +14,7 @@ import BasicInfoForm from './components/BasicInfoForm';
 import PlanDayCard from './components/PlanDayCard';
 import WeekCalendar from './components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
-
+// 移除了 AddActionDialog 组件的导入
 interface PlanDay {
     dayIndex: number;
     type: 'training' | 'rest';
@@ -179,6 +179,7 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
+
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
@@ -268,6 +269,7 @@ const CreatePlanPage = () => {
                 saving={saving}
                 onSave={handleSave}
             />
+
 
             <Card className="shadow-sm mb-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
