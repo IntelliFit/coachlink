@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Button } from 'primereact/button';
+import { ScrollPanel } from 'primereact/scrollpanel';
 
 interface WeekCalendarProps {
     days: {
@@ -25,19 +26,18 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     onDeleteWeek,
     saving
 }) => {
-    // 将天数按周分组
     const weeks = [];
     for (let i = 0; i < days.length; i += 7) {
         weeks.push(days.slice(i, i + 7));
     }
 
     return (
-        <div className="card shadow-sm h-full">
+        <div className="h-full border-1">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-900">训练日历</h3>
-                <Button 
-                    label="添加周" 
-                    icon="pi pi-plus" 
+                <h3 className="text-xl font-semibold text-900">训练日历</h3>
+                <Button
+                    label="添加周"
+                    icon="pi pi-plus"
                     onClick={onAddWeek}
                     disabled={saving}
                     className="p-button-sm"
@@ -48,13 +48,16 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 {weeks.map((week, weekIndex) => {
                     const weekStartIndex = weekIndex * 7;
                     const weekNumber = weekIndex + 1;
-                    
+
                     return (
-                        <div key={weekIndex} className="border-round p-3 bg-surface-50">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="font-medium">第 {weekNumber} 周</span>
+                        <div
+                            key={weekIndex}
+                            className="border-round p-3 border-surface-200 rounded-lg"
+                        >
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="font-medium text-800">第 {weekNumber} 周</span>
                                 {weeks.length > 1 && (
-                                    <Button 
+                                    <Button
                                         icon="pi pi-trash"
                                         className="p-button-text p-button-danger p-button-sm"
                                         onClick={() => onDeleteWeek(weekStartIndex)}
@@ -63,38 +66,57 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                     />
                                 )}
                             </div>
-                            
-                            <div className="grid grid-cols-7 gap-1">
-                                {week.map((day) => (
-                                    <div 
-                                        key={day.dayIndex} 
-                                        className={`
-                                            flex flex-column align-items-center justify-content-center 
-                                            p-2 border-round cursor-pointer transition-all transition-duration-150
-                                            ${selectedDayIndex === day.dayIndex 
-                                                ? 'bg-primary text-white border-primary' 
-                                                : 'bg-surface-0 hover:bg-surface-100 border-surface'}
-                                            ${day.type === 'rest' ? 'line-through text-500' : ''}
-                                        `}
-                                        onClick={() => !saving && onSelectDay(day.dayIndex)}
+
+                            <div className="grid grid-cols-7 gap-2">
+                                {week.map((day) => {
+                                    const isSelected = selectedDayIndex === day.dayIndex;
+                                    const isTraining = day.type === 'training';
+
+                                    return (
+                                        <div
+                                            key={day.dayIndex}
+                                            onClick={() => !saving && onSelectDay(day.dayIndex)}
+                                            className={`
+                                                cursor-pointer border-round p-3 shadow-sm 
+                                                border-1 transition-all 
+                                                flex flex-col items-center justify-center gap-1
+
+                                                ${isSelected
+                                                    ? 'border-primary-500 ring-2 ring-primary-200'
+                                                    : 'border-surface-200 hover:bg-surface-50'}
+                                            `}
+                                            style={{
+                                                borderLeft: `6px solid ${isTraining ? 'var(--primary-400)' : 'var(--surface-400)'
+                                                    }`
+                                            }}
+                                        >
+                                            <span className="text-xs opacity-70">
+                                                第{day.dayIndex}天
+                                            </span>
+
+                                            <span className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'}`}>
+                                                {isTraining ? (
+                                                    <i className="pi pi-bolt"></i>
+                                                ) : (
+                                                    <i className="pi pi-moon"></i>
+                                                )}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* 空白占位日 */}
+                                {Array.from({ length: 7 - week.length }).map((_, i) => (
+                                    <div
+                                        key={`empty-${i}`}
+                                        className="p-3 border-round border-1 border-dashed border-surface-200 
+                                                   flex items-center justify-center text-400 text-xs"
                                     >
-                                        <span className="text-xs opacity-80">第{day.dayIndex}天</span>
-                                        <span className="text-lg font-bold">
-                                            {day.type === 'training' ? '训' : '休'}
-                                        </span>
-                                    </div>
-                                ))}
-                                
-                                {/* 填充空白日期 */}
-                                {Array.from({ length: 7 - week.length }).map((_, index) => (
-                                    <div 
-                                        key={`empty-${index}`} 
-                                        className="p-2 border-round border-1 border-dashed border-surface flex align-items-center justify-content-center"
-                                    >
-                                        <span className="text-400 text-xs">-</span>
+                                        -
                                     </div>
                                 ))}
                             </div>
+
                         </div>
                     );
                 })}

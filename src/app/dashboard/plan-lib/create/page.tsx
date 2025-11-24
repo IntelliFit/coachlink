@@ -45,8 +45,12 @@ const CreatePlanPage = () => {
     // Days management
     const [days, setDays] = useState<PlanDay[]>([
         { dayIndex: 1, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 2, type: 'rest', note: '', actionSets: [] },
-        { dayIndex: 3, type: 'training', note: '', actionSets: [] }
+        { dayIndex: 2, type: 'training', note: '', actionSets: [] },
+        { dayIndex: 3, type: 'training', note: '', actionSets: [] },
+        { dayIndex: 4, type: 'training', note: '', actionSets: [] },
+        { dayIndex: 5, type: 'training', note: '', actionSets: [] },
+        { dayIndex: 6, type: 'training', note: '', actionSets: [] },
+        { dayIndex: 7, type: 'training', note: '', actionSets: [] }
     ]);
 
     // Selected day for editing
@@ -85,7 +89,7 @@ const CreatePlanPage = () => {
     const handleAddWeek = () => {
         const currentLength = days.length;
         const newDays = [...days];
-        
+
         // 添加7天
         for (let i = 1; i <= 7; i++) {
             newDays.push({
@@ -95,7 +99,7 @@ const CreatePlanPage = () => {
                 actionSets: []
             });
         }
-        
+
         setDays(newDays);
     };
 
@@ -109,15 +113,15 @@ const CreatePlanPage = () => {
         // 删除指定周的所有天数
         const newDays = [...days];
         newDays.splice(weekStartIndex, 7);
-        
+
         // 重新索引
         const reindexedDays = newDays.map((day, index) => ({
             ...day,
             dayIndex: index + 1
         }));
-        
+
         setDays(reindexedDays);
-        
+
         // 如果选中的天被删除，选择第一天
         if (selectedDayIndex && selectedDayIndex > weekStartIndex && selectedDayIndex <= weekStartIndex + 7) {
             setSelectedDayIndex(reindexedDays.length > 0 ? reindexedDays[0].dayIndex : null);
@@ -137,7 +141,7 @@ const CreatePlanPage = () => {
         }));
 
         setDays(reindexedDays);
-        
+
         // 更新选中的天
         if (selectedDayIndex === index + 1) {
             setSelectedDayIndex(reindexedDays.length > 0 ? reindexedDays[0].dayIndex : null);
@@ -163,7 +167,7 @@ const CreatePlanPage = () => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
-        
+
         newDays[actualDayIndex].actionSets.push({
             actionId: '',
             setName: '',
@@ -179,7 +183,7 @@ const CreatePlanPage = () => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
-        
+
         newDays[actualDayIndex].actionSets.splice(setIndex, 1);
         setDays(newDays);
     };
@@ -193,7 +197,7 @@ const CreatePlanPage = () => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
-        
+
         const actionSets = [...newDays[actualDayIndex].actionSets];
         actionSets[setIndex] = {
             ...actionSets[setIndex],
@@ -248,8 +252,8 @@ const CreatePlanPage = () => {
     };
 
     // 获取选中的训练日
-    const selectedDay = selectedDayIndex !== null 
-        ? days.find(day => day.dayIndex === selectedDayIndex) 
+    const selectedDay = selectedDayIndex !== null
+        ? days.find(day => day.dayIndex === selectedDayIndex)
         : null;
 
     return (
@@ -266,7 +270,7 @@ const CreatePlanPage = () => {
             />
 
             <Card className="shadow-sm mb-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1">
                         <WeekCalendar
@@ -292,7 +296,7 @@ const CreatePlanPage = () => {
                                     const newDays = [...days];
                                     const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
                                     if (actualDayIndex === -1) return;
-                                    
+
                                     newDays[actualDayIndex].note = note;
                                     setDays(newDays);
                                 }}
@@ -303,7 +307,7 @@ const CreatePlanPage = () => {
                                 totalDays={days.length}
                             />
                         ) : (
-                            <div className="card shadow-sm flex align-items-center justify-content-center h-full">
+                            <div className="card shadow-sm flex align-items-center justify-content-center h-full min-h-20rem">
                                 <div className="text-center p-6">
                                     <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
                                     <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
@@ -328,7 +332,7 @@ const CreatePlanPage = () => {
                         onClick={handleSave}
                         loading={saving}
                     />
-                </div>
+                </div>¸
             </Card>
         </div>
     );
