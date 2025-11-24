@@ -38,10 +38,9 @@ const PlanLib = () => {
 
     // 训练计划类型选项
     const templateTypes = [
-        { label: '全部类型', value: '' },
+        { label: '全部类型', value: 'all' },
         { label: '新手训练', value: 'beginner' },
-        { label: '力量训练', value: 'strength' },
-        { label: '自定义', value: 'custom' }
+        { label: '力量训练', value: 'strength' }
     ];
 
     // 加载训练计划模板列表
@@ -121,9 +120,12 @@ const PlanLib = () => {
                         <p className="text-600 mb-3 line-clamp-2">
                             {template.description}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
                             <span className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full">
                                 {getTemplateTypeLabel(template.type)}
+                            </span>
+                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                                {Math.ceil(((template.training_days || 0) + (template.rest_days || 0)) / 7)} 周训练
                             </span>
                         </div>
                     </div>
