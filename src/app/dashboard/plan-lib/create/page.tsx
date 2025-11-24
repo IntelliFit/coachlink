@@ -196,18 +196,31 @@ const CreatePlanPage = () => {
         value: string | number
     ) => {
         const newDays = [...days];
-        
+
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
-        
+
         if (actualDayIndex === -1) {
             return;
         }
 
-        const action = actions[setIndex];
+        const actionSet = newDays[actualDayIndex].actionSets[setIndex];
+        
+        // 使用类型守卫分别处理不同类型字段的赋值
+        switch (field) {
+            case 'actionId':
+            case 'setName':
+            case 'intensity':
+                actionSet[field] = value as string;
+                break;
+            case 'sets':
+            case 'reps':
+            case 'restSeconds':
+                actionSet[field] = value as number;
+                break;
+            default:
+                throw new Error(`Unknown field: ${field}`);
+        }
 
-        newDays[dayIndex].actionSets[setIndex].actionId = action.id;
-        console.log(newDays);
-            
         setDays(newDays);
     };
 
