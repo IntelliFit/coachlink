@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-
-// 重要！必须以 import type 引入接口类型
+import { createTrainingVideoRecord } from '../_helpers/videoRecord';
 import type { ApiData } from '@/types/api';
-import type { UploadVideoDto, UploadVideoResponseDto } from './entity';
-import type { SubmitVideoUrlDto } from '@/app/api/user/submit-video-url/entity';
+import type { UploadVideoResponseDto } from './entity';
+import type { VideoUploadContext } from '@/types/video';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
 
     try {
         // 获取表单数据
-        const formData = await req.formData();
+        const formData = await req.clone().formData();
         const file = formData.get('file') as File;
         const contextString = formData.get('context') as string;
         
@@ -35,7 +34,15 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        const context = JSON.parse(contextString);
+        const context = JSON.parse(contextString) as VideoUploadContext;
+
+        if (!context?.type) {
+            return NextResponse.json({
+                success: false,
+                message: '缺少上下文信息',
+                data: null
+            }, { status: 400 });
+        }
 
         // 上传到 Supabase Storage
         const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
@@ -60,34 +67,25 @@ export async function POST(req: Request) {
             .from('videos')
             .getPublicUrl(filePath);
 
-        // 调用 submit-video-url 接口保存数据库记录
-        const submitVideoUrlDto: SubmitVideoUrlDto = {
+        const videoRecord = await createTrainingVideoRecord({
+            userId,
             videoUrl: publicUrl,
-            context: { ...context, user_id: userId }
-        };
-
-        const submitResponse = await fetch(
-            `${new URL(req.url).origin}/api/user/submit-video-url`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(submitVideoUrlDto),
+            context,
+            submissionSource: 'file_upload',
+            fileSize: file.size,
+            metadata: {
+                storage_path: filePath,
+                storage_bucket: 'videos',
+                original_filename: file.name,
+                mime_type: file.type || 'application/octet-stream'
             }
-        );
-
-        const submitResult = await submitResponse.json();
-
-        if (!submitResult.success) {
-            throw new Error(submitResult.message || '保存视频记录失败');
-        }
+        });
 
         // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
         return NextResponse.json<ApiData<UploadVideoResponseDto>>({
             success: true,
             message: '视频上传成功',
-            data: submitResult.data
+            data: videoRecord
         });
     } catch (error: any) {
         console.error('视频上传失败:', error);
