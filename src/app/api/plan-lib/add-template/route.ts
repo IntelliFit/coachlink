@@ -42,7 +42,9 @@ export async function POST(req: Request) {
             coach_id: userId,
             name,
             description: description || null,
-            type
+            type,
+            training_days: days.filter(day => day.type === 'training').length,
+            rest_days: days.filter(day => day.type === 'rest').length
         })
         .select()
         .single();
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
             const actionSetsToInsert = day.action_sets.map((actionSet, index) => ({
                 day_id: createdDay.id,
                 action_id: actionSet.action_id,
-                set_order: actionSet.set_order !== undefined ? actionSet.set_order : index + 1,
+                set_order: index + 1,
                 sets: actionSet.sets,
                 reps: actionSet.reps,
                 intensity: actionSet.intensity || null,
