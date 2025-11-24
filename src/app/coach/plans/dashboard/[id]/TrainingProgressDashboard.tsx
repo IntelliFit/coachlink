@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { userService } from '@/app/service/userService';
+import { trainingService } from '@/app/service/trainingService';
 import {
     TrendingUp,
     Award,
@@ -11,21 +12,24 @@ import {
     XCircle,
     RotateCcw
 } from 'lucide-react';
-import type { GetTrainingProgressResponseDto } from '@/app/api/user/get-training-progress/entity';
+import type { GetProgressStatsResponseDto } from '@/app/api/training/get-progress-stats/entity';
 import type { GetPersonalRecordsResponseDto } from '@/app/api/user/get-personal-records/entity';
-import type { GetWeeklyProgressResponseDto } from '@/app/api/user/get-weekly-progress/entity';
+import type { GetWeeklyProgressResponseDto } from '@/app/api/training/get-weekly-progress/entity';
 import { Skeleton } from 'primereact/skeleton';
+import ProgressChart from './training/ProgressChart';
 
 interface TrainingProgressDashboardProps {
     userId: string;
     trainingPlanId?: string;
+    refreshKey?: number; // 添加刷新键，当值变化时触发重新加载
 }
 
 const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
     userId,
-    trainingPlanId
+    trainingPlanId,
+    refreshKey = 0
 }) => {
-    const [stats, setStats] = useState<GetTrainingProgressResponseDto | null>(null);
+    const [stats, setStats] = useState<GetProgressStatsResponseDto | null>(null);
     const [personalRecords, setPersonalRecords] = useState<GetPersonalRecordsResponseDto['personalRecords']>([]);
     const [weeklyProgress, setWeeklyProgress] = useState<GetWeeklyProgressResponseDto['weeklyProgress']>([]);
     const [loading, setLoading] = useState(true);
@@ -33,7 +37,7 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
 
     useEffect(() => {
         loadProgressData();
-    }, [userId, trainingPlanId, selectedTimeRange]);
+    }, [userId, trainingPlanId, selectedTimeRange, refreshKey]);
 
     const loadProgressData = async () => {
         try {
@@ -50,8 +54,8 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
 
     const loadTrainingStats = async () => {
         try {
-            const data = await userService.getTrainingProgress({ 
-                training_plan_id: trainingPlanId 
+            const data = await trainingService.getProgressStats({ 
+                training_plan_id: trainingPlanId || ''
             });
             
             if (data) {
@@ -76,8 +80,8 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
 
     const loadWeeklyProgress = async () => {
         try {
-            const data = await userService.getWeeklyProgress({ 
-                training_plan_id: trainingPlanId,
+            const data = await trainingService.getWeeklyProgress({ 
+                training_plan_id: trainingPlanId || '',
                 time_range: selectedTimeRange
             });
             
@@ -138,7 +142,7 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-primary-100 text-sm">完成进度</p>
-                            <p className="text-2xl font-bold">{stats?.progressPercentage || 0}%</p>
+                            <p className="text-xl font-bold">{Math.round(stats?.progressPercentage || 0)}%</p>
                         </div>
                         <CheckCircle className="w-8 h-8 text-primary-200" />
                     </div>
@@ -198,10 +202,10 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
                         <div key={week.week} className="flex items-center space-x-4">
                             <div className="w-16 text-sm text-600">第{week.week}周</div>
                             <div className="flex-1">
-                                <div className="bg-surface-200 rounded-full h-2">
+                                <div className="bg-surface-200 rounded-full h-2 relative overflow-hidden">
                                     <div
-                                        className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                                        style={{ width: `${week.percentage}%` }}
+                                        className="bg-primary-600 h-2 rounded-full transition-all duration-300 absolute top-0 left-0"
+                                        style={{ width: `${Math.round(week.percentage)}%` }}
                                     />
                                 </div>
                             </div>
@@ -242,7 +246,7 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
             {/* 详细统计 */}
             <div className="bg-surface rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-900 mb-4">详细统计</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div className="text-center">
                         <div className="text-2xl font-bold text-900">{stats?.totalSessions || 0}</div>
                         <div className="text-sm text-600">总训练次数</div>
@@ -252,15 +256,21 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
                         <div className="text-sm text-600">已完成</div>
                     </div>
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-red-600">{stats?.skippedSessions || 0}</div>
-                        <div className="text-sm text-600">已跳过</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-primary-600">{stats?.avgRPE || 0}</div>
-                        <div className="text-sm text-600">平均RPE</div>
+                        <div className="text-2xl font-bold text-yellow-600">{(stats?.totalSessions || 0) - (stats?.completedSessions || 0) - (stats?.skippedSessions || 0)}</div>
+                        <div className="text-sm text-600">未完成</div>
                     </div>
                 </div>
             </div>
+
+            {/* 训练进步历程 */}
+            {trainingPlanId && (
+                <div className="bg-surface rounded-lg shadow-sm p-6">
+                    <ProgressChart
+                        userId={userId}
+                        trainingPlanId={trainingPlanId}
+                    />
+                </div>
+            )}
         </div>
     );
 };
