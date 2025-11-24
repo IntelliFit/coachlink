@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabaseAdmin from '@/lib/supabaseAdmin';
+import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetOrCreateConversationDto, GetOrCreateConversationResponseDto } from './entity';
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     try {
         // 查询订阅关系（可选，不强制要求）
-        const { data: subscription } = await supabaseAdmin
+        const { data: subscription } = await supabase
             .from('coach_subscriptions')
             .select('id')
             .eq('student_id', userId)
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
             .single();
 
         // 查找现有会话
-        let { data: conversation, error } = await supabaseAdmin
+        let { data: conversation, error } = await supabase
             .from('conversations' as any)
             .select('id')
             .eq('student_id', userId)
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
         if (error || !conversation) {
             // 创建新会话
-            const { data: newConv, error: createError } = await supabaseAdmin
+            const { data: newConv, error: createError } = await supabase
                 .from('conversations' as any)
                 .insert({
                     student_id: userId,

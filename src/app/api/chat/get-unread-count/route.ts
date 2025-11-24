@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabaseAdmin from '@/lib/supabaseAdmin';
+import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetUnreadCountDto, GetUnreadCountResponseDto } from './entity';
 
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
     try {
         // 判断是教练还是学员
-        const { data: coachData } = await supabaseAdmin
+        const { data: coachData } = await supabase
             .from('coaches')
             .select('id')
             .eq('user_id', userId)
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         const isCoach = !!coachData;
 
         // 查询未读数
-        const { data: conversations, error } = await supabaseAdmin
+        const { data: conversations, error } = await supabase
             .from('conversations' as any)
             .select(isCoach ? 'coach_unread' : 'student_unread')
             .eq(isCoach ? 'coach_id' : 'student_id', isCoach ? coachData.id : userId)

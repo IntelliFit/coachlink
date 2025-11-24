@@ -1,4 +1,6 @@
-import { CoachPlanTemplateRow, CoachPlanDaysRow, CoachPlanActionSetsRow } from "@/types";
+import { CoachPlanTemplateRow, CoachPlanDaysRow, CoachLinkTable, CoachPlanActionSetsRow } from "@/types";
+
+export type CoachPlanTemplatesUpdate = CoachLinkTable['coach_plan_templates']['Update'];
 
 // 计划日更新信息，包含动作组
 export interface CoachPlanDayUpdate {
@@ -6,7 +8,7 @@ export interface CoachPlanDayUpdate {
     day_index: number;
     type: string; // rest | training
     note?: string | null;
-    action_sets?: (Omit<CoachPlanActionSetsRow, 'id' | 'day_id' | 'created_at' | 'updated_at'> & { id?: string })[];
+    action_sets?: (Partial<CoachPlanActionSetsRow> & { id?: string })[];
 }
 
 // 请求参数的接口类型

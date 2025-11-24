@@ -106,6 +106,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            coachId = (typeof RoleManager !== 'undefined' ? RoleManager.getActiveCoachProfileId() : MockData.currentUser.id) || coachId;
             bindUploaders();
             renderBlocks();
             renderList();
