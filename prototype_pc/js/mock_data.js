@@ -1,32 +1,128 @@
 // Mock Data Store
 
 const MockData = {
-    // Dynamically determine user based on URL
+    // 运行时根据 Session + 页面上下文获取当前用户
     get currentUser() {
-        const path = window.location.pathname;
-        if (path.includes('/coach/')) {
-            return {
-                id: 'coach_001',
-                name: '张教练',
-                role: 'coach',
-                avatar: '张'
-            };
-        } else if (path.includes('/admin/')) {
+        if (window.location.pathname.includes('/admin/')) {
             return {
                 id: 'admin_001',
                 name: '系统管理员',
                 role: 'admin',
+                roles: ['admin'],
                 avatar: '🛡️'
             };
-        } else {
+        }
+        if (typeof UserService !== 'undefined') {
+            const user = UserService.getCurrentUser();
+            const activeRole = UserService.getActiveRole();
             return {
-                id: 'student_001',
-                name: '李明',
-                role: 'student',
-                avatar: '李'
+                ...user,
+                role: activeRole,
+                roles: user.roles || [activeRole]
             };
         }
+        return {
+            id: 'student_001',
+            name: '李明',
+            role: 'student',
+            roles: ['student'],
+            avatar: '李'
+        };
     },
+    
+    session: {
+        currentUserId: 'student_001',
+        activeRole: 'student'
+    },
+
+    users: [
+        {
+            id: 'student_001',
+            name: '李明',
+            avatar: '李',
+            roles: ['student'],
+            email: 'li.ming@example.com',
+            phone: '13800000000',
+            coachProfileId: null
+        },
+        {
+            id: 'coach_001',
+            name: '张教练',
+            avatar: '张',
+            roles: ['coach'],
+            email: 'coach.zhang@example.com',
+            phone: '13711112222',
+            coachProfileId: 'coach_001'
+        },
+        {
+            id: 'admin_001',
+            name: '系统管理员',
+            avatar: '🛡️',
+            roles: ['admin'],
+            email: 'admin@coachlink.com',
+            phone: ''
+        }
+    ],
+
+    coaches: [
+        {
+            id: 'coach_001',
+            userId: 'coach_001',
+            name: '张健',
+            title: '力量举专家',
+            avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
+            specialties: ['力量举', '增肌'],
+            rating: 4.9,
+            totalStudents: 150,
+            status: 'approved'
+        },
+        {
+            id: '2a8222e5-d835-4ba8-851b-88a88cda778f',
+            userId: null,
+            name: '李健强',
+            title: '核心力量专家',
+            avatarUrl: '',
+            specialties: ['核心训练', '平板支撑', '功能性训练'],
+            rating: 4.7,
+            totalStudents: 890,
+            status: 'pending'
+        },
+        {
+            id: '87eec87c-aa2f-46bb-8208-4b54e261e492',
+            userId: 'f9eac5b1-45f9-4479-9ab8-8223a5db8835',
+            name: '枭马葛助理',
+            title: '健身教练',
+            avatarUrl: '',
+            specialties: ['力量训练'],
+            rating: 0,
+            totalStudents: 0,
+            status: 'approved'
+        }
+    ],
+
+    coachApplications: [
+        {
+            id: 'app_demo_pending',
+            userId: 'student_004',
+            status: 'pending',
+            submittedAt: Date.now() - 86400000 * 2,
+            updatedAt: Date.now() - 86400000,
+            reviewerId: null,
+            reviewerName: null,
+            rejectionReason: '',
+            formData: {
+                realName: '赵丽',
+                tagline: '国家二级运动员 | 体能教练',
+                specialties: ['体能训练', '体态纠正'],
+                experienceYears: 4,
+                bio: '拥有四年一线体能训练经验，擅长为女性学员设计灵活的增肌塑形方案。',
+                achievements: '国家二级运动员；亚洲体能大赛前三',
+                services: 'AI基础方案 + 每周1次真人点评',
+                certificates: ['https://example.com/cert-1.png'],
+                cases: '帮助学员三个月减脂6kg'
+            }
+        }
+    ],
     
     exercises: [
         { id: 'ex_001', name: '引体向上', type: 'strength', muscle: 'back', equipment: 'bar', details: '双手宽握单杠，核心收紧，背部发力将身体拉起,直至下巴过杠。', videoUrl: 'https://example.com/pullup.mp4' },
@@ -446,6 +542,18 @@ const Store = {
         if (!localStorage.getItem('coachlink_templates')) {
             Store.set('templates', MockData.templates);
         }
+        if (!localStorage.getItem('coachlink_users')) {
+            Store.set('users', MockData.users);
+        }
+        if (!localStorage.getItem('coachlink_session')) {
+            Store.set('session', MockData.session);
+        }
+        if (!localStorage.getItem('coachlink_coaches')) {
+            Store.set('coaches', MockData.coaches);
+        }
+        if (!localStorage.getItem('coachlink_coachApplications')) {
+            Store.set('coachApplications', MockData.coachApplications);
+        }
         if (!localStorage.getItem('coachlink_submissions')) {
             Store.set('submissions', MockData.submissions);
         }
@@ -485,3 +593,262 @@ const Store = {
 
 // Initialize on load
 Store.init();
+
+const UserService = {
+    getUsers() {
+        return Store.get('users') || [];
+    },
+    saveUsers(users) {
+        Store.set('users', users);
+    },
+    findUserById(userId) {
+        return UserService.getUsers().find(user => user.id === userId);
+    },
+    getSession() {
+        return Store.get('session') || { ...MockData.session };
+    },
+    updateSession(patch) {
+        const next = { ...UserService.getSession(), ...patch };
+        Store.set('session', next);
+        return next;
+    },
+    getCurrentUser() {
+        const session = UserService.getSession();
+        return (
+            UserService.findUserById(session.currentUserId) ||
+            UserService.getUsers()[0] || {
+                id: 'student_001',
+                name: '李明',
+                roles: ['student'],
+                avatar: '李'
+            }
+        );
+    },
+    getActiveRole() {
+        const session = UserService.getSession();
+        const user = UserService.getCurrentUser();
+        return session.activeRole || (user.roles && user.roles[0]) || 'student';
+    },
+    updateUser(userId, patch) {
+        const users = UserService.getUsers();
+        const index = users.findIndex(u => u.id === userId);
+        if (index === -1) return null;
+        users[index] = { ...users[index], ...patch };
+        UserService.saveUsers(users);
+        return users[index];
+    },
+    addRole(userId, role) {
+        const users = UserService.getUsers();
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+        const roles = new Set(user.roles || []);
+        roles.add(role);
+        user.roles = Array.from(roles);
+        UserService.saveUsers(users);
+    }
+};
+
+const CoachService = {
+    ensureCoachProfile(userId, formData = {}) {
+        const user = UserService.findUserById(userId);
+        if (!user) return null;
+        const profileId = user.coachProfileId || (user.id.startsWith('coach_') ? user.id : `coach_${user.id}`);
+
+        const profiles = Store.get('coachProfiles') || {};
+        if (!profiles[profileId]) {
+            profiles[profileId] = {
+                name: formData.realName || user.name,
+                avatarUrl: formData.avatarUrl || '',
+                tagline: formData.tagline || '',
+                specialties: Array.isArray(formData.specialties) ? formData.specialties : [],
+                aboutHtml: formData.bio ? `<p>${formData.bio}</p>` : '',
+                successStories: formData.cases
+                    ? [
+                          {
+                              title: '代表案例',
+                              content: formData.cases,
+                              images: []
+                          }
+                      ]
+                    : []
+            };
+            Store.set('coachProfiles', profiles);
+        }
+
+        const pricing = Store.get('coachPricing') || {};
+        if (!pricing[profileId]) {
+            pricing[profileId] = {
+                aiMonthly: 99,
+                premiumMonthly: 299
+            };
+            Store.set('coachPricing', pricing);
+        }
+
+        const coaches = Store.get('coaches') || [];
+        const existingIdx = coaches.findIndex(coach => coach.userId === userId || coach.id === profileId);
+        const baseCoach = {
+            id: profileId,
+            userId,
+            name: formData.realName || user.name,
+            title: formData.tagline || '专业教练',
+            avatarUrl: formData.avatarUrl || '',
+            specialties: Array.isArray(formData.specialties) ? formData.specialties : [],
+            rating: 0,
+            totalStudents: 0,
+            status: 'approved'
+        };
+        if (existingIdx === -1) {
+            coaches.push(baseCoach);
+        } else {
+            coaches[existingIdx] = { ...coaches[existingIdx], ...baseCoach };
+        }
+        Store.set('coaches', coaches);
+
+        UserService.updateUser(userId, { coachProfileId: profileId });
+        return profileId;
+    }
+};
+
+const CoachApplicationService = {
+    getAll() {
+        return Store.get('coachApplications') || [];
+    },
+    saveAll(applications) {
+        Store.set('coachApplications', applications);
+    },
+    getByUserId(userId) {
+        return CoachApplicationService.getAll().find(app => app.userId === userId);
+    },
+    ensureForUser(userId, options = {}) {
+        const applications = options.applications || CoachApplicationService.getAll();
+        let app = applications.find(item => item.userId === userId);
+        if (!app) {
+            app = {
+                id: `app_${userId}`,
+                userId,
+                status: 'draft',
+                submittedAt: null,
+                updatedAt: Date.now(),
+                reviewerId: null,
+                reviewerName: null,
+                rejectionReason: '',
+                formData: CoachApplicationService.createEmptyForm(userId)
+            };
+            applications.push(app);
+            if (!options.skipAutoSave) {
+                CoachApplicationService.saveAll(applications);
+            }
+        }
+        return app;
+    },
+    createEmptyForm(userId) {
+        const user = UserService.findUserById(userId);
+        return {
+            realName: user?.name || '',
+            avatarUrl: '',
+            tagline: '',
+            specialties: [],
+            experienceYears: '',
+            bio: '',
+            achievements: '',
+            services: '',
+            certificates: [],
+            cases: ''
+        };
+    },
+    saveDraft(userId, formData) {
+        const applications = CoachApplicationService.getAll();
+        const app = CoachApplicationService.ensureForUser(userId, { applications, skipAutoSave: true });
+        app.formData = { ...app.formData, ...formData };
+        if (app.status !== 'pending') {
+            app.status = 'draft';
+        }
+        app.updatedAt = Date.now();
+        CoachApplicationService.saveAll(applications);
+        return app;
+    },
+    submit(userId, formData) {
+        const applications = CoachApplicationService.getAll();
+        const app = CoachApplicationService.ensureForUser(userId, { applications, skipAutoSave: true });
+        app.formData = { ...app.formData, ...formData };
+        app.status = 'pending';
+        app.submittedAt = Date.now();
+        app.updatedAt = app.submittedAt;
+        app.rejectionReason = '';
+        CoachApplicationService.saveAll(applications);
+        return app;
+    },
+    withdraw(appId) {
+        const applications = CoachApplicationService.getAll();
+        const app = applications.find(item => item.id === appId);
+        if (!app) return null;
+        app.status = 'draft';
+        app.updatedAt = Date.now();
+        CoachApplicationService.saveAll(applications);
+        return app;
+    },
+    approve(appId, reviewer) {
+        const applications = CoachApplicationService.getAll();
+        const app = applications.find(item => item.id === appId);
+        if (!app) return null;
+        app.status = 'approved';
+        app.updatedAt = Date.now();
+        app.reviewerId = reviewer?.id || null;
+        app.reviewerName = reviewer?.name || '';
+        app.rejectionReason = '';
+        CoachApplicationService.saveAll(applications);
+        UserService.addRole(app.userId, 'coach');
+        CoachService.ensureCoachProfile(app.userId, app.formData);
+        return app;
+    },
+    reject(appId, reviewer, reason = '') {
+        const applications = CoachApplicationService.getAll();
+        const app = applications.find(item => item.id === appId);
+        if (!app) return null;
+        app.status = 'rejected';
+        app.updatedAt = Date.now();
+        app.reviewerId = reviewer?.id || null;
+        app.reviewerName = reviewer?.name || '';
+        app.rejectionReason = reason;
+        CoachApplicationService.saveAll(applications);
+        return app;
+    }
+};
+
+const RoleManager = {
+    getActiveRole() {
+        return UserService.getActiveRole();
+    },
+    getActiveCoachProfileId() {
+        const user = UserService.getCurrentUser();
+        return user?.coachProfileId || user?.id;
+    },
+    switchRole(role, options = {}) {
+        const user = UserService.getCurrentUser();
+        if (!user?.roles?.includes(role)) {
+            alert('当前账号尚未拥有该角色权限');
+            return false;
+        }
+        UserService.updateSession({ activeRole: role });
+        if (!options.silent) {
+            window.location.href = RoleManager.getRedirectPath(role);
+        }
+        return true;
+    },
+    getRedirectPath(role) {
+        const path = window.location.pathname;
+        if (role === 'coach') {
+            if (path.includes('/coach/')) return 'dashboard.html';
+            if (path.includes('/student/') || path.includes('/admin/')) return '../coach/dashboard.html';
+            return 'coach/dashboard.html';
+        }
+        if (path.includes('/student/')) return 'dashboard.html';
+        if (path.includes('/coach/') || path.includes('/admin/')) return '../student/dashboard.html';
+        return 'student/dashboard.html';
+    }
+};
+
+window.UserService = UserService;
+window.CoachApplicationService = CoachApplicationService;
+window.CoachService = CoachService;
+window.RoleManager = RoleManager;

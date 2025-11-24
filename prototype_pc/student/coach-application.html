@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 教练申请</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .status-steps {
+            display: flex;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+            flex-wrap: wrap;
+        }
+        .status-step {
+            flex: 1;
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--background-color);
+        }
+        .status-step.active {
+            border-color: var(--primary-color);
+            background: #eef2ff;
+        }
+        .status-step.completed {
+            border-color: var(--primary-color);
+        }
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            background: #e0e7ff;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .grid-two-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: var(--spacing-lg);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                <div class="card mb-lg">
+                    <div class="card-header flex justify-between items-center">
+                        <div>
+                            <h1 class="text-2xl font-bold">教练认证申请</h1>
+                            <p class="text-secondary mt-xs">提交教练资料以开启教练端功能，审核通过后可在同一账号内管理学员。</p>
+                        </div>
+                        <span class="badge badge-secondary" id="application-status-pill">未申请</span>
+                    </div>
+                    <div class="p-lg">
+                        <p class="text-secondary" id="application-status-desc">准备好基础资料后即可提交审核，预计 2 个工作日内完成。</p>
+                        <div class="status-steps" id="application-steps"></div>
+                        <div class="mt-sm text-sm text-secondary" id="application-updated"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header flex justify-between items-center">
+                        <h3 class="font-semibold">教练资料</h3>
+                        <div class="flex gap-sm">
+                            <button type="button" class="btn btn-secondary btn-sm" id="save-draft-btn">
+                                <i data-lucide="Save" size="16"></i>
+                                保存草稿
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" id="submit-btn">
+                                <i data-lucide="Send" size="16"></i>
+                                提交审核
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="withdraw-btn" style="display:none;">
+                                <i data-lucide="Undo2" size="16"></i>
+                                撤回申请
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-lg">
+                        <form id="coach-application-form" class="space-y-6">
+                            <div class="grid-two-column">
+                                <div>
+                                    <label class="block font-medium mb-xs">真实姓名 / 品牌名</label>
+                                    <input type="text" id="realName" class="w-full p-sm border border-gray-300 rounded" required>
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">头像链接 (可选)</label>
+                                    <input type="url" id="avatarUrl" class="w-full p-sm border border-gray-300 rounded" placeholder="https://">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">一句话简介</label>
+                                    <input type="text" id="tagline" class="w-full p-sm border border-gray-300 rounded" placeholder="例：国家级运动员 | 力量举教练">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">专长标签（逗号分隔）</label>
+                                    <input type="text" id="specialties" class="w-full p-sm border border-gray-300 rounded" placeholder="力量训练, 减脂, 动作纠正">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">教学年限</label>
+                                    <input type="number" min="0" id="experienceYears" class="w-full p-sm border border-gray-300 rounded" placeholder="年">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">核心服务权益 (示例)</label>
+                                    <input type="text" id="services" class="w-full p-sm border border-gray-300 rounded" placeholder="AI计划 + 每周动作点评 + 每月复盘">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-xs">自我介绍 / 教学理念</label>
+                                <textarea id="bio" rows="4" class="w-full p-sm border border-gray-300 rounded" placeholder="介绍你的教学理念、目标学员、训练方法等"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-xs">代表案例 / 成功故事</label>
+                                <textarea id="cases" rows="4" class="w-full p-sm border border-gray-300 rounded" placeholder="示例：帮助学员3个月卧推+20kg，包含训练策略与成果"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-xs">资质 / 证书（每行一条，可填链接）</label>
+                                <textarea id="certificates" rows="3" class="w-full p-sm border border-gray-300 rounded" placeholder="NSCA-CPT\n国家级运动健将\nhttps://example.com/cert.jpg"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-xs">其他荣誉或成就（可选）</label>
+                                <textarea id="achievements" rows="3" class="w-full p-sm border border-gray-300 rounded" placeholder="如：三次全国赛冠军、合作品牌等"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let application = null;
+        let currentUserId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            initApplication();
+            bindActions();
+            lucide.createIcons();
+        });
+
+        function initApplication() {
+            const user = MockData.currentUser;
+            currentUserId = user.id;
+            application = CoachApplicationService.getByUserId(user.id);
+            if (!application) {
+                const defaults = CoachApplicationService.createEmptyForm(user.id);
+                application = CoachApplicationService.saveDraft(user.id, defaults);
+            }
+            fillForm(application.formData || {});
+            renderStatus();
+            toggleForm(application.status);
+            updateButtonVisibility(application.status);
+        }
+
+        function fillForm(data) {
+            document.getElementById('realName').value = data.realName || '';
+            document.getElementById('avatarUrl').value = data.avatarUrl || '';
+            document.getElementById('tagline').value = data.tagline || '';
+            document.getElementById('specialties').value = Array.isArray(data.specialties) ? data.specialties.join(', ') : (data.specialties || '');
+            document.getElementById('experienceYears').value = data.experienceYears || '';
+            document.getElementById('bio').value = data.bio || '';
+            document.getElementById('cases').value = data.cases || '';
+            document.getElementById('certificates').value = Array.isArray(data.certificates) ? data.certificates.join('\\n') : (data.certificates || '');
+            document.getElementById('achievements').value = data.achievements || '';
+            document.getElementById('services').value = data.services || '';
+        }
+
+        function collectFormData() {
+            return {
+                realName: document.getElementById('realName').value.trim(),
+                avatarUrl: document.getElementById('avatarUrl').value.trim(),
+                tagline: document.getElementById('tagline').value.trim(),
+                specialties: document.getElementById('specialties').value.split(',').map(item => item.trim()).filter(Boolean),
+                experienceYears: document.getElementById('experienceYears').value.trim(),
+                bio: document.getElementById('bio').value.trim(),
+                cases: document.getElementById('cases').value.trim(),
+                certificates: document.getElementById('certificates').value.split('\\n').map(item => item.trim()).filter(Boolean),
+                achievements: document.getElementById('achievements').value.trim(),
+                services: document.getElementById('services').value.trim()
+            };
+        }
+
+        function renderStatus() {
+            const pill = document.getElementById('application-status-pill');
+            const desc = document.getElementById('application-status-desc');
+            const updated = document.getElementById('application-updated');
+            const stepsWrap = document.getElementById('application-steps');
+
+            const status = application.status;
+            let label = '未申请';
+            let pillClass = 'badge badge-secondary';
+            let description = '准备好基础资料后即可提交审核，预计 2 个工作日内完成。';
+
+            if (status === 'draft') {
+                label = '草稿未提交';
+                pillClass = 'badge badge-warning';
+                description = '您已保存草稿，完善信息后即可提交审核。';
+            } else if (status === 'pending') {
+                label = '审核中';
+                pillClass = 'badge badge-warning';
+                description = '已提交审核，教练团队会在 2 个工作日内反馈。';
+            } else if (status === 'approved') {
+                label = '审核通过';
+                pillClass = 'badge badge-success';
+                description = '恭喜！教练权限已开通，可在头像菜单中切换到教练端。';
+            } else if (status === 'rejected') {
+                label = '审核未通过';
+                pillClass = 'badge badge-danger';
+                description = application.rejectionReason
+                    ? `驳回原因：${application.rejectionReason}`
+                    : '申请未通过，请根据提示修改资料后再次提交。';
+            }
+
+            const steps = [
+                { key: 'draft', label: '填写资料', icon: 'FileText' },
+                { key: 'pending', label: '等待审核', icon: 'Clock3' },
+                { key: 'approved', label: '成为教练', icon: 'Medal' }
+            ];
+
+            const statusOrder = ['draft', 'pending', 'approved'];
+            let currentIndex = statusOrder.indexOf(status);
+            if (status === 'rejected') currentIndex = 1;
+            if (currentIndex < 0 && (MockData.currentUser.roles || []).includes('coach')) {
+                currentIndex = 2;
+            }
+
+            stepsWrap.innerHTML = steps.map((step, idx) => {
+                const stateClass = idx < currentIndex ? 'completed' : (idx === currentIndex ? 'active' : '');
+                return `
+                    <div class="status-step ${stateClass}">
+                        <div class="status-icon">
+                            <i data-lucide="${step.icon}"></i>
+                        </div>
+                        <div>
+                            <div class="font-semibold">${step.label}</div>
+                            <div class="text-xs text-secondary">${idx < currentIndex ? '已完成' : (idx === currentIndex ? '进行中' : '等待中')}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            pill.textContent = label;
+            pill.className = pillClass;
+            desc.textContent = description;
+            updated.textContent = application.updatedAt ? `最近更新时间：${new Date(application.updatedAt).toLocaleString('zh-CN')}` : '';
+            lucide.createIcons();
+        }
+
+        function toggleForm(status) {
+            const form = document.getElementById('coach-application-form');
+            const hasCoachRole = (MockData.currentUser.roles || []).includes('coach');
+            const disabled = status === 'pending' || status === 'approved' || hasCoachRole;
+            Array.from(form.elements).forEach(el => {
+                if (el.tagName === 'BUTTON') return;
+                el.disabled = disabled;
+            });
+        }
+
+        function updateButtonVisibility(status) {
+            const withdrawBtn = document.getElementById('withdraw-btn');
+            const submitBtn = document.getElementById('submit-btn');
+            const saveBtn = document.getElementById('save-draft-btn');
+            const hasCoachRole = (MockData.currentUser.roles || []).includes('coach');
+
+            withdrawBtn.style.display = status === 'pending' ? 'inline-flex' : 'none';
+            submitBtn.style.display = (status === 'pending' || status === 'approved' || hasCoachRole) ? 'none' : 'inline-flex';
+            saveBtn.style.display = (status === 'pending' || status === 'approved' || hasCoachRole) ? 'none' : 'inline-flex';
+        }
+
+        function bindActions() {
+            document.getElementById('save-draft-btn').addEventListener('click', () => {
+                if (!application) return;
+                const data = collectFormData();
+                application = CoachApplicationService.saveDraft(currentUserId, data);
+                renderStatus();
+                toggleForm(application.status);
+                updateButtonVisibility(application.status);
+                alert('草稿已保存');
+            });
+
+            document.getElementById('submit-btn').addEventListener('click', () => {
+                const data = collectFormData();
+                if (!data.realName || !data.tagline || !data.bio) {
+                    return alert('请至少填写真实姓名、一句话简介和自我介绍');
+                }
+                if (!data.specialties.length) return alert('请至少填写一个专长标签');
+                application = CoachApplicationService.submit(currentUserId, data);
+                renderStatus();
+                toggleForm(application.status);
+                updateButtonVisibility(application.status);
+                alert('已提交审核');
+            });
+
+            document.getElementById('withdraw-btn').addEventListener('click', () => {
+                if (!application || application.status !== 'pending') return;
+                if (!confirm('确认撤回当前申请？撤回后可继续编辑资料。')) return;
+                CoachApplicationService.withdraw(application.id);
+                application = CoachApplicationService.getByUserId(currentUserId);
+                renderStatus();
+                toggleForm(application.status);
+                updateButtonVisibility(application.status);
+            });
+        }
+    </script>
+</body>
+</html>
+
