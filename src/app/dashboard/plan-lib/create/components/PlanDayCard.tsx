@@ -174,8 +174,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
                     {/* 无动作 */}
                     {day.actionSets.length === 0 ? (
-                        <div className="text-center py-6 bg-surface-100 border-round text-600">
-                            该训练日暂无动作
+                        <div>
+                            <br />
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
