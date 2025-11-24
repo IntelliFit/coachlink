@@ -3,7 +3,6 @@ import VideoUploader from './VideoUploader';
 import { VideoUploadContext } from '@/types/video';
 
 interface TrainingVideoUploaderProps {
-    userId: string;
     context: VideoUploadContext;
     onUploadSuccess?: (video: any) => void; // 兼容父组件传入“单个视频”的签名
     onUploadError?: (error: Error) => void;
@@ -11,7 +10,6 @@ interface TrainingVideoUploaderProps {
 }
 
 const TrainingVideoUploader: React.FC<TrainingVideoUploaderProps> = ({
-    userId,
     context,
     onUploadSuccess,
     onUploadError,
@@ -19,7 +17,6 @@ const TrainingVideoUploader: React.FC<TrainingVideoUploaderProps> = ({
 }) => {
     return (
         <VideoUploader
-            userId={userId}
             context={context}
             onUploadSuccess={(result: any) => {
                 // VideoUploader 会返回数组（可能包含 1..N 个视频）

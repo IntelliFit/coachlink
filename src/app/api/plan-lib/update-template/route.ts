@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
-import { UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
+import { CoachPlanTemplatesUpdate, UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 
@@ -37,256 +37,265 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    try {
-        // 更新模板基本信息
-        const updateData: any = {};
-        if (name !== undefined) updateData.name = name;
-        if (description !== undefined) updateData.description = description;
-        if (type !== undefined) updateData.type = type;
+    // 更新模板基本信息
+    const updateData: CoachPlanTemplatesUpdate = {};
 
-        let template;
-        if (Object.keys(updateData).length > 0) {
-            const { data, error: updateError } = await supabase
-                .from("coach_plan_templates")
-                .update(updateData)
-                .eq("id", id)
-                .eq("coach_id", userId)
-                .select()
-                .single();
+    if (name !== undefined) {
+        updateData.name = name;
+    }
+    if (description !== undefined) {
+        updateData.description = description;
+    }
+    if (type !== undefined) {
+        updateData.type = type;
+    }
 
-            if (updateError) {
-                console.error("Error updating template:", updateError);
-                return NextResponse.json({
-                    success: false,
-                    message: "Failed to update template"
-                }, { status: 500 });
-            }
+    // 统计训练天数和休息天数
+    if (days) {
+        updateData.training_days = days.filter(day => day.type === "training").length;
+        updateData.rest_days = days.filter(day => day.type === "rest").length;
+    }
 
-            template = data;
-        } else {
-            // 如果没有更新字段，直接获取现有模板
-            const { data, error: fetchError } = await supabase
-                .from("coach_plan_templates")
-                .select("*")
-                .eq("id", id)
-                .eq("coach_id", userId)
-                .single();
+    let template;
+    if (Object.keys(updateData).length > 0) {
+        const { data, error: updateError } = await supabase
+            .from("coach_plan_templates")
+            .update(updateData)
+            .eq("id", id)
+            .eq("coach_id", userId)
+            .select()
+            .single();
 
-            if (fetchError) {
-                console.error("Error fetching template:", fetchError);
-                return NextResponse.json({
-                    success: false,
-                    message: "Template not found"
-                }, { status: 404 });
-            }
-
-            template = data;
+        if (updateError) {
+            console.error("Error updating template:", updateError);
+            return NextResponse.json({
+                success: false,
+                message: "Failed to update template"
+            }, { status: 500 });
         }
 
-        // 更新计划日和动作组（如果提供了days数据）
-        if (days) {
-            // 获取当前模板下的所有计划日
-            const { data: existingDays, error: fetchDaysError } = await supabase
-                .from("coach_plan_days")
-                .select("id")
-                .eq("plan_template_id", id);
+        template = data;
+    } else {
+        // 如果没有更新字段，直接获取现有模板
+        const { data, error: fetchError } = await supabase
+            .from("coach_plan_templates")
+            .select("*")
+            .eq("id", id)
+            .eq("coach_id", userId)
+            .single();
 
-            if (fetchDaysError) {
-                console.error("Error fetching existing days:", fetchDaysError);
-                return NextResponse.json({
-                    success: false,
-                    message: "Failed to fetch existing plan days"
-                }, { status: 500 });
-            }
+        if (fetchError) {
+            console.error("Error fetching template:", fetchError);
+            return NextResponse.json({
+                success: false,
+                message: "Template not found"
+            }, { status: 404 });
+        }
 
-            const existingDayIds = new Set((existingDays || []).map(day => day.id));
-            const updatedDayIds = new Set<string>();
+        template = data;
+    }
 
-            // 处理每个计划日
-            for (const day of days) {
-                let createdDay;
-                if (day.id) {
-                    // 更新现有计划日
-                    updatedDayIds.add(day.id);
+    // 更新计划日和动作组（如果提供了days数据）
+    if (days) {
+        // 获取当前模板下的所有计划日
+        const { data: existingDays, error: fetchDaysError } = await supabase
+            .from("coach_plan_days")
+            .select("id")
+            .eq("plan_template_id", id);
 
-                    const { data, error: dayError } = await supabase
-                        .from("coach_plan_days")
-                        .update({
-                            day_index: day.day_index,
-                            type: day.type,
-                            note: day.note || null
-                        })
-                        .eq("id", day.id)
-                        .eq("plan_template_id", id)
-                        .select()
-                        .single();
+        if (fetchDaysError) {
+            console.error("Error fetching existing days:", fetchDaysError);
+            return NextResponse.json({
+                success: false,
+                message: "Failed to fetch existing plan days"
+            }, { status: 500 });
+        }
 
-                    if (dayError) {
-                        console.error("Error updating day:", dayError);
-                        return NextResponse.json({
-                            success: false,
-                            message: "Failed to update plan day"
-                        }, { status: 500 });
-                    }
+        const existingDayIds = new Set((existingDays || []).map(day => day.id));
+        const updatedDayIds = new Set<string>();
 
-                    createdDay = data;
-                } else {
-                    // 创建新计划日
-                    const { data, error: dayError } = await supabase
-                        .from("coach_plan_days")
-                        .insert({
-                            plan_template_id: id,
-                            day_index: day.day_index,
-                            type: day.type,
-                            note: day.note || null
-                        })
-                        .select()
-                        .single();
+        // 处理每个计划日
+        for (const day of days) {
+            let createdDay;
+            if (day.id) {
+                // 更新现有计划日
+                updatedDayIds.add(day.id);
 
-                    if (dayError) {
-                        console.error("Error creating day:", dayError);
-                        return NextResponse.json({
-                            success: false,
-                            message: "Failed to create plan day"
-                        }, { status: 500 });
-                    }
+                const { data, error: dayError } = await supabase
+                    .from("coach_plan_days")
+                    .update({
+                        day_index: day.day_index,
+                        type: day.type,
+                        note: day.note || null
+                    })
+                    .eq("id", day.id)
+                    .eq("plan_template_id", id)
+                    .select()
+                    .single();
 
-                    createdDay = data;
+                if (dayError) {
+                    console.error("Error updating day:", dayError);
+                    return NextResponse.json({
+                        success: false,
+                        message: "Failed to update plan day"
+                    }, { status: 500 });
                 }
 
-                // 处理动作组（如果提供了action_sets数据）
-                if (day.action_sets) {
-                    // 获取当前计划日下的所有动作组
-                    const { data: existingActionSets, error: fetchActionSetsError } = await supabase
-                        .from("coach_plan_action_sets")
-                        .select("id")
-                        .eq("day_id", createdDay.id);
+                createdDay = data;
+            } else {
+                // 创建新计划日
+                const { data, error: dayError } = await supabase
+                    .from("coach_plan_days")
+                    .insert({
+                        plan_template_id: id,
+                        day_index: day.day_index,
+                        type: day.type,
+                        note: day.note || null
+                    })
+                    .select()
+                    .single();
 
-                    if (fetchActionSetsError) {
-                        console.error("Error fetching existing action sets:", fetchActionSetsError);
-                        return NextResponse.json({
-                            success: false,
-                            message: "Failed to fetch existing action sets"
-                        }, { status: 500 });
-                    }
+                if (dayError) {
+                    console.error("Error creating day:", dayError);
+                    return NextResponse.json({
+                        success: false,
+                        message: "Failed to create plan day"
+                    }, { status: 500 });
+                }
 
-                    const existingActionSetIds = new Set((existingActionSets || []).map(set => set.id));
-                    const updatedActionSetIds = new Set<string>();
+                createdDay = data;
+            }
 
-                    // 处理每个动作组
-                    for (const actionSet of day.action_sets) {
-                        if (actionSet.id) {
-                            // 更新现有动作组
-                            updatedActionSetIds.add(actionSet.id);
+            // 处理动作组（如果提供了action_sets数据）
+            if (day.action_sets) {
+                day.action_sets.map((actionSet, index) => {
+                    actionSet.set_order = index + 1;
+                });
 
-                            const { error: actionSetError } = await supabase
-                                .from("coach_plan_action_sets")
-                                .update({
-                                    action_id: actionSet.action_id,
-                                    set_order: actionSet.set_order,
-                                    sets: actionSet.sets,
-                                    reps: actionSet.reps,
-                                    intensity: actionSet.intensity || null,
-                                    rest_seconds: actionSet.rest_seconds || null
-                                })
-                                .eq("id", actionSet.id)
-                                .eq("day_id", createdDay.id);
+                // 获取当前计划日下的所有动作组
+                const { data: existingActionSets, error: fetchActionSetsError } = await supabase
+                    .from("coach_plan_action_sets")
+                    .select("id")
+                    .eq("day_id", createdDay.id);
 
-                            if (actionSetError) {
-                                console.error("Error updating action set:", actionSetError);
-                                return NextResponse.json({
-                                    success: false,
-                                    message: "Failed to update action set"
-                                }, { status: 500 });
-                            }
-                        } else {
-                            // 创建新动作组
-                            const { error: actionSetError } = await supabase
-                                .from("coach_plan_action_sets")
-                                .insert({
-                                    day_id: createdDay.id,
-                                    action_id: actionSet.action_id,
-                                    set_order: actionSet.set_order,
-                                    sets: actionSet.sets,
-                                    reps: actionSet.reps,
-                                    intensity: actionSet.intensity || null,
-                                    rest_seconds: actionSet.rest_seconds || null
-                                });
+                if (fetchActionSetsError) {
+                    console.error("Error fetching existing action sets:", fetchActionSetsError);
+                    return NextResponse.json({
+                        success: false,
+                        message: "Failed to fetch existing action sets"
+                    }, { status: 500 });
+                }
 
-                            if (actionSetError) {
-                                console.error("Error creating action set:", actionSetError);
-                                return NextResponse.json({
-                                    success: false,
-                                    message: "Failed to create action set"
-                                }, { status: 500 });
-                            }
-                        }
-                    }
+                const existingActionSetIds = new Set((existingActionSets || []).map(set => set.id));
+                const updatedActionSetIds = new Set<string>();
 
-                    // 删除未更新的动作组
-                    const actionSetsToDelete = Array.from(existingActionSetIds).filter(id => !updatedActionSetIds.has(id));
-                    if (actionSetsToDelete.length > 0) {
-                        const { error: deleteError } = await supabase
+                // 处理每个动作组
+                for (const actionSet of day.action_sets) {
+                    if (actionSet.id) {
+                        // 更新现有动作组
+                        updatedActionSetIds.add(actionSet.id);
+
+                        const { error: actionSetError } = await supabase
                             .from("coach_plan_action_sets")
-                            .delete()
-                            .in("id", actionSetsToDelete);
+                            .update({
+                                action_id: actionSet.action_id,
+                                set_order: actionSet.set_order,
+                                sets: actionSet.sets,
+                                reps: actionSet.reps,
+                                intensity: actionSet.intensity || null,
+                                rest_seconds: actionSet.rest_seconds || null
+                            })
+                            .eq("id", actionSet.id)
+                            .eq("day_id", createdDay.id);
 
-                        if (deleteError) {
-                            console.error("Error deleting action sets:", deleteError);
+                        if (actionSetError) {
+                            console.error("Error updating action set:", actionSetError);
                             return NextResponse.json({
                                 success: false,
-                                message: "Failed to delete action sets"
+                                message: "Failed to update action set"
+                            }, { status: 500 });
+                        }
+                    } else {
+                        // 创建新动作组
+                        const { error: actionSetError } = await supabase
+                            .from("coach_plan_action_sets")
+                            .insert({
+                                action_id: actionSet.action_id,
+                                set_order: actionSet.set_order,
+                                sets: actionSet.sets,
+                                reps: actionSet.reps,
+                                day_id: createdDay.id,
+                                intensity: actionSet.intensity || null,
+                                rest_seconds: actionSet.rest_seconds || null
+                            });
+
+                        if (actionSetError) {
+                            console.error("Error creating action set:", actionSetError);
+                            return NextResponse.json({
+                                success: false,
+                                message: "Failed to create action set"
                             }, { status: 500 });
                         }
                     }
                 }
-            }
 
-            // 删除未更新的计划日
-            const daysToDelete = Array.from(existingDayIds).filter(id => !updatedDayIds.has(id));
-            if (daysToDelete.length > 0) {
-                // 先删除这些计划日下的所有动作组
-                const { data: daysToDeleteData, error: fetchDaysToDeleteError } = await supabase
-                    .from("coach_plan_days")
-                    .select("id")
-                    .in("id", daysToDelete);
-
-                if (!fetchDaysToDeleteError && daysToDeleteData) {
-                    const dayIdsToDelete = daysToDeleteData.map(day => day.id);
-                    await supabase
+                // 删除未更新的动作组
+                const actionSetsToDelete = Array.from(existingActionSetIds).filter(id => !updatedActionSetIds.has(id));
+                if (actionSetsToDelete.length > 0) {
+                    const { error: deleteError } = await supabase
                         .from("coach_plan_action_sets")
                         .delete()
-                        .in("day_id", dayIdsToDelete);
-                }
+                        .in("id", actionSetsToDelete);
 
-                // 再删除计划日
-                const { error: deleteError } = await supabase
-                    .from("coach_plan_days")
-                    .delete()
-                    .in("id", daysToDelete);
-
-                if (deleteError) {
-                    console.error("Error deleting days:", deleteError);
-                    return NextResponse.json({
-                        success: false,
-                        message: "Failed to delete plan days"
-                    }, { status: 500 });
+                    if (deleteError) {
+                        console.error("Error deleting action sets:", deleteError);
+                        return NextResponse.json({
+                            success: false,
+                            message: "Failed to delete action sets"
+                        }, { status: 500 });
+                    }
                 }
             }
         }
 
-        return NextResponse.json<ApiData<UpdateTemplateResponseDto>>({
-            success: true,
-            message: "更新训练计划模板成功",
-            data: {
-                template
+        // 删除未更新的计划日
+        const daysToDelete = Array.from(existingDayIds).filter(id => !updatedDayIds.has(id));
+        if (daysToDelete.length > 0) {
+            // 先删除这些计划日下的所有动作组
+            const { data: daysToDeleteData, error: fetchDaysToDeleteError } = await supabase
+                .from("coach_plan_days")
+                .select("id")
+                .in("id", daysToDelete);
+
+            if (!fetchDaysToDeleteError && daysToDeleteData) {
+                const dayIdsToDelete = daysToDeleteData.map(day => day.id);
+                await supabase
+                    .from("coach_plan_action_sets")
+                    .delete()
+                    .in("day_id", dayIdsToDelete);
             }
-        });
-    } catch (error) {
-        console.error("Error in update-template:", error);
-        return NextResponse.json({
-            success: false,
-            message: "Failed to update template"
-        }, { status: 500 });
+
+            // 再删除计划日
+            const { error: deleteError } = await supabase
+                .from("coach_plan_days")
+                .delete()
+                .in("id", daysToDelete);
+
+            if (deleteError) {
+                console.error("Error deleting days:", deleteError);
+                return NextResponse.json({
+                    success: false,
+                    message: "Failed to delete plan days"
+                }, { status: 500 });
+            }
+        }
     }
+
+    return NextResponse.json<ApiData<UpdateTemplateResponseDto>>({
+        success: true,
+        message: "更新训练计划模板成功",
+        data: {
+            template
+        }
+    });
 }

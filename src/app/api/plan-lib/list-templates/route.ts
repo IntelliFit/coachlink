@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     }
 
     // Apply type filter if provided
-    if (type) {
+    if (type && type !== 'all') {
         query = query.eq("type", type);
     }
 

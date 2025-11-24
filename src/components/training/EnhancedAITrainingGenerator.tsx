@@ -55,7 +55,6 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
                 for (const file of data.baseline_files as File[]) {
                     try {
                         const res = await videoService.uploadVideoFile(
-                            userId,
                             file,
                             {
                                 type: 'baseline',

@@ -1,7 +1,9 @@
 // Main Application Logic
+const ROLE_GUARD_ENABLED = false;
 
 const App = {
     init: () => {
+        App.ensureRoleAccess();
         App.renderSidebar();
         App.renderHeader();
         App.highlightCurrentNav();
@@ -11,18 +13,22 @@ const App = {
         const sidebar = document.getElementById('sidebar');
         if (!sidebar) return;
 
-        // Determine if we are in coach or student view based on URL or simple check
-        const isCoach = window.location.pathname.includes('/coach/');
-        const isAdmin = window.location.pathname.includes('/admin/');
+        const path = window.location.pathname;
         const user = MockData.currentUser;
-        
+        const activeRole = user.role;
+        const isAdmin = path.includes('/admin/') || activeRole === 'admin';
+        const isCoach = !isAdmin && activeRole === 'coach';
+        const isStudent = !isAdmin && !isCoach;
+        const canApplyForCoach = isStudent && !(user.roles || []).includes('coach');
+        const coachApplyLink = App.resolveStudentLink('coach-application.html');
+
         let menuItems = [];
-        const messageLink = isCoach ? 'chat.html' : (isAdmin ? '#' : 'chat.html');
+        const messageLink = isAdmin ? '#' : 'chat.html';
 
         if (isAdmin) {
             menuItems = [
                 { name: '成绩审核', icon: 'ClipboardCheck', link: 'review.html' },
-                // Add more admin links here if needed
+                { name: '教练申请', icon: 'UserCheck', link: 'coach-applications.html' }
             ];
         } else if (isCoach) {
             menuItems = [
@@ -42,6 +48,9 @@ const App = {
             ];
         }
 
+
+        const canSwitchToCoach = (user.roles || []).includes('coach') && user.role !== 'coach';
+        const canSwitchToStudent = (user.roles || []).includes('student') && user.role !== 'student';
 
         const navHtml = menuItems.map(item => `
             <a href="${item.link}" class="nav-item">
@@ -90,6 +99,25 @@ const App = {
                                 </a>
                                 <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
                             ` : ''}
+                            ${canApplyForCoach ? `
+                                <a href="${coachApplyLink}" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px;">
+                                    <i data-lucide="ClipboardCheck" size="16"></i><span>申请成为教练</span>
+                                </a>
+                                <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                            ` : ''}
+                            ${(canSwitchToCoach || canSwitchToStudent) ? `
+                                ${canSwitchToCoach ? `
+                                    <button class="nav-item" data-role-switch="coach" style="display:flex; align-items:center; gap:8px; padding:10px 16px; background:none; border:none; width:100%; text-align:left;">
+                                        <i data-lucide="Repeat" size="16"></i><span>切换到教练端</span>
+                                    </button>
+                                ` : ''}
+                                ${canSwitchToStudent ? `
+                                    <button class="nav-item" data-role-switch="student" style="display:flex; align-items:center; gap:8px; padding:10px 16px; background:none; border:none; width:100%; text-align:left;">
+                                        <i data-lucide="Repeat" size="16"></i><span>切换到学员端</span>
+                                    </button>
+                                ` : ''}
+                                <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                            ` : ''}
                             <a href="../index.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color: var(--danger-color);">
                                 <i data-lucide="LogOut" size="16"></i><span>退出登录</span>
                             </a>
@@ -115,13 +143,19 @@ const App = {
                 if (menuNav.style.display !== 'none') menuNav.style.display = 'none';
             });
         }
+        App.bindRoleSwitchers(sidebar);
     },
 
     renderHeader: () => {
         const header = document.getElementById('header');
         if (!header) return;
 
+        const path = window.location.pathname;
         const user = MockData.currentUser; // In real app, get from auth
+        const canSwitchToCoach = (user.roles || []).includes('coach') && user.role !== 'coach';
+        const canSwitchToStudent = (user.roles || []).includes('student') && user.role !== 'student';
+        const canApplyForCoach = user.role === 'student' && !(user.roles || []).includes('coach');
+        const coachApplyLink = App.resolveStudentLink('coach-application.html');
 
         const messageLink = user.role === 'student' || user.role === 'coach' ? 'chat.html' : '#';
 
@@ -160,6 +194,23 @@ const App = {
                             </a>
                             <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
                         ` : ''}
+                        ${canApplyForCoach ? `
+                            <a href="${coachApplyLink}" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s;">
+                                <i data-lucide="ClipboardCheck" size="16"></i><span>申请成为教练</span>
+                            </a>
+                            <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
+                        ` : ''}
+                        ${canSwitchToCoach ? `
+                            <button class="nav-item" data-role-switch="coach" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s; background:none; border:none; width:100%; text-align:left;">
+                                <i data-lucide="Repeat" size="16"></i><span>切换到教练端</span>
+                            </button>
+                        ` : ''}
+                        ${canSwitchToStudent ? `
+                            <button class="nav-item" data-role-switch="student" style="display:flex; align-items:center; gap:8px; padding:10px 16px; transition: background 0.2s; background:none; border:none; width:100%; text-align:left;">
+                                <i data-lucide="Repeat" size="16"></i><span>切换到学员端</span>
+                            </button>
+                        ` : ''}
+                        ${(canSwitchToCoach || canSwitchToStudent) ? `<div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>` : ''}
                         <a href="../index.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color: var(--danger-color); transition: background 0.2s;">
                             <i data-lucide="LogOut" size="16"></i><span>退出登录</span>
                         </a>
@@ -181,6 +232,7 @@ const App = {
                 if (menu.style.display !== 'none') menu.style.display = 'none';
             });
         }
+        App.bindRoleSwitchers(header);
     },
 
     highlightCurrentNav: () => {
@@ -195,6 +247,71 @@ const App = {
                 if (titleEl) titleEl.textContent = item.querySelector('span').textContent;
             }
         });
+    },
+
+    ensureRoleAccess: () => {
+        if (!ROLE_GUARD_ENABLED) return;
+        if (typeof UserService === 'undefined') return;
+        const path = window.location.pathname;
+        if (path.includes('/admin/')) return;
+
+        const requiredRole = path.includes('/coach/')
+            ? 'coach'
+            : path.includes('/student/')
+            ? 'student'
+            : null;
+
+        if (!requiredRole) return;
+
+        const user = UserService.getCurrentUser();
+        const roles = user?.roles || [];
+
+        if (!roles.includes(requiredRole)) {
+            if (requiredRole === 'coach') {
+                const application = CoachApplicationService.getByUserId(user?.id);
+                let message = '您还不是教练，请先提交申请。';
+                if (application) {
+                    if (application.status === 'pending') {
+                        message = '您的教练申请目前处于审核中，请耐心等待。';
+                    } else if (application.status === 'rejected') {
+                        message = application.rejectionReason
+                            ? `申请被拒绝：${application.rejectionReason}`
+                            : '您的教练申请未通过，请根据反馈修改后重新提交。';
+                    }
+                }
+                alert(message);
+                if (path.includes('/coach/')) {
+                    window.location.href = '../student/coach-application.html';
+                }
+            } else {
+                alert('当前账号无权访问该页面');
+                window.location.href = '../student/dashboard.html';
+            }
+            return;
+        }
+
+        if (UserService.getActiveRole() !== requiredRole) {
+            UserService.updateSession({ activeRole: requiredRole });
+        }
+    },
+
+    bindRoleSwitchers: (root) => {
+        if (!root || typeof RoleManager === 'undefined') return;
+        root.querySelectorAll('[data-role-switch]').forEach(btn => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const role = btn.getAttribute('data-role-switch');
+                RoleManager.switchRole(role);
+            });
+        });
+    },
+
+    resolveStudentLink: (subPath) => {
+        const path = window.location.pathname;
+        if (path.includes('/student/')) return subPath;
+        if (path.includes('/coach/') || path.includes('/admin/')) return `../student/${subPath}`;
+        return `student/${subPath}`;
     }
 };
 

@@ -562,7 +562,6 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
                     </p>
 
                     <TrainingVideoUploader
-                        userId={userId}
                         context={{
                             type: 'baseline',
                             requires_review: true,

@@ -369,6 +369,8 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          rest_days: number | null
+          training_days: number | null
           type: string
           updated_at: string | null
         }
@@ -378,6 +380,8 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          rest_days?: number | null
+          training_days?: number | null
           type: string
           updated_at?: string | null
         }
@@ -387,6 +391,8 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          rest_days?: number | null
+          training_days?: number | null
           type?: string
           updated_at?: string | null
         }
@@ -605,6 +611,70 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          coach_id: string
+          coach_unread: number
+          created_at: string
+          id: string
+          is_archived: boolean
+          last_message: string | null
+          last_message_at: string | null
+          student_id: string
+          student_unread: number
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          coach_unread?: number
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          last_message?: string | null
+          last_message_at?: string | null
+          student_id: string
+          student_unread?: number
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          coach_unread?: number
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          last_message?: string | null
+          last_message_at?: string | null
+          student_id?: string
+          student_unread?: number
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "coach_subscriptions"
             referencedColumns: ["id"]
           },
         ]

@@ -390,6 +390,26 @@
                     </div>
                 </div>
 
+                <!-- Coach Application CTA -->
+                <div class="profile-section">
+                    <div class="flex justify-between items-center gap-md">
+                        <div>
+                            <h2 class="section-title" style="margin-bottom: 0;">
+                                <i data-lucide="ClipboardCheck"></i>
+                                教练申请进度
+                            </h2>
+                            <p class="text-secondary mt-xs">
+                                当前状态：
+                                <span id="coach-application-pill" class="badge badge-secondary">未申请</span>
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" id="coach-application-action"></button>
+                    </div>
+                    <p class="text-secondary text-sm mt-sm" id="coach-application-hint">
+                        完成认证后即可在同一账号内自由切换学员/教练身份。
+                    </p>
+                </div>
+
                 <!-- Personal Info - FIRST SECTION AFTER HEADER -->
                 <div class="profile-section">
                     <h2 class="section-title">
@@ -744,6 +764,77 @@
             }
         };
 
+        function updateCoachApplicationCard() {
+            const pill = document.getElementById('coach-application-pill');
+            const hintEl = document.getElementById('coach-application-hint');
+            const actionBtn = document.getElementById('coach-application-action');
+            if (!pill || !hintEl || !actionBtn) return;
+
+            const user = MockData.currentUser;
+            const roles = user.roles || [];
+            const application = CoachApplicationService.getByUserId(user.id);
+
+            let badgeText = '未申请';
+            let badgeClass = 'badge badge-secondary';
+            let hint = '完成认证后即可在同一账号内自由切换学员/教练身份。';
+            let actionLabel = '申请成为教练';
+            let actionType = 'apply';
+            let icon = 'ClipboardCheck';
+
+            if (roles.includes('coach')) {
+                badgeText = '已获得教练权限';
+                badgeClass = 'badge badge-success';
+                hint = '恭喜！您已获得教练权限，点击按钮即可进入教练端。';
+                actionLabel = '进入教练端';
+                actionType = 'switch';
+                icon = 'Repeat';
+            } else if (application) {
+                if (application.status === 'draft') {
+                    badgeText = '草稿未提交';
+                    badgeClass = 'badge badge-warning';
+                    hint = '您已保存申请草稿，点击继续完善并提交审核。';
+                    actionLabel = '继续编辑申请';
+                    icon = 'Edit3';
+                } else if (application.status === 'pending') {
+                    badgeText = '审核中';
+                    badgeClass = 'badge badge-warning';
+                    hint = '教练团队正在审核您的资料，通常会在2个工作日内给出结果。';
+                    actionLabel = '查看申请详情';
+                    actionType = 'apply';
+                    icon = 'Eye';
+                } else if (application.status === 'rejected') {
+                    badgeText = '已驳回';
+                    badgeClass = 'badge badge-danger';
+                    hint = application.rejectionReason
+                        ? `驳回原因：${application.rejectionReason}。请修改后重新提交。`
+                        : '申请未通过，请根据提示修改后再次提交。';
+                    actionLabel = '重新提交申请';
+                    icon = 'RotateCcw';
+                } else if (application.status === 'approved') {
+                    badgeText = '已通过';
+                    badgeClass = 'badge badge-success';
+                    hint = '系统正在为您开通教练端功能，请点击进入完成初始化。';
+                    actionLabel = '进入教练端';
+                    actionType = 'switch';
+                    icon = 'Repeat';
+                }
+            }
+
+            pill.textContent = badgeText;
+            pill.className = badgeClass;
+            hintEl.textContent = hint;
+            actionBtn.innerHTML = `<i data-lucide="${icon}" class="mr-2"></i>${actionLabel}`;
+            actionBtn.disabled = false;
+            actionBtn.onclick = () => {
+                if (actionType === 'switch') {
+                    RoleManager.switchRole('coach');
+                } else {
+                    window.location.href = 'coach-application.html';
+                }
+            };
+            lucide.createIcons();
+        }
+
         function initChart() {
             const ctx = document.getElementById('progressChart').getContext('2d');
             const data = chartData.weight;
@@ -825,6 +916,7 @@
             App.init();
             lucide.createIcons();
             initChart();
+            updateCoachApplicationCard();
         });
     </script>
 </body>
