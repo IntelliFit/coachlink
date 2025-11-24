@@ -270,6 +270,128 @@ export type Database = {
           },
         ]
       }
+      coach_plan_action_sets: {
+        Row: {
+          action_id: string
+          created_at: string | null
+          day_id: string
+          id: string
+          intensity: string | null
+          reps: number
+          rest_seconds: number | null
+          set_order: number
+          sets: number
+          updated_at: string | null
+        }
+        Insert: {
+          action_id: string
+          created_at?: string | null
+          day_id: string
+          id?: string
+          intensity?: string | null
+          reps: number
+          rest_seconds?: number | null
+          set_order: number
+          sets: number
+          updated_at?: string | null
+        }
+        Update: {
+          action_id?: string
+          created_at?: string | null
+          day_id?: string
+          id?: string
+          intensity?: string | null
+          reps?: number
+          rest_seconds?: number | null
+          set_order?: number
+          sets?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_plan_action_sets_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "coach_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_plan_action_sets_day_id_fkey"
+            columns: ["day_id"]
+            isOneToOne: false
+            referencedRelation: "coach_plan_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_plan_days: {
+        Row: {
+          created_at: string | null
+          day_index: number
+          id: string
+          note: string | null
+          plan_template_id: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          day_index: number
+          id?: string
+          note?: string | null
+          plan_template_id: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          day_index?: number
+          id?: string
+          note?: string | null
+          plan_template_id?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_plan_days_plan_template_id_fkey"
+            columns: ["plan_template_id"]
+            isOneToOne: false
+            referencedRelation: "coach_plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_plan_templates: {
+        Row: {
+          coach_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       coach_rulepacks: {
         Row: {
           coach_id: string

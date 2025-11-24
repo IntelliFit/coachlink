@@ -13,3 +13,7 @@ export type TrainingDetailRow = CoachLinkTable['training_plan_details']['Row'];
 export type CoachSubscriptionRow = CoachLinkTable['coach_subscriptions']['Row'];
 export type CoachContentRow = CoachLinkTable['coach_contents']['Row'];
 export type CoachActionRow = CoachLinkTable['coach_actions']['Row'];
+
+export type CoachPlanTemplateRow = CoachLinkTable['coach_plan_templates']['Row'];
+export type CoachPlanDaysRow = CoachLinkTable['coach_plan_days']['Row'];
+export type CoachPlanActionSetsRow = CoachLinkTable['coach_plan_action_sets']['Row'];
