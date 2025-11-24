@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Star, Users, Award, Calendar, Clock, CheckCircle, Heart } from 'lucide-react';
+import { Star, Users, Award, Calendar, Clock, CheckCircle, Heart, Play } from 'lucide-react';
 import { CoachesRow } from '@/types';
+import { ContactCoachButton } from '@/components/chat';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
@@ -33,10 +34,10 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                             )}
                         </div>
 
-                        {coach.featured_video_url && (
+                        {(coach as any).featured_video_url && (
                             <div className="relative rounded-lg overflow-hidden">
                                 <video className="w-full h-24 object-cover" poster="/api/placeholder/200/100">
-                                    <source src={coach.featured_video_url} type="video/mp4" />
+                                    <source src={(coach as any).featured_video_url} type="video/mp4" />
                                 </video>
                                 <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
                                     <Play className="w-8 h-8 text-surface" />
@@ -71,11 +72,18 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                 </div>
                             </div>
 
-                            {userSubscription && (
-                                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                                    已订阅 Tier {userSubscription.tier}
-                                </div>
-                            )}
+                            <div className="flex flex-col gap-2 items-end">
+                                {userSubscription && (
+                                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                                        已订阅 Tier {userSubscription.tier}
+                                    </div>
+                                )}
+                                <ContactCoachButton 
+                                    coachId={coach.id}
+                                    label="联系教练"
+                                    icon="pi pi-comment"
+                                />
+                            </div>
                         </div>
 
                         {/* 专业领域 */}
@@ -99,7 +107,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div className="flex items-center space-x-2">
                                     <Award className="w-4 h-4 text-yellow-600" />
-                                    <span>{coach.success_stories} 成功案例</span>
+                                    <span>{(coach as any).success_stories || 0} 成功案例</span>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <CheckCircle className="w-4 h-4 text-green-600" />
