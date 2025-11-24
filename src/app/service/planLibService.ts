@@ -1,36 +1,12 @@
 import { BaseService } from "@/lib/baseService";
 import { TrainingPlanRow } from "@/types";
-import { ListPlansDto, ListPlansResponseDto } from "@/app/api/plan-lib/list-plans/entity";
-import { ApiData } from "@/types/api";
-import {
-  ListTemplatesDto,
-  ListTemplatesResponseDto
-} from "@/app/api/plan-lib/list-templates/entity";
-import {
-  GetTemplateDto,
-  GetTemplateResponseDto
-} from "@/app/api/plan-lib/get-template/entity";
-import {
-  AddTemplateDto,
-  AddTemplateResponseDto
-} from "@/app/api/plan-lib/add-template/entity";
-import {
-  UpdateTemplateDto,
-  UpdateTemplateResponseDto
-} from "@/app/api/plan-lib/update-template/entity";
-import {
-  DeleteTemplateDto,
-  DeleteTemplateResponseDto
-} from "@/app/api/plan-lib/delete-template/entity";
+import { ListTemplatesDto, ListTemplatesResponseDto } from "@/app/api/plan-lib/list-templates/entity";
+import { GetTemplateDto, GetTemplateResponseDto } from "@/app/api/plan-lib/get-template/entity";
+import { AddTemplateDto, AddTemplateResponseDto } from "@/app/api/plan-lib/add-template/entity";
+import { UpdateTemplateDto, UpdateTemplateResponseDto } from "@/app/api/plan-lib/update-template/entity";
+import { DeleteTemplateDto, DeleteTemplateResponseDto } from "@/app/api/plan-lib/delete-template/entity";
 
 export class PlanLibService extends BaseService {
-    async listPlans(reqData: ListPlansDto) {
-        const res = await this.post<ListPlansResponseDto>("list-plans", reqData);
-        if (!res || !res.data.success) {
-            throw new Error(res.data.message || "Failed to fetch plans");
-        }
-        return res.data.data;
-    }
 
     async listTemplates(reqData: ListTemplatesDto) {
         const res = await this.post<ListTemplatesResponseDto>("list-templates", reqData);
