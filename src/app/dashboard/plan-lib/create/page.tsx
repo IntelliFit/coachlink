@@ -201,7 +201,6 @@ const CreatePlanPage = () => {
                 onTypeChange={setType}
                 saving={saving}
                 onSave={handleSave}
-                onCancel={() => router.back()}
             />
 
             <Card className="shadow-sm">

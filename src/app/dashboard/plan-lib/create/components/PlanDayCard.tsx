@@ -56,20 +56,22 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     totalDays
 }) => {
     return (
-        <Card className="border-primary-100 border-2">
+        <Card className="shadow-sm bg-surface-50">
             <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <h3 className="text-lg font-semibold text-900">第 {day.dayIndex} 天</h3>
+
                     <div className="flex gap-2">
                         <Button
                             label="训练日"
-                            className={`p-button-outlined ${day.type === 'training' ? '' : 'p-button-secondary'}`}
+                            className={`p-button-sm ${day.type === 'training' ? '' : 'p-button-outlined'}`}
                             onClick={() => onDayTypeChange(dayIndex, 'training')}
                             disabled={saving}
                         />
+
                         <Button
                             label="休息日"
-                            className={`p-button-outlined ${day.type === 'rest' ? '' : 'p-button-secondary'}`}
+                            className={`p-button-sm ${day.type === 'rest' ? '' : 'p-button-outlined'}`}
                             onClick={() => onDayTypeChange(dayIndex, 'rest')}
                             disabled={saving}
                         />
@@ -78,7 +80,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
                 <Button
                     icon="pi pi-trash"
-                    className="p-button-rounded p-button-text p-button-danger"
+                    className="p-button-rounded p-button-text p-button-danger p-button-sm"
                     onClick={() => onRemoveDay(dayIndex)}
                     disabled={totalDays <= 1 || saving}
                     tooltip="删除训练日"
@@ -106,23 +108,28 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                 icon="pi pi-plus"
                                 onClick={() => onAddActionSet(dayIndex)}
                                 disabled={saving}
-                                className="p-button-outlined"
+                                className="p-button-sm p-button-outlined"
                             />
                         </div>
 
                         {day.actionSets.length === 0 ? (
-                            <div className="text-center py-4 bg-surface-100 rounded-border">
-                                <p className="text-600">该训练日暂无动作</p>
+                            <div className="text-center py-6 bg-surface-100 border-round text-600">
+                                该训练日暂无动作
                             </div>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="flex flex-col gap-4">
                                 {day.actionSets.map((set, setIndex) => (
-                                    <div key={setIndex} className="p-3 border-round border-1 surface-border">
+                                    <div
+                                        key={setIndex}
+                                        className="p-4 bg-surface-0 border-round shadow-sm"
+                                    >
                                         <div className="flex justify-between items-start mb-3">
-                                            <h5 className="font-medium text-900">动作 #{setIndex + 1}</h5>
+                                            <h5 className="font-medium text-900">
+                                                动作 #{setIndex + 1}
+                                            </h5>
                                             <Button
                                                 icon="pi pi-trash"
-                                                className="p-button-rounded p-button-text p-button-danger"
+                                                className="p-button-rounded p-button-text p-button-danger p-button-sm"
                                                 onClick={() => onRemoveActionSet(dayIndex, setIndex)}
                                                 disabled={saving}
                                                 tooltip="删除动作"
@@ -138,7 +145,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                         label: action.name,
                                                         value: action.id
                                                     }))}
-                                                    onChange={(e) => onActionSetChange(dayIndex, setIndex, 'actionId', e.value)}
+                                                    onChange={(e) =>
+                                                        onActionSetChange(dayIndex, setIndex, 'actionId', e.value)
+                                                    }
                                                     placeholder="选择动作"
                                                     filter
                                                     className="w-full"
@@ -152,7 +161,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                     value={set.sets.toString()}
                                                     type="number"
                                                     min="1"
-                                                    onChange={(e) => onActionSetChange(dayIndex, setIndex, 'sets', parseInt(e.target.value) || 0)}
+                                                    onChange={(e) =>
+                                                        onActionSetChange(dayIndex, setIndex, 'sets', Number(e.target.value) || 0)
+                                                    }
                                                     className="w-full"
                                                     disabled={saving}
                                                 />
@@ -164,7 +175,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                     value={set.reps.toString()}
                                                     type="number"
                                                     min="1"
-                                                    onChange={(e) => onActionSetChange(dayIndex, setIndex, 'reps', parseInt(e.target.value) || 0)}
+                                                    onChange={(e) =>
+                                                        onActionSetChange(dayIndex, setIndex, 'reps', Number(e.target.value) || 0)
+                                                    }
                                                     className="w-full"
                                                     disabled={saving}
                                                 />
@@ -174,7 +187,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                 <label className="block text-900 text-sm mb-1">强度</label>
                                                 <InputText
                                                     value={set.intensity}
-                                                    onChange={(e) => onActionSetChange(dayIndex, setIndex, 'intensity', e.target.value)}
+                                                    onChange={(e) =>
+                                                        onActionSetChange(dayIndex, setIndex, 'intensity', e.target.value)
+                                                    }
                                                     placeholder="例如: RPE8, 20kg"
                                                     className="w-full"
                                                     disabled={saving}
@@ -187,7 +202,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                     value={set.restSeconds.toString()}
                                                     type="number"
                                                     min="0"
-                                                    onChange={(e) => onActionSetChange(dayIndex, setIndex, 'restSeconds', parseInt(e.target.value) || 0)}
+                                                    onChange={(e) =>
+                                                        onActionSetChange(dayIndex, setIndex, 'restSeconds', Number(e.target.value) || 0)
+                                                    }
                                                     className="w-full"
                                                     disabled={saving}
                                                 />
@@ -200,12 +217,13 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     </div>
                 </>
             ) : (
-                <div className="py-4 text-center">
-                    <i className="pi pi-calendar-times text-600 text-2xl mb-2"></i>
-                    <p className="text-600">休息日 - 无需安排训练内容</p>
+                <div className="py-4 text-center text-600">
+                    <i className="pi pi-calendar-times text-2xl mb-2"></i>
+                    <p>休息日 - 无需安排训练内容</p>
                 </div>
             )}
         </Card>
+
     );
 };
 
