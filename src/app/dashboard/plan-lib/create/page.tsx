@@ -12,6 +12,7 @@ import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
 import BasicInfoForm from './components/BasicInfoForm';
 import PlanDayCard from './components/PlanDayCard';
+import WeekCalendar from './components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 
 interface PlanDay {
@@ -48,6 +49,9 @@ const CreatePlanPage = () => {
         { dayIndex: 3, type: 'training', note: '', actionSets: [] }
     ]);
 
+    // Selected day for editing
+    const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(1);
+
     // Actions from library
     const [actions, setActions] = useState<CoachActionRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -78,12 +82,46 @@ const CreatePlanPage = () => {
         loadActions();
     }, [coach?.id]);
 
-    const handleAddDay = () => {
-        const newDayIndex = days.length + 1;
-        setDays([
-            ...days,
-            { dayIndex: newDayIndex, type: 'training', note: '', actionSets: [] }
-        ]);
+    const handleAddWeek = () => {
+        const currentLength = days.length;
+        const newDays = [...days];
+        
+        // 添加7天
+        for (let i = 1; i <= 7; i++) {
+            newDays.push({
+                dayIndex: currentLength + i,
+                type: 'training',
+                note: '',
+                actionSets: []
+            });
+        }
+        
+        setDays(newDays);
+    };
+
+    const handleDeleteWeek = (weekStartIndex: number) => {
+        // 确保至少保留一周
+        if (days.length <= 7) {
+            showToast({ severity: 'warn', summary: '操作受限', detail: '至少需要保留一周' });
+            return;
+        }
+
+        // 删除指定周的所有天数
+        const newDays = [...days];
+        newDays.splice(weekStartIndex, 7);
+        
+        // 重新索引
+        const reindexedDays = newDays.map((day, index) => ({
+            ...day,
+            dayIndex: index + 1
+        }));
+        
+        setDays(reindexedDays);
+        
+        // 如果选中的天被删除，选择第一天
+        if (selectedDayIndex && selectedDayIndex > weekStartIndex && selectedDayIndex <= weekStartIndex + 7) {
+            setSelectedDayIndex(reindexedDays.length > 0 ? reindexedDays[0].dayIndex : null);
+        }
     };
 
     const handleRemoveDay = (index: number) => {
@@ -99,6 +137,16 @@ const CreatePlanPage = () => {
         }));
 
         setDays(reindexedDays);
+        
+        // 更新选中的天
+        if (selectedDayIndex === index + 1) {
+            setSelectedDayIndex(reindexedDays.length > 0 ? reindexedDays[0].dayIndex : null);
+        } else {
+            // 如果删除的是前面的天，需要调整选中索引
+            if (selectedDayIndex && selectedDayIndex > index + 1) {
+                setSelectedDayIndex(selectedDayIndex - 1);
+            }
+        }
     };
 
     const handleDayTypeChange = (index: number, type: 'training' | 'rest') => {
@@ -113,7 +161,10 @@ const CreatePlanPage = () => {
 
     const handleAddActionSet = (dayIndex: number) => {
         const newDays = [...days];
-        newDays[dayIndex].actionSets.push({
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        if (actualDayIndex === -1) return;
+        
+        newDays[actualDayIndex].actionSets.push({
             actionId: '',
             setName: '',
             sets: 3,
@@ -126,7 +177,10 @@ const CreatePlanPage = () => {
 
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
-        newDays[dayIndex].actionSets.splice(setIndex, 1);
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        if (actualDayIndex === -1) return;
+        
+        newDays[actualDayIndex].actionSets.splice(setIndex, 1);
         setDays(newDays);
     };
 
@@ -137,12 +191,15 @@ const CreatePlanPage = () => {
         value: string | number
     ) => {
         const newDays = [...days];
-        const actionSets = [...newDays[dayIndex].actionSets];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        if (actualDayIndex === -1) return;
+        
+        const actionSets = [...newDays[actualDayIndex].actionSets];
         actionSets[setIndex] = {
             ...actionSets[setIndex],
             [field]: value
         };
-        newDays[dayIndex].actionSets = actionSets;
+        newDays[actualDayIndex].actionSets = actionSets;
         setDays(newDays);
     };
 
@@ -190,6 +247,11 @@ const CreatePlanPage = () => {
         }
     };
 
+    // 获取选中的训练日
+    const selectedDay = selectedDayIndex !== null 
+        ? days.find(day => day.dayIndex === selectedDayIndex) 
+        : null;
+
     return (
         <div className="mx-auto">
             <BasicInfoForm
@@ -203,32 +265,35 @@ const CreatePlanPage = () => {
                 onSave={handleSave}
             />
 
-            <Card className="shadow-sm">
-
-                {/* Days Section */}
-                <div>
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-900">训练日安排</h2>
-                        <Button
-                            label="添加训练日"
-                            icon="pi pi-plus"
-                            onClick={handleAddDay}
-                            disabled={saving}
+            <Card className="shadow-sm mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* 左侧：周历视图 */}
+                    <div className="lg:col-span-1">
+                        <WeekCalendar
+                            days={days}
+                            selectedDayIndex={selectedDayIndex}
+                            onSelectDay={setSelectedDayIndex}
+                            onAddWeek={handleAddWeek}
+                            onDeleteWeek={handleDeleteWeek}
+                            saving={saving}
                         />
                     </div>
 
-                    <div className="space-y-6">
-                        {days.map((day, dayIndex) => (
+                    {/* 右侧：训练日详情 */}
+                    <div className="lg:col-span-2">
+                        {selectedDay ? (
                             <PlanDayCard
-                                key={dayIndex}
-                                day={day}
-                                dayIndex={dayIndex}
+                                day={selectedDay}
+                                dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
                                 actions={actions}
                                 onDayTypeChange={handleDayTypeChange}
                                 onRemoveDay={handleRemoveDay}
                                 onNoteChange={(dayIndex, note) => {
                                     const newDays = [...days];
-                                    newDays[dayIndex].note = note;
+                                    const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+                                    if (actualDayIndex === -1) return;
+                                    
+                                    newDays[actualDayIndex].note = note;
                                     setDays(newDays);
                                 }}
                                 onAddActionSet={handleAddActionSet}
@@ -237,7 +302,15 @@ const CreatePlanPage = () => {
                                 saving={saving}
                                 totalDays={days.length}
                             />
-                        ))}
+                        ) : (
+                            <div className="card shadow-sm flex align-items-center justify-content-center h-full">
+                                <div className="text-center p-6">
+                                    <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
+                                    <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
+                                    <p className="text-600">从左侧日历中选择一个训练日</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
