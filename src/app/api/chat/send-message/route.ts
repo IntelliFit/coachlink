@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabaseAdmin from '@/lib/supabaseAdmin';
+import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { SendMessageDto, SendMessageResponseDto } from './entity';
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     try {
         // 获取会话信息
-        const { data: conversation } = await supabaseAdmin
+        const { data: conversation } = await supabase
             .from('conversations' as any)
             .select('student_id, coach_id')
             .eq('id', conversation_id)
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         }
 
         // 确定接收者
-        const { data: coachData } = await supabaseAdmin
+        const { data: coachData } = await supabase
             .from('coaches')
             .select('id, user_id')
             .eq('user_id', userId)
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
             receiverId = conversation.student_id;
         } else if (conversation.student_id === userId) {
             // 学员发送，需要获取教练的 user_id
-            const { data: coachUser } = await supabaseAdmin
+            const { data: coachUser } = await supabase
                 .from('coaches')
                 .select('user_id')
                 .eq('id', conversation.coach_id)
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
         }
 
         // 插入消息
-        const { data: message, error } = await supabaseAdmin
+        const { data: message, error } = await supabase
             .from('coach_messages')
             .insert({
                 conversation_id,
