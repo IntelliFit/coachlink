@@ -196,15 +196,18 @@ const CreatePlanPage = () => {
         value: string | number
     ) => {
         const newDays = [...days];
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
-        if (actualDayIndex === -1) return;
+        
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        
+        if (actualDayIndex === -1) {
+            return;
+        }
 
-        const actionSets = [...newDays[actualDayIndex].actionSets];
-        actionSets[setIndex] = {
-            ...actionSets[setIndex],
-            [field]: value
-        };
-        newDays[actualDayIndex].actionSets = actionSets;
+        const action = actions[setIndex];
+
+        newDays[dayIndex].actionSets[setIndex].actionId = action.id;
+        console.log(newDays);
+            
         setDays(newDays);
     };
 

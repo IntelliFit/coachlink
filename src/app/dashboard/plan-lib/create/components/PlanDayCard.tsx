@@ -201,9 +201,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                             <Dropdown
                                                 value={findActionById(set.actionId)}
                                                 options={actionOptions}
-                                                onChange={(e) =>
+                                                onChange={(e) => {
                                                     onActionSetChange(dayIndex, setIndex, 'actionId', e.value?.action?.id || '')
-                                                }
+                                                }}
                                                 optionLabel="label"
                                                 placeholder="选择动作"
                                                 filter
