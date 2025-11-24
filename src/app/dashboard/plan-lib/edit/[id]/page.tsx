@@ -260,6 +260,33 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
+    // 新增函数：处理从其他训练日复制动作集
+    const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
+        const newDays = [...days];
+        const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
+        const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
+
+        if (targetIndex === -1 || sourceIndex === -1) return;
+
+        // 复制源日的动作集到目标日
+        newDays[targetIndex] = {
+            ...newDays[targetIndex],
+            actionSets: newDays[sourceIndex].actionSets.map(set => ({
+                ...set,
+                // 我们保留原始属性，只更新必要的字段
+                actionId: set.actionId,
+                setName: set.setName,
+                sets: set.sets,
+                reps: set.reps,
+                intensity: set.intensity,
+                restSeconds: set.restSeconds
+            }))
+        };
+
+        setDays(newDays);
+        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
+    };
+
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
 
@@ -313,6 +340,14 @@ const EditPlanPage = () => {
     const selectedDay = selectedDayIndex !== null
         ? days.find(day => day.dayIndex === selectedDayIndex)
         : null;
+
+    // 计算现有的训练日用于复制功能
+    const existingTrainingDays = days
+        .filter(day => day.type === 'training' && day.actionSets.length > 0)
+        .map(day => ({
+            dayIndex: day.dayIndex,
+            actionSetsCount: day.actionSets.length
+        }));
 
     if (loading) {
         return (
@@ -414,6 +449,8 @@ const EditPlanPage = () => {
                                 onActionSetChange={handleActionSetChange}
                                 saving={saving}
                                 totalDays={days.length}
+                                onCopyFromDay={handleCopyFromDay}
+                                existingTrainingDays={existingTrainingDays}
                             />
                         ) : (
                             <div className="card shadow-sm flex align-items-center justify-content-center h-full min-h-20rem">

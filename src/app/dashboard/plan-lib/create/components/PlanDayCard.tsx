@@ -92,6 +92,9 @@ interface PlanDayCardProps {
     ) => void;
     saving: boolean;
     totalDays: number;
+    // 添加新属性用于复制动作集
+    onCopyFromDay: (targetDayIndex: number, sourceDayIndex: number) => void;
+    existingTrainingDays: { dayIndex: number; actionSetsCount: number }[];
 }
 
 const PlanDayCard: React.FC<PlanDayCardProps> = ({
@@ -105,7 +108,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     onRemoveActionSet,
     onActionSetChange,
     saving,
-    totalDays
+    totalDays,
+    onCopyFromDay,
+    existingTrainingDays
 }) => {
     // 将CoachActionRow数组转换为Dropdown选项
     const actionOptions: ActionOption[] = actions.map(action => ({
@@ -159,17 +164,33 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
             {day.type === 'training' ? (
                 <>
-
                     {/* 动作组标题 */}
                     <div className="flex justify-between items-center mb-3">
                         <h4 className="font-medium text-900 text-md"></h4>
-                        <Button
-                            label="添加动作"
-                            icon="pi pi-plus"
-                            onClick={() => onAddActionSet(day.dayIndex)}
-                            disabled={saving}
-                            className="p-button-sm p-button-outlined"
-                        />
+                        <div className="flex gap-2">
+                            {existingTrainingDays && existingTrainingDays.length > 0 && onCopyFromDay && (
+                                <Dropdown
+                                    placeholder="从其他训练日复制"
+                                    options={existingTrainingDays
+                                        .filter(d => d.dayIndex !== dayIndex && d.actionSetsCount > 0)
+                                        .map(d => ({
+                                            label: `第${d.dayIndex + 1}天 (${d.actionSetsCount}个动作)`,
+                                            value: d.dayIndex
+                                        }))
+                                    }
+                                    onChange={(e) => onCopyFromDay(dayIndex, e.value)}
+                                    disabled={saving}
+                                    className="p-button-sm"
+                                />
+                            )}
+                            <Button
+                                label="添加动作"
+                                icon="pi pi-plus"
+                                onClick={() => onAddActionSet(day.dayIndex)}
+                                disabled={saving}
+                                className="p-button-sm p-button-outlined"
+                            />
+                        </div>
                     </div>
 
                     {/* 无动作 */}
