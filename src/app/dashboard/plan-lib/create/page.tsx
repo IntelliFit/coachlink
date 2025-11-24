@@ -14,7 +14,7 @@ import BasicInfoForm from './components/BasicInfoForm';
 import PlanDayCard from './components/PlanDayCard';
 import WeekCalendar from './components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
-// 移除了 AddActionDialog 组件的导入
+
 interface PlanDay {
     dayIndex: number;
     type: 'training' | 'rest';
@@ -234,6 +234,33 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
+    // 新增函数：处理从其他训练日复制动作集
+    const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
+        const newDays = [...days];
+        const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
+        const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
+
+        if (targetIndex === -1 || sourceIndex === -1) return;
+
+        // 复制源日的动作集到目标日，但要保持目标日的dayIndex不变
+        newDays[targetIndex] = {
+            ...newDays[targetIndex],
+            actionSets: newDays[sourceIndex].actionSets.map(set => ({
+                ...set,
+                // 为新复制的动作集生成新的唯一标识符
+                actionId: set.actionId,
+                setName: set.setName,
+                sets: set.sets,
+                reps: set.reps,
+                intensity: set.intensity,
+                restSeconds: set.restSeconds
+            }))
+        };
+
+        setDays(newDays);
+        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
+    };
+
     const handleSave = async () => {
         if (!coach?.id) return;
 
@@ -283,6 +310,14 @@ const CreatePlanPage = () => {
         ? days.find(day => day.dayIndex === selectedDayIndex)
         : null;
 
+    // 计算现有的训练日用于复制功能
+    const existingTrainingDays = days
+        .filter(day => day.type === 'training' && day.actionSets.length > 0)
+        .map(day => ({
+            dayIndex: day.dayIndex,
+            actionSetsCount: day.actionSets.length
+        }));
+
     return (
         <div className="mx-auto">
             <BasicInfoForm
@@ -326,6 +361,8 @@ const CreatePlanPage = () => {
                                 onActionSetChange={handleActionSetChange}
                                 saving={saving}
                                 totalDays={days.length}
+                                onCopyFromDay={handleCopyFromDay}
+                                existingTrainingDays={existingTrainingDays}
                             />
                         ) : (
                             <div className="card shadow-sm flex align-items-center justify-content-center h-full min-h-20rem">
