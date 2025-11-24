@@ -180,6 +180,16 @@ const CreatePlanPage = () => {
     };
 
 
+    const handleNoteChange = (dayIndex: number, note: string) => {
+        const newDays = [...days];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        if (actualDayIndex === -1) return;
+
+        newDays[actualDayIndex].note = note;
+        setDays(newDays);
+    };
+
+
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
@@ -310,14 +320,7 @@ const CreatePlanPage = () => {
                                 actions={actions}
                                 onDayTypeChange={handleDayTypeChange}
                                 onRemoveDay={handleRemoveDay}
-                                onNoteChange={(dayIndex, note) => {
-                                    const newDays = [...days];
-                                    const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
-                                    if (actualDayIndex === -1) return;
-
-                                    newDays[actualDayIndex].note = note;
-                                    setDays(newDays);
-                                }}
+                                onNoteChange={handleNoteChange}
                                 onAddActionSet={handleAddActionSet}
                                 onRemoveActionSet={handleRemoveActionSet}
                                 onActionSetChange={handleActionSetChange}

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachActionRow } from '@/types';
 
@@ -20,8 +21,10 @@ const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) 
             <div className="ml-2 flex-grow">
                 <div className="flex align-items-center gap-2">
                     <div className="font-bold">{action.name}</div>
-                    {(action.positions || []).map(position => (
-                        <div className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                    {(action.positions || []).map((position, idx) => (
+                        <div className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg"
+                            key={idx}
+                        >
                             {position}
                         </div>
                     ))}
@@ -43,14 +46,18 @@ const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = ({ acti
     return (
         <div className="flex align-items-center gap-2">
             <div className="font-bold">{action.name}</div>
-            {(action.positions || []).map(position => (
-                <div className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+            {(action.positions || []).map((position, idx) => (
+                <div
+                    key={idx}
+                    className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg"
+                >
                     {position}
                 </div>
             ))}
         </div>
     );
 };
+
 
 interface ActionSet {
     actionId: string;
@@ -107,17 +114,21 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         action: action
     }));
 
-    // 根据ID查找动作
-    const findActionById = (id: string): CoachActionRow | null => {
-        return actions.find(action => action.id === id) || null;
-    };
+    const actionName = (setIndex: number) => {
+        const actionId = day.actionSets[setIndex].actionId;
+        if (actionId) {
+            return actionOptions.find(option => option.action.id === actionId)?.label || '';
+        }
+
+        return '';
+    }
 
     return (
         <div className="p-5">
             {/* Header */}
             <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-semibold text-900">第 {day.dayIndex} 天</h3>
+                    <h3 className="text-xl font-semibold text-900 mr-2">第 {dayIndex + 1} 天 - W{Math.ceil((dayIndex + 1) / 7)}D{(dayIndex) % 7 + 1}</h3>
 
                     <div className="flex gap-2">
                         <Button
@@ -148,21 +159,10 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
             {day.type === 'training' ? (
                 <>
-                    {/* 备注 */}
-                    <div className="mb-5">
-                        <label className="block text-900 font-medium text-sm mb-2">备注</label>
-                        <InputText
-                            value={day.note}
-                            onChange={(e) => onNoteChange(dayIndex, e.target.value)}
-                            placeholder="训练日备注（可选）"
-                            className="w-full"
-                            disabled={saving}
-                        />
-                    </div>
 
                     {/* 动作组标题 */}
                     <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-900 text-md">动作组</h4>
+                        <h4 className="font-medium text-900 text-md"></h4>
                         <Button
                             label="添加动作"
                             icon="pi pi-plus"
@@ -187,7 +187,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                     {/* 动作卡片头部 */}
                                     <div className="flex justify-between items-start mb-3">
                                         <h5 className="font-medium text-900 text-md">
-                                            动作 #{setIndex + 1}
+                                            A{setIndex + 1} {actionName(setIndex)}
                                         </h5>
                                         <Button
                                             icon="pi pi-trash"
@@ -270,9 +270,22 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                         </div>
                                     </div>
                                 </div>
+
                             ))}
                         </div>
                     )}
+
+                    {/* 备注 */}
+                    <div className="mt-5 mb-5">
+                        <label className="block text-900 font-medium text-sm mb-2">备注</label>
+                        <InputTextarea
+                            value={day.note}
+                            onChange={(e) => onNoteChange(dayIndex, e.target.value)}
+                            placeholder="训练日备注（可选）"
+                            className="w-full"
+                            disabled={saving}
+                        />
+                    </div>
                 </>
             ) : (
                 <div className="py-6 text-center text-600 flex items-center justify-center min-h-10rem">

@@ -43,7 +43,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     };
 
     return (
-        <div className="h-full border-1">
+        <div className="h-full border-1 bg-surface-100 p-2 rounded-lg">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-900">训练日历</h3>
                 <Button
@@ -63,15 +63,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     return (
                         <div
                             key={weekIndex}
-                            className="border-round p-3 border-surface-200 rounded-lg"
+                            className="border-round p-3 border-surface-50 rounded-lg"
                         >
-                            <div className="flex justify-between items-center mb-3">
+                            <div className="flex justify-between items-center mb-3 h-[40px]">
                                 <span className="font-medium text-800">第 {weekNumber} 周</span>
 
                                 {weeks.length > 1 && (
                                     <Button
                                         icon="pi pi-trash"
-                                        className="p-button-text p-button-danger p-button-sm"
+                                        className="p-button-text p-button-danger p-button-sm text-sm"
                                         disabled={saving}
                                         tooltip="删除整周"
                                         onClick={() => {
