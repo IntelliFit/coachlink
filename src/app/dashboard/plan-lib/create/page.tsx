@@ -191,43 +191,20 @@ const CreatePlanPage = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <Card className="shadow-sm">
-                <div className="flex flex-column md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-900">创建训练计划模板</h1>
-                        <p className="text-600 mt-1">设置模板基本信息和训练日安排</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            label="取消"
-                            icon="pi pi-times"
-                            onClick={() => router.back()}
-                            className="p-button-text"
-                            disabled={saving}
-                        />
-                        <Button
-                            label="保存模板"
-                            icon="pi pi-check"
-                            onClick={handleSave}
-                            loading={saving}
-                        />
-                    </div>
-                </div>
+        <div className="mx-auto">
+            <BasicInfoForm
+                name={name}
+                description={description}
+                type={type}
+                onNameChange={setName}
+                onDescriptionChange={setDescription}
+                onTypeChange={setType}
+                saving={saving}
+                onSave={handleSave}
+                onCancel={() => router.back()}
+            />
 
-                {/* Basic Info Section */}
-                <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-900 mb-4">基本信息</h2>
-                    <BasicInfoForm
-                        name={name}
-                        description={description}
-                        type={type}
-                        onNameChange={setName}
-                        onDescriptionChange={setDescription}
-                        onTypeChange={setType}
-                        saving={saving}
-                    />
-                </div>
+            <Card className="shadow-sm">
 
                 {/* Days Section */}
                 <div>
