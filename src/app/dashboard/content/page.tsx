@@ -195,7 +195,7 @@ const Content = () => {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto">
             <ConfirmDialog />
             <Card className="shadow-sm">
                 {/* 顶部区域 */}
