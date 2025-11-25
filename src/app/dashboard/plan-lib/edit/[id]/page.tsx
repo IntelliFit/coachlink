@@ -237,7 +237,7 @@ const EditPlanPage = () => {
         }
 
         console.log(actualDayIndex, setIndex);
-        
+
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
@@ -286,6 +286,17 @@ const EditPlanPage = () => {
         setDays(newDays);
         showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
     };
+
+    const handleNoteChange = (dayIndex: number, note: string) => {
+        const newDays = [...days];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        if (actualDayIndex === -1) {
+            return;
+        }
+
+        newDays[actualDayIndex].note = note;
+        setDays(newDays);
+    }
 
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
@@ -439,14 +450,7 @@ const EditPlanPage = () => {
                                 actions={actions}
                                 onDayTypeChange={handleDayTypeChange}
                                 onRemoveDay={handleRemoveDay}
-                                onNoteChange={(dayIndex, note) => {
-                                    const newDays = [...days];
-                                    const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
-                                    if (actualDayIndex === -1) return;
-
-                                    newDays[actualDayIndex].note = note;
-                                    setDays(newDays);
-                                }}
+                                onNoteChange={handleNoteChange}
                                 onAddActionSet={handleAddActionSet}
                                 onRemoveActionSet={handleRemoveActionSet}
                                 onActionSetChange={handleActionSetChange}

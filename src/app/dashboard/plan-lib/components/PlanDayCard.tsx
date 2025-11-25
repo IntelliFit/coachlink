@@ -309,12 +309,28 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     </div>
                 </>
             ) : (
-                <div className="py-6 text-center text-600 flex items-center justify-center min-h-10rem">
-                    <div>
-                        <i className="pi pi-moon text-3xl mb-3"></i>
-                        <p className="text-sm">休息日 - 无需安排训练内容</p>
+                <>
+
+                    <div className="py-8 px-4 text-center text-600 flex items-center justify-center min-h-10rem">
+                        <div className="flex flex-col items-center max-w-md w-full">
+
+                            {/* 图标 + 文案 */}
+                            <i className="pi pi-moon text-3xl mb-4"></i>
+                            <p className="text-sm mb-6">休息日 - 无需安排训练内容</p>
+                        </div>
                     </div>
-                </div>
+                    {/* 备注 */}
+                    <div className="mt-5 mb-5">
+                        <label className="block text-900 font-medium text-sm mb-2">备注</label>
+                        <InputTextarea
+                            value={day.note}
+                            onChange={(e) => onNoteChange(dayIndex, e.target.value)}
+                            placeholder="训练日备注（可选）"
+                            className="w-full"
+                            disabled={saving}
+                        />
+                    </div>
+                </>
             )}
         </div>
     );
