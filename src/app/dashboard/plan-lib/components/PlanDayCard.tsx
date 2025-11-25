@@ -95,7 +95,13 @@ interface PlanDayCardProps {
     totalDays: number;
     // 修改属性定义
     onCopyFromDay: (targetDayIndex: number, sourceDayIndex: number) => void;
-    existingTrainingDays: { dayIndex: number; actionSetsCount: number; type: 'training' | 'rest'; note: string }[];
+    existingTrainingDays: { 
+        dayIndex: number; 
+        actionSetsCount: number; 
+        type: 'training' | 'rest'; 
+        note: string;
+        actionSets?: ActionSet[];
+    }[];
 }
 
 const PlanDayCard: React.FC<PlanDayCardProps> = ({
@@ -337,13 +343,13 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                 <CopyTrainingDayDialog
                     visible={copyDialogVisible}
                     onHide={() => setCopyDialogVisible(false)}
-                    actions={actions}
                     trainingDays={existingTrainingDays.filter(d => d.dayIndex !== dayIndex)}
                     onSelectDay={(sourceDayIndex) => {
                         onCopyFromDay(dayIndex, sourceDayIndex);
                         setCopyDialogVisible(false);
                     }}
                     saving={saving}
+                    actions={actions}
                 />
             )}
         </div>
