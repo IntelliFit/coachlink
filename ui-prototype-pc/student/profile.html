@@ -369,22 +369,22 @@
             <header class="top-header" id="header"></header>
             <div class="page-content">
                 
-                <!-- Profile Header -->
+                <!-- Profile Header - 动态生成 -->
                 <div class="profile-section">
                     <div class="profile-header">
-                        <div class="profile-avatar-large">李</div>
-                        <h1 class="text-2xl font-bold mb-xs">李明</h1>
+                        <div class="profile-avatar-large" id="profile-avatar">李</div>
+                        <h1 class="text-2xl font-bold mb-xs" id="profile-name">李明</h1>
                         <p class="text-secondary mb-sm">学员</p>
                         
                         <!-- Profile Meta Info -->
                         <div class="profile-meta">
                             <div class="profile-meta-item">
                                 <i data-lucide="Users"></i>
-                                <span>已订阅 2 位教练</span>
+                                <span id="profile-coach-count">已订阅 0 位教练</span>
                             </div>
                             <div class="subscription-tag">
                                 <i data-lucide="Crown"></i>
-                                高级版
+                                <span id="profile-tier">学员</span>
                             </div>
                         </div>
                     </div>
@@ -410,101 +410,15 @@
                     </p>
                 </div>
 
-                <!-- Personal Info - FIRST SECTION AFTER HEADER -->
+                <!-- Personal Info - 动态生成 -->
                 <div class="profile-section">
                     <h2 class="section-title">
                         <i data-lucide="User"></i>
                         个人信息
                     </h2>
-                    
-                    <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">姓名</div>
-                            <div class="info-value">李明</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">年龄</div>
-                            <div class="info-value">28岁</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">性别</div>
-                            <div class="info-value">男</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">地理位置</div>
-                            <div class="info-value">上海</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">职业</div>
-                            <div class="info-value">软件工程师</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">加入时长</div>
-                            <div class="info-value">120天</div>
-                        </div>
+                    <div id="personal-info-container">
+                        <!-- 动态生成个人信息 -->
                     </div>
-                    
-                    <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">深蹲 1RM</div>
-                            <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">卧推 1RM</div>
-                            <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">硬拉 1RM</div>
-                            <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">总和</div>
-                            <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
-                        </div>
-                    </div>
-                    
-                    <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">身体数据</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">身高</div>
-                            <div class="info-value">175 cm</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">当前体重</div>
-                            <div class="info-value">75 kg</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">体脂率</div>
-                            <div class="info-value">15%</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">腕围</div>
-                            <div class="info-value">17 cm</div>
-                        </div>
-                    </div>
-                    
-                    <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">训练背景</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">系统训练时长</div>
-                            <div class="info-value">2年</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">训练频率</div>
-                            <div class="info-value">每周4-5次</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">主要目标</div>
-                            <div class="info-value">增肌 + 力量</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">恢复能力</div>
-                            <div class="info-value">良好</div>
-                        </div>
-                    </div>
-                    
                     <div class="text-center mt-md">
                         <button class="btn btn-secondary">
                             <i data-lucide="Edit" class="mr-2"></i>
@@ -513,202 +427,38 @@
                     </div>
                 </div>
 
-                <!-- My Progress Section -->
-
-                <div class="profile-section">
+                <!-- My Progress Section - 动态生成 -->
+                <div class="profile-section" id="progress-section">
                     <h2 class="section-title">
                         <i data-lucide="TrendingUp"></i>
                         我的进步
                     </h2>
-                    
-                    <!-- Chart Switcher -->
-                    <div class="chart-switcher">
-                        <button class="chart-tab active" onclick="switchChart('weight')">体重变化</button>
-                        <button class="chart-tab" onclick="switchChart('bench')">卧推1RM</button>
-                        <button class="chart-tab" onclick="switchChart('squat')">深蹲1RM</button>
-                    </div>
-                    
-                    <!-- Chart Container -->
-                    <div class="chart-container">
-                        <canvas id="progressChart"></canvas>
+                    <div id="progress-chart-container">
+                        <!-- 动态生成进步图表 -->
                     </div>
                 </div>
 
-                <!-- Progress Timeline -->
-                <div class="profile-section">
+                <!-- Progress Timeline - 动态生成 -->
+                <div class="profile-section" id="timeline-section">
                     <h2 class="section-title">
                         <i data-lucide="Award"></i>
                         进步时间线
                     </h2>
                     <p class="text-secondary mb-md">记录每一个值得骄傲的突破时刻</p>
-                    
-                    <div class="timeline">
-                        <!-- Timeline Item 1 -->
-                        <div class="timeline-item">
-                            <div class="timeline-header">
-                                <div>
-                                    <div class="timeline-exercise">卧推</div>
-                                    <div class="timeline-date">2024年11月15日</div>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-stats">
-                                <div class="timeline-stat">
-                                    <i data-lucide="Weight"></i>
-                                    <span>100 kg × 8 次</span>
-                                </div>
-                                <div class="timeline-stat">
-                                    <i data-lucide="Zap"></i>
-                                    <span>RPE 9</span>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-video" onclick="playVideo('video1')">
-                                <img src="https://placehold.co/600x400/6366f1/white?text=Training+Video" alt="Training Video">
-                                <div class="timeline-video-overlay">
-                                    <div class="timeline-video-play">
-                                        <i data-lucide="Play"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-note">
-                                <strong>我的感受:</strong> 第一次卧推突破100kg！感觉太棒了！💪
-                            </div>
-                            
-                            <div class="timeline-coach-comment">
-                                <div class="timeline-coach-comment-header">
-                                    <i data-lucide="MessageSquare"></i>
-                                    教练点评
-                                </div>
-                                <div>做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。</div>
-                            </div>
-                        </div>
-
-                        <!-- Timeline Item 2 -->
-                        <div class="timeline-item">
-                            <div class="timeline-header">
-                                <div>
-                                    <div class="timeline-exercise">深蹲</div>
-                                    <div class="timeline-date">2024年11月10日</div>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-stats">
-                                <div class="timeline-stat">
-                                    <i data-lucide="Weight"></i>
-                                    <span>120 kg × 5 次</span>
-                                </div>
-                                <div class="timeline-stat">
-                                    <i data-lucide="Zap"></i>
-                                    <span>RPE 8.5</span>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-video" onclick="playVideo('video2')">
-                                <img src="https://placehold.co/600x400/ec4899/white?text=Squat+Training" alt="Squat Video">
-                                <div class="timeline-video-overlay">
-                                    <div class="timeline-video-play">
-                                        <i data-lucide="Play"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-note">
-                                <strong>我的感受:</strong> 深蹲蹲得很深，膝盖稳定性提升明显！
-                            </div>
-                            
-                            <div class="timeline-coach-comment">
-                                <div class="timeline-coach-comment-header">
-                                    <i data-lucide="MessageSquare"></i>
-                                    教练点评
-                                </div>
-                                <div>深度控制得很好！注意保持核心收紧，髋部启动。</div>
-                            </div>
-                        </div>
-
-                        <!-- Timeline Item 3 -->
-                        <div class="timeline-item">
-                            <div class="timeline-header">
-                                <div>
-                                    <div class="timeline-exercise">硬拉</div>
-                                    <div class="timeline-date">2024年11月5日</div>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-stats">
-                                <div class="timeline-stat">
-                                    <i data-lucide="Weight"></i>
-                                    <span>140 kg × 3 次</span>
-                                </div>
-                                <div class="timeline-stat">
-                                    <i data-lucide="Zap"></i>
-                                    <span>RPE 9</span>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-video" onclick="playVideo('video3')">
-                                <img src="https://placehold.co/600x400/10b981/white?text=Deadlift" alt="Deadlift Video">
-                                <div class="timeline-video-overlay">
-                                    <div class="timeline-video-play">
-                                        <i data-lucide="Play"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="timeline-note">
-                                <strong>我的感受:</strong> 首次硬拉140kg，背部感觉很稳！
-                            </div>
-                        </div>
+                    <div class="timeline" id="timeline-container">
+                        <!-- 动态生成时间线 -->
                     </div>
                 </div>
 
-                <!-- My Coaches Section - RESTORED with multiple coaches -->
-
+                <!-- My Coaches Section - 动态生成 -->
                 <div class="profile-section">
                     <h2 class="section-title">
                         <i data-lucide="Users"></i>
                         我的教练
                     </h2>
                     
-                    <div class="coach-list-item">
-                        <div class="coach-info-row">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" alt="张健" class="coach-avatar-medium">
-                            <div>
-                                <div class="font-semibold">张健</div>
-                                <div class="text-xs text-secondary">力量举 · 增肌</div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-sm">
-                            <div class="text-right mr-2">
-                                <div class="text-sm font-semibold text-primary">4个月</div>
-                                <div class="text-xs text-secondary">16周计划</div>
-                            </div>
-                            <span class="subscription-badge premium">高级版</span>
-                            <a href="coach-profile.html?id=1" class="btn btn-secondary btn-sm">
-                                查看主页
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="coach-list-item">
-                        <div class="coach-info-row">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=li" alt="李明" class="coach-avatar-medium">
-                            <div>
-                                <div class="font-semibold">李明</div>
-                                <div class="text-xs text-secondary">减脂 · 体能</div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-sm">
-                            <div class="text-right mr-2">
-                                <div class="text-sm font-semibold text-primary">1个月</div>
-                                <div class="text-xs text-secondary">4周计划</div>
-                            </div>
-                            <span class="subscription-badge">AI版</span>
-                            <a href="coach-profile.html?id=2" class="btn btn-secondary btn-sm">
-                                查看主页
-                            </a>
-                        </div>
+                    <div id="my-coaches-list">
+                        <!-- 动态生成教练列表 -->
                     </div>
 
                     <div class="text-center mt-md">
@@ -719,18 +469,15 @@
                     </div>
                 </div>
 
-                <!-- Coach's Observations -->
-                <div class="profile-section">
+                <!-- Coach's Observations - 动态生成 -->
+                <div class="profile-section" id="coach-notes-section">
                     <h2 class="section-title">
                         <i data-lucide="Eye"></i>
                         教练观察与建议
                     </h2>
                     <p class="text-secondary text-sm mb-md">教练对你的专业观察和长期建议</p>
-                    
-                    <div class="coach-notes-content">
-                        <p><strong>动作模式评估:</strong> 卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。</p>
-                        <p class="mt-sm"><strong>训练建议:</strong> 近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。</p>
-                        <p class="mt-sm"><strong>下阶段目标:</strong> 重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。</p>
+                    <div id="coach-notes-container">
+                        <!-- 动态生成教练观察与建议 -->
                     </div>
                 </div>
 
@@ -912,10 +659,401 @@
             alert(`跳转到 ${date} 的训练记录详情`);
         }
 
+        // 获取当前用户订阅的教练列表（排除自己）
+        function getSubscribedCoaches() {
+            const currentUser = UserService.getCurrentUser();
+            const subscriptions = Store.get('subscriptions') || {};
+            const userSubs = subscriptions[currentUser.id] || {};
+            const coaches = Store.get('coaches') || [];
+            const coachProfiles = Store.get('coachProfiles') || {};
+            
+            // 获取订阅的教练ID列表（排除自己）
+            const subscribedCoachIds = Object.keys(userSubs).filter(coachId => {
+                if (currentUser.coachProfileId === coachId) return false;
+                return userSubs[coachId] && userSubs[coachId] !== 'none';
+            });
+            
+            // 返回教练详情
+            return subscribedCoachIds.map(coachId => {
+                const coach = coaches.find(c => c.id === coachId);
+                const profile = coachProfiles[coachId] || {};
+                const tier = userSubs[coachId];
+                return coach ? {
+                    id: coach.id,
+                    name: coach.name,
+                    avatarUrl: coach.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${coachId}`,
+                    specialties: (coach.specialties || []).join(' · '),
+                    tier: tier,
+                    tierLabel: tier === 'premium' ? '高级版' : 'AI版',
+                    months: tier === 'premium' ? 4 : 1,
+                    weeks: tier === 'premium' ? 16 : 4
+                } : null;
+            }).filter(Boolean);
+        }
+        
+        // 更新个人资料头部
+        function updateProfileHeader() {
+            const currentUser = UserService.getCurrentUser();
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            document.getElementById('profile-avatar').textContent = currentUser.avatar || currentUser.name.charAt(0);
+            document.getElementById('profile-name').textContent = currentUser.name;
+            document.getElementById('profile-coach-count').textContent = `已订阅 ${subscribedCoaches.length} 位教练`;
+            
+            // 确定最高订阅等级
+            const hasPremium = subscribedCoaches.some(c => c.tier === 'premium');
+            document.getElementById('profile-tier').textContent = hasPremium ? '高级版' : (subscribedCoaches.length > 0 ? 'AI版' : '学员');
+        }
+        
+        // 渲染教练列表
+        function renderMyCoaches() {
+            const container = document.getElementById('my-coaches-list');
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            if (subscribedCoaches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="Users" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>您还没有订阅任何教练</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            container.innerHTML = subscribedCoaches.map(coach => `
+                <div class="coach-list-item">
+                    <div class="coach-info-row">
+                        <img src="${coach.avatarUrl}" alt="${coach.name}" class="coach-avatar-medium">
+                        <div>
+                            <div class="font-semibold">${coach.name}</div>
+                            <div class="text-xs text-secondary">${coach.specialties || '专业教练'}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-sm">
+                        <div class="text-right mr-2">
+                            <div class="text-sm font-semibold text-primary">${coach.months}个月</div>
+                            <div class="text-xs text-secondary">${coach.weeks}周计划</div>
+                        </div>
+                        <span class="subscription-badge ${coach.tier === 'premium' ? 'premium' : ''}">${coach.tierLabel}</span>
+                        <a href="coach-profile.html?id=${coach.id}" class="btn btn-secondary btn-sm">
+                            查看主页
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 渲染个人信息
+        function renderPersonalInfo() {
+            const container = document.getElementById('personal-info-container');
+            const currentUser = UserService.getCurrentUser();
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            // 如果没有订阅任何教练，显示简化版个人信息
+            if (subscribedCoaches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="FileText" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>订阅教练后，这里将显示您的详细训练档案</p>
+                        <p class="text-sm mt-sm">教练会根据您的情况制定个性化训练计划</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            // 有订阅教练，显示完整个人信息
+            container.innerHTML = `
+                <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">姓名</div>
+                        <div class="info-value">${currentUser.name}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">年龄</div>
+                        <div class="info-value">28岁</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">性别</div>
+                        <div class="info-value">男</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">地理位置</div>
+                        <div class="info-value">上海</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">职业</div>
+                        <div class="info-value">软件工程师</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">加入时长</div>
+                        <div class="info-value">120天</div>
+                    </div>
+                </div>
+                
+                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">深蹲 1RM</div>
+                        <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">卧推 1RM</div>
+                        <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">硬拉 1RM</div>
+                        <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">总和</div>
+                        <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
+                    </div>
+                </div>
+                
+                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">身体数据</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">身高</div>
+                        <div class="info-value">175 cm</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">当前体重</div>
+                        <div class="info-value">75 kg</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">体脂率</div>
+                        <div class="info-value">15%</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">腕围</div>
+                        <div class="info-value">17 cm</div>
+                    </div>
+                </div>
+                
+                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">训练背景</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">系统训练时长</div>
+                        <div class="info-value">2年</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">训练频率</div>
+                        <div class="info-value">每周4-5次</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">主要目标</div>
+                        <div class="info-value">增肌 + 力量</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">恢复能力</div>
+                        <div class="info-value">良好</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 渲染进步图表
+        function renderProgressChart() {
+            const container = document.getElementById('progress-chart-container');
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            if (subscribedCoaches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="LineChart" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>订阅教练后，这里将记录您的进步数据</p>
+                    </div>
+                `;
+                document.getElementById('progress-section').style.display = 'block';
+                lucide.createIcons();
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="chart-switcher">
+                    <button class="chart-tab active" onclick="switchChart('weight')">体重变化</button>
+                    <button class="chart-tab" onclick="switchChart('bench')">卧推1RM</button>
+                    <button class="chart-tab" onclick="switchChart('squat')">深蹲1RM</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            `;
+        }
+        
+        // 渲染时间线
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            if (subscribedCoaches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="Award" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>开始训练后，这里将记录您的突破时刻</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            // 有订阅教练，显示时间线
+            container.innerHTML = `
+                <div class="timeline-item">
+                    <div class="timeline-header">
+                        <div>
+                            <div class="timeline-exercise">卧推</div>
+                            <div class="timeline-date">2024年11月15日</div>
+                        </div>
+                    </div>
+                    <div class="timeline-stats">
+                        <div class="timeline-stat">
+                            <i data-lucide="Weight"></i>
+                            <span>100 kg × 8 次</span>
+                        </div>
+                        <div class="timeline-stat">
+                            <i data-lucide="Zap"></i>
+                            <span>RPE 9</span>
+                        </div>
+                    </div>
+                    <div class="timeline-video" onclick="playVideo('video1')">
+                        <img src="https://placehold.co/600x400/6366f1/white?text=Training+Video" alt="Training Video">
+                        <div class="timeline-video-overlay">
+                            <div class="timeline-video-play">
+                                <i data-lucide="Play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-note">
+                        <strong>我的感受:</strong> 第一次卧推突破100kg！感觉太棒了！💪
+                    </div>
+                    <div class="timeline-coach-comment">
+                        <div class="timeline-coach-comment-header">
+                            <i data-lucide="MessageSquare"></i>
+                            教练点评
+                        </div>
+                        <div>做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-header">
+                        <div>
+                            <div class="timeline-exercise">深蹲</div>
+                            <div class="timeline-date">2024年11月10日</div>
+                        </div>
+                    </div>
+                    <div class="timeline-stats">
+                        <div class="timeline-stat">
+                            <i data-lucide="Weight"></i>
+                            <span>120 kg × 5 次</span>
+                        </div>
+                        <div class="timeline-stat">
+                            <i data-lucide="Zap"></i>
+                            <span>RPE 8.5</span>
+                        </div>
+                    </div>
+                    <div class="timeline-video" onclick="playVideo('video2')">
+                        <img src="https://placehold.co/600x400/ec4899/white?text=Squat+Training" alt="Squat Video">
+                        <div class="timeline-video-overlay">
+                            <div class="timeline-video-play">
+                                <i data-lucide="Play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-note">
+                        <strong>我的感受:</strong> 深蹲蹲得很深，膝盖稳定性提升明显！
+                    </div>
+                    <div class="timeline-coach-comment">
+                        <div class="timeline-coach-comment-header">
+                            <i data-lucide="MessageSquare"></i>
+                            教练点评
+                        </div>
+                        <div>深度控制得很好！注意保持核心收紧，髋部启动。</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-header">
+                        <div>
+                            <div class="timeline-exercise">硬拉</div>
+                            <div class="timeline-date">2024年11月5日</div>
+                        </div>
+                    </div>
+                    <div class="timeline-stats">
+                        <div class="timeline-stat">
+                            <i data-lucide="Weight"></i>
+                            <span>140 kg × 3 次</span>
+                        </div>
+                        <div class="timeline-stat">
+                            <i data-lucide="Zap"></i>
+                            <span>RPE 9</span>
+                        </div>
+                    </div>
+                    <div class="timeline-video" onclick="playVideo('video3')">
+                        <img src="https://placehold.co/600x400/10b981/white?text=Deadlift" alt="Deadlift Video">
+                        <div class="timeline-video-overlay">
+                            <div class="timeline-video-play">
+                                <i data-lucide="Play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-note">
+                        <strong>我的感受:</strong> 首次硬拉140kg，背部感觉很稳！
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+        
+        // 渲染教练观察与建议
+        function renderCoachNotes() {
+            const container = document.getElementById('coach-notes-container');
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            if (subscribedCoaches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="Eye" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>订阅教练后，这里将显示教练对您的观察与建议</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="coach-notes-content">
+                    <p><strong>动作模式评估:</strong> 卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。</p>
+                    <p class="mt-sm"><strong>训练建议:</strong> 近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。</p>
+                    <p class="mt-sm"><strong>下阶段目标:</strong> 重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。</p>
+                </div>
+            `;
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            updateProfileHeader();
+            renderPersonalInfo();
+            renderProgressChart();
+            renderTimeline();
+            renderMyCoaches();
+            renderCoachNotes();
             lucide.createIcons();
-            initChart();
+            
+            // 只有有订阅教练时才初始化图表
+            if (subscribedCoaches.length > 0) {
+                setTimeout(() => {
+                    const canvas = document.getElementById('progressChart');
+                    if (canvas) {
+                        initChart();
+                    }
+                }, 100);
+            }
+            
             updateCoachApplicationCard();
         });
     </script>

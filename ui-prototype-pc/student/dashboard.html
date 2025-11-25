@@ -245,84 +245,9 @@
                 <!-- Today's Training Section -->
                 <h2 class="text-xl font-bold mb-md">今日训练</h2>
 
-                <!-- Coach A's Training -->
-                <div class="coach-training-card">
-                    <div class="coach-badge">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" alt="张健" class="coach-avatar-small">
-                        教练: 张健
-                    </div>
-                    
-                    <div class="training-summary">
-                        <div>
-                            <h3 class="text-2xl font-bold mb-xs">胸部力量强化</h3>
-                            <p class="text-secondary">预计时长 60 分钟 · 6 个动作</p>
-                        </div>
-                        <a href="execution.html?coach=zhang" class="btn btn-primary btn-lg">
-                            <i data-lucide="Play" class="mr-2"></i> 开始训练
-                        </a>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <div class="exercise-preview">
-                            <div class="flex items-center gap-md">
-                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">1</div>
-                                <div>
-                                    <div class="font-semibold">杠铃卧推</div>
-                                    <div class="text-xs text-secondary">4 组 x 8-12 次</div>
-                                </div>
-                            </div>
-                            <a href="plan.html?coach=zhang" class="text-sm text-primary">查看计划 ›</a>
-                        </div>
-                        <div class="exercise-preview">
-                            <div class="flex items-center gap-md">
-                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">2</div>
-                                <div>
-                                    <div class="font-semibold">哑铃飞鸟</div>
-                                    <div class="text-xs text-secondary">3 组 x 12-15 次</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Coach B's Training (Example of multiple coaches) -->
-                <div class="coach-training-card" style="border-left-color: #ec4899;">
-                    <div class="coach-badge" style="background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); color: #ec4899;">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=li" alt="李明" class="coach-avatar-small">
-                        教练: 李明
-                    </div>
-                    
-                    <div class="training-summary">
-                        <div>
-                            <h3 class="text-2xl font-bold mb-xs">腿部基础训练</h3>
-                            <p class="text-secondary">预计时长 45 分钟 · 5 个动作</p>
-                        </div>
-                        <a href="execution.html?coach=li" class="btn btn-primary btn-lg" style="background: #ec4899;">
-                            <i data-lucide="Play" class="mr-2"></i> 开始训练
-                        </a>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <div class="exercise-preview">
-                            <div class="flex items-center gap-md">
-                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">1</div>
-                                <div>
-                                    <div class="font-semibold">深蹲</div>
-                                    <div class="text-xs text-secondary">5 组 x 5 次</div>
-                                </div>
-                            </div>
-                            <a href="plan.html?coach=li" class="text-sm" style="color: #ec4899;">查看计划 ›</a>
-                        </div>
-                        <div class="exercise-preview">
-                            <div class="flex items-center gap-md">
-                                <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">2</div>
-                                <div>
-                                    <div class="font-semibold">腿举</div>
-                                    <div class="text-xs text-secondary">4 组 x 12 次</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Training cards will be dynamically generated -->
+                <div id="training-cards-container">
+                    <!-- Loading placeholder -->
                 </div>
 
                 <!-- Progress Summary -->
@@ -373,6 +298,115 @@
     <script src="../js/mock_data.js"></script>
     <script src="../js/app.js"></script>
     <script>
+        // 根据当前用户的订阅情况动态生成训练卡片
+        function renderTrainingCards() {
+            const container = document.getElementById('training-cards-container');
+            const currentUser = UserService.getCurrentUser();
+            const subscriptions = Store.get('subscriptions') || {};
+            const userSubs = subscriptions[currentUser.id] || {};
+            const coaches = Store.get('coaches') || [];
+            
+            // 获取当前用户订阅的教练列表（排除自己）
+            const subscribedCoachIds = Object.keys(userSubs).filter(coachId => {
+                // 排除自己（如果自己是教练）
+                if (currentUser.coachProfileId === coachId) return false;
+                return userSubs[coachId] && userSubs[coachId] !== 'none';
+            });
+            
+            if (subscribedCoachIds.length === 0) {
+                container.innerHTML = `
+                    <div class="card p-lg text-center">
+                        <i data-lucide="Search" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <h3 class="text-lg font-semibold mb-sm">暂无订阅的教练</h3>
+                        <p class="text-secondary mb-md">订阅教练后，这里将显示您的训练计划</p>
+                        <a href="discover-coaches.html" class="btn btn-primary">
+                            <i data-lucide="Search" class="mr-2"></i> 发现教练
+                        </a>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            // 训练计划模板数据
+            const trainingPlans = {
+                'coach_zhang': {
+                    title: '胸部力量强化',
+                    duration: 60,
+                    exerciseCount: 6,
+                    color: 'var(--primary-color)',
+                    bgGradient: 'linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%)',
+                    exercises: [
+                        { name: '杠铃卧推', sets: '4 组 x 8-12 次' },
+                        { name: '哑铃飞鸟', sets: '3 组 x 12-15 次' }
+                    ]
+                },
+                'coach_liming': {
+                    title: '腿部基础训练',
+                    duration: 45,
+                    exerciseCount: 5,
+                    color: '#ec4899',
+                    bgGradient: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
+                    exercises: [
+                        { name: '深蹲', sets: '5 组 x 5 次' },
+                        { name: '腿举', sets: '4 组 x 12 次' }
+                    ]
+                }
+            };
+            
+            let html = '';
+            subscribedCoachIds.forEach(coachId => {
+                const coach = coaches.find(c => c.id === coachId);
+                if (!coach) return;
+                
+                const plan = trainingPlans[coachId] || {
+                    title: '训练计划',
+                    duration: 45,
+                    exerciseCount: 4,
+                    color: 'var(--primary-color)',
+                    bgGradient: 'linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%)',
+                    exercises: [{ name: '待定动作', sets: '3 组 x 10 次' }]
+                };
+                
+                html += `
+                    <div class="coach-training-card" style="border-left-color: ${plan.color};">
+                        <div class="coach-badge" style="background: ${plan.bgGradient}; color: ${plan.color};">
+                            <img src="${coach.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + coachId}" alt="${coach.name}" class="coach-avatar-small">
+                            教练: ${coach.name}
+                        </div>
+                        
+                        <div class="training-summary">
+                            <div>
+                                <h3 class="text-2xl font-bold mb-xs">${plan.title}</h3>
+                                <p class="text-secondary">预计时长 ${plan.duration} 分钟 · ${plan.exerciseCount} 个动作</p>
+                            </div>
+                            <a href="execution.html?coach=${coachId}" class="btn btn-primary btn-lg" style="background: ${plan.color};">
+                                <i data-lucide="Play" class="mr-2"></i> 开始训练
+                            </a>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            ${plan.exercises.map((ex, idx) => `
+                                <div class="exercise-preview">
+                                    <div class="flex items-center gap-md">
+                                        <div class="w-10 h-10 bg-white rounded flex items-center justify-center font-bold text-secondary">${idx + 1}</div>
+                                        <div>
+                                            <div class="font-semibold">${ex.name}</div>
+                                            <div class="text-xs text-secondary">${ex.sets}</div>
+                                        </div>
+                                    </div>
+                                    ${idx === 0 ? `<a href="plan.html?coach=${coachId}" class="text-sm" style="color: ${plan.color};">查看计划 ›</a>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+        
         function showDayDetail(dayId, dayName, date, isCompleted) {
             const modal = document.getElementById('dayDetailModal');
             const modalTitle = document.getElementById('modalTitle');
@@ -572,6 +606,7 @@
     
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            renderTrainingCards();
             lucide.createIcons();
         });
     </script>

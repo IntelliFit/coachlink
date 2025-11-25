@@ -56,23 +56,42 @@
                 <p class="text-secondary">专业教练与学员的连接平台</p>
             </div>
 
+            <div class="text-sm text-secondary mb-sm">选择体验身份：</div>
+            
+            <!-- 学员身份 -->
+            <div class="text-xs text-secondary mb-xs" style="margin-top: 1rem;">学员身份</div>
+            <div class="role-selector" style="margin-bottom: 0.5rem;">
+                <div class="role-btn active" onclick="selectRole('maliu')">马六（纯学员）</div>
+                <div class="role-btn" onclick="selectRole('wangwu')">王五（申请中）</div>
+            </div>
             <div class="role-selector">
-                <div class="role-btn active" onclick="selectRole('coach')">我是教练</div>
-                <div class="role-btn" onclick="selectRole('student')">我是学员</div>
-                <div class="role-btn" onclick="selectRole('admin')">管理员</div>
+                <div class="role-btn" onclick="selectRole('liming_student')">李明（双角色-学员视角）</div>
+            </div>
+            
+            <!-- 教练身份 -->
+            <div class="text-xs text-secondary mb-xs" style="margin-top: 1rem;">教练身份</div>
+            <div class="role-selector">
+                <div class="role-btn" onclick="selectRole('zhang')">张教练（纯教练）</div>
+                <div class="role-btn" onclick="selectRole('liming_coach')">李明（双角色-教练视角）</div>
+            </div>
+            
+            <!-- 管理员 -->
+            <div class="text-xs text-secondary mb-xs" style="margin-top: 1rem;">管理后台</div>
+            <div class="role-selector">
+                <div class="role-btn" onclick="selectRole('admin')">系统管理员</div>
             </div>
 
-            <form onsubmit="handleLogin(event)">
-                <div class="input-group">
-                    <label class="input-label">账号</label>
-                    <input type="text" class="input-field" value="admin" placeholder="请输入账号">
-                </div>
-                <div class="input-group">
-                    <label class="input-label">密码</label>
-                    <input type="password" class="input-field" value="123456" placeholder="请输入密码">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%">登录</button>
+            <form onsubmit="handleLogin(event)" style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%">进入系统</button>
             </form>
+            
+            <div class="text-xs text-secondary mt-md" style="background: #f8fafc; padding: 0.75rem; border-radius: var(--radius-md);">
+                <strong>人物说明：</strong><br>
+                • <b>马六</b>：纯学员，订阅了张教练和李明，可在头像菜单申请成为教练<br>
+                • <b>王五</b>：学员，订阅了张教练和李明，已提交教练申请等待审核<br>
+                • <b>李明</b>：双角色，申请已通过，只订阅张教练（不能订阅自己）<br>
+                • <b>张教练</b>：双角色，申请已通过，学员端为空（没有订阅任何人）
+            </div>
             
             <div class="text-center mt-md text-sm text-secondary">
                 <a href="#">忘记密码?</a> | <a href="#">注册新账号</a>
@@ -80,9 +99,10 @@
         </div>
     </div>
 
+    <script src="js/mock_data.js"></script>
     <script>
         lucide.createIcons();
-        let currentRole = 'coach';
+        let currentRole = 'maliu';
 
         function selectRole(role) {
             currentRole = role;
@@ -90,22 +110,76 @@
                 btn.classList.remove('active');
             });
             
-            // Find the button that was clicked or matches the role
-            const buttons = document.querySelectorAll('.role-btn');
-            if (role === 'coach') buttons[0].classList.add('active');
-            else if (role === 'student') buttons[1].classList.add('active');
-            else if (role === 'admin') buttons[2].classList.add('active');
+            // 高亮选中的按钮
+            event.target.classList.add('active');
         }
 
         function handleLogin(e) {
             e.preventDefault();
-            // Mock Login Logic
-            if (currentRole === 'coach') {
-                window.location.href = 'coach/dashboard.html';
-            } else if (currentRole === 'admin') {
-                window.location.href = 'admin/review.html';
-            } else {
-                window.location.href = 'student/dashboard.html';
+            
+            // 根据选择的身份设置不同的 session 并跳转
+            switch (currentRole) {
+                case 'maliu':
+                    // 马六：纯学员，可以申请成为教练
+                    UserService.updateSession({ 
+                        currentUserId: 'student_maliu', 
+                        activeRole: 'student' 
+                    });
+                    window.location.href = 'student/dashboard.html';
+                    break;
+                    
+                case 'wangwu':
+                    // 王五：学员，已提交教练申请，等待审核
+                    UserService.updateSession({ 
+                        currentUserId: 'student_wangwu', 
+                        activeRole: 'student' 
+                    });
+                    window.location.href = 'student/coach-application.html';
+                    break;
+                    
+                case 'liming_student':
+                    // 李明：双角色，从学员视角进入
+                    UserService.updateSession({ 
+                        currentUserId: 'student_liming', 
+                        activeRole: 'student' 
+                    });
+                    window.location.href = 'student/dashboard.html';
+                    break;
+                    
+                case 'liming_coach':
+                    // 李明：双角色，从教练视角进入
+                    UserService.updateSession({ 
+                        currentUserId: 'student_liming', 
+                        activeRole: 'coach' 
+                    });
+                    window.location.href = 'coach/dashboard.html';
+                    break;
+                    
+                case 'zhang':
+                    // 张教练：纯教练，直接进入教练端
+                    UserService.updateSession({ 
+                        currentUserId: 'coach_zhang', 
+                        activeRole: 'coach' 
+                    });
+                    window.location.href = 'coach/dashboard.html';
+                    break;
+                    
+                case 'admin':
+                    // 管理员
+                    UserService.updateSession({ 
+                        currentUserId: 'admin_001', 
+                        activeRole: 'admin' 
+                    });
+                    window.location.href = 'admin/coach-applications.html';
+                    break;
+                    
+                default:
+                    // 默认马六
+                    UserService.updateSession({ 
+                        currentUserId: 'student_maliu', 
+                        activeRole: 'student' 
+                    });
+                    window.location.href = 'student/dashboard.html';
             }
         }
     </script>

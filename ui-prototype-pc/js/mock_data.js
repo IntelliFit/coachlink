@@ -22,37 +22,62 @@ const MockData = {
             };
         }
         return {
-            id: 'student_001',
-            name: '李明',
+            id: 'student_maliu',
+            name: '马六',
             role: 'student',
             roles: ['student'],
-            avatar: '李'
+            avatar: '马'
         };
     },
     
     session: {
-        currentUserId: 'student_001',
+        currentUserId: 'student_maliu',
         activeRole: 'student'
     },
 
+    // ========== 用户体系设计 ==========
+    // 所有教练都是从学员身份开始，申请成功后成为双角色（student + coach）
+    // 马六：纯学员，从未申请过教练
+    // 王五：学员，正在申请教练（pending状态）
+    // 李明：双角色用户，申请已通过，可在学员端和教练端切换
+    // 张教练：双角色用户，申请已通过，可在学员端和教练端切换（学员端为空，因为没有订阅任何人）
+    // 管理员：系统管理员
     users: [
         {
-            id: 'student_001',
-            name: '李明',
-            avatar: '李',
-            roles: ['student'],
-            email: 'li.ming@example.com',
-            phone: '13800000000',
+            id: 'student_maliu',
+            name: '马六',
+            avatar: '马',
+            roles: ['student'],  // 纯学员，可以申请成为教练
+            email: 'ma.liu@example.com',
+            phone: '13800000001',
             coachProfileId: null
         },
         {
-            id: 'coach_001',
+            id: 'student_wangwu',
+            name: '王五',
+            avatar: '王',
+            roles: ['student'],  // 学员，已提交教练申请，等待审核
+            email: 'wang.wu@example.com',
+            phone: '13800000002',
+            coachProfileId: null
+        },
+        {
+            id: 'student_liming',
+            name: '李明',
+            avatar: '李',
+            roles: ['student', 'coach'],  // 双角色：学员+教练，申请已通过
+            email: 'li.ming@example.com',
+            phone: '13800000003',
+            coachProfileId: 'coach_liming'
+        },
+        {
+            id: 'coach_zhang',
             name: '张教练',
             avatar: '张',
-            roles: ['coach'],
+            roles: ['student', 'coach'],  // 双角色：学员+教练，申请已通过（学员端为空，因为没有订阅）
             email: 'coach.zhang@example.com',
             phone: '13711112222',
-            coachProfileId: 'coach_001'
+            coachProfileId: 'coach_zhang'
         },
         {
             id: 'admin_001',
@@ -66,9 +91,10 @@ const MockData = {
 
     coaches: [
         {
-            id: 'coach_001',
-            userId: 'coach_001',
-            name: '张健',
+            // 张教练：纯教练账号的教练档案
+            id: 'coach_zhang',
+            userId: 'coach_zhang',
+            name: '张教练',
             title: '力量举专家',
             avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
             specialties: ['力量举', '增肌'],
@@ -77,33 +103,70 @@ const MockData = {
             status: 'approved'
         },
         {
-            id: '2a8222e5-d835-4ba8-851b-88a88cda778f',
-            userId: null,
-            name: '李健强',
-            title: '核心力量专家',
-            avatarUrl: '',
-            specialties: ['核心训练', '平板支撑', '功能性训练'],
-            rating: 4.7,
-            totalStudents: 890,
-            status: 'pending'
-        },
-        {
-            id: '87eec87c-aa2f-46bb-8208-4b54e261e492',
-            userId: 'f9eac5b1-45f9-4479-9ab8-8223a5db8835',
-            name: '枭马葛助理',
-            title: '健身教练',
-            avatarUrl: '',
-            specialties: ['力量训练'],
-            rating: 0,
-            totalStudents: 0,
+            // 李明：双角色用户的教练档案（申请通过后创建）
+            id: 'coach_liming',
+            userId: 'student_liming',
+            name: '李明',
+            title: '新晋健身教练',
+            avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liming',
+            specialties: ['力量训练', '体能提升'],
+            rating: 4.2,
+            totalStudents: 5,
             status: 'approved'
         }
     ],
 
     coachApplications: [
         {
-            id: 'app_demo_pending',
-            userId: 'student_004',
+            // 张教练的教练申请：已通过（最早申请的教练）
+            id: 'app_zhang_approved',
+            userId: 'coach_zhang',
+            status: 'approved',
+            submittedAt: Date.now() - 86400000 * 365,  // 一年前申请
+            updatedAt: Date.now() - 86400000 * 360,
+            reviewerId: 'admin_001',
+            reviewerName: '系统管理员',
+            rejectionReason: '',
+            formData: {
+                realName: '张健',
+                avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
+                tagline: '10年力量举经验 | 国家级运动员',
+                specialties: ['力量举', '增肌'],
+                experienceYears: 10,
+                bio: '专注力量举训练10年，国家级运动健将。训练理念是"科学训练，持续进步"。',
+                achievements: '国家级运动健将；NSCA-CPT认证私人教练',
+                services: 'AI方案 + 每周2次真人指导',
+                certificates: ['国家级运动健将证书', 'NSCA-CPT认证'],
+                cases: '帮助超过150名学员实现健身目标'
+            }
+        },
+        {
+            // 李明的教练申请：已通过
+            id: 'app_liming_approved',
+            userId: 'student_liming',
+            status: 'approved',
+            submittedAt: Date.now() - 86400000 * 30,
+            updatedAt: Date.now() - 86400000 * 25,
+            reviewerId: 'admin_001',
+            reviewerName: '系统管理员',
+            rejectionReason: '',
+            formData: {
+                realName: '李明',
+                avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liming',
+                tagline: '新晋健身教练 | 力量训练爱好者',
+                specialties: ['力量训练', '体能提升'],
+                experienceYears: 2,
+                bio: '从学员成长为教练，深知学员的需求和困惑，擅长帮助新手快速入门。',
+                achievements: '个人卧推100kg+，深蹲120kg+',
+                services: 'AI基础方案 + 动作指导',
+                certificates: ['健身教练国职证书'],
+                cases: '帮助5名学员实现力量突破'
+            }
+        },
+        {
+            // 王五的教练申请：正在审核中
+            id: 'app_wangwu_pending',
+            userId: 'student_wangwu',
             status: 'pending',
             submittedAt: Date.now() - 86400000 * 2,
             updatedAt: Date.now() - 86400000,
@@ -111,11 +174,12 @@ const MockData = {
             reviewerName: null,
             rejectionReason: '',
             formData: {
-                realName: '赵丽',
+                realName: '王五',
+                avatarUrl: '',
                 tagline: '国家二级运动员 | 体能教练',
                 specialties: ['体能训练', '体态纠正'],
                 experienceYears: 4,
-                bio: '拥有四年一线体能训练经验，擅长为女性学员设计灵活的增肌塑形方案。',
+                bio: '拥有四年一线体能训练经验，擅长为学员设计灵活的增肌塑形方案。',
                 achievements: '国家二级运动员；亚洲体能大赛前三',
                 services: 'AI基础方案 + 每周1次真人点评',
                 certificates: ['https://example.com/cert-1.png'],
@@ -169,14 +233,25 @@ const MockData = {
         }
     ],
 
-    clients: [
-        { id: 'stu_001', name: '李同学', plan: '增肌计划 A', status: 'active', lastActive: '2小时前', subscriptionMonths: 4 },
-        { id: 'stu_002', name: '王小明', plan: '减脂冲刺', status: 'active', lastActive: '1天前', subscriptionMonths: 1 },
-        { id: 'stu_003', name: '赵铁柱', plan: '力量举备赛', status: 'inactive', lastActive: '5天前', subscriptionMonths: 3 }
-    ],
+    // 教练的学员列表 - 根据订阅关系动态生成
+    // 张教练的学员：李明(premium)、马六(ai)、王五(premium)
+    // 李明教练的学员：马六(ai)、王五(ai)
+    clients: {
+        'coach_zhang': [
+            { id: 'student_liming', name: '李明', plan: '力量进阶计划', status: 'active', lastActive: '2小时前', subscriptionMonths: 4, tier: 'premium', hasPlan: true },
+            { id: 'student_maliu', name: '马六', plan: '新手增肌计划', status: 'active', lastActive: '1天前', subscriptionMonths: 2, tier: 'ai', hasPlan: true },
+            { id: 'student_wangwu', name: '王五', plan: '', status: 'active', lastActive: '3小时前', subscriptionMonths: 1, tier: 'premium', hasPlan: false }
+        ],
+        'coach_liming': [
+            { id: 'student_maliu', name: '马六', plan: '腿部基础训练', status: 'active', lastActive: '1天前', subscriptionMonths: 1, tier: 'ai', hasPlan: true },
+            { id: 'student_wangwu', name: '王五', plan: '', status: 'active', lastActive: '3小时前', subscriptionMonths: 1, tier: 'ai', hasPlan: false }
+        ]
+    },
 
+    // 学员档案数据
+    // 键名对应 clients 中的学员ID
     studentProfiles: {
-        'stu_001': {
+        'student_liming': {
             displayName: '李明',
             nickname: '李同学',
             avatarText: '李',
@@ -247,17 +322,111 @@ const MockData = {
                 { title: '训练建议', content: '近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。' },
                 { title: '下阶段目标', content: '重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。' }
             ]
+        },
+        'student_maliu': {
+            displayName: '马六',
+            nickname: '马六',
+            avatarText: '马',
+            role: '学员',
+            subscriptionTier: 'AI版',
+            subscribedCoaches: 2,
+            personalInfo: [
+                { label: '姓名', value: '马六' },
+                { label: '年龄', value: '25岁' },
+                { label: '性别', value: '男' },
+                { label: '地理位置', value: '北京' },
+                { label: '职业', value: '产品经理' },
+                { label: '加入时长', value: '30天' }
+            ],
+            strengthData: [
+                { label: '深蹲 1RM', value: '60 kg', accent: 'rgb(16, 185, 129)' },
+                { label: '卧推 1RM', value: '50 kg', accent: 'rgb(236, 72, 153)' },
+                { label: '硬拉 1RM', value: '70 kg', accent: 'rgb(249, 115, 22)' },
+                { label: '总和', value: '180 kg', accent: 'rgb(99, 102, 241)' }
+            ],
+            bodyMetrics: [
+                { label: '身高', value: '178 cm' },
+                { label: '当前体重', value: '72 kg' },
+                { label: '体脂率', value: '18%' },
+                { label: '腕围', value: '16 cm' }
+            ],
+            trainingBackground: [
+                { label: '系统训练时长', value: '1个月' },
+                { label: '训练频率', value: '每周3次' },
+                { label: '主要目标', value: '增肌' },
+                { label: '恢复能力', value: '一般' }
+            ],
+            recentTraining: {
+                date: '昨天',
+                title: '腿部基础训练',
+                summary: '完成度 80% · RPE 7'
+            },
+            timeline: [
+                {
+                    exercise: '深蹲',
+                    date: '2024年11月18日',
+                    stats: ['60 kg × 10 次', 'RPE 8'],
+                    videoThumbnail: 'https://placehold.co/600x400/6366f1/white?text=Squat',
+                    videoUrl: 'https://example.com/maliu_squat.mp4',
+                    note: '第一次完成60kg深蹲！',
+                    coachComment: '动作不错，注意膝盖不要内扣。'
+                }
+            ],
+            coachNotes: [
+                { title: '动作模式评估', content: '新手学员，动作模式正在建立中。深蹲需要加强核心稳定性。' },
+                { title: '训练建议', content: '建议先以轻重量打好基础，不要急于加重。' },
+                { title: '下阶段目标', content: '在2周内掌握三大项的基本动作模式。' }
+            ]
+        },
+        'student_wangwu': {
+            displayName: '王五',
+            nickname: '王五',
+            avatarText: '王',
+            role: '学员',
+            subscriptionTier: '高级版',
+            subscribedCoaches: 2,
+            personalInfo: [
+                { label: '姓名', value: '王五' },
+                { label: '年龄', value: '30岁' },
+                { label: '性别', value: '男' },
+                { label: '地理位置', value: '深圳' },
+                { label: '职业', value: '体能教练' },
+                { label: '加入时长', value: '7天' }
+            ],
+            strengthData: [
+                { label: '深蹲 1RM', value: '100 kg', accent: 'rgb(16, 185, 129)' },
+                { label: '卧推 1RM', value: '80 kg', accent: 'rgb(236, 72, 153)' },
+                { label: '硬拉 1RM', value: '120 kg', accent: 'rgb(249, 115, 22)' },
+                { label: '总和', value: '300 kg', accent: 'rgb(99, 102, 241)' }
+            ],
+            bodyMetrics: [
+                { label: '身高', value: '180 cm' },
+                { label: '当前体重', value: '80 kg' },
+                { label: '体脂率', value: '16%' },
+                { label: '腕围', value: '18 cm' }
+            ],
+            trainingBackground: [
+                { label: '系统训练时长', value: '4年' },
+                { label: '训练频率', value: '每周5次' },
+                { label: '主要目标', value: '体能训练' },
+                { label: '恢复能力', value: '良好' }
+            ],
+            recentTraining: null,
+            timeline: [],
+            coachNotes: [
+                { title: '初步评估', content: '有一定训练基础，正在等待制定个性化训练计划。' }
+            ]
         }
     },
 
     // Coach profiles (homepage editable data)
     coachProfiles: {
-        'coach_001': {
-            name: '张健',
+        'coach_zhang': {
+            name: '张教练',
             avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
             tagline: '10年力量举经验 | 国家级运动员 | 帮助超过150名学员实现目标',
             specialties: ['力量举', '增肌'],
-            aboutHtml: '<p class="mb-md">大家好，我是张健，专注力量举训练10年，国家级运动健将。我的训练理念是<strong>“科学训练，持续进步”</strong>。</p><p class="mb-md">我相信每个人都有潜力突破自己的极限。通过系统化的训练计划和精准的动作指导，我已经帮助超过150名学员实现了他们的健身目标。</p><p><strong>资质认证:</strong></p><ul style="list-style: disc; margin-left: 2rem; line-height: 2;"><li>国家级运动健将</li><li>NSCA-CPT认证私人教练</li><li>10年力量举训练经验</li></ul>',
+            aboutHtml: '<p class="mb-md">大家好，我是张教练，专注力量举训练10年，国家级运动健将。我的训练理念是<strong>"科学训练，持续进步"</strong>。</p><p class="mb-md">我相信每个人都有潜力突破自己的极限。通过系统化的训练计划和精准的动作指导，我已经帮助超过150名学员实现了他们的健身目标。</p><p><strong>资质认证:</strong></p><ul style="list-style: disc; margin-left: 2rem; line-height: 2;"><li>国家级运动健将</li><li>NSCA-CPT认证私人教练</li><li>10年力量举训练经验</li></ul>',
             successStories: [
                 {
                     title: '帮助学员三个月卧推提升20kg',
@@ -274,39 +443,50 @@ const MockData = {
                 }
             ]
         },
-        'coach_002': {
+        'coach_liming': {
             name: '李明',
-            avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=coach-li',
-            tagline: '国家二级运动员 | 私教8年 | 专注减脂与动作纠正',
-            specialties: ['减脂', '动作纠正'],
-            aboutHtml: '<p>我是李明教练，擅长通过循序渐进的方法帮你减脂并建立健康的运动习惯。</p>',
+            avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liming',
+            tagline: '新晋健身教练 | 力量训练爱好者 | 从学员到教练的蜕变',
+            specialties: ['力量训练', '体能提升'],
+            aboutHtml: '<p class="mb-md">大家好，我是李明！从一名普通学员成长为教练，我深知每一位新手的困惑和需求。</p><p class="mb-md">我的训练理念是<strong>"循序渐进，稳扎稳打"</strong>。我会根据你的实际情况，制定最适合你的训练计划。</p><p><strong>个人成绩:</strong></p><ul style="list-style: disc; margin-left: 2rem; line-height: 2;"><li>卧推 100kg+</li><li>深蹲 120kg+</li><li>健身教练国职证书</li></ul>',
             successStories: [
-                { title: '三个月减脂8kg', content: '配合饮食与有氧力量结合，健康降脂。', images: [] }
+                {
+                    title: '帮助5名学员实现力量突破',
+                    content: '作为新教练，我特别用心对待每一位学员。已经帮助5名学员突破了他们的力量瓶颈！',
+                    images: []
+                }
             ]
         }
     },
 
     // Coach pricing (Services & Pricing)
     coachPricing: {
-        'coach_001': { aiMonthly: 99, premiumMonthly: 299 },
-        'coach_002': { aiMonthly: 79, premiumMonthly: 259 }
+        'coach_zhang': { aiMonthly: 99, premiumMonthly: 299 },
+        'coach_liming': { aiMonthly: 59, premiumMonthly: 199 }
     },
 
     // Coach published contents
     coachContent: {
-        'coach_001': [
+        'coach_zhang': [
             { id: 'cnt_001', title: '力量举三大项完整教学', summary: '深蹲、卧推、硬拉的标准动作要领', type: 'article', url: '#', visibility: 'public' },
             { id: 'cnt_002', title: '如何突破训练平台期', summary: '5个实用技巧帮你持续进步', type: 'article', url: '#', visibility: 'public' },
             { id: 'cnt_003', title: '高级增肌营养方案', summary: '订阅后可查看完整内容', type: 'article', url: '#', visibility: 'paid' }
         ],
-        'coach_002': [
-            { id: 'cnt_101', title: '热量赤字与饮食规划', summary: '科学饮食的核心原则', type: 'article', url: '#', visibility: 'public' }
+        'coach_liming': [
+            { id: 'cnt_201', title: '新手力量训练入门指南', summary: '从零开始的力量训练之路', type: 'article', url: '#', visibility: 'public' }
         ]
     },
 
     // Simple subscriptions map: which student subscribed to which coach and tier
+    // 马六：订阅了张教练和李明教练
+    // 王五：订阅了张教练和李明教练
+    // 李明：只订阅了张教练（不能订阅自己）
+    // 张教练：没有订阅任何人（学员端为空）
     subscriptions: {
-        'student_001': { 'coach_001': 'ai', 'coach_002': 'premium' } // 'none' | 'ai' | 'premium'
+        'student_maliu': { 'coach_zhang': 'ai', 'coach_liming': 'ai' },
+        'student_wangwu': { 'coach_zhang': 'premium', 'coach_liming': 'ai' },
+        'student_liming': { 'coach_zhang': 'premium' },  // 李明只订阅张教练，不能订阅自己
+        'coach_zhang': {}  // 张教练没有订阅任何人
     },
 
     // Subscription settings (e.g., auto renew)
@@ -317,27 +497,48 @@ const MockData = {
         }
     },
 
+    // 学员训练计划数据
+    // 键名对应 clients 中的学员ID
     clientPlans: {
-        'stu_001': [ // Plan for Li Tongxue (Muscle Gain Plan A)
+        // 李明的训练计划（张教练制定）
+        'student_liming': [
             {
                 id: 1,
                 title: '第 1 周',
                 days: [
                     { id: 1, title: 'Day 1', content: '<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg text-primary hover:underline cursor-pointer" onclick="viewExerciseDetails(\'ex_006\')">杠铃卧推</div><div class="text-xs text-secondary">胸部 · 杠铃</div></div></div><div class="row-details">4组 x 8-12次</div></div><div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg text-primary hover:underline cursor-pointer" onclick="viewExerciseDetails(\'ex_003\')">深蹲</div><div class="text-xs text-secondary">腿部 · 杠铃</div></div></div><div class="row-details">4组 x 10次</div></div>', isRestDay: false },
                     { id: 2, title: 'Day 2', content: '', isRestDay: true },
-                    { id: 3, title: 'Day 3', content: '', isRestDay: false },
-                    { id: 4, title: 'Day 4', content: '', isRestDay: false },
-                    { id: 5, title: 'Day 5', content: '', isRestDay: true },
-                    { id: 6, title: 'Day 6', content: '', isRestDay: false },
+                    { id: 3, title: 'Day 3', content: '<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">引体向上</div><div class="text-xs text-secondary">背部 · 单杠</div></div></div><div class="row-details">4组 x 8-10次</div></div>', isRestDay: false },
+                    { id: 4, title: 'Day 4', content: '', isRestDay: true },
+                    { id: 5, title: 'Day 5', content: '<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">硬拉</div><div class="text-xs text-secondary">背部 · 杠铃</div></div></div><div class="row-details">5组 x 5次</div></div>', isRestDay: false },
+                    { id: 6, title: 'Day 6', content: '', isRestDay: true },
+                    { id: 7, title: 'Day 7', content: '', isRestDay: true }
+                ]
+            }
+        ],
+        // 马六的训练计划（张教练制定）
+        'student_maliu': [
+            {
+                id: 1,
+                title: '第 1 周',
+                days: [
+                    { id: 1, title: 'Day 1', content: '<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">俯卧撑</div><div class="text-xs text-secondary">胸部 · 徒手</div></div></div><div class="row-details">3组 x 15次</div></div><div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">哑铃卧推</div><div class="text-xs text-secondary">胸部 · 哑铃</div></div></div><div class="row-details">3组 x 12次</div></div>', isRestDay: false },
+                    { id: 2, title: 'Day 2', content: '', isRestDay: true },
+                    { id: 3, title: 'Day 3', content: '<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">深蹲</div><div class="text-xs text-secondary">腿部 · 杠铃</div></div></div><div class="row-details">3组 x 12次</div></div>', isRestDay: false },
+                    { id: 4, title: 'Day 4', content: '', isRestDay: true },
+                    { id: 5, title: 'Day 5', content: '<div class="exercise-row"><div class="row-header"><div class="flex-1"><div class="font-semibold text-lg">引体向上</div><div class="text-xs text-secondary">背部 · 单杠</div></div></div><div class="row-details">3组 x 8次</div></div>', isRestDay: false },
+                    { id: 6, title: 'Day 6', content: '', isRestDay: true },
                     { id: 7, title: 'Day 7', content: '', isRestDay: true }
                 ]
             }
         ]
-        // stu_002 has no plan set yet
+        // student_wangwu 没有计划（待制定）
     },
 
+    // 学员执行记录数据
+    // 键名对应 clients 中的学员ID
     clientExecution: {
-        'stu_001': {
+        'student_liming': {
             'week_1_day_1': {
                 completed: true,
                 date: '2023-11-20',
@@ -365,6 +566,25 @@ const MockData = {
                             { weight: '60kg', reps: 10, rpe: 7.5, rest: '2min' },
                             { weight: '60kg', reps: 10, rpe: 8, rest: '2min' },
                             { weight: '60kg', reps: 10, rpe: 8.5, rest: '2min' }
+                        ]
+                    }
+                ]
+            }
+        },
+        'student_maliu': {
+            'week_1_day_1': {
+                completed: true,
+                date: '2023-11-18',
+                feedback: '第一次训练，感觉还不错！',
+                exercises: [
+                    { 
+                        name: '俯卧撑', 
+                        planned: '3组 x 15次', 
+                        actual: '3组 x 12次',
+                        sets: [
+                            { reps: 12, rpe: 8, rest: '90s' },
+                            { reps: 12, rpe: 8.5, rest: '90s' },
+                            { reps: 10, rpe: 9, rest: '90s', note: '最后一组有点累' }
                         ]
                     }
                 ]
@@ -535,59 +755,42 @@ const Store = {
     set: (key, value) => {
         localStorage.setItem(`coachlink_${key}`, JSON.stringify(value));
     },
+    // 清除所有缓存数据，用于重置原型状态
+    clear: () => {
+        const keys = [
+            'exercises', 'templates', 'users', 'session', 'coaches',
+            'coachApplications', 'submissions', 'coachProfiles', 'coachPricing',
+            'coachContent', 'subscriptions', 'subscriptionSettings',
+            'messages', 'chatSessions', 'videos', 'clientPlans', 'clientExecution', 'studentProfiles'
+        ];
+        keys.forEach(key => localStorage.removeItem(`coachlink_${key}`));
+    },
     init: () => {
-        if (!localStorage.getItem('coachlink_exercises')) {
-            Store.set('exercises', MockData.exercises);
-        }
-        if (!localStorage.getItem('coachlink_templates')) {
-            Store.set('templates', MockData.templates);
-        }
-        if (!localStorage.getItem('coachlink_users')) {
-            Store.set('users', MockData.users);
-        }
-        if (!localStorage.getItem('coachlink_session')) {
-            Store.set('session', MockData.session);
-        }
-        if (!localStorage.getItem('coachlink_coaches')) {
-            Store.set('coaches', MockData.coaches);
-        }
-        if (!localStorage.getItem('coachlink_coachApplications')) {
-            Store.set('coachApplications', MockData.coachApplications);
-        }
-        if (!localStorage.getItem('coachlink_submissions')) {
-            Store.set('submissions', MockData.submissions);
-        }
-        if (!localStorage.getItem('coachlink_coachProfiles')) {
-            Store.set('coachProfiles', MockData.coachProfiles);
-        }
-        if (!localStorage.getItem('coachlink_coachPricing')) {
-            Store.set('coachPricing', MockData.coachPricing);
-        }
-        if (!localStorage.getItem('coachlink_coachContent')) {
-            Store.set('coachContent', MockData.coachContent);
-        }
-        if (!localStorage.getItem('coachlink_subscriptions_map')) {
-            Store.set('subscriptions', MockData.subscriptions);
-        }
-        if (!localStorage.getItem('coachlink_subscriptionSettings')) {
-            Store.set('subscriptionSettings', MockData.subscriptionSettings);
-        }
-        
-        // Chat related data initialization
-        if (!localStorage.getItem('coachlink_messages')) {
-            Store.set('messages', MockData.messages);
-        }
-        if (!localStorage.getItem('coachlink_chatSessions')) {
-            Store.set('chatSessions', MockData.chatSessions);
-        }
-        if (!localStorage.getItem('coachlink_videos')) {
-            Store.set('videos', MockData.videos);
-        }
-
-        // Always update these for development/testing of new features
+        // 原型开发阶段：总是使用最新的 MockData 数据
+        // 这样每次刷新页面都会使用代码中定义的最新数据
+        Store.set('exercises', MockData.exercises);
+        Store.set('templates', MockData.templates);
+        Store.set('users', MockData.users);
+        Store.set('coaches', MockData.coaches);
+        Store.set('coachApplications', MockData.coachApplications);
+        Store.set('submissions', MockData.submissions);
+        Store.set('coachProfiles', MockData.coachProfiles);
+        Store.set('coachPricing', MockData.coachPricing);
+        Store.set('coachContent', MockData.coachContent);
+        Store.set('subscriptions', MockData.subscriptions);
+        Store.set('subscriptionSettings', MockData.subscriptionSettings);
+        Store.set('messages', MockData.messages);
+        Store.set('chatSessions', MockData.chatSessions);
+        Store.set('videos', MockData.videos);
         Store.set('clientPlans', MockData.clientPlans);
         Store.set('clientExecution', MockData.clientExecution);
         Store.set('studentProfiles', MockData.studentProfiles);
+        Store.set('clients', MockData.clients);  // 添加 clients 数据初始化
+        
+        // 只有 session 保持不变，这样登录状态可以持久化
+        if (!localStorage.getItem('coachlink_session')) {
+            Store.set('session', MockData.session);
+        }
     }
 };
 
@@ -617,10 +820,10 @@ const UserService = {
         return (
             UserService.findUserById(session.currentUserId) ||
             UserService.getUsers()[0] || {
-                id: 'student_001',
-                name: '李明',
+                id: 'student_maliu',
+                name: '马六',
                 roles: ['student'],
-                avatar: '李'
+                avatar: '马'
             }
         );
     },
@@ -824,6 +1027,11 @@ const RoleManager = {
         return user?.coachProfileId || user?.id;
     },
     switchRole(role, options = {}) {
+        const user = UserService.getCurrentUser();
+        if (!user?.roles?.includes(role)) {
+            alert('当前账号尚未拥有该角色权限');
+            return false;
+        }
         UserService.updateSession({ activeRole: role });
         if (!options.silent) {
             window.location.href = RoleManager.getRedirectPath(role);

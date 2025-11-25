@@ -941,8 +941,15 @@
         });
 
         function initClientMode() {
-            const clients = Store.get('clients');
-            const client = clients.find(c => c.id === clientId);
+            // clients 现在是按教练ID分组的对象
+            const allClients = Store.get('clients') || {};
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            
+            // 从当前教练的学员列表中查找
+            const coachClients = allClients[coachProfileId] || [];
+            const client = coachClients.find(c => c.id === clientId);
+            
             if (!client) {
                 alert('未找到学员信息');
                 window.location.href = 'clients.html';
@@ -961,8 +968,10 @@
             }
 
             // Update Header
-            document.querySelector('.text-xl').textContent = `${client.name} 的训练计划`;
-            document.querySelector('.text-secondary.text-sm').textContent = client.plan || '暂无计划';
+            document.getElementById('template-title').textContent = `${client.name} 的训练计划`;
+            document.getElementById('template-title').contentEditable = 'false';
+            document.getElementById('template-description').textContent = client.plan || '暂无计划';
+            document.getElementById('template-description').contentEditable = 'false';
             
             // Show Profile Button
             document.getElementById('view-profile-btn').style.display = 'inline-flex';
@@ -1273,11 +1282,16 @@
             showToast(`已导入模板：${template.name}`);
             
             // Update client plan name in mock store
-            const clients = Store.get('clients');
-            const clientIndex = clients.findIndex(c => c.id === clientId);
+            const allClients = Store.get('clients') || {};
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            const coachClients = allClients[coachProfileId] || [];
+            const clientIndex = coachClients.findIndex(c => c.id === clientId);
             if (clientIndex > -1) {
-                clients[clientIndex].plan = template.name;
-                Store.set('clients', clients);
+                coachClients[clientIndex].plan = template.name;
+                coachClients[clientIndex].hasPlan = true;
+                allClients[coachProfileId] = coachClients;
+                Store.set('clients', allClients);
                 document.querySelector('.text-secondary.text-sm').textContent = template.name;
             }
         }
