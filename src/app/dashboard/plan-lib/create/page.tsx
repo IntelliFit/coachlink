@@ -312,13 +312,11 @@ const CreatePlanPage = () => {
 
     // 计算现有的训练日用于复制功能
     const existingTrainingDays = days
-        .filter(day => (
-            (day.type === 'training' && day.actionSets.length > 0) ||
-            (day.type === 'rest')
-        ))
         .map(day => ({
             dayIndex: day.dayIndex,
-            actionSetsCount: day.actionSets.length
+            actionSetsCount: day.actionSets.length,
+            type: day.type,
+            note: day.note
         }));
 
     return (
