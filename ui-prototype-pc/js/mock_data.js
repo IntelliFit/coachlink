@@ -768,20 +768,20 @@ const Store = {
     init: () => {
         // 原型开发阶段：总是使用最新的 MockData 数据
         // 这样每次刷新页面都会使用代码中定义的最新数据
-        Store.set('exercises', MockData.exercises);
-        Store.set('templates', MockData.templates);
-        Store.set('users', MockData.users);
-        Store.set('coaches', MockData.coaches);
-        Store.set('coachApplications', MockData.coachApplications);
-        Store.set('submissions', MockData.submissions);
-        Store.set('coachProfiles', MockData.coachProfiles);
-        Store.set('coachPricing', MockData.coachPricing);
-        Store.set('coachContent', MockData.coachContent);
-        Store.set('subscriptions', MockData.subscriptions);
-        Store.set('subscriptionSettings', MockData.subscriptionSettings);
-        Store.set('messages', MockData.messages);
-        Store.set('chatSessions', MockData.chatSessions);
-        Store.set('videos', MockData.videos);
+            Store.set('exercises', MockData.exercises);
+            Store.set('templates', MockData.templates);
+            Store.set('users', MockData.users);
+            Store.set('coaches', MockData.coaches);
+            Store.set('coachApplications', MockData.coachApplications);
+            Store.set('submissions', MockData.submissions);
+            Store.set('coachProfiles', MockData.coachProfiles);
+            Store.set('coachPricing', MockData.coachPricing);
+            Store.set('coachContent', MockData.coachContent);
+            Store.set('subscriptions', MockData.subscriptions);
+            Store.set('subscriptionSettings', MockData.subscriptionSettings);
+            Store.set('messages', MockData.messages);
+            Store.set('chatSessions', MockData.chatSessions);
+            Store.set('videos', MockData.videos);
         Store.set('clientPlans', MockData.clientPlans);
         Store.set('clientExecution', MockData.clientExecution);
         Store.set('studentProfiles', MockData.studentProfiles);

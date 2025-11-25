@@ -646,8 +646,8 @@
                 const planName = hasPlan ? client.plan : '暂无计划';
                 
                 const actionButton = hasPlan
-                    ? `<button class="btn btn-secondary btn-sm" onclick="window.location.href='plan-editor?clientId=${client.id}'">查看/调整</button>`
-                    : `<button class="btn btn-primary btn-sm" onclick="window.location.href='plan-editor?clientId=${client.id}'">制定计划</button>`;
+                    ? `<button class="btn btn-secondary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">查看/调整</button>`
+                    : `<button class="btn btn-primary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">制定计划</button>`;
                 
                 const chatButton = `<button class="btn btn-icon btn-sm ml-sm" title="聊天" onclick="window.location.href='chat.html?studentId=${client.id}'"><i data-lucide="MessageSquare" size="16"></i></button>`;
                 

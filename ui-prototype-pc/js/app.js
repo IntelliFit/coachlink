@@ -128,16 +128,16 @@ const App = {
                                 ${getCoachApplicationMenuItem()}
                                 <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
                             ` : ''}
-                            ${canSwitchToCoach ? `
+                                ${canSwitchToCoach ? `
                                 <button class="nav-item" data-role-switch="coach" style="display:flex; align-items:center; gap:8px; padding:10px 16px; background:none; border:none; width:100%; text-align:left; color: var(--primary-color); font-weight: 500;">
                                     <i data-lucide="Briefcase" size="16"></i><span>进入教练端</span>
-                                </button>
+                                    </button>
                                 <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
-                            ` : ''}
-                            ${canSwitchToStudent ? `
+                                ` : ''}
+                                ${canSwitchToStudent ? `
                                 <button class="nav-item" data-role-switch="student" style="display:flex; align-items:center; gap:8px; padding:10px 16px; background:none; border:none; width:100%; text-align:left; color: var(--primary-color); font-weight: 500;">
                                     <i data-lucide="GraduationCap" size="16"></i><span>进入学员端</span>
-                                </button>
+                                    </button>
                                 <div style="height:1px; background: var(--color-border); margin: 4px 0;"></div>
                             ` : ''}
                             <a href="../index.html" class="nav-item" style="display:flex; align-items:center; gap:8px; padding:10px 16px; color: var(--danger-color);">
