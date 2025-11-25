@@ -337,6 +337,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                 <CopyTrainingDayDialog
                     visible={copyDialogVisible}
                     onHide={() => setCopyDialogVisible(false)}
+                    actions={actions}
                     trainingDays={existingTrainingDays.filter(d => d.dayIndex !== dayIndex)}
                     onSelectDay={(sourceDayIndex) => {
                         onCopyFromDay(dayIndex, sourceDayIndex);
