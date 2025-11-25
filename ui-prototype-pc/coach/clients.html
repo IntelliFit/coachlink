@@ -613,21 +613,47 @@
 
         function renderClients() {
             const list = document.getElementById('client-list');
-            const clients = Store.get('clients');
-            const clientPlans = Store.get('clientPlans') || {};
+            const allClients = Store.get('clients') || {};
+            
+            // 获取当前教练的 coachProfileId
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            
+            // 获取当前教练的学员列表
+            const clients = allClients[coachProfileId] || [];
+            
+            if (clients.length === 0) {
+                list.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-lg text-center text-secondary">
+                            <div style="padding: 2rem;">
+                                <i data-lucide="Users" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                                <p>暂无学员</p>
+                                <p class="text-sm mt-sm">当有学员订阅您的服务后，将在这里显示</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
 
             list.innerHTML = clients.map(client => {
-                const hasPlan = clientPlans[client.id] && clientPlans[client.id].length > 0;
+                const hasPlan = client.hasPlan;
                 const planStatusBadge = hasPlan 
                     ? '<span class="badge badge-success">进行中</span>' 
                     : '<span class="badge badge-secondary">未制定</span>';
                 const planName = hasPlan ? client.plan : '暂无计划';
                 
                 const actionButton = hasPlan
-                    ? `<button class="btn btn-secondary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">查看/调整</button>`
-                    : `<button class="btn btn-primary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">制定计划</button>`;
+                    ? `<button class="btn btn-secondary btn-sm" onclick="window.location.href='plan-editor?clientId=${client.id}'">查看/调整</button>`
+                    : `<button class="btn btn-primary btn-sm" onclick="window.location.href='plan-editor?clientId=${client.id}'">制定计划</button>`;
                 
                 const chatButton = `<button class="btn btn-icon btn-sm ml-sm" title="聊天" onclick="window.location.href='chat.html?studentId=${client.id}'"><i data-lucide="MessageSquare" size="16"></i></button>`;
+                
+                const tierBadge = client.tier === 'premium' 
+                    ? '<span class="badge badge-primary" style="margin-left: 0.5rem; font-size: 0.65rem;">高级版</span>' 
+                    : '<span class="badge badge-secondary" style="margin-left: 0.5rem; font-size: 0.65rem;">AI版</span>';
 
                 return `
                 <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -638,6 +664,7 @@
                            onmouseout="this.style.textDecoration='none'">
                             ${client.name}
                         </a>
+                        ${tierBadge}
                     </td>
                     <td class="p-md text-secondary">${planName}</td>
                     <td class="p-md">${planStatusBadge}</td>
@@ -649,6 +676,8 @@
                 </tr>
                 `;
             }).join('');
+            
+            lucide.createIcons();
         }
 
         // Drawer Logic

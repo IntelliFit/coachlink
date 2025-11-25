@@ -223,7 +223,7 @@
         }
 
         function formatCertificate(item) {
-            if (/^https?:\\/\\//.test(item)) {
+            if (/^https?:\/\//.test(item)) {
                 return `<a href="${item}" target="_blank" class="text-primary underline">证书链接</a>`;
             }
             return item;

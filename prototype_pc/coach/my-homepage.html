@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 我的主页</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <div class="mb-lg">
+                    <h1 class="text-2xl font-bold">我的主页</h1>
+                    <p class="text-secondary mt-xs">编辑教练主页模块：头像/Banner、核心信息、关于我、成功案例</p>
+                </div>
+
+                <!-- Core Info -->
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <h3 class="font-semibold">核心信息</h3>
+                    </div>
+                    <div class="p-lg">
+                        <form id="profile-form" onsubmit="saveProfile(event)">
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">
+                                <div>
+                                    <label class="block font-medium mb-xs">姓名/昵称</label>
+                                    <input type="text" id="name" class="w-full p-sm border border-gray-300 rounded" required>
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-xs">头像URL</label>
+                                    <input type="url" id="avatarUrl" class="w-full p-sm border border-gray-300 rounded">
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="block font-medium mb-xs">一句话简介</label>
+                                    <input type="text" id="tagline" class="w-full p-sm border border-gray-300 rounded">
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="block font-medium mb-xs">专长标签（用逗号分隔）</label>
+                                    <input type="text" id="specialties" class="w-full p-sm border border-gray-300 rounded" placeholder="力量举, 增肌">
+                                </div>
+                            </div>
+                            <div class="flex gap-md mt-lg">
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-lucide="Save" size="16"></i>
+                                    保存
+                                </button>
+                                <span id="profile-save-tip" class="text-secondary" style="display:none;">已保存</span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- About Me -->
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <h3 class="font-semibold">关于我（富文本）</h3>
+                    </div>
+                    <div class="p-lg">
+                        <textarea id="aboutHtml" class="w-full p-sm border border-gray-300 rounded" rows="10" placeholder="支持基本HTML，如 <strong>加粗</strong>、<ul>列表</ul> 等"></textarea>
+                        <div class="flex gap-md mt-lg">
+                            <button class="btn btn-primary" onclick="saveProfile(event)"><i data-lucide="Save" size="16"></i> 保存</button>
+                            <button class="btn btn-secondary" onclick="insertTemplate()">插入示例模板</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Success Stories -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">学员成功案例</h3>
+                    </div>
+                    <div class="p-lg">
+                        <form id="story-form" onsubmit="addStory(event)" class="mb-lg">
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="block font-medium mb-xs">标题</label>
+                                    <input type="text" id="storyTitle" class="w-full p-sm border border-gray-300 rounded" required>
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="block font-medium mb-xs">内容/感言</label>
+                                    <textarea id="storyContent" class="w-full p-sm border border-gray-300 rounded" rows="4"></textarea>
+                                </div>
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="block font-medium mb-xs">图片URL（用逗号分隔，可空）</label>
+                                    <input type="text" id="storyImages" class="w-full p-sm border border-gray-300 rounded" placeholder="https://... , https://...">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-secondary"><i data-lucide="Plus" size="16"></i> 添加案例</button>
+                        </form>
+
+                        <div id="stories-list"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        let coachId = 'coach_001';
+        let profile = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            const map = Store.get('coachProfiles') || {};
+            profile = map[coachId] || { name: '', avatarUrl: '', tagline: '', specialties: [], aboutHtml: '', successStories: [] };
+            hydrateForm();
+            renderStories();
+            lucide.createIcons();
+        });
+
+        function hydrateForm() {
+            document.getElementById('name').value = profile.name || '';
+            document.getElementById('avatarUrl').value = profile.avatarUrl || '';
+            document.getElementById('tagline').value = profile.tagline || '';
+            document.getElementById('specialties').value = (profile.specialties || []).join(', ');
+            document.getElementById('aboutHtml').value = profile.aboutHtml || '';
+        }
+
+        function persist() {
+            const map = Store.get('coachProfiles') || {};
+            map[coachId] = profile;
+            Store.set('coachProfiles', map);
+        }
+
+        function saveProfile(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            profile.name = document.getElementById('name').value.trim();
+            profile.avatarUrl = document.getElementById('avatarUrl').value.trim();
+            profile.tagline = document.getElementById('tagline').value.trim();
+            profile.specialties = document.getElementById('specialties').value.split(',').map(s => s.trim()).filter(Boolean);
+            profile.aboutHtml = document.getElementById('aboutHtml').value;
+            persist();
+            const tip = document.getElementById('profile-save-tip');
+            tip.style.display = 'inline';
+            setTimeout(() => tip.style.display = 'none', 1500);
+        }
+
+        function insertTemplate() {
+            const tpl = '<p class="mb-md">大家好，我是<strong>张健</strong>，专注力量举训练10年。</p><p class="mb-md">我的训练理念：<strong>科学训练，持续进步</strong>。</p><p><strong>资质认证：</strong></p><ul style="list-style: disc; margin-left: 2rem; line-height: 2;"><li>国家级运动健将</li><li>NSCA-CPT</li></ul>';
+            const el = document.getElementById('aboutHtml');
+            el.value = tpl;
+        }
+
+        function renderStories() {
+            const wrap = document.getElementById('stories-list');
+            const stories = profile.successStories || [];
+            if (stories.length === 0) {
+                wrap.innerHTML = '<div class="text-secondary">暂无案例</div>';
+                return;
+            }
+            wrap.innerHTML = stories.map((s, idx) => `
+                <div class="p-md" style="border:1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--spacing-sm);">
+                    <div class="font-semibold mb-xs">${s.title}</div>
+                    <div class="text-sm text-secondary mb-sm">${s.content || ''}</div>
+                    ${Array.isArray(s.images) && s.images.length ? `<div class="text-sm text-secondary mb-xs">图片：${s.images.length}张</div>` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="removeStory(${idx})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function addStory(e) {
+            e.preventDefault();
+            const title = document.getElementById('storyTitle').value.trim();
+            if (!title) return alert('请输入标题');
+            const content = document.getElementById('storyContent').value.trim();
+            const imagesStr = document.getElementById('storyImages').value.trim();
+            const images = imagesStr ? imagesStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+            profile.successStories = profile.successStories || [];
+            profile.successStories.push({ title, content, images });
+            persist();
+            document.getElementById('story-form').reset();
+            renderStories();
+        }
+
+        function removeStory(idx) {
+            profile.successStories.splice(idx, 1);
+            persist();
+            renderStories();
+        }
+    </script>
+</body>
+</html>
+
+

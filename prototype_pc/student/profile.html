@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachLink - 个人档案</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .profile-section {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--text-primary);
+        }
+        
+        .profile-header {
+            text-align: center;
+            padding: var(--spacing-xl) 0;
+        }
+        
+        .profile-avatar-large {
+            width: 120px;
+            height: 120px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 0 auto var(--spacing-md);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .profile-meta {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        
+        .profile-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .subscription-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.375rem 0.75rem;
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            color: var(--primary-color);
+            border-radius: var(--radius-full);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .coach-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .coach-list-item:hover {
+            background: var(--background-color);
+            border-color: var(--primary-color);
+        }
+        
+        .coach-info-row {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+        
+        .coach-avatar-medium {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-full);
+            border: 2px solid var(--border-color);
+        }
+        
+        .subscription-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+        
+        .subscription-badge.premium {
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            color: var(--primary-color);
+        }
+        
+        /* Progress Chart */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .chart-switcher {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        
+        .chart-tab {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: white;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 0.875rem;
+        }
+        
+        .chart-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* Progress Timeline */
+        .timeline {
+            position: relative;
+            padding-left: var(--spacing-xl);
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 9px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #6366f1 0%, #e0e7ff 100%);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: var(--spacing-xl);
+            background: white;
+            border: 2px solid #e0e7ff;
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            transition: all var(--transition-fast);
+        }
+        
+        .timeline-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .timeline-item::before {
+            content: '🏆';
+            position: absolute;
+            left: -42px;
+            top: var(--spacing-md);
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border: 3px solid white;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .timeline-date {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .timeline-exercise {
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .timeline-stats {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        
+        .timeline-stat {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .timeline-video {
+            position: relative;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: var(--spacing-sm);
+            cursor: pointer;
+        }
+        
+        .timeline-video img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .timeline-video-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+        
+        .timeline-video:hover .timeline-video-overlay {
+            opacity: 1;
+        }
+        
+        .timeline-video-play {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.9);
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+        }
+        
+        .timeline-note {
+            background: var(--background-color);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.875rem;
+        }
+        
+        .timeline-coach-comment {
+            background: #fef3c7;
+            border-left: 3px solid #f59e0b;
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+        }
+        
+        .timeline-coach-comment-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        /* Training History */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .history-item:hover {
+            background: #e0e7ff;
+        }
+        
+        .history-date {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .history-summary {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Coach Notes */
+        .coach-notes-content {
+            background: var(--background-color);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+        
+        .info-item {
+            padding: var(--spacing-md);
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+        }
+        
+        .info-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .info-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="main-content">
+            <header class="top-header" id="header"></header>
+            <div class="page-content">
+                
+                <!-- Profile Header -->
+                <div class="profile-section">
+                    <div class="profile-header">
+                        <div class="profile-avatar-large">李</div>
+                        <h1 class="text-2xl font-bold mb-xs">李明</h1>
+                        <p class="text-secondary mb-sm">学员</p>
+                        
+                        <!-- Profile Meta Info -->
+                        <div class="profile-meta">
+                            <div class="profile-meta-item">
+                                <i data-lucide="Users"></i>
+                                <span>已订阅 2 位教练</span>
+                            </div>
+                            <div class="subscription-tag">
+                                <i data-lucide="Crown"></i>
+                                高级版
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personal Info - FIRST SECTION AFTER HEADER -->
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        <i data-lucide="User"></i>
+                        个人信息
+                    </h2>
+                    
+                    <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">姓名</div>
+                            <div class="info-value">李明</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">年龄</div>
+                            <div class="info-value">28岁</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">性别</div>
+                            <div class="info-value">男</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">地理位置</div>
+                            <div class="info-value">上海</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">职业</div>
+                            <div class="info-value">软件工程师</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">加入时长</div>
+                            <div class="info-value">120天</div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">深蹲 1RM</div>
+                            <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">卧推 1RM</div>
+                            <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">硬拉 1RM</div>
+                            <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">总和</div>
+                            <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">身体数据</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">身高</div>
+                            <div class="info-value">175 cm</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">当前体重</div>
+                            <div class="info-value">75 kg</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">体脂率</div>
+                            <div class="info-value">15%</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">腕围</div>
+                            <div class="info-value">17 cm</div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">训练背景</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">系统训练时长</div>
+                            <div class="info-value">2年</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">训练频率</div>
+                            <div class="info-value">每周4-5次</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">主要目标</div>
+                            <div class="info-value">增肌 + 力量</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">恢复能力</div>
+                            <div class="info-value">良好</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-md">
+                        <button class="btn btn-secondary">
+                            <i data-lucide="Edit" class="mr-2"></i>
+                            编辑资料
+                        </button>
+                    </div>
+                </div>
+
+                <!-- My Progress Section -->
+
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        <i data-lucide="TrendingUp"></i>
+                        我的进步
+                    </h2>
+                    
+                    <!-- Chart Switcher -->
+                    <div class="chart-switcher">
+                        <button class="chart-tab active" onclick="switchChart('weight')">体重变化</button>
+                        <button class="chart-tab" onclick="switchChart('bench')">卧推1RM</button>
+                        <button class="chart-tab" onclick="switchChart('squat')">深蹲1RM</button>
+                    </div>
+                    
+                    <!-- Chart Container -->
+                    <div class="chart-container">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Progress Timeline -->
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        <i data-lucide="Award"></i>
+                        进步时间线
+                    </h2>
+                    <p class="text-secondary mb-md">记录每一个值得骄傲的突破时刻</p>
+                    
+                    <div class="timeline">
+                        <!-- Timeline Item 1 -->
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <div class="timeline-exercise">卧推</div>
+                                    <div class="timeline-date">2024年11月15日</div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-stats">
+                                <div class="timeline-stat">
+                                    <i data-lucide="Weight"></i>
+                                    <span>100 kg × 8 次</span>
+                                </div>
+                                <div class="timeline-stat">
+                                    <i data-lucide="Zap"></i>
+                                    <span>RPE 9</span>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-video" onclick="playVideo('video1')">
+                                <img src="https://placehold.co/600x400/6366f1/white?text=Training+Video" alt="Training Video">
+                                <div class="timeline-video-overlay">
+                                    <div class="timeline-video-play">
+                                        <i data-lucide="Play"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-note">
+                                <strong>我的感受:</strong> 第一次卧推突破100kg！感觉太棒了！💪
+                            </div>
+                            
+                            <div class="timeline-coach-comment">
+                                <div class="timeline-coach-comment-header">
+                                    <i data-lucide="MessageSquare"></i>
+                                    教练点评
+                                </div>
+                                <div>做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。</div>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Item 2 -->
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <div class="timeline-exercise">深蹲</div>
+                                    <div class="timeline-date">2024年11月10日</div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-stats">
+                                <div class="timeline-stat">
+                                    <i data-lucide="Weight"></i>
+                                    <span>120 kg × 5 次</span>
+                                </div>
+                                <div class="timeline-stat">
+                                    <i data-lucide="Zap"></i>
+                                    <span>RPE 8.5</span>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-video" onclick="playVideo('video2')">
+                                <img src="https://placehold.co/600x400/ec4899/white?text=Squat+Training" alt="Squat Video">
+                                <div class="timeline-video-overlay">
+                                    <div class="timeline-video-play">
+                                        <i data-lucide="Play"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-note">
+                                <strong>我的感受:</strong> 深蹲蹲得很深，膝盖稳定性提升明显！
+                            </div>
+                            
+                            <div class="timeline-coach-comment">
+                                <div class="timeline-coach-comment-header">
+                                    <i data-lucide="MessageSquare"></i>
+                                    教练点评
+                                </div>
+                                <div>深度控制得很好！注意保持核心收紧，髋部启动。</div>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Item 3 -->
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <div class="timeline-exercise">硬拉</div>
+                                    <div class="timeline-date">2024年11月5日</div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-stats">
+                                <div class="timeline-stat">
+                                    <i data-lucide="Weight"></i>
+                                    <span>140 kg × 3 次</span>
+                                </div>
+                                <div class="timeline-stat">
+                                    <i data-lucide="Zap"></i>
+                                    <span>RPE 9</span>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-video" onclick="playVideo('video3')">
+                                <img src="https://placehold.co/600x400/10b981/white?text=Deadlift" alt="Deadlift Video">
+                                <div class="timeline-video-overlay">
+                                    <div class="timeline-video-play">
+                                        <i data-lucide="Play"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-note">
+                                <strong>我的感受:</strong> 首次硬拉140kg，背部感觉很稳！
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Coaches Section - RESTORED with multiple coaches -->
+
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        <i data-lucide="Users"></i>
+                        我的教练
+                    </h2>
+                    
+                    <div class="coach-list-item">
+                        <div class="coach-info-row">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" alt="张健" class="coach-avatar-medium">
+                            <div>
+                                <div class="font-semibold">张健</div>
+                                <div class="text-xs text-secondary">力量举 · 增肌</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-sm">
+                            <div class="text-right mr-2">
+                                <div class="text-sm font-semibold text-primary">4个月</div>
+                                <div class="text-xs text-secondary">16周计划</div>
+                            </div>
+                            <span class="subscription-badge premium">高级版</span>
+                            <a href="coach-profile.html?id=1" class="btn btn-secondary btn-sm">
+                                查看主页
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="coach-list-item">
+                        <div class="coach-info-row">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=li" alt="李明" class="coach-avatar-medium">
+                            <div>
+                                <div class="font-semibold">李明</div>
+                                <div class="text-xs text-secondary">减脂 · 体能</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-sm">
+                            <div class="text-right mr-2">
+                                <div class="text-sm font-semibold text-primary">1个月</div>
+                                <div class="text-xs text-secondary">4周计划</div>
+                            </div>
+                            <span class="subscription-badge">AI版</span>
+                            <a href="coach-profile.html?id=2" class="btn btn-secondary btn-sm">
+                                查看主页
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-md">
+                        <a href="discover-coaches.html" class="btn btn-primary">
+                            <i data-lucide="Search" class="mr-2"></i>
+                            发现更多教练
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Coach's Observations -->
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        <i data-lucide="Eye"></i>
+                        教练观察与建议
+                    </h2>
+                    <p class="text-secondary text-sm mb-md">教练对你的专业观察和长期建议</p>
+                    
+                    <div class="coach-notes-content">
+                        <p><strong>动作模式评估:</strong> 卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。</p>
+                        <p class="mt-sm"><strong>训练建议:</strong> 近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。</p>
+                        <p class="mt-sm"><strong>下阶段目标:</strong> 重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/mock_data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        // Initialize Chart
+        let progressChart;
+        const chartData = {
+            weight: {
+                labels: ['10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19'],
+                data: [78, 77.5, 77, 76.5, 76, 75.5, 75.2, 75],
+                label: '体重 (kg)',
+                color: 'rgb(99, 102, 241)'
+            },
+            bench: {
+                labels: ['10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19'],
+                data: [85, 87, 89, 91, 93, 95, 98, 100],
+                label: '卧推1RM (kg)',
+                color: 'rgb(236, 72, 153)'
+            },
+            squat: {
+                labels: ['10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19'],
+                data: [100, 102, 105, 108, 110, 113, 117, 120],
+                label: '深蹲1RM (kg)',
+                color: 'rgb(16, 185, 129)'
+            }
+        };
+
+        function initChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            const data = chartData.weight;
+            
+            progressChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: data.label,
+                        data: data.data,
+                        borderColor: data.color,
+                        backgroundColor: data.color + '20',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: data.color,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' kg';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchChart(type) {
+            // Update tab states
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update chart data
+            const data = chartData[type];
+            progressChart.data.labels = data.labels;
+            progressChart.data.datasets[0].label = data.label;
+            progressChart.data.datasets[0].data = data.data;
+            progressChart.data.datasets[0].borderColor = data.color;
+            progressChart.data.datasets[0].backgroundColor = data.color + '20';
+            progressChart.data.datasets[0].pointBackgroundColor = data.color;
+            progressChart.update();
+        }
+
+        function playVideo(videoId) {
+            alert(`播放视频: ${videoId}\n(实际应用中会打开全屏视频播放器)`);
+        }
+
+        function viewTraining(date) {
+            alert(`跳转到 ${date} 的训练记录详情`);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+            lucide.createIcons();
+            initChart();
+        });
+    </script>
+</body>
+</html>
