@@ -36,8 +36,11 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // Build query
-    let query = supabase
+    // Build query - 使用显式类型避免类型推断过深
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query: any = supabase
         .from("training_plans")
         .select("*", { count: "exact" })
         .eq("coach_id", userId)
@@ -54,8 +57,6 @@ export async function POST(req: Request) {
     }
 
     // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
     query = query.range(from, to);
 
     const { data: plans, count, error } = await query;

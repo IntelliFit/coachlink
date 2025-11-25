@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 console.log('='.repeat(50));
 console.log('COACHLINK BUILD PROCESS');
@@ -13,6 +14,9 @@ if (!fs.existsSync(prodEnvPath)) {
   process.exit(1);
 }
 
+// 加载 .env.production 文件中的环境变量
+require('dotenv').config({ path: prodEnvPath });
+
 console.log('✓ Using .env.production for build process');
 console.log('✓ Environment variables status:');
 console.log('- NEXT_SUPABASE_URL:', process.env.NEXT_SUPABASE_URL ? '[SET]' : '[NOT SET]');
@@ -22,9 +26,22 @@ console.log('✓ Starting Next.js build...');
 // 设置环境变量
 process.env.NODE_ENV = 'production';
 
+// 跨平台执行命令的函数
+function crossSpawn(command, args, options = {}) {
+  const isWindows = os.platform() === 'win32';
+  
+  return spawn(
+    isWindows ? 'cmd.exe' : 'sh',
+    isWindows ? ['/c', command, ...args] : ['-c', `${command} ${args.join(' ')}`],
+    {
+      stdio: 'inherit',
+      ...options
+    }
+  );
+}
+
 // 运行Next.js构建
-const nextBuild = spawn('next', ['build'], { 
-  stdio: 'inherit',
+const nextBuild = crossSpawn('npx', ['next', 'build'], {
   env: {
     ...process.env,
     NODE_ENV: 'production'
