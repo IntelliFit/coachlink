@@ -255,7 +255,7 @@ const ActionLib = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto">
             <ConfirmDialog />
             <ActionEditDialog
                 visible={dialogVisible}
