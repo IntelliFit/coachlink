@@ -62,25 +62,25 @@ export async function POST(request: Request) {
 		// 1) 生成计划结构
 		const plan = await generatePlanByCoachRules(input);
 
-		// 2) 插入 training_plans
-		const { data: planRow, error: planErr } = await supabase
-			.from('training_plans')
-			.insert({
-				user_id: input.userId,
-				coach_id: input.coachId,
-				title: plan.meta.title,
-				description: `${plan.meta.duration_weeks}周周期化训练计划`,
-				difficulty_level: input.level,
-				duration_weeks: plan.meta.duration_weeks,
-				ai_generated: true,
-				enhanced_by_ai: false,
-				domain: input.domain,
-				assessment_data: input.assessment_data,
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			})
-			.select()
-			.single();
+	// 2) 插入 training_plans
+	const { data: planRow, error: planErr } = await supabase
+		.from('training_plans')
+		.insert({
+			user_id: input.userId,
+			coach_id: input.coachId,
+			title: plan.meta.title,
+			description: `${plan.meta.duration_weeks}周周期化训练计划`,
+			difficulty_level: input.level,
+			duration_weeks: plan.meta.duration_weeks,
+			ai_generated: true,
+			enhanced_by_ai: false,
+			domain: input.domain,
+			assessment_data: input.assessment_data as any,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		})
+		.select()
+		.single();
 
 		if (planErr || !planRow) {
 			throw new Error(planErr?.message || '创建训练计划失败');
@@ -90,18 +90,18 @@ export async function POST(request: Request) {
 		const details = [] as any[];
 		plan.weeks.forEach((week: any) => {
 			week.sessions.forEach((session: any, idx: number) => {
-				details.push({
-					training_plan_id: planRow.id,
-					week_number: week.week,
-					day_of_week: session.day,
-					session_focus: session.focus,
-					main_exercises: session.main,
-					accessory_exercises: session.accessories,
-					warmup: plan.meta.global_warmup,
-					cooldown: plan.meta.cooldown,
-					notes: (plan.meta.safety_notes || []).join('\n'),
-					order_index: idx
-				});
+			details.push({
+				training_plan_id: planRow.id,
+				week_number: week.week,
+				day_of_week: session.day,
+				session_focus: session.focus,
+				main_exercises: session.main as any,
+				accessory_exercises: session.accessories as any,
+				warmup: plan.meta.global_warmup as any,
+				cooldown: plan.meta.cooldown as any,
+				notes: (plan.meta.safety_notes || []).join('\n'),
+				order_index: idx
+			});
 			});
 		});
 

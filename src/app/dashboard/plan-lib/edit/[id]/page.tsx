@@ -12,9 +12,9 @@ import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
-import BasicInfoForm from '@/app/dashboard/plan-lib/create/components/BasicInfoForm';
-import PlanDayCard from '@/app/dashboard/plan-lib/create/components/PlanDayCard';
-import WeekCalendar from '@/app/dashboard/plan-lib/create/components/WeekCalendar';
+import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
+import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
+import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
 import { UpdateTemplateDto } from '@/app/api/plan-lib/update-template/entity';
@@ -237,7 +237,7 @@ const EditPlanPage = () => {
         }
 
         console.log(actualDayIndex, setIndex);
-        
+
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
@@ -286,6 +286,17 @@ const EditPlanPage = () => {
         setDays(newDays);
         showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
     };
+
+    const handleNoteChange = (dayIndex: number, note: string) => {
+        const newDays = [...days];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        if (actualDayIndex === -1) {
+            return;
+        }
+
+        newDays[actualDayIndex].note = note;
+        setDays(newDays);
+    }
 
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
@@ -343,10 +354,12 @@ const EditPlanPage = () => {
 
     // 计算现有的训练日用于复制功能
     const existingTrainingDays = days
-        .filter(day => day.type === 'training' && day.actionSets.length > 0)
         .map(day => ({
             dayIndex: day.dayIndex,
-            actionSetsCount: day.actionSets.length
+            actionSetsCount: day.actionSets.length,
+            type: day.type,
+            note: day.note,
+            actionSets: day.actionSets
         }));
 
     if (loading) {
@@ -436,14 +449,7 @@ const EditPlanPage = () => {
                                 actions={actions}
                                 onDayTypeChange={handleDayTypeChange}
                                 onRemoveDay={handleRemoveDay}
-                                onNoteChange={(dayIndex, note) => {
-                                    const newDays = [...days];
-                                    const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
-                                    if (actualDayIndex === -1) return;
-
-                                    newDays[actualDayIndex].note = note;
-                                    setDays(newDays);
-                                }}
+                                onNoteChange={handleNoteChange}
                                 onAddActionSet={handleAddActionSet}
                                 onRemoveActionSet={handleRemoveActionSet}
                                 onActionSetChange={handleActionSetChange}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
-import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto } from './entity';
+import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto, RulepackFormSchema } from './entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
         success: true,
         message: '获取规则包成功',
         data: {
-            form_schema: data?.form_schema || null
+            form_schema: data?.form_schema ? (data.form_schema as unknown as RulepackFormSchema) : null
         }
     });
 }

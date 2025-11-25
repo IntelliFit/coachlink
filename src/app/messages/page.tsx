@@ -7,6 +7,8 @@ import { ConversationList } from '@/components/chat/ConversationList';
 import { chatService } from '@/app/service/chatService';
 import { useToastContext } from '@/context/ToastContext';
 import type { ConversationItem } from '@/app/api/chat/get-conversations/entity';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
 
 export default function MessagesPage() {
     const { showToast } = useToastContext();
@@ -19,7 +21,7 @@ export default function MessagesPage() {
         setLoading(true);
         try {
             const data = await chatService.getConversations({ page: 1, limit: 50 });
-            
+
             if (data) {
                 setConversations(data.conversations);
                 setFilteredConversations(data.conversations);
@@ -52,7 +54,7 @@ export default function MessagesPage() {
         if (searchText.trim() === '') {
             setFilteredConversations(conversations);
         } else {
-            const filtered = conversations.filter(conv => 
+            const filtered = conversations.filter(conv =>
                 conv.coach_name.toLowerCase().includes(searchText.toLowerCase()) ||
                 conv.student_name.toLowerCase().includes(searchText.toLowerCase()) ||
                 (conv.last_message && conv.last_message.toLowerCase().includes(searchText.toLowerCase()))
@@ -74,18 +76,19 @@ export default function MessagesPage() {
 
             <Card className="shadow-md">
                 <div className="mb-4">
-                    <span className="p-input-icon-left w-full">
-                        <i className="pi pi-search" />
+
+                    <IconField iconPosition="left" className='w-full'>
+                        <InputIcon className="pi pi-search" />
                         <InputText
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                             placeholder="搜索会话..."
                             className="w-full"
                         />
-                    </span>
+                    </IconField>
                 </div>
 
-                <ConversationList 
+                <ConversationList
                     conversations={filteredConversations}
                     loading={loading}
                 />

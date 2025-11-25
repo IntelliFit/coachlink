@@ -10,9 +10,9 @@ import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
-import BasicInfoForm from './components/BasicInfoForm';
-import PlanDayCard from './components/PlanDayCard';
-import WeekCalendar from './components/WeekCalendar';
+import BasicInfoForm from '../components/BasicInfoForm';
+import PlanDayCard from '../components/PlanDayCard';
+import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 
 interface PlanDay {
@@ -312,10 +312,12 @@ const CreatePlanPage = () => {
 
     // 计算现有的训练日用于复制功能
     const existingTrainingDays = days
-        .filter(day => day.type === 'training' && day.actionSets.length > 0)
         .map(day => ({
             dayIndex: day.dayIndex,
-            actionSetsCount: day.actionSets.length
+            actionSetsCount: day.actionSets.length,
+            type: day.type,
+            note: day.note,
+            actionSets: day.actionSets
         }));
 
     return (
