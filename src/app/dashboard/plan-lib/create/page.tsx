@@ -316,7 +316,8 @@ const CreatePlanPage = () => {
             dayIndex: day.dayIndex,
             actionSetsCount: day.actionSets.length,
             type: day.type,
-            note: day.note
+            note: day.note,
+            actionSets: day.actionSets
         }));
 
     return (

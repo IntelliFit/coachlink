@@ -352,13 +352,15 @@ const EditPlanPage = () => {
         ? days.find(day => day.dayIndex === selectedDayIndex)
         : null;
 
-    // 计算现有的训练日用于复制功能（包含所有日期）
-    const existingTrainingDays = days.map(day => ({
-        dayIndex: day.dayIndex,
-        actionSetsCount: day.actionSets.length,
-        type: day.type,
-        note: day.note
-    }));
+    // 计算现有的训练日用于复制功能
+    const existingTrainingDays = days
+        .map(day => ({
+            dayIndex: day.dayIndex,
+            actionSetsCount: day.actionSets.length,
+            type: day.type,
+            note: day.note,
+            actionSets: day.actionSets
+        }));
 
     if (loading) {
         return (

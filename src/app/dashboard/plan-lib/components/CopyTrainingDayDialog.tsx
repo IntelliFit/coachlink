@@ -10,24 +10,32 @@ interface TrainingDay {
     actionSetsCount: number;
     type: 'training' | 'rest';
     note: string;
+    actionSets?: {
+        actionId: string;
+        setName: string;
+        sets: number;
+        reps: number;
+        intensity: string;
+        restSeconds: number;
+    }[];
 }
 
 interface CopyTrainingDayDialogProps {
     visible: boolean;
     onHide: () => void;
-    actions: CoachActionRow[];
     trainingDays: TrainingDay[];
     onSelectDay: (dayIndex: number) => void;
     saving: boolean;
+    actions: CoachActionRow[]; // 添加 actions 属性
 }
 
 const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     visible,
     onHide,
-    actions,
     trainingDays,
     onSelectDay,
-    saving
+    saving,
+    actions
 }) => {
     const [selectedSourceDay, setSelectedSourceDay] = useState<TrainingDay | null>(null);
 
@@ -47,6 +55,12 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
         if (selectedSourceDay) {
             onSelectDay(selectedSourceDay.dayIndex);
         }
+    };
+
+    // 根据动作ID查找动作名称
+    const getActionName = (actionId: string) => {
+        const action = actions.find(a => a.id === actionId);
+        return action ? action.name : '未知动作';
     };
 
     return (
@@ -92,8 +106,8 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                     `}
                                         style={{
                                             borderLeft: `6px solid ${isTraining
-                                                ? 'var(--primary-400)'
-                                                : 'var(--surface-400)'
+                                                    ? 'var(--primary-400)'
+                                                    : 'var(--surface-400)'
                                                 }`
                                         }}
                                     >
@@ -118,7 +132,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                     </div>
 
                     {/* 右侧：预览视图 */}
-                    <div className="md:w-1/2 p-4">
+                    <div className="md:w-1/2">
                         {selectedSourceDay ? (
                             <div className="border-1 border-surface-200 border-round-lg p-4">
                                 <h4 className="font-bold text-lg mb-4">训练日预览</h4>
@@ -132,8 +146,8 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                     <div className="flex items-center gap-2 mb-3">
                                         <span className="text-sm font-medium">类型:</span>
                                         <span className={`text-sm px-2 py-1 rounded-full ${selectedSourceDay.type === 'training'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-blue-100 text-blue-800'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-blue-100 text-blue-800'
                                             }`}>
                                             {selectedSourceDay.type === 'training' ? '训练日' : '休息日'}
                                         </span>
@@ -152,21 +166,21 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                     </div>
                                 </div>
 
-                                {selectedSourceDay.type === 'training' && selectedSourceDay.actionSetsCount > 0 ? (
+                                {selectedSourceDay.type === 'training' && selectedSourceDay.actionSetsCount > 0 && selectedSourceDay.actionSets ? (
                                     <div className="flex flex-col gap-3 max-h-60 overflow-y-auto">
-                                        {Array.from({ length: selectedSourceDay.actionSetsCount }).map((_, index) => (
+                                        {selectedSourceDay.actionSets.map((set, index) => (
                                             <div
                                                 key={index}
                                                 className="p-3 bg-surface-50 border-round-lg border-1 border-surface-200"
                                             >
                                                 <div className="flex justify-between items-center mb-2">
-                                                    <span className="font-medium text-sm">动作 {index + 1}</span>
+                                                    <span className="font-medium text-sm">{getActionName(set.actionId)}</span>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div>组数: 3</div>
-                                                    <div>次数: 10</div>
-                                                    <div>强度: --</div>
-                                                    <div>休息: 60秒</div>
+                                                    <div>组数: {set.sets}</div>
+                                                    <div>次数: {set.reps}</div>
+                                                    <div>强度: {set.intensity || '--'}</div>
+                                                    <div>休息: {set.restSeconds}秒</div>
                                                 </div>
                                             </div>
                                         ))}
