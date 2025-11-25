@@ -12,9 +12,9 @@ import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
-import BasicInfoForm from '@/app/dashboard/plan-lib/create/components/BasicInfoForm';
-import PlanDayCard from '@/app/dashboard/plan-lib/create/components/PlanDayCard';
-import WeekCalendar from '@/app/dashboard/plan-lib/create/components/WeekCalendar';
+import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
+import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
+import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
 import { UpdateTemplateDto } from '@/app/api/plan-lib/update-template/entity';
@@ -343,7 +343,10 @@ const EditPlanPage = () => {
 
     // 计算现有的训练日用于复制功能
     const existingTrainingDays = days
-        .filter(day => day.type === 'training' && day.actionSets.length > 0)
+        .filter(day => (
+            (day.type === 'training' && day.actionSets.length > 0) ||
+            (day.type === 'rest')
+        ))
         .map(day => ({
             dayIndex: day.dayIndex,
             actionSetsCount: day.actionSets.length
