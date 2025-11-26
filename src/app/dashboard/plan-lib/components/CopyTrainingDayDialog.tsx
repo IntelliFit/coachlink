@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { CoachActionRow } from '@/types';
+import { ArrowRight, Calendar, Copy } from 'lucide-react';
 
 interface TrainingDay {
     dayIndex: number;
@@ -43,23 +44,23 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
 
     // 计算周数和天数
     const getWeekAndDay = (dayIndex: number) => {
-        const week = Math.floor((dayIndex - 1) / 7) + 1;
-        const day = ((dayIndex - 1) % 7) + 1;
+        const week = Math.floor(dayIndex / 7) + 1;
+        const day = (dayIndex % 7) + 1;
         return { week, day };
     };
 
     // 按周分组训练日
     const groupDaysByWeek = () => {
         const weeks: { [key: number]: TrainingDay[] } = {};
-        
+
         trainingDays.forEach(day => {
-            const { week } = getWeekAndDay(day.dayIndex);
+            const { week } = getWeekAndDay(day.dayIndex - 1);
             if (!weeks[week]) {
                 weeks[week] = [];
             }
             weeks[week].push(day);
-        });
-        
+        });        
+
         return weeks;
     };
 
@@ -70,59 +71,95 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
         
         return (
             <>
-                {weekNumbers.map(weekNum => (
-                    <div key={weekNum} className="mb-6">
-                        {/* 周标识 */}
-                        <div className="text-left font-bold mb-2 text-sm">
-                            第 {weekNum} 周
-                        </div>
-                        
-                        {/* 该周的天数 */}
-                        <div className="grid grid-cols-7 gap-2">
-                            {weeks[weekNum].map(day => {
-                                const isTraining = day.type === 'training';
-                                const isSelected = selectedSourceDay?.dayIndex === day.dayIndex;
-                                
-                                return (
-                                    <div
-                                        key={day.dayIndex}
-                                        onClick={() => handleSelectDay(day)}
-                                        className={`
-                                            cursor-pointer border-round p-3 shadow-sm 
-                                            border-1 transition-all flex flex-col items-center justify-center gap-1
-                                            ${isSelected
-                                                    ? 'ring-2 ring-primary-500 scale-105'
-                                                    : ''}
-                                            ${saving ? 'opacity-60 cursor-not-allowed' : ''}
-                                        `}
-                                        style={{
-                                            borderLeft: `6px solid ${isTraining
-                                                    ? 'var(--primary-400)'
-                                                    : 'var(--surface-400)'
-                                                }`
-                                        }}
-                                    >
-                                        <span className="text-xs opacity-70">
-                                            第{day.dayIndex}天
-                                        </span>
+                {weekNumbers.map(weekNum => {
+                    // 获取当前周的所有天
+                    const daysInWeek = weeks[weekNum] || [];
+                    
+                    // 创建一个映射，方便通过星期几查找训练日
+                    const dayMap: { [key: number]: TrainingDay } = {};
+                    daysInWeek.forEach(day => {
+                        const { day: dayOfWeek } = getWeekAndDay(day.dayIndex - 1);
+                        dayMap[dayOfWeek] = day;
+                    });
+                    
+                    return (
+                        <div key={weekNum} className="mb-6">
+                            {/* 周标识 */}
+                            <div className="text-left font-bold mb-2 text-sm">
+                                第 {weekNum} 周
+                            </div>
+                            
+                            {/* 该周的天数 */}
+                            <div className="grid grid-cols-7 gap-2">
+                                {Array.from({ length: 7 }, (_, dayIndex) => {
+                                    const day = dayMap[dayIndex];
+                                    
+                                    if (day) {
+                                        const isTraining = day.type === 'training';
+                                        const isSelected = selectedSourceDay?.dayIndex === day.dayIndex;
+                                        // 检查是否为目标天数（需要排除的天数）
+                                        const isTargetDay = day.dayIndex === targetDayIndex + 1;                                        
                                         
-                                        <span
-                                            className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'}`}
-                                        >
-                                            {isTraining ? (
-                                                <i className="pi pi-bolt"></i>
-                                            ) : (
-                                                <i className="pi pi-moon"></i>
-                                            )}
-                                        </span>
-                                        
-                                        {/* 移除了 WXDY 显示 */}
-                                    </div>
-                                );
-                            })}
+                                        return (
+                                            <div
+                                                key={day.dayIndex}
+                                                onClick={() => {
+                                                    // 如果是目标天数或保存中状态，则不响应点击
+                                                    if (isTargetDay || saving) return;
+                                                    handleSelectDay(day);
+                                                }}
+                                                className={`
+                                                    cursor-pointer border-round p-3 shadow-sm 
+                                                    border-1 transition-all flex flex-col items-center justify-center gap-1
+                                                    ${isSelected
+                                                            ? 'ring-2 ring-primary-500 scale-105'
+                                                            : ''}
+                                                    ${isTargetDay 
+                                                            ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-700' 
+                                                            : ''}
+                                                    ${saving ? 'opacity-60 cursor-not-allowed' : ''}
+                                                `}
+                                                style={{
+                                                    borderLeft: `6px solid ${isTraining
+                                                            ? 'var(--primary-400)'
+                                                            : 'var(--surface-400)'
+                                                        }`
+                                                }}
+                                            >
+                                                <span className="text-xs opacity-70">
+                                                    第{day.dayIndex + 1}天
+                                                </span>
+                                                
+                                                <span
+                                                    className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'} ${isTargetDay ? 'opacity-60' : ''}`}
+                                                >
+                                                    {isTraining ? (
+                                                        <i className="pi pi-bolt"></i>
+                                                    ) : (
+                                                        <i className="pi pi-moon"></i>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        );
+                                    } else {
+                                        // 渲染一个空的占位符
+                                        const dayIndexNumber = (weekNum - 1) * 7 + dayIndex + 1;
+                                        return (
+                                            <div 
+                                                key={`empty-${dayIndexNumber}`} 
+                                                className="p-3 opacity-50 border-round border-1 border-transparent"
+                                            >
+                                                <span className="text-xs opacity-70">
+                                                    第{dayIndexNumber}天
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                })}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </>
         );
     };
@@ -156,10 +193,22 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
         if (selectedSourceDay) {
             const source = getWeekAndDay(selectedSourceDay.dayIndex);
             const target = getWeekAndDay(targetDayIndex);
-            return `从W${source.week}D${source.day}复制到W${target.week}D${target.day}`;
+            return (
+                <div className="flex items-center gap-2">
+                    从其他训练日复制
+                    <span className="font-bold">W{source.week}D{source.day}</span>
+                    <ArrowRight></ArrowRight>
+                    <span className="font-bold">W{target.week}D{target.day}</span>
+                </div>
+            );
         }
         const target = getWeekAndDay(targetDayIndex);
-        return `选择要复制到W${target.week}D${target.day}的训练日`;
+        return (
+            <div className="flex items-center gap-2">
+                <Calendar size={20} className="text-blue-500" />
+                <span>选择要复制到 <span className="font-bold">W{target.week}D{target.day}</span> 的训练日</span>
+            </div>
+        );
     };
 
     return (
@@ -206,8 +255,8 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                     <div className="flex items-center gap-2 mb-3">
                                         <span className="text-sm font-medium">类型:</span>
                                         <span className={`text-sm px-2 py-1 rounded-full ${selectedSourceDay.type === 'training'
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-blue-100 text-blue-800'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-blue-100 text-blue-800'
                                             }`}>
                                             {selectedSourceDay.type === 'training' ? '训练日' : '休息日'}
                                         </span>
