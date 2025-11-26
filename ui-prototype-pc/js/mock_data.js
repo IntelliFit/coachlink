@@ -50,7 +50,22 @@ const MockData = {
             roles: ['student'],  // 纯学员，可以申请成为教练
             email: 'ma.liu@example.com',
             phone: '13800000001',
-            coachProfileId: null
+            coachProfileId: null,
+            // 公共档案 - 新增
+            profile: {
+                height: 178,
+                weight: 72,
+                age: 25,
+                gender: '男',
+                injuries: [],
+                lifestyle: '朝九晚五，久坐办公',
+                activeCards: ['powerlifting'],
+                cardData: {
+                    powerlifting: { squat: 60, bench: 50, deadlift: 70 },
+                    bodybuilding: null,
+                    generalFitness: null
+                }
+            }
         },
         {
             id: 'student_wangwu',
@@ -59,7 +74,22 @@ const MockData = {
             roles: ['student'],  // 学员，已提交教练申请，等待审核
             email: 'wang.wu@example.com',
             phone: '13800000002',
-            coachProfileId: null
+            coachProfileId: null,
+            // 公共档案 - 新增
+            profile: {
+                height: 180,
+                weight: 80,
+                age: 30,
+                gender: '男',
+                injuries: ['右肩轻微撞击综合征'],
+                lifestyle: '自由职业，时间灵活',
+                activeCards: ['powerlifting', 'generalFitness'],
+                cardData: {
+                    powerlifting: { squat: 100, bench: 80, deadlift: 120 },
+                    bodybuilding: null,
+                    generalFitness: { pullups: 15, restingHR: 62 }
+                }
+            }
         },
         {
             id: 'student_liming',
@@ -68,7 +98,22 @@ const MockData = {
             roles: ['student', 'coach'],  // 双角色：学员+教练，申请已通过
             email: 'li.ming@example.com',
             phone: '13800000003',
-            coachProfileId: 'coach_liming'
+            coachProfileId: 'coach_liming',
+            // 公共档案 - 新增
+            profile: {
+                height: 175,
+                weight: 75,
+                age: 28,
+                gender: '男',
+                injuries: [],
+                lifestyle: '软件工程师，弹性工作',
+                activeCards: ['powerlifting'],
+                cardData: {
+                    powerlifting: { squat: 120, bench: 100, deadlift: 140 },
+                    bodybuilding: null,
+                    generalFitness: null
+                }
+            }
         },
         {
             id: 'coach_zhang',
@@ -77,7 +122,22 @@ const MockData = {
             roles: ['student', 'coach'],  // 双角色：学员+教练，申请已通过（学员端为空，因为没有订阅）
             email: 'coach.zhang@example.com',
             phone: '13711112222',
-            coachProfileId: 'coach_zhang'
+            coachProfileId: 'coach_zhang',
+            // 公共档案 - 新增
+            profile: {
+                height: 182,
+                weight: 88,
+                age: 35,
+                gender: '男',
+                injuries: [],
+                lifestyle: '专职教练，规律作息',
+                activeCards: ['powerlifting'],
+                cardData: {
+                    powerlifting: { squat: 200, bench: 140, deadlift: 220 },
+                    bodybuilding: null,
+                    generalFitness: null
+                }
+            }
         },
         {
             id: 'admin_001',
@@ -85,7 +145,8 @@ const MockData = {
             avatar: '🛡️',
             roles: ['admin'],
             email: 'admin@coachlink.com',
-            phone: ''
+            phone: '',
+            profile: null
         }
     ],
 
@@ -235,7 +296,7 @@ const MockData = {
 
     // 教练的学员列表 - 根据订阅关系动态生成
     // 张教练的学员：李明(premium)、马六(ai)、王五(premium)
-    // 李明教练的学员：马六(ai)、王五(ai)
+    // 李明教练的学员：王五(ai) - 马六已移除，方便演示订阅流程
     clients: {
         'coach_zhang': [
             { id: 'student_liming', name: '李明', plan: '力量进阶计划', status: 'active', lastActive: '2小时前', subscriptionMonths: 4, tier: 'premium', hasPlan: true },
@@ -243,7 +304,7 @@ const MockData = {
             { id: 'student_wangwu', name: '王五', plan: '', status: 'active', lastActive: '3小时前', subscriptionMonths: 1, tier: 'premium', hasPlan: false }
         ],
         'coach_liming': [
-            { id: 'student_maliu', name: '马六', plan: '腿部基础训练', status: 'active', lastActive: '1天前', subscriptionMonths: 1, tier: 'ai', hasPlan: true },
+            // 马六已移除，方便演示订阅流程
             { id: 'student_wangwu', name: '王五', plan: '', status: 'active', lastActive: '3小时前', subscriptionMonths: 1, tier: 'ai', hasPlan: false }
         ]
     },
@@ -419,6 +480,57 @@ const MockData = {
         }
     },
 
+    // 学员订阅时填写的问卷回答 - 新增
+    // 格式: { studentId: { coachId: { answers: [...], submittedAt: timestamp, isNew: boolean } } }
+    subscriptionAnswers: {
+        'student_maliu': {
+            'coach_zhang': {
+                answers: [
+                    { question: '你所在的健身房有什么器械限制（比如没有深蹲架、哈克机等）？', answer: '只有一个深蹲架，经常要排队。没有哈克深蹲机。' },
+                    { question: '你期望的周训练频率是多少？每次训练时长大概多久？', answer: '一周3次，每次1-1.5小时，周末可能要加班。' },
+                    { question: '除了增肌/力量提升，还有什么特殊需求（如体态改善、备赛等）？', answer: '希望改善圆肩驼背，久坐导致的体态问题。' }
+                ],
+                submittedAt: Date.now() - 86400000 * 60, // 60天前
+                isNew: false
+            }
+            // coach_liming 的订阅已取消，方便演示新订阅流程
+        },
+        'student_wangwu': {
+            'coach_zhang': {
+                answers: [
+                    { question: '你所在的健身房有什么器械限制（比如没有深蹲架、哈克机等）？', answer: '器械齐全，没有限制。' },
+                    { question: '你期望的周训练频率是多少？每次训练时长大概多久？', answer: '一周5次，每次2小时左右。' },
+                    { question: '除了增肌/力量提升，还有什么特殊需求（如体态改善、备赛等）？', answer: '准备参加力量举比赛，需要系统备赛指导。' }
+                ],
+                submittedAt: Date.now() - 86400000 * 7, // 7天前
+                isNew: false
+            },
+            'coach_liming': {
+                answers: [
+                    { question: '你目前的训练经验有多久？之前有没有系统训练过？', answer: '训练4年了，之前跟过几个教练。' },
+                    { question: '你每周有几天可以用来训练？', answer: '5天都可以。' },
+                    { question: '有没有什么伤病或身体问题需要我特别注意的？', answer: '右肩有轻微撞击综合征，推类动作要注意。' }
+                ],
+                submittedAt: Date.now() - 86400000 * 7, // 7天前
+                isNew: true // 李明教练还没看过
+            }
+        },
+        'student_liming': {
+            'coach_zhang': {
+                answers: [
+                    { question: '你所在的健身房有什么器械限制（比如没有深蹲架、哈克机等）？', answer: '家里有简易器械，主要去健身房练三大项。' },
+                    { question: '你期望的周训练频率是多少？每次训练时长大概多久？', answer: '一周4-5次，每次1.5小时。' },
+                    { question: '除了增肌/力量提升，还有什么特殊需求（如体态改善、备赛等）？', answer: '想突破卧推100kg，深蹲130kg的目标。' }
+                ],
+                submittedAt: Date.now() - 86400000 * 120, // 120天前
+                isNew: false
+            }
+        },
+        'coach_zhang': {
+            // 张教练作为学员没有订阅任何人
+        }
+    },
+
     // Coach profiles (homepage editable data)
     coachProfiles: {
         'coach_zhang': {
@@ -441,6 +553,12 @@ const MockData = {
                     content: '作为一个瘦子，增肌一直是我的难题。张教练为我定制了详细的训练+饮食方案，半年时间我从65kg增到77kg，体脂率还降了！ - 学员王强',
                     images: []
                 }
+            ],
+            // 入队问卷 - 新增
+            intakeQuestions: [
+                '你所在的健身房有什么器械限制（比如没有深蹲架、哈克机等）？',
+                '你期望的周训练频率是多少？每次训练时长大概多久？',
+                '除了增肌/力量提升，还有什么特殊需求（如体态改善、备赛等）？'
             ]
         },
         'coach_liming': {
@@ -455,6 +573,12 @@ const MockData = {
                     content: '作为新教练，我特别用心对待每一位学员。已经帮助5名学员突破了他们的力量瓶颈！',
                     images: []
                 }
+            ],
+            // 入队问卷 - 新增
+            intakeQuestions: [
+                '你目前的训练经验有多久？之前有没有系统训练过？',
+                '你每周有几天可以用来训练？',
+                '有没有什么伤病或身体问题需要我特别注意的？'
             ]
         }
     },
@@ -478,15 +602,15 @@ const MockData = {
     },
 
     // Simple subscriptions map: which student subscribed to which coach and tier
-    // 马六：订阅了张教练和李明教练
-    // 王五：订阅了张教练和李明教练
+    // 马六：只订阅了张教练（可以演示订阅李明的流程）
+    // 王五：订阅了张教练和李明教练（满订阅状态）
     // 李明：只订阅了张教练（不能订阅自己）
-    // 张教练：没有订阅任何人（学员端为空）
+    // 张教练：没有订阅任何人（可以演示订阅李明的流程）
     subscriptions: {
-        'student_maliu': { 'coach_zhang': 'ai', 'coach_liming': 'ai' },
+        'student_maliu': { 'coach_zhang': 'ai' },  // 只订阅张教练，方便演示订阅李明的流程
         'student_wangwu': { 'coach_zhang': 'premium', 'coach_liming': 'ai' },
         'student_liming': { 'coach_zhang': 'premium' },  // 李明只订阅张教练，不能订阅自己
-        'coach_zhang': {}  // 张教练没有订阅任何人
+        'coach_zhang': {}  // 张教练没有订阅任何人，可以演示订阅李明的流程
     },
 
     // Subscription settings (e.g., auto renew)
@@ -761,7 +885,8 @@ const Store = {
             'exercises', 'templates', 'users', 'session', 'coaches',
             'coachApplications', 'submissions', 'coachProfiles', 'coachPricing',
             'coachContent', 'subscriptions', 'subscriptionSettings',
-            'messages', 'chatSessions', 'videos', 'clientPlans', 'clientExecution', 'studentProfiles'
+            'messages', 'chatSessions', 'videos', 'clientPlans', 'clientExecution', 'studentProfiles',
+            'subscriptionAnswers'  // 新增
         ];
         keys.forEach(key => localStorage.removeItem(`coachlink_${key}`));
     },
@@ -785,7 +910,8 @@ const Store = {
         Store.set('clientPlans', MockData.clientPlans);
         Store.set('clientExecution', MockData.clientExecution);
         Store.set('studentProfiles', MockData.studentProfiles);
-        Store.set('clients', MockData.clients);  // 添加 clients 数据初始化
+        Store.set('clients', MockData.clients);
+        Store.set('subscriptionAnswers', MockData.subscriptionAnswers);  // 新增
         
         // 只有 session 保持不变，这样登录状态可以持久化
         if (!localStorage.getItem('coachlink_session')) {

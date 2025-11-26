@@ -420,7 +420,7 @@
                         <!-- 动态生成个人信息 -->
                     </div>
                     <div class="text-center mt-md">
-                        <button class="btn btn-secondary">
+                        <button class="btn btn-secondary" onclick="openEditProfileModal()">
                             <i data-lucide="Edit" class="mr-2"></i>
                             编辑资料
                         </button>
@@ -736,7 +736,7 @@
                             <div class="text-xs text-secondary">${coach.weeks}周计划</div>
                         </div>
                         <span class="subscription-badge ${coach.tier === 'premium' ? 'premium' : ''}">${coach.tierLabel}</span>
-                        <a href="coach-profile.html?id=${coach.id}" class="btn btn-secondary btn-sm">
+                        <a href="coach-profile.html?id=${coach.id}" class="btn btn-secondary btn-sm" onclick="return openCoachProfile('${coach.id}');">
                             查看主页
                         </a>
                     </div>
@@ -744,27 +744,37 @@
             `).join('');
         }
         
-        // 渲染个人信息
+        // 渲染个人信息 - 从 user.profile 读取数据
+        function openCoachProfile(coachId) {
+            try {
+                sessionStorage.setItem('coachlink:lastCoachId', coachId);
+            } catch (err) {
+                console.warn('无法保存教练ID到 sessionStorage：', err);
+            }
+            window.location.href = `coach-profile.html?id=${coachId}`;
+            return false;
+        }
+        
         function renderPersonalInfo() {
             const container = document.getElementById('personal-info-container');
             const currentUser = UserService.getCurrentUser();
-            const subscribedCoaches = getSubscribedCoaches();
+            const profile = currentUser.profile;
             
-            // 如果没有订阅任何教练，显示简化版个人信息
-            if (subscribedCoaches.length === 0) {
+            // 如果没有档案数据，显示提示
+            if (!profile) {
                 container.innerHTML = `
                     <div class="text-center py-lg text-secondary">
                         <i data-lucide="FileText" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
-                        <p>订阅教练后，这里将显示您的详细训练档案</p>
-                        <p class="text-sm mt-sm">教练会根据您的情况制定个性化训练计划</p>
+                        <p>您还没有填写个人档案</p>
+                        <p class="text-sm mt-sm">点击下方"编辑资料"按钮完善您的档案</p>
                     </div>
                 `;
                 lucide.createIcons();
                 return;
             }
             
-            // 有订阅教练，显示完整个人信息
-            container.innerHTML = `
+            // 生成基础信息HTML
+            const baseInfoHtml = `
                 <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
                 <div class="info-grid">
                     <div class="info-item">
@@ -773,86 +783,142 @@
                     </div>
                     <div class="info-item">
                         <div class="info-label">年龄</div>
-                        <div class="info-value">28岁</div>
+                        <div class="info-value">${profile.age ? profile.age + '岁' : '未填写'}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">性别</div>
-                        <div class="info-value">男</div>
+                        <div class="info-value">${profile.gender || '未填写'}</div>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">地理位置</div>
-                        <div class="info-value">上海</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">职业</div>
-                        <div class="info-value">软件工程师</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">加入时长</div>
-                        <div class="info-value">120天</div>
-                    </div>
-                </div>
-                
-                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">深蹲 1RM</div>
-                        <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">卧推 1RM</div>
-                        <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">硬拉 1RM</div>
-                        <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">总和</div>
-                        <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
-                    </div>
-                </div>
-                
-                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">身体数据</h3>
-                <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">身高</div>
-                        <div class="info-value">175 cm</div>
+                        <div class="info-value">${profile.height ? profile.height + ' cm' : '未填写'}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">当前体重</div>
-                        <div class="info-value">75 kg</div>
+                        <div class="info-label">体重</div>
+                        <div class="info-value">${profile.weight ? profile.weight + ' kg' : '未填写'}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">体脂率</div>
-                        <div class="info-value">15%</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">腕围</div>
-                        <div class="info-value">17 cm</div>
-                    </div>
-                </div>
-                
-                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">训练背景</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">系统训练时长</div>
-                        <div class="info-value">2年</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">训练频率</div>
-                        <div class="info-value">每周4-5次</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">主要目标</div>
-                        <div class="info-value">增肌 + 力量</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">恢复能力</div>
-                        <div class="info-value">良好</div>
+                        <div class="info-label">生活作息</div>
+                        <div class="info-value" style="font-size: 0.875rem;">${profile.lifestyle || '未填写'}</div>
                     </div>
                 </div>
             `;
+            
+            // 生成伤病史HTML
+            const injuriesHtml = profile.injuries && profile.injuries.length > 0 ? `
+                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">伤病史</h3>
+                <div class="flex flex-wrap gap-sm">
+                    ${profile.injuries.map(injury => `
+                        <span style="padding: 0.375rem 0.75rem; background: #fef2f2; color: #dc2626; border-radius: var(--radius-full); font-size: 0.875rem; border: 1px solid #fecaca;">
+                            ⚠️ ${injury}
+                        </span>
+                    `).join('')}
+                </div>
+            ` : '';
+            
+            // 生成运动卡片HTML
+            const cardsHtml = renderSportCards(profile);
+            
+            container.innerHTML = baseInfoHtml + injuriesHtml + cardsHtml;
+            lucide.createIcons();
+        }
+        
+        // 渲染运动卡片
+        function renderSportCards(profile) {
+            if (!profile.activeCards || profile.activeCards.length === 0) {
+                return `
+                    <div class="mt-lg p-md text-center text-secondary" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <i data-lucide="Dumbbell" size="32" style="opacity: 0.4; margin-bottom: 0.5rem;"></i>
+                        <p>您还没有添加运动数据卡片</p>
+                        <p class="text-xs mt-xs">点击"编辑资料"添加您的运动数据</p>
+                    </div>
+                `;
+            }
+            
+            let cardsHtml = '<h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">运动数据卡片</h3>';
+            
+            profile.activeCards.forEach(cardType => {
+                const cardData = profile.cardData?.[cardType];
+                if (!cardData) return;
+                
+                if (cardType === 'powerlifting') {
+                    const total = (cardData.squat || 0) + (cardData.bench || 0) + (cardData.deadlift || 0);
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: var(--radius-lg); border: 1px solid #86efac;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">🏋️</span>
+                                <span class="font-bold text-lg" style="color: #166534;">力量举</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">深蹲 1RM</div>
+                                    <div class="info-value" style="color: rgb(16, 185, 129);">${cardData.squat || 0} kg</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">卧推 1RM</div>
+                                    <div class="info-value" style="color: rgb(236, 72, 153);">${cardData.bench || 0} kg</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">硬拉 1RM</div>
+                                    <div class="info-value" style="color: rgb(249, 115, 22);">${cardData.deadlift || 0} kg</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">总和</div>
+                                    <div class="info-value" style="color: rgb(99, 102, 241);">${total} kg</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (cardType === 'bodybuilding') {
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%); border-radius: var(--radius-lg); border: 1px solid #e879f9;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">💪</span>
+                                <span class="font-bold text-lg" style="color: #86198f;">健美/形体</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">胸围</div>
+                                    <div class="info-value">${cardData.chest ? cardData.chest + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">臂围</div>
+                                    <div class="info-value">${cardData.arm ? cardData.arm + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">腰围</div>
+                                    <div class="info-value">${cardData.waist ? cardData.waist + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">体脂率</div>
+                                    <div class="info-value">${cardData.bodyFat ? cardData.bodyFat + '%' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (cardType === 'generalFitness') {
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: var(--radius-lg); border: 1px solid #93c5fd;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">🏃</span>
+                                <span class="font-bold text-lg" style="color: #1e40af;">一般体能</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">引体向上</div>
+                                    <div class="info-value">${cardData.pullups ? cardData.pullups + ' 个' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">静态心率</div>
+                                    <div class="info-value">${cardData.restingHR ? cardData.restingHR + ' bpm' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            return cardsHtml;
         }
         
         // 渲染进步图表
@@ -1032,6 +1098,238 @@
             `;
         }
         
+        // ========== 编辑档案模态框 ==========
+        function openEditProfileModal() {
+            const currentUser = UserService.getCurrentUser();
+            const profile = currentUser.profile || {};
+            const cardData = profile.cardData || {};
+            const activeCards = profile.activeCards || [];
+            
+            const modalHtml = `
+                <div id="edit-profile-modal" class="modal-overlay active" style="display: flex; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; opacity: 1; pointer-events: auto;">
+                    <div class="modal-content" style="background: white; width: 95%; max-width: 700px; border-radius: 12px; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;">
+                        <div class="flex justify-between items-center p-md" style="border-bottom: 1px solid var(--border-color); background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);">
+                            <h3 class="font-bold text-lg">编辑个人档案</h3>
+                            <button class="btn btn-icon" onclick="closeEditProfileModal()">
+                                <i data-lucide="X" size="20"></i>
+                            </button>
+                        </div>
+                        
+                        <div style="padding: var(--spacing-lg); overflow-y: auto; flex: 1;">
+                            <!-- 基本信息 -->
+                            <h4 class="font-semibold mb-md" style="color: var(--text-secondary);">基本信息</h4>
+                            <div class="grid gap-md mb-lg" style="grid-template-columns: repeat(3, 1fr);">
+                                <div>
+                                    <label class="block text-sm font-medium mb-xs">年龄</label>
+                                    <input type="number" id="edit-age" class="input-field w-full" value="${profile.age || ''}" placeholder="岁">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-xs">性别</label>
+                                    <select id="edit-gender" class="input-field w-full">
+                                        <option value="男" ${profile.gender === '男' ? 'selected' : ''}>男</option>
+                                        <option value="女" ${profile.gender === '女' ? 'selected' : ''}>女</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-xs">身高 (cm)</label>
+                                    <input type="number" id="edit-height" class="input-field w-full" value="${profile.height || ''}" placeholder="cm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-xs">体重 (kg)</label>
+                                    <input type="number" id="edit-weight" class="input-field w-full" value="${profile.weight || ''}" placeholder="kg">
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label class="block text-sm font-medium mb-xs">生活作息</label>
+                                    <input type="text" id="edit-lifestyle" class="input-field w-full" value="${profile.lifestyle || ''}" placeholder="如：朝九晚五，久坐办公">
+                                </div>
+                            </div>
+                            
+                            <!-- 伤病史 -->
+                            <h4 class="font-semibold mb-md" style="color: var(--text-secondary);">伤病史</h4>
+                            <div class="mb-lg">
+                                <input type="text" id="edit-injuries" class="input-field w-full" value="${(profile.injuries || []).join('、')}" placeholder="如：左膝ACL损伤、右肩撞击综合征（多个伤病用顿号分隔）">
+                                <p class="text-xs text-secondary mt-xs">⚠️ 请如实填写，这对教练制定安全计划非常重要</p>
+                            </div>
+                            
+                            <!-- 运动卡片选择器 -->
+                            <h4 class="font-semibold mb-md" style="color: var(--text-secondary);">运动数据卡片</h4>
+                            <p class="text-sm text-secondary mb-md">选择您想展示的运动类型，选中后可填写对应数据</p>
+                            
+                            <div class="flex flex-wrap gap-md mb-md">
+                                <label class="flex items-center gap-sm cursor-pointer p-sm rounded" style="border: 2px solid ${activeCards.includes('powerlifting') ? 'var(--primary-color)' : 'var(--border-color)'}; background: ${activeCards.includes('powerlifting') ? '#e0e7ff' : 'white'};">
+                                    <input type="checkbox" id="card-powerlifting" ${activeCards.includes('powerlifting') ? 'checked' : ''} onchange="toggleCardSection('powerlifting', this.checked)">
+                                    <span>🏋️ 力量举</span>
+                                </label>
+                                <label class="flex items-center gap-sm cursor-pointer p-sm rounded" style="border: 2px solid ${activeCards.includes('bodybuilding') ? 'var(--primary-color)' : 'var(--border-color)'}; background: ${activeCards.includes('bodybuilding') ? '#e0e7ff' : 'white'};">
+                                    <input type="checkbox" id="card-bodybuilding" ${activeCards.includes('bodybuilding') ? 'checked' : ''} onchange="toggleCardSection('bodybuilding', this.checked)">
+                                    <span>💪 健美/形体</span>
+                                </label>
+                                <label class="flex items-center gap-sm cursor-pointer p-sm rounded" style="border: 2px solid ${activeCards.includes('generalFitness') ? 'var(--primary-color)' : 'var(--border-color)'}; background: ${activeCards.includes('generalFitness') ? '#e0e7ff' : 'white'};">
+                                    <input type="checkbox" id="card-generalFitness" ${activeCards.includes('generalFitness') ? 'checked' : ''} onchange="toggleCardSection('generalFitness', this.checked)">
+                                    <span>🏃 一般体能</span>
+                                </label>
+                            </div>
+                            
+                            <!-- 力量举卡片数据 -->
+                            <div id="section-powerlifting" class="mb-md p-md rounded" style="background: #f0fdf4; display: ${activeCards.includes('powerlifting') ? 'block' : 'none'};">
+                                <h5 class="font-semibold mb-sm" style="color: #166534;">🏋️ 力量举数据</h5>
+                                <div class="grid gap-md" style="grid-template-columns: repeat(3, 1fr);">
+                                    <div>
+                                        <label class="block text-sm mb-xs">深蹲 1RM (kg)</label>
+                                        <input type="number" id="pl-squat" class="input-field w-full" value="${cardData.powerlifting?.squat || ''}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-xs">卧推 1RM (kg)</label>
+                                        <input type="number" id="pl-bench" class="input-field w-full" value="${cardData.powerlifting?.bench || ''}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-xs">硬拉 1RM (kg)</label>
+                                        <input type="number" id="pl-deadlift" class="input-field w-full" value="${cardData.powerlifting?.deadlift || ''}">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 健美卡片数据 -->
+                            <div id="section-bodybuilding" class="mb-md p-md rounded" style="background: #fdf4ff; display: ${activeCards.includes('bodybuilding') ? 'block' : 'none'};">
+                                <h5 class="font-semibold mb-sm" style="color: #86198f;">💪 健美/形体数据</h5>
+                                <div class="grid gap-md" style="grid-template-columns: repeat(4, 1fr);">
+                                    <div>
+                                        <label class="block text-sm mb-xs">胸围 (cm)</label>
+                                        <input type="number" id="bb-chest" class="input-field w-full" value="${cardData.bodybuilding?.chest || ''}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-xs">臂围 (cm)</label>
+                                        <input type="number" id="bb-arm" class="input-field w-full" value="${cardData.bodybuilding?.arm || ''}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-xs">腰围 (cm)</label>
+                                        <input type="number" id="bb-waist" class="input-field w-full" value="${cardData.bodybuilding?.waist || ''}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-xs">体脂率 (%)</label>
+                                        <input type="number" id="bb-bodyfat" class="input-field w-full" value="${cardData.bodybuilding?.bodyFat || ''}">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 一般体能卡片数据 -->
+                            <div id="section-generalFitness" class="mb-md p-md rounded" style="background: #eff6ff; display: ${activeCards.includes('generalFitness') ? 'block' : 'none'};">
+                                <h5 class="font-semibold mb-sm" style="color: #1e40af;">🏃 一般体能数据</h5>
+                                <div class="grid gap-md" style="grid-template-columns: repeat(2, 1fr);">
+                                    <div>
+                                        <label class="block text-sm mb-xs">引体向上 (个)</label>
+                                        <input type="number" id="gf-pullups" class="input-field w-full" value="${cardData.generalFitness?.pullups || ''}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-xs">静态心率 (bpm)</label>
+                                        <input type="number" id="gf-hr" class="input-field w-full" value="${cardData.generalFitness?.restingHR || ''}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end gap-md p-md" style="border-top: 1px solid var(--border-color); background: #f8fafc;">
+                            <button class="btn btn-secondary" onclick="closeEditProfileModal()">取消</button>
+                            <button class="btn btn-primary" onclick="saveProfile()">
+                                <i data-lucide="Save" size="16" class="mr-1"></i>
+                                保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            lucide.createIcons();
+        }
+        
+        function closeEditProfileModal() {
+            const modal = document.getElementById('edit-profile-modal');
+            if (modal) modal.remove();
+        }
+        
+        function toggleCardSection(cardType, checked) {
+            const section = document.getElementById(`section-${cardType}`);
+            if (section) {
+                section.style.display = checked ? 'block' : 'none';
+            }
+        }
+        
+        function saveProfile() {
+            const currentUser = UserService.getCurrentUser();
+            
+            // 收集基本信息
+            const age = parseInt(document.getElementById('edit-age').value) || null;
+            const gender = document.getElementById('edit-gender').value;
+            const height = parseInt(document.getElementById('edit-height').value) || null;
+            const weight = parseInt(document.getElementById('edit-weight').value) || null;
+            const lifestyle = document.getElementById('edit-lifestyle').value.trim();
+            
+            // 收集伤病史
+            const injuriesText = document.getElementById('edit-injuries').value.trim();
+            const injuries = injuriesText ? injuriesText.split(/[、,，]/).map(s => s.trim()).filter(Boolean) : [];
+            
+            // 收集激活的卡片
+            const activeCards = [];
+            const cardData = {};
+            
+            if (document.getElementById('card-powerlifting').checked) {
+                activeCards.push('powerlifting');
+                cardData.powerlifting = {
+                    squat: parseInt(document.getElementById('pl-squat').value) || 0,
+                    bench: parseInt(document.getElementById('pl-bench').value) || 0,
+                    deadlift: parseInt(document.getElementById('pl-deadlift').value) || 0
+                };
+            }
+            
+            if (document.getElementById('card-bodybuilding').checked) {
+                activeCards.push('bodybuilding');
+                cardData.bodybuilding = {
+                    chest: parseInt(document.getElementById('bb-chest').value) || null,
+                    arm: parseInt(document.getElementById('bb-arm').value) || null,
+                    waist: parseInt(document.getElementById('bb-waist').value) || null,
+                    bodyFat: parseInt(document.getElementById('bb-bodyfat').value) || null
+                };
+            }
+            
+            if (document.getElementById('card-generalFitness').checked) {
+                activeCards.push('generalFitness');
+                cardData.generalFitness = {
+                    pullups: parseInt(document.getElementById('gf-pullups').value) || null,
+                    restingHR: parseInt(document.getElementById('gf-hr').value) || null
+                };
+            }
+            
+            // 构建 profile 对象
+            const newProfile = {
+                height,
+                weight,
+                age,
+                gender,
+                injuries,
+                lifestyle,
+                activeCards,
+                cardData
+            };
+            
+            // 更新用户数据
+            const users = Store.get('users') || [];
+            const userIndex = users.findIndex(u => u.id === currentUser.id);
+            if (userIndex !== -1) {
+                users[userIndex].profile = newProfile;
+                Store.set('users', users);
+            }
+            
+            closeEditProfileModal();
+            
+            // 重新渲染页面
+            renderPersonalInfo();
+            updateProfileHeader();
+            lucide.createIcons();
+            
+            alert('✅ 档案已保存！');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
             const subscribedCoaches = getSubscribedCoaches();
@@ -1059,3 +1357,4 @@
     </script>
 </body>
 </html>
+

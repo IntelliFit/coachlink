@@ -337,6 +337,12 @@
             font-size: 1rem;
             font-weight: 600;
         }
+        
+        /* 新需求徽章脉冲动画 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
     </style>
 </head>
 <body>
@@ -389,8 +395,8 @@
             <!-- Profile Header -->
             <div class="profile-section">
                 <div class="profile-header">
-                    <div class="profile-avatar-large">李</div>
-                    <h1 class="text-2xl font-bold mb-xs">李明</h1>
+                    <div class="profile-avatar-large" id="drawer-avatar">李</div>
+                    <h1 class="text-2xl font-bold mb-xs" id="drawer-name">李明</h1>
                     <p class="text-secondary mb-sm">学员</p>
                     
                     <div class="profile-meta">
@@ -402,67 +408,34 @@
                             <i data-lucide="Clock"></i>
                             <span id="profile-subscription">订阅时长: 4个月 (16周)</span>
                         </div>
-                        <div class="subscription-tag">
+                        <div class="subscription-tag" id="drawer-tier-badge">
                             <i data-lucide="Crown"></i>
                             高级版
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- 本期需求 - 新增 -->
+            <div class="profile-section" id="service-request-section" style="display: none; background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%); border: 2px solid #3b82f6;">
+                <h2 class="section-title" style="color: #1e40af;">
+                    <i data-lucide="ClipboardList"></i>
+                    📋 本期需求
+                </h2>
+                <p class="text-xs text-secondary mb-md">学员订阅时填写的需求问卷</p>
+                <div id="service-request-content">
+                    <!-- 动态渲染问答 -->
+                </div>
+            </div>
 
-            <!-- Personal Info -->
+            <!-- Personal Info - 动态渲染 -->
             <div class="profile-section">
                 <h2 class="section-title">
                     <i data-lucide="User"></i>
-                    个人信息
+                    公共档案
                 </h2>
-                
-                <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">姓名</div>
-                        <div class="info-value">李明</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">年龄</div>
-                        <div class="info-value">28岁</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">性别</div>
-                        <div class="info-value">男</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">地理位置</div>
-                        <div class="info-value">上海</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">职业</div>
-                        <div class="info-value">软件工程师</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">加入时长</div>
-                        <div class="info-value">120天</div>
-                    </div>
-                </div>
-                
-                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">深蹲 1RM</div>
-                        <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">卧推 1RM</div>
-                        <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">硬拉 1RM</div>
-                        <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">总和</div>
-                        <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
-                    </div>
+                <div id="profile-info-container">
+                    <!-- 由 renderProfileSection() 动态生成 -->
                 </div>
             </div>
 
@@ -486,101 +459,18 @@
                 </div>
             </div>
 
-            <!-- Progress Timeline -->
+            <!-- Progress Timeline - 动态渲染 -->
             <div class="profile-section">
                 <h2 class="section-title">
                     <i data-lucide="Award"></i>
                     进步时间线
                 </h2>
-                
-                <div class="timeline">
-                    <!-- Timeline Item 1 -->
-                    <div class="timeline-item">
-                        <div class="timeline-header">
-                            <div>
-                                <div class="timeline-exercise">卧推</div>
-                                <div class="timeline-date">2024年11月15日</div>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-stats">
-                            <div class="timeline-stat">
-                                <i data-lucide="Weight"></i>
-                                <span>100 kg × 8 次</span>
-                            </div>
-                            <div class="timeline-stat">
-                                <i data-lucide="Zap"></i>
-                                <span>RPE 9</span>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-video" onclick="playVideo('video1')">
-                            <img src="https://placehold.co/600x400/6366f1/white?text=Training+Video" alt="Training Video">
-                            <div class="timeline-video-overlay">
-                                <div class="timeline-video-play">
-                                    <i data-lucide="Play"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-note">
-                            <strong>我的感受:</strong> 第一次卧推突破100kg！感觉太棒了！💪
-                        </div>
-                        
-                        <div class="timeline-coach-comment">
-                            <div class="timeline-coach-comment-header">
-                                <i data-lucide="MessageSquare"></i>
-                                我的点评
-                            </div>
-                            <div>做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。</div>
-                        </div>
-                    </div>
-
-                    <!-- Timeline Item 2 -->
-                    <div class="timeline-item">
-                        <div class="timeline-header">
-                            <div>
-                                <div class="timeline-exercise">深蹲</div>
-                                <div class="timeline-date">2024年11月10日</div>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-stats">
-                            <div class="timeline-stat">
-                                <i data-lucide="Weight"></i>
-                                <span>120 kg × 5 次</span>
-                            </div>
-                            <div class="timeline-stat">
-                                <i data-lucide="Zap"></i>
-                                <span>RPE 8.5</span>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-video" onclick="playVideo('video2')">
-                            <img src="https://placehold.co/600x400/ec4899/white?text=Squat+Training" alt="Squat Video">
-                            <div class="timeline-video-overlay">
-                                <div class="timeline-video-play">
-                                    <i data-lucide="Play"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-note">
-                            <strong>我的感受:</strong> 深蹲蹲得很深，膝盖稳定性提升明显！
-                        </div>
-                        
-                        <div class="timeline-coach-comment">
-                            <div class="timeline-coach-comment-header">
-                                <i data-lucide="MessageSquare"></i>
-                                我的点评
-                            </div>
-                            <div>深度控制得很好！注意保持核心收紧，髋部启动。</div>
-                        </div>
-                    </div>
+                <div id="profile-timeline-container">
+                    <!-- 由 renderProfileTimeline() 动态生成 -->
                 </div>
             </div>
 
-            <!-- Coach's Observations -->
+            <!-- Coach's Observations - 动态渲染 -->
             <div class="profile-section">
                 <div class="flex justify-between items-center mb-md">
                     <h2 class="section-title mb-0">
@@ -593,11 +483,8 @@
                     </button>
                 </div>
                 <p class="text-secondary text-sm mb-md">记录对学员的专业观察和长期建议</p>
-                
-                <div class="coach-notes-content">
-                    <p><strong>动作模式评估:</strong> 卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。</p>
-                    <p class="mt-sm"><strong>训练建议:</strong> 近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。</p>
-                    <p class="mt-sm"><strong>下阶段目标:</strong> 重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。</p>
+                <div id="profile-coach-notes-container">
+                    <!-- 由 renderCoachNotes() 动态生成 -->
                 </div>
             </div>
         </div>
@@ -637,7 +524,10 @@
                 lucide.createIcons();
                 return;
             }
-
+            
+            // 获取订阅问卷数据，检查是否有新需求
+            const allAnswers = Store.get('subscriptionAnswers') || {};
+            
             list.innerHTML = clients.map(client => {
                 const hasPlan = client.hasPlan;
                 const planStatusBadge = hasPlan 
@@ -646,14 +536,21 @@
                 const planName = hasPlan ? client.plan : '暂无计划';
                 
                 const actionButton = hasPlan
-                    ? `<button class="btn btn-secondary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">查看/调整</button>`
-                    : `<button class="btn btn-primary btn-sm" onclick="window.location.href='plan-editor.html?clientId=${client.id}'">制定计划</button>`;
+                    ? `<button class="btn btn-secondary btn-sm" onclick="openPlanEditor('${client.id}')">查看/调整</button>`
+                    : `<button class="btn btn-primary btn-sm" onclick="openPlanEditor('${client.id}')">制定计划</button>`;
                 
                 const chatButton = `<button class="btn btn-icon btn-sm ml-sm" title="聊天" onclick="window.location.href='chat.html?studentId=${client.id}'"><i data-lucide="MessageSquare" size="16"></i></button>`;
                 
                 const tierBadge = client.tier === 'premium' 
                     ? '<span class="badge badge-primary" style="margin-left: 0.5rem; font-size: 0.65rem;">高级版</span>' 
                     : '<span class="badge badge-secondary" style="margin-left: 0.5rem; font-size: 0.65rem;">AI版</span>';
+                
+                // 检查是否有新需求
+                const clientAnswers = allAnswers[client.id]?.[coachProfileId];
+                const hasNewRequest = clientAnswers?.isNew === true;
+                const newRequestBadge = hasNewRequest 
+                    ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.65rem; animation: pulse 2s infinite;">新需求</span>' 
+                    : '';
 
                 return `
                 <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -665,6 +562,7 @@
                             ${client.name}
                         </a>
                         ${tierBadge}
+                        ${newRequestBadge}
                     </td>
                     <td class="p-md text-secondary">${planName}</td>
                     <td class="p-md">${planStatusBadge}</td>
@@ -681,22 +579,51 @@
         }
 
         // Drawer Logic
+        function openPlanEditor(clientId) {
+            // 保存到 localStorage，plan-editor 页面会读取这个值
+            localStorage.setItem('currentViewingClientId', clientId);
+            // 直接跳转到不带参数的 URL，避免 serve 等服务器的重定向问题
+            window.location.href = 'plan-editor.html';
+        }
+
         function openProfile(clientId) {
             const drawer = document.getElementById('profile-drawer');
             const overlay = document.getElementById('drawer-overlay');
             
-            // In a real app, we would fetch client data here based on clientId
-            // For prototype, we just show the static content or update from mock
-            const client = Store.get('clients').find(c => c.id === clientId);
+            // 获取当前教练ID
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            
+            // 获取学员数据
+            const allClients = Store.get('clients') || {};
+            const coachClients = allClients[coachProfileId] || [];
+            const client = coachClients.find(c => c.id === clientId);
+            
             if (client) {
-                document.querySelector('#profile-drawer .text-2xl').textContent = client.name;
-                document.querySelector('#profile-drawer .profile-avatar-large').textContent = client.name.charAt(0);
+                document.getElementById('drawer-name').textContent = client.name;
+                document.getElementById('drawer-avatar').textContent = client.name.charAt(0);
                 
                 if (client.subscriptionMonths) {
                     const weeks = client.subscriptionMonths * 4;
                     document.getElementById('profile-subscription').textContent = `订阅时长: ${client.subscriptionMonths}个月 (${weeks}周)`;
                 }
+                
+                // 更新订阅等级标签
+                const tierBadge = document.getElementById('drawer-tier-badge');
+                if (client.tier === 'premium') {
+                    tierBadge.innerHTML = '<i data-lucide="Crown"></i> 高级版';
+                    tierBadge.style.background = 'linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%)';
+                } else {
+                    tierBadge.innerHTML = '<i data-lucide="Zap"></i> AI版';
+                    tierBadge.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                }
             }
+            
+            // 渲染本期需求
+            renderServiceRequest(clientId, coachProfileId);
+            
+            // 渲染学员档案信息
+            renderClientProfile(clientId);
             
             drawer.classList.add('open');
             overlay.classList.add('open');
@@ -705,6 +632,313 @@
             if (!progressChart) {
                 setTimeout(initChart, 300); // Wait for transition
             }
+            
+            lucide.createIcons();
+        }
+        
+        // 渲染本期需求
+        function renderServiceRequest(clientId, coachProfileId) {
+            const section = document.getElementById('service-request-section');
+            const content = document.getElementById('service-request-content');
+            
+            const allAnswers = Store.get('subscriptionAnswers') || {};
+            const clientAnswers = allAnswers[clientId]?.[coachProfileId];
+            
+            if (!clientAnswers || !clientAnswers.answers || clientAnswers.answers.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            // 渲染问答
+            content.innerHTML = clientAnswers.answers.map((qa, index) => `
+                <div style="margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-md); ${index < clientAnswers.answers.length - 1 ? 'border-bottom: 1px dashed #93c5fd;' : ''}">
+                    <div style="font-weight: 600; color: #1e40af; font-size: 0.875rem; margin-bottom: 0.25rem;">
+                        Q${index + 1}: ${qa.question}
+                    </div>
+                    <div style="color: #374151; font-size: 0.875rem; padding-left: var(--spacing-sm); background: white; padding: 0.5rem; border-radius: var(--radius-sm);">
+                        ${qa.answer}
+                    </div>
+                </div>
+            `).join('');
+            
+            section.style.display = 'block';
+            
+            // 标记为已读
+            if (clientAnswers.isNew) {
+                clientAnswers.isNew = false;
+                Store.set('subscriptionAnswers', allAnswers);
+                // 重新渲染列表以移除"新需求"徽章
+                renderClients();
+            }
+        }
+        
+        // 渲染学员档案（公共档案 + 运动卡片 + 时间线）
+        function renderClientProfile(clientId) {
+            const studentProfiles = Store.get('studentProfiles') || {};
+            const studentSnapshot = studentProfiles[clientId];
+            const user = UserService.findUserById(clientId);
+            const publicProfile = user?.profile;
+            
+            if (!studentSnapshot && !publicProfile) {
+                console.warn('未找到学员档案:', clientId);
+                return;
+            }
+            
+            const displayName = studentSnapshot?.displayName || user?.name || '未知学员';
+            const avatarText = studentSnapshot?.avatarText || displayName.charAt(0) || '?';
+            
+            document.getElementById('drawer-avatar').textContent = avatarText;
+            document.getElementById('drawer-name').textContent = displayName;
+            
+            const tierBadge = document.getElementById('drawer-tier-badge');
+            if (tierBadge) {
+                tierBadge.innerHTML = `<i data-lucide="Crown"></i> ${studentSnapshot?.subscriptionTier || '标准版'}`;
+            }
+            
+            renderPublicArchive('profile-info-container', publicProfile);
+            renderProfileTimeline(studentSnapshot);
+            renderCoachNotes(studentSnapshot);
+            
+            lucide.createIcons();
+        }
+        
+        function renderPublicArchive(containerId, publicProfile) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (!publicProfile) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="FileText" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>学员尚未完善公共档案</p>
+                        <p class="text-sm mt-sm">提醒学员在学员端填写个人档案</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const baseInfoItems = [
+                { label: '年龄', value: publicProfile.age ? publicProfile.age + '岁' : '未填写' },
+                { label: '性别', value: publicProfile.gender || '未填写' },
+                { label: '身高', value: publicProfile.height ? publicProfile.height + ' cm' : '未填写' },
+                { label: '体重', value: publicProfile.weight ? publicProfile.weight + ' kg' : '未填写' },
+                { label: '生活作息', value: publicProfile.lifestyle || '未填写' }
+            ];
+            
+            const baseInfoHtml = `
+                <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基础信息</h3>
+                <div class="info-grid">
+                    ${baseInfoItems.map(item => `
+                        <div class="info-item">
+                            <div class="info-label">${item.label}</div>
+                            <div class="info-value" style="${item.label === '生活作息' ? 'font-size:0.875rem;' : ''}">${item.value}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            const injuriesHtml = publicProfile.injuries && publicProfile.injuries.length > 0 ? `
+                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">伤病史</h3>
+                <div class="flex flex-wrap gap-sm">
+                    ${publicProfile.injuries.map(injury => `
+                        <span style="padding: 0.375rem 0.75rem; background: #fef2f2; color: #dc2626; border-radius: var(--radius-full); font-size: 0.875rem; border: 1px solid #fecaca;">
+                            ⚠️ ${injury}
+                        </span>
+                    `).join('')}
+                </div>
+            ` : '';
+            
+            const cardsHtml = renderSportCardsFromProfile(publicProfile);
+            
+            container.innerHTML = baseInfoHtml + injuriesHtml + cardsHtml;
+        }
+        
+        function renderSportCardsFromProfile(profile) {
+            if (!profile.activeCards || profile.activeCards.length === 0) {
+                return `
+                    <div class="mt-lg p-md text-center text-secondary" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <i data-lucide="Dumbbell" size="32" style="opacity: 0.4; margin-bottom: 0.5rem;"></i>
+                        <p>暂无运动数据卡片</p>
+                        <p class="text-xs mt-xs">提示学员在学员端补充运动数据</p>
+                    </div>
+                `;
+            }
+            
+            let cardsHtml = '<h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">运动数据卡片</h3>';
+            
+            profile.activeCards.forEach(cardType => {
+                const cardData = profile.cardData?.[cardType];
+                if (!cardData) return;
+                
+                if (cardType === 'powerlifting') {
+                    const total = (cardData.squat || 0) + (cardData.bench || 0) + (cardData.deadlift || 0);
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: var(--radius-lg); border: 1px solid #86efac;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">🏋️</span>
+                                <span class="font-bold text-lg" style="color: #166534;">力量举</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">深蹲 1RM</div>
+                                    <div class="info-value" style="color: rgb(16, 185, 129);">${cardData.squat ? cardData.squat + ' kg' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">卧推 1RM</div>
+                                    <div class="info-value" style="color: rgb(236, 72, 153);">${cardData.bench ? cardData.bench + ' kg' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">硬拉 1RM</div>
+                                    <div class="info-value" style="color: rgb(249, 115, 22);">${cardData.deadlift ? cardData.deadlift + ' kg' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">总和</div>
+                                    <div class="info-value" style="color: rgb(99, 102, 241);">${total ? total + ' kg' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (cardType === 'bodybuilding') {
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%); border-radius: var(--radius-lg); border: 1px solid #e879f9;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">💪</span>
+                                <span class="font-bold text-lg" style="color: #86198f;">健美/形体</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">胸围</div>
+                                    <div class="info-value">${cardData.chest ? cardData.chest + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">臂围</div>
+                                    <div class="info-value">${cardData.arm ? cardData.arm + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">腰围</div>
+                                    <div class="info-value">${cardData.waist ? cardData.waist + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">体脂率</div>
+                                    <div class="info-value">${cardData.bodyFat ? cardData.bodyFat + '%' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (cardType === 'generalFitness') {
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: var(--radius-lg); border: 1px solid #93c5fd;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">🏃</span>
+                                <span class="font-bold text-lg" style="color: #1e40af;">一般体能</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">引体向上</div>
+                                    <div class="info-value">${cardData.pullups ? cardData.pullups + ' 个' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">静态心率</div>
+                                    <div class="info-value">${cardData.restingHR ? cardData.restingHR + ' bpm' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            return cardsHtml;
+        }
+        
+        // 渲染进步时间线
+        function renderProfileTimeline(studentSnapshot) {
+            const container = document.getElementById('profile-timeline-container');
+            if (!container) return;
+            
+            if (!studentSnapshot || !studentSnapshot.timeline || studentSnapshot.timeline.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-secondary py-lg">
+                        <i data-lucide="Award" class="w-12 h-12 mx-auto mb-md opacity-30"></i>
+                        <p>暂无进步记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="timeline">
+                    ${studentSnapshot.timeline.map(item => `
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <div class="timeline-exercise">${item.exercise}</div>
+                                    <div class="timeline-date">${item.date}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-stats">
+                                ${item.stats.map((stat, idx) => `
+                                    <div class="timeline-stat">
+                                        <i data-lucide="${idx === 0 ? 'Weight' : 'Zap'}"></i>
+                                        <span>${stat}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            ${item.videoThumbnail ? `
+                                <div class="timeline-video" onclick="playVideo('${item.videoUrl || ''}')">
+                                    <img src="${item.videoThumbnail}" alt="${item.exercise} Video">
+                                    <div class="timeline-video-overlay">
+                                        <div class="timeline-video-play">
+                                            <i data-lucide="Play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${item.note ? `
+                                <div class="timeline-note">
+                                    <strong>我的感受:</strong> ${item.note}
+                                </div>
+                            ` : ''}
+                            
+                            ${item.coachComment ? `
+                                <div class="timeline-coach-comment">
+                                    <div class="timeline-coach-comment-header">
+                                        <i data-lucide="MessageSquare"></i>
+                                        我的点评
+                                    </div>
+                                    <div>${item.coachComment}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // 渲染教练观察与建议
+        function renderCoachNotes(studentSnapshot) {
+            const container = document.getElementById('profile-coach-notes-container');
+            if (!container) return;
+            
+            if (!studentSnapshot || !studentSnapshot.coachNotes || studentSnapshot.coachNotes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-secondary py-lg">
+                        <i data-lucide="Eye" class="w-12 h-12 mx-auto mb-md opacity-30"></i>
+                        <p>暂无教练观察记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="coach-notes-content">
+                    ${studentSnapshot.coachNotes.map((note, idx) => `
+                        <p${idx > 0 ? ' class="mt-sm"' : ''}><strong>${note.title || note.label}:</strong> ${note.content}</p>
+                    `).join('')}
+                </div>
+            `;
         }
 
         function closeProfile() {
