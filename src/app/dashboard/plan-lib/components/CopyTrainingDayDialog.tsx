@@ -92,7 +92,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                             {/* 该周的天数 */}
                             <div className="grid grid-cols-7 gap-2">
                                 {Array.from({ length: 7 }, (_, dayIndex) => {
-                                    const day = dayMap[dayIndex];
+                                    const day = dayMap[dayIndex + 1];                                    
                                     
                                     if (day) {
                                         const isTraining = day.type === 'training';
@@ -104,7 +104,6 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                             <div
                                                 key={day.dayIndex}
                                                 onClick={() => {
-                                                    // 如果是目标天数或保存中状态，则不响应点击
                                                     if (isTargetDay || saving) return;
                                                     handleSelectDay(day);
                                                 }}
@@ -127,7 +126,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                                 }}
                                             >
                                                 <span className="text-xs opacity-70">
-                                                    第{day.dayIndex + 1}天
+                                                    第{day.dayIndex}天
                                                 </span>
                                                 
                                                 <span
