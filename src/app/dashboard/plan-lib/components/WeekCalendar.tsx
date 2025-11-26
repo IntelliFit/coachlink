@@ -85,7 +85,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                 return (
                                     <Button
                                         key={weekIndex}
-                                        label={`复制第 ${weekNumber} 周`}
+                                        label={`第 ${weekNumber} 周`}
                                         className={`w-full text-left justify-start option-btn ${selectedOption === weekIndex ? 'selected' : ''}`}
                                         onClick={() => setSelectedOption(weekIndex)}
                                         disabled={saving}

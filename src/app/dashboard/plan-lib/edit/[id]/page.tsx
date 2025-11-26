@@ -137,7 +137,6 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
-    // 新增函数：从已有周复制添加新周
     const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
         const currentLength = days.length;
         const newDays = [...days];

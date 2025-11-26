@@ -103,6 +103,38 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
+    const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
+        const currentLength = days.length;
+        const newDays = [...days];
+        
+        // 获取源周的起始索引
+        const sourceWeekStartIndex = sourceWeekIndex * 7;
+        
+        // 获取源周的7天数据
+        const sourceWeekDays = days.slice(sourceWeekStartIndex, sourceWeekStartIndex + 7);
+        
+        // 如果源周不足7天，用默认休息日填充
+        const fullWeekDays = [...sourceWeekDays];
+        while (fullWeekDays.length < 7) {
+            fullWeekDays.push({
+                dayIndex: 0, // 临时索引，后面会重新计算
+                type: 'rest',
+                note: '',
+                actionSets: []
+            });
+        }
+        
+        // 添加到新周，更新索引
+        fullWeekDays.forEach((day, index) => {
+            newDays.push({
+                ...day,
+                dayIndex: currentLength + index + 1
+            });
+        });
+
+        setDays(newDays);
+    };
+
     const handleDeleteWeek = (weekStartIndex: number) => {
         // 确保至少保留一周
         if (days.length <= 7) {
@@ -188,7 +220,6 @@ const CreatePlanPage = () => {
         newDays[actualDayIndex].note = note;
         setDays(newDays);
     };
-
 
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
@@ -344,6 +375,7 @@ const CreatePlanPage = () => {
                             onSelectDay={setSelectedDayIndex}
                             onAddWeek={handleAddWeek}
                             onDeleteWeek={handleDeleteWeek}
+                            onAddWeekFromExisting={handleAddWeekFromExisting}
                             saving={saving}
                         />
                     </div>
