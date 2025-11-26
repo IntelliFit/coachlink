@@ -121,12 +121,27 @@ const PlanLib = () => {
                             {template.description}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <span className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full">
-                                {getTemplateTypeLabel(template.type)}
-                            </span>
+
                             <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
                                 {Math.ceil(((template.training_days || 0) + (template.rest_days || 0)) / 7)} 周训练
                             </span>
+                            {/* 显示适用人群 */}
+                            {template.suitable_for && (
+                                <div className="">
+                                    <span className="text-xs text-600">适用人群:</span>
+                                    <span className="ml-1 text-sm text-900">{template.suitable_for}</span>
+                                </div>
+                            )}
+                            {/* 显示标签 */}
+                            {template.tags && template.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {template.tags.map((tag, index) => (
+                                        <span key={index} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="flex gap-1 ml-2">

@@ -215,8 +215,7 @@ const CreatePlanPage = () => {
 
     const handleNoteChange = (dayIndex: number, note: string) => {
         const newDays = [...days];
-        // 修复索引计算逻辑，应该直接使用dayIndex查找，而不是加1
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].note = note;
@@ -369,13 +368,7 @@ const CreatePlanPage = () => {
                 onSave={handleSave}
             />
 
-            <div className="
-                p-5 
-                bg-surface-0 
-                border border-surface-200 
-                rounded-lg
-                gap-10
-            ">
+            <Card className="shadow-sm mb-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1">
@@ -435,7 +428,7 @@ const CreatePlanPage = () => {
                         loading={saving}
                     />
                 </div>
-            </div>
+            </Card>
         </div>
     );
 };

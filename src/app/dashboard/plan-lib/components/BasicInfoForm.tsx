@@ -20,9 +20,9 @@ interface BasicInfoFormProps {
 }
 
 const experienceLevels = [
-    { label: '新手学员', value: 'beginner' },
-    { label: '中级学员', value: 'intermediate' },
-    { label: '高级学员', value: 'advanced' }
+    { label: '新手学员', value: '新手学员' },
+    { label: '中级学员', value: '中级学员' },
+    { label: '高级学员', value: '高级学员' }
 ];
 
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
