@@ -356,10 +356,12 @@ const CreatePlanPage = () => {
             <BasicInfoForm
                 name={name}
                 description={description}
-                type={type}
+                tags={tags}
+                suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
-                onTypeChange={setType}
+                onTagsChange={setType}
+                onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
             />
