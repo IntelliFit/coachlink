@@ -350,6 +350,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     }}
                     saving={saving}
                     actions={actions}
+                    targetDayIndex={dayIndex}
                 />
             )}
         </div>

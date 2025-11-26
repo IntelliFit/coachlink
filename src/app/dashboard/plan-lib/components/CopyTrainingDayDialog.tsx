@@ -27,6 +27,7 @@ interface CopyTrainingDayDialogProps {
     onSelectDay: (dayIndex: number) => void;
     saving: boolean;
     actions: CoachActionRow[]; // 添加 actions 属性
+    targetDayIndex: number; // 添加目标天数属性
 }
 
 const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
@@ -35,9 +36,96 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     trainingDays,
     onSelectDay,
     saving,
-    actions
+    actions,
+    targetDayIndex
 }) => {
     const [selectedSourceDay, setSelectedSourceDay] = useState<TrainingDay | null>(null);
+
+    // 计算周数和天数
+    const getWeekAndDay = (dayIndex: number) => {
+        const week = Math.floor((dayIndex - 1) / 7) + 1;
+        const day = ((dayIndex - 1) % 7) + 1;
+        return { week, day };
+    };
+
+    // 按周分组训练日
+    const groupDaysByWeek = () => {
+        const weeks: { [key: number]: TrainingDay[] } = {};
+        
+        trainingDays.forEach(day => {
+            const { week } = getWeekAndDay(day.dayIndex);
+            if (!weeks[week]) {
+                weeks[week] = [];
+            }
+            weeks[week].push(day);
+        });
+        
+        return weeks;
+    };
+
+    // 渲染带周标识的日历视图
+    const renderCalendarWithWeeks = () => {
+        const weeks = groupDaysByWeek();
+        const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+        
+        return (
+            <>
+                {weekNumbers.map(weekNum => (
+                    <div key={weekNum} className="mb-6">
+                        {/* 周标识 */}
+                        <div className="text-left font-bold mb-2 text-sm">
+                            第 {weekNum} 周
+                        </div>
+                        
+                        {/* 该周的天数 */}
+                        <div className="grid grid-cols-7 gap-2">
+                            {weeks[weekNum].map(day => {
+                                const isTraining = day.type === 'training';
+                                const isSelected = selectedSourceDay?.dayIndex === day.dayIndex;
+                                
+                                return (
+                                    <div
+                                        key={day.dayIndex}
+                                        onClick={() => handleSelectDay(day)}
+                                        className={`
+                                            cursor-pointer border-round p-3 shadow-sm 
+                                            border-1 transition-all flex flex-col items-center justify-center gap-1
+                                            ${isSelected
+                                                    ? 'ring-2 ring-primary-500 scale-105'
+                                                    : ''}
+                                            ${saving ? 'opacity-60 cursor-not-allowed' : ''}
+                                        `}
+                                        style={{
+                                            borderLeft: `6px solid ${isTraining
+                                                    ? 'var(--primary-400)'
+                                                    : 'var(--surface-400)'
+                                                }`
+                                        }}
+                                    >
+                                        <span className="text-xs opacity-70">
+                                            第{day.dayIndex}天
+                                        </span>
+                                        
+                                        <span
+                                            className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'}`}
+                                        >
+                                            {isTraining ? (
+                                                <i className="pi pi-bolt"></i>
+                                            ) : (
+                                                <i className="pi pi-moon"></i>
+                                            )}
+                                        </span>
+                                        
+                                        {/* 移除了 WXDY 显示 */}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </>
+        );
+    };
 
     // 默认选择第一个训练日
     useEffect(() => {
@@ -63,9 +151,20 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
         return action ? action.name : '未知动作';
     };
 
+    // 生成标题
+    const getTitle = () => {
+        if (selectedSourceDay) {
+            const source = getWeekAndDay(selectedSourceDay.dayIndex);
+            const target = getWeekAndDay(targetDayIndex);
+            return `从W${source.week}D${source.day}复制到W${target.week}D${target.day}`;
+        }
+        const target = getWeekAndDay(targetDayIndex);
+        return `选择要复制到W${target.week}D${target.day}的训练日`;
+    };
+
     return (
         <Dialog
-            header="选择要复制的训练日"
+            header={getTitle()}
             visible={visible}
             onHide={() => {
                 onHide();
@@ -86,48 +185,9 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                 <div className="flex flex-col md:flex-row gap-4">
                     {/* 左侧：日历视图 */}
                     <div className="md:w-1/2">
-                        <div className="grid grid-cols-7 gap-2 p-4">
-                            {trainingDays.map((day) => {
-                                const isTraining = day.type === 'training';
-                                const isSelected = selectedSourceDay?.dayIndex === day.dayIndex;
-
-                                return (
-                                    <div
-                                        key={day.dayIndex}
-                                        onClick={() => handleSelectDay(day)}
-                                        className={`
-                                        cursor-pointer border-round p-3 shadow-sm 
-                                        border-1 transition-all flex flex-col items-center justify-center gap-1
-                                        ${isSelected
-                                                ? 'ring-2 ring-primary-500 scale-105'
-                                                : ''}
-
-                                        ${saving ? 'opacity-60 cursor-not-allowed' : ''}
-                                    `}
-                                        style={{
-                                            borderLeft: `6px solid ${isTraining
-                                                    ? 'var(--primary-400)'
-                                                    : 'var(--surface-400)'
-                                                }`
-                                        }}
-                                    >
-                                        <span className="text-xs opacity-70">
-                                            第{day.dayIndex}天
-                                        </span>
-
-                                        <span
-                                            className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'
-                                                }`}
-                                        >
-                                            {isTraining ? (
-                                                <i className="pi pi-bolt"></i>
-                                            ) : (
-                                                <i className="pi pi-moon"></i>
-                                            )}
-                                        </span>
-                                    </div>
-                                );
-                            })}
+                        <div className="p-4">
+                            {/* 渲染带周标识的日历视图 */}
+                            {renderCalendarWithWeeks()}
                         </div>
                     </div>
 
