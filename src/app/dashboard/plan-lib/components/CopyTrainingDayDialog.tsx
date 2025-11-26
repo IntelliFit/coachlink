@@ -53,6 +53,9 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     const groupDaysByWeek = () => {
         const weeks: { [key: number]: TrainingDay[] } = {};
 
+        console.log(trainingDays);
+        
+
         trainingDays.forEach(day => {
             const { week } = getWeekAndDay(day.dayIndex - 1);
             if (!weeks[week]) {
@@ -67,7 +70,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     // 渲染带周标识的日历视图
     const renderCalendarWithWeeks = () => {
         const weeks = groupDaysByWeek();
-        const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+        const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);        
         
         return (
             <>
@@ -77,6 +80,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                     
                     // 创建一个映射，方便通过星期几查找训练日
                     const dayMap: { [key: number]: TrainingDay } = {};
+                    
                     daysInWeek.forEach(day => {
                         const { day: dayOfWeek } = getWeekAndDay(day.dayIndex - 1);
                         dayMap[dayOfWeek] = day;
