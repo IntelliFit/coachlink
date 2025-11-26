@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown } from 'primereact/dropdown';
@@ -18,19 +18,6 @@ interface BasicInfoFormProps {
     saving: boolean;
     onSave: () => void;
 }
-
-const tags = [
-    '新手训练',
-    '力量训练',
-    '耐力训练',
-    '增肌训练',
-    '减脂训练',
-    '康复训练',
-    '功能性训练',
-    '爆发力训练',
-];
-
-
 
 const experienceLevels = [
     { label: '新手学员', value: 'beginner' },
@@ -52,7 +39,21 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
 }) => {
 
     const [templateTypes, setTemplateTypes] = useState<{ label: string, value: string }[]>([]);
-    setTemplateTypes(tags.map(tag => ({ label: tag, value: tag })));
+
+    useEffect(() => {
+        const allTags = [
+            '新手训练',
+            '力量训练',
+            '耐力训练',
+            '增肌训练',
+            '减脂训练',
+            '康复训练',
+            '功能性训练',
+            '爆发力训练',
+        ];
+
+        setTemplateTypes(allTags.map(tag => ({ label: tag, value: tag })));
+    }, []);
 
 
     return (
@@ -64,7 +65,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                 p-5 
                 bg-surface-0 
                 border border-surface-200 
-                shadow-sm 
                 rounded-lg
                 flex flex-col md:flex-row 
                 gap-10
@@ -104,7 +104,7 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                             options={templateTypes}
                             onChange={(e) => onTagsChange(e.value)}
                             placeholder="选择模板标签"
-                            className="p-inputtext-sm"
+                            className="text-sm"
                             disabled={saving}
                             display="chip"
                         />

@@ -12,7 +12,8 @@ export interface CoachPlanDayCreate {
 export interface AddTemplateDto {
     name: string;
     description?: string | null;
-    type: string; // beginner | strength | custom
+    tags: string[];
+    suitableFor: string;
     days: CoachPlanDayCreate[];
 }
 
