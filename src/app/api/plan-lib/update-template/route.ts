@@ -9,7 +9,8 @@ export async function POST(req: Request) {
         id,
         name,
         description,
-        type,
+        tags,
+        suitableFor,
         days
     } = await req.json() as UpdateTemplateDto;
 
@@ -46,8 +47,13 @@ export async function POST(req: Request) {
     if (description !== undefined) {
         updateData.description = description;
     }
-    if (type !== undefined) {
-        updateData.type = type;
+
+    if (tags.length > 0) {
+        updateData.tags = tags;
+    }
+
+    if (suitableFor !== undefined) {
+        updateData.suitable_for = suitableFor;
     }
 
     // 统计训练天数和休息天数

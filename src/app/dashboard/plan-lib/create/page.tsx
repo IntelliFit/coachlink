@@ -40,7 +40,8 @@ const CreatePlanPage = () => {
     // Plan template basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [type, setType] = useState('custom');
+    const [tags, setTags] = useState<string[]>([]);
+    const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
     const [days, setDays] = useState<PlanDay[]>([
@@ -214,7 +215,8 @@ const CreatePlanPage = () => {
 
     const handleNoteChange = (dayIndex: number, note: string) => {
         const newDays = [...days];
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        // 修复索引计算逻辑，应该直接使用dayIndex查找，而不是加1
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].note = note;
@@ -322,7 +324,8 @@ const CreatePlanPage = () => {
             await planLibService.addTemplate({
                 name,
                 description: description || null,
-                type,
+                tags: tags,
+                suitableFor: suitableFor,
                 days: daysData
             });
 
@@ -360,14 +363,19 @@ const CreatePlanPage = () => {
                 suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
-                onTagsChange={setType}
+                onTagsChange={setTags}
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
             />
 
-
-            <Card className="shadow-sm mb-6">
+            <div className="
+                p-5 
+                bg-surface-0 
+                border border-surface-200 
+                rounded-lg
+                gap-10
+            ">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1">
@@ -426,8 +434,8 @@ const CreatePlanPage = () => {
                         onClick={handleSave}
                         loading={saving}
                     />
-                </div>¸
-            </Card>
+                </div>
+            </div>
         </div>
     );
 };

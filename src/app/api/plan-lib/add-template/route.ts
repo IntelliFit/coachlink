@@ -8,7 +8,8 @@ export async function POST(req: Request) {
     const {
         name,
         description,
-        type,
+        tags = [],
+        suitableFor = '',
         days
     } = await req.json() as AddTemplateDto;
 
@@ -21,6 +22,13 @@ export async function POST(req: Request) {
             success: false,
             message: "Unauthorized"
         }, { status: 401 });
+    }
+
+    if (tags.length === 0 || !suitableFor) {
+        return NextResponse.json({
+            success: false,
+            message: "缺少必要参数"
+        }, { status: 400 });
     }
 
     const { data: user, error: userError } = await supabase
@@ -42,7 +50,8 @@ export async function POST(req: Request) {
             coach_id: userId,
             name,
             description: description || null,
-            type,
+            tags: tags || [],
+            suitable_for: suitableFor,
             training_days: days.filter(day => day.type === 'training').length,
             rest_days: days.filter(day => day.type === 'rest').length
         })

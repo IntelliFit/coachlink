@@ -48,7 +48,8 @@ const EditPlanPage = () => {
     // Plan template basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [type, setType] = useState('custom');
+    const [tags, setTags] = useState<string[]>([]);
+    const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
     const [days, setDays] = useState<PlanDay[]>([]);
@@ -84,21 +85,20 @@ const EditPlanPage = () => {
                 const templateRes = await planLibService.getTemplate(templateReq);
 
                 if (templateRes) {
-                    // Fill form with template data
                     setName(templateRes.template.name);
                     setDescription(templateRes.template.description || '');
-                    setType(templateRes.template.type);
+                    setTags(templateRes.template.tags || []);
+                    setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
 
-                    // Convert days data to local format
-                    const convertedDays: PlanDay[] = templateRes.days.map(day => ({
+                    const convertedDays: PlanDay[] = templateRes.days.map((day: any) => ({
                         id: day.id,
                         dayIndex: day.day_index,
                         type: day.type as 'training' | 'rest',
                         note: day.note || '',
-                        actionSets: day.action_sets.map(actionSet => ({
+                        actionSets: day.action_sets.map((actionSet: any) => ({
                             id: actionSet.id,
                             actionId: actionSet.action_id,
-                            setName: '',
+                            setName: actionSet.set_name || '',
                             sets: actionSet.sets,
                             reps: actionSet.reps,
                             intensity: actionSet.intensity || '',
@@ -262,7 +262,8 @@ const EditPlanPage = () => {
     ) => {
         const newDays = [...days];
 
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        // 修复索引计算逻辑，应该直接使用dayIndex查找，而不是加1
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
 
         if (actualDayIndex === -1) {
             return;
@@ -327,7 +328,8 @@ const EditPlanPage = () => {
 
     const handleNoteChange = (dayIndex: number, note: string) => {
         const newDays = [...days];
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        // 修复索引计算逻辑，应该直接使用dayIndex查找，而不是加1
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) {
             return;
         }
@@ -365,15 +367,16 @@ const EditPlanPage = () => {
                     : []
             }));
 
-            const updateData: UpdateTemplateDto = {
+            const updateData: any = {
                 id: params.id as string,
                 name,
                 description: description || null,
-                type,
+                tags: tags,
+                suitable_for: suitableFor,
                 days: daysData
             };
 
-            await planLibService.updateTemplate(updateData);
+            await planLibService.updateTemplate(updateData as UpdateTemplateDto);
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已更新' });
             router.push('/dashboard/plan-lib');
@@ -456,15 +459,23 @@ const EditPlanPage = () => {
             <BasicInfoForm
                 name={name}
                 description={description}
-                type={type}
+                tags={tags}
+                suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
-                onTypeChange={setType}
+                onTagsChange={setTags}
+                onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
             />
 
-            <Card className="shadow-sm mb-6">
+            <div className="
+                p-5 
+                bg-surface-0 
+                border border-surface-200 
+                rounded-lg
+                gap-10
+            ">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1">
@@ -524,7 +535,7 @@ const EditPlanPage = () => {
                         loading={saving}
                     />
                 </div>
-            </Card>
+            </div>
         </div>
     );
 };

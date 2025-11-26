@@ -16,7 +16,8 @@ export interface UpdateTemplateDto {
     id: string;
     name?: string;
     description?: string | null;
-    type?: string; // beginner | strength | custom
+    tags?: string[];
+    suitableFor?: string;
     days?: CoachPlanDayUpdate[];
 }
 
