@@ -11,10 +11,25 @@
 - 适合快速预览。
 
 2) 启动本地静态服务器（推荐）
-- 使用任意静态服务器（示例）:
-  - `npx serve -p 8081` 后访问 `http://localhost:8081/`
-  - VS Code Live Server 等均可
-- 注意：请不要用 Next.js dev server 打开本原型页面，否则可能导致 URL 查询参数丢失（例如 `plan-editor?clientId=...`），从而影响计划编辑器的“学员模式”加载。
+- **推荐使用 `http-server`**:
+  ```bash
+  npx --yes http-server -p 8080 -c-1
+  ```
+  然后访问 `http://localhost:8080/`
+  - `-c-1` 禁用缓存，确保每次都加载最新文件
+  - `http-server` 不会修改 URL 或重定向，保证查询参数正常传递
+
+- 其他可用方案:
+  - VS Code Live Server 插件
+  - Python: `python -m http.server 8080`
+
+- ⚠️ **不推荐使用 `serve`**:
+  - `serve` 的 "clean URLs" 功能会在重定向时丢失查询参数
+  - 例如访问 `plan-editor.html?clientId=xxx` 可能被重定向到 `plan-editor`，导致 `clientId` 丢失
+  - 如果必须使用 `serve`，请访问不带 `.html` 后缀的 URL（如 `plan-editor?clientId=xxx`）
+
+- ⚠️ **不要使用 Next.js/Vite 等框架的 dev server**:
+  - 这些框架有自己的路由系统，会干扰静态 HTML 的正常访问
 
 ## 体验账号（人物画像）
 - 马六（student_001）: 纯学员，已订阅 张教练 与 李明教练
@@ -99,4 +114,19 @@
 - 本原型仅为前端演示，所有数据来自 `localStorage`，无真实后端
 - 模板库/动作库为示例实现，未接入真实内容管理能力
 
-—— 若在演示中出现“计划编辑器标题显示为‘未命名模板’或看不到学员档案按钮”，请确认访问地址是否带有 `clientId` 查询参数，并优先使用静态服务器方式运行原型。
+## 故障排除
+
+### 计划编辑器显示"未命名模板"而不是学员计划
+1. **检查静态服务器**：确保使用 `http-server` 而非 `serve`
+2. **清除浏览器缓存**：按 `Ctrl+Shift+R`（Windows）或 `Cmd+Shift+R`（Mac）强制刷新
+3. **检查 localStorage**：在浏览器控制台执行 `localStorage.getItem('currentViewingClientId')` 查看是否有值
+4. **重置数据**：清空 `localStorage`（控制台执行 `localStorage.clear()`）后刷新页面
+
+### 不同电脑/浏览器无法正常使用
+- 本原型使用 `localStorage` 存储状态，不同浏览器/电脑的数据是独立的
+- 首次访问时，`Store.init()` 会自动初始化所有 mock 数据
+- 如果数据异常，清空 `localStorage` 后刷新即可恢复默认状态
+
+### 从 GitHub 下载后无法运行
+- 确保使用静态服务器运行（不要直接双击打开 HTML 文件）
+- 推荐命令：`npx --yes http-server -p 8080 -c-1`

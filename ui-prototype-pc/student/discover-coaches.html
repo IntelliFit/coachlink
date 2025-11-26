@@ -237,6 +237,7 @@
 
         let currentFilter = 'all';
         let searchTerm = '';
+        const COACH_PROFILE_KEY = 'coachlink:lastCoachId';
 
         // 专长标签到筛选器的映射
         const specialtyFilterMap = {
@@ -327,6 +328,11 @@
         }
 
         function viewCoachProfile(coachId) {
+            try {
+                sessionStorage.setItem(COACH_PROFILE_KEY, coachId);
+            } catch (err) {
+                console.warn('无法保存教练ID到 sessionStorage：', err);
+            }
             window.location.href = `coach-profile.html?id=${coachId}`;
         }
 
