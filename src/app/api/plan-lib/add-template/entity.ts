@@ -1,11 +1,22 @@
-import { CoachPlanTemplateRow, CoachPlanDaysRow, CoachPlanActionSetsRow } from "@/types";
+import { CoachPlanTemplateRow } from "@/types";
+import { Json } from "@/types/database.types";
+
+export interface CoachPlanAction {
+    // action-lib 中的编号
+    action_id: string
+    intensity: string
+    reps: number
+    rest_seconds: number
+    sets: number
+    [key: string]: Json | undefined
+}
 
 // 计划日创建信息，包含动作组
-export interface CoachPlanDayCreate {
-    day_index: number;
-    type: string; // rest | training
-    note?: string | null;
-    action_sets?: Omit<CoachPlanActionSetsRow, 'id' | 'day_id' | 'created_at' | 'updated_at'>[];
+export interface CoachPlanTrainingDay {
+    type: string;
+    note?: string;
+    action_sets?: CoachPlanAction[];
+    [key: string]: Json | undefined
 }
 
 // 请求参数的接口类型
@@ -14,7 +25,7 @@ export interface AddTemplateDto {
     description?: string | null;
     tags: string[];
     suitableFor: string;
-    days: CoachPlanDayCreate[];
+    trainingDays: CoachPlanTrainingDay[];
 }
 
 // 返回参数的接口类型

@@ -13,8 +13,8 @@ import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
-import { CoachPlanTemplateRow } from '@/types';
 import { useRouter } from 'next/navigation';
+import { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity';
 
 const PlanLib = () => {
     const { data: session } = useSession();
@@ -22,9 +22,9 @@ const PlanLib = () => {
     const router = useRouter();
 
     // 普通分页数据
-    const [templates, setTemplates] = useState<CoachPlanTemplateRow[]>([]);
+    const [templates, setTemplates] = useState<CoachPlansPreview[]>([]);
     // 搜索结果数据
-    const [searchResults, setSearchResults] = useState<CoachPlanTemplateRow[]>([]);
+    const [searchResults, setSearchResults] = useState<CoachPlansPreview[]>([]);
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -111,7 +111,7 @@ const PlanLib = () => {
         setCurrentPage(newPage);
     };
 
-    const renderTemplateCard = (template: CoachPlanTemplateRow) => {
+    const renderTemplateCard = (template: CoachPlansPreview) => {
         return (
             <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors">
                 <div className="flex items-start justify-between">
@@ -123,13 +123,13 @@ const PlanLib = () => {
                         <div className="flex flex-wrap items-center gap-2 mb-3">
 
                             <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                                {Math.ceil(((template.training_days || 0) + (template.rest_days || 0)) / 7)} 周训练
+                                {Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7)} 周训练
                             </span>
                             {/* 显示适用人群 */}
-                            {template.suitable_for && (
+                            {template.suitableFor && (
                                 <div className="">
                                     <span className="text-xs text-600">适用人群:</span>
-                                    <span className="ml-1 text-sm text-900">{template.suitable_for}</span>
+                                    <span className="ml-1 text-sm text-900">{template.suitableFor}</span>
                                 </div>
                             )}
                             {/* 显示标签 */}
@@ -157,14 +157,6 @@ const PlanLib = () => {
         );
     };
 
-    const getTemplateTypeLabel = (type?: string) => {
-        switch (type) {
-            case 'beginner': return '新手';
-            case 'strength': return '力量';
-            case 'custom': return '自定义';
-            default: return '未分类';
-        }
-    };
 
     // 确定当前应该显示的数据
     const getCurrentData = () => {
