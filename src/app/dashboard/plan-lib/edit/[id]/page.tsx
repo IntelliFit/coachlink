@@ -263,14 +263,20 @@ const EditPlanPage = () => {
     // 新增函数：处理从其他训练日复制动作集
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         const newDays = [...days];
+        console.log(targetDayIndex, sourceDayIndex);
+        
         const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
-        if (targetIndex === -1 || sourceIndex === -1) return;
+        if (targetIndex === -1 || sourceIndex === -1) {
+            return;
+        }
 
-        // 复制源日的动作集到目标日
+        // 复制源日的所有数据到目标日，包括类型
         newDays[targetIndex] = {
             ...newDays[targetIndex],
+            type: newDays[sourceIndex].type, // 复制类型
+            note: newDays[sourceIndex].note, // 复制备注
             actionSets: newDays[sourceIndex].actionSets.map(set => ({
                 ...set,
                 // 我们保留原始属性，只更新必要的字段
@@ -284,7 +290,7 @@ const EditPlanPage = () => {
         };
 
         setDays(newDays);
-        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
+        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制内容到第${targetDayIndex}天` });
     };
 
     const handleNoteChange = (dayIndex: number, note: string) => {

@@ -5,6 +5,7 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { CoachActionRow } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
 
@@ -138,6 +139,28 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         return '';
     }
 
+    // 处理复制操作
+    const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
+        // 检查是否需要确认覆盖
+        const hasContent = day.note.trim() !== '' || day.actionSets.length > 0;
+        
+        if (hasContent) {
+            // 显示确认对话框
+            confirmDialog({
+                message: '当前训练日已有内容，复制将覆盖现有内容，是否继续？',
+                header: '确认覆盖',
+                icon: 'pi pi-exclamation-triangle',
+                acceptLabel: '确认',
+                rejectLabel: '取消',
+                accept: () => {
+                    onCopyFromDay(targetDayIndex, sourceDayIndex)
+                }
+            });
+        } else {
+            onCopyFromDay(targetDayIndex, sourceDayIndex)
+        }
+    };
+
     return (
         <div className="p-5">
             {/* Header */}
@@ -172,32 +195,34 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                 />
             </div>
 
+            {/* 动作组标题 */}
+            <div className="flex justify-between items-center mb-3">
+                <h4 className="font-medium text-900 text-md"></h4>
+                <div className="flex gap-2">
+                    {existingTrainingDays && existingTrainingDays.length > 0 && onCopyFromDay && (
+                        // 替换原来的 Dropdown 为 Button
+                        <Button
+                            label="从其他训练日复制"
+                            icon="pi pi-copy"
+                            onClick={() => setCopyDialogVisible(true)}
+                            disabled={saving}
+                            className="p-button-sm"
+                        />
+                    )}
+                    {day.type === 'training' && (
+                        <Button
+                            label="添加动作"
+                            icon="pi pi-plus"
+                            onClick={() => onAddActionSet(day.dayIndex)}
+                            disabled={saving}
+                            className="p-button-sm p-button-outlined"
+                        />
+                    )}
+                </div>
+            </div>
+
             {day.type === 'training' ? (
                 <>
-                    {/* 动作组标题 */}
-                    <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-900 text-md"></h4>
-                        <div className="flex gap-2">
-                            {existingTrainingDays && existingTrainingDays.length > 0 && onCopyFromDay && (
-                                // 替换原来的 Dropdown 为 Button
-                                <Button
-                                    label="从其他训练日复制"
-                                    icon="pi pi-copy"
-                                    onClick={() => setCopyDialogVisible(true)}
-                                    disabled={saving}
-                                    className="p-button-sm"
-                                />
-                            )}
-                            <Button
-                                label="添加动作"
-                                icon="pi pi-plus"
-                                onClick={() => onAddActionSet(day.dayIndex)}
-                                disabled={saving}
-                                className="p-button-sm p-button-outlined"
-                            />
-                        </div>
-                    </div>
-
                     {/* 无动作 */}
                     {day.actionSets.length === 0 ? (
                         <div>
@@ -345,7 +370,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     onHide={() => setCopyDialogVisible(false)}
                     trainingDays={existingTrainingDays}
                     onSelectDay={(sourceDayIndex) => {
-                        onCopyFromDay(dayIndex, sourceDayIndex);
+                        handleCopyFromDay(dayIndex + 1, sourceDayIndex);
                         setCopyDialogVisible(false);
                     }}
                     saving={saving}
@@ -353,6 +378,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     targetDayIndex={dayIndex}
                 />
             )}
+            
+            <ConfirmDialog />
         </div>
     );
 };
