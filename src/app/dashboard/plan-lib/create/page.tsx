@@ -107,13 +107,13 @@ const CreatePlanPage = () => {
     const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
         const currentLength = days.length;
         const newDays = [...days];
-        
+
         // 获取源周的起始索引
         const sourceWeekStartIndex = sourceWeekIndex * 7;
-        
+
         // 获取源周的7天数据
         const sourceWeekDays = days.slice(sourceWeekStartIndex, sourceWeekStartIndex + 7);
-        
+
         // 如果源周不足7天，用默认休息日填充
         const fullWeekDays = [...sourceWeekDays];
         while (fullWeekDays.length < 7) {
@@ -124,7 +124,7 @@ const CreatePlanPage = () => {
                 actionSets: []
             });
         }
-        
+
         // 添加到新周，更新索引
         fullWeekDays.forEach((day, index) => {
             newDays.push({
@@ -246,7 +246,7 @@ const CreatePlanPage = () => {
         }
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
-        
+
         // 使用类型守卫分别处理不同类型字段的赋值
         switch (field) {
             case 'actionId':
@@ -325,7 +325,7 @@ const CreatePlanPage = () => {
                 description: description || null,
                 tags: tags,
                 suitableFor: suitableFor,
-                days: daysData
+                trainingDays: daysData
             });
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已创建' });

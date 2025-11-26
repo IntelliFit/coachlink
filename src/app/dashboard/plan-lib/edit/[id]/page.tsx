@@ -350,13 +350,11 @@ const EditPlanPage = () => {
         try {
             // Prepare data according to API format
             const daysData = days.map(day => ({
-                id: day.id,
                 day_index: day.dayIndex,
                 type: day.type,
                 note: day.note || null,
                 action_sets: day.type === 'training'
                     ? day.actionSets.map(set => ({
-                        id: set.id,
                         action_id: set.actionId,
                         set_name: set.setName,
                         sets: set.sets,
@@ -367,16 +365,15 @@ const EditPlanPage = () => {
                     : []
             }));
 
-            const updateData: UpdateTemplateDto = {
+
+            await planLibService.updateTemplate({
                 id: params.id as string,
                 name,
                 description: description || null,
                 tags: tags,
                 suitableFor: suitableFor,
-                days: daysData
-            };
-
-            await planLibService.updateTemplate(updateData);
+                trainingDays: daysData
+            });
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已更新' });
             router.push('/dashboard/plan-lib');
