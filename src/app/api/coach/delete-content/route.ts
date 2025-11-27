@@ -38,15 +38,7 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    // 验证教练身份
-    const { data: coach, error: coachError } = await supabase
-        .from('coaches')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('id', existingContent.coach_id)
-        .single();
-
-    if (coachError || !coach) {
+    if (!session.user.is_coach) {
         return NextResponse.json({
             success: false,
             message: '无权限删除此内容'

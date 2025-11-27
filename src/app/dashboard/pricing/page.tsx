@@ -6,7 +6,7 @@ import { getCoach } from '@/app/dashboard/util';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import PricingSettings from './PricingSettings';
-import IntakeQuestionSettings from './IntakeQuestionSettings';
+import IntakeQuestionSettings from './QuestionSettings';
 import { Card } from 'primereact/card';
 
 const PricingPage = () => {

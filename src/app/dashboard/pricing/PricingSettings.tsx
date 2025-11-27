@@ -89,7 +89,8 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
+                    <div></div>
                     <Button 
                         label="保存" 
                         icon="pi pi-save" 
@@ -97,9 +98,6 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                         loading={saving}
                         className="w-full md:w-auto"
                     />
-                    {saved && (
-                        <Message severity="success" text="已保存" className="w-full md:w-auto" />
-                    )}
                 </div>
             </div>
         </Card>

@@ -15,3 +15,5 @@ export type CoachContentRow = CoachLinkTable['coach_contents']['Row'];
 export type CoachActionRow = CoachLinkTable['coach_actions']['Row'];
 
 export type CoachPlanTemplateRow = CoachLinkTable['coach_plan_templates']['Row'];
+export type CoachQuestionnairesRow = CoachLinkTable['coach_questionnaires']['Row'];
+
