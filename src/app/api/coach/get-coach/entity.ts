@@ -1,7 +1,8 @@
 import { CoachesRow } from "@/types";
 
 export interface GetCoachDto {
-    id: string;  // 教练ID
+    id?: string;
+    userId?: string;
 }
 
 export interface GetCoachResponseDto {

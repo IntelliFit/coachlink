@@ -60,7 +60,6 @@ const PricingPage = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">服务与定价</h1>
-                    <p className="text-surface-500 mt-1">设置 AI版 与 高级版 的月度价格</p>
                 </div>
             </div>
 
@@ -93,15 +92,6 @@ const PricingPage = () => {
                         onPricingUpdate={handlePricingUpdate}
                     />
                     
-                    <Card title="展示规则" className="mt-6">
-                        <div className="p-4 text-surface-600">
-                            <ul className="list-disc pl-5 space-y-1">
-                                <li>价格必须为正数。</li>
-                                <li>高级版价格必须高于 AI版价格。</li>
-                                <li>学员侧教练主页中的"服务与定价"模块将实时读取此处设置。</li>
-                            </ul>
-                        </div>
-                    </Card>
                     
                     <IntakeQuestionSettings coachId={coach.id} />
                 </>

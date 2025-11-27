@@ -15,9 +15,9 @@ interface PricingSettingsProps {
     onPricingUpdate: (aiPrice: number, premiumPrice: number) => void;
 }
 
-const PricingSettings: React.FC<PricingSettingsProps> = ({ 
-    coachId, 
-    initialAiPrice, 
+const PricingSettings: React.FC<PricingSettingsProps> = ({
+    coachId,
+    initialAiPrice,
     initialPremiumPrice,
     onPricingUpdate
 }) => {
@@ -62,42 +62,59 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
     return (
         <Card title="价格设置">
             <div className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* 左侧表单 */}
                     <div>
-                        <label className="block font-medium mb-2">AI版价格 (¥/月)</label>
-                        <InputNumber 
-                            value={aiPrice} 
-                            onValueChange={(e) => setAiPrice(e.value ?? 0)}
-                            mode="currency" 
-                            currency="CNY" 
-                            locale="zh-CN"
-                            min={1}
-                            className="w-full"
-                        />
-                    </div>
-                    <div>
-                        <label className="block font-medium mb-2">高级版价格 (¥/月)</label>
-                        <InputNumber 
-                            value={premiumPrice} 
-                            onValueChange={(e) => setPremiumPrice(e.value ?? 0)}
-                            mode="currency" 
-                            currency="CNY" 
-                            locale="zh-CN"
-                            min={1}
-                            className="w-full"
-                        />
-                    </div>
-                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
+                            <div>
+                                <label className="block font-medium mb-2">AI版价格 (¥/月)</label>
+                                <InputNumber
+                                    value={aiPrice}
+                                    onValueChange={(e) => setAiPrice(e.value ?? 0)}
+                                    mode="currency"
+                                    currency="CNY"
+                                    locale="zh-CN"
+                                    min={1}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-medium mb-2">高级版价格 (¥/月)</label>
+                                <InputNumber
+                                    value={premiumPrice}
+                                    onValueChange={(e) => setPremiumPrice(e.value ?? 0)}
+                                    mode="currency"
+                                    currency="CNY"
+                                    locale="zh-CN"
+                                    min={1}
+                                    className="w-full"
+                                />
+                            </div>
+                        </div>
 
-                <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
-                    <div></div>
-                    <Button 
-                        label="保存" 
-                        icon="pi pi-save" 
-                        onClick={handleSave}
-                        loading={saving}
-                        className="w-full md:w-auto"
-                    />
+                        <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
+                            <div></div>
+                            <Button
+                                label="保存"
+                                icon="pi pi-save"
+                                onClick={handleSave}
+                                loading={saving}
+                                className="w-full md:w-auto"
+                            />
+                        </div>
+                    </div>
+
+                    {/* 右侧展示规则 */}
+                    <div>
+                        <div className="p-4 text-surface-600">
+                            <h2>展示规则</h2>
+                            <ul className="list-disc pl-5 space-y-1">
+                                <li>价格必须为正数。</li>
+                                <li>高级版价格必须高于 AI版价格。</li>
+                                <li>学员侧教练主页中的"服务与定价"模块将实时读取此处设置。</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </Card>
