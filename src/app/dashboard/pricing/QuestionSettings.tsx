@@ -13,10 +13,10 @@ interface IntakeQuestionSettingsProps {
 }
 
 const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId }) => {
+    const [questionId, setQuestionId] = useState<string | null>(null);
     const [questions, setQuestions] = useState<string[]>([]);
     const [newQuestion, setNewQuestion] = useState<string>('');
     const [saving, setSaving] = useState<boolean>(false);
-    const [saved, setSaved] = useState<boolean>(false);
     const { showToast } = useToastContext();
 
     useEffect(() => {
@@ -25,9 +25,10 @@ const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId
 
     const loadQuestions = async () => {
         try {
-            const result = await coachService.getIntakeQuestions({ coach_id: coachId });
+            const result = await coachService.getQuestionnaires();
             if (result) {
-                setQuestions(result.questions || []);
+                setQuestions(result.questionnaires || []);
+                setQuestionId(result.id);
             }
         } catch (error) {
             console.error('加载问卷问题失败:', error);
@@ -38,6 +39,8 @@ const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId
         if (newQuestion.trim()) {
             setQuestions([...questions, newQuestion.trim()]);
             setNewQuestion('');
+        } else {
+            showToast({ severity: 'error', summary: '错误', detail: '请输入有效的问卷问题' });
         }
     };
 
@@ -56,18 +59,13 @@ const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId
     const saveQuestions = async () => {
         setSaving(true);
         try {
-            // 过滤空问题
-            const filteredQuestions = questions.filter(q => q.trim() !== '');
-            
-            const result = await coachService.updateIntakeQuestions({
-                coach_id: coachId,
-                questions: filteredQuestions
+            const result = await coachService.updateQuestionnaires({
+                id: questionId || '',
+                questionnaires: questions
             });
 
             if (result) {
-                setSaved(true);
-                setQuestions(filteredQuestions);
-                setTimeout(() => setSaved(false), 2000);
+                setQuestionId(result.id);
                 showToast({ severity: 'success', summary: '成功', detail: '问卷设置已保存' });
             }
         } catch (error) {
@@ -131,7 +129,8 @@ const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId
                     />
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
+                    <div></div>
                     <Button 
                         label="保存问卷设置" 
                         icon="pi pi-save" 
@@ -139,9 +138,6 @@ const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId
                         loading={saving}
                         className="w-full md:w-auto"
                     />
-                    {saved && (
-                        <Message severity="success" text="已保存" className="w-full md:w-auto" />
-                    )}
                 </div>
             </div>
         </Card>

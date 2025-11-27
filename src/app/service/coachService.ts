@@ -10,8 +10,8 @@ import type { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/en
 import type { GetStudentsResponseDto } from "../api/coach/get-students/entity";
 import type { GetPricingDto, GetPricingResponseDto } from "../api/coach/get-pricing/entity";
 import type { UpdatePricingDto, UpdatePricingResponseDto } from "../api/coach/update-pricing/entity";
-import type { GetIntakeQuestionsDto, GetIntakeQuestionsResponseDto } from "../api/coach/get-intake-questions/entity";
-import type { UpdateIntakeQuestionsDto, UpdateIntakeQuestionsResponseDto } from "../api/coach/update-intake-questions/entity";
+import type { GetQuestionnairesDto, GetQuestionnairesResponseDto } from "../api/coach/get-questionnaires/entity";
+import type { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/coach/update-questionnaires/entity";
 
 // 添加DeleteContentDto类型
 interface DeleteContentDto {
@@ -112,15 +112,15 @@ class CoachService extends BaseService {
         }
     }
 
-    async getIntakeQuestions(reqData: GetIntakeQuestionsDto) {
-        const res = await this.post<GetIntakeQuestionsResponseDto>('get-intake-questions', reqData);
+    async getQuestionnaires(reqData?: GetQuestionnairesDto) {
+        const res = await this.post<GetQuestionnairesResponseDto>('get-questionnaires', reqData || {});
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
     }
 
-    async updateIntakeQuestions(reqData: UpdateIntakeQuestionsDto) {
-        const res = await this.post<UpdateIntakeQuestionsResponseDto>('update-intake-questions', reqData);
+    async updateQuestionnaires(reqData: UpdateQuestionnairesDto) {
+        const res = await this.post<UpdateQuestionnairesResponseDto>('update-questionnaires', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
