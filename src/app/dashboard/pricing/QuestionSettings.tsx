@@ -76,7 +76,7 @@ const IntakeQuestionSettings: React.FC<IntakeQuestionSettingsProps> = ({ coachId
     };
 
     return (
-        <Card title="入队问卷设置" className="mt-6">
+        <Card title="问卷设置" className="mt-6">
             <div className="p-4">
                 <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-r">
                     <p className="text-sm text-yellow-800">

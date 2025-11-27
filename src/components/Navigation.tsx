@@ -14,6 +14,7 @@ import { useLoginModal } from '@/components/auth/LoginModalContext';
 import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
+import { coachService } from '@/app/service/coachService';
 
 export default function Navigation() {
     const pathname = usePathname();
@@ -30,18 +31,29 @@ export default function Navigation() {
         setIsClient(true);
     }, []);
 
+    const gotoCoachDisplayPage = async () => {
+        const res = await coachService.getCoach({
+            userId: session?.user?.id || ''
+        });
+        if (res) {
+            router.push('/coach/profile/' + res.coach.id);
+        }
+    }
+
     // ✅ 用户菜单项（依赖 session，使用 useMemo 缓存）
     const userMenuItems = useMemo(() => [
         ...(session?.user?.primary_role === 'coach'
             ? [
+                { label: '教练首页', icon: 'pi pi-home', command: () => gotoCoachDisplayPage() },
                 { label: '概览', icon: 'pi pi-chart-line', command: () => router.push('/dashboard/overview') },
+                { separator: true },
                 { label: '视频点评', icon: 'pi pi-play-circle', command: () => router.push('/dashboard/videos') },
                 { label: '我的学员', icon: 'pi pi-user', command: () => router.push('/dashboard/students') },
                 { label: '内容管理', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/content') },
                 { separator: true },
                 { label: '计划模板', icon: 'pi pi-clipboard', command: () => router.push('/dashboard/plan-lib') },
                 { label: '动作库', icon: 'pi pi-database', command: () => router.push('/dashboard/action-lib') },
-                { label: '聊天管理', icon: 'pi pi-comments', command: () => router.push('/dashboard/chat') },
+                // { label: '聊天管理', icon: 'pi pi-comments', command: () => router.push('/dashboard/chat') },
                 { separator: true },
                 { label: '定价与服务', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') }
             ]
