@@ -6,8 +6,12 @@ import type { PublishContentDto, PublishContentResponseDto } from "@/app/api/coa
 import type { GetAllCoachesDto, GetAllCoachesResponseDto } from "@/app/api/coach/get-all-coaches/entity";
 import type { GetSpecialtiesResponseDto } from "../api/coach/get-specialties/entity";
 import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto } from "../api/coach/get-coach-rulepacks/entity";
-import { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/entity";
-import { GetStudentsResponseDto } from "../api/coach/get-students/entity";
+import type { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/entity";
+import type { GetStudentsResponseDto } from "../api/coach/get-students/entity";
+import type { GetPricingDto, GetPricingResponseDto } from "../api/coach/get-pricing/entity";
+import type { UpdatePricingDto, UpdatePricingResponseDto } from "../api/coach/update-pricing/entity";
+import type { GetIntakeQuestionsDto, GetIntakeQuestionsResponseDto } from "../api/coach/get-intake-questions/entity";
+import type { UpdateIntakeQuestionsDto, UpdateIntakeQuestionsResponseDto } from "../api/coach/update-intake-questions/entity";
 
 // 添加DeleteContentDto类型
 interface DeleteContentDto {
@@ -78,13 +82,6 @@ class CoachService extends BaseService {
         }
     }
 
-    async getCoachRulepacks(reqData: GetCoachRulepacksDto) {
-        const res = await this.post<GetCoachRulepacksResponseDto>('get-coach-rulepacks', reqData);
-        if (res.data && res.data.success) {
-            return res.data.data || null;
-        }
-    }
-
     async getCoach(reqData: GetCoachDto) {
         const res = await this.post<GetCoachResponseDto>('get-coach', reqData);
         if (res.data && res.data.success) {
@@ -92,6 +89,41 @@ class CoachService extends BaseService {
         }
 
         return null;
+    }
+
+    async getCoachRulepacks(reqData: GetCoachRulepacksDto) {
+        const res = await this.post<GetCoachRulepacksResponseDto>('get-coach-rulepacks', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async getPricing(reqData: GetPricingDto) {
+        const res = await this.post<GetPricingResponseDto>('get-pricing', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async updatePricing(reqData: UpdatePricingDto) {
+        const res = await this.post<UpdatePricingResponseDto>('update-pricing', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async getIntakeQuestions(reqData: GetIntakeQuestionsDto) {
+        const res = await this.post<GetIntakeQuestionsResponseDto>('get-intake-questions', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async updateIntakeQuestions(reqData: UpdateIntakeQuestionsDto) {
+        const res = await this.post<UpdateIntakeQuestionsResponseDto>('update-intake-questions', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
     }
 }
 

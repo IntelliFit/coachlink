@@ -32,19 +32,33 @@ export default function Navigation() {
 
     // ✅ 用户菜单项（依赖 session，使用 useMemo 缓存）
     const userMenuItems = useMemo(() => [
-        {
-            label: session?.user?.primary_role === 'coach' ? '控制台' : '申请成为教练',
-            icon: session?.user?.primary_role === 'coach' ? 'pi pi-desktop' : 'pi pi-user-plus',
-            command: () => router.push('/dashboard'),
-        },
+        ...(session?.user?.primary_role === 'coach'
+            ? [
+                { label: '概览', icon: 'pi pi-chart-line', command: () => router.push('/dashboard/overview') },
+                { label: '视频点评', icon: 'pi pi-play-circle', command: () => router.push('/dashboard/videos') },
+                { label: '我的学员', icon: 'pi pi-user', command: () => router.push('/dashboard/students') },
+                { label: '内容管理', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/content') },
+                { separator: true },
+                { label: '计划模板', icon: 'pi pi-clipboard', command: () => router.push('/dashboard/plan-lib') },
+                { label: '动作库', icon: 'pi pi-database', command: () => router.push('/dashboard/action-lib') },
+                { label: '聊天管理', icon: 'pi pi-comments', command: () => router.push('/dashboard/chat') },
+                { separator: true },
+                { label: '定价与服务', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') }
+            ]
+            : [
+                {
+                    label: '申请成为教练',
+                    icon: 'pi pi-user-plus',
+                    command: () => router.push('/apply'),
+                }
+            ]
+        ),
         { separator: true },
-        ...(session?.user?.primary_role !== 'coach'
-            ? [{
-                label: '我的档案',
-                icon: 'pi pi-id-card',
-                command: () => router.push('/me/profile'),
-            }]
-            : []),
+        {
+            label: '我的档案',
+            icon: 'pi pi-id-card',
+            command: () => router.push('/me/profile'),
+        },
         {
             label: '个人设置',
             icon: 'pi pi-cog',
@@ -144,8 +158,8 @@ export default function Navigation() {
                                 session.profile?.avatar_url
                                     ? undefined
                                     : session.profile?.nickname?.charAt(0) ||
-                                      session.user.phone?.slice(0, 1) ||
-                                      'U'
+                                    session.user.phone?.slice(0, 1) ||
+                                    'U'
                             }
                             shape="circle"
                             className="bg-primary text-white font-bold flex-shrink-0"
@@ -158,23 +172,22 @@ export default function Navigation() {
                             <div className="flex gap-1">
                                 {session.user.subscription_level && (
                                     <span
-                                        className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                            session.user.subscription_level === 'basic'
-                                                ? 'bg-gray-100 text-gray-600'
-                                                : session.user.subscription_level === 'advanced'
+                                        className={`text-xs px-1.5 py-0.5 rounded-full ${session.user.subscription_level === 'basic'
+                                            ? 'bg-gray-100 text-gray-600'
+                                            : session.user.subscription_level === 'advanced'
                                                 ? 'bg-blue-100 text-blue-600'
                                                 : session.user.subscription_level === 'premium'
-                                                ? 'bg-purple-100 text-purple-600'
-                                                : ''
-                                        }`}
+                                                    ? 'bg-purple-100 text-purple-600'
+                                                    : ''
+                                            }`}
                                     >
                                         {session.user.subscription_level === 'basic'
                                             ? '基础会员'
                                             : session.user.subscription_level === 'advanced'
-                                            ? '高级会员'
-                                            : session.user.subscription_level === 'premium'
-                                            ? '至尊会员'
-                                            : ''}
+                                                ? '高级会员'
+                                                : session.user.subscription_level === 'premium'
+                                                    ? '至尊会员'
+                                                    : ''}
                                     </span>
                                 )}
                                 {session.user.primary_role && (
@@ -182,8 +195,8 @@ export default function Navigation() {
                                         {session.user.primary_role === 'student'
                                             ? '学员'
                                             : session.user.primary_role === 'coach'
-                                            ? '教练'
-                                            : session.user.primary_role}
+                                                ? '教练'
+                                                : session.user.primary_role}
                                     </span>
                                 )}
                             </div>
@@ -222,16 +235,13 @@ export default function Navigation() {
                 className="sticky top-0 z-50 border-b shadow-sm px-4"
             />
 
-            {/* 只在客户端渲染时挂载 Menu，避免 SSR 问题 */}
-            {isClient && (
-                <Menu
-                    model={userMenuItems}
-                    popup
-                    ref={menuRef}
-                    id="user_menu"
-                    className="min-w-40"
-                />
-            )}
+            <Menu
+                model={userMenuItems}
+                popup
+                ref={menuRef}
+                id="user_menu"
+                className="min-w-40"
+            />
         </>
     );
 }
