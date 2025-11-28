@@ -8,6 +8,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Skeleton } from 'primereact/skeleton';
 import { userService } from '@/app/service/userService';
 import { trainingService } from '@/app/service/trainingService';
+import { coachService } from '@/app/service/coachService';
 import { TrainingPlanRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 
@@ -23,6 +24,7 @@ const TrainingPlansHome: React.FC = () => {
 
     const [plans, setPlans] = useState<TrainingPlanRow[]>([]);
     const [planPreviews, setPlanPreviews] = useState<Map<string, any>>(new Map());
+    const [coachNames, setCoachNames] = useState<Map<string, string>>(new Map());
     const [loading, setLoading] = useState(true);
     const [loadingPreviews, setLoadingPreviews] = useState<Set<string>>(new Set());
     const [deletingPlans, setDeletingPlans] = useState<Set<string>>(new Set());
@@ -40,6 +42,26 @@ const TrainingPlansHome: React.FC = () => {
 
                 if (res) {
                     setPlans(res.plans);
+                    
+                    // 获取所有唯一的教练ID
+                    const uniqueCoachIds = [...new Set(res.plans.map(p => p.coach_id).filter(Boolean))];
+                    
+                    // 批量获取所有教练的信息
+                    const coachInfoPromises = uniqueCoachIds.map(async (id) => {
+                        try {
+                            const res = await coachService.getCoach({ id });
+                            return { id, name: res?.coach?.name || `教练${id.substring(0, 8)}` };
+                        } catch (error) {
+                            console.error(`获取教练 ${id} 信息失败:`, error);
+                            return { id, name: `教练${id.substring(0, 8)}` };
+                        }
+                    });
+                    
+                    const coachInfos = await Promise.all(coachInfoPromises);
+                    const newCoachNames = new Map<string, string>();
+                    coachInfos.forEach(({ id, name }) => newCoachNames.set(id, name));
+                    setCoachNames(newCoachNames);
+                    
                     // 自动加载所有计划的预览
                     res.plans.forEach(plan => {
                         loadPlanPreview(plan.id);
@@ -165,12 +187,13 @@ const TrainingPlansHome: React.FC = () => {
                         </p>
                     </div>
 
-                    <Button
+                    {/* 暂时隐藏生成新计划按钮 */}
+                    {false && <Button
                         label="生成新计划"
                         icon="pi pi-plus"
                         className="p-button-primary"
                         onClick={() => router.push(`/generate-plan?coachId=${coachId || ''}`)}
-                    />
+                    />}
                 </div>
 
                 <div className="flex justify-end mb-4">
@@ -226,6 +249,7 @@ const TrainingPlansHome: React.FC = () => {
                         {plans.map((plan) => {
                             const preview = planPreviews.get(plan.id);
                             const isLoadingPreview = loadingPreviews.has(plan.id);
+                            const coachName = plan.coach_id ? coachNames.get(plan.coach_id) : null;
 
                             return (
                                 <div key={plan.id} className="p-card shadow-sm">
@@ -233,6 +257,18 @@ const TrainingPlansHome: React.FC = () => {
                                     <div className="bg-gradient-to-r from-primary-500 to-red-500 rounded-t-lg p-6 text-white -m-6 mb-6">
                                         <div className="flex items-center justify-between">
                                             <div className="flex-1">
+                                                {/* 教练信息 */}
+                                                {coachName && (
+                                                    <div className="flex items-center space-x-2 mb-3">
+                                                        <div className="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center">
+                                                            <i className="pi pi-user text-xs" />
+                                                        </div>
+                                                        <span className="text-sm opacity-90">
+                                                            教练: {coachName}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                
                                                 <h2 className="text-2xl font-bold mb-2">{plan.title}</h2>
                                                 <p className="opacity-90 mb-3">{plan.description}</p>
                                                 <div className="flex items-center space-x-4 text-sm">
@@ -249,14 +285,15 @@ const TrainingPlansHome: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <Button
+                                            {/* 暂时隐藏删除按钮 */}
+                                            {false && <Button
                                                 label="删除"
                                                 icon="pi pi-trash"
                                                 loading={deletingPlans.has(plan.id)}
                                                 severity="danger"
                                                 className="bg-white/10 hover:bg-white/20 border-white/30"
                                                 onClick={() => handleDeletePlan(plan.id, plan.title)}
-                                            />
+                                            />}
                                         </div>
                                     </div>
 

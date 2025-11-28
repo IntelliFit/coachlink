@@ -134,6 +134,28 @@ const TodayTrainingPage: React.FC = () => {
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
+            {/* 教练信息卡片 */}
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-4 mb-6 text-white shadow-lg">
+                <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                        <span className="text-lg font-bold">
+                            {subscriptions[0]?.coach?.name?.charAt(0) || '教'}
+                        </span>
+                    </div>
+                    <div>
+                        <div className="text-sm opacity-90">当前教练</div>
+                        <div className="text-lg font-bold">
+                            {subscriptions[0]?.coach?.name || '未知教练'}
+                        </div>
+                        {subscriptions[0]?.coach?.title && (
+                            <div className="text-xs opacity-80">
+                                {subscriptions[0]?.coach?.title}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
             {/* 使用原有的 TodayTraining 组件 */}
             <TodayTraining
                 userId={session?.user?.id || ''}
