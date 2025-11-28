@@ -59,6 +59,12 @@ export default function Navigation() {
             ]
             : [
                 {
+                    label: '我的订阅',
+                    icon: 'pi pi-book',
+                    command: () => router.push('/coach/subscription'),
+                },
+                { separator: true },
+                {
                     label: '申请成为教练',
                     icon: 'pi pi-user-plus',
                     command: () => router.push('/apply'),
@@ -66,11 +72,6 @@ export default function Navigation() {
             ]
         ),
         { separator: true },
-        {
-            label: '我的档案',
-            icon: 'pi pi-id-card',
-            command: () => router.push('/me/profile'),
-        },
         {
             label: '个人设置',
             icon: 'pi pi-cog',
@@ -91,25 +92,24 @@ export default function Navigation() {
     // ✅ 导航数据（保持不变，也可 useMemo，但简单静态数据无需）
     const menuItems = [
         {
-            label: '首页',
-            icon: 'pi pi-home',
-            command: () => router.push('/'),
+            label: '今日训练',
+            icon: 'pi pi-play',
+            command: () => router.push('/today-training'),
         },
         {
-            label: '教练',
-            icon: 'pi pi-users',
-            items: [
-                {
-                    label: '我的订阅',
-                    icon: 'pi pi-book',
-                    command: () => router.push('/coach/subscription'),
-                },
-                {
-                    label: '发现教练',
-                    icon: 'pi pi-search',
-                    command: () => router.push('/coach/discovery'),
-                },
-            ],
+            label: '发现教练',
+            icon: 'pi pi-search',
+            command: () => router.push('/coach/discovery'),
+        },
+        {
+            label: '训练计划',
+            icon: 'pi pi-clipboard',
+            command: () => router.push('/coach/plans'),
+        },
+        {
+            label: '我的档案',
+            icon: 'pi pi-id-card',
+            command: () => router.push('/me/profile'),
         },
         {
             label: '排行榜',
