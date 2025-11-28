@@ -178,16 +178,16 @@
   --red-700:#b32b23;
   --red-800:#8c221c;
   --red-900:#661814;
-  --primary-50:#fffaf3;
-  --primary-100:#fde8c4;
-  --primary-200:#fbd596;
-  --primary-300:#f9c368;
-  --primary-400:#f7b039;
-  --primary-500:#f49227;
-  --primary-600:#d08609;
-  --primary-700:#ac6f08;
-  --primary-800:#875706;
-  --primary-900:#623f04;
+  --primary-50:  #FFF7EB;
+  --primary-100: #FFE9C6;
+  --primary-200: #FFD08D;
+  --primary-300: #FFB554;
+  --primary-400: #FFA02D;
+  --primary-500: #F49227;
+  --primary-600: #D4791F;
+  --primary-700: #A85C17;
+  --primary-800: #7D4110;
+  --primary-900: #50270A;
 }
 
 .p-editor-container .p-editor-toolbar {
