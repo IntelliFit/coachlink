@@ -4,17 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card } from 'primereact/card';
-import { TabView, TabPanel } from 'primereact/tabview';
 import { Button } from 'primereact/button';
-import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
-import { userService } from '@/app/service/userService';
 import { trainingService } from '@/app/service/trainingService';
-import { Play, TrendingUp, Calendar, Bell, Target, Clock, Award, BookOpen, ArrowLeft, Check } from 'lucide-react';
+import { Target, Clock, Award, BookOpen } from 'lucide-react';
 
-import TodayTraining from './TodayTraining';
-import TrainingProgressDashboard from './TrainingProgressDashboard';
-import TrainingReminder from './TrainingReminder';
 import TrainingPlanPreview from './TrainingPlanPreview';
 import { TrainingPlanRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
@@ -27,11 +21,9 @@ const TrainingPlanDashboard: React.FC = () => {
     const { showToast } = useToastContext();
 
     // 状态管理
-    const [activeTab, setActiveTab] = useState(0);
     const [trainingPlan, setTrainingPlan] = useState<TrainingPlanRow | null>(null);
     const [planPreview, setPlanPreview] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
-    const [progressRefreshKey, setProgressRefreshKey] = useState(0);
 
     // 加载训练计划数据
     useEffect(() => {
@@ -39,20 +31,6 @@ const TrainingPlanDashboard: React.FC = () => {
             loadData();
         }
     }, [trainingPlanId, session?.user?.id]);
-
-    // 监听 URL 参数变化，处理训练完成后的刷新
-    useEffect(() => {
-        // 检查 URL 中是否有 refresh 参数
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('refresh') === 'true') {
-            // 触发刷新
-            handleSessionComplete();
-            
-            // 清除 URL 参数
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
-        }
-    }, []);
 
     const loadData = async () => {
         try {
@@ -83,21 +61,6 @@ const TrainingPlanDashboard: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    // 处理训练完成事件
-    const handleSessionComplete = () => {
-        // 重新加载数据以更新统计数据
-        loadData();
-        // 触发训练进度组件刷新
-        setProgressRefreshKey(prev => prev + 1);
-
-        showToast({
-            severity: 'success',
-            summary: '训练完成',
-            detail: '今日训练已完成，统计数据已更新',
-            life: 3000
-        });
     };
 
     // 如果未找到训练计划
@@ -205,52 +168,27 @@ const TrainingPlanDashboard: React.FC = () => {
             </div>
 
 
-            {/* 标签页导航 */}
+            {/* 训练计划内容 - 直接显示，无标签页 */}
             <div>
-                <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
-                    <TabPanel header="今日训练" leftIcon="pi pi-play mr-2">
-                        <TodayTraining
-                            trainingPlanId={trainingPlanId as string}
-                            userId={session?.user?.id || ''}
-                            onSessionComplete={handleSessionComplete}
-                        />
-                    </TabPanel>
-                    <TabPanel header="训练进度" leftIcon="pi pi-chart-line mr-2">
-                        <TrainingProgressDashboard
-                            userId={session?.user?.id || ''}
-                            trainingPlanId={trainingPlanId as string}
-                            refreshKey={progressRefreshKey}
-                        />
-                    </TabPanel>
-                    <TabPanel header="训练计划" leftIcon="pi pi-calendar mr-2">
-                        {loading ? (
-                            <div className="flex flex-column gap-3">
-                                <Skeleton width="100%" height="100px" />
-                                <Skeleton width="100%" height="300px" />
-                            </div>
-                        ) : planPreview ? (
-                            <TrainingPlanPreview
-                                plan={planPreview}
-                                showSaveButton={false}
-                                onStart={() => setActiveTab(0)}
-                            />
-                        ) : (
-                            <div className="text-center py-8">
-                                <div className="w-3rem h-3rem bg-surface border-circle flex align-items-center justify-content-center mx-auto mb-3">
-                                    <Target className="w-2rem h-2rem text-gray-400" />
-                                </div>
-                                <h3 className="text-lg font-medium text-900 mb-2">暂无训练计划详情</h3>
-                                <p className="text-600">无法加载训练计划详情</p>
-                            </div>
-                        )}
-                    </TabPanel>
-                    <TabPanel header="训练提醒" leftIcon="pi pi-bell mr-2">
-                        <TrainingReminder
-                            userId={session?.user?.id || ''}
-                            trainingPlanId={trainingPlanId as string}
-                        />
-                    </TabPanel>
-                </TabView>
+                {loading ? (
+                    <div className="flex flex-column gap-3">
+                        <Skeleton width="100%" height="100px" />
+                        <Skeleton width="100%" height="300px" />
+                    </div>
+                ) : planPreview ? (
+                    <TrainingPlanPreview
+                        plan={planPreview}
+                        showSaveButton={false}
+                    />
+                ) : (
+                    <div className="text-center py-8">
+                        <div className="w-3rem h-3rem bg-surface border-circle flex align-items-center justify-content-center mx-auto mb-3">
+                            <Target className="w-2rem h-2rem text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-900 mb-2">暂无训练计划详情</h3>
+                        <p className="text-600">无法加载训练计划详情</p>
+                    </div>
+                )}
             </div>
         </div>
     );
