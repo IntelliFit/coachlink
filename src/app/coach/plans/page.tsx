@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { Calendar, Brain, Timer, Zap } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { Toast } from 'primereact/toast';
-import { userService } from '@/app/service/userService';
-import { TrainingPlanRow } from '@/types';
 import { Skeleton } from 'primereact/skeleton';
+import { userService } from '@/app/service/userService';
+import { trainingService } from '@/app/service/trainingService';
+import { TrainingPlanRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
+
+import TrainingPlanPreview from './dashboard/[id]/TrainingPlanPreview';
 
 const TrainingPlansHome: React.FC = () => {
     const router = useRouter();
@@ -22,17 +22,12 @@ const TrainingPlansHome: React.FC = () => {
     const coachId = searchParams.get('coachId');
 
     const [plans, setPlans] = useState<TrainingPlanRow[]>([]);
+    const [planPreviews, setPlanPreviews] = useState<Map<string, any>>(new Map());
     const [loading, setLoading] = useState(true);
+    const [loadingPreviews, setLoadingPreviews] = useState<Set<string>>(new Set());
     const [deletingPlans, setDeletingPlans] = useState<Set<string>>(new Set());
 
-    // --------- 跳转判断（避免闪烁）---------
-    useEffect(() => {
-        if (!coachId) {
-            router.push('/coach');
-        }
-    }, [coachId]);
-
-    // --------- 加载数据 ----------
+    // 加载训练计划列表
     useEffect(() => {
         if (!session?.user?.id) return;
 
@@ -45,6 +40,10 @@ const TrainingPlansHome: React.FC = () => {
 
                 if (res) {
                     setPlans(res.plans);
+                    // 自动加载所有计划的预览
+                    res.plans.forEach(plan => {
+                        loadPlanPreview(plan.id);
+                    });
                 }
             } catch (e) {
                 setPlans([]);
@@ -61,17 +60,30 @@ const TrainingPlansHome: React.FC = () => {
         load();
     }, [session?.user?.id, coachId]);
 
-    // ---------- 相对时间 ----------
-    const getRelativeTime = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-        if (diff <= 0) return '今天';
-        if (diff === 1) return '昨天';
-        return `${diff}天前`;
+    // 加载单个计划的预览
+    const loadPlanPreview = async (planId: string) => {
+        try {
+            setLoadingPreviews(prev => new Set(prev).add(planId));
+            
+            const preview = await trainingService.getPlanPreview({ 
+                training_plan_id: planId 
+            });
+
+            if (preview) {
+                setPlanPreviews(prev => new Map(prev).set(planId, preview));
+            }
+        } catch (error) {
+            console.error(`加载计划 ${planId} 预览失败:`, error);
+        } finally {
+            setLoadingPreviews(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(planId);
+                return newSet;
+            });
+        }
     };
 
-    // ---------- 删除 ----------
+    // 删除计划
     const handleDeletePlan = async (planId: string, planTitle: string) => {
         const confirm = () =>
             new Promise<boolean>((resolve) => {
@@ -87,7 +99,6 @@ const TrainingPlansHome: React.FC = () => {
             });
 
         if (await confirm()) {
-            // 设置删除loading状态
             setDeletingPlans(prev => new Set(prev).add(planId));
             
             try {
@@ -101,6 +112,11 @@ const TrainingPlansHome: React.FC = () => {
                     });
                 } else {
                     setPlans((prev) => prev.filter((p) => p.id !== planId));
+                    setPlanPreviews(prev => {
+                        const newMap = new Map(prev);
+                        newMap.delete(planId);
+                        return newMap;
+                    });
 
                     showToast({
                         severity: 'success',
@@ -109,7 +125,6 @@ const TrainingPlansHome: React.FC = () => {
                     });
                 }
             } finally {
-                // 清除删除loading状态
                 setDeletingPlans(prev => {
                     const newSet = new Set(prev);
                     newSet.delete(planId);
@@ -119,20 +134,19 @@ const TrainingPlansHome: React.FC = () => {
         }
     };
 
-    // ---------- 骨架屏 ----------
+    // 骨架屏
     const SkeletonCard = () => (
-        <Card className="shadow-sm">
+        <div className="p-card shadow-sm mb-6">
             <div className="flex flex-col gap-3">
                 <Skeleton height="22px" width="60%" />
                 <Skeleton height="18px" width="80%" />
                 <Skeleton height="18px" width="40%" />
-
+                <Skeleton height="300px" width="100%" className="mt-4" />
                 <div className="flex gap-2 mt-3">
                     <Skeleton height="36px" width="100px" />
-                    <Skeleton height="36px" width="80px" />
                 </div>
             </div>
-        </Card>
+        </div>
     );
 
     return (
@@ -142,28 +156,20 @@ const TrainingPlansHome: React.FC = () => {
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* 顶部标题 */}
                 <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <Button
-                            icon="pi pi-arrow-left"
-                            className="p-button-rounded p-button-text"
-                            onClick={() => router.push('/coach/subscription')}
-                        />
-
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                AI智能训练计划
-                            </h1>
-                            <p className="text-gray-600 dark:text-gray-400 text-sm">
-                                基于规则引擎 + AI 增强的个性化方案
-                            </p>
-                        </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                            AI智能训练计划
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                            基于规则引擎 + AI 增强的个性化方案
+                        </p>
                     </div>
 
                     <Button
                         label="生成新计划"
                         icon="pi pi-plus"
                         className="p-button-primary"
-                        onClick={() => router.push(`/generate-plan?coachId=${coachId}`)}
+                        onClick={() => router.push(`/generate-plan?coachId=${coachId || ''}`)}
                     />
                 </div>
 
@@ -193,77 +199,86 @@ const TrainingPlansHome: React.FC = () => {
 
                 {/* 内容 */}
                 {loading ? (
-                    <div className="grid gap-4">
-                        {Array.from({ length: 4 }).map((_, i) => (
+                    <div className="space-y-6">
+                        {Array.from({ length: 2 }).map((_, i) => (
                             <SkeletonCard key={i} />
                         ))}
                     </div>
                 ) : plans.length === 0 ? (
-                    <Card className="shadow-sm">
-                        <div className="text-center py-8">
-                            <Brain className="w-12 h-12 text-primary-500 dark:text-primary-400 mx-auto mb-3" />
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                                还没有训练计划
-                            </h3>
-                            <p className="text-gray-600 dark:text-gray-400 mb-6">
-                                点击下方按钮创建你的第一份个性化训练计划
-                            </p>
-                            <Button
-                                label="生成新计划"
-                                className="p-button-primary"
-                                onClick={() => router.push('/training')}
-                            />
+                    <div className="p-card shadow-sm text-center py-12">
+                        <div className="w-12 h-12 bg-surface rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i className="pi pi-clipboard text-2xl text-gray-400" />
                         </div>
-                    </Card>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                            还没有训练计划
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-6">
+                            点击下方按钮创建你的第一份个性化训练计划
+                        </p>
+                        <Button
+                            label="生成新计划"
+                            className="p-button-primary"
+                            onClick={() => router.push('/training')}
+                        />
+                    </div>
                 ) : (
-                    <div className="grid gap-4">
-                        {plans.map((plan) => (
-                            <Card key={plan.id} className="shadow-sm hover:shadow-md transition-shadow">
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                                            {plan.title}
-                                        </h3>
-                                        <p className="text-gray-600 dark:text-gray-400 mb-3">
-                                            {plan.description}
-                                        </p>
+                    <div className="space-y-6">
+                        {plans.map((plan) => {
+                            const preview = planPreviews.get(plan.id);
+                            const isLoadingPreview = loadingPreviews.has(plan.id);
 
-                                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="w-4 h-4" />
-                                                <span>{plan.duration_weeks}周</span>
+                            return (
+                                <div key={plan.id} className="p-card shadow-sm">
+                                    {/* 计划头部 */}
+                                    <div className="bg-gradient-to-r from-primary-500 to-red-500 rounded-t-lg p-6 text-white -m-6 mb-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <h2 className="text-2xl font-bold mb-2">{plan.title}</h2>
+                                                <p className="opacity-90 mb-3">{plan.description}</p>
+                                                <div className="flex items-center space-x-4 text-sm">
+                                                    <span className="bg-white/20 px-3 py-1 rounded-full">
+                                                        {plan.duration_weeks}周
+                                                    </span>
+                                                    <span className="bg-white/20 px-3 py-1 rounded-full capitalize">
+                                                        {plan.difficulty_level}
+                                                    </span>
+                                                    {plan.ai_generated && (
+                                                        <span className="bg-purple-500/50 px-3 py-1 rounded-full">
+                                                            AI生成
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-
-                                            <div className="flex items-center gap-1">
-                                                <Timer className="w-4 h-4" />
-                                                <span>{getRelativeTime(plan.created_at || '')}</span>
-                                            </div>
-
-                                            {plan.ai_generated && (
-                                                <span className="px-2 py-1 rounded bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-xs inline-flex items-center">
-                                                    <Zap className="w-3 h-3 mr-1" />
-                                                    AI生成
-                                                </span>
-                                            )}
+                                            <Button
+                                                label="删除"
+                                                icon="pi pi-trash"
+                                                loading={deletingPlans.has(plan.id)}
+                                                severity="danger"
+                                                className="bg-white/10 hover:bg-white/20 border-white/30"
+                                                onClick={() => handleDeletePlan(plan.id, plan.title)}
+                                            />
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            label="查看/开始"
-                                            className="p-button-primary"
-                                            onClick={() => router.push(`/coach/plans/dashboard/${plan.id}`)}
+                                    {/* 计划内容 */}
+                                    {isLoadingPreview ? (
+                                        <div className="space-y-3">
+                                            <Skeleton height="100px" />
+                                            <Skeleton height="300px" />
+                                        </div>
+                                    ) : preview ? (
+                                        <TrainingPlanPreview
+                                            plan={preview}
+                                            showSaveButton={false}
                                         />
-                                        <Button
-                                            label="删除"
-                                            loading={deletingPlans.has(plan.id)}
-                                            severity="danger"
-                                            onClick={() => handleDeletePlan(plan.id, plan.title)}
-                                        />
-                                    </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            无法加载训练计划详情
+                                        </div>
+                                    )}
                                 </div>
-                            </Card>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
