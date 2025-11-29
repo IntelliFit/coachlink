@@ -182,31 +182,6 @@ const CoachProfilePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-surface-50">
-            {/* 顶部导航 */}
-            <div className="bg-surface shadow-sm border-b border-surface-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <div className="flex items-center space-x-2">
-                            <ArrowLeft
-                                className="h-5 w-5 text-surface-500 hover:text-surface-700 cursor-pointer"
-                                onClick={() => router.push('/coach')}
-                            />
-                            <div className="text-surface-700 font-bold">{coach.title || '专业健身教练'}</div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-1 text-surface-500">
-                                <Star className="h-5 w-5" />
-                                <div>{typeof coach.rating === 'number' ? coach.rating : 4.8}</div>
-                            </div>
-                            <div className="flex items-center space-x-1 text-surface-500">
-                                <Users className="h-5 w-5" />
-                                <div>{typeof coach.total_students === 'number' ? coach.total_students : 0}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             {/* 教练介绍部分 */}
             <CoachIntroduction
                 coach={coach}

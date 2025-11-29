@@ -35,6 +35,7 @@ body {
 
 
 @media screen and (max-width: 1199px) {
+
     .layout-content,
     .layout-footer {
         padding-left: 2rem;
@@ -69,6 +70,32 @@ body {
 }
 
 
-.p-icon-field > .p-input-icon {
+.p-icon-field>.p-input-icon {
     margin-top: -0.65rem;
+}
+
+/* 在CSS文件中 */
+.responsive-dialog .p-dialog {
+    width: 80vw !important;
+    height: 80vh !important;
+    max-width: 1200px;
+    max-height: 800px;
+}
+
+/* 小屏幕适配 */
+@media (max-width: 768px) {
+    .responsive-dialog .p-dialog {
+        width: 80vw !important;
+        height: 90vh !important;
+        margin: 10px;
+    }
+}
+
+/* 超小屏幕适配 */
+@media (max-width: 480px) {
+    .responsive-dialog .p-dialog {
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0;
+    }
 }

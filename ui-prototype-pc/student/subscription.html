@@ -127,8 +127,13 @@
         }
 
         function gotoCoach(coachId) {
-            // 简单映射：coach_001 -> id=1, coach_002 -> id=2
-            const id = coachId === 'coach_002' ? 2 : 1;
+            // 简单映射：coach_zhang -> id=1, coach_liming -> id=2
+            const id = coachId === 'coach_liming' ? 2 : 1;
+            try {
+                sessionStorage.setItem('coachlink:lastCoachId', coachId);
+            } catch (err) {
+                console.warn('无法保存教练ID到 sessionStorage：', err);
+            }
             window.location.href = 'coach-profile.html?id=' + id;
         }
 

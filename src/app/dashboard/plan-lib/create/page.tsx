@@ -10,9 +10,9 @@ import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
-import BasicInfoForm from './components/BasicInfoForm';
-import PlanDayCard from './components/PlanDayCard';
-import WeekCalendar from './components/WeekCalendar';
+import BasicInfoForm from '../components/BasicInfoForm';
+import PlanDayCard from '../components/PlanDayCard';
+import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 
 interface PlanDay {
@@ -40,7 +40,8 @@ const CreatePlanPage = () => {
     // Plan template basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [type, setType] = useState('custom');
+    const [tags, setTags] = useState<string[]>([]);
+    const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
     const [days, setDays] = useState<PlanDay[]>([
@@ -99,6 +100,38 @@ const CreatePlanPage = () => {
                 actionSets: []
             });
         }
+
+        setDays(newDays);
+    };
+
+    const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
+        const currentLength = days.length;
+        const newDays = [...days];
+
+        // 获取源周的起始索引
+        const sourceWeekStartIndex = sourceWeekIndex * 7;
+
+        // 获取源周的7天数据
+        const sourceWeekDays = days.slice(sourceWeekStartIndex, sourceWeekStartIndex + 7);
+
+        // 如果源周不足7天，用默认休息日填充
+        const fullWeekDays = [...sourceWeekDays];
+        while (fullWeekDays.length < 7) {
+            fullWeekDays.push({
+                dayIndex: 0, // 临时索引，后面会重新计算
+                type: 'rest',
+                note: '',
+                actionSets: []
+            });
+        }
+
+        // 添加到新周，更新索引
+        fullWeekDays.forEach((day, index) => {
+            newDays.push({
+                ...day,
+                dayIndex: currentLength + index + 1
+            });
+        });
 
         setDays(newDays);
     };
@@ -189,7 +222,6 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
-
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
@@ -214,7 +246,7 @@ const CreatePlanPage = () => {
         }
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
-        
+
         // 使用类型守卫分别处理不同类型字段的赋值
         switch (field) {
             case 'actionId':
@@ -291,8 +323,9 @@ const CreatePlanPage = () => {
             await planLibService.addTemplate({
                 name,
                 description: description || null,
-                type,
-                days: daysData
+                tags: tags,
+                suitableFor: suitableFor,
+                trainingDays: daysData
             });
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已创建' });
@@ -312,10 +345,12 @@ const CreatePlanPage = () => {
 
     // 计算现有的训练日用于复制功能
     const existingTrainingDays = days
-        .filter(day => day.type === 'training' && day.actionSets.length > 0)
         .map(day => ({
             dayIndex: day.dayIndex,
-            actionSetsCount: day.actionSets.length
+            actionSetsCount: day.actionSets.length,
+            type: day.type,
+            note: day.note,
+            actionSets: day.actionSets
         }));
 
     return (
@@ -323,14 +358,15 @@ const CreatePlanPage = () => {
             <BasicInfoForm
                 name={name}
                 description={description}
-                type={type}
+                tags={tags}
+                suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
-                onTypeChange={setType}
+                onTagsChange={setTags}
+                onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
             />
-
 
             <Card className="shadow-sm mb-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
@@ -342,6 +378,7 @@ const CreatePlanPage = () => {
                             onSelectDay={setSelectedDayIndex}
                             onAddWeek={handleAddWeek}
                             onDeleteWeek={handleDeleteWeek}
+                            onAddWeekFromExisting={handleAddWeekFromExisting}
                             saving={saving}
                         />
                     </div>
@@ -390,7 +427,7 @@ const CreatePlanPage = () => {
                         onClick={handleSave}
                         loading={saving}
                     />
-                </div>¸
+                </div>
             </Card>
         </div>
     );

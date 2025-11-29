@@ -12,9 +12,9 @@ import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
-import BasicInfoForm from '@/app/dashboard/plan-lib/create/components/BasicInfoForm';
-import PlanDayCard from '@/app/dashboard/plan-lib/create/components/PlanDayCard';
-import WeekCalendar from '@/app/dashboard/plan-lib/create/components/WeekCalendar';
+import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
+import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
+import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
 import { UpdateTemplateDto } from '@/app/api/plan-lib/update-template/entity';
@@ -48,7 +48,8 @@ const EditPlanPage = () => {
     // Plan template basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [type, setType] = useState('custom');
+    const [tags, setTags] = useState<string[]>([]);
+    const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
     const [days, setDays] = useState<PlanDay[]>([]);
@@ -87,18 +88,19 @@ const EditPlanPage = () => {
                     // Fill form with template data
                     setName(templateRes.template.name);
                     setDescription(templateRes.template.description || '');
-                    setType(templateRes.template.type);
+                    setTags(templateRes.template.tags || []);
+                    setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
 
                     // Convert days data to local format
-                    const convertedDays: PlanDay[] = templateRes.days.map(day => ({
+                    const convertedDays: PlanDay[] = templateRes.days.map((day: any) => ({
                         id: day.id,
                         dayIndex: day.day_index,
                         type: day.type as 'training' | 'rest',
                         note: day.note || '',
-                        actionSets: day.action_sets.map(actionSet => ({
+                        actionSets: day.action_sets.map((actionSet: any) => ({
                             id: actionSet.id,
                             actionId: actionSet.action_id,
-                            setName: '',
+                            setName: actionSet.set_name || '',
                             sets: actionSet.sets,
                             reps: actionSet.reps,
                             intensity: actionSet.intensity || '',
@@ -124,15 +126,47 @@ const EditPlanPage = () => {
         const currentLength = days.length;
         const newDays = [...days];
 
-        // 添加7天
+        // 添加7天，默认为休息日
         for (let i = 1; i <= 7; i++) {
             newDays.push({
                 dayIndex: currentLength + i,
-                type: 'training',
+                type: 'rest', // 默认为休息日
                 note: '',
                 actionSets: []
             });
         }
+
+        setDays(newDays);
+    };
+
+    const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
+        const currentLength = days.length;
+        const newDays = [...days];
+        
+        // 获取源周的起始索引
+        const sourceWeekStartIndex = sourceWeekIndex * 7;
+        
+        // 获取源周的7天数据
+        const sourceWeekDays = days.slice(sourceWeekStartIndex, sourceWeekStartIndex + 7);
+        
+        // 如果源周不足7天，用默认休息日填充
+        const fullWeekDays = [...sourceWeekDays];
+        while (fullWeekDays.length < 7) {
+            fullWeekDays.push({
+                dayIndex: 0, // 临时索引，后面会重新计算
+                type: 'rest',
+                note: '',
+                actionSets: []
+            });
+        }
+        
+        // 添加到新周，更新索引
+        fullWeekDays.forEach((day, index) => {
+            newDays.push({
+                ...day,
+                dayIndex: currentLength + index + 1
+            });
+        });
 
         setDays(newDays);
     };
@@ -237,7 +271,7 @@ const EditPlanPage = () => {
         }
 
         console.log(actualDayIndex, setIndex);
-        
+
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
@@ -263,14 +297,20 @@ const EditPlanPage = () => {
     // 新增函数：处理从其他训练日复制动作集
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         const newDays = [...days];
+        console.log(targetDayIndex, sourceDayIndex);
+        
         const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
-        if (targetIndex === -1 || sourceIndex === -1) return;
+        if (targetIndex === -1 || sourceIndex === -1) {
+            return;
+        }
 
-        // 复制源日的动作集到目标日
+        // 复制源日的所有数据到目标日，包括类型
         newDays[targetIndex] = {
             ...newDays[targetIndex],
+            type: newDays[sourceIndex].type, // 复制类型
+            note: newDays[sourceIndex].note, // 复制备注
             actionSets: newDays[sourceIndex].actionSets.map(set => ({
                 ...set,
                 // 我们保留原始属性，只更新必要的字段
@@ -284,8 +324,19 @@ const EditPlanPage = () => {
         };
 
         setDays(newDays);
-        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
+        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制内容到第${targetDayIndex}天` });
     };
+
+    const handleNoteChange = (dayIndex: number, note: string) => {
+        const newDays = [...days];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        if (actualDayIndex === -1) {
+            return;
+        }
+
+        newDays[actualDayIndex].note = note;
+        setDays(newDays);
+    }
 
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
@@ -299,13 +350,11 @@ const EditPlanPage = () => {
         try {
             // Prepare data according to API format
             const daysData = days.map(day => ({
-                id: day.id,
                 day_index: day.dayIndex,
                 type: day.type,
                 note: day.note || null,
                 action_sets: day.type === 'training'
                     ? day.actionSets.map(set => ({
-                        id: set.id,
                         action_id: set.actionId,
                         set_name: set.setName,
                         sets: set.sets,
@@ -316,15 +365,15 @@ const EditPlanPage = () => {
                     : []
             }));
 
-            const updateData: UpdateTemplateDto = {
+
+            await planLibService.updateTemplate({
                 id: params.id as string,
                 name,
                 description: description || null,
-                type,
-                days: daysData
-            };
-
-            await planLibService.updateTemplate(updateData);
+                tags: tags,
+                suitableFor: suitableFor,
+                trainingDays: daysData
+            });
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已更新' });
             router.push('/dashboard/plan-lib');
@@ -343,10 +392,12 @@ const EditPlanPage = () => {
 
     // 计算现有的训练日用于复制功能
     const existingTrainingDays = days
-        .filter(day => day.type === 'training' && day.actionSets.length > 0)
         .map(day => ({
             dayIndex: day.dayIndex,
-            actionSetsCount: day.actionSets.length
+            actionSetsCount: day.actionSets.length,
+            type: day.type,
+            note: day.note,
+            actionSets: day.actionSets
         }));
 
     if (loading) {
@@ -405,10 +456,12 @@ const EditPlanPage = () => {
             <BasicInfoForm
                 name={name}
                 description={description}
-                type={type}
+                tags={tags}
+                suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
-                onTypeChange={setType}
+                onTagsChange={setTags}
+                onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
             />
@@ -422,6 +475,7 @@ const EditPlanPage = () => {
                             selectedDayIndex={selectedDayIndex}
                             onSelectDay={setSelectedDayIndex}
                             onAddWeek={handleAddWeek}
+                            onAddWeekFromExisting={handleAddWeekFromExisting}
                             onDeleteWeek={handleDeleteWeek}
                             saving={saving}
                         />
@@ -436,14 +490,7 @@ const EditPlanPage = () => {
                                 actions={actions}
                                 onDayTypeChange={handleDayTypeChange}
                                 onRemoveDay={handleRemoveDay}
-                                onNoteChange={(dayIndex, note) => {
-                                    const newDays = [...days];
-                                    const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
-                                    if (actualDayIndex === -1) return;
-
-                                    newDays[actualDayIndex].note = note;
-                                    setDays(newDays);
-                                }}
+                                onNoteChange={handleNoteChange}
                                 onAddActionSet={handleAddActionSet}
                                 onRemoveActionSet={handleRemoveActionSet}
                                 onActionSetChange={handleActionSetChange}

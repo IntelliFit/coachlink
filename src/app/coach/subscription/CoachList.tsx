@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, MessageCircle, Star, Clock, ArrowRight } from 'lucide-react';
+import { Brain, MessageCircle, Star, Clock } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
@@ -19,30 +19,6 @@ interface CoachListProps {
 const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
 
     const router = useRouter();
-
-    const getServicesByTier = (tier: number) => {
-        const base = [
-            { id: 'ai_plan', name: '训练计划', desc: '获取教练专属训练计划', icon: Brain, color: 'bg-blue-500', available: tier >= 1 }
-        ]
-        if (tier >= 3)
-            base.push({ id: 'chat', name: '一对一聊天', desc: '与教练实时沟通交流', icon: MessageCircle, color: 'bg-purple-500', available: true })
-        else
-            base.push({ id: 'chat_demo', name: '🎯 体验聊天功能', desc: '免费体验一对一聊天 (演示版)', icon: MessageCircle, color: 'bg-primary-500', available: true })
-        return base
-    }
-
-
-    const onAccessService = (serviceId: string, coachId: string) => {
-
-        switch (serviceId) {
-            case 'ai_plan':
-                router.push(`/coach/plans?coachId=${coachId}`, { scroll: true });
-                break;
-        
-            default:
-                break;
-        }
-    }
 
     const getSubscriptionStatus = (subscription: QueryCoachSubscription): SubscriptionStatus => {
         if (!subscription.end_date) {
@@ -64,7 +40,7 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subscriptions.map(subscription => {
                 const status = getSubscriptionStatus(subscription);
-                const available = getServicesByTier(subscription.tier).filter(x => x.available)
+                const hasChatService = subscription.tier >= 3;
                 
                 return (
                     <div key={subscription.id} className="rounded-lg overflow-hidden p-card">
@@ -91,29 +67,32 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                             </div>
                         </div>
                         <div className="p-6">
-                            <h4 className="text-sm font-semibold text-gray-700 mb-4 dark:text-gray-300">可用服务</h4>
-                            <div className="space-y-3">
-                                {available.map(service => {
-                                    const Icon = service.icon
-                                    return (
-                                        <div
-                                            key={service.id}
-                                            onClick={() => onAccessService(service.id, subscription.coach_id)}
-                                            className="w-full justify-start p-button-text text-left p-3 rounded-lg cursor-pointer
-                                                flex items-center space-x-3 hover:bg-primary-100 bg-surface-100"
-                                        >
-                                            <div className={`w-10 h-10 ${service.color} rounded-lg flex items-center justify-center`}>
-                                                <Icon className="w-5 h-5 text-surface" />
-                                            </div>
-                                            <div className="flex-1 text-left">
-                                                <div className="text-sm font-medium">{service.name}</div>
-                                                <div className="text-xs text-gray-500 dark:text-gray-400">{service.desc}</div>
-                                            </div>
-                                            <ArrowRight className="w-4 h-4 text-gray-400" />
-                                        </div>
-                                    )
-                                })}
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">教练服务</h4>
+                                {/* 在线咨询按钮 */}
+                                <Button
+                                    label="在线咨询"
+                                    icon="pi pi-comments"
+                                    size="small"
+                                    outlined
+                                    className="p-button-sm"
+                                    onClick={() => router.push(`/messages?coachId=${subscription.coach_id}`)}
+                                    tooltip={hasChatService ? "一对一实时聊天" : "体验聊天功能（演示版）"}
+                                    tooltipOptions={{ position: 'top' }}
+                                />
                             </div>
+                            
+                            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                                <div className="flex items-center space-x-2">
+                                    <Brain className="w-4 h-4 text-primary-500" />
+                                    <span>专属训练计划</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <MessageCircle className="w-4 h-4 text-purple-500" />
+                                    <span>{hasChatService ? '一对一实时聊天' : '体验版聊天功能'}</span>
+                                </div>
+                            </div>
+
                             {status.status === 'expiring' && (
                                 <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg dark:bg-primary-900 dark:border-primary-700">
                                     <div className="flex items-center space-x-2">

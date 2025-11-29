@@ -220,86 +220,71 @@
     <script src="../js/mock_data.js"></script>
     <script src="../js/app.js"></script>
     <script>
-        // Mock coach data
-        const coaches = [
-            {
-                id: 1,
-                name: "张健",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhang",
-                specialties: ["力量举", "增肌"],
-                rating: 4.9,
-                studentCount: 156,
-                filters: ["strength", "muscle"]
-            },
-            {
-                id: 2,
-                name: "李明",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=li",
-                specialties: ["减脂", "增肌"],
-                rating: 4.7,
-                studentCount: 89,
-                filters: ["fat-loss", "muscle"]
-            },
-            {
-                id: 3,
-                name: "王强",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=wang",
-                specialties: ["健美", "力量举"],
-                rating: 4.8,
-                studentCount: 234,
-                filters: ["bodybuilding", "strength"]
-            },
-            {
-                id: 4,
-                name: "赵云",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=zhao",
-                specialties: ["康复训练", "减脂"],
-                rating: 4.6,
-                studentCount: 67,
-                filters: ["rehab", "fat-loss"]
-            },
-            {
-                id: 5,
-                name: "陈思",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=chen",
-                specialties: ["增肌", "健美"],
-                rating: 4.9,
-                studentCount: 178,
-                filters: ["muscle", "bodybuilding"]
-            },
-            {
-                id: 6,
-                name: "刘洋",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=liu",
-                specialties: ["力量举"],
-                rating: 5.0,
-                studentCount: 312,
-                filters: ["strength"]
-            }
-        ];
+        // 从 MockData 获取已审核通过的教练列表
+        function getApprovedCoaches() {
+            const coaches = Store.get('coaches') || [];
+            // 只显示已审核通过的教练
+            return coaches.filter(c => c.status === 'approved').map(coach => ({
+                id: coach.id,
+                name: coach.name,
+                avatar: coach.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${coach.id}`,
+                specialties: Array.isArray(coach.specialties) ? coach.specialties : [],
+                rating: parseFloat(coach.rating) || 0,
+                studentCount: coach.totalStudents || 0,
+                title: coach.title || ''
+            }));
+        }
 
         let currentFilter = 'all';
         let searchTerm = '';
+        const COACH_PROFILE_KEY = 'coachlink:lastCoachId';
+
+        // 专长标签到筛选器的映射
+        const specialtyFilterMap = {
+            '力量举': 'strength',
+            '力量训练': 'strength',
+            '增肌': 'muscle',
+            '减脂': 'fat-loss',
+            '健美': 'bodybuilding',
+            '康复训练': 'rehab',
+            '体能': 'muscle',
+            '体能提升': 'muscle'
+        };
 
         function renderCoaches() {
             const grid = document.getElementById('coachesGrid');
+            const coaches = getApprovedCoaches();
             
             // Filter coaches
             let filteredCoaches = coaches.filter(coach => {
-                const matchesFilter = currentFilter === 'all' || coach.filters.includes(currentFilter);
+                // 根据专长标签匹配筛选器
+                const coachFilters = coach.specialties.map(s => specialtyFilterMap[s] || '').filter(Boolean);
+                const matchesFilter = currentFilter === 'all' || coachFilters.includes(currentFilter);
                 const matchesSearch = searchTerm === '' || 
                     coach.name.toLowerCase().includes(searchTerm.toLowerCase());
                 return matchesFilter && matchesSearch;
             });
 
+            if (filteredCoaches.length === 0) {
+                grid.innerHTML = `
+                    <div class="text-center text-secondary py-xl" style="grid-column: 1/-1;">
+                        <i data-lucide="Search" size="48" style="opacity:0.4;"></i>
+                        <p class="mt-md">没有找到符合条件的教练</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
             // Render
             grid.innerHTML = filteredCoaches.map(coach => `
-                <div class="coach-card" onclick="viewCoachProfile(${coach.id})">
+                <div class="coach-card" onclick="viewCoachProfile('${coach.id}')">
                     <div class="coach-avatar-section">
                         <img src="${coach.avatar}" alt="${coach.name}" class="coach-avatar">
                     </div>
                     <div class="coach-info">
                         <div class="coach-name">${coach.name}</div>
+                        ${coach.title ? `<div class="text-sm text-secondary mb-sm">${coach.title}</div>` : ''}
                         <div class="coach-specialties">
                             ${coach.specialties.map(s => `<span class="specialty-tag">${s}</span>`).join('')}
                         </div>
@@ -307,7 +292,7 @@
                             <div class="stat-item">
                                 <div class="stat-value">
                                     <i data-lucide="Star" size="18" style="fill: #fbbf24; stroke: #fbbf24;"></i>
-                                    ${coach.rating}
+                                    ${coach.rating.toFixed(1)}
                                 </div>
                                 <div class="stat-label">评分</div>
                             </div>
@@ -343,6 +328,11 @@
         }
 
         function viewCoachProfile(coachId) {
+            try {
+                sessionStorage.setItem(COACH_PROFILE_KEY, coachId);
+            } catch (err) {
+                console.warn('无法保存教练ID到 sessionStorage：', err);
+            }
             window.location.href = `coach-profile.html?id=${coachId}`;
         }
 

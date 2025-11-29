@@ -319,10 +319,10 @@
                         </h2>
                         <div class="pricing-comparison">
                             <!-- AI Version -->
-                            <div class="pricing-card">
+                            <div class="pricing-card" id="ai-pricing-card">
                                 <div class="pricing-tier">AI版</div>
                                 <div class="pricing-subtitle">基础智能训练服务</div>
-                                <div class="pricing-amount">¥99</div>
+                                <div class="pricing-amount" id="ai-price">¥99</div>
                                 <div class="pricing-period">/月</div>
                                 <ul class="feature-list">
                                     <li>AI生成个性化训练计划</li>
@@ -330,16 +330,16 @@
                                     <li>AI教练7x24h答疑(有限次)</li>
                                     <li>访问所有免费教学内容</li>
                                 </ul>
-                                <button class="btn btn-secondary" style="width: 100%;">
-                                    立即订阅
-                                </button>
+                                <div id="ai-action-btn">
+                                    <!-- 动态渲染订阅/取消按钮 -->
+                                </div>
                             </div>
 
                             <!-- Premium Version -->
-                            <div class="pricing-card premium">
+                            <div class="pricing-card premium" id="premium-pricing-card">
                                 <div class="pricing-tier">高级版</div>
                                 <div class="pricing-subtitle">真人教练1对1指导</div>
-                                <div class="pricing-amount">¥299</div>
+                                <div class="pricing-amount" id="premium-price">¥299</div>
                                 <div class="pricing-period">/月</div>
                                 <ul class="feature-list">
                                     <li>包含AI版所有权益</li>
@@ -347,9 +347,9 @@
                                     <li>真人教练1对1聊天答疑</li>
                                     <li>逐条视频动作点评</li>
                                 </ul>
-                                <button class="btn btn-primary" style="width: 100%;">
-                                    立即订阅
-                                </button>
+                                <div id="premium-action-btn">
+                                    <!-- 动态渲染订阅/取消按钮 -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -473,10 +473,31 @@
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
 
-            // Map discover-coaches?id to an internal coachId used in Store
+            // 从URL获取教练ID并正确映射到Store中的coachId
             const urlParams = new URLSearchParams(window.location.search);
-            const pageCoachNumericId = urlParams.get('id'); // e.g., "1"
-            const coachId = (pageCoachNumericId === '2') ? 'coach_002' : 'coach_001';
+            const urlCoachId = urlParams.get('id');
+            const storedCoachId = (() => {
+                try {
+                    return sessionStorage.getItem('coachlink:lastCoachId');
+                } catch (err) {
+                    console.warn('无法读取 sessionStorage：', err);
+                    return null;
+                }
+            })();
+            
+            // 统一的教练ID映射逻辑（支持新老两种ID格式）
+            let coachId = urlCoachId || storedCoachId || 'coach_zhang';
+            if (coachId === '1') {
+                coachId = 'coach_zhang';
+            } else if (coachId === '2') {
+                coachId = 'coach_liming';
+            }
+            try {
+                sessionStorage.setItem('coachlink:lastCoachId', coachId);
+            } catch (err) {
+                console.warn('无法写入 sessionStorage：', err);
+            }
+            // 如果已经是 coach_zhang/coach_liming 格式则保持不变
 
             // Load profile/pricing/content
             const profiles = Store.get('coachProfiles') || {};
@@ -573,7 +594,7 @@
             if (!item) return;
 
             const modalHtml = `
-                <div id="content-modal" class="modal-overlay" style="display:flex; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+                <div id="content-modal" class="modal-overlay active" style="display:flex; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; opacity: 1; pointer-events: auto;">
                     <div class="modal-content" style="background: #fff; width: 92%; max-width: 900px; border-radius: 12px; overflow: auto; max-height: 90vh;">
                         <div class="flex justify-between items-center p-md" style="border-bottom: 1px solid var(--color-border);">
                             <div class="font-semibold">${item.title}</div>
@@ -605,12 +626,348 @@
         function startConsultation() {
             // Get current coach ID from URL
             const urlParams = new URLSearchParams(window.location.search);
-            const coachId = urlParams.get('id') || '1';
-            const coachInternalId = coachId === '2' ? 'coach_002' : 'coach_001';
+            const urlCoachId = urlParams.get('id') || 'coach_zhang';
+            
+            // 统一的教练ID映射
+            let coachId = urlCoachId;
+            if (urlCoachId === '1') coachId = 'coach_zhang';
+            else if (urlCoachId === '2') coachId = 'coach_liming';
             
             // Navigate to AI chat with referrer info
-            window.location.href = `ai-chat.html?from=${coachInternalId}`;
+            window.location.href = `ai-chat.html?from=${coachId}`;
         }
+
+        // ========== 订阅管理 ==========
+        let pageCoachId = null;
+        let currentUserId = null;
+        let currentTier = 'none';
+        let pendingSubscribeTier = null;
+
+        function initSubscriptionUI() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let pageCoachNumericId = urlParams.get('id');
+            
+            // 如果 URL 没有 id 参数，尝试从 sessionStorage 恢复
+            if (!pageCoachNumericId) {
+                try {
+                    pageCoachNumericId = sessionStorage.getItem('coachlink:lastCoachId');
+                } catch (e) {
+                    console.warn('无法读取 sessionStorage:', e);
+                }
+            }
+            
+            // 从 coaches 列表中找到对应的教练
+            const coaches = Store.get('coaches') || [];
+            let matchedCoach = null;
+            
+            // 支持两种ID格式：coach_zhang 或 数字ID
+            if (pageCoachNumericId === '1' || pageCoachNumericId === 'coach_zhang') {
+                matchedCoach = coaches.find(c => c.id === 'coach_zhang');
+                pageCoachId = 'coach_zhang';
+            } else if (pageCoachNumericId === '2' || pageCoachNumericId === 'coach_liming') {
+                matchedCoach = coaches.find(c => c.id === 'coach_liming');
+                pageCoachId = 'coach_liming';
+            } else if (pageCoachNumericId) {
+                // 尝试直接匹配（只有在有值时才尝试）
+                matchedCoach = coaches.find(c => c.id === pageCoachNumericId);
+                if (matchedCoach) {
+                    pageCoachId = matchedCoach.id;
+                }
+            }
+            
+            // 如果还是没有找到有效的教练ID，默认使用张教练
+            if (!pageCoachId) {
+                pageCoachId = 'coach_zhang';
+            }
+            
+            currentUserId = MockData.currentUser.id;
+            
+            // 检查当前用户是否就是这个教练（不能订阅自己）
+            // 注意：只有当 pageCoachId 有效值时才比较，避免 null === null 的问题
+            const currentUser = UserService.getCurrentUser();
+            if (pageCoachId && currentUser.coachProfileId && currentUser.coachProfileId === pageCoachId) {
+                renderSelfCoachMessage();
+                return;
+            }
+            
+            // 获取当前订阅状态
+            const subscriptions = Store.get('subscriptions') || {};
+            const userSubs = subscriptions[currentUserId] || {};
+            currentTier = userSubs[pageCoachId] || 'none';
+            
+            renderSubscriptionButtons();
+        }
+
+        function renderSelfCoachMessage() {
+            document.getElementById('ai-action-btn').innerHTML = `
+                <div class="text-center text-secondary text-sm p-sm">这是您自己的教练主页</div>
+            `;
+            document.getElementById('premium-action-btn').innerHTML = `
+                <div class="text-center text-secondary text-sm p-sm">这是您自己的教练主页</div>
+            `;
+        }
+
+        function renderSubscriptionButtons() {
+            const aiBtn = document.getElementById('ai-action-btn');
+            const premiumBtn = document.getElementById('premium-action-btn');
+            
+            if (currentTier === 'ai') {
+                // 已订阅AI版
+                aiBtn.innerHTML = `
+                    <div class="text-center">
+                        <div class="badge badge-success mb-sm" style="font-size: 0.875rem;">✓ 当前订阅</div>
+                        <button class="btn btn-danger btn-sm" style="width: 100%;" onclick="cancelSubscription()">
+                            取消订阅
+                        </button>
+                    </div>
+                `;
+                premiumBtn.innerHTML = `
+                    <button class="btn btn-primary" style="width: 100%;" onclick="handleSubscribe('premium')">
+                        升级到高级版
+                    </button>
+                `;
+            } else if (currentTier === 'premium') {
+                // 已订阅高级版
+                aiBtn.innerHTML = `
+                    <button class="btn btn-secondary" style="width: 100%;" onclick="handleSubscribe('ai')">
+                        降级到AI版
+                    </button>
+                `;
+                premiumBtn.innerHTML = `
+                    <div class="text-center">
+                        <div class="badge badge-success mb-sm" style="font-size: 0.875rem;">✓ 当前订阅</div>
+                        <button class="btn btn-danger btn-sm" style="width: 100%;" onclick="cancelSubscription()">
+                            取消订阅
+                        </button>
+                    </div>
+                `;
+            } else {
+                // 未订阅
+                aiBtn.innerHTML = `
+                    <button class="btn btn-secondary" style="width: 100%;" onclick="handleSubscribe('ai')">
+                        立即订阅
+                    </button>
+                `;
+                premiumBtn.innerHTML = `
+                    <button class="btn btn-primary" style="width: 100%;" onclick="handleSubscribe('premium')">
+                        立即订阅
+                    </button>
+                `;
+            }
+        }
+
+        function handleSubscribe(tier) {
+            pendingSubscribeTier = tier;
+            
+            // 获取教练的入队问卷
+            const profiles = Store.get('coachProfiles') || {};
+            const profile = profiles[pageCoachId] || {};
+            const questions = profile.intakeQuestions || [];
+            
+            if (questions.length === 0) {
+                // 没有问卷，直接订阅
+                completeSubscription([]);
+                return;
+            }
+            
+            // 显示问卷模态框
+            showQuestionnaireModal(questions, tier);
+        }
+
+        function showQuestionnaireModal(questions, tier) {
+            const tierLabel = tier === 'premium' ? '高级版' : 'AI版';
+            const profiles = Store.get('coachProfiles') || {};
+            const coachName = profiles[pageCoachId]?.name || '教练';
+            
+            const questionsHtml = questions.map((q, index) => `
+                <div class="mb-md">
+                    <label class="block font-medium mb-xs text-sm">
+                        <span class="text-primary font-bold">Q${index + 1}:</span> ${escapeHtml(q)}
+                    </label>
+                    <textarea 
+                        class="input-field w-full" 
+                        id="answer-${index}" 
+                        rows="2" 
+                        placeholder="请输入您的回答..."
+                        style="resize: vertical;"
+                    ></textarea>
+                </div>
+            `).join('');
+            
+            const modalHtml = `
+                <div id="questionnaire-modal" class="modal-overlay active" style="display: flex; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; opacity: 1; pointer-events: auto;">
+                    <div class="modal-content" style="background: white; width: 92%; max-width: 600px; border-radius: 12px; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;">
+                        <div class="flex justify-between items-center p-md" style="border-bottom: 1px solid var(--border-color); background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);">
+                            <div>
+                                <h3 class="font-bold text-lg">订阅 ${coachName} - ${tierLabel}</h3>
+                                <p class="text-secondary text-sm">请回答以下问题，帮助教练更好地了解您</p>
+                            </div>
+                            <button class="btn btn-icon" onclick="closeQuestionnaireModal()">
+                                <i data-lucide="X" size="20"></i>
+                            </button>
+                        </div>
+                        
+                        <div style="padding: var(--spacing-lg); overflow-y: auto; flex: 1;">
+                            <div class="p-md mb-lg" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: var(--radius-md); border-left: 4px solid #10b981;">
+                                <p class="text-sm" style="color: #065f46;">
+                                    💡 您的公共档案（身高、体重、力量数据等）将自动授权给教练查看，无需重复填写。
+                                </p>
+                            </div>
+                            
+                            ${questionsHtml}
+                        </div>
+                        
+                        <div class="flex justify-end gap-md p-md" style="border-top: 1px solid var(--border-color); background: #f8fafc;">
+                            <button class="btn btn-secondary" onclick="closeQuestionnaireModal()">取消</button>
+                            <button class="btn btn-primary" onclick="submitQuestionnaire(${questions.length})">
+                                <i data-lucide="Check" size="16" class="mr-1"></i>
+                                确认订阅
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            lucide.createIcons();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function closeQuestionnaireModal() {
+            const modal = document.getElementById('questionnaire-modal');
+            if (modal) modal.remove();
+            pendingSubscribeTier = null;
+        }
+
+        function submitQuestionnaire(questionCount) {
+            const profiles = Store.get('coachProfiles') || {};
+            const questions = profiles[pageCoachId]?.intakeQuestions || [];
+            
+            // 收集答案
+            const answers = [];
+            for (let i = 0; i < questionCount; i++) {
+                const textarea = document.getElementById(`answer-${i}`);
+                const answer = textarea ? textarea.value.trim() : '';
+                if (!answer) {
+                    alert(`请回答第 ${i + 1} 个问题`);
+                    return;
+                }
+                answers.push({
+                    question: questions[i],
+                    answer: answer
+                });
+            }
+            
+            completeSubscription(answers);
+            closeQuestionnaireModal();
+        }
+
+        function completeSubscription(answers) {
+            const tier = pendingSubscribeTier;
+            
+            // 1. 保存问卷答案
+            if (answers.length > 0) {
+                const allAnswers = Store.get('subscriptionAnswers') || {};
+                if (!allAnswers[currentUserId]) {
+                    allAnswers[currentUserId] = {};
+                }
+                allAnswers[currentUserId][pageCoachId] = {
+                    answers: answers,
+                    submittedAt: Date.now(),
+                    isNew: true
+                };
+                Store.set('subscriptionAnswers', allAnswers);
+            }
+            
+            // 2. 更新订阅状态
+            const subscriptions = Store.get('subscriptions') || {};
+            if (!subscriptions[currentUserId]) {
+                subscriptions[currentUserId] = {};
+            }
+            subscriptions[currentUserId][pageCoachId] = tier;
+            Store.set('subscriptions', subscriptions);
+            
+            // 3. 更新教练的学员列表
+            const allClients = Store.get('clients') || {};
+            if (!allClients[pageCoachId]) {
+                allClients[pageCoachId] = [];
+            }
+            
+            // 检查是否已存在
+            const existingIndex = allClients[pageCoachId].findIndex(c => c.id === currentUserId);
+            const currentUser = UserService.getCurrentUser();
+            
+            if (existingIndex === -1) {
+                // 新学员
+                allClients[pageCoachId].push({
+                    id: currentUserId,
+                    name: currentUser.name,
+                    plan: '',
+                    status: 'active',
+                    lastActive: '刚刚',
+                    subscriptionMonths: 1,
+                    tier: tier,
+                    hasPlan: false
+                });
+            } else {
+                // 更新订阅等级
+                allClients[pageCoachId][existingIndex].tier = tier;
+            }
+            Store.set('clients', allClients);
+            
+            // 更新UI
+            currentTier = tier;
+            renderSubscriptionButtons();
+            
+            const tierLabel = tier === 'premium' ? '高级版' : 'AI版';
+            alert(`🎉 订阅成功！\n\n您已成功订阅${tierLabel}服务。\n教练将会收到您的需求问卷，并尽快为您制定训练计划。`);
+        }
+
+        function cancelSubscription() {
+            if (!confirm('确定要取消订阅吗？\n\n取消后您将无法继续使用该教练的服务，但可以随时重新订阅。')) {
+                return;
+            }
+            
+            // 1. 更新订阅状态
+            const subscriptions = Store.get('subscriptions') || {};
+            if (subscriptions[currentUserId]) {
+                delete subscriptions[currentUserId][pageCoachId];
+            }
+            Store.set('subscriptions', subscriptions);
+            
+            // 2. 从教练学员列表中移除
+            const allClients = Store.get('clients') || {};
+            if (allClients[pageCoachId]) {
+                allClients[pageCoachId] = allClients[pageCoachId].filter(c => c.id !== currentUserId);
+            }
+            Store.set('clients', allClients);
+            
+            // 3. 删除问卷答案（可选，这里保留历史记录）
+            // const allAnswers = Store.get('subscriptionAnswers') || {};
+            // if (allAnswers[currentUserId]) {
+            //     delete allAnswers[currentUserId][pageCoachId];
+            // }
+            // Store.set('subscriptionAnswers', allAnswers);
+            
+            // 更新UI
+            currentTier = 'none';
+            renderSubscriptionButtons();
+            
+            alert('订阅已取消。您可以随时重新订阅。');
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 等待 App.init() 完成后再初始化订阅UI
+            setTimeout(() => {
+                initSubscriptionUI();
+            }, 100);
+        });
     </script>
 </body>
 </html>

@@ -7,8 +7,18 @@ export interface ListTemplatesDto {
     limit: number;
 }
 
+export interface CoachPlansPreview {
+    id: string;
+    name: string;
+    description: string | null;
+    tags: string[];
+    suitableFor: string;
+    restDaysCount: number;
+    trainingDaysCount: number;
+}
+
 export interface ListTemplatesResponseDto {
-    templates: CoachPlanTemplateRow[];
+    templates: CoachPlansPreview[];
     totalCount: number;
     page: number;
     limit: number;

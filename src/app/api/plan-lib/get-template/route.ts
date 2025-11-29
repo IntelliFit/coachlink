@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
-import { GetTemplateDto, GetTemplateResponseDto, CoachPlanDayDetail } from "./entity";
+import { GetTemplateDto, GetTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // 获取模板基本信息
+    // 获取模板基本信息和计划日数据
     const { data: template, error: templateError } = await supabase
         .from("coach_plan_templates")
         .select("*")
@@ -46,50 +46,26 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    // 获取模板下的所有计划日
-    const { data: days, error: daysError } = await supabase
-        .from("coach_plan_days")
-        .select("*")
-        .eq("plan_template_id", id)
-        .order("day_index", { ascending: true });
-
-    if (daysError) {
-        console.error("Error fetching template days:", daysError);
-        return NextResponse.json({
-            success: false,
-            message: "Failed to fetch template days"
-        }, { status: 500 });
-    }
-
-    // 获取每个计划日下的动作组
-    const daysWithActionSets: CoachPlanDayDetail[] = [];
-    for (const day of days || []) {
-        const { data: actionSets, error: actionSetsError } = await supabase
-            .from("coach_plan_action_sets")
-            .select("*")
-            .eq("day_id", day.id)
-            .order("set_order", { ascending: true });
-
-        if (actionSetsError) {
-            console.error(`Error fetching action sets for day ${day.id}:`, actionSetsError);
-            return NextResponse.json({
-                success: false,
-                message: "Failed to fetch action sets"
-            }, { status: 500 });
-        }
-
-        daysWithActionSets.push({
-            ...day,
-            action_sets: actionSets || []
-        });
+    // 从training_days字段中提取计划日数据
+    let days = [];
+    try {
+        days = typeof template.training_days === 'string' 
+            ? JSON.parse(template.training_days) 
+            : template.training_days || [];
+    } catch (e) {
+        console.error("Error parsing training_days:", e);
+        days = [];
     }
 
     return NextResponse.json<ApiData<GetTemplateResponseDto>>({
         success: true,
         message: "获取训练计划模板详情成功",
         data: {
-            template,
-            days: daysWithActionSets
+            template: {
+                ...template,
+                training_days: undefined // 不在template对象中重复包含training_days字段
+            },
+            days
         }
     });
 }

@@ -59,8 +59,47 @@
                         <ul style="list-style: disc; margin-left: 1.25rem; line-height: 1.9;">
                             <li>价格必须为正数。</li>
                             <li>高级版价格必须高于 AI版价格。</li>
-                            <li>学员侧教练主页中的“服务与定价”模块将实时读取此处设置。</li>
+                            <li>学员侧教练主页中的"服务与定价"模块将实时读取此处设置。</li>
                         </ul>
+                    </div>
+                </div>
+
+                <!-- 入队问卷设置 - 新增 -->
+                <div class="card mt-lg">
+                    <div class="card-header">
+                        <h3 class="font-semibold">入队问卷设置</h3>
+                    </div>
+                    <div class="p-lg">
+                        <div class="p-md mb-lg" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: var(--radius-md); border-left: 4px solid #f59e0b;">
+                            <p class="text-sm" style="color: #92400e;">
+                                💡 <strong>设置说明：</strong>学员订阅您的服务时，除公共档案（身高/体重/力量数据等）外，还需回答以下问题。
+                            </p>
+                            <p class="text-sm mt-xs" style="color: #92400e;">
+                                建议询问：训练频率、器械限制、特殊需求等。<strong>无需询问基础身体数据</strong>，这些将从学员档案自动获取。
+                            </p>
+                        </div>
+                        
+                        <div id="question-list" class="mb-md">
+                            <!-- 动态渲染问题列表 -->
+                        </div>
+                        
+                        <div class="flex gap-sm">
+                            <input type="text" id="new-question-input" placeholder="输入新问题..." class="input-field flex-1" style="padding: 0.625rem 0.75rem;">
+                            <button onclick="addQuestion()" class="btn btn-secondary">
+                                <i data-lucide="Plus" size="16"></i>
+                                添加
+                            </button>
+                        </div>
+
+                        <div class="flex gap-md mt-lg">
+                            <button onclick="saveQuestions()" class="btn btn-primary">
+                                <i data-lucide="Save" size="16"></i>
+                                保存问卷设置
+                            </button>
+                            <span id="question-save-tip" class="text-success flex items-center gap-xs" style="display:none;">
+                                <i data-lucide="Check" size="16"></i> 已保存
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -94,6 +133,100 @@
             tip.style.display = 'inline';
             setTimeout(() => tip.style.display = 'none', 1500);
         }
+
+        // ========== 入队问卷管理 ==========
+        let currentQuestions = [];
+
+        function loadQuestions() {
+            const profiles = Store.get('coachProfiles') || {};
+            const profile = profiles[coachId] || {};
+            currentQuestions = Array.isArray(profile.intakeQuestions) ? [...profile.intakeQuestions] : [];
+            renderQuestionList();
+        }
+
+        function renderQuestionList() {
+            const container = document.getElementById('question-list');
+            
+            if (currentQuestions.length === 0) {
+                container.innerHTML = `
+                    <div class="p-md text-center text-secondary" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <i data-lucide="FileQuestion" size="32" style="opacity: 0.5; margin-bottom: 0.5rem;"></i>
+                        <p>暂无问卷问题</p>
+                        <p class="text-xs mt-xs">添加问题后，学员订阅时将需要回答这些问题</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = currentQuestions.map((q, index) => `
+                <div class="flex items-center gap-sm mb-sm p-sm" style="background: var(--background-color); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <span class="text-secondary text-sm font-semibold" style="min-width: 24px;">Q${index + 1}</span>
+                    <input type="text" class="input-field flex-1" value="${escapeHtml(q)}" onchange="updateQuestion(${index}, this.value)" style="padding: 0.5rem 0.75rem;">
+                    <button onclick="removeQuestion(${index})" class="btn btn-icon btn-sm text-danger" title="删除问题">
+                        <i data-lucide="Trash2" size="16"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addQuestion() {
+            const input = document.getElementById('new-question-input');
+            const text = input.value.trim();
+            if (!text) {
+                alert('请输入问题内容');
+                return;
+            }
+            currentQuestions.push(text);
+            input.value = '';
+            renderQuestionList();
+        }
+
+        function updateQuestion(index, newText) {
+            if (index >= 0 && index < currentQuestions.length) {
+                currentQuestions[index] = newText.trim();
+            }
+        }
+
+        function removeQuestion(index) {
+            if (confirm('确定要删除这个问题吗？')) {
+                currentQuestions.splice(index, 1);
+                renderQuestionList();
+            }
+        }
+
+        function saveQuestions() {
+            // 过滤空问题
+            currentQuestions = currentQuestions.filter(q => q.trim() !== '');
+            
+            const profiles = Store.get('coachProfiles') || {};
+            if (!profiles[coachId]) {
+                profiles[coachId] = {};
+            }
+            profiles[coachId].intakeQuestions = currentQuestions;
+            Store.set('coachProfiles', profiles);
+            
+            renderQuestionList();
+            
+            const tip = document.getElementById('question-save-tip');
+            tip.style.display = 'flex';
+            setTimeout(() => tip.style.display = 'none', 2000);
+        }
+
+        // 页面加载时初始化问卷
+        document.addEventListener('DOMContentLoaded', () => {
+            // 延迟加载，确保 coachId 已设置
+            setTimeout(() => {
+                loadQuestions();
+            }, 100);
+        });
     </script>
 </body>
 </html>

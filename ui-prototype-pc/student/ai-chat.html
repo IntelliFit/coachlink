@@ -319,7 +319,12 @@
         function handleBackNavigation() {
             const fromCoachId = urlParams.get('from');
             if (fromCoachId) {
-                const pageId = fromCoachId === 'coach_002' ? '2' : '1';
+                try {
+                    sessionStorage.setItem('coachlink:lastCoachId', fromCoachId);
+                } catch (err) {
+                    console.warn('无法保存教练ID到 sessionStorage：', err);
+                }
+                const pageId = fromCoachId === 'coach_liming' ? '2' : '1';
                 window.location.href = `coach-profile.html?id=${pageId}`;
             } else {
                 window.history.back();
