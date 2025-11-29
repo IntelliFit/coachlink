@@ -8,52 +8,12 @@ import { Skeleton } from 'primereact/skeleton';
 import PricingSettings from './PricingSettings';
 import IntakeQuestionSettings from './QuestionSettings';
 import { Card } from 'primereact/card';
+import { Pricing } from '@/app/api/coach/get-pricing/entity';
 
 const PricingPage = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
-    
-    const [pricing, setPricing] = useState<{ aiPrice: number; premiumPrice: number } | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
 
-    useEffect(() => {
-        const loadPricing = async () => {
-            if (coach?.id) {
-                try {
-                    setLoading(true);
-                    const result = await coachService.getPricing({ coach_id: coach.id });
-                    
-                    if (result?.pricing) {
-                        setPricing({
-                            aiPrice: result.pricing.ai_monthly || 99,
-                            premiumPrice: result.pricing.premium_monthly || 299
-                        });
-                    } else {
-                        // 默认价格
-                        setPricing({
-                            aiPrice: 99,
-                            premiumPrice: 299
-                        });
-                    }
-                } catch (error) {
-                    console.error('加载定价信息失败:', error);
-                    // 默认价格
-                    setPricing({
-                        aiPrice: 99,
-                        premiumPrice: 299
-                    });
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadPricing();
-    }, [coach?.id]);
-
-    const handlePricingUpdate = (aiPrice: number, premiumPrice: number) => {
-        setPricing({ aiPrice, premiumPrice });
-    };
 
     return (
         <div className="space-y-6">
@@ -63,45 +23,12 @@ const PricingPage = () => {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="space-y-6">
-                    <div className="card">
-                        <div className="p-6">
-                            <Skeleton width="10rem" height="2rem" className="mb-4" />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <Skeleton width="100%" height="4rem" />
-                                <Skeleton width="100%" height="4rem" />
-                            </div>
-                            <Skeleton width="8rem" height="2.5rem" />
-                        </div>
-                    </div>
-                    <div className="card">
-                        <div className="p-6">
-                            <Skeleton width="10rem" height="2rem" className="mb-4" />
-                            <Skeleton width="100%" height="8rem" className="mb-4" />
-                            <Skeleton width="100%" height="3rem" />
-                        </div>
-                    </div>
-                </div>
-            ) : pricing && coach?.id ? (
+            {
                 <>
-                    <PricingSettings 
-                        coachId={coach.id}
-                        initialAiPrice={pricing.aiPrice}
-                        initialPremiumPrice={pricing.premiumPrice}
-                        onPricingUpdate={handlePricingUpdate}
-                    />
-                    
-                    
+                    <PricingSettings coachId={coach.id} />
                     <IntakeQuestionSettings coachId={coach.id} />
                 </>
-            ) : (
-                <div className="card">
-                    <div className="p-6 text-center">
-                        <p>无法加载定价信息</p>
-                    </div>
-                </div>
-            )}
+            }
         </div>
     );
 };
