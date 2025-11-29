@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         .from('coach_questionnaires')
         .select('id,questions')
         .eq('coach_id', userId)
-        .single();
+        .maybeSingle();
 
     if (questionnaireError) {
         return NextResponse.json({
@@ -42,12 +42,17 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    const questionnairesData = questionnaire ?? {
+        id: '',
+        questions: []
+    }
+
     return NextResponse.json<ApiData<GetQuestionnairesResponseDto>>({
         success: true,
         message: '获取问卷成功',
         data: {
-            id: questionnaire.id,
-            questionnaires: questionnaire.questions as string[]
+            id: questionnairesData.id,
+            questionnaires: questionnairesData.questions as string[]
         }
     });
 }
