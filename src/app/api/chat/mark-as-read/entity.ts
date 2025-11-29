@@ -7,3 +7,4 @@ export interface MarkAsReadResponseDto {
     marked_count: number;
 }
 
+

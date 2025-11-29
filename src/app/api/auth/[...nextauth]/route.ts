@@ -66,9 +66,9 @@ export const authOptions: AuthOptions = {
                 .eq('user_id', user.id)
                 .single();
             
-            if (error) {
-                console.error('获取用户档案失败：', error);
-            }
+            // if (error) {
+            //     console.error('获取用户档案失败：', error);
+            // }
 
             if (profile) {
                 session.profile = profile;
