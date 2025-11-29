@@ -8,12 +8,14 @@ import { Skeleton } from 'primereact/skeleton';
 import PricingSettings from './PricingSettings';
 import IntakeQuestionSettings from './QuestionSettings';
 import { Card } from 'primereact/card';
+import { Pricing } from '@/app/api/coach/get-pricing/entity';
+
 
 const PricingPage = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
     
-    const [pricing, setPricing] = useState<{ aiPrice: number; premiumPrice: number } | null>(null);
+    const [pricingTiers, setPricingTiers] = useState<Pricing[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
@@ -21,27 +23,71 @@ const PricingPage = () => {
             if (coach?.id) {
                 try {
                     setLoading(true);
-                    const result = await coachService.getPricing({ coach_id: coach.id });
+                    const result = await coachService.getPricing();
                     
-                    if (result?.pricing) {
-                        setPricing({
-                            aiPrice: result.pricing.ai_monthly || 99,
-                            premiumPrice: result.pricing.premium_monthly || 299
-                        });
-                    } else {
-                        // 默认价格
-                        setPricing({
-                            aiPrice: 99,
-                            premiumPrice: 299
-                        });
+                    // 解析定价数据
+                    if (result?.pricings) {
+                        try {
+                            setPricingTiers(result.pricings);
+                        } catch (e) {
+                            console.error('解析定价数据失败:', e);
+                        }
                     }
+                    
+                    // 默认价格档位
+                    setPricingTiers([
+                        {
+                            title: 'AI版',
+                            price: 99,
+                            features: [
+                                '个性化AI训练计划生成',
+                                '基础动作指导',
+                                '每月计划更新',
+                                '社区讨论权限'
+                            ],
+                            is_recommend: false
+                        },
+                        {
+                            title: '高级版',
+                            price: 299,
+                            features: [
+                                '包含AI版所有功能',
+                                '上传训练视频',
+                                '专业动作点评',
+                                '语音/文字反馈',
+                                '训练建议优化'
+                            ],
+                            is_recommend: true
+                        }
+                    ]);
                 } catch (error) {
                     console.error('加载定价信息失败:', error);
-                    // 默认价格
-                    setPricing({
-                        aiPrice: 99,
-                        premiumPrice: 299
-                    });
+                    // 默认价格档位
+                    setPricingTiers([
+                        {
+                            title: 'AI版',
+                            price: 99,
+                            features: [
+                                '个性化AI训练计划生成',
+                                '基础动作指导',
+                                '每月计划更新',
+                                '社区讨论权限'
+                            ],
+                            is_recommend: false
+                        },
+                        {
+                            title: '高级版',
+                            price: 299,
+                            features: [
+                                '包含AI版所有功能',
+                                '上传训练视频',
+                                '专业动作点评',
+                                '语音/文字反馈',
+                                '训练建议优化'
+                            ],
+                            is_recommend: true
+                        }
+                    ]);
                 } finally {
                     setLoading(false);
                 }
@@ -51,8 +97,8 @@ const PricingPage = () => {
         loadPricing();
     }, [coach?.id]);
 
-    const handlePricingUpdate = (aiPrice: number, premiumPrice: number) => {
-        setPricing({ aiPrice, premiumPrice });
+    const handlePricingUpdate = (tiers: Pricing[]) => {
+        setPricingTiers(tiers);
     };
 
     return (
@@ -83,15 +129,13 @@ const PricingPage = () => {
                         </div>
                     </div>
                 </div>
-            ) : pricing && coach?.id ? (
+            ) : coach?.id ? (
                 <>
                     <PricingSettings 
                         coachId={coach.id}
-                        initialAiPrice={pricing.aiPrice}
-                        initialPremiumPrice={pricing.premiumPrice}
+                        initialPricingTiers={pricingTiers}
                         onPricingUpdate={handlePricingUpdate}
                     />
-                    
                     
                     <IntakeQuestionSettings coachId={coach.id} />
                 </>
