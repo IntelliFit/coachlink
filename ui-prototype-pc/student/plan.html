@@ -239,29 +239,25 @@
                     </a>
                 </div>
 
-                <!-- Coach Selector (for multiple coaches) -->
-                <div class="card mb-lg" style="padding: var(--spacing-md);">
+                <!-- Coach Selector (for multiple coaches) - 动态生成 -->
+                <div class="card mb-lg" style="padding: var(--spacing-md);" id="coach-selector-container">
                     <div class="text-sm text-secondary mb-sm">选择教练查看计划:</div>
-                    <div style="display: flex; gap: var(--spacing-sm);">
-                        <button class="btn btn-primary" onclick="switchCoach('zhang')" id="coach-zhang">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhang" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 0.5rem;">
-                            教练张健
-                        </button>
-                        <button class="btn btn-secondary" onclick="switchCoach('li')" id="coach-li">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=li" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 0.5rem;">
-                            教练李明
-                        </button>
+                    <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;" id="coach-selector-buttons">
+                        <!-- 动态生成教练按钮 -->
                     </div>
                 </div>
 
-                <!-- Update Log -->
-                <div class="update-log">
-                    <div class="update-log-header">
-                        <i data-lucide="Bell"></i>
-                        计划更新 - 2024年11月20日
-                    </div>
-                    <div class="update-log-content">
-                        本周为你增加了5kg重量,你的力量进步很明显!记得注意动作质量,保持稳定的节奏。加油!💪
+                <!-- 训练计划内容容器 - 动态显示 -->
+                <div id="plan-content-container">
+                    <!-- Update Log -->
+                    <div class="update-log">
+                        <div class="update-log-header">
+                            <i data-lucide="Bell"></i>
+                            计划更新 - 2024年11月20日
+                        </div>
+                        <div class="update-log-content">
+                            本周为你增加了5kg重量,你的力量进步很明显!记得注意动作质量,保持稳定的节奏。加油!💪
+                        </div>
                     </div>
                 </div>
 
@@ -598,22 +594,98 @@
             alert(`播放执行视频: ${videoId}\n(实际应用中会打开全屏视频播放器)`);
         }
 
+        let currentCoachId = null;
+        
+        // 获取当前用户订阅的教练列表（排除自己）
+        function getSubscribedCoaches() {
+            const currentUser = UserService.getCurrentUser();
+            const subscriptions = Store.get('subscriptions') || {};
+            const userSubs = subscriptions[currentUser.id] || {};
+            const coaches = Store.get('coaches') || [];
+            
+            // 获取订阅的教练ID列表（排除自己）
+            const subscribedCoachIds = Object.keys(userSubs).filter(coachId => {
+                if (currentUser.coachProfileId === coachId) return false;
+                return userSubs[coachId] && userSubs[coachId] !== 'none';
+            });
+            
+            // 返回教练详情
+            return subscribedCoachIds.map(coachId => {
+                const coach = coaches.find(c => c.id === coachId);
+                return coach ? {
+                    id: coach.id,
+                    name: coach.name,
+                    avatarUrl: coach.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${coachId}`
+                } : null;
+            }).filter(Boolean);
+        }
+        
+        // 渲染教练选择按钮
+        function renderCoachSelector() {
+            const container = document.getElementById('coach-selector-container');
+            const buttonsContainer = document.getElementById('coach-selector-buttons');
+            const planContent = document.getElementById('plan-content-container');
+            const weekSections = document.querySelectorAll('.week-section');
+            const subscribedCoaches = getSubscribedCoaches();
+            
+            if (subscribedCoaches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-md">
+                        <p class="text-secondary mb-sm">您还没有订阅任何教练</p>
+                        <a href="discover-coaches.html" class="btn btn-primary btn-sm">发现教练</a>
+                    </div>
+                `;
+                // 隐藏训练计划内容
+                if (planContent) planContent.style.display = 'none';
+                weekSections.forEach(section => section.style.display = 'none');
+                return;
+            }
+            
+            // 显示训练计划内容
+            if (planContent) planContent.style.display = 'block';
+            weekSections.forEach(section => section.style.display = 'block');
+            
+            buttonsContainer.innerHTML = subscribedCoaches.map((coach, index) => `
+                <button class="btn ${index === 0 ? 'btn-primary' : 'btn-secondary'}" 
+                        onclick="switchCoach('${coach.id}')" 
+                        id="coach-btn-${coach.id}">
+                    <img src="${coach.avatarUrl}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 0.5rem;">
+                    教练${coach.name}
+                </button>
+            `).join('');
+            
+            // 默认选中第一个教练
+            if (subscribedCoaches.length > 0) {
+                currentCoachId = subscribedCoaches[0].id;
+            }
+        }
+        
         function switchCoach(coachId) {
-
+            currentCoachId = coachId;
+            
             // Update button states
-            document.querySelectorAll('[id^="coach-"]').forEach(btn => {
+            document.querySelectorAll('[id^="coach-btn-"]').forEach(btn => {
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-secondary');
             });
-            document.getElementById(`coach-${coachId}`).classList.remove('btn-secondary');
-            document.getElementById(`coach-${coachId}`).classList.add('btn-primary');
+            const activeBtn = document.getElementById(`coach-btn-${coachId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-secondary');
+                activeBtn.classList.add('btn-primary');
+            }
+            
+            // 获取教练名称
+            const coaches = Store.get('coaches') || [];
+            const coach = coaches.find(c => c.id === coachId);
+            const coachName = coach ? coach.name : coachId;
             
             // In real app, fetch and display the selected coach's plan
-            alert(`切换到${coachId === 'zhang' ? '张健' : '李明'}教练的计划`);
+            alert(`切换到${coachName}教练的计划`);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
+            renderCoachSelector();
             lucide.createIcons();
             
             // Check URL for coach parameter

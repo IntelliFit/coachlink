@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
+import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
+import { useToastContext } from '@/context/ToastContext';
 
 interface WeekCalendarProps {
     days: {
@@ -14,6 +16,7 @@ interface WeekCalendarProps {
     selectedDayIndex: number | null;
     onSelectDay: (dayIndex: number) => void;
     onAddWeek: () => void;
+    onAddWeekFromExisting: (sourceWeekIndex: number) => void;
     onDeleteWeek: (weekStartIndex: number) => void;
     saving: boolean;
 }
@@ -23,11 +26,16 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     selectedDayIndex,
     onSelectDay,
     onAddWeek,
+    onAddWeekFromExisting,
     onDeleteWeek,
     saving
 }) => {
     const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
     const [pendingDeleteWeekIndex, setPendingDeleteWeekIndex] = useState<number | null>(null);
+    const [selectedOption, setSelectedOption] = useState<'blank' | number | null>(null);
+    const acceptBtnRef = useRef(null);
+    const rejectBtnRef = useRef(null);
+    const { showToast } = useToastContext();
 
     const weeks = [];
     for (let i = 0; i < days.length; i += 7) {
@@ -42,17 +50,98 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         setPendingDeleteWeekIndex(null);
     };
 
+    const handleAccept = () => {
+        if (selectedOption === 'blank') {
+            onAddWeek();
+        } else if (typeof selectedOption === 'number') {
+            onAddWeekFromExisting(selectedOption);
+        }
+    };
+
+    const handleReject = () => {
+        // 取消操作，重置选中状态
+        setSelectedOption(null);
+    };
+
+    const showAddWeekPopup = (event: React.MouseEvent<HTMLButtonElement>) => {
+        if (weeks.length > 0) {
+            // 重置选中选项
+            setSelectedOption(null);
+
+            confirmPopup({
+                target: event.currentTarget,
+                message: (
+                    <div className="p-3 min-w-48">
+                        <div className="flex flex-col gap-2">
+                            <Button
+                                label="新建空白周"
+                                className={`w-full text-left justify-start option-btn ${selectedOption === 'blank' ? 'selected' : ''}`}
+                                onClick={() => setSelectedOption('blank')}
+                                disabled={saving}
+                            />
+
+                            {weeks.map((week, weekIndex) => {
+                                const weekNumber = weekIndex + 1;
+                                return (
+                                    <Button
+                                        key={weekIndex}
+                                        label={`第 ${weekNumber} 周`}
+                                        className={`w-full text-left justify-start option-btn ${selectedOption === weekIndex ? 'selected' : ''}`}
+                                        onClick={() => setSelectedOption(weekIndex)}
+                                        disabled={saving}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </div>
+                ),
+                visible: true,
+                accept: () => {                    
+                    showToast({ severity: 'success', summary: '添加成功' })
+                },
+                reject: () => { },
+                acceptLabel: '添加',
+                rejectLabel: '取消',
+                dismissable: true,
+                onHide: () => {
+                    // popup 隐藏时重置选中选项
+                    setSelectedOption(null);
+                }
+            });
+        } else {
+            // 如果还没有周，直接添加空白周
+            onAddWeek();
+        }
+    };
+
     return (
         <div className="h-full border-1 bg-surface-100 p-2 rounded-lg">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-900">训练日历</h3>
-                <Button
-                    label="添加周"
-                    icon="pi pi-plus"
-                    onClick={onAddWeek}
-                    disabled={saving}
-                    className="p-button-sm"
-                />
+                <div className="relative">
+                    <Button
+                        label="添加周"
+                        icon="pi pi-plus"
+                        onClick={showAddWeekPopup}
+                        disabled={saving}
+                        className="p-button-sm"
+                    />
+                    <ConfirmPopup
+                        content={({ message, hide }) => (
+                            <div className="bg-surface-0 text-surface-900 border-round p-3 shadow-lg">
+                                <span>{message}</span>
+                                <div className="flex align-items-center gap-2 mt-3">
+                                    <Button ref={acceptBtnRef} label="添加" onClick={() => {
+                                        handleAccept();
+                                        showToast({ severity: 'success', summary: '添加成功' });
+                                        hide();
+                                    }} className="p-button-sm p-button-outlined"></Button>
+                                    <Button ref={rejectBtnRef} label="取消" outlined onClick={() => { handleReject(); hide(); }} className="p-button-sm p-button-text"></Button>
+                                </div>
+                            </div>
+                        )}
+                    />
+                </div>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -100,11 +189,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                                     : 'border-surface-200 hover:bg-surface-50'}
                                             `}
                                             style={{
-                                                borderLeft: `6px solid ${
-                                                    isTraining
+                                                borderLeft: `6px solid ${isTraining
                                                         ? 'var(--primary-400)'
                                                         : 'var(--surface-400)'
-                                                }`
+                                                    }`
                                             }}
                                         >
                                             <span className="text-xs opacity-70">
@@ -112,9 +200,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                             </span>
 
                                             <span
-                                                className={`text-xl ${
-                                                    isTraining ? 'text-primary-600' : 'text-600'
-                                                }`}
+                                                className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'
+                                                    }`}
                                             >
                                                 {isTraining ? (
                                                     <i className="pi pi-bolt"></i>

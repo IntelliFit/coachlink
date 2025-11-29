@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     // Build query
     let query = supabase
         .from("coach_plan_templates")
-        .select("*", { count: "exact" })
+        .select('id,name,description,type,tags,suitable_for,rest_days_count,training_days_count', { count: "exact" })
         .eq("coach_id", userId)
         .order("created_at", { ascending: false }); // 默认按创建时间倒序排序
 
@@ -72,7 +72,15 @@ export async function POST(req: Request) {
         success: true,
         message: "获取训练计划模板列表成功",
         data: {
-            templates: templates || [],
+            templates: templates.map(template => ({
+                id: template.id,
+                name: template.name,
+                description: template.description,
+                tags: template.tags || [],
+                suitableFor: template.suitable_for,
+                restDaysCount: template.rest_days_count || 0,
+                trainingDaysCount: template.training_days_count || 0
+            })),
             totalCount: count || 0,
             page,
             limit

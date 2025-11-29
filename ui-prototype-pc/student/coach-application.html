@@ -87,6 +87,10 @@
                                 <i data-lucide="Undo2" size="16"></i>
                                 撤回申请
                             </button>
+                            <a href="../coach/dashboard.html" class="btn btn-success btn-sm" id="enter-coach-btn" style="display:none;" onclick="if(typeof RoleManager!=='undefined'){RoleManager.switchRole('coach',{silent:true});}">
+                                <i data-lucide="ArrowRight" size="16"></i>
+                                进入教练端
+                            </a>
                         </div>
                     </div>
                     <div class="p-lg">
@@ -275,11 +279,14 @@
             const withdrawBtn = document.getElementById('withdraw-btn');
             const submitBtn = document.getElementById('submit-btn');
             const saveBtn = document.getElementById('save-draft-btn');
+            const enterCoachBtn = document.getElementById('enter-coach-btn');
             const hasCoachRole = (MockData.currentUser.roles || []).includes('coach');
 
             withdrawBtn.style.display = status === 'pending' ? 'inline-flex' : 'none';
             submitBtn.style.display = (status === 'pending' || status === 'approved' || hasCoachRole) ? 'none' : 'inline-flex';
             saveBtn.style.display = (status === 'pending' || status === 'approved' || hasCoachRole) ? 'none' : 'inline-flex';
+            // 审核通过后显示"进入教练端"按钮
+            enterCoachBtn.style.display = (status === 'approved' || hasCoachRole) ? 'inline-flex' : 'none';
         }
 
         function bindActions() {

@@ -588,107 +588,34 @@
                                             <i data-lucide="Clock"></i>
                                             <span id="profile-subscription">订阅时长: 4个月 (16周)</span>
                                         </div>
-                                        <div class="subscription-tag">
+                                        <div class="subscription-tag" id="profile-tier-badge">
                                             <i data-lucide="Crown"></i>
                                             高级版
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- 本期需求 - 新增 -->
+                            <div class="profile-section" id="service-request-panel" style="display: none; background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%); border: 2px solid #3b82f6;">
+                                <h2 class="section-title" style="color: #1e40af; margin-bottom: var(--spacing-sm);">
+                                    <i data-lucide="ClipboardList"></i>
+                                    📋 本期需求
+                                </h2>
+                                <p class="text-xs text-secondary mb-md">学员订阅时填写的需求问卷</p>
+                                <div id="plan-editor-request-content">
+                                    <!-- 动态渲染问答 -->
+                                </div>
+                            </div>
 
-                            <!-- Personal Info -->
+                            <!-- Personal Info - 动态渲染 -->
                             <div class="profile-section">
                                 <h2 class="section-title">
                                     <i data-lucide="User"></i>
-                                    个人信息
+                                    公共档案
                                 </h2>
-                                
-                                <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基本信息</h3>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <div class="info-label">姓名</div>
-                                        <div class="info-value" id="info-name">李明</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">年龄</div>
-                                        <div class="info-value">28岁</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">性别</div>
-                                        <div class="info-value">男</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">地理位置</div>
-                                        <div class="info-value">上海</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">职业</div>
-                                        <div class="info-value">软件工程师</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">加入时长</div>
-                                        <div class="info-value">120天</div>
-                                    </div>
-                                </div>
-                                
-                                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">力量数据</h3>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <div class="info-label">深蹲 1RM</div>
-                                        <div class="info-value" style="color: rgb(16, 185, 129);">120 kg</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">卧推 1RM</div>
-                                        <div class="info-value" style="color: rgb(236, 72, 153);">100 kg</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">硬拉 1RM</div>
-                                        <div class="info-value" style="color: rgb(249, 115, 22);">140 kg</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">总和</div>
-                                        <div class="info-value" style="color: rgb(99, 102, 241);">360 kg</div>
-                                    </div>
-                                </div>
-                                
-                                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">身体数据</h3>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <div class="info-label">身高</div>
-                                        <div class="info-value">175 cm</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">当前体重</div>
-                                        <div class="info-value">75 kg</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">体脂率</div>
-                                        <div class="info-value">15%</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">腕围</div>
-                                        <div class="info-value">17 cm</div>
-                                    </div>
-                                </div>
-                                
-                                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">训练背景</h3>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <div class="info-label">系统训练时长</div>
-                                        <div class="info-value">2年</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">训练频率</div>
-                                        <div class="info-value">每周4-5次</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">主要目标</div>
-                                        <div class="info-value">增肌 + 力量</div>
-                                    </div>
-                                    <div class="info-item">
-                                        <div class="info-label">恢复能力</div>
-                                        <div class="info-value">良好</div>
-                                    </div>
+                                <div id="editor-profile-info-container">
+                                    <!-- 由 renderEditorPublicArchive() 动态生成 -->
                                 </div>
                             </div>
 
@@ -712,102 +639,19 @@
                                 </div>
                             </div>
 
-                            <!-- Progress Timeline -->
+                            <!-- Progress Timeline - 动态渲染 -->
                             <div class="profile-section">
                                 <h2 class="section-title">
                                     <i data-lucide="Award"></i>
                                     进步时间线
                                 </h2>
                                 <p class="text-secondary mb-md">记录每一个值得骄傲的突破时刻</p>
-                                
-                                <div class="timeline">
-                                    <!-- Timeline Item 1 -->
-                                    <div class="timeline-item">
-                                        <div class="timeline-header">
-                                            <div>
-                                                <div class="timeline-exercise">卧推</div>
-                                                <div class="timeline-date">2024年11月15日</div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="timeline-stats">
-                                            <div class="timeline-stat">
-                                                <i data-lucide="Weight"></i>
-                                                <span>100 kg × 8 次</span>
-                                            </div>
-                                            <div class="timeline-stat">
-                                                <i data-lucide="Zap"></i>
-                                                <span>RPE 9</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="timeline-video" onclick="playVideo('video1')">
-                                            <img src="https://placehold.co/600x400/6366f1/white?text=Training+Video" alt="Training Video">
-                                            <div class="timeline-video-overlay">
-                                                <div class="timeline-video-play">
-                                                    <i data-lucide="Play"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="timeline-note">
-                                            <strong>我的感受:</strong> 第一次卧推突破100kg！感觉太棒了！💪
-                                        </div>
-                                        
-                                        <div class="timeline-coach-comment">
-                                            <div class="timeline-coach-comment-header">
-                                                <i data-lucide="MessageSquare"></i>
-                                                我的点评
-                                            </div>
-                                            <div>做得很好！动作质量保持得不错，继续保持！下周可以尝试102.5kg。</div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Timeline Item 2 -->
-                                    <div class="timeline-item">
-                                        <div class="timeline-header">
-                                            <div>
-                                                <div class="timeline-exercise">深蹲</div>
-                                                <div class="timeline-date">2024年11月10日</div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="timeline-stats">
-                                            <div class="timeline-stat">
-                                                <i data-lucide="Weight"></i>
-                                                <span>120 kg × 5 次</span>
-                                            </div>
-                                            <div class="timeline-stat">
-                                                <i data-lucide="Zap"></i>
-                                                <span>RPE 8.5</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="timeline-video" onclick="playVideo('video2')">
-                                            <img src="https://placehold.co/600x400/ec4899/white?text=Squat+Training" alt="Squat Video">
-                                            <div class="timeline-video-overlay">
-                                                <div class="timeline-video-play">
-                                                    <i data-lucide="Play"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="timeline-note">
-                                            <strong>我的感受:</strong> 深蹲蹲得很深，膝盖稳定性提升明显！
-                                        </div>
-                                        
-                                        <div class="timeline-coach-comment">
-                                            <div class="timeline-coach-comment-header">
-                                                <i data-lucide="MessageSquare"></i>
-                                                我的点评
-                                            </div>
-                                            <div>深度控制得很好！注意保持核心收紧，髋部启动。</div>
-                                        </div>
-                                    </div>
+                                <div id="editor-profile-timeline-container">
+                                    <!-- 由 renderEditorProfileTimeline() 动态生成 -->
                                 </div>
                             </div>
 
-                            <!-- Coach's Observations -->
+                            <!-- Coach's Observations - 动态渲染 -->
                             <div class="profile-section">
                                 <div class="flex justify-between items-center mb-md">
                                     <h2 class="section-title mb-0">
@@ -820,11 +664,8 @@
                                     </button>
                                 </div>
                                 <p class="text-secondary text-sm mb-md">记录对学员的专业观察和长期建议</p>
-                                
-                                <div class="coach-notes-content">
-                                    <p><strong>动作模式评估:</strong> 卧推动作质量稳定，肩胛骨后缩做得很好。深蹲需要注意髋关节的启动顺序。</p>
-                                    <p class="mt-sm"><strong>训练建议:</strong> 近期睡眠时间偏少，建议保证每晚7-8小时睡眠，这对恢复和力量增长都很关键。</p>
-                                    <p class="mt-sm"><strong>下阶段目标:</strong> 重点提升深蹲稳定性，计划在4周内达到深蹲130kg×5。</p>
+                                <div id="editor-profile-coach-notes-container">
+                                    <!-- 由 renderEditorCoachNotes() 动态生成 -->
                                 </div>
                             </div>
                         </div>
@@ -903,14 +744,21 @@
         let clientMode = false;
         const STORAGE_KEY = 'coachlink_plan_data';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            App.init();
-            populateModalExercises();
+        // 页面初始化函数
+        function initPage() {
+            // 首先从 localStorage 读取 clientId
+            // 这是最可靠的方式，避免了 URL 参数在不同服务器环境下的问题
+            const storedClientId = localStorage.getItem('currentViewingClientId');
+            if (storedClientId) {
+                clientId = storedClientId;
+            }
             
             const urlParams = new URLSearchParams(window.location.search);
-            clientId = urlParams.get('clientId');
             templateId = urlParams.get('id');
             const mode = urlParams.get('mode');
+            
+            App.init();
+            populateModalExercises();
             
             // Set back button text based on mode
             const backButtonText = document.getElementById('back-button-text');
@@ -938,21 +786,59 @@
                 saveCurrentDayState();
                 savePlanData();
             });
+        }
+        
+        // 使用 DOMContentLoaded 和 pageshow 事件来确保页面初始化
+        // pageshow 事件在页面从 bfcache 恢复时也会触发
+        let pageInitialized = false;
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!pageInitialized) {
+                pageInitialized = true;
+                initPage();
+            }
+        });
+        window.addEventListener('pageshow', (event) => {
+            // 如果页面是从 bfcache 恢复的，重新初始化
+            if (event.persisted || !pageInitialized) {
+                pageInitialized = true;
+                initPage();
+            }
         });
 
         function initClientMode() {
-            const clients = Store.get('clients');
-            const client = clients.find(c => c.id === clientId);
+            // clients 现在是按教练ID分组的对象
+            const allClients = Store.get('clients') || {};
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            
+            // 从当前教练的学员列表中查找
+            const coachClients = allClients[coachProfileId] || [];
+            const client = coachClients.find(c => c.id === clientId);
+            
             if (!client) {
                 alert('未找到学员信息');
                 window.location.href = 'clients.html';
                 return;
             }
 
-            // Populate Profile Data
-            document.getElementById('profile-name').textContent = client.name;
-            document.getElementById('info-name').textContent = client.name;
-            document.getElementById('profile-avatar').textContent = client.name.charAt(0);
+            // 获取学员档案数据
+            const studentProfiles = Store.get('studentProfiles') || {};
+            const studentSnapshot = studentProfiles[clientId];
+            const userRecord = UserService.findUserById(clientId);
+            const publicProfile = userRecord?.profile;
+
+            const displayName = studentSnapshot?.displayName || client.name;
+            document.getElementById('profile-name').textContent = displayName;
+            document.getElementById('profile-avatar').textContent = studentSnapshot?.avatarText || displayName.charAt(0);
+            
+            const tierBadge = document.getElementById('profile-tier-badge');
+            if (tierBadge) {
+                tierBadge.innerHTML = `<i data-lucide="Crown"></i> ${studentSnapshot?.subscriptionTier || client.tier || '标准版'}`;
+            }
+            
+            renderEditorPublicArchive(publicProfile);
+            renderEditorProfileTimeline(studentSnapshot);
+            renderEditorCoachNotes(studentSnapshot);
 
             if (client.subscriptionMonths) {
                 const weeks = client.subscriptionMonths * 4;
@@ -961,8 +847,10 @@
             }
 
             // Update Header
-            document.querySelector('.text-xl').textContent = `${client.name} 的训练计划`;
-            document.querySelector('.text-secondary.text-sm').textContent = client.plan || '暂无计划';
+            document.getElementById('template-title').textContent = `${client.name} 的训练计划`;
+            document.getElementById('template-title').contentEditable = 'false';
+            document.getElementById('template-description').textContent = client.plan || '暂无计划';
+            document.getElementById('template-description').contentEditable = 'false';
             
             // Show Profile Button
             document.getElementById('view-profile-btn').style.display = 'inline-flex';
@@ -970,6 +858,9 @@
             // Hide Save Template Button (Client Mode)
             document.getElementById('save-template-btn').style.display = 'none';
 
+            // 渲染本期需求
+            renderServiceRequestInEditor(clientId);
+            
             // Load Client Plan
             const clientPlans = Store.get('clientPlans') || {};
             if (clientPlans[clientId] && clientPlans[clientId].length > 0) {
@@ -981,6 +872,284 @@
                 planData = []; // Empty state
                 renderSidebar(); // Will show empty or basic structure
                 openImportTemplateModal();
+            }
+            
+            // 重新初始化 lucide 图标
+            lucide.createIcons();
+        }
+        
+        function renderEditorPublicArchive(publicProfile) {
+            const container = document.getElementById('editor-profile-info-container');
+            if (!container) return;
+            
+            if (!publicProfile) {
+                container.innerHTML = `
+                    <div class="text-center py-lg text-secondary">
+                        <i data-lucide="FileText" size="48" style="opacity: 0.4; margin-bottom: 1rem;"></i>
+                        <p>学员尚未填写公共档案</p>
+                        <p class="text-sm mt-sm">可提示学员在学员端补充资料</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const baseInfoItems = [
+                { label: '年龄', value: publicProfile.age ? publicProfile.age + '岁' : '未填写' },
+                { label: '性别', value: publicProfile.gender || '未填写' },
+                { label: '身高', value: publicProfile.height ? publicProfile.height + ' cm' : '未填写' },
+                { label: '体重', value: publicProfile.weight ? publicProfile.weight + ' kg' : '未填写' },
+                { label: '生活作息', value: publicProfile.lifestyle || '未填写' }
+            ];
+            
+            const baseInfoHtml = `
+                <h3 class="font-semibold mb-sm" style="color: var(--text-secondary); font-size: 0.875rem;">基础信息</h3>
+                <div class="info-grid">
+                    ${baseInfoItems.map(item => `
+                        <div class="info-item">
+                            <div class="info-label">${item.label}</div>
+                            <div class="info-value" style="${item.label === '生活作息' ? 'font-size:0.875rem;' : ''}">${item.value}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            const injuriesHtml = publicProfile.injuries && publicProfile.injuries.length > 0 ? `
+                <h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">伤病史</h3>
+                <div class="flex flex-wrap gap-sm">
+                    ${publicProfile.injuries.map(injury => `
+                        <span style="padding: 0.375rem 0.75rem; background: #fef2f2; color: #dc2626; border-radius: var(--radius-full); font-size: 0.875rem; border: 1px solid #fecaca;">
+                            ⚠️ ${injury}
+                        </span>
+                    `).join('')}
+                </div>
+            ` : '';
+            
+            const cardsHtml = renderEditorSportCards(publicProfile);
+            
+            container.innerHTML = baseInfoHtml + injuriesHtml + cardsHtml;
+        }
+        
+        function renderEditorSportCards(profile) {
+            if (!profile.activeCards || profile.activeCards.length === 0) {
+                return `
+                    <div class="mt-lg p-md text-center text-secondary" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <i data-lucide="Dumbbell" size="32" style="opacity: 0.4; margin-bottom: 0.5rem;"></i>
+                        <p>暂无运动数据卡片</p>
+                        <p class="text-xs mt-xs">提醒学员补充运动数据卡片</p>
+                    </div>
+                `;
+            }
+            
+            let cardsHtml = '<h3 class="font-semibold mb-sm mt-lg" style="color: var(--text-secondary); font-size: 0.875rem;">运动数据卡片</h3>';
+            
+            profile.activeCards.forEach(cardType => {
+                const cardData = profile.cardData?.[cardType];
+                if (!cardData) return;
+                
+                if (cardType === 'powerlifting') {
+                    const total = (cardData.squat || 0) + (cardData.bench || 0) + (cardData.deadlift || 0);
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: var(--radius-lg); border: 1px solid #86efac;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">🏋️</span>
+                                <span class="font-bold text-lg" style="color: #166534;">力量举</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">深蹲 1RM</div>
+                                    <div class="info-value" style="color: rgb(16, 185, 129);">${cardData.squat ? cardData.squat + ' kg' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">卧推 1RM</div>
+                                    <div class="info-value" style="color: rgb(236, 72, 153);">${cardData.bench ? cardData.bench + ' kg' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">硬拉 1RM</div>
+                                    <div class="info-value" style="color: rgb(249, 115, 22);">${cardData.deadlift ? cardData.deadlift + ' kg' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">总和</div>
+                                    <div class="info-value" style="color: rgb(99, 102, 241);">${total ? total + ' kg' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (cardType === 'bodybuilding') {
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%); border-radius: var(--radius-lg); border: 1px solid #e879f9;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">💪</span>
+                                <span class="font-bold text-lg" style="color: #86198f;">健美/形体</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">胸围</div>
+                                    <div class="info-value">${cardData.chest ? cardData.chest + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">臂围</div>
+                                    <div class="info-value">${cardData.arm ? cardData.arm + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">腰围</div>
+                                    <div class="info-value">${cardData.waist ? cardData.waist + ' cm' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">体脂率</div>
+                                    <div class="info-value">${cardData.bodyFat ? cardData.bodyFat + '%' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (cardType === 'generalFitness') {
+                    cardsHtml += `
+                        <div class="mb-md p-md" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: var(--radius-lg); border: 1px solid #93c5fd;">
+                            <div class="flex items-center gap-sm mb-md">
+                                <span style="font-size: 1.5rem;">🏃</span>
+                                <span class="font-bold text-lg" style="color: #1e40af;">一般体能</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">引体向上</div>
+                                    <div class="info-value">${cardData.pullups ? cardData.pullups + ' 个' : '未填写'}</div>
+                                </div>
+                                <div class="info-item" style="background: white;">
+                                    <div class="info-label">静态心率</div>
+                                    <div class="info-value">${cardData.restingHR ? cardData.restingHR + ' bpm' : '未填写'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            return cardsHtml;
+        }
+        
+        // 渲染进步时间线（计划编辑器版本）
+        function renderEditorProfileTimeline(studentSnapshot) {
+            const container = document.getElementById('editor-profile-timeline-container');
+            if (!container) return;
+            
+            if (!studentSnapshot || !studentSnapshot.timeline || studentSnapshot.timeline.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-secondary py-lg">
+                        <i data-lucide="Award" class="w-12 h-12 mx-auto mb-md opacity-30"></i>
+                        <p>暂无进步记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="timeline">
+                    ${studentSnapshot.timeline.map(item => `
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <div class="timeline-exercise">${item.exercise}</div>
+                                    <div class="timeline-date">${item.date}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="timeline-stats">
+                                ${item.stats.map((stat, idx) => `
+                                    <div class="timeline-stat">
+                                        <i data-lucide="${idx === 0 ? 'Weight' : 'Zap'}"></i>
+                                        <span>${stat}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            ${item.videoThumbnail ? `
+                                <div class="timeline-video" onclick="playVideo('${item.videoUrl || ''}')">
+                                    <img src="${item.videoThumbnail}" alt="${item.exercise} Video">
+                                    <div class="timeline-video-overlay">
+                                        <div class="timeline-video-play">
+                                            <i data-lucide="Play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${item.note ? `
+                                <div class="timeline-note">
+                                    <strong>我的感受:</strong> ${item.note}
+                                </div>
+                            ` : ''}
+                            
+                            ${item.coachComment ? `
+                                <div class="timeline-coach-comment">
+                                    <div class="timeline-coach-comment-header">
+                                        <i data-lucide="MessageSquare"></i>
+                                        我的点评
+                                    </div>
+                                    <div>${item.coachComment}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // 渲染教练观察与建议（计划编辑器版本）
+        function renderEditorCoachNotes(studentSnapshot) {
+            const container = document.getElementById('editor-profile-coach-notes-container');
+            if (!container) return;
+            
+            if (!studentSnapshot || !studentSnapshot.coachNotes || studentSnapshot.coachNotes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-secondary py-lg">
+                        <i data-lucide="Eye" class="w-12 h-12 mx-auto mb-md opacity-30"></i>
+                        <p>暂无教练观察记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="coach-notes-content">
+                    ${studentSnapshot.coachNotes.map((note, idx) => `
+                        <p${idx > 0 ? ' class="mt-sm"' : ''}><strong>${note.title || note.label}:</strong> ${note.content}</p>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // 渲染本期需求到计划编辑器侧边栏
+        function renderServiceRequestInEditor(studentId) {
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            
+            const allAnswers = Store.get('subscriptionAnswers') || {};
+            const clientAnswers = allAnswers[studentId]?.[coachProfileId];
+            
+            const panel = document.getElementById('service-request-panel');
+            const content = document.getElementById('plan-editor-request-content');
+            
+            if (!clientAnswers || !clientAnswers.answers || clientAnswers.answers.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+            
+            content.innerHTML = clientAnswers.answers.map((qa, index) => `
+                <div style="margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-md); ${index < clientAnswers.answers.length - 1 ? 'border-bottom: 1px dashed #93c5fd;' : ''}">
+                    <div style="font-weight: 600; color: #1e40af; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                        Q${index + 1}: ${qa.question}
+                    </div>
+                    <div style="color: #374151; font-size: 0.8rem; background: white; padding: 0.5rem; border-radius: var(--radius-sm);">
+                        ${qa.answer}
+                    </div>
+                </div>
+            `).join('');
+            
+            panel.style.display = 'block';
+            
+            // 标记为已读
+            if (clientAnswers.isNew) {
+                clientAnswers.isNew = false;
+                Store.set('subscriptionAnswers', allAnswers);
             }
         }
 
@@ -1273,11 +1442,16 @@
             showToast(`已导入模板：${template.name}`);
             
             // Update client plan name in mock store
-            const clients = Store.get('clients');
-            const clientIndex = clients.findIndex(c => c.id === clientId);
+            const allClients = Store.get('clients') || {};
+            const currentUser = UserService.getCurrentUser();
+            const coachProfileId = currentUser.coachProfileId || currentUser.id;
+            const coachClients = allClients[coachProfileId] || [];
+            const clientIndex = coachClients.findIndex(c => c.id === clientId);
             if (clientIndex > -1) {
-                clients[clientIndex].plan = template.name;
-                Store.set('clients', clients);
+                coachClients[clientIndex].plan = template.name;
+                coachClients[clientIndex].hasPlan = true;
+                allClients[coachProfileId] = coachClients;
+                Store.set('clients', allClients);
                 document.querySelector('.text-secondary.text-sm').textContent = template.name;
             }
         }
