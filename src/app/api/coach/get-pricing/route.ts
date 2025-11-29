@@ -42,7 +42,17 @@ export async function POST(req: Request) {
     const pricingData = data ?? {
         id: null,
         coach_id: userId,
-        pricings: [],
+        pricings: [
+            {
+                title: session.profile.nickname + '的基础订阅计划',
+                price: 100,
+                features: [
+                    '服务1',
+                    '服务2',
+                ],
+                is_recommend: false,
+            }
+        ],
         created_at: null,
         updated_at: null,
     };
