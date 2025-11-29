@@ -9,8 +9,14 @@ import { Message } from 'primereact/message';
 import { Checkbox } from 'primereact/checkbox';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
-import { Pricing } from '@/app/api/coach/get-pricing/entity';
 
+interface Pricing {
+    id?: string;
+    title: string;
+    price: number;
+    features: string[];
+    is_recommend: boolean;
+}
 
 interface PricingSettingsProps {
     coachId: string;
@@ -19,6 +25,7 @@ interface PricingSettingsProps {
 }
 
 const PricingSettings: React.FC<PricingSettingsProps> = ({
+    coachId,
     initialPricingTiers,
     onPricingUpdate
 }) => {
@@ -55,7 +62,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
         setPricingTiers(pricingTiers.filter(tier => tier.id !== id));
     };
 
-    const updateTier = (id: string, field: keyof PricingTier, value: any) => {
+    const updateTier = (id: string, field: keyof Pricing, value: any) => {
         setPricingTiers(pricingTiers.map(tier => 
             tier.id === id ? { ...tier, [field]: value } : tier
         ));
@@ -112,7 +119,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
         }
         
         // 检查是否只有一个推荐项
-        const recommendedCount = pricingTiers.filter(tier => tier.recommended).length;
+        const recommendedCount = pricingTiers.filter(tier => tier.is_recommend).length;
         if (recommendedCount > 1) {
             showToast({ severity: 'error', summary: '错误', detail: '只能有一个推荐档位' });
             return;
@@ -122,14 +129,14 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
         try {
             // 准备保存的数据
             const pricings = pricingTiers.map(tier => ({
-                id: tier.id,
                 title: tier.title,
                 price: tier.price,
                 features: tier.features,
-                recommended: tier.recommended
+                is_recommend: tier.is_recommend
             }));
 
             const result = await coachService.updatePricing({
+                coach_id: coachId,
                 pricings: pricings
             });
 
@@ -166,13 +173,13 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                             
                             <div className="space-y-6">
                                 {pricingTiers.map((tier, index) => (
-                                    <div key={tier.id} className="p-4 border-round border-1 surface-border">
+                                    <div key={tier.id || index} className="p-4 border-round border-1 surface-border">
                                         <div className="flex justify-between items-start mb-3">
                                             <h4 className="text-md font-medium">档位 {index + 1}</h4>
                                             {pricingTiers.length > 1 && (
                                                 <Button 
                                                     icon="pi pi-trash" 
-                                                    onClick={() => removeTier(tier.id)}
+                                                    onClick={() => tier.id && removeTier(tier.id)}
                                                     className="p-button-rounded p-button-text p-button-danger"
                                                 />
                                             )}
@@ -183,7 +190,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                                                 <label className="block font-medium mb-2">标题 *</label>
                                                 <InputText
                                                     value={tier.title}
-                                                    onChange={(e) => updateTier(tier.id, 'title', e.target.value)}
+                                                    onChange={(e) => updateTier(tier.id || '', 'title', e.target.value)}
                                                     className="w-full"
                                                     placeholder="例如：基础版、高级版"
                                                 />
@@ -193,7 +200,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                                                 <label className="block font-medium mb-2">价格 (¥/月) *</label>
                                                 <InputNumber
                                                     value={tier.price}
-                                                    onValueChange={(e) => updateTier(tier.id, 'price', e.value ?? 0)}
+                                                    onValueChange={(e) => updateTier(tier.id || '', 'price', e.value ?? 0)}
                                                     mode="currency"
                                                     currency="CNY"
                                                     locale="zh-CN"
@@ -205,11 +212,11 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                                             <div className="flex align-items-end">
                                                 <div className="flex align-items-center">
                                                     <Checkbox 
-                                                        inputId={`recommended-${tier.id}`} 
-                                                        onChange={e => updateTier(tier.id, 'recommended', e.checked || false)} 
-                                                        checked={tier.recommended} 
+                                                        inputId={`recommended-${tier.id || index}`} 
+                                                        onChange={e => updateTier(tier.id || '', 'is_recommend', e.checked || false)} 
+                                                        checked={tier.is_recommend} 
                                                     />
-                                                    <label htmlFor={`recommended-${tier.id}`} className="ml-2">
+                                                    <label htmlFor={`recommended-${tier.id || index}`} className="ml-2">
                                                         推荐档位
                                                     </label>
                                                 </div>
@@ -223,13 +230,13 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                                                     <div key={featureIndex} className="flex">
                                                         <InputText
                                                             value={feature}
-                                                            onChange={(e) => updateFeature(tier.id, featureIndex, e.target.value)}
+                                                            onChange={(e) => updateFeature(tier.id || '', featureIndex, e.target.value)}
                                                             className="flex-1"
                                                             placeholder="输入特点描述"
                                                         />
                                                         <Button 
                                                             icon="pi pi-trash" 
-                                                            onClick={() => removeFeature(tier.id, featureIndex)}
+                                                            onClick={() => removeFeature(tier.id || '', featureIndex)}
                                                             className="p-button-rounded p-button-text p-button-danger ml-2"
                                                             disabled={tier.features.length <= 1}
                                                         />
@@ -238,7 +245,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({
                                                 <Button 
                                                     label="添加特点" 
                                                     icon="pi pi-plus" 
-                                                    onClick={() => addFeature(tier.id)}
+                                                    onClick={() => addFeature(tier.id || '')}
                                                     className="p-button-outlined p-button-sm mt-2"
                                                 />
                                             </div>

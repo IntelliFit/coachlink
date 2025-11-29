@@ -8,8 +8,41 @@ import { Skeleton } from 'primereact/skeleton';
 import PricingSettings from './PricingSettings';
 import IntakeQuestionSettings from './QuestionSettings';
 import { Card } from 'primereact/card';
-import { Pricing } from '@/app/api/coach/get-pricing/entity';
+import { Button } from 'primereact/button';
 
+interface Pricing {
+    id?: string;
+    title: string;
+    price: number;
+    features: string[];
+    is_recommend: boolean;
+}
+
+const defaultPricingTiers: Pricing[] = [
+    {
+        title: 'AI版',
+        price: 99,
+        features: [
+            '个性化AI训练计划生成',
+            '基础动作指导',
+            '每月计划更新',
+            '社区讨论权限'
+        ],
+        is_recommend: false
+    },
+    {
+        title: '高级版',
+        price: 299,
+        features: [
+            '包含AI版所有功能',
+            '上传训练视频',
+            '专业动作点评',
+            '语音/文字反馈',
+            '训练建议优化'
+        ],
+        is_recommend: true
+    }
+];
 
 const PricingPage = () => {
     const { data: session } = useSession();
@@ -23,7 +56,7 @@ const PricingPage = () => {
             if (coach?.id) {
                 try {
                     setLoading(true);
-                    const result = await coachService.getPricing();
+                    const result = await coachService.getPricing({ coach_id: coach.id });
                     
                     // 解析定价数据
                     if (result?.pricings) {
@@ -34,60 +67,12 @@ const PricingPage = () => {
                         }
                     }
                     
-                    // 默认价格档位
-                    setPricingTiers([
-                        {
-                            title: 'AI版',
-                            price: 99,
-                            features: [
-                                '个性化AI训练计划生成',
-                                '基础动作指导',
-                                '每月计划更新',
-                                '社区讨论权限'
-                            ],
-                            is_recommend: false
-                        },
-                        {
-                            title: '高级版',
-                            price: 299,
-                            features: [
-                                '包含AI版所有功能',
-                                '上传训练视频',
-                                '专业动作点评',
-                                '语音/文字反馈',
-                                '训练建议优化'
-                            ],
-                            is_recommend: true
-                        }
-                    ]);
+                    // 默认为空数组
+                    setPricingTiers([]);
                 } catch (error) {
                     console.error('加载定价信息失败:', error);
-                    // 默认价格档位
-                    setPricingTiers([
-                        {
-                            title: 'AI版',
-                            price: 99,
-                            features: [
-                                '个性化AI训练计划生成',
-                                '基础动作指导',
-                                '每月计划更新',
-                                '社区讨论权限'
-                            ],
-                            is_recommend: false
-                        },
-                        {
-                            title: '高级版',
-                            price: 299,
-                            features: [
-                                '包含AI版所有功能',
-                                '上传训练视频',
-                                '专业动作点评',
-                                '语音/文字反馈',
-                                '训练建议优化'
-                            ],
-                            is_recommend: true
-                        }
-                    ]);
+                    // 默认为空数组
+                    setPricingTiers([]);
                 } finally {
                     setLoading(false);
                 }
@@ -99,6 +84,10 @@ const PricingPage = () => {
 
     const handlePricingUpdate = (tiers: Pricing[]) => {
         setPricingTiers(tiers);
+    };
+
+    const handleUseTemplate = () => {
+        setPricingTiers(defaultPricingTiers);
     };
 
     return (
@@ -131,6 +120,14 @@ const PricingPage = () => {
                 </div>
             ) : coach?.id ? (
                 <>
+                    <div className="flex justify-end">
+                        <Button 
+                            label="使用参考模板" 
+                            icon="pi pi-copy" 
+                            onClick={handleUseTemplate}
+                            className="p-button-outlined"
+                        />
+                    </div>
                     <PricingSettings 
                         coachId={coach.id}
                         initialPricingTiers={pricingTiers}
