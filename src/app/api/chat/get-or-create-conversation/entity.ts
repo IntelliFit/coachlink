@@ -7,3 +7,4 @@ export interface GetOrCreateConversationResponseDto {
     is_new: boolean;
 }
 
+
