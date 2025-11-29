@@ -171,7 +171,7 @@ export default function Navigation() {
         <Link href={viewMode === 'coach' ? "/dashboard/overview" : "/"} className="flex items-center space-x-3 mr-4">
             <img src="/favicon.jpg" alt="logo" className="h-10 rounded-md" />
             <span className="text-2xl font-extrabold">
-                Coach<span className="text-primary">Link</span>
+                教<span className="text-primary">链</span>
                 {viewMode === 'coach' && <span className="ml-2 text-xs bg-primary text-white px-2 py-0.5 rounded-full align-middle">教练端</span>}
             </span>
         </Link>

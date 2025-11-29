@@ -15,7 +15,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
     return {
-        title: 'CoachLink',
+        title: '教链 CoachLink',
         description: 'Coach-Client Management Platform',
         keywords: '健身',
         icons: {

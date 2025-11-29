@@ -12,6 +12,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { getMockUsers } from './mockUser';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -26,15 +27,16 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const { showToast } = useToastContext();
+    const mockUsers = getMockUsers();
+    console.log(mockUsers);
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async (e?: React.FormEvent) => {
+        e?.preventDefault();
         setLoading(true);
 
         try {
-            // 模拟登录延迟
             const result = await signIn('credentials', {
-                redirect: false, // 不自动跳转
+                redirect: false,
                 phone,
                 password,
             });
@@ -47,7 +49,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     life: 5000,
                 });
             } else {
-                
+
                 showToast({
                     severity: 'success',
                     summary: '登录成功',
@@ -72,6 +74,39 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleQuickLogin = async (user: { phone: string; password: string }) => {
+        const result = await signIn('credentials', {
+            redirect: false,
+            phone: user.phone,
+            password: user.password,
+        });
+
+        if (result?.error) {
+            showToast({
+                severity: 'error',
+                summary: '登录失败',
+                detail: result.error || '请检查手机号或密码',
+                life: 5000,
+            });
+        } else {
+
+            showToast({
+                severity: 'success',
+                summary: '登录成功',
+                detail: '欢迎回来',
+            });
+
+            onClose?.();
+            if (onLoginSuccess) {
+                onLoginSuccess();
+            } else {
+                router.push('/');
+            }
+
+            router.refresh();
         }
     };
 
@@ -122,6 +157,34 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                                 <p className="mt-2 text-gray-600 dark:text-gray-300">
                                     专业教练订阅平台
                                 </p>
+
+                                {/* 快速登录按钮区域 */}
+                                {mockUsers.length > 0 && (
+                                    <div className="mt-6 w-full">
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 text-center">
+                                            开发模式快速登录:
+                                        </p>
+                                        <div className="flex flex-wrap justify-center gap-2">
+                                            {mockUsers.map((user: any, index: number) => (
+                                                <button
+                                                    key={index}
+                                                    type="button"
+                                                    onClick={() => handleQuickLogin({ phone: user.phone, password: user.password })}
+                                                    className="
+                                                        px-3 py-1 text-xs rounded-full
+                                                        bg-green-100 text-green-800
+                                                        hover:bg-green-200
+                                                        dark:bg-green-900 dark:text-green-100
+                                                        dark:hover:bg-green-800
+                                                        transition-colors
+                                                    "
+                                                >
+                                                    {user.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* 右侧 登录表单 */}

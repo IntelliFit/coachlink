@@ -16,13 +16,13 @@ export default function Home() {
             {/* Hero 主体 */}
             <section className="relative z-10 text-center max-w-2xl mb-20">
                 <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-10">
-                    <span className="text-primary">CoachLink</span>
+                    <span className="text-primary">教链</span>
                     <br />
                     教练与学员最稳固的桥梁
                 </h1>
 
                 <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed mb-10">
-                    CoachLink 为教练与学员打造的一体化训练平台。
+                    "教链CoachLink" 为教练与学员打造的一体化训练平台。
                     缩短教练到学员之间的距离，让一切都变得更轻松。
                 </p>
 
