@@ -180,6 +180,9 @@ const CoachProfilePage: React.FC = () => {
         // 如果没有传入tier，说明是内容订阅，只需刷新当前组件
     };
 
+    // 判断是否是用户自己的教练页面
+    const isOwnProfile = session?.user?.id === coach.user_id;
+
     return (
         <div className="min-h-screen bg-surface-50">
             {/* 教练介绍部分 */}
@@ -205,6 +208,7 @@ const CoachProfilePage: React.FC = () => {
                 onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
                 isSubscribing={isSubscribing}
                 setIsSubscribing={setIsSubscribing}
+                isOwnProfile={isOwnProfile}
             />
         </div>
     );
