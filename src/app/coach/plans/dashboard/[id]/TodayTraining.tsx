@@ -6,6 +6,9 @@ import { useToastContext } from '@/context/ToastContext';
 import { Skeleton } from 'primereact/skeleton';
 import {
   Play,
+  ChevronLeft,
+  ChevronRight,
+  Check,
 } from 'lucide-react';
 
 // 从 TrainingHub.tsx 移动过来的类型定义
@@ -51,6 +54,7 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
   const [browseDayOfWeek, setBrowseDayOfWeek] = useState<string>('');
   const [weekDays, setWeekDays] = useState<Array<{ day_of_week: string; session_focus: string; order_index: number }>>([]);
   const [loading, setLoading] = useState(true);
+  const [weekRecords, setWeekRecords] = useState<Record<string, { status: string; completed_sets: number; total_sets: number }>>({});
 
   const dayMap: Record<string, string> = {
     'Mon': '周一',
@@ -65,6 +69,37 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
   const getTodayDayOfWeek = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return days[new Date().getDay()];
+  };
+
+  // 获取指定周次的日期范围
+  const getWeekDateRange = (weekNumber: number) => {
+    // 简化版本：假设训练计划从本周开始，根据周数偏移
+    const today = new Date();
+    const weekOffset = (weekNumber - actualCurrentWeek) * 7;
+    const dates: Date[] = [];
+    
+    // 获取本周一
+    const currentDay = today.getDay();
+    const diff = currentDay === 0 ? -6 : 1 - currentDay; // 周日特殊处理
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff + weekOffset);
+    
+    // 生成一周7天的日期
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  };
+
+  // 判断是否是今天
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
   };
 
   // 检查是否是训练日（根据星期几判断）
@@ -171,6 +206,37 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
     }
   };
 
+  // 加载选定周次的训练记录（用于显示完成状态）
+  const loadWeekRecords = async (weekNumber: number) => {
+    try {
+      const result = await trainingService.getWeekRecords({
+        training_plan_id: trainingPlanId,
+        week_number: weekNumber
+      });
+
+      if (result?.records) {
+        // 将数组转换为以 day_of_week 为 key 的对象
+        const recordsMap: Record<string, { status: string; completed_sets: number; total_sets: number }> = {};
+        result.records.forEach(record => {
+          if (record.status) {
+            recordsMap[record.day_of_week] = {
+              status: record.status,
+              completed_sets: record.completed_sets,
+              total_sets: record.total_sets
+            };
+          }
+        });
+        setWeekRecords(recordsMap);
+      } else {
+        setWeekRecords({});
+      }
+    } catch (error) {
+      console.error('加载周训练记录失败:', error);
+      // 不显示错误提示，因为这不是关键功能
+      setWeekRecords({});
+    }
+  };
+
   // 初始化加载数据
   useEffect(() => {
     if (trainingPlanId && userId) {
@@ -242,9 +308,94 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
   useEffect(() => {
     if (trainingPlanId) {
       loadWeekDays(browseWeek);
+      loadWeekRecords(browseWeek);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [browseWeek, trainingPlanId]);
+
+  // 渲染周日历条
+  const renderWeekCalendar = () => {
+    const weekDates = getWeekDateRange(browseWeek);
+    const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const dayKeys = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    return (
+      <div className="bg-surface-0 dark:bg-surface-900 rounded-xl p-4 shadow-sm mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => browseWeek > 1 && setBrowseWeek(browseWeek - 1)}
+            disabled={browseWeek <= 1}
+            className="p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="上一周"
+          >
+            <ChevronLeft className="w-5 h-5 text-surface-600 dark:text-surface-400" />
+          </button>
+          <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-0">
+            第 {browseWeek} 周
+          </h3>
+          <button
+            onClick={() => setBrowseWeek(browseWeek + 1)}
+            disabled={browseWeek >= (trainingPlan?.duration_weeks || 8)}
+            className="p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="下一周"
+          >
+            <ChevronRight className="w-5 h-5 text-surface-600 dark:text-surface-400" />
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-7 gap-2">
+          {weekDates.map((date, index) => {
+            const dayKey = dayKeys[index];
+            const isTrainingDayBool = isTrainingDay(dayKey);
+            const isTodayBool = isToday(date);
+            const isSelected = browseDayOfWeek === dayKey;
+            const recordStatus = weekRecords[dayKey]?.status;
+            const isCompleted = recordStatus === 'completed';
+            
+            return (
+              <button
+                key={index}
+                onClick={() => {
+                  setBrowseDayOfWeek(dayKey);
+                }}
+                className={`
+                  relative flex flex-col items-center justify-center p-3 rounded-lg transition-all cursor-pointer
+                  ${isSelected 
+                    ? 'bg-primary-500 text-white shadow-md scale-105' 
+                    : isTrainingDayBool
+                    ? 'bg-surface-50 dark:bg-surface-800 hover:bg-surface-100 dark:hover:bg-surface-700'
+                    : 'bg-surface-50 dark:bg-surface-800 opacity-60 hover:opacity-80'
+                  }
+                  ${isTodayBool && !isSelected ? 'ring-2 ring-primary-500' : ''}
+                `}
+              >
+                <div className={`text-xs mb-1 ${isSelected ? 'text-white opacity-90' : 'text-surface-500 dark:text-surface-400'}`}>
+                  {dayNames[index]}
+                </div>
+                <div className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-surface-900 dark:text-surface-0'}`}>
+                  {date.getDate()}
+                </div>
+                {isTrainingDayBool ? (
+                  <div className={`text-xs mt-1 truncate max-w-full px-1 ${isSelected ? 'text-white opacity-90' : 'text-surface-600 dark:text-surface-400'}`}>
+                    {weekDays.find(d => d.day_of_week === dayKey)?.session_focus || '训练'}
+                  </div>
+                ) : (
+                  <div className={`text-xs mt-1 ${isSelected ? 'text-white opacity-90' : 'text-surface-500 dark:text-surface-400'}`}>
+                    休息
+                  </div>
+                )}
+                {isCompleted && (
+                  <div className="absolute top-1 right-1 bg-green-500 rounded-full p-0.5">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   // 加载状态
   if (loading) {
@@ -393,85 +544,54 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
                 <div className="w-full border-t-2 border-gray-300"></div>
               </div>
               <div className="relative flex justify-center">
-                <span className="bg-white px-4 text-sm text-gray-500 font-medium">
+                <span className="bg-surface-0 dark:bg-surface-900 px-4 text-sm text-surface-500 dark:text-surface-400 font-medium">
                   或者查看其他训练日
                 </span>
               </div>
             </div>
 
-            <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">浏览其他训练日</h3>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1">
-                  <label htmlFor="week-selector-rest" className="block text-sm font-medium text-gray-700 mb-1">
-                    选择周次
-                  </label>
-                  <select
-                    id="week-selector-rest"
-                    value={browseWeek}
-                    onChange={(e) => setBrowseWeek(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    aria-label="选择训练周次"
-                  >
-                    {Array.from({ length: trainingPlan?.duration_weeks || 8 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        第 {i + 1} 周
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label htmlFor="day-selector-rest" className="block text-sm font-medium text-gray-700 mb-1">
-                    选择训练日
-                  </label>
-                  <select
-                    id="day-selector-rest"
-                    value={browseDayOfWeek}
-                    onChange={(e) => setBrowseDayOfWeek(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    aria-label="选择训练日"
-                  >
-                    <option value="">请选择训练日</option>
-                    {weekDays.length === 0 ? (
-                      <option value="" disabled>该周暂无训练日</option>
-                    ) : (
-                      weekDays.map((day) => (
-                        <option key={day.day_of_week} value={day.day_of_week}>
-                          {dayMap[day.day_of_week]} - {day.session_focus || '训练日'}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <button
-                onClick={async () => {
-                  if (!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)) return;
-                  const dayIndex = weekDays.findIndex(d => d.day_of_week === browseDayOfWeek);
-                  if (dayIndex >= 0) {
-                    // 统一使用 handleStartTraining，由后端判断是否只读
-                    await handleStartTraining(browseWeek, dayIndex + 1);
-                  }
-                }}
-                disabled={!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                <Play className="w-6 h-6" />
-                <span>
-                  {!browseDayOfWeek 
-                    ? '请选择日期' 
-                    : !isTrainingDay(browseDayOfWeek)
-                    ? '非训练日'
-                    : (browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek())
-                    ? '开始训练'
-                    : '查看训练'}
-                </span>
-              </button>
+            <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-2 border-green-200 dark:border-green-800 rounded-xl">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-surface-0 mb-4">浏览其他训练日</h3>
               
-              <p className="text-sm text-gray-600 mt-3 text-center">
-                选择其他训练日查看训练计划或历史记录
-              </p>
+              {renderWeekCalendar()}
+
+              {browseDayOfWeek && !isTrainingDay(browseDayOfWeek) ? (
+                <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-2 border-blue-200 dark:border-blue-800 rounded-xl text-center">
+                  <div className="text-6xl mb-4">😌</div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-surface-0 mb-2">休息日</h3>
+                  <p className="text-surface-600 dark:text-surface-400">
+                    今天好好休息，为下次训练做准备
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={async () => {
+                      if (!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)) return;
+                      const dayIndex = weekDays.findIndex(d => d.day_of_week === browseDayOfWeek);
+                      if (dayIndex >= 0) {
+                        // 统一使用 handleStartTraining，由后端判断是否只读
+                        await handleStartTraining(browseWeek, dayIndex + 1);
+                      }
+                    }}
+                    disabled={!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)}
+                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <Play className="w-6 h-6" />
+                    <span>
+                      {!browseDayOfWeek 
+                        ? '请选择日期' 
+                        : (browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek())
+                        ? '开始训练'
+                        : '查看训练'}
+                    </span>
+                  </button>
+                  
+                  <p className="text-sm text-gray-600 dark:text-surface-400 mt-3 text-center">
+                    选择其他训练日查看训练计划或历史记录
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -567,106 +687,73 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
             </div>
           )}
 
-          <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+          <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-2 border-green-200 dark:border-green-800 rounded-xl">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-surface-0 mb-1">
                   浏览其他训练日
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-surface-400">
                   查看其他日期的训练计划或历史记录
                 </p>
               </div>
               {browseDayOfWeek && (
                 <div className="text-right">
-                  <div className="text-sm text-gray-500">当前选择</div>
-                  <div className="text-lg font-semibold text-green-600">
+                  <div className="text-sm text-gray-500 dark:text-surface-400">当前选择</div>
+                  <div className="text-lg font-semibold text-green-600 dark:text-green-400">
                     第 {browseWeek} 周 {dayMap[browseDayOfWeek] || ''}
                   </div>
                 </div>
               )}
             </div>
             
-            <div className="flex gap-4 mb-4">
-              <div className="flex-1">
-                <label htmlFor="week-selector" className="block text-sm font-medium text-gray-700 mb-1">
-                  选择周次
-                </label>
-                <select
-                  id="week-selector"
-                  value={browseWeek}
-                  onChange={(e) => setBrowseWeek(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  aria-label="选择训练周次"
-                >
-                  {Array.from({ length: trainingPlan?.duration_weeks || 8 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      第 {i + 1} 周
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label htmlFor="day-selector" className="block text-sm font-medium text-gray-700 mb-1">
-                  选择训练日
-                </label>
-                <select
-                  id="day-selector"
-                  value={browseDayOfWeek}
-                  onChange={(e) => setBrowseDayOfWeek(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  aria-label="选择训练日"
-                  disabled={weekDays.length === 0}
-                >
-                  <option value="">请选择训练日</option>
-                  {weekDays.length === 0 ? (
-                    <option value="" disabled>该周暂无训练日</option>
-                  ) : (
-                    weekDays.map((day) => (
-                      <option key={day.day_of_week} value={day.day_of_week}>
-                        {dayMap[day.day_of_week]} - {day.session_focus || '训练日'}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
+            {renderWeekCalendar()}
 
-            {browseDayOfWeek && browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek() && (
-              <div className="mb-4 p-2 bg-green-100 rounded-lg text-center">
-                <span className="text-green-700 text-sm font-medium">
-                  ✓ 这是今天的训练
-                </span>
+            {browseDayOfWeek && !isTrainingDay(browseDayOfWeek) ? (
+              <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-2 border-blue-200 dark:border-blue-800 rounded-xl text-center">
+                <div className="text-6xl mb-4">😌</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-surface-0 mb-2">休息日</h3>
+                <p className="text-surface-600 dark:text-surface-400">
+                  今天好好休息，为下次训练做准备
+                </p>
               </div>
+            ) : (
+              <>
+                {browseDayOfWeek && browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek() && (
+                  <div className="mb-4 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
+                    <span className="text-green-700 dark:text-green-400 text-sm font-medium">
+                      ✓ 这是今天的训练
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  onClick={async () => {
+                    if (!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)) return;
+                    const dayIndex = weekDays.findIndex(d => d.day_of_week === browseDayOfWeek);
+                    if (dayIndex >= 0) {
+                      // 统一使用 handleStartTraining，由后端判断是否只读
+                      await handleStartTraining(browseWeek, dayIndex + 1);
+                    }
+                  }}
+                  disabled={!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)}
+                  className={`w-full py-4 ${
+                    browseDayOfWeek && browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek()
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                  } text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                >
+                  <Play className="w-6 h-6" />
+                  <span>
+                    {!browseDayOfWeek 
+                      ? '请选择日期' 
+                      : (browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek())
+                      ? (todayRecord && todayRecord.status !== 'completed' ? '继续训练' : '开始训练')
+                      : '查看训练'}
+                  </span>
+                </button>
+              </>
             )}
-
-            <button
-              onClick={async () => {
-                if (!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)) return;
-                const dayIndex = weekDays.findIndex(d => d.day_of_week === browseDayOfWeek);
-                if (dayIndex >= 0) {
-                  // 统一使用 handleStartTraining，由后端判断是否只读
-                  await handleStartTraining(browseWeek, dayIndex + 1);
-                }
-              }}
-              disabled={!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)}
-              className={`w-full py-4 ${
-                browseDayOfWeek && browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek()
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-                  : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
-              } text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
-            >
-              <Play className="w-6 h-6" />
-              <span>
-                {!browseDayOfWeek 
-                  ? '请选择日期' 
-                  : !isTrainingDay(browseDayOfWeek)
-                  ? '非训练日'
-                  : (browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek())
-                  ? (todayRecord && todayRecord.status !== 'completed' ? '继续训练' : '开始训练')
-                  : '查看训练'}
-              </span>
-            </button>
           </div>
         </div>
       )}
