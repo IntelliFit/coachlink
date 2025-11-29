@@ -339,6 +339,38 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_pricing: {
+        Row: {
+          coach_id: string
+          created_at: string
+          id: string
+          pricings: Json
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          id?: string
+          pricings?: Json
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          id?: string
+          pricings?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_pricing_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: true
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_questionnaires: {
         Row: {
           coach_id: string
