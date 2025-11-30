@@ -79,7 +79,6 @@ export default function TrainingPage() {
             <div className="max-w-6xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-2xl md:text-3xl font-bold">训练计划</h1>
-                    <Button label="创建新计划" />
                 </div>
 
                 {error ? (
@@ -104,7 +103,7 @@ export default function TrainingPage() {
                     <div className="rounded-lg shadow p-8 text-center">
                         <h2 className="text-xl font-semibold mb-2">暂无训练计划</h2>
                         <p className="mb-4">
-                            您还没有创建任何训练计划。点击下方按钮开始创建您的第一个AI训练计划。
+                            您还没有创建任何训练计划。点击下方按钮开始创建您的第一个训练计划。
                         </p>
                         <Button label="创建训练计划" />
                     </div>

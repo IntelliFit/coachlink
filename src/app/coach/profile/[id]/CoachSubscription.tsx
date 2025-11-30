@@ -9,6 +9,7 @@ import { coachService } from '@/app/service/coachService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useRouter } from 'next/navigation';
 import { Pricing } from '@/app/api/coach/get-pricing/entity';
+import QuestionnaireForm from './QuestionnaireForm';
 
 interface CoachSubscriptionProps {
     coach: any;
@@ -31,6 +32,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const router = useRouter();
     const [subscriptionTiers, setSubscriptionTiers] = useState<Pricing[]>([]);
     const [loading, setLoading] = useState(true);
+    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<string[]>([]);
+    const [selectedTierIndex, setSelectedTierIndex] = useState<number | null>(null);
+    // 为每个订阅选项维护独立的加载状态
+    const [subscribingStates, setSubscribingStates] = useState<boolean[]>([]);
 
     useEffect(() => {
         const fetchPricing = async () => {
@@ -40,6 +46,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 
                 if (res) {
                     setSubscriptionTiers(res.pricings);
+                    // 初始化每个订阅选项的加载状态
+                    setSubscribingStates(new Array(res.pricings.length).fill(false));
                 } else {
                     showToast({ severity: 'error', summary: '获取定价信息失败' })
                 }
@@ -58,7 +66,10 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     const onSubscribe = async (index: number) => {
         try {
-            setIsSubscribing(true);
+            // 设置当前选项为加载状态
+            const newSubscribingStates = [...subscribingStates];
+            newSubscribingStates[index] = true;
+            setSubscribingStates(newSubscribingStates);
 
             // 检查是否已有活跃订阅
             const existingSubscription = mySubscriptions.find(
@@ -73,25 +84,63 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             // 获取选中的定价档位
             const selectedTier = subscriptionTiers[index];
             
+            // TODO: 完成支付
+            
             // 执行订阅操作（这里简化处理，实际应该根据业务逻辑调整）
-            const tierNumber = index + 1; // 假设索引对应tier编号
-            const result = await subscriptionService.subscribe(
-                coach!.id,
-                tierNumber,
-                selectedTier.price
-            );
+            // const tierNumber = index + 1; // 假设索引对应tier编号
+            // const result = await subscriptionService.subscribe(
+            //     coach!.id,
+            //     tierNumber,
+            //     selectedTier.price
+            // );
 
-            if (result.success) {
-                showToast({ severity: 'success', summary: '订阅成功' });
-                onSubscribeSuccess(tierNumber);
-            } else {
-                showToast({ severity: 'error', summary: result.message || '订阅失败' });
+            // if (result.success) {
+            //     showToast({ severity: 'success', summary: '订阅成功' });
+            //     onSubscribeSuccess(tierNumber);
+            // } else {
+            //     showToast({ severity: 'error', summary: result.message || '订阅失败' });
+            // }
+            
+            // 模拟订阅成功
+            showToast({ severity: 'success', summary: '订阅成功' });
+            onSubscribeSuccess(index + 1);
+            
+            // 订阅成功后获取问卷
+            const res = await coachService.getQuestionnaires({ coachId: coach.id });
+
+            console.log(res);
+            
+            
+            if (res && res.questionnaires && res.questionnaires.length > 0) {
+                // 如果有问卷，显示问卷表单
+                setQuestionnaireQuestions(res.questionnaires);
+                setSelectedTierIndex(index);
+                setQuestionnaireVisible(true);
             }
         } catch (error) {
             console.error('订阅过程中出现错误:', error);
             showToast({ severity: 'error', summary: '订阅过程中出现错误' });
         } finally {
-            setIsSubscribing(false);
+            // 取消当前选项的加载状态
+            const newSubscribingStates = [...subscribingStates];
+            newSubscribingStates[index] = false;
+            setSubscribingStates(newSubscribingStates);
+        }
+    };
+
+    const handleQuestionnaireSubmit = async (
+        answers: { question: string; answer: string }[]
+    ) => {
+        // 这里应该提交问卷答案
+        try {
+            // 模拟提交问卷
+            console.log('提交问卷答案:', answers);
+            showToast({ severity: 'success', summary: '问卷提交成功' });
+        } catch (error) {
+            console.error('提交问卷失败:', error);
+            showToast({ severity: 'error', summary: '提交问卷失败' });
+        } finally {
+            setQuestionnaireVisible(false);
         }
     };
 
@@ -177,9 +226,10 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                         </ul>
 
                         <Button
-                            label={isSubscribing ? '处理中...' : '立即订阅'}
+                            label='立即订阅'
                             onClick={() => onSubscribe(index)}
-                            disabled={isSubscribing}
+                            loading={subscribingStates[index]}
+                            disabled={subscribingStates[index]}
                             className={`w-full ${tier.is_recommend
                                 ? 'p-button-primary'
                                 : 'p-button-secondary'
@@ -188,6 +238,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                     </div>
                 ))}
             </div>
+
+            <QuestionnaireForm
+                visible={questionnaireVisible}
+                onHide={() => setQuestionnaireVisible(false)}
+                questions={questionnaireQuestions}
+                onSubmit={handleQuestionnaireSubmit}
+                loading={subscribingStates.some(state => state)} // 如果有任何一个处于加载状态，则禁用问卷提交
+            />
         </div>
     );
 };

@@ -1,4 +1,5 @@
 export interface GetQuestionnairesDto {
+    coachId?: string;
 }
 
 export interface GetQuestionnairesResponseDto {

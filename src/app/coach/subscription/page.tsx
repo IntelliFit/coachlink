@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import CoachList from '@/app/coach/subscription/CoachList';
 import TrainingSummary from '@/app/coach/subscription/TrainingSummary';
 import RecentActivity from '@/app/coach/subscription/RecentActivity';
+import paymentService from '@/app/service/paymentService';
 
 const SubscriptionDashboard = () => {
     const { data: session } = useSession();    
@@ -89,6 +90,29 @@ const SubscriptionDashboard = () => {
         </div>
     );
 
+    // 支付功能
+    const handlePayment = async () => {
+        try {
+            // 创建支付订单并获取支付ID
+            const response = await paymentService.createPayment({
+                amount: 99.99,
+                currency: 'CNY',
+                orderId: `ORDER_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+                description: '教练服务订阅'
+            });
+            
+            if (response && response.paymentId) {
+                // 跳转到支付页面，传递支付ID参数
+                router.push(`/payment/${response.paymentId}`);
+            } else {
+                throw new Error('创建支付订单失败');
+            }
+        } catch (error) {
+            console.error('创建支付订单失败:', error);
+            // 错误处理可以在实际项目中添加提示框等
+        }
+    };
+
     if (loading) {
         return <LoadingSkeleton />;
     }
@@ -99,12 +123,31 @@ const SubscriptionDashboard = () => {
                 <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">还没有订阅任何教练</h3>
                 <p className="text-gray-600 mb-6 dark:text-gray-400">选择专业教练，开始您的健身之旅</p>
-                <Button label="浏览教练" className="p-button-primary px-6 py-3" onClick={() => router.push('/coach/discovery')} />
+                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <Button 
+                        label="浏览教练" 
+                        className="p-button-primary px-6 py-3" 
+                        onClick={() => router.push('/coach/discovery')} 
+                    />
+                    <Button 
+                        label="立即支付 ¥99.99" 
+                        className="p-button-success px-6 py-3" 
+                        onClick={handlePayment}
+                    />
+                </div>
             </div>
         )
 
     return (
         <div className="space-y-8">
+            <div className="flex justify-end">
+                <Button 
+                    label="支付订阅费用" 
+                    icon="pi pi-credit-card" 
+                    className="p-button-success"
+                    onClick={handlePayment}
+                />
+            </div>
             <CoachList subscriptions={subscriptions}/>
             <TrainingSummary />
             <RecentActivity />
