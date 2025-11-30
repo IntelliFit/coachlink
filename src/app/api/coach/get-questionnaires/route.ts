@@ -14,18 +14,38 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    let userId = session.user.id;
 
     const {
+        coachId = ''
     } = await req.json() as GetQuestionnairesDto;
 
-    if (!session.user.is_coach) {
-        return NextResponse.json({
-            success: false,
-            message: '用户不是教练',
-            data: null
-        }, { status: 403 });
+    if (!coachId) {
+        if (!session.user.is_coach) {
+            return NextResponse.json({
+                success: false,
+                message: '用户不是教练',
+                data: null
+            }, { status: 403 });
+        }
+    } else {
+        const { data: coach, error: coachError } = await supabase
+            .from('coaches')
+            .select('*')
+            .eq('id', coachId)
+            .single();
+
+        if (coachError) {
+            return NextResponse.json({
+                success: false,
+                message: '获取教练信息失败',
+                data: null
+            }, { status: 500 });
+        }
+
+        userId = coach.user_id;
     }
+
 
     // 获取问卷数据
     const { data: questionnaire, error: questionnaireError } = await supabase

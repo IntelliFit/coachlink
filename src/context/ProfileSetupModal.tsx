@@ -126,15 +126,15 @@ const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen, onClose, 
             return;
         }
 
-        if (!formData.address.trim()) {
-            showToast({ severity: 'error', summary: '错误', detail: '请输入详细地址！' });
-            return;
-        }
+        // if (!formData.address.trim()) {
+        //     showToast({ severity: 'error', summary: '错误', detail: '请输入详细地址！' });
+        //     return;
+        // }
 
-        if (formData.address.length < 10) {
-            showToast({ severity: 'error', summary: '错误', detail: '地址信息过于简单，请填写详细地址！' });
-            return;
-        }
+        // if (formData.address.length < 10) {
+        //     showToast({ severity: 'error', summary: '错误', detail: '地址信息过于简单，请填写详细地址！' });
+        //     return;
+        // }
 
         setIsSubmitting(true);
 

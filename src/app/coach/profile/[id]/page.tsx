@@ -23,12 +23,9 @@ const CoachProfilePage: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<number>(parseInt(searchParam.get('tab') || '0'));
 
-    const [isLoadingContent, setIsLoadingContent] = useState(false);
-    const [isSubscribing, setIsSubscribing] = useState(false);
     const [mySubscriptions, setMySubscriptions] = useState<QueryCoachSubscription[]>([]);
     const [userSubscription, setUserSubscription] = useState<QueryCoachSubscription | null>(null);
 
-    const [selectedTier, setSelectedTier] = useState<number | null>(null);
     const [coach, setCoach] = useState<CoachesRow>({
         achievements: [],
         avatar_url: null,
@@ -206,8 +203,6 @@ const CoachProfilePage: React.FC = () => {
                 coach={coach}
                 mySubscriptions={mySubscriptions}
                 onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
-                isSubscribing={isSubscribing}
-                setIsSubscribing={setIsSubscribing}
                 isOwnProfile={isOwnProfile}
             />
         </div>
