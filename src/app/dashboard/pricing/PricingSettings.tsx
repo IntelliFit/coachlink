@@ -25,9 +25,13 @@ interface PricingSettingsProps {
 const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     const [pricings, setPricings] = useState<Pricing[]>([{ title: '', price: 0, features: [''], is_recommend: false }]);
     const [saving, setSaving] = useState<boolean>(false);
-    const { showToast } = useToastContext();
+    const { showToast } = useToastContext();    
     const load = async () => {
-        const res = await coachService.getPricing();
+        if (!coachId) {
+            return;
+        }
+        
+        const res = await coachService.getPricing({ userId: coachId });        
         if (res) {
             setPricings(res.pricings);
         } else {

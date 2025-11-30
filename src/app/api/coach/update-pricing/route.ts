@@ -27,11 +27,25 @@ export async function POST(req: Request) {
         pricings
     } = await req.json() as UpdatePricingDto;
 
+    const { data: coach, error: coachError } = await supabase
+        .from('coaches')
+        .select('id, user_id, name, status')
+        .eq('user_id', userId)
+        .single();
+
+    if (coachError || !coach) {
+        return NextResponse.json({
+            success: false,
+            message: '教练不存在或无权限',
+            data: null
+        }, { status: 404 });
+    }
+
     // 检查是否已存在定价记录
     const { data: existingPricing } = await supabase
         .from('coach_pricing')
         .select('id')
-        .eq('coach_id', userId)
+        .eq('coach_id', coach.id)
         .single();
 
     if (existingPricing) {
@@ -65,7 +79,7 @@ export async function POST(req: Request) {
         const { data, error } = await supabase
             .from('coach_pricing')
             .insert({
-                coach_id: userId,
+                coach_id: coach.id,
                 pricings: pricings,
             })
             .select()
