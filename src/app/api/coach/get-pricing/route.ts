@@ -16,14 +16,6 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
 
-    if (!session.user.is_coach) {
-        return NextResponse.json({
-            success: false,
-            message: '用户不是教练',
-            data: null
-        }, { status: 403 });
-    }
-
     // 获取定价信息
     const { data, error } = await supabase
         .from('coach_pricing')
