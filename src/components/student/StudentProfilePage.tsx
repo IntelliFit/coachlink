@@ -135,7 +135,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     return (
         <div className="p-6 max-w-6xl mx-auto space-y-6">
             {onBack && (
-                <button className="mb-4 text-gray-500 hover:text-gray-900 flex items-center gap-1" onClick={onBack}>
+                <button className="mb-4 text-surface-500 hover:text-surface-900 flex items-center gap-1" onClick={onBack}>
                     <i className="pi pi-arrow-left"></i> 返回
                 </button>
             )}

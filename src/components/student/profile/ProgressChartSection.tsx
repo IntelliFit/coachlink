@@ -124,7 +124,7 @@ export const ProgressChartSection: React.FC<ProgressChartSectionProps> = ({ data
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === id
                     ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                    : 'text-surface-500 hover:bg-surface-50 hover:text-surface-700'
             }`}
         >
             {label}
@@ -132,13 +132,13 @@ export const ProgressChartSection: React.FC<ProgressChartSectionProps> = ({ data
     );
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+        <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2">
                     <LineChart className="text-indigo-600" size={20} />
                     进步趋势
                 </h2>
-                <div className="flex gap-1 bg-gray-50 p-1 rounded-lg">
+                <div className="flex gap-1 bg-surface-50 p-1 rounded-lg">
                     <TabButton id="weight" label="体重" />
                     <TabButton id="bench" label="卧推" />
                     <TabButton id="squat" label="深蹲" />

@@ -66,19 +66,19 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     };
 
     const InfoItem = ({ label, value }: { label: string, value: string | number | null }) => (
-        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="text-sm text-gray-500 mb-1">{label}</div>
-            <div className="text-lg font-semibold text-gray-900">{value || '未填写'}</div>
+        <div className="p-4 bg-surface-50 rounded-xl border border-surface-100">
+            <div className="text-sm text-surface-500 mb-1">{label}</div>
+            <div className="text-lg font-semibold text-surface-900">{value || '未填写'}</div>
         </div>
     );
 
     const age = calculateAge(profile?.birth_date || null);
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+        <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <User className="text-indigo-600" size={20} />
+                <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2">
+                    <User className="text-surface" size={20} />
                     个人信息
                 </h2>
                 <Button 
@@ -113,7 +113,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
             <Dialog 
                 header="编辑个人资料" 
                 visible={isEditing} 
-                style={{ width: '90vw', maxWidth: '500px' }} 
+                style={{ width: '90vw', maxWidth: '800px' }} 
                 onHide={() => setIsEditing(false)}
                 footer={
                     <div className="flex justify-end gap-2">
