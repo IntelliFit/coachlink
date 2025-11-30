@@ -98,7 +98,7 @@ class CoachService extends BaseService {
         }
     }
 
-    async getPricing(reqData?: GetPricingDto) {
+    async getPricing(reqData: GetPricingDto) {
         const res = await this.post<GetPricingResponseDto>('get-pricing', reqData || {});
         if (res.data && res.data.success) {
             return res.data.data || null;

@@ -13,6 +13,7 @@ import type { GetWeeklyProgressDto, GetWeeklyProgressResponseDto } from "@/app/a
 import type { UploadSetVideoDto, UploadSetVideoResponseDto } from "@/app/api/training/upload-set-video/entity";
 import type { GetSetVideosDto, GetSetVideosResponseDto } from "@/app/api/training/get-set-videos/entity";
 import type { DeleteSetVideoDto, DeleteSetVideoResponseDto } from "@/app/api/training/delete-set-video/entity";
+import type { GetWeekRecordsDto, GetWeekRecordsResponseDto } from "@/app/api/training/get-week-records/entity";
 
 class TrainingService extends BaseService {
     async getTrainingRecord(reqData: GetTrainingRecordDto) {
@@ -134,6 +135,17 @@ class TrainingService extends BaseService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 获取某周的训练记录
+     */
+    async getWeekRecords(reqData: GetWeekRecordsDto) {
+        const res = await this.post<GetWeekRecordsResponseDto>('get-week-records', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
     }
 }
 

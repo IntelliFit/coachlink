@@ -16,7 +16,7 @@ interface CoachSubscriptionProps {
     onSubscribeSuccess: (tier: number) => void;
     isSubscribing: boolean;
     setIsSubscribing: (isSubscribing: boolean) => void;
-    isOwnProfile: boolean; // 标识是否是用户自己的教练页面
+    isOwnProfile: boolean;
 }
 
 const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
@@ -36,7 +36,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         const fetchPricing = async () => {
             try {
                 setLoading(true);
-                const res = await coachService.getPricing({ coach_id: coach.id });
+                const res = await coachService.getPricing({ coachId: coach.id });
                 
                 if (res) {
                     setSubscriptionTiers(res.pricings);

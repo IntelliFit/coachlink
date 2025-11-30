@@ -62,11 +62,12 @@ function TrainingExecutionContent() {
       dayNumber={dayNumber}
       readOnly={readOnly}
       onBack={() => {
-        router.push(`/coach/plans/dashboard/${planId}`);
+        router.push('/today-training');
       }}
       onFinish={() => {
         // 训练完成后，添加 refresh 参数以触发主页面刷新
         router.push(`/coach/plans/dashboard/${planId}?refresh=true`);
+        router.push('/today-training');
       }}
     />
   );
