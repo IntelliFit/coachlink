@@ -2,7 +2,8 @@ import type { CoachPricingRow } from "@/types";
 import { Json } from "@/types/database.types";
 
 export interface GetPricingDto {
-    coach_id?: string;
+    coachId?: string;
+    userId?: string;
 }
 
 export interface Pricing {
