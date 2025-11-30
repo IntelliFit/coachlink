@@ -57,7 +57,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
             case 'draft':
                 return {
                     badge: '草稿未提交',
-                    badgeColor: 'bg-gray-100 text-gray-700',
+                    badgeColor: 'bg-surface-100 text-surface-700',
                     hint: '您已保存申请草稿，点击继续完善并提交审核。',
                     actionLabel: '继续编辑申请',
                     actionIcon: <Edit3 size={16} />,
@@ -67,7 +67,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
             default:
                 return {
                     badge: '未申请',
-                    badgeColor: 'bg-gray-100 text-gray-600',
+                    badgeColor: 'bg-surface-100 text-surface-600',
                     hint: '完成认证后即可在同一账号内自由切换学员/教练身份。',
                     actionLabel: '申请成为教练',
                     actionIcon: <ClipboardCheck size={16} />,
@@ -80,14 +80,14 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
     const config = getStatusConfig();
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+        <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
+                    <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2 mb-2">
                         <ClipboardCheck className="text-indigo-600" size={20} />
                         教练申请进度
                     </h2>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-surface-600">
                         当前状态：
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.badgeColor}`}>
                             {config.badge}
@@ -103,7 +103,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     size="small"
                 />
             </div>
-            <p className="text-sm text-gray-500 mt-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+            <p className="text-sm text-surface-500 mt-4 bg-surface-50 p-3 rounded-lg border border-surface-100">
                 {config.hint}
             </p>
         </div>
