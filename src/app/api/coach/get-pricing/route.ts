@@ -14,21 +14,34 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    let {
+        coachId = '',
+        userId = ''
+    } = await req.json() as GetPricingDto;
 
-    if (!session.user.is_coach) {
-        return NextResponse.json({
-            success: false,
-            message: '用户不是教练',
-            data: null
-        }, { status: 403 });
+    if (userId && !coachId) {
+        const { data: coach, error } = await supabase
+            .from("coaches")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+
+        if (error) {
+            return NextResponse.json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        coachId = coach.id;
     }
+
 
     // 获取定价信息
     const { data, error } = await supabase
         .from('coach_pricing')
         .select('*')
-        .eq('coach_id', userId)
+        .eq('coach_id', coachId)
         .maybeSingle();
 
     if (error) {
@@ -41,7 +54,7 @@ export async function POST(req: Request) {
 
     const pricingData = data ?? {
         id: null,
-        coach_id: userId,
+        coach_id: coachId,
         pricings: [
             {
                 title: session.profile.nickname + '的基础订阅计划',
