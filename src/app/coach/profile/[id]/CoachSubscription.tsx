@@ -10,7 +10,8 @@ import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptio
 import { useRouter } from 'next/navigation';
 import { Pricing } from '@/app/api/coach/get-pricing/entity';
 import QuestionnaireForm from './QuestionnaireForm';
-import { alipayService } from '@/app/service/alipayService';
+import PaymentDialog from '@/components/payment/paymentDialog';
+import type { CreateAlipayOrderDto } from '@/app/api/payment/alipay/create/entity';
 
 interface CoachSubscriptionProps {
     coach: any;
@@ -38,6 +39,10 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const [selectedTierIndex, setSelectedTierIndex] = useState<number | null>(null);
     // 为每个订阅选项维护独立的加载状态
     const [subscribingStates, setSubscribingStates] = useState<boolean[]>([]);
+    // 支付对话框相关状态
+    const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
+    const [pendingOrderDetails, setPendingOrderDetails] = useState<CreateAlipayOrderDto | null>(null);
+    const [selectedTierForPayment, setSelectedTierForPayment] = useState<{index: number, tier: Pricing} | null>(null);
 
     useEffect(() => {
         const fetchPricing = async () => {
@@ -83,11 +88,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             }
 
             // 获取选中的定价档位
+            // 获取选中的定价档位
             const selectedTier = subscriptionTiers[index];
             
-            // TODO: 完成支付
-
-            const orderResponse = await alipayService.createOrder({
+            // 设置待处理的订单详情和选中的套餐
+            const orderDetails: CreateAlipayOrderDto = {
                 subject: `订阅教练 ${coach?.name}`,
                 total_amount: selectedTier.price,
                 order_type: '教练服务订阅',
@@ -95,42 +100,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                     coachId: coach?.id,
                     tierId: selectedTier.id
                 }
-            });
-
-            console.log(orderResponse);
+            };
             
-            
-            // 执行订阅操作（这里简化处理，实际应该根据业务逻辑调整）
-            // const tierNumber = index + 1; // 假设索引对应tier编号
-            // const result = await subscriptionService.subscribe(
-            //     coach!.id,
-            //     tierNumber,
-            //     selectedTier.price
-            // );
-
-            // if (result.success) {
-            //     showToast({ severity: 'success', summary: '订阅成功' });
-            //     onSubscribeSuccess(tierNumber);
-            // } else {
-            //     showToast({ severity: 'error', summary: result.message || '订阅失败' });
-            // }
-            
-            // 模拟订阅成功
-            showToast({ severity: 'success', summary: '订阅成功' });
-            onSubscribeSuccess(index + 1);
-            
-            // 订阅成功后获取问卷
-            const res = await coachService.getQuestionnaires({ coachId: coach.id });
-
-            console.log(res);
-            
-            
-            if (res && res.questionnaires && res.questionnaires.length > 0) {
-                // 如果有问卷，显示问卷表单
-                setQuestionnaireQuestions(res.questionnaires);
-                setSelectedTierIndex(index);
-                setQuestionnaireVisible(true);
-            }
+            setPendingOrderDetails(orderDetails);
+            setSelectedTierForPayment({index, tier: selectedTier});
+            setPaymentDialogVisible(true);
         } catch (error) {
             console.error('订阅过程中出现错误:', error);
             showToast({ severity: 'error', summary: '订阅过程中出现错误' });
@@ -140,6 +114,40 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             newSubscribingStates[index] = false;
             setSubscribingStates(newSubscribingStates);
         }
+    };
+
+    const handlePaymentSuccess = () => {
+        if (selectedTierForPayment) {
+            const { index, tier } = selectedTierForPayment;
+            // 执行订阅成功后的操作
+            showToast({ severity: 'success', summary: '订阅成功' });
+            onSubscribeSuccess(index + 1);
+            
+            // 订阅成功后获取问卷
+            coachService.getQuestionnaires({ coachId: coach.id })
+                .then(res => {
+                    console.log(res);
+                    if (res && res.questionnaires && res.questionnaires.length > 0) {
+                        // 如果有问卷，显示问卷表单
+                        setQuestionnaireQuestions(res.questionnaires);
+                        setSelectedTierIndex(index);
+                        setQuestionnaireVisible(true);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取问卷失败:', error);
+                    showToast({ severity: 'error', summary: '获取问卷信息失败' });
+                });
+        }
+        setPaymentDialogVisible(false);
+        setPendingOrderDetails(null);
+        setSelectedTierForPayment(null);
+    };
+
+    const handlePaymentCancel = () => {
+        setPaymentDialogVisible(false);
+        setPendingOrderDetails(null);
+        setSelectedTierForPayment(null);
     };
 
     const handleQuestionnaireSubmit = async (
@@ -259,6 +267,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 questions={questionnaireQuestions}
                 onSubmit={handleQuestionnaireSubmit}
                 loading={subscribingStates.some(state => state)} // 如果有任何一个处于加载状态，则禁用问卷提交
+            />
+
+            <PaymentDialog 
+                visible={paymentDialogVisible}
+                onHide={() => setPaymentDialogVisible(false)}
+                orderDetails={pendingOrderDetails || undefined}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handlePaymentCancel}
             />
         </div>
     );
