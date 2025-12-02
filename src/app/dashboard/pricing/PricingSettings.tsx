@@ -173,7 +173,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                 {pricings.map((tier, index) => (
                                     <div
                                         key={index}
-                                        className="p-4 border border-surface-border rounded-xl bg-surface-50"
+                                        className="p-4 border border-surface-200 rounded-xl bg-surface-50"
                                     >
                                         {/* 标题 + 删除按钮 */}
                                         <div className="flex justify-between items-start mb-4">
@@ -213,7 +213,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                                     mode="currency"
                                                     currency="CNY"
                                                     locale="zh-CN"
-                                                    min={1}
+                                                    min={0}
                                                     className="w-full"
                                                 />
                                             </div>
@@ -281,7 +281,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                     </div>
 
                     {/* 右侧 - 展示规则 */}
-                    <div className="p-6 bg-surface-50 border border-surface-border rounded-xl h-fit">
+                    <div className="p-6 bg-surface-50 border border-surface-200 rounded-xl h-fit">
                         <h2 className="text-lg font-semibold mb-4">展示规则</h2>
                         <ul className="list-disc pl-5 space-y-1 text-sm text-surface-600">
                             <li>最多可以设置三个定价档位。</li>
@@ -292,7 +292,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                             <li>“我的主页”页面会显示此处设置的定价策略。</li>
                         </ul>
 
-                        <div className="mt-5 p-4 rounded-lg bg-blue-50 border border-blue-100">
+                        <div className="mt-5 p-4 rounded-lg bg-blue-200/50 border border-blue-100">
                             <h3 className="font-medium mb-2">提示</h3>
                             <p className="text-sm text-surface-700 leading-relaxed">
                                 系统会自动将包含“AI”的档位识别为基础档位，
