@@ -7,7 +7,7 @@ import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { Toast } from 'primereact/toast';
 import { useRef } from 'react';
-import paymentService from '@/app/service/paymentService';
+import paymentService from '@/app/service/alipayService';
 
 const PaymentPage = () => {
     const router = useRouter();

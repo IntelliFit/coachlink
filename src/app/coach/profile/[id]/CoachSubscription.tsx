@@ -10,6 +10,7 @@ import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptio
 import { useRouter } from 'next/navigation';
 import { Pricing } from '@/app/api/coach/get-pricing/entity';
 import QuestionnaireForm from './QuestionnaireForm';
+import { alipayService } from '@/app/service/alipayService';
 
 interface CoachSubscriptionProps {
     coach: any;
@@ -85,6 +86,19 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             const selectedTier = subscriptionTiers[index];
             
             // TODO: 完成支付
+
+            const orderResponse = await alipayService.createOrder({
+                subject: `订阅教练 ${coach?.name}`,
+                total_amount: selectedTier.price,
+                order_type: '教练服务订阅',
+                order_data: {
+                    coachId: coach?.id,
+                    tierId: selectedTier.id
+                }
+            });
+
+            console.log(orderResponse);
+            
             
             // 执行订阅操作（这里简化处理，实际应该根据业务逻辑调整）
             // const tierNumber = index + 1; // 假设索引对应tier编号
@@ -152,21 +166,21 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="text-center mb-8">
-                    <div className="h-8 bg-gray-200 rounded w-1/4 mx-auto mb-4 animate-pulse"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/3 mx-auto animate-pulse"></div>
+                    <div className="h-8 bg-surface-200 rounded w-1/4 mx-auto mb-4 animate-pulse"></div>
+                    <div className="h-4 bg-surface-200 rounded w-1/3 mx-auto animate-pulse"></div>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-6">
                     {[1, 2, 3].map((item) => (
-                        <div key={item} className="border-2 border-gray-200 rounded-xl p-6 animate-pulse">
-                            <div className="h-6 bg-gray-200 rounded w-3/4 mb-6 mx-auto"></div>
-                            <div className="h-10 bg-gray-200 rounded w-1/2 mb-8 mx-auto"></div>
+                        <div key={item} className="border-2 border-surface-200 rounded-xl p-6 animate-pulse">
+                            <div className="h-6 bg-surface-200 rounded w-3/4 mb-6 mx-auto"></div>
+                            <div className="h-10 bg-surface-200 rounded w-1/2 mb-8 mx-auto"></div>
                             <div className="space-y-3 mb-8">
                                 {[1, 2, 3, 4, 5].map((feature) => (
-                                    <div key={feature} className="h-4 bg-gray-200 rounded w-full"></div>
+                                    <div key={feature} className="h-4 bg-surface-200 rounded w-full"></div>
                                 ))}
                             </div>
-                            <div className="h-10 bg-gray-200 rounded w-full"></div>
+                            <div className="h-10 bg-surface-200 rounded w-full"></div>
                         </div>
                     ))}
                 </div>
@@ -196,7 +210,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                     <div
                         key={index}
                         className={`relative p-6 rounded-xl border-2 ${tier.is_recommend
-                            ? 'border-primary-500 bg-primary-50 shadow-lg'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-800 shadow-lg'
                             : 'border-surface-200 bg-surface hover:shadow-md'
                             } transition-all duration-200`}
                     >

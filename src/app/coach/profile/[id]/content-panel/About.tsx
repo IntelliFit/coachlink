@@ -40,7 +40,7 @@ const CoachAboutPanel: React.FC<CoachAboutPanelProps> = ({ coach }) => {
                 <h3 className="text-xl font-bold text-surface-900 mb-4">成就奖项</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {safeAchievements.map((achievement, index) => (
-                        <div key={index} className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+                        <div key={index} className="flex items-center space-x-3 p-4 bg-blue-50 border border-blue-300 dark:bg-blue-700/30 dark:border-blue-700 rounded-lg">
                             <Star className="w-6 h-6 text-blue-600" />
                             <span className="text-surface-700">{achievement}</span>
                         </div>

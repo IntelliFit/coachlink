@@ -1,6 +1,6 @@
 // 请求参数的接口类型
 export interface QueryAlipayOrderDto {
-    order_id: string;
+    orderId: string;
 }
 
 // 返回参数的接口类型
@@ -17,3 +17,5 @@ export interface QueryAlipayOrderResponseDto {
         updated_at: string;
     };
 }
+
+export type TradeStatus = 'WAIT_BUYER_PAY' | 'TRADE_CLOSED' | 'TRADE_SUCCESS' | 'TRADE_FINISHED';

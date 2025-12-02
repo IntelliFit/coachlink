@@ -5,6 +5,7 @@ import type { ApiData } from '@/types/api';
 import type { CreateAlipayOrderDto, CreateAlipayOrderResponseDto } from './entity';
 import { AlipaySdk } from 'alipay-sdk';
 
+// 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 export async function POST(req: Request) {
     const session = await getServerSession();
 
@@ -19,30 +20,15 @@ export async function POST(req: Request) {
 
     // 读取参数
     const {
-        out_trade_no,
         subject,
         total_amount,
         order_type,
         order_data,
     } = (await req.json()) as CreateAlipayOrderDto;
 
-    if (!out_trade_no || !subject || !total_amount) {
+    if (!subject || !total_amount) {
         return NextResponse.json(
             { success: false, message: '缺少必要参数', data: null },
-            { status: 400 }
-        );
-    }
-
-    // 检查用户是否存在
-    const { data: userCheck, error: userCheckError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', userId)
-        .single();
-
-    if (userCheckError || !userCheck) {
-        return NextResponse.json(
-            { success: false, message: '用户不存在', data: null },
             { status: 400 }
         );
     }
@@ -52,7 +38,7 @@ export async function POST(req: Request) {
         ALIPAY_APP_ID,
         ALIPAY_PRIVATE_KEY,
         ALIPAY_PUBLIC_KEY,
-        NEXTAUTH_URL,
+        ALIPAY_GATEWAY
     } = process.env;
 
     if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
@@ -67,17 +53,41 @@ export async function POST(req: Request) {
         appId: ALIPAY_APP_ID,
         privateKey: ALIPAY_PRIVATE_KEY,
         alipayPublicKey: ALIPAY_PUBLIC_KEY,
-        gateway: process.env.ALIPAY_GATEWAY || 'https://openapi-sandbox.dl.alipaydev.com/gateway.do',
-        signType: 'RSA2',
-        charset: 'utf-8',
-        timeout: 5000,
+        gateway: ALIPAY_GATEWAY,
     });
 
+    console.log(ALIPAY_APP_ID);
+    console.log(ALIPAY_PUBLIC_KEY);
+    console.log(ALIPAY_PRIVATE_KEY);
+
+    // 写入订单到数据库
+    const { data: order, error: orderError } = await supabase
+        .from('alipay_orders')
+        .insert({
+            subject,
+            total_amount,
+            order_type,
+            order_data,
+            user_id: userId,
+            status: 'pending',
+            qr_code: '',
+        })
+        .select()
+        .single();
+
+    if (orderError) {
+        return NextResponse.json({
+            success: false,
+            message: orderError.message,
+            data: '创建支付订单失败'
+        });
+    }
+
     // 预下单
-    const result = await alipaySdk.exec('alipay.trade.precreate', {
-        notify_url: `${NEXTAUTH_URL}/api/payment/alipay/notify`,
+    const result = await alipaySdk.pageExec('alipay.trade.page.pay', {
+        // notify_url: `${NEXTAUTH_URL}/api/payment/alipay/notify`,
         bizContent: {
-            out_trade_no,
+            out_trade_no: order.id,
             total_amount: total_amount.toString(),
             subject,
             product_code: 'FAST_INSTANT_TRADE_PAY',
@@ -86,27 +96,20 @@ export async function POST(req: Request) {
         },
     });
 
-    // 支付宝预下单返回 QR code
-    const qrCode = result?.qr_code || '';
+    console.log(result);
 
-    // 写入订单到数据库
-    const { data: order, error: orderError } = await supabase
-        .from('alipay_orders')
-        .insert({
-            out_trade_no,
-            subject,
-            total_amount,
-            order_type,
-            order_data,
-            user_id: userId,
-            status: 'pending',
-            qr_code: qrCode,
-            alipay_trade_no: result?.trade_no || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+    if (!result) {
+        await supabase
+            .from('orders')
+            .delete()
+            .eq('id', order.id);
+        return NextResponse.json({
+            success: false,
+            message: '无法创建订单',
+            data: result
+        });
+    }
+
 
     if (orderError) {
         return NextResponse.json(
@@ -127,13 +130,10 @@ export async function POST(req: Request) {
                 total_amount: order.total_amount,
                 status: order.status,
                 created_at: order.created_at,
-                payment_url: qrCode,
             },
             paymentInfo: {
-                qrCode,
+                formHtml: result,
                 description: '支付宝扫码支付',
-                qrcodeWidth: '200',
-                paymentMethod: 'alipay.trade.precreate',
             },
         },
     });
