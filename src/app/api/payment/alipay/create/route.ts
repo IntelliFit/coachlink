@@ -56,10 +56,6 @@ export async function POST(req: Request) {
         gateway: ALIPAY_GATEWAY,
     });
 
-    console.log(ALIPAY_APP_ID);
-    console.log(ALIPAY_PUBLIC_KEY);
-    console.log(ALIPAY_PRIVATE_KEY);
-
     // 写入订单到数据库
     const { data: order, error: orderError } = await supabase
         .from('alipay_orders')
@@ -84,8 +80,7 @@ export async function POST(req: Request) {
     }
 
     // 预下单
-    const result = await alipaySdk.pageExec('alipay.trade.page.pay', {
-        // notify_url: `${NEXTAUTH_URL}/api/payment/alipay/notify`,
+    const result = alipaySdk.pageExec('alipay.trade.page.pay', {
         bizContent: {
             out_trade_no: order.id,
             total_amount: total_amount.toString(),
@@ -95,8 +90,6 @@ export async function POST(req: Request) {
             qrcode_width: 600,
         },
     });
-
-    console.log(result);
 
     if (!result) {
         await supabase
