@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+
+import { AlipaySdk } from 'alipay-sdk';
+
 import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto } from './entity';
 
@@ -16,7 +19,9 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
 
-    const { order_id } = await req.json() as QueryAlipayOrderDto;
+    const {
+        order_id
+    } = await req.json() as QueryAlipayOrderDto;
 
     if (!order_id) {
         return NextResponse.json<ApiData<null>>({
@@ -25,6 +30,15 @@ export async function POST(req: Request) {
             data: null
         }, { status: 400 });
     }
+
+    const alipaySdk = new AlipaySdk({
+        appId: process.env.ALIPAY_APP_ID,
+        privateKey: process.env.ALIPAY_PRIVATE_KEY,
+        alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
+        gateway: process.env.ALIPAY_GATEWAY
+    });
+
+    
 
     // 获取订单信息
     let order, orderError;
