@@ -1,9 +1,10 @@
 // 请求参数的接口类型
 export interface CreateAlipayOrderDto {
     subject: string;
-    total_amount: number;
-    order_type?: string;
-    order_data?: any;
+    totalAmount: number;
+    orderType?: string;
+    orderData?: any;
+    createMode?: string;
 }
 
 // 返回参数的接口类型
