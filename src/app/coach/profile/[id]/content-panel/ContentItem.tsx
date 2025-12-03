@@ -39,14 +39,14 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
         if (content.content_type === 'video') {
             return (
                 <div className="w-24 h-24 bg-gradient-to-r from-primary-500 to-red-600 rounded-lg flex items-center justify-center">
-                    <Play className="w-8 h-8 text-white" />
+                    <Play className="w-8 h-8 text-surface" />
                 </div>
             );
         }
 
         return (
             <div className="w-24 h-24 bg-gradient-to-r from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-                <Image className="w-8 h-8 text-white" />
+                <Image className="w-8 h-8 text-surface" />
             </div>
         );
     };
@@ -67,18 +67,20 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
         return userSubscription.tier >= content.required_tier;
     };
 
-    const handleSubscribe = async () => {
-        try {
-            setIsSubscribing(true);
-            await subscriptionService.subscribe(coachId, Math.max(1, content.required_tier) as any);
-            onSubscribeSuccess();
-            showToast({ severity: 'success', summary: '订阅成功' });
-        } catch (e: any) {
-            showToast({ severity: 'error', summary: e?.message || '订阅失败' });
-        } finally {
-            setIsSubscribing(false);
-        }
+    const handleSubscribe = () => {
+        const el = document.getElementById('choose-pricing');
+        if (!el) return;
+
+        const navHeight = 70;
+
+        const top = el.getBoundingClientRect().top + window.pageYOffset - navHeight;
+
+        window.scrollTo({
+            top,
+            behavior: 'smooth'
+        });
     };
+
 
     return (
         <div className="bg-surface-50 rounded-xl p-6">
@@ -156,7 +158,8 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
                         <Lock className="w-4 h-4" />
                         <span>需要 {content.required_tier === 1 ? '基础' : content.required_tier === 2 ? '进阶' : '高级'} 订阅</span>
                         <Button
-                            label={isSubscribing ? '处理中...' : '立即订阅'}
+                            label='立即订阅'
+                            loading={isSubscribing}
                             onClick={handleSubscribe}
                             disabled={isSubscribing}
                             className="p-button-text p-0"
