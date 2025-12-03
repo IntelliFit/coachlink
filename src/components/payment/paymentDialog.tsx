@@ -144,7 +144,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         </div>
                         <div className="flex justify-between">
                             <span className="text-surface-600">金额</span>
-                            <span className="font-bold text-primary">¥{orderDetails?.total_amount.toFixed(2)}</span>
+                            <span className="font-bold text-primary">¥{orderDetails?.totalAmount.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
