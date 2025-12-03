@@ -3,7 +3,7 @@ import type { GetTrainingPlansDto, GetTrainingPlansResponseDto } from "../api/su
 import type { GetVideoStatsDto, GetVideoStatsResponseDto } from "../api/subscription/get-video-stats/entity";
 import type { CoachMessagesDto, CoachMessagesResponseDto } from "../api/subscription/coach-messages/entity";
 import type { CoachSubscriptionGetDto, CoachSubscriptionGetResponseDto } from "../api/subscription/coach-subscriptions/entity";
-import { SubscribeDto, SubscribeResponseDto } from "../api/subscription/subscribe/entity";
+import { CreateSubscribeDto, CreateSubscribeResponseDto } from "../api/subscription/create-subscribe/entity";
 
 interface SubscriptionStats {
     aiPlans: number;
@@ -56,8 +56,8 @@ class SubscriptionService extends BaseService {
         return null;
     }
 
-    async subscribe(reqData: SubscribeDto) {
-        const res = await this.post<SubscribeResponseDto>('subscribe', reqData);
+    async subscribe(reqData: CreateSubscribeDto) {
+        const res = await this.post<CreateSubscribeResponseDto>('subscribe', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
