@@ -38,63 +38,50 @@ export async function POST(req: Request) {
         });
     }
 
-    const {
-        studentId = '',
-        coachId = '',    
-    } = await req.json() as CoachSubscriptionGetDto;    
+    const { studentId = '', coachId = '' } =
+        (await req.json()) as CoachSubscriptionGetDto;
 
-    if (studentId) {
-        const { data: subscriptions, error: subscriptionsError } = await supabase
-            .from('coach_subscriptions')
-            .select('*')
-            .eq('student_id', studentId)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false });
-            
-        if (subscriptionsError || !subscriptions) {
-            return NextResponse.json({
-                success: false,
-                message: subscriptionsError.message,
-                data: null,
-            });
-        }
-
+    // 参数检查
+    if (!studentId && !coachId) {
         return NextResponse.json({
-            success: true,
-            message: '获取订阅教练成功',
-            data: {
-                subscriptions: await embeddingCaochesIntoSubscriptions(subscriptions),
-                studentId
-            },
+            success: false,
+            message: '获取失败，需要 studentId 或 coachId',
         });
+    }
+
+    // 构建基础查询
+    let query = supabase
+        .from('coach_subscriptions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    // 动态添加 where 条件
+    if (studentId) {
+        query = query.eq('student_id', studentId).eq('status', 'active');
     }
 
     if (coachId) {
-        const { data: subscriptions, error: subscriptionsError } = await supabase
-            .from('coach_subscriptions')
-            .select('*')
-            .eq('coach_id', coachId)
-            .order('created_at', { ascending: false });
-        
-        if (subscriptionsError || !subscriptions) {
-            return NextResponse.json({
-                success: false,
-                message: subscriptionsError.message,
-            });
-        }
+        query = query.eq('coach_id', coachId);
+    }
 
+    // 执行查询
+    const { data: subscriptions, error } = await query;
+
+    if (error) {
         return NextResponse.json({
-            success: true,
-            message: '获取订阅教练成功',
-            data: {
-                subscriptions: await embeddingCaochesIntoSubscriptions(subscriptions),
-                coachId
-            },
+            success: false,
+            message: error.message,
+            data: null,
         });
     }
-    
+
     return NextResponse.json({
-        success: false,
-        message: '获取失败，参数不正确',
+        success: true,
+        message: '获取订阅教练成功',
+        data: {
+            subscriptions: await embeddingCaochesIntoSubscriptions(subscriptions ?? []),
+            studentId: studentId || undefined,
+            coachId: coachId || undefined,
+        },
     });
 }
