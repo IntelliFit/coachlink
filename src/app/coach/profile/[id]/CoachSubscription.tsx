@@ -33,7 +33,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const [loading, setLoading] = useState(true);
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<string[]>([]);
-    const [selectedTierIndex, setSelectedTierIndex] = useState<number | null>(null);
+
     // 为每个订阅选项维护独立的加载状态
     const [subscribingStates, setSubscribingStates] = useState<boolean[]>([]);
     // 支付对话框相关状态
@@ -117,13 +117,12 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         }
     };
 
-    const handleSubscribe = async (index: number) => {
-        const tier = index + 1;
-        const res = await subscriptionService.subscribe({
+    const handleSubscribe = async (tier: number) => {
+        const res = await subscriptionService.createSubscription({
             coachId: coach.id,
             tier,
             orderId: null,
-            monthlyPrice: subscriptionTiers[index].price,
+            monthlyPrice: subscriptionTiers[tier - 1].price,
         });
 
         return res;
@@ -136,7 +135,6 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         if (res && res.questionnaires && res.questionnaires.length > 0) {
             // 如果有问卷，显示问卷表单
             setQuestionnaireQuestions(res.questionnaires);
-            setSelectedTierIndex(index);
             setQuestionnaireVisible(true);
         }
     };
@@ -144,13 +142,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const handlePaymentSuccess = async () => {
         if (selectedTierForPayment) {
             const { index } = selectedTierForPayment;
-            // 执行订阅成功后的操作
-            showToast({ severity: 'success', summary: '订阅成功' });
-            onSubscribeSuccess(index + 1);
-
-            const subscribeResponse = await handleSubscribe(index);
+            const tier = index + 1;
+            // 更新订阅信息
+            const subscribeResponse = await handleSubscribe(tier);
 
             if (subscribeResponse?.subscription) {
+                // 更新订阅列表
+                onSubscribeSuccess(tier);
+                
                 setCoachSubscription(subscribeResponse.subscription);
                 handleQuestionnaireShow(index);
             } else {
@@ -174,7 +173,19 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             return;
         }
 
-        
+        // 更新订阅信息（问卷回答存储在订阅信息里面）
+        const res = await subscriptionService.updateSubscription({
+            id: coachSubscription.id,
+            subscribe_data: {
+                answers
+            }
+        });
+
+        if (res) {
+            showToast({ severity: 'success', summary: '成功', detail: '问卷提交成功' });
+        } else {
+            showToast({ severity: 'error', summary: '错误', detail: '问卷提交失败' });
+        }
         
         setQuestionnaireVisible(false);
     };
