@@ -72,7 +72,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     actionLabel: '申请成为教练',
                     actionIcon: <ClipboardCheck size={16} />,
                     action: () => router.push('/apply'),
-                    btnSeverity: 'info' as const
+                    btnSeverity: 'common' as const
                 };
         }
     };
@@ -84,7 +84,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2 mb-2">
-                        <ClipboardCheck className="text-indigo-600" size={20} />
+                        <ClipboardCheck className="text-primary" size={20} />
                         教练申请进度
                     </h2>
                     <div className="flex items-center gap-2 text-sm text-surface-600">
@@ -97,10 +97,10 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                 <Button 
                     label={config.actionLabel}
                     icon={config.actionIcon}
-                    severity={config.btnSeverity}
                     onClick={config.action}
                     className="w-full sm:w-auto"
                     size="small"
+                    outlined
                 />
             </div>
             <p className="text-sm text-surface-500 mt-4 bg-surface-50 p-3 rounded-lg border border-surface-100">

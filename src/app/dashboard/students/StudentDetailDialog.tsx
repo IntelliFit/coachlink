@@ -77,22 +77,6 @@ export const StudentDetailDialog = ({
             modal
             draggable={false}
             onHide={onHide}
-            footer={
-                <div className="flex justify-end gap-2">
-                    <Button
-                        label="关闭"
-                        icon="pi pi-times"
-                        severity="secondary"
-                        onClick={onHide}
-                        outlined
-                    />
-                    <Button
-                        label="联系学员"
-                        icon="pi pi-comments"
-                        onClick={() => {/* 联系逻辑 */ }}
-                    />
-                </div>
-            }
         >
             {student && (
                 <div className="p-5">
@@ -134,38 +118,9 @@ export const StudentDetailDialog = ({
                         </div>
                     </div>
 
-                    {/* 详细信息网格 */}
-                    <div className="grid grid-cols-2 gap-6 mb-8">
-                        <InfoCard
-                            icon={<Calendar className="text-primary" size={20} />}
-                            label="开始日期"
-                            value={formatDate(student.start_date)}
-                        />
-
-                        <InfoCard
-                            icon={<Target className="text-green-500" size={20} />}
-                            label="健身水平"
-                            value={fitnessLevelString(profile?.fitness_level) || '未设置'}
-                        />
-
-                        <InfoCard
-                            icon={<Video className="text-blue-500" size={20} />}
-                            label="已上传视频"
-                            value={`${student.uploaded} 个`}
-                            badge={student.uploaded > 0 ? "success" : undefined}
-                        />
-
-                        <InfoCard
-                            icon={<MessageCircle className="text-amber-500" size={20} />}
-                            label="待评阅视频"
-                            value={`${getPendingReviews()} 个`}
-                            badge={getPendingReviews() > 0 ? "warning" : undefined}
-                        />
-                    </div>
-
                     {/* 订阅问卷部分 */}
                     {student.subscribe_data?.answers?.length > 0 && (
-                        <div className="mt-8">
+                        <div className="mt-8 mb-8">
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="w-1 h-6 bg-primary rounded-full"></div>
                                 <h3 className="text-xl font-bold text-surface-900">订阅问卷</h3>
@@ -198,6 +153,35 @@ export const StudentDetailDialog = ({
                             </div>
                         </div>
                     )}
+
+                    {/* 详细信息网格 */}
+                    <div className="grid grid-cols-2 gap-6 mb-8">
+                        <InfoCard
+                            icon={<Calendar className="text-primary" size={20} />}
+                            label="开始日期"
+                            value={formatDate(student.start_date)}
+                        />
+
+                        <InfoCard
+                            icon={<Target className="text-green-500" size={20} />}
+                            label="健身水平"
+                            value={fitnessLevelString(profile?.fitness_level) || '未设置'}
+                        />
+
+                        <InfoCard
+                            icon={<Video className="text-blue-500" size={20} />}
+                            label="已上传视频"
+                            value={`${student.uploaded} 个`}
+                            badge={student.uploaded > 0 ? "success" : undefined}
+                        />
+
+                        <InfoCard
+                            icon={<MessageCircle className="text-amber-500" size={20} />}
+                            label="待评阅视频"
+                            value={`${getPendingReviews()} 个`}
+                            badge={getPendingReviews() > 0 ? "warning" : undefined}
+                        />
+                    </div>
                 </div>
             )}
         </Dialog>
@@ -222,13 +206,13 @@ const InfoCard = ({ icon, label, value, badge }: InfoCardProps) => (
                         {label}
                     </div>
                 </div>
-                <div className="text-lg font-bold text-surface-900">
+                <div className="text-sm font-bold text-surface-900">
                     {value}
                 </div>
             </div>
             {badge && (
                 <div className={`w-3 h-3 rounded-full ${badge === 'success' ? 'bg-green-500' :
-                        badge === 'warning' ? 'bg-primary-500' : 'bg-blue-500'
+                    badge === 'warning' ? 'bg-primary-500' : 'bg-blue-500'
                     }`} />
             )}
         </div>

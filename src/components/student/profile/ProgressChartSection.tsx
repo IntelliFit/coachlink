@@ -123,7 +123,7 @@ export const ProgressChartSection: React.FC<ProgressChartSectionProps> = ({ data
             onClick={() => setActiveTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === id
-                    ? 'bg-indigo-50 text-indigo-600'
+                    ? 'bg-primary-50 text-primary'
                     : 'text-surface-500 hover:bg-surface-50 hover:text-surface-700'
             }`}
         >
@@ -135,7 +135,7 @@ export const ProgressChartSection: React.FC<ProgressChartSectionProps> = ({ data
         <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2">
-                    <LineChart className="text-indigo-600" size={20} />
+                    <LineChart className="text-primary" size={20} />
                     进步趋势
                 </h2>
                 <div className="flex gap-1 bg-surface-50 p-1 rounded-lg">
