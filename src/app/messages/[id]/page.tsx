@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card } from 'primereact/card';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
@@ -17,6 +18,8 @@ export default function ChatPage() {
     const params = useParams();
     const router = useRouter();
     const { showToast } = useToastContext();
+    const { data: session } = useSession();
+    const isCoach = !!(session as any)?.user?.is_coach;
     const conversationId = params.id as string;
     
     const [messages, setMessages] = useState<MessageItemType[]>([]);
@@ -54,6 +57,18 @@ export default function ChatPage() {
                             name: firstMessage.sender_name,
                             avatar: firstMessage.sender_avatar
                         });
+                    } else {
+                        // 若当前仅有自己的消息，回退到会话信息获取对方资料
+                        try {
+                            const convData = await chatService.getConversations({ page: 1, limit: 50 });
+                            const conv = convData?.conversations.find(c => c.id === conversationId);
+                            if (conv) {
+                                setChatPartner({
+                                    name: isCoach ? conv.student_name : conv.coach_name,
+                                    avatar: isCoach ? conv.student_avatar : conv.coach_avatar
+                                });
+                            }
+                        } catch {}
                     }
                 }
                 
