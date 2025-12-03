@@ -42,14 +42,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     // 支付对话框相关状态
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
     const [pendingOrderDetails, setPendingOrderDetails] = useState<CreateAlipayOrderDto | null>(null);
-    const [selectedTierForPayment, setSelectedTierForPayment] = useState<{index: number, tier: Pricing} | null>(null);
+    const [selectedTierForPayment, setSelectedTierForPayment] = useState<{ index: number, tier: Pricing } | null>(null);
 
     useEffect(() => {
         const fetchPricing = async () => {
             try {
                 setLoading(true);
                 const res = await coachService.getPricing({ coachId: coach.id });
-                
+
                 if (res) {
                     setSubscriptionTiers(res.pricings);
                     // 初始化每个订阅选项的加载状态
@@ -57,7 +57,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 } else {
                     showToast({ severity: 'error', summary: '获取定价信息失败' })
                 }
-                
+
             } catch (error) {
                 console.error('加载定价信息失败:', error);
             } finally {
@@ -90,20 +90,22 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             // 获取选中的定价档位
             // 获取选中的定价档位
             const selectedTier = subscriptionTiers[index];
-            
+
             // 设置待处理的订单详情和选中的套餐
             const orderDetails: CreateAlipayOrderDto = {
                 subject: `订阅教练 ${coach?.name}`,
-                total_amount: selectedTier.price,
-                order_type: '教练服务订阅',
-                order_data: {
+                totalAmount: selectedTier.price,
+                orderType: '教练服务订阅',
+                orderData: {
                     coachId: coach?.id,
                     tierId: selectedTier.id
-                }
+                },
+                // TODO: 等待测试完成，切换为 common
+                createMode: 'test'
             };
-            
+
             setPendingOrderDetails(orderDetails);
-            setSelectedTierForPayment({index, tier: selectedTier});
+            setSelectedTierForPayment({ index, tier: selectedTier });
             setPaymentDialogVisible(true);
         } catch (error) {
             console.error('订阅过程中出现错误:', error);
@@ -116,28 +118,28 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         }
     };
 
-    const handlePaymentSuccess = () => {
+    const handleSubscribe = async (index: number) => { 
+        
+    };
+
+    const handlePaymentSuccess = async () => {
         if (selectedTierForPayment) {
             const { index, tier } = selectedTierForPayment;
             // 执行订阅成功后的操作
             showToast({ severity: 'success', summary: '订阅成功' });
             onSubscribeSuccess(index + 1);
-            
+
+            // 添加订阅
+
             // 订阅成功后获取问卷
-            coachService.getQuestionnaires({ coachId: coach.id })
-                .then(res => {
-                    console.log(res);
-                    if (res && res.questionnaires && res.questionnaires.length > 0) {
-                        // 如果有问卷，显示问卷表单
-                        setQuestionnaireQuestions(res.questionnaires);
-                        setSelectedTierIndex(index);
-                        setQuestionnaireVisible(true);
-                    }
-                })
-                .catch(error => {
-                    console.error('获取问卷失败:', error);
-                    showToast({ severity: 'error', summary: '获取问卷信息失败' });
-                });
+            const res = await coachService.getQuestionnaires({ coachId: coach.id });
+
+            if (res && res.questionnaires && res.questionnaires.length > 0) {
+                // 如果有问卷，显示问卷表单
+                setQuestionnaireQuestions(res.questionnaires);
+                setSelectedTierIndex(index);
+                setQuestionnaireVisible(true);
+            }
         }
         setPaymentDialogVisible(false);
         setPendingOrderDetails(null);
@@ -203,9 +205,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 <p className="text-surface-500">选择最适合您需求的服务层级</p>
                 {isOwnProfile && (
                     <div className="mt-4">
-                        <Button 
-                            label="编辑定价策略" 
-                            icon="pi pi-pencil" 
+                        <Button
+                            label="编辑定价策略"
+                            icon="pi pi-pencil"
                             onClick={handleEditPricing}
                             className="p-button-outlined"
                         />
@@ -269,7 +271,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 loading={subscribingStates.some(state => state)} // 如果有任何一个处于加载状态，则禁用问卷提交
             />
 
-            <PaymentDialog 
+            <PaymentDialog
                 visible={paymentDialogVisible}
                 onHide={() => setPaymentDialogVisible(false)}
                 orderDetails={pendingOrderDetails || undefined}

@@ -21,12 +21,13 @@ export async function POST(req: Request) {
     // 读取参数
     const {
         subject,
-        total_amount,
-        order_type,
-        order_data,
+        totalAmount,
+        orderType,
+        orderData = {},
+        createMode = 'common'
     } = (await req.json()) as CreateAlipayOrderDto;
 
-    if (!subject || !total_amount) {
+    if (!subject || !totalAmount) {
         return NextResponse.json(
             { success: false, message: '缺少必要参数', data: null },
             { status: 400 }
@@ -40,13 +41,6 @@ export async function POST(req: Request) {
         ALIPAY_PUBLIC_KEY,
         ALIPAY_GATEWAY
     } = process.env;
-
-    console.log(ALIPAY_APP_ID);
-    console.log(ALIPAY_PRIVATE_KEY);
-    console.log(ALIPAY_PUBLIC_KEY);
-    
-    
-    
 
     if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
         return NextResponse.json(
@@ -68,9 +62,9 @@ export async function POST(req: Request) {
         .from('alipay_orders')
         .insert({
             subject,
-            total_amount,
-            order_type,
-            order_data,
+            total_amount: totalAmount,
+            order_type: orderType,
+            order_data: orderData,
             user_id: userId,
             status: 'pending',
             qr_code: '',
@@ -90,7 +84,7 @@ export async function POST(req: Request) {
     const result = alipaySdk.pageExec('alipay.trade.page.pay', {
         bizContent: {
             out_trade_no: order.id,
-            total_amount: total_amount.toString(),
+            total_amount: totalAmount.toString(),
             subject,
             product_code: 'FAST_INSTANT_TRADE_PAY',
             qr_pay_mode: '0',
@@ -103,11 +97,17 @@ export async function POST(req: Request) {
             .from('orders')
             .delete()
             .eq('id', order.id);
+
         return NextResponse.json({
             success: false,
             message: '无法创建订单',
             data: result
         });
+    } else if (createMode === 'test') {
+        await supabase
+            .from('orders')
+            .delete()
+            .eq('id', order.id);
     }
 
 

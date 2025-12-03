@@ -49,10 +49,14 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
             return;
         }
 
+        // 确保新档位的价格比最后一个档位高
+        const lastPrice = pricings.length > 0 ? pricings[pricings.length - 1].price : 0;
+        const newPrice = Math.max(1, lastPrice + 1); // 至少为1，且比前一个价格高至少1
+
         const newTier: Pricing = {
             id: Date.now().toString(),
             title: '',
-            price: 0,
+            price: newPrice,
             features: [''],
             is_recommend: false
         };
@@ -70,9 +74,48 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     };
 
     const updateTier = (id: string, field: keyof Pricing, value: any) => {
-        setPricings(pricings.map(tier =>
-            tier.id === id ? { ...tier, [field]: value } : tier
-        ));
+        // 创建一个新的定价数组副本
+        const updatedPricings = [...pricings];
+        const tierIndex = updatedPricings.findIndex(tier => tier.id === id);
+        
+        if (tierIndex !== -1) {
+            // 更新指定字段
+            updatedPricings[tierIndex] = { ...updatedPricings[tierIndex], [field]: value };
+            
+            // 如果更新的是价格，则需要确保价格保持严格升序
+            if (field === 'price') {
+                const newPrice = value as number;
+                
+                // 检查是否违反了升序规则
+                const isValid = updatedPricings.every((tier, i) => {
+                    // 第一个元素没有前置元素比较
+                    if (i === 0) return true;
+                    // 每个元素必须大于前一个元素
+                    return tier.price > updatedPricings[i - 1].price;
+                });
+                
+                // 如果违反了升序规则，调整其他价格以满足约束
+                if (!isValid) {
+                    // 确保当前修改的元素大于前一个元素（如果不是第一个）
+                    if (tierIndex > 0) {
+                        const prevPrice = updatedPricings[tierIndex - 1].price;
+                        if (newPrice <= prevPrice) {
+                            updatedPricings[tierIndex] = { ...updatedPricings[tierIndex], price: prevPrice + 1 };
+                        }
+                    }
+                    
+                    // 确保后面的元素都大于当前元素
+                    for (let i = tierIndex + 1; i < updatedPricings.length; i++) {
+                        const prevPrice = updatedPricings[i - 1].price;
+                        if (updatedPricings[i].price <= prevPrice) {
+                            updatedPricings[i] = { ...updatedPricings[i], price: prevPrice + 1 };
+                        }
+                    }
+                }
+            }
+            
+            setPricings(updatedPricings);
+        }
     };
 
     const updateFeature = (tierId: string, index: number, value: string) => {
@@ -121,6 +164,15 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
 
             if (tier.features.some(feature => !feature.trim())) {
                 showToast({ severity: 'error', summary: '错误', detail: '所有特点描述都不能为空' });
+                return;
+            }
+        }
+
+        // 检查价格是否严格升序
+        const prices = pricings.map(tier => tier.price);
+        for (let i = 1; i < prices.length; i++) {
+            if (prices[i] <= prices[i - 1]) {
+                showToast({ severity: 'error', summary: '错误', detail: '定价档位价格必须严格递增' });
                 return;
             }
         }
@@ -213,7 +265,8 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                                     mode="currency"
                                                     currency="CNY"
                                                     locale="zh-CN"
-                                                    min={0}
+                                                    min={index > 0 ? (pricings[index - 1].price + 1) : 0}
+                                                    max={index < pricings.length - 1 ? (pricings[index + 1].price - 1) : null}
                                                     className="w-full"
                                                 />
                                             </div>
@@ -287,9 +340,10 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                             <li>最多可以设置三个定价档位。</li>
                             <li>每个档位必须有标题和价格。</li>
                             <li>价格必须为正数。</li>
+                            <li>定价档位价格必须严格递增（每个档位价格必须高于前一个）。</li>
                             <li>每个档位可以有多个特点描述。</li>
-                            <li>最多只能标记一个档位为“推荐”。</li>
-                            <li>“我的主页”页面会显示此处设置的定价策略。</li>
+                            <li>最多只能标记一个档位为"推荐"。</li>
+                            <li>"我的主页"页面会显示此处设置的定价策略。</li>
                         </ul>
 
                         <div className="mt-5 p-4 rounded-lg bg-blue-200/50 border border-blue-100">

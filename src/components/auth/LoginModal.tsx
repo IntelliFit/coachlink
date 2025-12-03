@@ -21,6 +21,10 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
+    if (!isOpen) {
+        return;
+    }
+
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
@@ -28,7 +32,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     const router = useRouter();
     const { showToast } = useToastContext();
     const mockUsers = getMockUsers();
-    console.log(mockUsers);
 
     const handleLogin = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -109,9 +112,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             router.refresh();
         }
     };
-
-    // 如果模态框未打开，则不渲染任何内容
-    if (!isOpen) return null;
 
     return (
         <>
