@@ -23,20 +23,11 @@ export default function StudentsPage() {
     const [selectedStudent, setSelectedStudent] = useState<StudentSubscription | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
 
-    const [coach, setCoach] = useState<CoachesRow | null>(null);
 
     const router = useRouter();
     const { showToast } = useToastContext();
     const { status, data: session } = useSession();
 
-    const loadCoach = async () => {
-        const res = await coachService.getCoach({ userId: session?.user?.id || '' });
-        if (res) {
-            setCoach(res.coach);
-        } else {
-            showToast({ severity: 'error', summary: '获取教练信息失败' });
-        }
-    };
 
     const loadStudents = async (page: number = 0, limit: number = 10) => {
         try {
@@ -52,12 +43,6 @@ export default function StudentsPage() {
             setLoading(false);
         }
     };
-
-    useEffect(() => {
-        if (session?.user?.id) {
-            loadCoach();
-        }
-    }, [session]);
 
     useEffect(() => {
         if (status === 'loading') {
@@ -215,7 +200,6 @@ export default function StudentsPage() {
 
             {/* 学员详情对话框 */}
             <StudentDetailDialog
-                coach={coach}
                 visible={dialogVisible}
                 student={selectedStudent}
                 onHide={() => setDialogVisible(false)}
