@@ -41,6 +41,13 @@ export async function POST(req: Request) {
         ALIPAY_GATEWAY
     } = process.env;
 
+    console.log(ALIPAY_APP_ID);
+    console.log(ALIPAY_PRIVATE_KEY);
+    console.log(ALIPAY_PUBLIC_KEY);
+    
+    
+    
+
     if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
         return NextResponse.json(
             { success: false, message: '支付宝配置不完整', data: null },
