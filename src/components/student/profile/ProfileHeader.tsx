@@ -15,7 +15,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data }) => {
 
     const getLevelColor = (level: string) => {
         switch(level) {
-            case 'premium': return 'from-purple-500 to-indigo-600';
+            case 'premium': return 'from-purple-500 to-primary';
             case 'advanced': return 'from-blue-500 to-cyan-500';
             default: return 'from-surface-500 to-surface-600';
         }
@@ -46,7 +46,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data }) => {
                 </h1>
                 
                 <div className="flex items-center gap-2 mb-6">
-                    <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium flex items-center gap-1">
+                    <span className="px-3 py-1 rounded-full bg-primary-50 text-primary text-sm font-medium flex items-center gap-1">
                         <Users size={14} />
                         学员
                     </span>

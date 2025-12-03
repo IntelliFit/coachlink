@@ -157,7 +157,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 {/* Right Column (Sidebar) */}
                 <div className="space-y-6">
                     <PersonalInfoSection data={data} onUpdate={fetchData} />
-                    <MyCoachesList data={data} />
+                    <MyCoachesList />
                 </div>
             </div>
         </div>

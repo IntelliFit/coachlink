@@ -6,6 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
+import { Skeleton } from 'primereact/skeleton';
 import { ProfileData } from './types';
 import { studentService } from '@/app/service/studentService';
 import { useToastContext } from '@/context/ToastContext';
@@ -68,7 +69,15 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     const InfoItem = ({ label, value }: { label: string, value: string | number | null }) => (
         <div className="p-4 bg-surface-50 rounded-xl border border-surface-100">
             <div className="text-sm text-surface-500 mb-1">{label}</div>
-            <div className="text-lg font-semibold text-surface-900">{value || '未填写'}</div>
+            <div className="text-sm font-semibold text-surface-900">{value || '未填写'}</div>
+        </div>
+    );
+
+    // 渲染信息项骨架屏
+    const InfoItemSkeleton = () => (
+        <div className="p-4 bg-surface-50 rounded-xl border border-surface-100">
+            <Skeleton width="40%" height="0.875rem" className="mb-2" />
+            <Skeleton width="60%" height="1.25rem" />
         </div>
     );
 
@@ -78,13 +87,12 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2">
-                    <User className="text-surface" size={20} />
+                    <User className="text-primary" size={20} />
                     个人信息
                 </h2>
                 <Button 
                     label="编辑资料" 
                     icon={<Edit size={16} className="mr-2" />} 
-                    severity="secondary" 
                     text 
                     onClick={() => {
                         setFormData({
@@ -101,14 +109,23 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                 />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <InfoItem label="昵称" value={profile?.nickname || user.phone || '-'} />
-                <InfoItem label="年龄" value={age ? `${age}岁` : null} />
-                <InfoItem label="性别" value={profile?.gender || null} />
-                <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
-                <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
-                <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
-            </div>
+            {/* 显示加载状态的骨架屏 */}
+            {!profile ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...Array(6)].map((_, index) => (
+                        <InfoItemSkeleton key={index} />
+                    ))}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <InfoItem label="昵称" value={profile?.nickname || user.phone || '-'} />
+                    <InfoItem label="年龄" value={age ? `${age}岁` : null} />
+                    <InfoItem label="性别" value={profile?.gender || null} />
+                    <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
+                    <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
+                    <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
+                </div>
+            )}
 
             <Dialog 
                 header="编辑个人资料" 
@@ -131,7 +148,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                             onChange={(e) => setFormData({...formData, nickname: e.target.value})} 
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                             <label htmlFor="birth_date" className="text-sm font-medium">出生日期</label>
                             <Calendar 
@@ -141,6 +158,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                 showIcon
                                 dateFormat="yy-mm-dd"
                                 maxDate={new Date()}
+                                className="w-full"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
@@ -154,10 +172,11 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                     { label: '其他', value: '其他' }
                                 ]} 
                                 onChange={(e) => setFormData({...formData, gender: e.value})} 
+                                className="w-full"
                             />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                             <label htmlFor="height" className="text-sm font-medium">身高 (cm)</label>
                             <InputNumber 
@@ -165,6 +184,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                 value={formData.height} 
                                 onValueChange={(e) => setFormData({...formData, height: e.value})} 
                                 min={0} max={300}
+                                className="w-full"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
@@ -174,6 +194,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                 value={formData.weight} 
                                 onValueChange={(e) => setFormData({...formData, weight: e.value})} 
                                 min={0} max={500} mode="decimal" minFractionDigits={1}
+                                className="w-full"
                             />
                         </div>
                     </div>
@@ -191,6 +212,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                             onChange={(e) => setFormData({...formData, fitness_goal: e.value})} 
                             editable
                             placeholder="选择或输入目标"
+                            className="w-full"
                         />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -205,6 +227,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                 { label: '专业运动员', value: '专业运动员' }
                             ]} 
                             onChange={(e) => setFormData({...formData, fitness_level: e.value})} 
+                            className="w-full"
                         />
                     </div>
                 </div>
