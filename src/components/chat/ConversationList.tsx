@@ -5,6 +5,7 @@ import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
 import type { ConversationItem } from '@/app/api/chat/get-conversations/entity';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 interface ConversationListProps {
     conversations: ConversationItem[];
@@ -18,6 +19,14 @@ export function ConversationList({
     onConversationClick
 }: ConversationListProps) {
     const router = useRouter();
+    const { data: session } = useSession();
+    const isCoach = !!(session as any)?.user?.is_coach;
+
+    const getPartnerName = (conversation: ConversationItem) =>
+        isCoach ? conversation.student_name : conversation.coach_name;
+
+    const getPartnerAvatar = (conversation: ConversationItem) =>
+        isCoach ? conversation.student_avatar : conversation.coach_avatar;
 
     const handleClick = (conversation: ConversationItem) => {
         if (onConversationClick) {
@@ -85,10 +94,10 @@ export function ConversationList({
                     <div className="flex items-start gap-3">
                         <div className="relative">
                             <Avatar
-                                image={conversation.coach_avatar || conversation.student_avatar || undefined}
+                                image={getPartnerAvatar(conversation) || undefined}
                                 label={
-                                    !conversation.coach_avatar && !conversation.student_avatar
-                                        ? (conversation.coach_name || conversation.student_name).charAt(0)
+                                    !getPartnerAvatar(conversation)
+                                        ? getPartnerName(conversation).charAt(0)
                                         : undefined
                                 }
                                 size="large"
@@ -107,7 +116,7 @@ export function ConversationList({
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                                 <h3 className="font-semibold text-surface-900 dark:text-surface-0 truncate">
-                                    {conversation.coach_name || conversation.student_name}
+                                    {getPartnerName(conversation)}
                                 </h3>
                                 <span className="text-xs text-surface-500 whitespace-nowrap ml-2">
                                     {formatTime(conversation.last_message_at)}

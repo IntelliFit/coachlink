@@ -50,6 +50,23 @@ export async function POST(req: Request) {
             }, { status: 404 });
         }
 
+        // 校验订阅关系（必须为活跃订阅）
+        const { data: activeSubscription } = await supabase
+            .from('coach_subscriptions')
+            .select('id')
+            .eq('student_id', conversation.student_id)
+            .eq('coach_id', conversation.coach_id)
+            .eq('status', 'active')
+            .maybeSingle();
+
+        if (!activeSubscription) {
+            return NextResponse.json({
+                success: false,
+                message: '需要订阅该教练的服务后才能发送消息',
+                data: null
+            }, { status: 403 });
+        }
+
         // 确定接收者
         const { data: coachData } = await supabase
             .from('coaches')
