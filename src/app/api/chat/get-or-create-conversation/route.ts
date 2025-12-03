@@ -26,16 +26,22 @@ export async function POST(req: Request) {
     }
 
     try {
-        // 查询订阅关系（可选，不强制要求）
         const { data: subscription } = await supabase
             .from('coach_subscriptions')
             .select('id')
             .eq('student_id', userId)
             .eq('coach_id', coach_id)
             .eq('status', 'active')
-            .single();
+            .maybeSingle();
 
-        // 查找现有会话
+        if (!subscription) {
+            return NextResponse.json({
+                success: false,
+                message: '需要订阅该教练的服务后才能发起会话',
+                data: null
+            }, { status: 403 });
+        }
+
         let { data: conversation, error } = await supabase
             .from('conversations' as any)
             .select('id')
@@ -46,13 +52,12 @@ export async function POST(req: Request) {
         let isNew = false;
 
         if (error || !conversation) {
-            // 创建新会话
             const { data: newConv, error: createError } = await supabase
                 .from('conversations' as any)
                 .insert({
                     student_id: userId,
                     coach_id: coach_id,
-                    subscription_id: subscription?.id || null
+                    subscription_id: subscription.id
                 })
                 .select('id')
                 .single() as any;
