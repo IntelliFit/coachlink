@@ -1,7 +1,7 @@
 import { CoachSubscriptionRow } from "@/types";
 
 // 请求参数的接口类型
-export interface CreateSubscribeDto {
+export interface CreateSubscriptionDto {
     // 订阅的教练的编号
     coachId: string;
 
@@ -17,6 +17,6 @@ export interface CreateSubscribeDto {
 
 
 // 返回参数的接口类型
-export interface CreateSubscribeResponseDto {
+export interface CreateSubscriptionResponseDto {
     subscription: CoachSubscriptionRow
 }

@@ -106,7 +106,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 disabled={processing || polling}
             />
             <Button
-                label={polling ? "支付中..." : "确认支付"}
+                label='确认支付'
                 icon={polling ? "pi pi-spin pi-spinner" : "pi pi-check"}
                 onClick={handlePayment}
                 loading={processing}

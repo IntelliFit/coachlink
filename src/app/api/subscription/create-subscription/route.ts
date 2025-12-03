@@ -4,7 +4,7 @@ import supabase from '@/lib/supabaseClient';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
-import type { CreateSubscribeDto, CreateSubscribeResponseDto } from './entity';
+import type { CreateSubscriptionDto, CreateSubscriptionResponseDto } from './entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -24,11 +24,11 @@ export async function POST(req: Request) {
         tier,
         orderId,
         monthlyPrice
-    } = await req.json() as CreateSubscribeDto;
+    } = await req.json() as CreateSubscriptionDto;
 
     // 参数验证
-    if (!coachId || !tier || !orderId || monthlyPrice === undefined) {
-        return NextResponse.json<ApiData<CreateSubscribeResponseDto>>({
+    if (!coachId || !tier || monthlyPrice === undefined) {
+        return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
             success: false,
             message: '缺少必要参数',
             data: null
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         .single();
 
     if (coachError || !coach) {
-        return NextResponse.json<ApiData<CreateSubscribeResponseDto>>({
+        return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
             success: false,
             message: '指定的教练不存在或未获批准',
             data: null
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         .single();
 
     if (subscriptionError || !subscription) {
-        return NextResponse.json<ApiData<CreateSubscribeResponseDto>>({
+        return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
             success: false,
             message: '创建订阅失败',
             data: null
@@ -73,10 +73,10 @@ export async function POST(req: Request) {
     }
 
     // 重要！必须申请接口范型位 ApiData<返回参数的接口类型>
-    return NextResponse.json<ApiData<CreateSubscribeResponseDto>>({
+    return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
         success: true,
         message: '订阅成功',
-        // CreateSubscribeResponseDto 反应的就是这个地方 data 的数据结构
+        // CreateSubscriptionResponseDto 反应的就是这个地方 data 的数据结构
         data: {
             subscription
         }
