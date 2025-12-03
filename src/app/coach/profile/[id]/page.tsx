@@ -1,12 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-    Star,
-    Users,
-    Award,
-    ArrowLeft
-} from 'lucide-react';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';

@@ -17,8 +17,6 @@ interface CoachSubscriptionProps {
     coach: any;
     mySubscriptions: QueryCoachSubscription[];
     onSubscribeSuccess: (tier: number) => void;
-    isSubscribing: boolean;
-    setIsSubscribing: (isSubscribing: boolean) => void;
     isOwnProfile: boolean;
 }
 
@@ -26,8 +24,6 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     coach,
     mySubscriptions,
     onSubscribeSuccess,
-    isSubscribing,
-    setIsSubscribing,
     isOwnProfile
 }) => {
     const { showToast } = useToastContext();
@@ -199,9 +195,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
             <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-surface-900 mb-2">选择您的订阅计划</h2>
+                <h2 className="text-2xl font-bold text-surface-900 mb-2" id='choose-pricing'>选择您的订阅计划</h2>
                 <p className="text-surface-500">选择最适合您需求的服务层级</p>
                 {isOwnProfile && (
                     <div className="mt-4">
