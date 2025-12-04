@@ -8,11 +8,14 @@
 'use client';
 
 import React, { useState, forwardRef } from 'react';
-import { ChevronDown, ChevronUp, Plus, StickyNote } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, StickyNote, Trophy } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { InputNumber } from 'primereact/inputnumber';
 import { Card } from 'primereact/card';
 import { ProgressBar } from 'primereact/progressbar';
+import { Toast } from 'primereact/toast';
+import { trainingService } from '@/app/service/trainingService';
 import SetItem from './SetItem';
 import type { ExerciseItemProps } from '@/types/training-execution';
 
@@ -33,6 +36,11 @@ const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
 }, ref) => {
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState(exercise.notes || '');
+  const [show1RM, setShow1RM] = useState(false);
+  const [rm1Weight, setRm1Weight] = useState<number | null>(null);
+  const [rm1Reps, setRm1Reps] = useState<number>(1);
+  const [saving1RM, setSaving1RM] = useState(false);
+  const toastRef = React.useRef<Toast>(null);
   
   const completedSets = exercise.sets.filter(set => set.status === 'completed').length;
   const totalSets = exercise.sets.length;
@@ -41,6 +49,60 @@ const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
   const handleSaveNotes = () => {
     onUpdateNotes(notes);
     setShowNotes(false);
+  };
+  
+  const handleSave1RM = async () => {
+    if (!rm1Weight || rm1Weight <= 0) {
+      toastRef.current?.show({
+        severity: 'warn',
+        summary: '提示',
+        detail: '请输入有效的重量',
+        life: 3000
+      });
+      return;
+    }
+    
+    setSaving1RM(true);
+    
+    try {
+      const result = await trainingService.save1RMRecord({
+        exercise_name: exercise.exercise_name,
+        max_weight: rm1Weight,
+        max_reps: rm1Reps,
+        notes: `第${exerciseIndex + 1}个动作的1RM记录`
+      });
+      
+      if (result) {
+        toastRef.current?.show({
+          severity: 'success',
+          summary: result.is_new_record ? '🎉 恭喜！' : '成功',
+          detail: result.is_new_record 
+            ? '打破个人记录！继续保持！' 
+            : '1RM记录已保存',
+          life: 3000
+        });
+        setShow1RM(false);
+        setRm1Weight(null);
+        setRm1Reps(1);
+      } else {
+        toastRef.current?.show({
+          severity: 'error',
+          summary: '错误',
+          detail: '保存失败，请重试',
+          life: 3000
+        });
+      }
+    } catch (error) {
+      console.error('保存1RM记录失败:', error);
+      toastRef.current?.show({
+        severity: 'error',
+        summary: '错误',
+        detail: '保存1RM记录失败，请重试',
+        life: 3000
+      });
+    } finally {
+      setSaving1RM(false);
+    }
   };
   
   const isJustActivated = expanded && progress === 0 && completedSets === 0;
@@ -186,8 +248,87 @@ const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
               </div>
             )}
           </div>
+          
+          {/* 1RM 记录区域 - 只在非只读模式下显示 */}
+          {!readOnly && (
+            <div className="mt-4 pt-4 border-top-1 surface-border">
+              {show1RM ? (
+                <div className="space-y-3">
+                  <div className="flex align-items-center gap-2 mb-2">
+                    <Trophy className="w-5 h-5 text-yellow-500" />
+                    <h4 className="text-sm font-semibold text-900 m-0">记录 1RM</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-600 mb-1">重量 (kg)</label>
+                      <InputNumber
+                        value={rm1Weight}
+                        onValueChange={(e) => setRm1Weight(e.value)}
+                        mode="decimal"
+                        minFractionDigits={0}
+                        maxFractionDigits={2}
+                        min={0}
+                        placeholder="输入重量"
+                        className="w-full"
+                        disabled={saving1RM}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-600 mb-1">次数</label>
+                      <InputNumber
+                        value={rm1Reps}
+                        onValueChange={(e) => setRm1Reps(e.value || 1)}
+                        mode="decimal"
+                        minFractionDigits={0}
+                        maxFractionDigits={0}
+                        min={1}
+                        placeholder="次数"
+                        className="w-full"
+                        disabled={saving1RM}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-content-end gap-2">
+                    <Button
+                      onClick={() => {
+                        setShow1RM(false);
+                        setRm1Weight(null);
+                        setRm1Reps(1);
+                      }}
+                      label="取消"
+                      outlined
+                      severity="secondary"
+                      size="small"
+                      disabled={saving1RM}
+                    />
+                    <Button
+                      onClick={handleSave1RM}
+                      label="保存记录"
+                      icon="pi pi-check"
+                      severity="success"
+                      size="small"
+                      loading={saving1RM}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShow1RM(true)}
+                  icon={<Trophy className="w-4 h-4" />}
+                  label="记录 1RM"
+                  text
+                  size="small"
+                  severity="warning"
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
+      
+      <Toast ref={toastRef} />
     </div>
   );
 });
