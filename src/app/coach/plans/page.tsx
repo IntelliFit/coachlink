@@ -62,11 +62,14 @@ const TrainingPlansHome: React.FC = () => {
             setInstanceLoading(prev => ({ ...prev, [activeSubscriptionId]: true }));
 
             try {
-                const instance = await planLibService.getInstance({ 
-                    id: activeSubscriptionId
+                const res = await planLibService.getInstance({
+                    subscriptionId: activeSubscriptionId
                 });
-                
-                setInstances(prev => ({ ...prev, [activeSubscriptionId]: instance }));
+
+                if (res) {
+                    setInstances(prev => ({ ...prev, [activeSubscriptionId]: res.instance }));
+                }
+
             } catch (error) {
                 setInstances(prev => ({ ...prev, [activeSubscriptionId]: null }));
             } finally {
@@ -128,8 +131,8 @@ const TrainingPlansHome: React.FC = () => {
                     <p className="text-surface-600 dark:text-surface-400 mb-8 max-w-md mx-auto text-lg">
                         订阅专业教练，获取个性化的训练计划，实现您的健身目标
                     </p>
-                    <Button 
-                        label="探索教练" 
+                    <Button
+                        label="探索教练"
                         icon="pi pi-arrow-right"
                         className="px-8 py-3 text-lg rounded-full"
                         onClick={() => window.location.href = '/coach/discovery'}
@@ -143,7 +146,7 @@ const TrainingPlansHome: React.FC = () => {
     const NoPlanState = () => {
         const activeCoach = subscriptions.find(s => s.id === activeSubscriptionId)?.coach;
         const coachName = activeCoach?.name || '教练';
-        
+
         return (
             <div>
                 <div className="text-center py-12">
@@ -168,7 +171,7 @@ const TrainingPlansHome: React.FC = () => {
     // 计划详情卡片
     const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
         const statusConfig = getStatusConfig(instance.status);
-        
+
         return (
             <div className="space-y-6">
                 <div className="flex items-start justify-between">
@@ -177,9 +180,9 @@ const TrainingPlansHome: React.FC = () => {
                             <h2 className="text-2xl font-bold text-surface-900">
                                 {instance.name || '训练计划'}
                             </h2>
-                            <Badge 
+                            <Badge
                                 value={statusConfig.label}
-                                severity={statusConfig.color}
+                                severity={statusConfig.color as any}
                                 className="rounded-full px-3 py-1"
                             />
                         </div>
@@ -187,12 +190,12 @@ const TrainingPlansHome: React.FC = () => {
                             {instance.description || '暂无描述'}
                         </p>
                     </div>
-                    <Button 
-                        label="查看详情" 
+                    <Button
+                        label="查看详情"
                         icon="pi pi-external-link"
                         className="rounded-full"
                         outlined
-                        onClick={() => {/* 导航到计划详情页 */}}
+                        onClick={() => {/* 导航到计划详情页 */ }}
                     />
                 </div>
 
@@ -242,20 +245,20 @@ const TrainingPlansHome: React.FC = () => {
 
                 {/* 快速操作 */}
                 <div className="flex flex-wrap gap-3 pt-4 border-t border-surface-200">
-                    <Button 
-                        label="开始训练" 
+                    <Button
+                        label="开始训练"
                         icon="pi pi-play"
                         className="rounded-full"
                         disabled={instance.status !== 'active'}
                     />
-                    <Button 
-                        label="查看进度" 
+                    <Button
+                        label="查看进度"
                         icon="pi pi-chart-bar"
                         className="rounded-full"
                         outlined
                     />
-                    <Button 
-                        label="分享计划" 
+                    <Button
+                        label="分享计划"
                         icon="pi pi-share-alt"
                         className="rounded-full"
                         outlined
@@ -287,18 +290,16 @@ const TrainingPlansHome: React.FC = () => {
                                 return (
                                     <button
                                         key={subscription.id}
-                                        className={`group relative px-5 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${
-                                            isActive
+                                        className={`group relative px-5 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
                                                 ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
                                                 : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
-                                        }`}
+                                            }`}
                                         onClick={() => setActiveSubscriptionId(subscription.id)}
                                     >
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                            isActive 
-                                                ? 'bg-surface/20' 
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive
+                                                ? 'bg-surface/20'
                                                 : 'bg-surface-100'
-                                        }`}>
+                                            }`}>
                                             <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
                                         </div>
                                         <div className="text-left">
