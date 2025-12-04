@@ -11,6 +11,7 @@ import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { StudentDetailDialog } from './StudentDetailDialog';
+import { CoachReviewDialog } from './CoachReviewDialog';
 import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 
@@ -22,6 +23,8 @@ export default function StudentsPage() {
     const [totalRecords, setTotalRecords] = useState(0);
     const [selectedStudent, setSelectedStudent] = useState<StudentSubscription | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
+    const [reviewDialogVisible, setReviewDialogVisible] = useState(false);
+    const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<string>('');
 
 
     const router = useRouter();
@@ -67,7 +70,13 @@ export default function StudentsPage() {
     // 学员信息列模板
     const studentTemplate = (student: StudentSubscription) => {
         return (
-            <div className="flex items-center space-x-3">
+            <div 
+                className="flex items-center space-x-3 cursor-pointer hover:bg-surface-100 p-2 rounded"
+                onClick={() => {
+                    setSelectedStudent(student);
+                    setDialogVisible(true);
+                }}
+            >
                 <Avatar
                     image={student.profile?.avatar_url || undefined}
                     label={
@@ -81,10 +90,7 @@ export default function StudentsPage() {
                     className="bg-primary text-surface font-bold flex-shrink-0"
                     size="normal"
                 />
-                <div>
-                    <div className="font-medium">{student.profile?.nickname}</div>
-                    <div className="text-surface-500">{student.profile?.phone}</div>
-                </div>
+                <div className="font-medium">{student.profile?.nickname}</div>
             </div>
         );
     };
@@ -119,11 +125,12 @@ export default function StudentsPage() {
         return (
             <Button 
                 size="small" 
-                icon="pi pi-eye" 
-                label="查看详情"
+                icon="pi pi-comment" 
+                label="评价"
                 onClick={() => {
                     setSelectedStudent(student);
-                    setDialogVisible(true);
+                    setSelectedSubscriptionId(student.id);
+                    setReviewDialogVisible(true);
                 }}
             />
         );
@@ -203,6 +210,14 @@ export default function StudentsPage() {
                 visible={dialogVisible}
                 student={selectedStudent}
                 onHide={() => setDialogVisible(false)}
+            />
+            
+            {/* 教练评价对话框 */}
+            <CoachReviewDialog
+                visible={reviewDialogVisible}
+                subscriptionId={selectedSubscriptionId}
+                onHide={() => setReviewDialogVisible(false)}
+                onSave={() => loadStudents()}
             />
         </div>
     );
