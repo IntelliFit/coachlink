@@ -267,6 +267,59 @@ export type Database = {
           },
         ]
       }
+      coach_plan_instances: {
+        Row: {
+          coach_id: string | null
+          coach_plan_template_id: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string | null
+          status: string | null
+          student_id: string | null
+          training_days: Json
+          updated_at: string | null
+        }
+        Insert: {
+          coach_id?: string | null
+          coach_plan_template_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          status?: string | null
+          student_id?: string | null
+          training_days: Json
+          updated_at?: string | null
+        }
+        Update: {
+          coach_id?: string | null
+          coach_plan_template_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          status?: string | null
+          student_id?: string | null
+          training_days?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_plan_template"
+            columns: ["coach_plan_template_id"]
+            isOneToOne: false
+            referencedRelation: "coach_plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_plan_template_tags: {
         Row: {
           created_at: string | null

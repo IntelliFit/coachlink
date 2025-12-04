@@ -18,3 +18,4 @@ export type CoachPlanTemplateRow = CoachLinkTable['coach_plan_templates']['Row']
 export type CoachQuestionnairesRow = CoachLinkTable['coach_questionnaires']['Row'];
 export type CoachPricingRow = CoachLinkTable['coach_pricing']['Row'];
 export type CoachReviewRow = CoachLinkTable['coach_reviews']['Row'];
+export type CoachPlanInstanceRow = CoachLinkTable['coach_plan_instances']['Row'];
