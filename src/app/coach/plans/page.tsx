@@ -1,78 +1,50 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from 'primereact/button';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Skeleton } from 'primereact/skeleton';
-import { userService } from '@/app/service/userService';
-import { trainingService } from '@/app/service/trainingService';
-import { coachService } from '@/app/service/coachService';
-import { TrainingPlanRow } from '@/types';
+import { Card } from 'primereact/card';
+import { Badge } from 'primereact/badge';
+import { subscriptionService } from '@/app/service/subscriptionService';
+import { planLibService } from '@/app/service/planLibService';
+import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useToastContext } from '@/context/ToastContext';
-
-import TrainingPlanPreview from './dashboard/[id]/TrainingPlanPreview';
+import { CoachPlanInstanceRow } from '@/types';
 
 const TrainingPlansHome: React.FC = () => {
-    const router = useRouter();
-    const searchParams = useSearchParams();
     const { data: session } = useSession();
     const { showToast } = useToastContext();
 
-    const coachId = searchParams.get('coachId');
-
-    const [plans, setPlans] = useState<TrainingPlanRow[]>([]);
-    const [planPreviews, setPlanPreviews] = useState<Map<string, any>>(new Map());
-    const [coachNames, setCoachNames] = useState<Map<string, string>>(new Map());
+    const [subscriptions, setSubscriptions] = useState<QueryCoachSubscription[]>([]);
     const [loading, setLoading] = useState(true);
-    const [loadingPreviews, setLoadingPreviews] = useState<Set<string>>(new Set());
-    const [deletingPlans, setDeletingPlans] = useState<Set<string>>(new Set());
+    const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
+    const [instances, setInstances] = useState<Record<string, CoachPlanInstanceRow | null>>({});
+    const [instanceLoading, setInstanceLoading] = useState<Record<string, boolean>>({});
 
-    // 加载训练计划列表
+    // 加载订阅信息
     useEffect(() => {
         if (!session?.user?.id) return;
 
         const load = async () => {
             try {
                 setLoading(true);
-                const res = await userService.getTrainingPlans({
-                    coachId: coachId || '',
+                const res = await subscriptionService.getCoachSubscriptions({
+                    studentId: session.user.id,
                 });
 
                 if (res) {
-                    setPlans(res.plans);
-                    
-                    // 获取所有唯一的教练ID
-                    const uniqueCoachIds = [...new Set(res.plans.map(p => p.coach_id).filter(Boolean))];
-                    
-                    // 批量获取所有教练的信息
-                    const coachInfoPromises = uniqueCoachIds.map(async (id) => {
-                        try {
-                            const res = await coachService.getCoach({ id });
-                            return { id, name: res?.coach?.name || `教练${id.substring(0, 8)}` };
-                        } catch (error) {
-                            console.error(`获取教练 ${id} 信息失败:`, error);
-                            return { id, name: `教练${id.substring(0, 8)}` };
-                        }
-                    });
-                    
-                    const coachInfos = await Promise.all(coachInfoPromises);
-                    const newCoachNames = new Map<string, string>();
-                    coachInfos.forEach(({ id, name }) => newCoachNames.set(id, name));
-                    setCoachNames(newCoachNames);
-                    
-                    // 自动加载所有计划的预览
-                    res.plans.forEach(plan => {
-                        loadPlanPreview(plan.id);
-                    });
+                    setSubscriptions(res.subscriptions);
+                    if (res.subscriptions.length > 0) {
+                        setActiveSubscriptionId(res.subscriptions[0].id);
+                    }
                 }
             } catch (e) {
-                setPlans([]);
+                setSubscriptions([]);
                 showToast({
                     severity: 'error',
                     summary: '加载失败',
-                    detail: '无法加载训练计划列表，请稍后重试',
+                    detail: '无法加载订阅信息，请稍后重试',
                 });
             } finally {
                 setLoading(false);
@@ -80,245 +52,296 @@ const TrainingPlansHome: React.FC = () => {
         };
 
         load();
-    }, [session?.user?.id, coachId]);
+    }, [session?.user?.id]);
 
-    // 加载单个计划的预览
-    const loadPlanPreview = async (planId: string) => {
-        try {
-            setLoadingPreviews(prev => new Set(prev).add(planId));
-            
-            const preview = await trainingService.getPlanPreview({ 
-                training_plan_id: planId 
-            });
+    // 加载计划实例
+    useEffect(() => {
+        if (!subscriptions.length || !activeSubscriptionId) return;
 
-            if (preview) {
-                setPlanPreviews(prev => new Map(prev).set(planId, preview));
-            }
-        } catch (error) {
-            console.error(`加载计划 ${planId} 预览失败:`, error);
-        } finally {
-            setLoadingPreviews(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(planId);
-                return newSet;
-            });
-        }
-    };
+        const loadInstance = async () => {
+            setInstanceLoading(prev => ({ ...prev, [activeSubscriptionId]: true }));
 
-    // 删除计划
-    const handleDeletePlan = async (planId: string, planTitle: string) => {
-        const confirm = () =>
-            new Promise<boolean>((resolve) => {
-                confirmDialog({
-                    message: `确定删除训练计划"${planTitle}"吗？该操作不可恢复。`,
-                    header: '删除确认',
-                    icon: 'pi pi-exclamation-triangle',
-                    acceptLabel: '确认删除',
-                    rejectLabel: '取消',
-                    accept: () => resolve(true),
-                    reject: () => resolve(false),
-                });
-            });
-
-        if (await confirm()) {
-            setDeletingPlans(prev => new Set(prev).add(planId));
-            
             try {
-                const res = await userService.deleteTrainingPlan(planId);
-
-                if (!res) {
-                    showToast({
-                        severity: 'error',
-                        summary: '删除失败',
-                        detail: '删除训练计划失败，请稍后重试',
-                    });
-                } else {
-                    setPlans((prev) => prev.filter((p) => p.id !== planId));
-                    setPlanPreviews(prev => {
-                        const newMap = new Map(prev);
-                        newMap.delete(planId);
-                        return newMap;
-                    });
-
-                    showToast({
-                        severity: 'success',
-                        summary: '删除成功',
-                        detail: '训练计划已成功删除',
-                    });
-                }
-            } finally {
-                setDeletingPlans(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(planId);
-                    return newSet;
+                const instance = await planLibService.getInstance({ 
+                    id: activeSubscriptionId
                 });
+                
+                setInstances(prev => ({ ...prev, [activeSubscriptionId]: instance }));
+            } catch (error) {
+                setInstances(prev => ({ ...prev, [activeSubscriptionId]: null }));
+            } finally {
+                setInstanceLoading(prev => ({ ...prev, [activeSubscriptionId]: false }));
             }
-        }
+        };
+
+        loadInstance();
+    }, [activeSubscriptionId, subscriptions.length]);
+
+    // 获取状态对应的颜色和标签
+    const getStatusConfig = (status?: string) => {
+        const config = {
+            active: { color: 'success', label: '进行中', icon: 'pi pi-play' },
+            draft: { color: 'warning', label: '草稿', icon: 'pi pi-file-edit' },
+            completed: { color: 'info', label: '已完成', icon: 'pi pi-check-circle' },
+            paused: { color: 'secondary', label: '已暂停', icon: 'pi pi-pause' },
+            archived: { color: 'contrast', label: '已归档', icon: 'pi pi-archive' }
+        };
+        return config[status as keyof typeof config] || { color: 'surface', label: status || '未知', icon: 'pi pi-question-circle' };
     };
 
     // 骨架屏
-    const SkeletonCard = () => (
-        <div className="p-card shadow-sm mb-6">
-            <div className="flex flex-col gap-3">
-                <Skeleton height="22px" width="60%" />
-                <Skeleton height="18px" width="80%" />
-                <Skeleton height="18px" width="40%" />
-                <Skeleton height="300px" width="100%" className="mt-4" />
-                <div className="flex gap-2 mt-3">
-                    <Skeleton height="36px" width="100px" />
+    const SkeletonTabs = () => (
+        <div className="min-h-screen bg-surface-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <Skeleton width="250px" height="48px" className="mb-8 rounded-lg" />
+                <div className="space-y-8">
+                    <div className="flex flex-wrap gap-4 mb-8">
+                        {[1, 2, 3].map(i => (
+                            <Skeleton key={i} width="120px" height="44px" className="rounded-full" />
+                        ))}
+                    </div>
+                    <Card className='shadow-sm'>
+                        <Skeleton width="60%" height="32px" className="mb-4" />
+                        <Skeleton width="100%" height="16px" className="mb-2" />
+                        <Skeleton width="80%" height="16px" className="mb-6" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Skeleton height="100px" className="rounded-lg" />
+                            <Skeleton height="100px" className="rounded-lg" />
+                        </div>
+                    </Card>
                 </div>
             </div>
         </div>
     );
 
-    return (
-        <div className="min-h-screen">
-            <ConfirmDialog />
+    // 空状态
+    const EmptyState = () => (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <Card>
+                <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i className="pi pi-user-plus text-3xl text-primary" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-surface-900 mb-3">
+                        开始您的健身之旅
+                    </h3>
+                    <p className="text-surface-600 dark:text-surface-400 mb-8 max-w-md mx-auto text-lg">
+                        订阅专业教练，获取个性化的训练计划，实现您的健身目标
+                    </p>
+                    <Button 
+                        label="探索教练" 
+                        icon="pi pi-arrow-right"
+                        className="px-8 py-3 text-lg rounded-full"
+                        onClick={() => window.location.href = '/coach/discovery'}
+                    />
+                </div>
+            </Card>
+        </div>
+    );
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* 顶部标题 */}
-                <div className="flex items-center justify-between mb-6">
+    // 无计划状态
+    const NoPlanState = () => {
+        const activeCoach = subscriptions.find(s => s.id === activeSubscriptionId)?.coach;
+        const coachName = activeCoach?.name || '教练';
+        
+        return (
+            <div>
+                <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i className="pi pi-clock text-3xl text-warning" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-surface-900 mb-3">
+                        计划制定中
+                    </h3>
+                    <p className="text-surface-600 mb-6 max-w-md mx-auto text-lg">
+                        {coachName}正在为您制定专属训练计划
+                    </p>
+                    <div className="inline-flex items-center gap-3 px-4 py-2 bg-surface-200 rounded-full">
+                        <i className="pi pi-spin pi-spinner text-surface-500" />
+                        <span className="text-surface-600">请耐心等待...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // 计划详情卡片
+    const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
+        const statusConfig = getStatusConfig(instance.status);
+        
+        return (
+            <div className="space-y-6">
+                <div className="flex items-start justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                            AI智能训练计划
-                        </h1>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">
-                            基于规则引擎 + AI 增强的个性化方案
+                        <div className="flex items-center gap-3 mb-2">
+                            <h2 className="text-2xl font-bold text-surface-900">
+                                {instance.name || '训练计划'}
+                            </h2>
+                            <Badge 
+                                value={statusConfig.label}
+                                severity={statusConfig.color}
+                                className="rounded-full px-3 py-1"
+                            />
+                        </div>
+                        <p className="text-surface-600 text-lg leading-relaxed">
+                            {instance.description || '暂无描述'}
                         </p>
                     </div>
-
-                    {/* 暂时隐藏生成新计划按钮 */}
-                    {false && <Button
-                        label="生成新计划"
-                        icon="pi pi-plus"
-                        className="p-button-primary"
-                        onClick={() => router.push(`/generate-plan?coachId=${coachId || ''}`)}
-                    />}
-                </div>
-
-                <div className="flex justify-end mb-4">
-                    <Button
-                        label="清理无教练计划"
-                        className="p-button-text p-button-secondary"
-                        icon="pi pi-trash"
-                        onClick={async () => {
-                            const res = await userService.cleanupOrphanPlans();
-                            if (res) {
-                                showToast({
-                                    severity: 'success',
-                                    summary: '已清理',
-                                    detail: `删除 ${res.deleted} 个无教练计划`,
-                                });
-                            } else {
-                                showToast({
-                                    severity: 'warn',
-                                    summary: '无可清理项',
-                                    detail: '或清理失败，请稍后重试',
-                                });
-                            }
-                        }}
+                    <Button 
+                        label="查看详情" 
+                        icon="pi pi-external-link"
+                        className="rounded-full"
+                        outlined
+                        onClick={() => {/* 导航到计划详情页 */}}
                     />
                 </div>
 
-                {/* 内容 */}
-                {loading ? (
-                    <div className="space-y-6">
-                        {Array.from({ length: 2 }).map((_, i) => (
-                            <SkeletonCard key={i} />
-                        ))}
-                    </div>
-                ) : plans.length === 0 ? (
-                    <div className="p-card shadow-sm text-center py-12">
-                        <div className="w-12 h-12 bg-surface rounded-full flex items-center justify-center mx-auto mb-3">
-                            <i className="pi pi-clipboard text-2xl text-gray-400" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="bg-surface-50 border-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i className="pi pi-calendar text-xl text-primary" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-surface-500 mb-1">创建时间</p>
+                                <p className="font-semibold">
+                                    {instance.created_at ? new Date(instance.created_at).toLocaleDateString() : '--'}
+                                </p>
+                            </div>
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            还没有训练计划
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            点击下方按钮创建你的第一份个性化训练计划
-                        </p>
-                        <Button
-                            label="生成新计划"
-                            className="p-button-primary"
-                            onClick={() => router.push('/training')}
-                        />
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {plans.map((plan) => {
-                            const preview = planPreviews.get(plan.id);
-                            const isLoadingPreview = loadingPreviews.has(plan.id);
-                            const coachName = plan.coach_id ? coachNames.get(plan.coach_id) : null;
+                    </Card>
 
-                            return (
-                                <div key={plan.id} className="p-card shadow-sm">
-                                    {/* 计划头部 */}
-                                    <div className="bg-gradient-to-r from-primary-500 to-red-500 rounded-t-lg p-6 text-white -m-6 mb-6">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                                {/* 教练信息 */}
-                                                {coachName && (
-                                                    <div className="flex items-center space-x-2 mb-3">
-                                                        <div className="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center">
-                                                            <i className="pi pi-user text-xs" />
-                                                        </div>
-                                                        <span className="text-sm opacity-90">
-                                                            教练: {coachName}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                
-                                                <h2 className="text-2xl font-bold mb-2">{plan.title}</h2>
-                                                <p className="opacity-90 mb-3">{plan.description}</p>
-                                                <div className="flex items-center space-x-4 text-sm">
-                                                    <span className="bg-white/20 px-3 py-1 rounded-full">
-                                                        {plan.duration_weeks}周
-                                                    </span>
-                                                    <span className="bg-white/20 px-3 py-1 rounded-full capitalize">
-                                                        {plan.difficulty_level}
-                                                    </span>
-                                                    {plan.ai_generated && (
-                                                        <span className="bg-purple-500/50 px-3 py-1 rounded-full">
-                                                            AI生成
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {/* 暂时隐藏删除按钮 */}
-                                            {false && <Button
-                                                label="删除"
-                                                icon="pi pi-trash"
-                                                loading={deletingPlans.has(plan.id)}
-                                                severity="danger"
-                                                className="bg-white/10 hover:bg-white/20 border-white/30"
-                                                onClick={() => handleDeletePlan(plan.id, plan.title)}
-                                            />}
-                                        </div>
-                                    </div>
+                    <Card className="bg-surface-50 border-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                                <i className="pi pi-chart-line text-xl text-success" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-surface-500 mb-1">训练天数</p>
+                                <p className="font-semibold">
+                                    {instance.training_days?.days?.length || 0} 天
+                                </p>
+                            </div>
+                        </div>
+                    </Card>
 
-                                    {/* 计划内容 */}
-                                    {isLoadingPreview ? (
-                                        <div className="space-y-3">
-                                            <Skeleton height="100px" />
-                                            <Skeleton height="300px" />
-                                        </div>
-                                    ) : preview ? (
-                                        <TrainingPlanPreview
-                                            plan={preview}
-                                            showSaveButton={false}
-                                        />
-                                    ) : (
-                                        <div className="text-center py-8 text-gray-500">
-                                            无法加载训练计划详情
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                    <Card className="bg-surface-50 border-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-info/10 rounded-lg flex items-center justify-center">
+                                <i className="pi pi-id-card text-xl text-info" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-surface-500 mb-1">计划ID</p>
+                                <p className="font-mono text-sm truncate" title={instance.id}>
+                                    {instance.id.substring(0, 8)}...
+                                </p>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* 快速操作 */}
+                <div className="flex flex-wrap gap-3 pt-4 border-t border-surface-200">
+                    <Button 
+                        label="开始训练" 
+                        icon="pi pi-play"
+                        className="rounded-full"
+                        disabled={instance.status !== 'active'}
+                    />
+                    <Button 
+                        label="查看进度" 
+                        icon="pi pi-chart-bar"
+                        className="rounded-full"
+                        outlined
+                    />
+                    <Button 
+                        label="分享计划" 
+                        icon="pi pi-share-alt"
+                        className="rounded-full"
+                        outlined
+                    />
+                </div>
             </div>
+        );
+    };
+
+    return (
+        <div className="min-h-screen transition-colors duration-200">
+            {loading ? (
+                <SkeletonTabs />
+            ) : subscriptions.length === 0 ? (
+                <EmptyState />
+            ) : (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* 教练选择区域 */}
+                    <Card className="mb-8 border-0 shadow-sm">
+                        <div className="mb-4 flex items-center gap-2">
+                            <i className="pi pi-users text-primary" />
+                            <span className="font-semibold text-surface-700">
+                                已订阅教练 ({subscriptions.length})
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            {subscriptions.map((subscription) => {
+                                const isActive = activeSubscriptionId === subscription.id;
+                                return (
+                                    <button
+                                        key={subscription.id}
+                                        className={`group relative px-5 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${
+                                            isActive
+                                                ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
+                                                : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
+                                        }`}
+                                        onClick={() => setActiveSubscriptionId(subscription.id)}
+                                    >
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                            isActive 
+                                                ? 'bg-surface/20' 
+                                                : 'bg-surface-100'
+                                        }`}>
+                                            <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="font-medium">
+                                                {subscription.coach?.name || `教练${subscription.id.substring(0, 8)}`}
+                                            </div>
+                                            <div className={`text-xs ${isActive ? 'text-surface/80' : 'text-surface-500'}`}>
+                                                {subscription.coach?.specialization || '专业健身教练'}
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Card>
+
+                    {/* 计划详情区域 */}
+                    <Card className='shadow-sm mb-6'>
+                        <div className="p-6">
+                            {activeSubscriptionId && (
+                                <>
+                                    {instanceLoading[activeSubscriptionId] ? (
+                                        <div className="flex justify-center items-center h-64">
+                                            <div className="text-center">
+                                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                    <i className="pi pi-spin pi-spinner text-2xl text-primary" />
+                                                </div>
+                                                <p className="text-surface-600 dark:text-surface-400">
+                                                    加载计划信息中...
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : instances[activeSubscriptionId] ? (
+                                        <PlanDetailCard instance={instances[activeSubscriptionId]!} />
+                                    ) : (
+                                        <NoPlanState />
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };
