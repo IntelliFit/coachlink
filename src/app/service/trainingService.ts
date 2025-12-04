@@ -14,6 +14,7 @@ import type { UploadSetVideoDto, UploadSetVideoResponseDto } from "@/app/api/tra
 import type { GetSetVideosDto, GetSetVideosResponseDto } from "@/app/api/training/get-set-videos/entity";
 import type { DeleteSetVideoDto, DeleteSetVideoResponseDto } from "@/app/api/training/delete-set-video/entity";
 import type { GetWeekRecordsDto, GetWeekRecordsResponseDto } from "@/app/api/training/get-week-records/entity";
+import type { Save1RMRecordDto, Save1RMRecordResponseDto } from "@/app/api/training/save-1rm-record/entity";
 
 class TrainingService extends BaseService {
     async getTrainingRecord(reqData: GetTrainingRecordDto) {
@@ -142,6 +143,17 @@ class TrainingService extends BaseService {
      */
     async getWeekRecords(reqData: GetWeekRecordsDto) {
         const res = await this.post<GetWeekRecordsResponseDto>('get-week-records', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
+    /**
+     * 保存1RM记录
+     */
+    async save1RMRecord(reqData: Save1RMRecordDto) {
+        const res = await this.post<Save1RMRecordResponseDto>('save-1rm-record', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
