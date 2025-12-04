@@ -20,7 +20,7 @@ import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetInstanceDto } from '@/app/api/plan-lib/get-instance/entity';
 import { CreateInstanceDto } from '@/app/api/plan-lib/create-instance/entity';
 import { UpdateInstanceDto } from '@/app/api/plan-lib/update-instance/entity';
-import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
+import SelectTemplateDialog from './components/SelectTemplateDialog';
 
 interface PlanDay {
     id?: string;
@@ -65,6 +65,7 @@ const StudentPlanPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [instanceExists, setInstanceExists] = useState(false);
+    const [selectTemplateDialogVisible, setSelectTemplateDialogVisible] = useState(false);
 
     // Load instance data
     useEffect(() => {
@@ -93,7 +94,7 @@ const StudentPlanPage = () => {
                         // Fill form with instance data
                         setName(instanceRes.instance.name);
                         setDescription(instanceRes.instance.description || '');
-                        
+
                         // Convert days data to local format
                         const convertedDays: PlanDay[] = (instanceRes.instance.training_days as any[] || []).map((day: any) => ({
                             id: day.id,
@@ -150,13 +151,13 @@ const StudentPlanPage = () => {
     const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
         const currentLength = days.length;
         const newDays = [...days];
-        
+
         // 获取源周的起始索引
         const sourceWeekStartIndex = sourceWeekIndex * 7;
-        
+
         // 获取源周的7天数据
         const sourceWeekDays = days.slice(sourceWeekStartIndex, sourceWeekStartIndex + 7);
-        
+
         // 如果源周不足7天，用默认休息日填充
         const fullWeekDays = [...sourceWeekDays];
         while (fullWeekDays.length < 7) {
@@ -167,7 +168,7 @@ const StudentPlanPage = () => {
                 actionSets: []
             });
         }
-        
+
         // 添加到新周，更新索引
         fullWeekDays.forEach((day, index) => {
             newDays.push({
@@ -302,7 +303,7 @@ const StudentPlanPage = () => {
     // 新增函数：处理从其他训练日复制动作集
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         const newDays = [...days];
-        
+
         const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
@@ -350,55 +351,59 @@ const StudentPlanPage = () => {
         }
 
         setSaving(true);
-        try {
-            // Prepare data according to API format
-            const daysData = days.map(day => ({
-                day_index: day.dayIndex,
-                type: day.type,
-                note: day.note || null,
-                action_sets: day.type === 'training'
-                    ? day.actionSets.map(set => ({
-                        action_id: set.actionId,
-                        set_name: set.setName,
-                        sets: set.sets,
-                        reps: set.reps,
-                        intensity: set.intensity || null,
-                        rest_seconds: set.restSeconds || null
-                    }))
-                    : []
-            }));
+        // Prepare data according to API format
+        const daysData = days.map(day => ({
+            day_index: day.dayIndex,
+            type: day.type,
+            note: day.note || null,
+            action_sets: day.type === 'training'
+                ? day.actionSets.map(set => ({
+                    action_id: set.actionId,
+                    set_name: set.setName,
+                    sets: set.sets,
+                    reps: set.reps,
+                    intensity: set.intensity || null,
+                    rest_seconds: set.restSeconds || null
+                }))
+                : []
+        }));
 
-            if (instanceExists) {
-                // Update existing instance
-                await planLibService.updateInstance({
-                    id: params.id as string,
-                    name,
-                    description: description || null,
-                    trainingDays: daysData
-                } as UpdateInstanceDto);
-                
+        if (instanceExists) {
+            // Update existing instance
+            const res = await planLibService.updateInstance({
+                id: params.id as string,
+                name,
+                description: description || null,
+                trainingDays: daysData
+            } as UpdateInstanceDto);
+
+            if (res) {
                 showToast({ severity: 'success', summary: '保存成功', detail: '训练计划已更新' });
             } else {
-                // Create new instance
-                await planLibService.createInstance({
-                    name,
-                    description: description || null,
-                    coachId: coach.id,
-                    studentId: params.id as string, // subscriptionId is actually studentId in this context
-                    trainingDays: daysData
-                } as CreateInstanceDto);
-                
+                showToast({ severity: 'error', summary: '保存失败', detail: '无法更新训练计划' });
+            }
+
+        } else {
+            // Create new instance
+            const res = await planLibService.createInstance({
+                name,
+                description: description || null,
+                coachId: coach.id,
+                studentId: params.id as string,
+                trainingDays: daysData
+            });
+
+            if (res) {
                 setInstanceExists(true);
                 showToast({ severity: 'success', summary: '创建成功', detail: '训练计划已创建' });
+            } else {
+                showToast({ severity: 'error', summary: '创建失败' });
             }
-            
-            router.push('/dashboard/students');
-        } catch (error) {
-            console.error('保存计划失败:', error);
-            showToast({ severity: 'error', summary: '保存失败', detail: '无法保存训练计划' });
-        } finally {
-            setSaving(false);
         }
+
+        router.push('/dashboard/students');
+
+        setSaving(false);
     };
 
     const confirmCancel = () => {
@@ -407,8 +412,35 @@ const StudentPlanPage = () => {
             header: '确认取消',
             icon: 'pi pi-exclamation-triangle',
             accept: () => router.push('/dashboard/students'),
-            reject: () => {}
+            reject: () => { }
         });
+    };
+
+    // 新增函数：处理选择模板
+    const handleSelectTemplate = (templateData: any) => {
+        // 设置基本信息
+        setName(templateData.template.name);
+        setDescription(templateData.template.description || '');
+        setTags(templateData.template.tags || []);
+        setSuitableFor(templateData.template.suitable_for as 'beginner' | 'intermediate' | 'advanced');
+
+        // 转换训练日数据
+        const convertedDays: PlanDay[] = (templateData.days || []).map((day: any) => ({
+            dayIndex: day.day_index,
+            type: day.type as 'training' | 'rest',
+            note: day.note || '',
+            actionSets: day.action_sets?.map((actionSet: any) => ({
+                actionId: actionSet.action_id,
+                setName: actionSet.set_name || '',
+                sets: actionSet.sets,
+                reps: actionSet.reps,
+                intensity: actionSet.intensity || '',
+                restSeconds: actionSet.rest_seconds || 60
+            })) || []
+        })).sort((a: PlanDay, b: PlanDay) => a.dayIndex - b.dayIndex);
+
+        setDays(convertedDays);
+        setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
     };
 
     // 获取选中的训练日
@@ -469,6 +501,12 @@ const StudentPlanPage = () => {
     return (
         <div className="mx-auto">
             <ConfirmDialog />
+            <SelectTemplateDialog
+                visible={selectTemplateDialogVisible}
+                onHide={() => setSelectTemplateDialogVisible(false)}
+                onSelectTemplate={handleSelectTemplate}
+                coachId={coach?.id || ''}
+            />
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-900">学员训练计划</h1>
                 <Button
@@ -491,8 +529,15 @@ const StudentPlanPage = () => {
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
-                disableTagsInput={true}
-                disableSuitableForInput={true}
+                extraButton={
+                    <Button
+                        label="从模板创建"
+                        size="small"
+                        icon="pi pi-book"
+                        onClick={() => setSelectTemplateDialogVisible(true)}
+                        disabled={saving}
+                    />
+                }
             />
 
             <Card className="shadow-sm mb-6">
@@ -529,7 +574,7 @@ const StudentPlanPage = () => {
                                 existingTrainingDays={existingTrainingDays}
                             />
                         ) : (
-                            <div className="card shadow-sm flex align-items-center justify-content-center h-full min-h-20rem">
+                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
                                 <div className="text-center p-6">
                                     <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
                                     <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
@@ -549,7 +594,7 @@ const StudentPlanPage = () => {
                         disabled={saving}
                     />
                     <Button
-                        label={instanceExists ? "更新计划" : "创建计划"}
+                        label={instanceExists ? "更新计划" : "制定计划"}
                         icon="pi pi-check"
                         onClick={handleSave}
                         loading={saving}

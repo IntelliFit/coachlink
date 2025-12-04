@@ -11,12 +11,13 @@ interface BasicInfoFormProps {
     description: string;
     tags: string[];
     suitableFor: 'beginner' | 'intermediate' | 'advanced';
-    onNameChange: (value: string) => void;
-    onDescriptionChange: (value: string) => void;
-    onTagsChange: (value: string[]) => void;
-    onSuitableForChange: (value: 'beginner' | 'intermediate' | 'advanced') => void;
+    onNameChange: (name: string) => void;
+    onDescriptionChange: (description: string) => void;
+    onTagsChange: (tags: string[]) => void;
+    onSuitableForChange: (suitableFor: 'beginner' | 'intermediate' | 'advanced') => void;
     saving: boolean;
     onSave: () => void;
+    extraButton?: React.ReactNode;
 }
 
 const experienceLevels = [
@@ -35,7 +36,8 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     onTagsChange,
     onSuitableForChange,
     saving,
-    onSave
+    onSave,
+    extraButton
 }) => {
 
     const [templateTypes, setTemplateTypes] = useState<{ label: string, value: string }[]>([]);
@@ -59,7 +61,15 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     return (
         <div className="flex flex-col gap-4 mb-10">
 
-            <h2 className="text-xl font-semibold">模板基础信息</h2>
+            <div className='flex justify-between items-center'>
+                <h2 className="text-xl font-semibold">
+                    模板基础信息
+                </h2>
+                <div>
+                    {extraButton}
+                </div>
+            </div>
+
 
             <div className="
                 p-5 
@@ -126,17 +136,19 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
 
                 {/* 右侧说明文本 */}
                 <div className="flex-1 hidden md:flex flex-col gap-3 text-sm text-surface-600">
-                    <div className="font-medium text-900">说明</div>
-                    <p>
-                        设置模板的基本信息，包括名称、描述以及类型。
-                        这些信息将帮助你在动作库和训练库中快速识别模板。
-                    </p>
-                    <p>
-                        模板标签可以多选，用于标记训练计划的特点和适用人群。
-                    </p>
-                    <p>
-                        "适合学员等级"用于标识该训练计划最适合的学员水平，请根据训练计划的复杂程度进行选择。
-                    </p>
+                    <div>
+                        <div className="font-medium text-900">说明</div>
+                        <p>
+                            设置模板的基本信息，包括名称、描述以及类型。
+                            这些信息将帮助你在动作库和训练库中快速识别模板。
+                        </p>
+                        <p>
+                            模板标签可以多选，用于标记训练计划的特点和适用人群。
+                        </p>
+                        <p>
+                            "适合学员等级"用于标识该训练计划最适合的学员水平，请根据训练计划的复杂程度进行选择。
+                        </p>
+                    </div>
                 </div>
             </div>
 
