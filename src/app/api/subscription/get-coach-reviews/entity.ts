@@ -1,6 +1,7 @@
 // 请求参数的接口类型
 export interface GetCoachReviewsDto {
-    subscriptionId: string;
+    subscriptionId?: string;
+    studentId?: string;
 }
 
 // 返回参数的接口类型

@@ -17,6 +17,7 @@ import { useToastContext } from '@/context/ToastContext';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
+    const [coach, setCoach] = useState<CoachesRow | null>(null);
     const [loading, setLoading] = useState(true);
     const [first, setFirst] = useState(0);
     const [rows, setRows] = useState(10);
@@ -24,13 +25,11 @@ export default function StudentsPage() {
     const [selectedStudent, setSelectedStudent] = useState<StudentSubscription | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [reviewDialogVisible, setReviewDialogVisible] = useState(false);
-    const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<string>('');
 
 
     const router = useRouter();
     const { showToast } = useToastContext();
     const { status, data: session } = useSession();
-
 
     const loadStudents = async (page: number = 0, limit: number = 10) => {
         try {
@@ -47,6 +46,13 @@ export default function StudentsPage() {
         }
     };
 
+    const loadCoach = async () => { 
+        const res = await coachService.getCoach({ userId: session?.user?.id || '' });
+        if (res) {
+            setCoach(res.coach);
+        }
+    };
+
     useEffect(() => {
         if (status === 'loading') {
             return;
@@ -58,6 +64,7 @@ export default function StudentsPage() {
         }
 
         loadStudents(0, rows);
+        loadCoach();
     }, [status, session, router, rows]);
 
     const onPage = (event: any) => {
@@ -129,7 +136,6 @@ export default function StudentsPage() {
                 label="评价"
                 onClick={() => {
                     setSelectedStudent(student);
-                    setSelectedSubscriptionId(student.id);
                     setReviewDialogVisible(true);
                 }}
             />
@@ -208,6 +214,7 @@ export default function StudentsPage() {
             {/* 学员详情对话框 */}
             <StudentDetailDialog
                 visible={dialogVisible}
+                coach={coach}
                 student={selectedStudent}
                 onHide={() => setDialogVisible(false)}
             />
@@ -215,7 +222,8 @@ export default function StudentsPage() {
             {/* 教练评价对话框 */}
             <CoachReviewDialog
                 visible={reviewDialogVisible}
-                subscriptionId={selectedSubscriptionId}
+                coach={coach}
+                student={selectedStudent}
                 onHide={() => setReviewDialogVisible(false)}
                 onSave={() => loadStudents()}
             />

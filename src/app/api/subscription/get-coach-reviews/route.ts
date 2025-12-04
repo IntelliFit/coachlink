@@ -20,14 +20,51 @@ export async function POST(req: Request) {
     const userId = session.user.id;
 
     const {
-        subscriptionId
+        subscriptionId,
+        studentId
     } = await req.json() as GetCoachReviewsDto;
 
-    // 获取教练评价
-    const { data, error } = await supabase
+    // 构建查询
+    let query = supabase
         .from('coach_reviews')
         .select('*')
-        .eq('coach_subscription_id', subscriptionId);
+        .order('created_at', { ascending: false }); // 按创建时间倒序排列
+
+    // 如果提供了 subscriptionId，则添加此条件
+    if (subscriptionId) {
+        query = query.eq('coach_subscription_id', subscriptionId);
+    }
+
+    // 如果提供了 studentId，则联合查询
+    if (studentId) {
+        // 先找到该学生的所有订阅
+        const { data: subscriptions, error: subscriptionError } = await supabase
+            .from('coach_subscriptions')
+            .select('id')
+            .eq('student_id', studentId);
+
+        if (subscriptionError) {
+            return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
+                success: false,
+                message: '获取订阅信息失败',
+                data: null
+            }, { status: 500 });
+        }
+
+        // 获取订阅ID列表
+        const subscriptionIds = subscriptions?.map(sub => sub.id) || [];
+
+        // 添加订阅ID过滤条件
+        if (subscriptionIds.length > 0) {
+            query = query.in('coach_subscription_id', subscriptionIds);
+        } else {
+            // 如果没有找到订阅，则返回空结果
+            query = query.eq('coach_subscription_id', '0'); // 使用一个不可能的ID来返回空结果
+        }
+    }
+
+    // 获取教练评价
+    const { data, error } = await query;
 
     if (error) {
         return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({

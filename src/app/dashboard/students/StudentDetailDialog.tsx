@@ -4,15 +4,18 @@ import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
 import { StudentSubscription } from '@/app/api/coach/get-students/entity';
 import { Calendar, User, Target, Video, MessageCircle } from 'lucide-react';
+import { CoachesRow } from '@/types';
 
 interface StudentDetailDialogProps {
     visible: boolean;
+    coach: CoachesRow;
     student: StudentSubscription | null;
     onHide: () => void;
 }
 
 export const StudentDetailDialog = ({
     visible,
+    coach,
     student,
     onHide
 }: StudentDetailDialogProps) => {

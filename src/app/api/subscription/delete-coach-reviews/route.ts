@@ -19,9 +19,40 @@ export async function POST(req: Request) {
     // 重点！通过 session 获取用户 ID
     const userId = session.user.id;
 
+    if (!session.user.is_coach) {
+        return NextResponse.json({
+            success: false,
+            message: '用户不是教练',
+            data: null
+        }, { status: 403 });
+    }
+
     const {
         reviewId
     } = await req.json() as DeleteCoachReviewsDto;
+
+    // 检查权限
+    const { data: review, error: reviewError } = await supabase
+        .from('coach_reviews')
+        .select('*')
+        .eq('id', reviewId)
+        .single();
+
+    if (reviewError) {
+        return NextResponse.json({
+            success: false,
+            message: '获取评价失败',
+            data: null
+        }, { status: 500 });
+    }
+
+    if (review.coach_id !== userId) {
+        return NextResponse.json({
+            success: false,
+            message: '无权限删除评价',
+            data: null
+        }, { status: 403 });
+    }
 
     // 删除教练评价
     const { error } = await supabase

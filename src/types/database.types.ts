@@ -394,6 +394,7 @@ export type Database = {
       }
       coach_reviews: {
         Row: {
+          coach_id: string | null
           coach_subscription_id: string
           created_at: string | null
           id: string
@@ -403,6 +404,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          coach_id?: string | null
           coach_subscription_id: string
           created_at?: string | null
           id?: string
@@ -412,6 +414,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          coach_id?: string | null
           coach_subscription_id?: string
           created_at?: string | null
           id?: string
@@ -421,6 +424,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "coach_reviews_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_reviews_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_coach_subscription"
             columns: ["coach_subscription_id"]
