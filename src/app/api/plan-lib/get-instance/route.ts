@@ -5,8 +5,6 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 
 export async function POST(req: Request) {
-    const { id } = await req.json() as GetInstanceDto;
-
     // Check if user is logged in
     const session = await getServerSession();
     const userId = session?.user?.id || null;
@@ -18,19 +16,42 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (!id) {
+    const {
+        id,
+        subscriptionId
+    } = await req.json() as GetInstanceDto;
+
+    if (!id && !subscriptionId) {
         return NextResponse.json({
             success: false,
-            message: "缺少必要参数"
-        }, { status: 400 });
+            message: "Invalid parameters"
+        });
+    }
+
+    let query = supabase
+        .from("coach_plan_instances")
+        .select("*");
+
+    if (id) {
+        query = query.eq("id", id);
+    }
+
+    if (subscriptionId) {
+        query = query.eq('coach_plan_template_id', subscriptionId);
     }
 
     // 获取计划实例
-    const { data: instance, error } = await supabase
-        .from("coach_plan_instances")
-        .select("*")
-        .eq("id", id)
-        .single();
+    const { data: instance, error } = await query.maybeSingle();
+
+    if (!instance) {
+        return NextResponse.json({
+            success: true,
+            message: "No plan instance found",
+            data: {
+                instance: null
+            }
+        })
+    }
 
     if (error) {
         console.error("Error fetching instance:", error);
