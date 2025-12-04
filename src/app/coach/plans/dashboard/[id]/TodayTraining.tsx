@@ -575,7 +575,7 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
                       }
                     }}
                     disabled={!browseDayOfWeek || !isTrainingDay(browseDayOfWeek)}
-                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-primary hover:from-blue-600 hover:to-primary-700 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     <Play className="w-6 h-6" />
                     <span>
@@ -628,7 +628,7 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
               </div>
             </div>
           ) : todayRecord ? (
-            <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+            <div className="p-6 bg-gradient-to-r from-blue-50 to-primary-50 border-2 border-blue-200 rounded-xl">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-1">
@@ -657,7 +657,7 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
 
               <button
                 onClick={handleViewTodayRecord}
-                className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105"
+                className="w-full py-4 bg-gradient-to-r from-blue-500 to-primary text-white rounded-xl hover:from-blue-600 hover:to-primary-700 font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105"
               >
                 <Play className="w-6 h-6" />
                 <span>继续训练</span>
@@ -740,7 +740,7 @@ const TodayTraining: React.FC<TodayTrainingProps> = ({
                   className={`w-full py-4 ${
                     browseDayOfWeek && browseWeek === actualCurrentWeek && browseDayOfWeek === getTodayDayOfWeek()
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                      : 'bg-gradient-to-r from-blue-500 to-primary hover:from-blue-600 hover:to-primary-700'
                   } text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                 >
                   <Play className="w-6 h-6" />

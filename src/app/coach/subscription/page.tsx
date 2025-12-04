@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation';
 import CoachList from '@/app/coach/subscription/CoachList';
 import TrainingSummary from '@/app/coach/subscription/TrainingSummary';
 import RecentActivity from '@/app/coach/subscription/RecentActivity';
-import { alipayService } from '@/app/service/alipayService';
 
 const SubscriptionDashboard = () => {
     const { data: session } = useSession();    
@@ -89,26 +88,6 @@ const SubscriptionDashboard = () => {
             </div>
         </div>
     );
-
-    // 支付功能
-    const handlePayment = async () => {
-        try {
-            // 创建支付订单并获取支付ID
-            const response = await alipayService.createOrder({
-                total_amount: 0.01,
-                subject: '教练服务订阅',
-                order_type: '教练服务订阅',
-                order_data: {}
-            });
-
-            console.log(response);
-            
-    
-        } catch (error) {
-            console.error('创建支付订单失败:', error);
-            // 错误处理可以在实际项目中添加提示框等
-        }
-    };
 
     if (loading) {
         return <LoadingSkeleton />;
