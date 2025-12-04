@@ -6,6 +6,7 @@ import type { CreateAlipayOrderDto, CreateAlipayOrderResponseDto } from './entit
 import { AlipaySdk } from 'alipay-sdk';
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
+// 流程和博客：https://kirigaya.cn/blog/article?seq=361
 export async function POST(req: Request) {
     const session = await getServerSession();
 
@@ -88,7 +89,6 @@ export async function POST(req: Request) {
             subject,
             product_code: 'FAST_INSTANT_TRADE_PAY',
             qr_pay_mode: '0',
-            qrcode_width: 600,
         },
     });
 

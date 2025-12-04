@@ -457,6 +457,7 @@ export type Database = {
           start_date: string | null
           status: string | null
           student_id: string
+          subscribe_data: Json | null
           tier: number
           updated_at: string | null
         }
@@ -471,6 +472,7 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           student_id: string
+          subscribe_data?: Json | null
           tier: number
           updated_at?: string | null
         }
@@ -485,6 +487,7 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           student_id?: string
+          subscribe_data?: Json | null
           tier?: number
           updated_at?: string | null
         }

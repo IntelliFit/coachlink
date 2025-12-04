@@ -8,6 +8,10 @@ export interface GetStudentsDto {
     needTrainingDetails?: boolean;
 }
 
+export interface SubscribeData {
+    answers: { answer: string; question: string }[]
+}
+
 export interface StudentSubscription {
     id: string;
     student_id: string;
@@ -19,6 +23,7 @@ export interface StudentSubscription {
     profile: UserProfilesRow | null;
     uploaded: number;
     reviewed: number;
+    subscribe_data: SubscribeData | null;
 }
 
 export interface GetStudentsResponseDto {

@@ -51,22 +51,9 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     detail: result.error || '请检查手机号或密码',
                     life: 5000,
                 });
-            } else {
-
-                showToast({
-                    severity: 'success',
-                    summary: '登录成功',
-                    detail: '欢迎回来',
-                });
-
-                onClose?.();
-                if (onLoginSuccess) {
-                    onLoginSuccess();
-                } else {
-                    router.push('/');
-                }
-
+            } else {                
                 router.refresh();
+                onClose?.();                
             }
         } catch (err: any) {
             showToast({

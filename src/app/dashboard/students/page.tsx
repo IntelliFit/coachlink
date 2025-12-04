@@ -10,7 +10,9 @@ import { Avatar } from 'primereact/avatar';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { Dialog } from 'primereact/dialog';
+import { StudentDetailDialog } from './StudentDetailDialog';
+import { CoachesRow } from '@/types';
+import { useToastContext } from '@/context/ToastContext';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
@@ -20,8 +22,12 @@ export default function StudentsPage() {
     const [totalRecords, setTotalRecords] = useState(0);
     const [selectedStudent, setSelectedStudent] = useState<StudentSubscription | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
+
+
     const router = useRouter();
+    const { showToast } = useToastContext();
     const { status, data: session } = useSession();
+
 
     const loadStudents = async (page: number = 0, limit: number = 10) => {
         try {
@@ -39,7 +45,9 @@ export default function StudentsPage() {
     };
 
     useEffect(() => {
-        if (status === 'loading') return;
+        if (status === 'loading') {
+            return;
+        }
 
         if (!session) {
             router.push('/login');
@@ -122,14 +130,6 @@ export default function StudentsPage() {
     };
 
     // 对话框页脚
-    const dialogFooter = (
-        <Button 
-            label="关闭" 
-            icon="pi pi-times" 
-            onClick={() => setDialogVisible(false)} 
-            className="p-button-text"
-        />
-    );
 
     if (loading && students.length === 0) {
         return (
@@ -199,76 +199,11 @@ export default function StudentsPage() {
             </div>
 
             {/* 学员详情对话框 */}
-            <Dialog
-                header={selectedStudent ? `学员详情 - ${selectedStudent.profile?.nickname || selectedStudent.profile?.phone}` : "学员详情"}
+            <StudentDetailDialog
                 visible={dialogVisible}
-                style={{ width: '500px' }}
+                student={selectedStudent}
                 onHide={() => setDialogVisible(false)}
-                footer={dialogFooter}
-            >
-                {selectedStudent && (
-                    <div className="p-4">
-                        <div className="flex items-center mb-6">
-                            <Avatar
-                                image={selectedStudent.profile?.avatar_url || undefined}
-                                label={
-                                    selectedStudent.profile?.avatar_url
-                                        ? undefined
-                                        : selectedStudent.profile?.nickname?.charAt(0) ||
-                                        selectedStudent.profile?.phone?.slice(0, 1) ||
-                                        'U'
-                                }
-                                size="xlarge"
-                                shape="circle"
-                                className="bg-primary text-surface font-bold mr-4"
-                            />
-                            <div>
-                                <div className="text-xl font-semibold">
-                                    {selectedStudent.profile?.nickname || '未设置昵称'}
-                                </div>
-                                <div className="text-surface-500">
-                                    {selectedStudent.profile?.phone || '未设置手机号'}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <div className="text-surface-500 text-sm mb-1">订阅等级</div>
-                                <div className="font-medium">{selectedStudent.tier}</div>
-                            </div>
-                            <div>
-                                <div className="text-surface-500 text-sm mb-1">订阅状态</div>
-                                <div className="font-medium capitalize">{selectedStudent.status}</div>
-                            </div>
-                            <div>
-                                <div className="text-surface-500 text-sm mb-1">开始日期</div>
-                                <div className="font-medium">
-                                    {new Date(selectedStudent.start_date).toLocaleDateString()}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-surface-500 text-sm mb-1">健身水平</div>
-                                <div className="font-medium">
-                                    {selectedStudent.profile?.fitness_level || '未设置'}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-surface-500 text-sm mb-1">上传视频</div>
-                                <div className="font-medium">
-                                    {selectedStudent.uploaded} 个
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-surface-500 text-sm mb-1">待评阅视频</div>
-                                <div className="font-medium">
-                                    {selectedStudent.uploaded - selectedStudent.reviewed} 个
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </Dialog>
+            />
         </div>
     );
 }

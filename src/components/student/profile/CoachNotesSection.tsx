@@ -18,7 +18,7 @@ export const CoachNotesSection: React.FC<CoachNotesSectionProps> = ({ data }) =>
     return (
         <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2 mb-6">
-                <MessageSquare className="text-indigo-600" size={20} />
+                <MessageSquare className="text-primary" size={20} />
                 教练观察与建议
             </h2>
 

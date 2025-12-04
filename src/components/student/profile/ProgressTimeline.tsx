@@ -18,17 +18,17 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
     return (
         <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
             <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2 mb-6">
-                <History className="text-indigo-600" size={20} />
+                <History className="text-primary" size={20} />
                 进步足迹
             </h2>
 
-            <div className="relative pl-4 border-l-2 border-indigo-100 space-y-8">
+            <div className="relative pl-4 border-l-2 border-primary-100 space-y-8">
                 {timelineData.map((item) => (
                     <div key={item.id} className="relative">
                         {/* Dot */}
                         <div className={`absolute -left-[21px] top-0 w-4 h-4 rounded-full border-2 border-surface shadow-sm ${
                             item.type === 'pr' ? 'bg-yellow-400' : 
-                            item.type === 'video' ? 'bg-blue-400' : 'bg-indigo-400'
+                            item.type === 'video' ? 'bg-blue-400' : 'bg-primary-400'
                         }`} />
 
                         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
@@ -70,7 +70,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
                                 >
                                     <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
                                         <div className="w-8 h-8 rounded-full bg-surface/90 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                                            <Play size={14} className="text-indigo-600 ml-0.5" />
+                                            <Play size={14} className="text-primary ml-0.5" />
                                         </div>
                                     </div>
                                     {/* Placeholder for video thumbnail, in real app use actual thumbnail */}
