@@ -3,6 +3,8 @@ export interface CreateCoachReviewsDto {
     subscriptionId: string;
     reviewText?: string;
     mediaUrls?: string[];
+    studentId: string;
+    coachId: string;
 }
 
 // 返回参数的接口类型

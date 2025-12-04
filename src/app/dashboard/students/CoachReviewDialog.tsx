@@ -3,19 +3,22 @@ import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Toast } from 'primereact/toast';
 import { useRef, useState, useEffect } from 'react';
-import { CoachReviewRow } from '@/types';
+import { CoachesRow, CoachReviewRow, CoachSubscriptionRow } from '@/types';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import { StudentSubscription } from '@/app/api/coach/get-students/entity';
 
 interface CoachReviewDialogProps {
     visible: boolean;
-    subscriptionId: string;
+    coach: CoachesRow;
+    student: StudentSubscription;
     onHide: () => void;
     onSave: () => void;
 }
 
 export const CoachReviewDialog = ({
     visible,
-    subscriptionId,
+    coach,
+    student,
     onHide,
     onSave
 }: CoachReviewDialogProps) => {
@@ -29,15 +32,15 @@ export const CoachReviewDialog = ({
 
     // 加载已有评价
     useEffect(() => {
-        if (visible && subscriptionId) {
+        if (visible && student?.id) {
             loadReviews();
         }
-    }, [visible, subscriptionId]);
+    }, [visible, student?.id]);
 
     const loadReviews = async () => {
         setLoading(true);
         try {
-            const data = await subscriptionService.getCoachReviews({ subscriptionId });
+            const data = await subscriptionService.getCoachReviews({ studentId: student?.student_id || '' });
             if (data) {
                 setReviews(data.reviews);
             }
@@ -64,11 +67,13 @@ export const CoachReviewDialog = ({
         }
 
         setSaving(true);
-        try {
+        try {            
             await subscriptionService.createCoachReview({
-                subscriptionId,
+                subscriptionId: student.id,
+                studentId: student.student_id,
+                coachId: coach.id,
                 reviewText,
-                mediaUrls: [] // 默认传递空数组
+                mediaUrls: []
             });
 
             showToast('success', '保存成功', '教练评价已创建');

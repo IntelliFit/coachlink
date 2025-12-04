@@ -19,6 +19,14 @@ export async function POST(req: Request) {
     // 重点！通过 session 获取用户 ID
     const userId = session.user.id;
 
+    if (!session.user.is_coach) {
+        return NextResponse.json({
+            success: false,
+            message: '用户不是教练',
+            data: null
+        }, { status: 403 });
+    }
+
     const {
         reviewId,
         reviewText,
@@ -45,7 +53,29 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
+    // 检查权限，当前的 session 的 user 必须是 coach_id
+    const { data: coach, error: coachError } = await supabase
+        .from('coaches')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+    
+    if (coachError) {
+        return NextResponse.json<ApiData<UpdateCoachReviewsResponseDto>>({
+            success: false,
+            message: coachError.message,
+            data: null
+        }, { status: 500 });
+    }
+
+    if (data.coach_id !== coach.id) {
+        return NextResponse.json<ApiData<UpdateCoachReviewsResponseDto>>({
+            success: false,
+            message: '用户不是该教练',
+            data: null
+        }, { status: 403 });
+    }
+
     return NextResponse.json<ApiData<UpdateCoachReviewsResponseDto>>({
         success: true,
         message: '更新教练评价成功',

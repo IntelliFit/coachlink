@@ -19,10 +19,20 @@ export async function POST(req: Request) {
     // 重点！通过 session 获取用户 ID
     const userId = session.user.id;
 
+    if (!session.user.is_coach) {
+        return NextResponse.json({
+            success: false,
+            message: '用户不是教练',
+            data: null
+        }, { status: 403 });
+    }
+
     const {
         subscriptionId,
         reviewText,
-        mediaUrls
+        mediaUrls,
+        studentId,
+        coachId
     } = await req.json() as CreateCoachReviewsDto;
 
     // 创建教练评价
@@ -32,6 +42,8 @@ export async function POST(req: Request) {
             coach_subscription_id: subscriptionId,
             review_text: reviewText,
             media_urls: mediaUrls,
+            student_id: studentId,
+            coach_id: coachId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         })
