@@ -175,18 +175,32 @@ export default function StudentsPage() {
         }
 
         if (student.plan === null) {
-            return <span className="text-surface-500 p-3">暂时没有训练计划</span>;
+            return (
+                <div 
+                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-3"
+                    onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                >
+                    <i className="pi pi-plus-circle mr-2"></i>
+                    创建训练计划
+                </div>
+            );
         }
 
         return (
             <div
-                className="cursor-pointer hover:text-primary underline"
+                className="cursor-pointer hover:text-primary"
                 onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
             >
                 <div className="font-medium">{student.plan.name}</div>
                 <div className="text-sm text-surface-500 truncate max-w-xs">
-                    {student.plan.description.substring(0, 10)}
-                    {student.plan.description.length > 10 ? '...' : ''}
+                    {student.plan.description ? (
+                        <>
+                            {student.plan.description.substring(0, 10)}
+                            {student.plan.description.length > 10 ? '...' : ''}
+                        </>
+                    ) : (
+                        <span className="italic">暂无描述</span>
+                    )}
                 </div>
             </div>
         );
