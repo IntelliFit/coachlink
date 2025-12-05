@@ -49,7 +49,10 @@ const CoachContent: React.FC<CoachContentProps> = ({
                     />
                 </TabPanel>
                 <TabPanel header="学员评价">
-                    <CoachReviewsPanel />
+                    <CoachReviewsPanel
+                        coachId={coachId}
+                        userSubscription={userSubscription}
+                    />
                 </TabPanel>
             </TabView>
         </div>
