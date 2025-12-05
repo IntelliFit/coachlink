@@ -39,14 +39,10 @@ const ReviewDialog: React.FC<ReviewDialogProps> = ({
 
         try {
             setSubmitting(true);
-
-            // 创建评价内容（将星级评分转换为文本描述）
-            const ratingText = `${rating}星评价`;
-            const fullComment = `${ratingText}\n\n${comment}`;
-
             await userService.createStudentComment({
                 coach_id: coachId,
-                comment: fullComment
+                comment: comment,
+                rating: rating
             });
 
             showToast({ severity: 'success', summary: '评价发表成功' });
