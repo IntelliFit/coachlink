@@ -1,265 +1,223 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
+import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
-import { Card } from 'primereact/card';
 import { FloatLabel } from 'primereact/floatlabel';
 import { useToastContext } from '@/context/ToastContext';
-import { X } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
-import { getMockUsers } from './mockUser';
+import { signIn } from 'next-auth/react';
 
 interface LoginModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onLoginSuccess?: () => void;
 }
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
-    if (!isOpen) {
-        return;
-    }
+interface DevUser {
+    name: string;
+    phone: string;
+    password: string;
+}
 
+export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
+    const router = useRouter();
+    const { showToast } = useToastContext();
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [loading, setLoading] = useState(false);
-    const router = useRouter();
-    const { showToast } = useToastContext();
-    const mockUsers = getMockUsers();
+
+    // 从环境变量读取开发账号
+    const devUsers = useMemo<DevUser[]>(() => {
+        try {
+            const envValue = process.env.NEXT_PUBLIC_DEV_USERS;
+            if (envValue) {
+                return JSON.parse(envValue);
+            }
+        } catch (e) {
+            console.error('Failed to parse NEXT_PUBLIC_DEV_USERS:', e);
+        }
+        return [];
+    }, []);
 
     const handleLogin = async (e?: React.FormEvent) => {
         e?.preventDefault();
+
+        if (!phone.trim() || !password.trim()) {
+            showToast({ severity: 'warn', summary: '请输入手机号和密码' });
+            return;
+        }
+
         setLoading(true);
 
         try {
             const result = await signIn('credentials', {
+                phone: phone.trim(),
+                password: password.trim(),
                 redirect: false,
-                phone,
-                password,
             });
 
             if (result?.error) {
-                showToast({
-                    severity: 'error',
-                    summary: '登录失败',
-                    detail: result.error || '请检查手机号或密码',
-                    life: 5000,
-                });
-            } else {                
+                showToast({ severity: 'error', summary: '登录失败', detail: result.error });
+            } else {
+                showToast({ severity: 'success', summary: '登录成功' });
+                onClose();
                 router.refresh();
-                onClose?.();                
             }
-        } catch (err: any) {
-            showToast({
-                severity: 'error',
-                summary: '登录失败',
-                detail: err.message || '登录失败，请检查您的凭据',
-                life: 5000
-            });
+        } catch (error) {
+            showToast({ severity: 'error', summary: '登录失败，请重试' });
         } finally {
             setLoading(false);
         }
     };
 
-    const handleQuickLogin = async (user: { phone: string; password: string }) => {
-        const result = await signIn('credentials', {
-            redirect: false,
-            phone: user.phone,
-            password: user.password,
-        });
-
-        if (result?.error) {
-            showToast({
-                severity: 'error',
-                summary: '登录失败',
-                detail: result.error || '请检查手机号或密码',
-                life: 5000,
-            });
-        } else {
-
-            showToast({
-                severity: 'success',
-                summary: '登录成功',
-                detail: '欢迎回来',
+    // 快捷登录 - 点击直接登录
+    const handleQuickLogin = async (user: DevUser) => {
+        setLoading(true);
+        try {
+            const result = await signIn('credentials', {
+                phone: user.phone,
+                password: user.password,
+                redirect: false,
             });
 
-            onClose?.();
-            if (onLoginSuccess) {
-                onLoginSuccess();
+            if (result?.error) {
+                showToast({ severity: 'error', summary: '登录失败', detail: result.error });
             } else {
-                router.push('/');
+                showToast({ severity: 'success', summary: '登录成功' });
+                onClose();
+                router.refresh();
             }
-
-            router.refresh();
+        } catch (error) {
+            showToast({ severity: 'error', summary: '登录失败，请重试' });
+        } finally {
+            setLoading(false);
         }
     };
 
+    const handleRegister = () => {
+        onClose();
+        router.push('/register');
+    };
+
+    const isDev = process.env.NODE_ENV === 'development';
+
     return (
-        <>
-            {/* 遮罩层 - 点击返回上一页 */}
-            <div
-                className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-50"
-                onClick={onClose}
-            />
-
-            {/* 居中容器 + 动画 */}
-            <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
-                <motion.div
-                    onClick={(e) => e.stopPropagation()}
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: 'easeOut' }}
-                    className="w-full max-w-4xl"
+        <Dialog
+            visible={isOpen}
+            onHide={onClose}
+            dismissableMask
+            showHeader={false}
+            className="p-0 overflow-hidden"
+            style={{ width: '800px', maxWidth: '95vw' }}
+            contentClassName="p-0"
+        >
+            <div className="flex min-h-[500px]">
+                {/* 左侧品牌区域 */}
+                <div 
+                    className="hidden md:flex flex-col justify-center items-center w-2/5 p-8"
+                    style={{
+                        background: 'linear-gradient(135deg, #fff5eb 0%, #ffe4c4 100%)'
+                    }}
                 >
-                    <Card className="shadow-xl rounded-2xl p-6 sm:p-8 relative login-card">
-                        {/* 关闭按钮 */}
-                        <button
-                            onClick={onClose}
-                            className="
-                                absolute top-4 right-4 
-                                text-gray-400 hover:text-gray-700 
-                                dark:text-gray-300 dark:hover:text-white
-                                transition-colors
-                            "
-                            aria-label="关闭"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-
-                        {/* 关键部分：左右布局 */}
-                        <div className="flex flex-col md:flex-row md:space-x-8 items-center justify-center">
-                            {/* 左侧 Logo + 标题 */}
-                            <div className="mb-6 md:mb-0 flex flex-col items-center text-center md:w-1/2">
-                                <img src="/favicon.jpg" alt="CoachLink Logo" className="h-20 md:h-[150px] mb-4" />
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    CoachLink - 智健联盟
-                                </h2>
-                                <p className="mt-2 text-gray-600 dark:text-gray-300">
-                                    专业教练订阅平台
-                                </p>
-
-                                {/* 快速登录按钮区域 */}
-                                {mockUsers.length > 0 && (
-                                    <div className="mt-6 w-full">
-                                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 text-center">
-                                            开发模式快速登录:
-                                        </p>
-                                        <div className="flex flex-wrap justify-center gap-2">
-                                            {mockUsers.map((user: any, index: number) => (
-                                                <button
-                                                    key={index}
-                                                    type="button"
-                                                    onClick={() => handleQuickLogin({ phone: user.phone, password: user.password })}
-                                                    className="
-                                                        px-3 py-1 text-xs rounded-full
-                                                        bg-green-100 text-green-800
-                                                        hover:bg-green-200
-                                                        dark:bg-green-900 dark:text-green-100
-                                                        dark:hover:bg-green-800
-                                                        transition-colors
-                                                    "
-                                                >
-                                                    {user.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* 右侧 登录表单 */}
-                            <div className="w-full md:w-1/2">
-                                <form onSubmit={handleLogin} className="space-y-8">
-                                    <div>
-                                        <FloatLabel>
-                                            <InputText
-                                                id="phone"
-                                                value={phone}
-                                                onChange={(e) => setPhone(e.target.value)}
-                                                required
-                                                className="w-full"
-                                            />
-                                            <label htmlFor="phone">手机号</label>
-                                        </FloatLabel>
-                                    </div>
-
-                                    <div>
-                                        <FloatLabel>
-                                            <Password
-                                                id="password"
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                required
-                                                className="w-full"
-                                                toggleMask
-                                                feedback={false}
-                                            />
-                                            <label htmlFor="password">密码</label>
-                                        </FloatLabel>
-                                    </div>
-
-                                    <div>
-                                        <FloatLabel>
-                                            <InputText
-                                                id="verificationCode"
-                                                value={verificationCode}
-                                                onChange={(e) => setVerificationCode(e.target.value)}
-                                                required
-                                                className="w-full"
-                                            />
-                                            <label htmlFor="verificationCode">验证码</label>
-                                        </FloatLabel>
-                                    </div>
-
-                                    <br />
-
+                    <img 
+                        src="/favicon.jpg" 
+                        alt="CoachLink Logo" 
+                        className="w-32 h-32 rounded-2xl shadow-lg mb-6"
+                    />
+                    <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                        CoachLink - 智健联盟
+                    </h1>
+                    <p className="text-gray-600 text-sm mb-8">专业教练订阅平台</p>
+                    
+                    {/* 开发模式快捷登录 */}
+                    {isDev && devUsers.length > 0 && (
+                        <div className="w-full">
+                            <p className="text-center text-sm text-gray-600 mb-3">开发模式快速登录:</p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {devUsers.map((user, index) => (
                                     <Button
-                                        type="submit"
+                                        key={index}
+                                        label={user.name}
+                                        outlined
+                                        size="small"
+                                        onClick={() => handleQuickLogin(user)}
                                         disabled={loading}
-                                        className="
-                                            w-full rounded-lg bg-primary py-3 
-                                            text-white font-medium 
-                                            flex items-center justify-center gap-2
-                                            transition-colors hover:bg-primary/90
-                                        "
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                登录中...
-                                            </>
-                                        ) : (
-                                            '登录'
-                                        )}
-                                    </Button>
-
-                                </form>
-
-                                <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
-                                    还没有账户？{' '}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            onClose();
-                                            router.push('/register');
-                                        }}
-                                        className="font-medium text-primary hover:underline"
-                                    >
-                                        立即注册
-                                    </button>
-                                </div>
+                                        className="text-xs"
+                                    />
+                                ))}
                             </div>
                         </div>
-                    </Card>
-                </motion.div>
+                    )}
+                </div>
+
+                {/* 右侧表单区域 */}
+                <div className="flex-1 p-8 flex flex-col justify-center relative bg-white">
+                    {/* 关闭按钮 */}
+                    <button 
+                        onClick={onClose}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <i className="pi pi-times text-xl"></i>
+                    </button>
+
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        <FloatLabel>
+                            <InputText
+                                id="login_phone"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="w-full"
+                                autoFocus
+                            />
+                            <label htmlFor="login_phone">手机号</label>
+                        </FloatLabel>
+
+                        <FloatLabel>
+                            <Password
+                                id="login_password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full"
+                                toggleMask
+                                feedback={false}
+                            />
+                            <label htmlFor="login_password">密码</label>
+                        </FloatLabel>
+
+                        <FloatLabel>
+                            <InputText
+                                id="login_code"
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value)}
+                                className="w-full"
+                            />
+                            <label htmlFor="login_code">验证码</label>
+                        </FloatLabel>
+
+                        <Button
+                            label="登录"
+                            onClick={handleLogin}
+                            loading={loading}
+                            className="w-full"
+                            type="submit"
+                        />
+
+                        <div className="text-center text-sm text-gray-500">
+                            还没有账户？{' '}
+                            <button
+                                onClick={handleRegister}
+                                className="text-primary hover:underline font-medium"
+                                type="button"
+                            >
+                                立即注册
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </>
+        </Dialog>
     );
 }
