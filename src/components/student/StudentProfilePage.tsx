@@ -153,7 +153,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
                     <ProgressChartSection data={data} />
                     <ProgressTimeline data={data} />
-                    <CoachNotesSection data={data} />
+                    <CoachNotesSection data={data} userId={session?.user.id} />
                 </div>
 
                 {/* Right Column (Sidebar) */}

@@ -500,7 +500,7 @@ const EditPlanPage = () => {
                                 existingTrainingDays={existingTrainingDays}
                             />
                         ) : (
-                            <div className="card shadow-sm flex align-items-center justify-content-center h-full min-h-20rem">
+                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
                                 <div className="text-center p-6">
                                     <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
                                     <p className="text-700 text-lg">请选择一个训练日进行编辑</p>

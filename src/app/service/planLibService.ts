@@ -5,6 +5,10 @@ import { GetTemplateDto, GetTemplateResponseDto } from "@/app/api/plan-lib/get-t
 import { AddTemplateDto, AddTemplateResponseDto } from "@/app/api/plan-lib/add-template/entity";
 import { UpdateTemplateDto, UpdateTemplateResponseDto } from "@/app/api/plan-lib/update-template/entity";
 import { DeleteTemplateDto, DeleteTemplateResponseDto } from "@/app/api/plan-lib/delete-template/entity";
+import type { GetInstanceDto, GetInstanceResponseDto } from "@/app/api/plan-lib/get-instance/entity";
+import type { CreateInstanceDto, CreateInstanceResponseDto } from "@/app/api/plan-lib/create-instance/entity";
+import type { UpdateInstanceDto, UpdateInstanceResponseDto } from "@/app/api/plan-lib/update-instance/entity";
+import type { DeleteInstanceDto, DeleteInstanceResponseDto } from "@/app/api/plan-lib/delete-instance/entity";
 
 export class PlanLibService extends BaseService {
 
@@ -44,6 +48,40 @@ export class PlanLibService extends BaseService {
         const res = await this.post<DeleteTemplateResponseDto>("delete-template", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete template");
+        }
+        return res.data.data;
+    }
+    
+    // 实例相关方法
+    
+    async getInstance(reqData: GetInstanceDto) {
+        const res = await this.post<GetInstanceResponseDto>("get-instance", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to fetch instance");
+        }
+        return res.data.data;
+    }
+
+    async createInstance(reqData: CreateInstanceDto) {
+        const res = await this.post<CreateInstanceResponseDto>("create-instance", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to create instance");
+        }
+        return res.data.data;
+    }
+
+    async updateInstance(reqData: UpdateInstanceDto) {
+        const res = await this.post<UpdateInstanceResponseDto>("update-instance", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to update instance");
+        }
+        return res.data.data;
+    }
+
+    async deleteInstance(reqData: DeleteInstanceDto) {
+        const res = await this.post<DeleteInstanceResponseDto>("delete-instance", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to delete instance");
         }
         return res.data.data;
     }

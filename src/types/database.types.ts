@@ -267,6 +267,78 @@ export type Database = {
           },
         ]
       }
+      coach_plan_instances: {
+        Row: {
+          coach_id: string | null
+          coach_plan_template_id: string | null
+          coach_subscription_id: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string | null
+          status: string | null
+          student_id: string | null
+          suitable_for: string | null
+          tags: string[] | null
+          training_days: Json
+          type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          coach_id?: string | null
+          coach_plan_template_id?: string | null
+          coach_subscription_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          status?: string | null
+          student_id?: string | null
+          suitable_for?: string | null
+          tags?: string[] | null
+          training_days: Json
+          type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          coach_id?: string | null
+          coach_plan_template_id?: string | null
+          coach_subscription_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          status?: string | null
+          student_id?: string | null
+          suitable_for?: string | null
+          tags?: string[] | null
+          training_days?: Json
+          type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_plan_instances_coach_subscription_id_fkey"
+            columns: ["coach_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "coach_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_plan_template"
+            columns: ["coach_plan_template_id"]
+            isOneToOne: false
+            referencedRelation: "coach_plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_plan_template_tags: {
         Row: {
           created_at: string | null
@@ -391,6 +463,61 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      coach_reviews: {
+        Row: {
+          coach_id: string | null
+          coach_subscription_id: string
+          created_at: string | null
+          id: string
+          media_urls: string[] | null
+          review_text: string | null
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          coach_id?: string | null
+          coach_subscription_id: string
+          created_at?: string | null
+          id?: string
+          media_urls?: string[] | null
+          review_text?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          coach_id?: string | null
+          coach_subscription_id?: string
+          created_at?: string | null
+          id?: string
+          media_urls?: string[] | null
+          review_text?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_reviews_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_reviews_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_coach_subscription"
+            columns: ["coach_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "coach_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coach_rulepacks: {
         Row: {
@@ -675,62 +802,6 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "coach_subscriptions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exercises: {
-        Row: {
-          category: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          image_url: string | null
-          name: string
-          order_index: number | null
-          reps: string | null
-          rest_time: number | null
-          sets: number | null
-          tips: string[] | null
-          training_plan_id: string | null
-          video_url: string | null
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          name: string
-          order_index?: number | null
-          reps?: string | null
-          rest_time?: number | null
-          sets?: number | null
-          tips?: string[] | null
-          training_plan_id?: string | null
-          video_url?: string | null
-        }
-        Update: {
-          category?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          name?: string
-          order_index?: number | null
-          reps?: string | null
-          rest_time?: number | null
-          sets?: number | null
-          tips?: string[] | null
-          training_plan_id?: string | null
-          video_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exercises_training_plan_id_fkey"
-            columns: ["training_plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -1144,71 +1215,6 @@ export type Database = {
         }
         Relationships: []
       }
-      training_exercises: {
-        Row: {
-          created_at: string | null
-          difficulty_rating: number | null
-          exercise_name: string
-          exercise_type: string
-          id: string
-          load_actual: number | null
-          load_planned: number | null
-          notes: string | null
-          reps_completed: string | null
-          reps_planned: string | null
-          rest_time: number | null
-          sets_completed: number | null
-          sets_planned: number
-          technique_notes: string | null
-          training_session_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          difficulty_rating?: number | null
-          exercise_name: string
-          exercise_type: string
-          id?: string
-          load_actual?: number | null
-          load_planned?: number | null
-          notes?: string | null
-          reps_completed?: string | null
-          reps_planned?: string | null
-          rest_time?: number | null
-          sets_completed?: number | null
-          sets_planned: number
-          technique_notes?: string | null
-          training_session_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          difficulty_rating?: number | null
-          exercise_name?: string
-          exercise_type?: string
-          id?: string
-          load_actual?: number | null
-          load_planned?: number | null
-          notes?: string | null
-          reps_completed?: string | null
-          reps_planned?: string | null
-          rest_time?: number | null
-          sets_completed?: number | null
-          sets_planned?: number
-          technique_notes?: string | null
-          training_session_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "training_exercises_training_session_id_fkey"
-            columns: ["training_session_id"]
-            isOneToOne: false
-            referencedRelation: "training_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       training_plan_details: {
         Row: {
           accessory_exercises: Json
@@ -1346,71 +1352,6 @@ export type Database = {
           },
         ]
       }
-      training_progress: {
-        Row: {
-          avg_rpe: number | null
-          completed_exercises: number | null
-          completed_sessions: number | null
-          created_at: string | null
-          id: string
-          last_training_date: string | null
-          progress_percentage: number | null
-          skipped_sessions: number | null
-          streak_days: number | null
-          total_exercises: number | null
-          total_sessions: number | null
-          total_volume: number | null
-          training_plan_id: string
-          updated_at: string | null
-          user_id: string
-          week_number: number
-        }
-        Insert: {
-          avg_rpe?: number | null
-          completed_exercises?: number | null
-          completed_sessions?: number | null
-          created_at?: string | null
-          id?: string
-          last_training_date?: string | null
-          progress_percentage?: number | null
-          skipped_sessions?: number | null
-          streak_days?: number | null
-          total_exercises?: number | null
-          total_sessions?: number | null
-          total_volume?: number | null
-          training_plan_id: string
-          updated_at?: string | null
-          user_id: string
-          week_number: number
-        }
-        Update: {
-          avg_rpe?: number | null
-          completed_exercises?: number | null
-          completed_sessions?: number | null
-          created_at?: string | null
-          id?: string
-          last_training_date?: string | null
-          progress_percentage?: number | null
-          skipped_sessions?: number | null
-          streak_days?: number | null
-          total_exercises?: number | null
-          total_sessions?: number | null
-          total_volume?: number | null
-          training_plan_id?: string
-          updated_at?: string | null
-          user_id?: string
-          week_number?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "training_progress_training_plan_id_fkey"
-            columns: ["training_plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       training_records: {
         Row: {
           completed_at: string | null
@@ -1482,50 +1423,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      training_reminders: {
-        Row: {
-          created_at: string | null
-          days_of_week: string[] | null
-          id: string
-          is_active: boolean | null
-          reminder_time: string
-          reminder_type: string
-          training_plan_id: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          days_of_week?: string[] | null
-          id?: string
-          is_active?: boolean | null
-          reminder_time: string
-          reminder_type: string
-          training_plan_id: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          days_of_week?: string[] | null
-          id?: string
-          is_active?: boolean | null
-          reminder_time?: string
-          reminder_type?: string
-          training_plan_id?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "training_reminders_training_plan_id_fkey"
-            columns: ["training_plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -1805,123 +1702,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
-      }
-      video_submissions: {
-        Row: {
-          coach_feedback: string | null
-          coach_rating: number | null
-          description: string | null
-          exercise_id: string | null
-          id: string
-          purpose: string | null
-          reviewed_at: string | null
-          status: string | null
-          submitted_at: string | null
-          user_id: string
-          video_url: string
-        }
-        Insert: {
-          coach_feedback?: string | null
-          coach_rating?: number | null
-          description?: string | null
-          exercise_id?: string | null
-          id?: string
-          purpose?: string | null
-          reviewed_at?: string | null
-          status?: string | null
-          submitted_at?: string | null
-          user_id: string
-          video_url: string
-        }
-        Update: {
-          coach_feedback?: string | null
-          coach_rating?: number | null
-          description?: string | null
-          exercise_id?: string | null
-          id?: string
-          purpose?: string | null
-          reviewed_at?: string | null
-          status?: string | null
-          submitted_at?: string | null
-          user_id?: string
-          video_url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "video_submissions_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_logs: {
-        Row: {
-          created_at: string | null
-          day_of_week: string | null
-          entries: Json | null
-          id: string
-          log_date: string
-          notes: string | null
-          training_plan_id: string | null
-          training_session_id: string | null
-          updated_at: string | null
-          user_id: string
-          video_urls: string[] | null
-          week_number: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          day_of_week?: string | null
-          entries?: Json | null
-          id?: string
-          log_date?: string
-          notes?: string | null
-          training_plan_id?: string | null
-          training_session_id?: string | null
-          updated_at?: string | null
-          user_id: string
-          video_urls?: string[] | null
-          week_number?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          day_of_week?: string | null
-          entries?: Json | null
-          id?: string
-          log_date?: string
-          notes?: string | null
-          training_plan_id?: string | null
-          training_session_id?: string | null
-          updated_at?: string | null
-          user_id?: string
-          video_urls?: string[] | null
-          week_number?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_logs_training_plan_id_fkey"
-            columns: ["training_plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_logs_training_session_id_fkey"
-            columns: ["training_session_id"]
-            isOneToOne: false
-            referencedRelation: "training_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {

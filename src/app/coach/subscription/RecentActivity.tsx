@@ -38,7 +38,7 @@ const RecentActivity: React.FC = () => {
     }, [session?.user?.id])
 
     return (
-        <Card>
+        <Card className="shadow-sm">
             <h3 className="text-lg font-semibold mb-6">最近活动</h3>
             {activities.length === 0 ? (
                 <div className="text-center text-gray-500 dark:text-gray-400">暂无活动</div>
