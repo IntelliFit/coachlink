@@ -806,6 +806,78 @@ export type Database = {
           },
         ]
       }
+      execution_set_videos: {
+        Row: {
+          action_id: string
+          coach_feedback: string | null
+          coach_rating: number | null
+          created_at: string
+          duration_seconds: number | null
+          execution_id: string
+          file_size_bytes: number | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          set_number: number
+          storage_bucket: string | null
+          storage_path: string
+          thumbnail_url: string | null
+          upload_status: string | null
+          video_url: string
+        }
+        Insert: {
+          action_id: string
+          coach_feedback?: string | null
+          coach_rating?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          execution_id: string
+          file_size_bytes?: number | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          set_number: number
+          storage_bucket?: string | null
+          storage_path: string
+          thumbnail_url?: string | null
+          upload_status?: string | null
+          video_url: string
+        }
+        Update: {
+          action_id?: string
+          coach_feedback?: string | null
+          coach_rating?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          execution_id?: string
+          file_size_bytes?: number | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          set_number?: number
+          storage_bucket?: string | null
+          storage_path?: string
+          thumbnail_url?: string | null
+          upload_status?: string | null
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execution_set_videos_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "plan_instance_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execution_set_videos_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lifestyle_logs: {
         Row: {
           created_at: string | null
@@ -927,6 +999,141 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      personal_records_history: {
+        Row: {
+          action_id: string | null
+          created_at: string | null
+          date_achieved: string
+          execution_id: string | null
+          execution_set_number: number | null
+          exercise_name: string
+          id: string
+          is_verified: boolean | null
+          load_formula: string | null
+          max_reps: number | null
+          max_weight: number | null
+          notes: string | null
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          action_id?: string | null
+          created_at?: string | null
+          date_achieved: string
+          execution_id?: string | null
+          execution_set_number?: number | null
+          exercise_name: string
+          id?: string
+          is_verified?: boolean | null
+          load_formula?: string | null
+          max_reps?: number | null
+          max_weight?: number | null
+          notes?: string | null
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          action_id?: string | null
+          created_at?: string | null
+          date_achieved?: string
+          execution_id?: string | null
+          execution_set_number?: number | null
+          exercise_name?: string
+          id?: string
+          is_verified?: boolean | null
+          load_formula?: string | null
+          max_reps?: number | null
+          max_weight?: number | null
+          notes?: string | null
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_records_history_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "plan_instance_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_records_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_instance_executions: {
+        Row: {
+          action_executions: Json
+          completed_at: string | null
+          completed_sets: number
+          created_at: string
+          day_index: number
+          id: string
+          instance_id: string
+          last_saved_at: string | null
+          progress_percent: number | null
+          session_notes: string | null
+          started_at: string
+          status: string
+          student_id: string
+          total_sets: number
+          updated_at: string
+        }
+        Insert: {
+          action_executions?: Json
+          completed_at?: string | null
+          completed_sets?: number
+          created_at?: string
+          day_index: number
+          id?: string
+          instance_id: string
+          last_saved_at?: string | null
+          progress_percent?: number | null
+          session_notes?: string | null
+          started_at?: string
+          status?: string
+          student_id: string
+          total_sets?: number
+          updated_at?: string
+        }
+        Update: {
+          action_executions?: Json
+          completed_at?: string | null
+          completed_sets?: number
+          created_at?: string
+          day_index?: number
+          id?: string
+          instance_id?: string
+          last_saved_at?: string | null
+          progress_percent?: number | null
+          session_notes?: string | null
+          started_at?: string
+          status?: string
+          student_id?: string
+          total_sets?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_instance_executions_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "coach_plan_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_instance_executions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pullup_leaderboard: {
         Row: {
