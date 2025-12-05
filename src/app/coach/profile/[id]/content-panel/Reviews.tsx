@@ -10,6 +10,7 @@ import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
 import type { CoachStudentCommentRow } from '@/types';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import ReviewDialog from './components/ReviewDialog';
 
 interface ReviewsProps {
     coachId: string;
@@ -21,13 +22,14 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
     const { showToast } = useToastContext();
     const [comments, setComments] = useState<CoachStudentCommentRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [hasuserSubscription, setHasuserSubscription] = useState(false);
+    const [hasUserSubscription, setHasUserSubscription] = useState(false);
     const [subscriptionDuration, setSubscriptionDuration] = useState('');
+    const [showReviewDialog, setShowReviewDialog] = useState(false);
 
     useEffect(() => {
         // 检查用户是否有活跃的订阅
         if (userSubscription) {
-            setHasuserSubscription(true);
+            setHasUserSubscription(true);
 
             // 计算订阅时长
             if (userSubscription.created_at) {
@@ -59,6 +61,11 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
         }
     };
 
+    const handleReviewSubmitted = () => {
+        // 重新获取评论列表以显示新提交的评论
+        fetchComments();
+    };
+
     if (loading) {
         return (
             <div className="space-y-6">
@@ -80,12 +87,12 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
 
     return (
         <div className="space-y-6">
-            {!isOwnProfile && hasuserSubscription && (
-                <div className=" rounded-lg p-4">
+            {!isOwnProfile && hasUserSubscription && (
+                <div className="bg-primary-50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h3 className="font-medium text-blue-900">您已订阅此教练</h3>
-                            <p className="text-sm text-blue-700 flex items-center gap-1">
+                            <h3 className="font-medium text-primary-900">您已订阅此教练</h3>
+                            <p className="text-sm text-primary-700 flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 订阅时长: {subscriptionDuration}
                             </p>
@@ -94,7 +101,7 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
                             label="发表评价"
                             icon="pi pi-plus"
                             outlined
-                            onClick={() => showToast({ severity: 'info', summary: '提示', detail: '发表评价功能即将上线' })}
+                            onClick={() => setShowReviewDialog(true)}
                         />
                     </div>
                 </div>
@@ -104,7 +111,7 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
                 <div className="text-center py-12">
                     <MessageCircle className="w-16 h-16 text-surface-400 mx-auto mb-4" />
                     <p className="text-surface-600 text-lg">暂无学员评价</p>
-                    {!isOwnProfile && hasuserSubscription && (
+                    {!isOwnProfile && hasUserSubscription && (
                         <p className="text-surface-500 mt-2">成为第一个发表评价的学员吧！</p>
                     )}
                 </div>
@@ -143,6 +150,13 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
                     ))}
                 </div>
             )}
+
+            <ReviewDialog
+                visible={showReviewDialog}
+                onHide={() => setShowReviewDialog(false)}
+                coachId={coachId}
+                onReviewSubmitted={handleReviewSubmitted}
+            />
         </div>
     );
 };
