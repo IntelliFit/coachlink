@@ -53,9 +53,9 @@ interface FormData {
 }
 
 const CARD_TYPES = [
-    { key: 'powerlifting', label: '力量举', icon: Dumbbell, color: 'bg-orange-100 text-orange-600' },
-    { key: 'bodybuilding', label: '健美/形体', icon: User, color: 'bg-purple-100 text-purple-600' },
-    { key: 'fitness', label: '一般体能', icon: Activity, color: 'bg-green-100 text-green-600' },
+    { key: 'powerlifting', label: '力量举', icon: Dumbbell, color: 'bg-orange-100 text-orange-600', active: 'bg-orange-500/20 border-orange-500' },
+    { key: 'bodybuilding', label: '健美/形体', icon: User, color: 'bg-purple-100 text-purple-600', active: 'bg-purple-500/20 border-purple-500' },
+    { key: 'fitness', label: '一般体能', icon: Activity, color: 'bg-green-100 text-green-600', active: 'bg-green-500/20 border-green-500' },
 ];
 
 const GENDER_OPTIONS = [
@@ -157,7 +157,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            const result = await studentService.updateProfile('', {
+            const result = await studentService.updateProfile({
                 full_name: formData.fullName,
                 age: formData.age,
                 gender: formData.gender,
@@ -198,7 +198,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             <img src="/favicon.jpg" alt="CoachLink Logo" className="h-10 rounded-lg" />
             <div>
                 <h2 className="text-xl font-bold">完善您的档案</h2>
-                <p className="text-sm text-gray-500">帮助教练更好地了解您</p>
+                <p className="text-sm text-surface-500">帮助教练更好地了解您</p>
             </div>
         </div>
     );
@@ -218,7 +218,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             {/* 进度条 */}
             <div className="mb-6">
                 <ProgressBar value={progress} showValue={false} style={{ height: '6px' }} />
-                <div className="flex justify-between mt-2 text-xs text-gray-500">
+                <div className="flex justify-between mt-2 text-xs text-surface-500">
                     <span>第 {step} 步 / 共 {totalSteps} 步</span>
                     <span>{step === 1 ? '基本信息' : '运动数据'}</span>
                 </div>
@@ -227,13 +227,13 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             {/* Step 1: 基本信息 */}
             {step === 1 && (
                 <div className="space-y-6">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-surface-800 flex items-center gap-2">
                         <User className="w-5 h-5 text-blue-500" />
                         基本信息
                     </h3>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
+                        <div className="col-span-2 mb-2">
                             <FloatLabel>
                                 <InputText
                                     id="fullName"
@@ -245,7 +245,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             </FloatLabel>
                         </div>
 
-                        <FloatLabel>
+                        <FloatLabel className='mb-2'>
                             <InputNumber
                                 id="age"
                                 value={formData.age}
@@ -258,19 +258,16 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             <label htmlFor="age">年龄</label>
                         </FloatLabel>
 
-                        <FloatLabel>
-                            <Dropdown
-                                id="gender"
-                                value={formData.gender}
-                                options={GENDER_OPTIONS}
-                                onChange={(e) => setFormData({ ...formData, gender: e.value })}
-                                className="w-full"
-                                placeholder=" "
-                            />
-                            <label htmlFor="gender">性别</label>
-                        </FloatLabel>
+                        <Dropdown
+                            id="gender"
+                            value={formData.gender}
+                            options={GENDER_OPTIONS}
+                            onChange={(e) => setFormData({ ...formData, gender: e.value })}
+                            className="w-full mb-2"
+                            placeholder="性别"
+                        />
 
-                        <FloatLabel>
+                        <FloatLabel className='mb-2'>
                             <InputNumber
                                 id="height"
                                 value={formData.height}
@@ -283,7 +280,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             <label htmlFor="height">身高</label>
                         </FloatLabel>
 
-                        <FloatLabel>
+                        <FloatLabel className='mb-2'>
                             <InputNumber
                                 id="weight"
                                 value={formData.weight}
@@ -323,11 +320,11 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             {/* Step 2: 运动数据卡片 */}
             {step === 2 && (
                 <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-surface-800 flex items-center gap-2">
                         <Activity className="w-5 h-5 text-green-500" />
                         运动数据卡片
                     </h3>
-                    <p className="text-sm text-gray-500">选择您关注的运动类型，填写相关数据（可多选，选填）</p>
+                    <p className="text-sm text-surface-500">选择您关注的运动类型，填写相关数据（可多选，选填）</p>
 
                     {/* 卡片选择器 */}
                     <div className="grid grid-cols-3 gap-3">
@@ -338,18 +335,17 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 <div
                                     key={card.key}
                                     onClick={() => toggleCard(card.key)}
-                                    className={`cursor-pointer p-3 rounded-xl border-2 transition-all text-center ${
-                                        isActive
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-gray-200 hover:border-gray-300'
-                                    }`}
+                                    className={`cursor-pointer p-3 rounded-xl border-2 transition-all text-center ${isActive
+                                            ? `${card.active}`
+                                            : 'border-surface-200 hover:border-surface-300'
+                                        }`}
                                 >
                                     <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center ${card.color}`}>
                                         <Icon className="w-5 h-5" />
                                     </div>
-                                    <div className="mt-2 text-xs font-medium text-gray-700">{card.label}</div>
+                                    <div className="mt-2 text-xs font-medium text-surface-700">{card.label}</div>
                                     {isActive && (
-                                        <i className="pi pi-check-circle text-blue-500 mt-1" />
+                                        <i className="pi pi-check-circle text-primary-500 mt-1" />
                                     )}
                                 </div>
                             );
@@ -521,7 +517,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
                     {/* 没有选择任何卡片的提示 */}
                     {formData.sportCards.activeCards.length === 0 && (
-                        <div className="text-center py-6 text-gray-400">
+                        <div className="text-center py-6 text-surface-400">
                             <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">点击上方卡片添加您的运动数据</p>
                             <p className="text-xs mt-1">（可跳过此步骤）</p>

@@ -92,7 +92,7 @@ export default function MyProfilePage() {
     const handleSaveEdit = async () => {
         setSaving(true);
         try {
-            const result = await studentService.updateProfile('', editForm);
+            const result = await studentService.updateProfile(editForm);
             if (result) {
                 showToast({ severity: 'success', summary: '保存成功' });
                 setEditDialogVisible(false);
