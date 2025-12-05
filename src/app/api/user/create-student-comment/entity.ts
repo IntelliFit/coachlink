@@ -5,6 +5,7 @@ import type { CoachStudentCommentRow } from '@/types';
 export interface CreateStudentCommentDto {
     coach_id: string;
     comment: string;
+    rating: number;
     media?: any;
 }
 

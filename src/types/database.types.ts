@@ -1429,6 +1429,7 @@ export type Database = {
           created_at: string | null
           id: string
           media: Json | null
+          rating: number | null
           student_id: string
           updated_at: string | null
         }
@@ -1438,6 +1439,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           media?: Json | null
+          rating?: number | null
           student_id: string
           updated_at?: string | null
         }
@@ -1447,6 +1449,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           media?: Json | null
+          rating?: number | null
           student_id?: string
           updated_at?: string | null
         }

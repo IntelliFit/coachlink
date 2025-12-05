@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     }
 
     const userId = session.user.id;
-    const { coach_id, comment, media } = await req.json();
+    const { coach_id, comment, media, rating } = await req.json();
 
     // 检查用户是否订阅了该教练
     const { data: subscriptionData, error: subscriptionError } = await supabase
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
             student_id: userId,
             coach_id,
             comment,
+            rating,
             media: media || null
         })
         .select()
