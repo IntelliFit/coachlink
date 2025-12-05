@@ -29,6 +29,12 @@ import { UpdateTrainingSessionDto, UpdateTrainingSessionResponseDto } from "../a
 // 导入今日会话相关的类型定义
 import type { CreateTodaySessionDto, CreateTodaySessionResponseDto } from "../api/user/create-today-session/entity";
 
+// 导入学生评论相关的类型定义
+import type { GetStudentCommentDto, GetStudentCommentResponseDto } from "../api/user/get-student-comment/entity";
+import type { CreateStudentCommentDto, CreateStudentCommentResponseDto } from "../api/user/create-student-comment/entity";
+import type { UpdateStudentCommentDto, UpdateStudentCommentResponseDto } from "../api/user/update-student-comment/entity";
+import type { DeleteStudentCommentDto, DeleteStudentCommentResponseDto } from "../api/user/delete-student-comment/entity";
+
 class UserPlanService extends BaseService {
     /**
      * @description 获取训练计划
@@ -245,6 +251,43 @@ class UserPlanService extends BaseService {
     // 今日会话相关方法
     async createTodaySession(reqData: CreateTodaySessionDto) {
         const res = await this.post<CreateTodaySessionResponseDto>('create-today-session', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    // 学生评论相关方法
+    async getStudentComments(reqData: GetStudentCommentDto) {
+        const res = await this.post<GetStudentCommentResponseDto>('get-student-comment', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    async createStudentComment(reqData: CreateStudentCommentDto) {
+        const res = await this.post<CreateStudentCommentResponseDto>('create-student-comment', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    async updateStudentComment(reqData: UpdateStudentCommentDto) {
+        const res = await this.post<UpdateStudentCommentResponseDto>('update-student-comment', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    async deleteStudentComment(reqData: DeleteStudentCommentDto) {
+        const res = await this.post<DeleteStudentCommentResponseDto>('delete-student-comment', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

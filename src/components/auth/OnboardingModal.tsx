@@ -359,8 +359,8 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 <Dumbbell className="w-4 h-4" />
                                 力量举数据
                             </h4>
-                            <div className="grid grid-cols-2 gap-3">
-                                <FloatLabel>
+                            <div className="grid grid-cols-2 gap-3 pt-4">
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="squat"
                                         value={formData.sportCards.powerlifting?.squat}
@@ -370,7 +370,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="squat">深蹲 1RM</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="bench"
                                         value={formData.sportCards.powerlifting?.bench}
@@ -380,7 +380,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="bench">卧推 1RM</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="deadlift"
                                         value={formData.sportCards.powerlifting?.deadlift}
@@ -390,11 +390,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="deadlift">硬拉 1RM</label>
                                 </FloatLabel>
-                                <div className="flex items-center justify-center bg-orange-100 rounded-lg p-2">
+                                <div className="flex items-center justify-center bg-orange-100 rounded-lg p-2 mb-4">
                                     <span className="text-sm text-orange-700">
                                         总和: <strong>{getPowerliftingTotal()} kg</strong>
                                     </span>
                                 </div>
+                            </div>
+                            <div className="mt-2 text-xs text-orange-600">
+                                注：1RM（一次最大重复）是指您以标准的动作，在不用借力的情况下，竭尽全力只能完成一次动作的最大重量。
                             </div>
                         </div>
                     )}
@@ -407,7 +410,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 健美/形体数据
                             </h4>
                             <div className="grid grid-cols-2 gap-3">
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="chest"
                                         value={formData.sportCards.bodybuilding?.chest}
@@ -417,7 +420,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="chest">胸围</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="arm"
                                         value={formData.sportCards.bodybuilding?.arm}
@@ -427,7 +430,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="arm">臂围</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="waist"
                                         value={formData.sportCards.bodybuilding?.waist}
@@ -437,7 +440,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="waist">腰围</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="hip"
                                         value={formData.sportCards.bodybuilding?.hip}
@@ -470,8 +473,8 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 <Activity className="w-4 h-4" />
                                 一般体能数据
                             </h4>
-                            <div className="grid grid-cols-2 gap-3">
-                                <FloatLabel>
+                            <div className="grid grid-cols-2 gap-3 pt-4">
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="pullups"
                                         value={formData.sportCards.fitness?.pullups}
@@ -481,7 +484,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="pullups">引体向上</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="pushups"
                                         value={formData.sportCards.fitness?.pushups}
@@ -491,7 +494,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="pushups">俯卧撑</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="plank"
                                         value={formData.sportCards.fitness?.plank}
@@ -501,7 +504,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     />
                                     <label htmlFor="plank">平板支撑</label>
                                 </FloatLabel>
-                                <FloatLabel>
+                                <FloatLabel className='mb-4'>
                                     <InputNumber
                                         id="restingHR"
                                         value={formData.sportCards.fitness?.restingHR}
