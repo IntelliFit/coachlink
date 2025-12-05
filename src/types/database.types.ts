@@ -271,6 +271,7 @@ export type Database = {
         Row: {
           coach_id: string | null
           coach_plan_template_id: string | null
+          coach_subscription_id: string | null
           created_at: string | null
           description: string | null
           end_date: string | null
@@ -279,12 +280,16 @@ export type Database = {
           start_date: string | null
           status: string | null
           student_id: string | null
+          suitable_for: string | null
+          tags: string[] | null
           training_days: Json
+          type: string | null
           updated_at: string | null
         }
         Insert: {
           coach_id?: string | null
           coach_plan_template_id?: string | null
+          coach_subscription_id?: string | null
           created_at?: string | null
           description?: string | null
           end_date?: string | null
@@ -293,12 +298,16 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           student_id?: string | null
+          suitable_for?: string | null
+          tags?: string[] | null
           training_days: Json
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
           coach_id?: string | null
           coach_plan_template_id?: string | null
+          coach_subscription_id?: string | null
           created_at?: string | null
           description?: string | null
           end_date?: string | null
@@ -307,10 +316,20 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           student_id?: string | null
+          suitable_for?: string | null
+          tags?: string[] | null
           training_days?: Json
+          type?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "coach_plan_instances_coach_subscription_id_fkey"
+            columns: ["coach_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "coach_subscriptions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_plan_template"
             columns: ["coach_plan_template_id"]

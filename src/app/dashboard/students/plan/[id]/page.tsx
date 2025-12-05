@@ -18,9 +18,8 @@ import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetInstanceDto } from '@/app/api/plan-lib/get-instance/entity';
-import { CreateInstanceDto } from '@/app/api/plan-lib/create-instance/entity';
-import { UpdateInstanceDto } from '@/app/api/plan-lib/update-instance/entity';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
+import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 
 interface PlanDay {
     id?: string;
@@ -52,6 +51,9 @@ const StudentPlanPage = () => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState<string[]>([]);
+
+    const [type, setType] = useState<string | null>(null);
+
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
@@ -66,6 +68,7 @@ const StudentPlanPage = () => {
     const [saving, setSaving] = useState(false);
     const [instanceExists, setInstanceExists] = useState(false);
     const [selectTemplateDialogVisible, setSelectTemplateDialogVisible] = useState(false);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
     // Load instance data
     useEffect(() => {
@@ -374,8 +377,11 @@ const StudentPlanPage = () => {
                 id: params.id as string,
                 name,
                 description: description || null,
-                trainingDays: daysData
-            } as UpdateInstanceDto);
+                tags: tags || null,
+                type: type || null,
+                suitableFor: suitableFor || null,
+                trainingDays: daysData,
+            });
 
             if (res) {
                 showToast({ severity: 'success', summary: '保存成功', detail: '训练计划已更新' });
@@ -386,10 +392,14 @@ const StudentPlanPage = () => {
         } else {
             // Create new instance
             const res = await planLibService.createInstance({
+                templateId: selectedTemplateId,
+                subscriptionId: params.id.toString(),
+
                 name,
                 description: description || null,
-                coachId: coach.id,
-                studentId: params.id as string,
+                tags: tags || null,
+                type: type || null,
+                suitableFor: suitableFor || null,
                 trainingDays: daysData
             });
 
@@ -417,12 +427,14 @@ const StudentPlanPage = () => {
     };
 
     // 新增函数：处理选择模板
-    const handleSelectTemplate = (templateData: any) => {
+    const handleSelectTemplate = (templateData: GetTemplateResponseDto) => {
         // 设置基本信息
         setName(templateData.template.name);
         setDescription(templateData.template.description || '');
         setTags(templateData.template.tags || []);
+        setType(templateData.template.type);
         setSuitableFor(templateData.template.suitable_for as 'beginner' | 'intermediate' | 'advanced');
+        setSelectedTemplateId(templateData.template.id);
 
         // 转换训练日数据
         const convertedDays: PlanDay[] = (templateData.days || []).map((day: any) => ({

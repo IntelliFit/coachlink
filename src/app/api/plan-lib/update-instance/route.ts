@@ -12,6 +12,9 @@ export async function POST(req: Request) {
         coachId,
         studentId,
         templateId,
+        tags,
+        type,
+        suitableFor,
         startDate,
         endDate,
         status,
@@ -71,6 +74,9 @@ export async function POST(req: Request) {
             ...(startDate !== undefined && { start_date: startDate }),
             ...(endDate !== undefined && { end_date: endDate }),
             ...(status !== undefined && { status }),
+            ...(type !== undefined && { type }),
+            ...(suitableFor !== undefined && { suitable_for: suitableFor }),
+            ...(tags !== undefined && { tags }),
             ...(trainingDays !== undefined && { training_days: trainingDays })
         })
         .eq("id", id)
