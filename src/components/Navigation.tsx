@@ -11,6 +11,7 @@ import { Menu } from 'primereact/menu';
 import { Skeleton } from 'primereact/skeleton';
 import { useTheme } from '@/context/ThemeContext';
 import { useLoginModal } from '@/components/auth/LoginModalContext';
+import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
@@ -21,6 +22,7 @@ export default function Navigation() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openLoginModal } = useLoginModal();
+    const { openOnboardingModal } = useOnboardingModal();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { data: session, status } = useSession();
     const menuRef = useRef<Menu>(null);
@@ -42,6 +44,25 @@ export default function Navigation() {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    // 检查是否完成初始问卷 (Onboarding Check)
+    useEffect(() => {
+        if (status === 'loading') return;
+
+        // 如果用户已登录
+        if (session?.user) {
+            const profile = session.profile as any;
+            
+            // 检查 onboarding_completed 状态
+            // 注意：如果 profile 不存在，也视为未完成（需要创建档案）
+            const isCompleted = profile?.onboarding_completed === true;
+
+            if (!isCompleted) {
+                // 打开问卷模态框而不是重定向
+                openOnboardingModal();
+            }
+        }
+    }, [session, status, openOnboardingModal]);
 
     const gotoCoachDisplayPage = async () => {
         const res = await coachService.getCoach({

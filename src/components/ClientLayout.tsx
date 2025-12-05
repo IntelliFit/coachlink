@@ -4,6 +4,7 @@ import { useEffect, ReactNode, useState } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { ToastContextProvider } from "../context/ToastContext";
 import { LoginModalProvider } from './auth/LoginModalContext';
+import { OnboardingModalProvider } from './auth/OnboardingModalContext';
 import { SessionProvider } from 'next-auth/react';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
@@ -54,12 +55,14 @@ export default function ClientLayout({
         <SessionProvider>
             <ToastContextProvider>
                 <LoginModalProvider>
-                    <div className="min-h-screen flex flex-col">
-                        <main className="flex-grow">
-                            {children}
-                        </main>
-                        <Footer />
-                    </div>
+                    <OnboardingModalProvider>
+                        <div className="min-h-screen flex flex-col">
+                            <main className="flex-grow">
+                                {children}
+                            </main>
+                            <Footer />
+                        </div>
+                    </OnboardingModalProvider>
                 </LoginModalProvider>
             </ToastContextProvider>
         </SessionProvider>

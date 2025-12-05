@@ -1215,6 +1215,51 @@ export type Database = {
         }
         Relationships: []
       }
+      student_comments: {
+        Row: {
+          coach_id: string
+          comment: string
+          created_at: string | null
+          id: string
+          media: Json | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          coach_id: string
+          comment: string
+          created_at?: string | null
+          id?: string
+          media?: Json | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          coach_id?: string
+          comment?: string
+          created_at?: string | null
+          id?: string
+          media?: Json | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_comments_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_comments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_plan_details: {
         Row: {
           accessory_exercises: Json
@@ -1584,6 +1629,7 @@ export type Database = {
       user_profiles: {
         Row: {
           address: string | null
+          age: number | null
           avatar_url: string | null
           bio: string | null
           birth_date: string | null
@@ -1594,14 +1640,18 @@ export type Database = {
           gender: string | null
           height: number | null
           id: string
+          lifestyle: string | null
           nickname: string | null
+          onboarding_completed: boolean | null
           phone: string | null
+          sport_cards: Json | null
           updated_at: string | null
           user_id: string | null
           weight: number | null
         }
         Insert: {
           address?: string | null
+          age?: number | null
           avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
@@ -1612,14 +1662,18 @@ export type Database = {
           gender?: string | null
           height?: number | null
           id?: string
+          lifestyle?: string | null
           nickname?: string | null
+          onboarding_completed?: boolean | null
           phone?: string | null
+          sport_cards?: Json | null
           updated_at?: string | null
           user_id?: string | null
           weight?: number | null
         }
         Update: {
           address?: string | null
+          age?: number | null
           avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
@@ -1630,8 +1684,11 @@ export type Database = {
           gender?: string | null
           height?: number | null
           id?: string
+          lifestyle?: string | null
           nickname?: string | null
+          onboarding_completed?: boolean | null
           phone?: string | null
+          sport_cards?: Json | null
           updated_at?: string | null
           user_id?: string | null
           weight?: number | null
