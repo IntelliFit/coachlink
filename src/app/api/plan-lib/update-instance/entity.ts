@@ -9,6 +9,9 @@ export interface UpdateInstanceDto {
     coachId?: string | null;
     studentId?: string | null;
     templateId?: string | null;
+    tags?: string[] | null;
+    type?: string | null;
+    suitableFor?: string | null;
     startDate?: string | null;
     endDate?: string | null;
     status?: string | null;

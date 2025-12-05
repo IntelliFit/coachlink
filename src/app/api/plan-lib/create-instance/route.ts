@@ -8,12 +8,14 @@ export async function POST(req: Request) {
     const {
         name,
         description,
-        coachId,
-        studentId,
         templateId,
+        subscriptionId,
         startDate,
         endDate,
         status,
+        type,
+        suitableFor,
+        tags,
         trainingDays
     } = await req.json() as CreateInstanceDto;
 
@@ -35,17 +37,34 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    const { data: subscription, error: subscriptionError } = await supabase
+        .from('coach_subscriptions')
+        .select('coach_id, student_id')
+        .eq('id', subscriptionId)
+        .single();
+    
+    if (subscriptionError) {
+        return NextResponse.json({
+            success: false,
+            message: subscriptionError.message
+        }, { status: 500 });
+    }
+
     // 创建计划实例
     const { data: instance, error } = await supabase
         .from("coach_plan_instances")
         .insert({
             name,
             description: description || null,
-            coach_id: coachId || null,
-            student_id: studentId || null,
+            coach_subscription_id: subscriptionId,
+            coach_id: subscription.coach_id || null,
+            student_id: subscription.student_id || null,
             coach_plan_template_id: templateId || null,
             start_date: startDate || null,
             end_date: endDate || null,
+            tags: tags || null,
+            type: type || null,
+            suitable_for: suitableFor || null,
             status: status || "active",
             training_days: trainingDays
         })

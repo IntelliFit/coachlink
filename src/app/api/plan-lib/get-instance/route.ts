@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     if (subscriptionId) {
-        query = query.eq('coach_plan_template_id', subscriptionId);
+        query = query.eq('coach_subscription_id', subscriptionId);
     }
 
     // 获取计划实例
@@ -62,11 +62,28 @@ export async function POST(req: Request) {
     }
 
     // 检查用户权限（教练或学员都可以查看）
-    if (instance.coach_id !== userId && instance.student_id !== userId) {
-        return NextResponse.json({
-            success: false,
-            message: "Forbidden",
-        }, { status: 403 });
+
+    if (session.user.is_coach) {
+        const { data: coach, error: coachError } = await supabase
+            .from('coaches')
+            .select('user_id')
+            .eq('id', instance.coach_id)
+            .single();
+        
+        if (coach.user_id !== userId) {
+            return NextResponse.json({
+                success: false,
+                message: "无权限查看该教练"
+            }, { status: 403 });
+        }
+
+    } else {
+        if (instance.student_id !== userId) {
+            return NextResponse.json({
+                success: false,
+                message: "权限不足",
+            }, { status: 403 });
+        }
     }
 
     return NextResponse.json<ApiData<GetInstanceResponseDto>>({

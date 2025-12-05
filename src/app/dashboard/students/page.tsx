@@ -41,7 +41,7 @@ export default function StudentsPage() {
     /** 加载训练计划并更新到 students */
     const loadTrainingPlan = async (subscriptionId: string) => {
         try {
-            const res = await planLibService.getInstance({ id: subscriptionId });
+            const res = await planLibService.getInstance({ subscriptionId });
 
             if (res) {
 
@@ -176,8 +176,8 @@ export default function StudentsPage() {
 
         if (student.plan === null) {
             return (
-                <div 
-                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-3"
+                <div
+                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-3 hover:bg-surface-100 rounded"
                     onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                 >
                     <i className="pi pi-plus-circle mr-2"></i>
@@ -188,7 +188,7 @@ export default function StudentsPage() {
 
         return (
             <div
-                className="cursor-pointer hover:text-primary"
+                className="cursor-pointer hover:text-primary flex flex-col items-baseline text-surface-500 p-3 hover:bg-surface-100 rounded"
                 onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
             >
                 <div className="font-medium">{student.plan.name}</div>
