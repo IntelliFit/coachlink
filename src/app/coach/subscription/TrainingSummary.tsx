@@ -52,7 +52,7 @@ const TrainingSummary: React.FC = () => {
     );
 
     return (
-        <Card>
+        <Card className="shadow-sm">
             <h3 className="text-lg font-semibold mb-6">训练统计</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <Stat 
