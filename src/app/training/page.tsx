@@ -58,7 +58,7 @@ export default function TrainingPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[1, 2, 3].map(item => (
-                            <Card key={item}>
+                            <Card key={item} className='shadow-sm'>
                                 <Skeleton width="100%" height="24px" className="mb-4" />
                                 <Skeleton width="100%" height="16px" className="mb-2" />
                                 <Skeleton width="100%" height="16px" className="mb-4" />
@@ -88,7 +88,7 @@ export default function TrainingPage() {
                 ) : plans && plans.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {plans.map((plan: any) => (
-                            <Card key={plan.id} title={plan.title}>
+                            <Card key={plan.id} title={plan.title} className='shadow-sm'>
                                 <p className="mb-4">{plan.description}</p>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm">

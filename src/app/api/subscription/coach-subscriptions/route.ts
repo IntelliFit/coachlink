@@ -38,8 +38,10 @@ export async function POST(req: Request) {
         });
     }
 
-    const { studentId = '', coachId = '' } =
-        (await req.json()) as CoachSubscriptionGetDto;
+    const {
+        studentId = '',
+        coachId = ''
+    } = await req.json() as CoachSubscriptionGetDto;
 
     // 参数检查
     if (!studentId && !coachId) {
