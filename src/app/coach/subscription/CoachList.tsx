@@ -43,7 +43,7 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                 const hasChatService = subscription.tier >= 3;
                 
                 return (
-                    <div key={subscription.id} className="rounded-lg overflow-hidden p-card">
+                    <div key={subscription.id} className="rounded-lg overflow-hidden p-card shadow-sm">
                         <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-surface">
                             <div className="flex items-center space-x-4">
                                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
