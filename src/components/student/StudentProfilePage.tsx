@@ -8,6 +8,7 @@ import { ProgressChartSection } from './profile/ProgressChartSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
 import { MyCoachesList } from './profile/MyCoachesList';
 import { CoachNotesSection } from './profile/CoachNotesSection';
+import { SportCardsDisplay } from './profile/SportCardsDisplay';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
 
@@ -149,6 +150,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         status={data.coachApplicationStatus} 
                         rejectionReason={data.coachRejectionReason} 
                     />
+                    <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
                     <ProgressChartSection data={data} />
                     <ProgressTimeline data={data} />
                     <CoachNotesSection data={data} />

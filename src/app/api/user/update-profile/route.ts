@@ -1,13 +1,13 @@
-import supabase from '@/lib/supabaseClient';
-import { getServerSession } from 'next-auth';
-import { NextResponse } from 'next/server';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import supabase from "@/lib/supabaseClient";
+import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
+import { authOptions } from "../../auth/[...nextauth]/route";
 
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
 
     if (!session) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // 准备要更新的数据
-    const profileData = {
+    const profileData: Record<string, any> = {
         full_name: body.full_name || null,
         nickname: body.nickname || null,
         phone: body.phone || null,
@@ -28,30 +28,44 @@ export async function POST(request: Request) {
         fitness_goal: body.fitness_goal || null,
         fitness_level: body.fitness_level || null,
         bio: body.bio || null,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
     };
+
+    // 添加新字段（仅当提供时才更新）
+    if (body.age !== undefined) {
+        profileData.age = body.age;
+    }
+    if (body.lifestyle !== undefined) {
+        profileData.lifestyle = body.lifestyle;
+    }
+    if (body.sport_cards !== undefined) {
+        profileData.sport_cards = body.sport_cards;
+    }
+    if (body.onboarding_completed !== undefined) {
+        profileData.onboarding_completed = body.onboarding_completed;
+    }
 
     // 检查用户档案是否已存在
     const { data: existingProfile, error: selectError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', userId)
+        .from("user_profiles")
+        .select("id")
+        .eq("user_id", userId)
         .single();
 
     let result;
     if (existingProfile) {
         // 更新现有档案
         const { data, error: updateError } = await supabase
-            .from('user_profiles')
+            .from("user_profiles")
             .update(profileData)
-            .eq('user_id', userId)
-            .select('*')
+            .eq("user_id", userId)
+            .select("*")
             .single();
 
         if (updateError) {
             return NextResponse.json({
                 success: false,
-                message: updateError.message
+                message: updateError.message,
             });
         }
 
@@ -59,19 +73,19 @@ export async function POST(request: Request) {
     } else {
         // 创建新档案
         const { data, error: insertError } = await supabase
-            .from('user_profiles')
+            .from("user_profiles")
             .insert({
                 ...profileData,
                 user_id: userId,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
             })
-            .select('*')
+            .select("*")
             .single();
 
         if (insertError) {
             return NextResponse.json({
                 success: false,
-                message: insertError.message
+                message: insertError.message,
             });
         }
 
@@ -80,8 +94,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
         success: true,
-        message: '用户档案更新成功',
-        data: result
+        message: "用户档案更新成功",
+        data: result,
     });
-
 }
