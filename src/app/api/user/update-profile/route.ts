@@ -17,17 +17,17 @@ export async function POST(request: Request) {
 
     // 准备要更新的数据
     const profileData: Record<string, any> = {
-        full_name: body.full_name || null,
-        nickname: body.nickname || null,
-        phone: body.phone || null,
-        address: body.address || null,
-        gender: body.gender || null,
-        birth_date: body.birth_date || null,
+        full_name: body.full_name,
+        nickname: body.nickname,
+        phone: body.phone,
+        address: body.address,
+        gender: body.gender,
+        birth_date: body.birth_date,
         height: body.height ? parseInt(body.height) : null,
         weight: body.weight ? parseInt(body.weight) : null,
-        fitness_goal: body.fitness_goal || null,
-        fitness_level: body.fitness_level || null,
-        bio: body.bio || null,
+        fitness_goal: body.fitness_goal,
+        fitness_level: body.fitness_level,
+        bio: body.bio,
         updated_at: new Date().toISOString(),
     };
 

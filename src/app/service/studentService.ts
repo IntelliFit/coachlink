@@ -148,11 +148,8 @@ class StudentService extends BaseService {
      * @param data
      * @returns
      */
-    async updateProfile(userId: string, data: Partial<UpdateProileDto>) {
-        const res = await this.post<UpdateProfileResponseDto>(
-            "update-profile",
-            { ...data, userId },
-        );
+    async updateProfile(reqData: UpdateProileDto) {
+        const res = await this.post<UpdateProfileResponseDto>("update-profile", reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

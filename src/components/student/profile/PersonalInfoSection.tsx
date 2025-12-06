@@ -47,7 +47,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                 ...formData,
                 birth_date: formData.birth_date ? formData.birth_date.toISOString().split('T')[0] : null
             };
-            await studentService.updateProfile(user.id, updateData);
+            await studentService.updateProfile(updateData);
             showToast({
                 severity: 'success',
                 summary: '保存成功',

@@ -19,3 +19,4 @@ export type CoachQuestionnairesRow = CoachLinkTable['coach_questionnaires']['Row
 export type CoachPricingRow = CoachLinkTable['coach_pricing']['Row'];
 export type CoachReviewRow = CoachLinkTable['coach_reviews']['Row'];
 export type CoachPlanInstanceRow = CoachLinkTable['coach_plan_instances']['Row'];
+export type CoachStudentCommentRow = CoachLinkTable['student_comments']['Row'];

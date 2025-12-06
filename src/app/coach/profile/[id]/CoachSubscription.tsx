@@ -238,52 +238,74 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-                {subscriptionTiers.map((tier, index) => (
-                    <div
-                        key={index}
-                        className={`relative p-6 rounded-xl border-2
-                            ${tier.is_recommend
-                                ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-red-50 dark:bg-primary-800 shadow-lg'
-                                : 'border-surface-200 bg-surface hover:shadow-md'
-                            } transition-all duration-200`}
-                    >
-                        {tier.is_recommend && (
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                <span className="bg-primary-500 text-surface px-3 py-1 rounded-full text-sm font-medium">
-                                    推荐
-                                </span>
-                            </div>
-                        )}
+                {subscriptionTiers.map((tier, index) => {
+                    // 检查用户是否已经订阅了该教练
+                    const isSubscribed = mySubscriptions.some(
+                        sub => sub.coach_id === coach?.id && sub.status === 'active'
+                    );
+                    
+                    return (
+                        <div
+                            key={index}
+                            className={`relative p-6 rounded-xl border-2
+                                ${tier.is_recommend
+                                    ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-red-50 dark:bg-primary-800 shadow-lg'
+                                    : 'border-surface-200 bg-surface hover:shadow-md'
+                                } transition-all duration-200`}
+                        >
+                            {tier.is_recommend && (
+                                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                    <span className="bg-primary-500 text-surface px-3 py-1 rounded-full text-sm font-medium">
+                                        推荐
+                                    </span>
+                                </div>
+                            )}
 
-                        <div className="text-center mb-6">
-                            <h3 className="text-xl font-bold text-surface-900 mb-2">{tier.title}</h3>
-                            <div className="flex items-baseline justify-center">
-                                <span className="text-3xl font-bold text-surface-900">¥{tier.price}</span>
-                                <span className="text-surface-500 ml-1">/月</span>
+                            <div className="text-center mb-6">
+                                <h3 className="text-xl font-bold text-surface-900 mb-2">{tier.title}</h3>
+                                <div className="flex items-baseline justify-center">
+                                    <span className="text-3xl font-bold text-surface-900">¥{tier.price}</span>
+                                    <span className="text-surface-500 ml-1">/月</span>
+                                </div>
                             </div>
+
+                            <ul className="space-y-3 mb-8">
+                                {tier.features.map((feature, featureIndex) => (
+                                    <li key={featureIndex} className="flex items-start">
+                                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                                        <span className="text-surface-700 text-sm">{feature}</span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            {(mySubscriptions.some(
+                                sub => sub.coach_id === coach?.id && 
+                                       sub.status === 'active' && 
+                                       sub.tier === (index + 1)
+                            )) ? (
+                                <Button
+                                    label="已经订阅"
+                                    disabled={true}
+                                    className={`w-full ${tier.is_recommend
+                                        ? 'bg-gradient-to-r from-primary-500 to-red-500'
+                                        : 'p-button-primary'
+                                        }`}
+                                />
+                            ) : (
+                                <Button
+                                    label='立即订阅'
+                                    onClick={() => onSubscribe(index)}
+                                    loading={subscribingStates[index]}
+                                    disabled={subscribingStates[index]}
+                                    className={`w-full ${tier.is_recommend
+                                        ? 'bg-gradient-to-r from-primary-500 to-red-500'
+                                        : 'p-button-primary'
+                                        }`}
+                                />
+                            )}
                         </div>
-
-                        <ul className="space-y-3 mb-8">
-                            {tier.features.map((feature, featureIndex) => (
-                                <li key={featureIndex} className="flex items-start">
-                                    <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                                    <span className="text-surface-700 text-sm">{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-
-                        <Button
-                            label='立即订阅'
-                            onClick={() => onSubscribe(index)}
-                            loading={subscribingStates[index]}
-                            disabled={subscribingStates[index]}
-                            className={`w-full ${tier.is_recommend
-                                ? 'bg-gradient-to-r from-primary-500 to-red-500'
-                                : 'p-button-primary'
-                                }`}
-                        />
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <QuestionnaireForm
