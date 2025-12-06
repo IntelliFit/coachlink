@@ -21,6 +21,7 @@ import { GetInstanceDto } from '@/app/api/plan-lib/get-instance/entity';
 import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
+import { StudentProfilePanel } from './components/StudentProfileSidebar';
 
 interface PlanDay {
     id?: string;
@@ -72,6 +73,7 @@ const StudentPlanPage = () => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [studentName, setStudentName] = useState<string>('');
     const [instanceId, setInstanceId] = useState<string | null>(null);
+    const [profilePanelExpanded, setProfilePanelExpanded] = useState(false);
     // Load instance data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
@@ -529,111 +531,122 @@ const StudentPlanPage = () => {
     }
 
     return (
-        <div className="mx-auto">
-            <ConfirmDialog />
-            <SelectTemplateDialog
-                visible={selectTemplateDialogVisible}
-                onHide={() => setSelectTemplateDialogVisible(false)}
-                onSelectTemplate={handleSelectTemplate}
-                coachId={coach?.id || ''}
-            />
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-900">
-                    {studentName ? `${studentName}的训练计划` : '学员训练计划'}
-                </h1>
-                <Button
-                    label="取消"
-                    icon="pi pi-arrow-left"
-                    onClick={confirmCancel}
-                    className="p-button-text"
-                    disabled={saving}
+        <div className="flex h-[calc(100vh-80px)]">
+            {/* 左侧：主编辑区域 */}
+            <div className="flex-1 overflow-y-auto p-4">
+                <ConfirmDialog />
+                <SelectTemplateDialog
+                    visible={selectTemplateDialogVisible}
+                    onHide={() => setSelectTemplateDialogVisible(false)}
+                    onSelectTemplate={handleSelectTemplate}
+                    coachId={coach?.id || ''}
                 />
-            </div>
-
-            <BasicInfoForm
-                variant="student"
-                name={name}
-                description={description}
-                tags={tags}
-                suitableFor={suitableFor}
-                onNameChange={setName}
-                onDescriptionChange={setDescription}
-                onTagsChange={setTags}
-                onSuitableForChange={setSuitableFor}
-                saving={saving}
-                onSave={handleSave}
-                extraButton={
-                    <Button
-                        label="从模板创建"
-                        size="small"
-                        icon="pi pi-book"
-                        onClick={() => setSelectTemplateDialogVisible(true)}
-                        disabled={saving}
-                    />
-                }
-            />
-
-            <Card className="shadow-sm mb-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
-                    {/* 左侧：周历视图 */}
-                    <div className="lg:col-span-1">
-                        <WeekCalendar
-                            days={days}
-                            selectedDayIndex={selectedDayIndex}
-                            onSelectDay={setSelectedDayIndex}
-                            onAddWeek={handleAddWeek}
-                            onAddWeekFromExisting={handleAddWeekFromExisting}
-                            onDeleteWeek={handleDeleteWeek}
-                            saving={saving}
-                        />
-                    </div>
-
-                    {/* 右侧：训练日详情 */}
-                    <div className="lg:col-span-2">
-                        {selectedDay ? (
-                            <PlanDayCard
-                                day={selectedDay}
-                                dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
-                                actions={actions}
-                                onDayTypeChange={handleDayTypeChange}
-                                onRemoveDay={handleRemoveDay}
-                                onNoteChange={handleNoteChange}
-                                onAddActionSet={handleAddActionSet}
-                                onRemoveActionSet={handleRemoveActionSet}
-                                onActionSetChange={handleActionSetChange}
-                                saving={saving}
-                                totalDays={days.length}
-                                onCopyFromDay={handleCopyFromDay}
-                                existingTrainingDays={existingTrainingDays}
-                            />
-                        ) : (
-                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
-                                <div className="text-center p-6">
-                                    <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
-                                    <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
-                                    <p className="text-600">从左侧日历中选择一个训练日</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-2">
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-bold text-900">
+                        {studentName ? `${studentName}的训练计划` : '学员训练计划'}
+                    </h1>
                     <Button
                         label="取消"
-                        icon="pi pi-times"
+                        icon="pi pi-arrow-left"
                         onClick={confirmCancel}
                         className="p-button-text"
                         disabled={saving}
                     />
-                    <Button
-                        label={instanceExists ? "更新计划" : "制定计划"}
-                        icon="pi pi-check"
-                        onClick={handleSave}
-                        loading={saving}
-                    />
                 </div>
-            </Card>
+
+                <BasicInfoForm
+                    variant="student"
+                    name={name}
+                    description={description}
+                    tags={tags}
+                    suitableFor={suitableFor}
+                    onNameChange={setName}
+                    onDescriptionChange={setDescription}
+                    onTagsChange={setTags}
+                    onSuitableForChange={setSuitableFor}
+                    saving={saving}
+                    onSave={handleSave}
+                    extraButton={
+                        <Button
+                            label="从模板创建"
+                            size="small"
+                            icon="pi pi-book"
+                            onClick={() => setSelectTemplateDialogVisible(true)}
+                            disabled={saving}
+                        />
+                    }
+                />
+
+                <Card className="shadow-sm mb-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
+                        {/* 左侧：周历视图 */}
+                        <div className="lg:col-span-1">
+                            <WeekCalendar
+                                days={days}
+                                selectedDayIndex={selectedDayIndex}
+                                onSelectDay={setSelectedDayIndex}
+                                onAddWeek={handleAddWeek}
+                                onAddWeekFromExisting={handleAddWeekFromExisting}
+                                onDeleteWeek={handleDeleteWeek}
+                                saving={saving}
+                            />
+                        </div>
+
+                        {/* 右侧：训练日详情 */}
+                        <div className="lg:col-span-2">
+                            {selectedDay ? (
+                                <PlanDayCard
+                                    day={selectedDay}
+                                    dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
+                                    actions={actions}
+                                    onDayTypeChange={handleDayTypeChange}
+                                    onRemoveDay={handleRemoveDay}
+                                    onNoteChange={handleNoteChange}
+                                    onAddActionSet={handleAddActionSet}
+                                    onRemoveActionSet={handleRemoveActionSet}
+                                    onActionSetChange={handleActionSetChange}
+                                    saving={saving}
+                                    totalDays={days.length}
+                                    onCopyFromDay={handleCopyFromDay}
+                                    existingTrainingDays={existingTrainingDays}
+                                />
+                            ) : (
+                                <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
+                                    <div className="text-center p-6">
+                                        <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
+                                        <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
+                                        <p className="text-600">从左侧日历中选择一个训练日</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-2">
+                        <Button
+                            label="取消"
+                            icon="pi pi-times"
+                            onClick={confirmCancel}
+                            className="p-button-text"
+                            disabled={saving}
+                        />
+                        <Button
+                            label={instanceExists ? "更新计划" : "制定计划"}
+                            icon="pi pi-check"
+                            onClick={handleSave}
+                            loading={saving}
+                        />
+                    </div>
+                </Card>
+            </div>
+
+            {/* 右侧：学员档案面板 */}
+            <StudentProfilePanel
+                subscriptionId={params.id as string}
+                studentName={studentName}
+                expanded={profilePanelExpanded}
+                onToggle={() => setProfilePanelExpanded(!profilePanelExpanded)}
+            />
         </div>
     );
 };
