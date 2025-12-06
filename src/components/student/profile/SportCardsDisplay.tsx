@@ -28,42 +28,42 @@ export const SportCardsDisplay: React.FC<SportCardsDisplayProps> = ({ sportCards
         <div className="space-y-4">
             {/* 力量举卡片 */}
             {sportCards.activeCards.includes('powerlifting') && sportCards.powerlifting && (
-                <div className="bg-surface rounded-2xl shadow-sm overflow-hidden">
-                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-3">
-                        <h3 className="text-base font-bold flex items-center gap-2 text-white">
-                            <Dumbbell className="w-5 h-5" />
+                <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200">
+                    <div className="px-5 py-3 border-b border-surface-200">
+                        <h3 className="text-base font-bold flex items-center gap-2 text-surface-900">
+                            <Dumbbell className="w-5 h-5 text-primary" />
                             力量举
                         </h3>
                     </div>
                     <div className="p-5">
                         <div className="grid grid-cols-4 gap-3">
-                            <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-200">
-                                <div className="text-xs text-orange-600 mb-1 font-medium">深蹲</div>
-                                <div className="text-xl font-bold text-orange-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">深蹲</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.powerlifting.squat || '-'}
                                 </div>
-                                <div className="text-xs text-orange-500">kg</div>
+                                <div className="text-xs text-surface-500">kg</div>
                             </div>
-                            <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-200">
-                                <div className="text-xs text-orange-600 mb-1 font-medium">卧推</div>
-                                <div className="text-xl font-bold text-orange-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">卧推</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.powerlifting.bench || '-'}
                                 </div>
-                                <div className="text-xs text-orange-500">kg</div>
+                                <div className="text-xs text-surface-500">kg</div>
                             </div>
-                            <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-200">
-                                <div className="text-xs text-orange-600 mb-1 font-medium">硬拉</div>
-                                <div className="text-xl font-bold text-orange-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">硬拉</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.powerlifting.deadlift || '-'}
                                 </div>
-                                <div className="text-xs text-orange-500">kg</div>
+                                <div className="text-xs text-surface-500">kg</div>
                             </div>
-                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-center">
-                                <div className="text-xs text-white/80 mb-1 font-medium">总和</div>
-                                <div className="text-xl font-bold text-white">
+                            <div className="bg-surface-100 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">总和</div>
+                                <div className="text-xl font-bold text-surface-900">
                                     {getPowerliftingTotal()}
                                 </div>
-                                <div className="text-xs text-white/80">kg</div>
+                                <div className="text-xs text-surface-500">kg</div>
                             </div>
                         </div>
                     </div>
@@ -72,49 +72,49 @@ export const SportCardsDisplay: React.FC<SportCardsDisplayProps> = ({ sportCards
 
             {/* 健美卡片 */}
             {sportCards.activeCards.includes('bodybuilding') && sportCards.bodybuilding && (
-                <div className="bg-surface rounded-2xl shadow-sm overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-5 py-3">
-                        <h3 className="text-base font-bold flex items-center gap-2 text-white">
-                            <User className="w-5 h-5" />
+                <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200">
+                    <div className="px-5 py-3 border-b border-surface-200">
+                        <h3 className="text-base font-bold flex items-center gap-2 text-surface-900">
+                            <User className="w-5 h-5 text-primary" />
                             健美/形体
                         </h3>
                     </div>
                     <div className="p-5">
                         <div className="grid grid-cols-5 gap-3">
-                            <div className="bg-purple-50 rounded-xl p-4 text-center border border-purple-200">
-                                <div className="text-xs text-purple-600 mb-1 font-medium">胸围</div>
-                                <div className="text-xl font-bold text-purple-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">胸围</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.bodybuilding.chest || '-'}
                                 </div>
-                                <div className="text-xs text-purple-500">cm</div>
+                                <div className="text-xs text-surface-500">cm</div>
                             </div>
-                            <div className="bg-purple-50 rounded-xl p-4 text-center border border-purple-200">
-                                <div className="text-xs text-purple-600 mb-1 font-medium">臂围</div>
-                                <div className="text-xl font-bold text-purple-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">臂围</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.bodybuilding.arm || '-'}
                                 </div>
-                                <div className="text-xs text-purple-500">cm</div>
+                                <div className="text-xs text-surface-500">cm</div>
                             </div>
-                            <div className="bg-purple-50 rounded-xl p-4 text-center border border-purple-200">
-                                <div className="text-xs text-purple-600 mb-1 font-medium">腰围</div>
-                                <div className="text-xl font-bold text-purple-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">腰围</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.bodybuilding.waist || '-'}
                                 </div>
-                                <div className="text-xs text-purple-500">cm</div>
+                                <div className="text-xs text-surface-500">cm</div>
                             </div>
-                            <div className="bg-purple-50 rounded-xl p-4 text-center border border-purple-200">
-                                <div className="text-xs text-purple-600 mb-1 font-medium">臀围</div>
-                                <div className="text-xl font-bold text-purple-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">臀围</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.bodybuilding.hip || '-'}
                                 </div>
-                                <div className="text-xs text-purple-500">cm</div>
+                                <div className="text-xs text-surface-500">cm</div>
                             </div>
-                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-center">
-                                <div className="text-xs text-white/80 mb-1 font-medium">体脂率</div>
-                                <div className="text-xl font-bold text-white">
+                            <div className="bg-surface-100 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">体脂率</div>
+                                <div className="text-xl font-bold text-surface-900">
                                     {sportCards.bodybuilding.bodyfat || '-'}
                                 </div>
-                                <div className="text-xs text-white/80">%</div>
+                                <div className="text-xs text-surface-500">%</div>
                             </div>
                         </div>
                     </div>
@@ -123,42 +123,42 @@ export const SportCardsDisplay: React.FC<SportCardsDisplayProps> = ({ sportCards
 
             {/* 体能卡片 */}
             {sportCards.activeCards.includes('fitness') && sportCards.fitness && (
-                <div className="bg-surface rounded-2xl shadow-sm overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-500 to-green-600 px-5 py-3">
-                        <h3 className="text-base font-bold flex items-center gap-2 text-white">
-                            <Activity className="w-5 h-5" />
+                <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200">
+                    <div className="px-5 py-3 border-b border-surface-200">
+                        <h3 className="text-base font-bold flex items-center gap-2 text-surface-900">
+                            <Activity className="w-5 h-5 text-primary" />
                             一般体能
                         </h3>
                     </div>
                     <div className="p-5">
                         <div className="grid grid-cols-4 gap-3">
-                            <div className="bg-green-50 rounded-xl p-4 text-center border border-green-200">
-                                <div className="text-xs text-green-600 mb-1 font-medium">引体向上</div>
-                                <div className="text-xl font-bold text-green-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">引体向上</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.fitness.pullups || '-'}
                                 </div>
-                                <div className="text-xs text-green-500">次</div>
+                                <div className="text-xs text-surface-500">次</div>
                             </div>
-                            <div className="bg-green-50 rounded-xl p-4 text-center border border-green-200">
-                                <div className="text-xs text-green-600 mb-1 font-medium">俯卧撑</div>
-                                <div className="text-xl font-bold text-green-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">俯卧撑</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.fitness.pushups || '-'}
                                 </div>
-                                <div className="text-xs text-green-500">次</div>
+                                <div className="text-xs text-surface-500">次</div>
                             </div>
-                            <div className="bg-green-50 rounded-xl p-4 text-center border border-green-200">
-                                <div className="text-xs text-green-600 mb-1 font-medium">平板支撑</div>
-                                <div className="text-xl font-bold text-green-700">
+                            <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">平板支撑</div>
+                                <div className="text-xl font-bold text-primary">
                                     {sportCards.fitness.plank || '-'}
                                 </div>
-                                <div className="text-xs text-green-500">秒</div>
+                                <div className="text-xs text-surface-500">秒</div>
                             </div>
-                            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-center">
-                                <div className="text-xs text-white/80 mb-1 font-medium">静态心率</div>
-                                <div className="text-xl font-bold text-white">
+                            <div className="bg-surface-100 rounded-xl p-4 text-center border border-surface-200">
+                                <div className="text-xs text-surface-600 mb-1 font-medium">静态心率</div>
+                                <div className="text-xl font-bold text-surface-900">
                                     {sportCards.fitness.restingHR || '-'}
                                 </div>
-                                <div className="text-xs text-white/80">bpm</div>
+                                <div className="text-xs text-surface-500">bpm</div>
                             </div>
                         </div>
                     </div>

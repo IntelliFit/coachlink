@@ -202,20 +202,16 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
             {/* 显示加载状态的骨架屏 */}
             {!profile ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[...Array(8)].map((_, index) => (
+                    {[...Array(6)].map((_, index) => (
                         <InfoItemSkeleton key={index} />
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InfoItem label="昵称" value={profile?.nickname || user.phone || '-'} />
-                    <InfoItem label="年龄" value={profile?.age ? `${profile.age}岁` : null} />
-                    <InfoItem label="性别" value={getGenderDisplay(profile?.gender)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
                     <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
                     <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
-                    <InfoItem label="健身水平" value={getFitnessLevelDisplay(profile?.fitness_level)} />
-                    <InfoItem label="生活作息" value={profile?.lifestyle || null} />
+                    <InfoItem label="健身水平" value={getFitnessLevelDisplay(profile?.fitness_level)} /><InfoItem label="生活作息" value={profile?.lifestyle || null} />
                 </div>
             )}
 

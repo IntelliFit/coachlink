@@ -24,7 +24,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data }) => {
     return (
         <div className="bg-surface-50 rounded-2xl shadow-sm p-8 mb-6 relative overflow-hidden">
             {/* Background decoration */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-primary-600 to-red-600 opacity-50" />
+            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-primary-600 to-red-600" />
             
             <div className="relative flex flex-col items-center text-center">
                 {/* Avatar */}
