@@ -1,9 +1,9 @@
 import React from 'react';
-import { Crown, Users, Activity, Clock } from 'lucide-react';
+import { Crown, Users } from 'lucide-react';
 import { ProfileHeaderProps } from './types';
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data }) => {
-    const { user, profile, stats, subscriptionLevel } = data;
+    const { user, profile, subscriptionLevel } = data;
     
     const getLevelLabel = (level: string) => {
         switch(level) {
@@ -45,7 +45,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data }) => {
                     {profile?.nickname || `用户 ${user.phone?.slice(-4)}`}
                 </h1>
                 
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex items-center gap-2">
                     <span className="px-3 py-1 rounded-full bg-primary-50 text-primary text-sm font-medium flex items-center gap-1">
                         <Users size={14} />
                         学员
@@ -54,30 +54,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data }) => {
                         <Crown size={14} />
                         {getLevelLabel(subscriptionLevel)}
                     </span>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl">
-                    <div className="p-4 rounded-xl bg-surface-50 border border-surface-100 flex flex-col items-center hover:shadow-md transition-shadow">
-                        <div className="text-surface-400 mb-1"><Users size={20} /></div>
-                        <div className="text-2xl font-bold text-surface-900">{stats.subscriptionCount}</div>
-                        <div className="text-xs text-surface-500">订阅教练</div>
-                    </div>
-                    <div className="p-4 rounded-xl bg-surface-50 border border-surface-100 flex flex-col items-center hover:shadow-md transition-shadow">
-                        <div className="text-surface-400 mb-1"><Activity size={20} /></div>
-                        <div className="text-2xl font-bold text-surface-900">{stats.activePlanCount}</div>
-                        <div className="text-xs text-surface-500">进行中计划</div>
-                    </div>
-                    <div className="p-4 rounded-xl bg-surface-50 border border-surface-100 flex flex-col items-center hover:shadow-md transition-shadow">
-                        <div className="text-surface-400 mb-1"><Crown size={20} /></div>
-                        <div className="text-2xl font-bold text-surface-900">{stats.completedWorkouts}</div>
-                        <div className="text-xs text-surface-500">完成训练</div>
-                    </div>
-                    <div className="p-4 rounded-xl bg-surface-50 border border-surface-100 flex flex-col items-center hover:shadow-md transition-shadow">
-                        <div className="text-surface-400 mb-1"><Clock size={20} /></div>
-                        <div className="text-2xl font-bold text-surface-900">{Math.round(stats.totalTrainingTime / 60)}</div>
-                        <div className="text-xs text-surface-500">训练小时</div>
-                    </div>
                 </div>
             </div>
         </div>

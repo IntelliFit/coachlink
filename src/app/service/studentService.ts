@@ -149,10 +149,15 @@ class StudentService extends BaseService {
      * @returns
      */
     async updateProfile(reqData: UpdateProileDto) {
-        const res = await this.post<UpdateProfileResponseDto>("update-profile", reqData);
+        const res = await this.post<UpdateProfileResponseDto>(
+            "update-profile",
+            reqData,
+        );
+        console.log("updateProfile API response:", res.data);
         if (res.data && res.data.success) {
             return res.data.data;
         }
+        console.error("updateProfile failed:", res.data);
         return null;
     }
 }
