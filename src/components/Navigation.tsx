@@ -158,10 +158,38 @@ export default function Navigation() {
                 { separator: true }
              );
              if (session?.user?.primary_role !== 'coach') {
+                 // Get label and route based on coach_status
+                 const coachStatus = session?.user?.coach_status || 'none';
+                 let label = '申请成为教练';
+                 let route = '/apply';
+                 let statusBadge = '';
+                 
+                 switch (coachStatus) {
+                     case 'pending':
+                         label = '教练申请 (审核中)';
+                         route = '/apply/status';
+                         break;
+                     case 'approved':
+                         label = '教练申请 (已通过)';
+                         route = '/coach/onboarding';
+                         break;
+                     case 'rejected':
+                         label = '教练申请 (被驳回)';
+                         route = '/apply/edit';
+                         break;
+                     case 'draft':
+                         label = '教练申请 (草稿)';
+                         route = '/apply/edit';
+                         break;
+                     default:
+                         label = '申请成为教练';
+                         route = '/apply';
+                 }
+                 
                  items.push({
-                    label: '申请成为教练',
+                    label: label,
                     icon: 'pi pi-user-plus',
-                    command: () => router.push('/apply'),
+                    command: () => router.push(route),
                 }, { separator: true });
              }
         }

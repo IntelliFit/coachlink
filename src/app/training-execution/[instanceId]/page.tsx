@@ -151,6 +151,7 @@ function TrainingExecutionContent() {
 
             // 1. Upload video first if selected (so API can retrieve video_url)
             let uploadedVideoUrl: string | undefined;
+            let uploadedVideoId: string | undefined;
             let hasVideo = false;
             if (videoFile) {
                 try {
@@ -163,6 +164,7 @@ function TrainingExecutionContent() {
                     );
                     if (uploadRes?.data?.video_url) {
                         uploadedVideoUrl = uploadRes.data.video_url;
+                        uploadedVideoId = uploadRes.data.id;
                         hasVideo = true;
                     }
                 } catch (err) {
@@ -202,7 +204,8 @@ function TrainingExecutionContent() {
                         weight,
                         reps,
                         rpe: rpe || undefined,
-                        notes: setNotes || undefined
+                        notes: setNotes || undefined,
+                        videoId: uploadedVideoId
                     });
                 }
 

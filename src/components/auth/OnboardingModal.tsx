@@ -43,12 +43,14 @@ interface SportCards {
 }
 
 interface FormData {
-    fullName: string;
+    nickname: string;
     age: number | null;
     gender: string;
     height: number | null;
     weight: number | null;
     lifestyle: string;
+    fitnessGoal: string;
+    fitnessLevel: string;
     sportCards: SportCards;
 }
 
@@ -63,6 +65,20 @@ const GENDER_OPTIONS = [
     { label: '女', value: 'female' },
 ];
 
+const FITNESS_GOAL_OPTIONS = [
+    { label: '减脂塑形', value: '减脂' },
+    { label: '增肌强身', value: '增肌' },
+    { label: '力量提升', value: '力量提升' },
+    { label: '体能改善', value: '体能改善' },
+];
+
+const FITNESS_LEVEL_OPTIONS = [
+    { label: '初学者', value: 'beginner' },
+    { label: '中级', value: 'intermediate' },
+    { label: '高级', value: 'advanced' },
+];
+
+
 interface OnboardingModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -75,12 +91,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState<FormData>({
-        fullName: '',
+        nickname: '',
         age: null,
         gender: '',
         height: null,
         weight: null,
         lifestyle: '',
+        fitnessGoal: '',
+        fitnessLevel: '',
         sportCards: {
             activeCards: [],
             powerlifting: { squat: null, bench: null, deadlift: null },
@@ -119,8 +137,8 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
     // 验证第一步
     const validateStep1 = () => {
-        if (!formData.fullName.trim()) {
-            showToast({ severity: 'warn', summary: '请填写姓名' });
+        if (!formData.nickname.trim()) {
+            showToast({ severity: 'warn', summary: '请填写昵称' });
             return false;
         }
         if (!formData.age || formData.age < 10 || formData.age > 100) {
@@ -137,6 +155,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         }
         if (!formData.weight || formData.weight < 30 || formData.weight > 300) {
             showToast({ severity: 'warn', summary: '请填写有效的体重' });
+            return false;
+        }
+        if (!formData.fitnessGoal) {
+            showToast({ severity: 'warn', summary: '请选择健身目标' });
+            return false;
+        }
+        if (!formData.fitnessLevel) {
+            showToast({ severity: 'warn', summary: '请选择当前健身水平' });
             return false;
         }
         return true;
@@ -157,16 +183,33 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            const result = await studentService.updateProfile({
-                full_name: formData.fullName,
+            console.log('Submitting onboarding data:', {
+                nickname: formData.nickname,
                 age: formData.age,
                 gender: formData.gender,
                 height: formData.height,
                 weight: formData.weight,
                 lifestyle: formData.lifestyle,
+                fitness_goal: formData.fitnessGoal,
+                fitness_level: formData.fitnessLevel,
                 sport_cards: formData.sportCards,
                 onboarding_completed: true,
             });
+
+            const result = await studentService.updateProfile({
+                nickname: formData.nickname,
+                age: formData.age,
+                gender: formData.gender,
+                height: formData.height,
+                weight: formData.weight,
+                lifestyle: formData.lifestyle,
+                fitness_goal: formData.fitnessGoal,
+                fitness_level: formData.fitnessLevel,
+                sport_cards: formData.sportCards,
+                onboarding_completed: true,
+            });
+
+            console.log('Onboarding API result:', result);
 
             if (result) {
                 showToast({ severity: 'success', summary: '档案设置完成！' });
@@ -177,10 +220,18 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                     window.location.reload();
                 }, 300);
             } else {
-                showToast({ severity: 'error', summary: '保存失败，请重试' });
+                console.error('API returned null/undefined result');
+                showToast({ severity: 'error', summary: '保存失败', detail: 'API未返回结果，请查看浏览器控制台' });
             }
-        } catch (error) {
-            showToast({ severity: 'error', summary: '保存失败，请重试' });
+        } catch (error: any) {
+            console.error('Onboarding submission error:', error);
+            const errorMessage = error?.response?.data?.message || error?.message || '未知错误';
+            showToast({ 
+                severity: 'error', 
+                summary: '保存失败',
+                detail: errorMessage,
+                life: 5000
+            });
         } finally {
             setLoading(false);
         }
@@ -233,16 +284,18 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                     </h3>
 
                     <div className="grid grid-cols-2 gap-4">
+                        {/* 昵称 */}
                         <div className="col-span-2 mb-2">
                             <FloatLabel>
                                 <InputText
-                                    id="fullName"
-                                    value={formData.fullName}
-                                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                    id="nickname"
+                                    value={formData.nickname}
+                                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                                     className="w-full"
                                 />
-                                <label htmlFor="fullName">姓名</label>
+                                <label htmlFor="nickname">昵称 <span className="text-red-500">*</span></label>
                             </FloatLabel>
+                            <small className="text-surface-400 text-xs mt-1 block">这将是您在平台上的主要显示名称</small>
                         </div>
 
                         <FloatLabel className='mb-2'>
@@ -255,7 +308,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 min={10}
                                 max={100}
                             />
-                            <label htmlFor="age">年龄</label>
+                            <label htmlFor="age">年龄 <span className="text-red-500">*</span></label>
                         </FloatLabel>
 
                         <Dropdown
@@ -264,7 +317,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             options={GENDER_OPTIONS}
                             onChange={(e) => setFormData({ ...formData, gender: e.value })}
                             className="w-full mb-2"
-                            placeholder="性别"
+                            placeholder="性别 *"
                         />
 
                         <FloatLabel className='mb-2'>
@@ -277,7 +330,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 min={100}
                                 max={250}
                             />
-                            <label htmlFor="height">身高</label>
+                            <label htmlFor="height">身高 <span className="text-red-500">*</span></label>
                         </FloatLabel>
 
                         <FloatLabel className='mb-2'>
@@ -290,8 +343,28 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 min={30}
                                 max={300}
                             />
-                            <label htmlFor="weight">体重</label>
+                            <label htmlFor="weight">体重 <span className="text-red-500">*</span></label>
                         </FloatLabel>
+
+                        {/* 健身目标 */}
+                        <Dropdown
+                            id="fitnessGoal"
+                            value={formData.fitnessGoal}
+                            options={FITNESS_GOAL_OPTIONS}
+                            onChange={(e) => setFormData({ ...formData, fitnessGoal: e.value })}
+                            className="w-full mb-2"
+                            placeholder="健身目标 *"
+                        />
+
+                        {/* 健身水平 */}
+                        <Dropdown
+                            id="fitnessLevel"
+                            value={formData.fitnessLevel}
+                            options={FITNESS_LEVEL_OPTIONS}
+                            onChange={(e) => setFormData({ ...formData, fitnessLevel: e.value })}
+                            className="w-full mb-2"
+                            placeholder="当前水平 *"
+                        />
 
                         <div className="col-span-2">
                             <FloatLabel>

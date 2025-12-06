@@ -160,14 +160,18 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
                                     className="relative w-32 h-20 bg-surface-900 rounded-lg overflow-hidden cursor-pointer group flex-shrink-0"
                                     onClick={() => setSelectedVideo(item.videoUrl || null)}
                                 >
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-                                        <div className="w-8 h-8 rounded-full bg-surface/90 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                                            <Play size={14} className="text-primary ml-0.5" />
+                                    {/* Video thumbnail - shows first frame */}
+                                    <video 
+                                        src={item.videoUrl}
+                                        className="w-full h-full object-cover"
+                                        muted
+                                        preload="metadata"
+                                    />
+                                    {/* Play button overlay */}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                                        <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                                            <Play size={16} className="text-primary ml-0.5" fill="currentColor" />
                                         </div>
-                                    </div>
-                                    {/* Placeholder for video thumbnail, in real app use actual thumbnail */}
-                                    <div className="w-full h-full bg-surface-800 flex items-center justify-center text-surface-500">
-                                        <Video size={20} />
                                     </div>
                                 </div>
                             )}

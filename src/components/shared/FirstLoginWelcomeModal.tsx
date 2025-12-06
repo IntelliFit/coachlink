@@ -126,7 +126,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({
 
                     {/* 温馨提示 */}
                     <div className="text-xs sm:text-sm text-gray-500">
-                        <p>💡 提示：您可以随时在个人设置中完善或修改信息</p>
+                        <p>💡 提示：训练档案在「我的档案」页面编辑，账号信息在「账号设置」中修改</p>
                     </div>
                 </div>
             </div>

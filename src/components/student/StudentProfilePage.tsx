@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { studentService } from '@/app/service/studentService';
 import { useSession } from 'next-auth/react';
 import { ProfileHeader } from './profile/ProfileHeader';
-import { CoachApplicationCard } from './profile/CoachApplicationCard';
 import { PersonalInfoSection } from './profile/PersonalInfoSection';
-import { ProgressChartSection } from './profile/ProgressChartSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
-import { MyCoachesList } from './profile/MyCoachesList';
 import { CoachNotesSection } from './profile/CoachNotesSection';
 import { SportCardsDisplay } from './profile/SportCardsDisplay';
+import { MyCoachesList } from './profile/MyCoachesList';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
 
@@ -118,24 +116,13 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
             <ProfileHeader data={data} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column (Main Content) */}
-                <div className="lg:col-span-2 space-y-6">
-                    <CoachApplicationCard 
-                        status={data.coachApplicationStatus} 
-                        rejectionReason={data.coachRejectionReason} 
-                    />
-                    <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
-                    <ProgressChartSection data={data} />
-                    <ProgressTimeline data={data} />
-                    <CoachNotesSection data={data} userId={session?.user.id} />
-                </div>
-
-                {/* Right Column (Sidebar) */}
-                <div className="space-y-6">
-                    <PersonalInfoSection data={data} onUpdate={fetchData} />
-                    <MyCoachesList />
-                </div>
+            {/* Single column layout - max width for readability */}
+            <div className="max-w-4xl mx-auto space-y-6">
+                <PersonalInfoSection data={data} onUpdate={fetchData} />
+                <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
+                <ProgressTimeline data={data} />
+                <CoachNotesSection data={data} userId={session?.user.id} />
+                <MyCoachesList />
             </div>
         </div>
     );
