@@ -8,6 +8,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { CoachActionRow } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
+import ActionSetForm from './ActionSetForm';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -17,7 +18,7 @@ interface ActionOption {
 }
 
 // 自定义选项模板组件
-const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) => {
+export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) => {
     return (
         <div className="flex align-items-center">
             <div className="ml-2 flex-grow">
@@ -40,7 +41,7 @@ const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) 
 };
 
 // 自定义选中值模板组件
-const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = ({ action }) => {
+export const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = ({ action }) => {
     if (!action) {
         return <span>选择动作</span>;
     }
@@ -254,77 +255,15 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                     </div>
 
                                     {/* 表单 */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div className="md:col-span-2">
-                                            <label className="block text-900 text-xs mb-1">动作 *</label>
-                                            <Dropdown
-                                                value={set.actionId}
-                                                options={actionOptions}
-                                                onChange={(e) => {
-                                                    onActionSetChange(dayIndex, setIndex, 'actionId', e.value || '')
-                                                }}
-                                                optionLabel="label"
-                                                placeholder="选择动作"
-                                                filter
-                                                className="w-full"
-                                                disabled={saving}
-                                                itemTemplate={(option) => <ActionOptionTemplate action={option.action} />}
-                                                valueTemplate={(option) => <ActionValueTemplate action={option?.action || null} />}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-900 text-xs mb-1">组数</label>
-                                            <InputText
-                                                value={set.sets.toString()}
-                                                type="number"
-                                                onChange={(e) =>
-                                                    onActionSetChange(dayIndex, setIndex, 'sets', Number(e.target.value) || 0)
-                                                }
-                                                className="w-full"
-                                                disabled={saving}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-900 text-xs mb-1">次数</label>
-                                            <InputText
-                                                value={set.reps.toString()}
-                                                type="number"
-                                                onChange={(e) =>
-                                                    onActionSetChange(dayIndex, setIndex, 'reps', Number(e.target.value) || 0)
-                                                }
-                                                className="w-full"
-                                                disabled={saving}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-900 text-xs mb-1">强度</label>
-                                            <InputText
-                                                value={set.intensity}
-                                                onChange={(e) =>
-                                                    onActionSetChange(dayIndex, setIndex, 'intensity', e.target.value)
-                                                }
-                                                placeholder="RPE8 / 20kg 等"
-                                                className="w-full"
-                                                disabled={saving}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-900 text-xs mb-1">休息(秒)</label>
-                                            <InputText
-                                                value={set.restSeconds.toString()}
-                                                type="number"
-                                                onChange={(e) =>
-                                                    onActionSetChange(dayIndex, setIndex, 'restSeconds', Number(e.target.value) || 0)
-                                                }
-                                                className="w-full"
-                                                disabled={saving}
-                                            />
-                                        </div>
-                                    </div>
+                                    <ActionSetForm
+                                        set={set}
+                                        setIndex={setIndex}
+                                        actionOptions={actionOptions}
+                                        dayIndex={dayIndex}
+                                        saving={saving}
+                                        onActionSetChange={onActionSetChange}
+                                        actions={actions}
+                                    />
                                 </div>
 
                             ))}
