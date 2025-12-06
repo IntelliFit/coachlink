@@ -9,20 +9,26 @@ import { Button } from 'primereact/button';
 import { Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
-import { userService } from '@/app/service/userService';
+import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
 
-// 导入原有的 TodayTraining 组件
-import TodayTraining from '../coach/plans/dashboard/[id]/TodayTraining';
+import TodayTrainingCard from './TodayTrainingCard';
+import RestDayCard from './RestDayCard';
+import BrowseSection from './BrowseSection';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
     const router = useRouter();
     const { showToast } = useToastContext();
 
-    const [subscriptions, setSubscriptions] = useState<any[]>([]);
-    const [trainingPlanId, setTrainingPlanId] = useState<string>('');
+    const [instance, setInstance] = useState<any>(null);
+    const [actions, setActions] = useState<Record<string, any>>({});
+    const [todayDayIndex, setTodayDayIndex] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [subscription, setSubscription] = useState<any>(null);
+    const [executionStatus, setExecutionStatus] = useState<'none' | 'in_progress' | 'completed'>('none');
+    const [completedSets, setCompletedSets] = useState(0);
+    const [totalSets, setTotalSets] = useState(0);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -34,33 +40,61 @@ const TodayTrainingPage: React.FC = () => {
         try {
             setLoading(true);
 
-            // 获取用户的所有订阅
+            // 1. 获取订阅
             const subsResponse = await subscriptionService.getCoachSubscriptions({
                 studentId: session?.user?.id || '',
             });
 
-            if (subsResponse?.subscriptions && subsResponse.subscriptions.length > 0) {
-                setSubscriptions(subsResponse.subscriptions);
-                
-                // 获取第一个教练的训练计划
-                const firstCoachId = subsResponse.subscriptions[0].coach_id;
-                
-                // 获取该教练的训练计划列表
-                const plansResponse = await userService.getTrainingPlans({
-                    coachId: firstCoachId,
-                });
-
-                if (plansResponse?.plans && plansResponse.plans.length > 0) {
-                    // 使用第一个训练计划
-                    setTrainingPlanId(plansResponse.plans[0].id);
-                } else {
-                    showToast({
-                        severity: 'warn',
-                        summary: '未找到训练计划',
-                        detail: '该教练暂无训练计划，请联系教练创建计划',
-                    });
-                }
+            if (!subsResponse?.subscriptions || subsResponse.subscriptions.length === 0) {
+                setLoading(false);
+                return;
             }
+
+            const activeSub = subsResponse.subscriptions[0];
+            setSubscription(activeSub);
+
+            // 2. 获取计划实例（包含actions）
+            const res = await planLibService.getInstance({
+                subscriptionId: activeSub.id
+            });
+
+            if (!res?.instance) {
+                showToast({
+                    severity: 'warn',
+                    summary: '未找到训练计划',
+                    detail: '该教练暂未为您分配训练计划',
+                });
+                setLoading(false);
+                return;
+            }
+
+            setInstance(res.instance);
+            setActions(res.actions || {});
+
+            // 3. 计算今天是第几天
+            const planStartDate = new Date(res.instance.created_at);
+            const today = new Date();
+            const daysDiff = Math.floor(
+                (today.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            
+            // Day index循环：1-7
+            const calculatedDayIndex = ((daysDiff % 7) + 1);
+            setTodayDayIndex(calculatedDayIndex);
+
+            // 4. 检查今天的执行状态
+            try {
+                const execRes = await fetch(`/api/execution/check-today?instanceId=${res.instance.id}&dayIndex=${calculatedDayIndex}`);
+                const execData = await execRes.json();
+                if (execData.success && execData.data) {
+                    setExecutionStatus(execData.data.status);
+                    setCompletedSets(execData.data.completed_sets || 0);
+                    setTotalSets(execData.data.total_sets || 0);
+                }
+            } catch (e) {
+                console.log('No execution found for today');
+            }
+
         } catch (error) {
             console.error('加载数据失败:', error);
             showToast({
@@ -77,29 +111,24 @@ const TodayTrainingPage: React.FC = () => {
         return (
             <div className="max-w-6xl mx-auto px-4 py-8">
                 <Skeleton height="100px" className="mb-6" />
-                <div className="space-y-4">
-                    <Skeleton height="200px" />
-                </div>
+                <Skeleton height="400px" />
             </div>
         );
     }
 
-    if (subscriptions.length === 0) {
+    if (!subscription) {
         return (
             <div className="max-w-6xl mx-auto px-4 py-8">
-                <Card className="shadow-sm">
+                <Card>
                     <div className="text-center py-12">
                         <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                            还没有订阅任何教练
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        <h3 className="text-xl font-semibold mb-2">还没有订阅任何教练</h3>
+                        <p className="text-gray-600 mb-6">
                             订阅教练后，这里将显示您的每日训练计划
                         </p>
                         <Button
                             label="浏览教练"
                             icon="pi pi-search"
-                            className="p-button-primary"
                             onClick={() => router.push('/coach/discovery')}
                         />
                     </div>
@@ -108,22 +137,19 @@ const TodayTrainingPage: React.FC = () => {
         );
     }
 
-    if (!trainingPlanId) {
+    if (!instance) {
         return (
             <div className="max-w-6xl mx-auto px-4 py-8">
-                <Card className="shadow-sm">
+                <Card>
                     <div className="text-center py-12">
                         <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                            暂无训练计划
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            您的教练还没有为您创建训练计划，请联系教练
+                        <h3 className="text-xl font-semibold mb-2">暂无训练计划</h3>
+                        <p className="text-gray-600 mb-6">
+                            您的教练还没有为您分配训练计划
                         </p>
                         <Button
                             label="查看训练计划"
                             icon="pi pi-clipboard"
-                            className="p-button-primary"
                             onClick={() => router.push('/coach/plans')}
                         />
                     </div>
@@ -132,34 +158,57 @@ const TodayTrainingPage: React.FC = () => {
         );
     }
 
+    // 找到今天的训练日
+    const trainingDays = (instance.training_days || []) as any[];
+    const todayTraining = trainingDays.find(d => d.day_index === todayDayIndex);
+
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
             {/* 教练信息卡片 */}
-            <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-4 mb-6 text-white shadow-lg">
-                <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                        <span className="text-lg font-bold">
-                            {subscriptions[0]?.coach?.name?.charAt(0) || '教'}
-                        </span>
-                    </div>
-                    <div>
-                        <div className="text-sm opacity-90">当前教练</div>
-                        <div className="text-lg font-bold">
-                            {subscriptions[0]?.coach?.name || '未知教练'}
+            {subscription?.coach && (
+                <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-4 mb-6 text-white shadow-lg">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                            <span className="text-lg font-bold">
+                                {subscription.coach.name?.charAt(0) || '教'}
+                            </span>
                         </div>
-                        {subscriptions[0]?.coach?.title && (
-                            <div className="text-xs opacity-80">
-                                {subscriptions[0]?.coach?.title}
+                        <div>
+                            <div className="text-sm opacity-90">当前教练</div>
+                            <div className="text-lg font-bold">
+                                {subscription.coach.name || '未知教练'}
                             </div>
-                        )}
+                            {subscription.coach.title && (
+                                <div className="text-xs opacity-80">
+                                    {subscription.coach.title}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* 使用原有的 TodayTraining 组件 */}
-            <TodayTraining
-                userId={session?.user?.id || ''}
-                trainingPlanId={trainingPlanId}
+            {/* 今日训练 */}
+            {todayTraining && todayTraining.type === 'training' ? (
+                <TodayTrainingCard
+                    day={todayTraining}
+                    actions={actions}
+                    instanceId={instance.id}
+                    dayIndex={todayDayIndex}
+                    executionStatus={executionStatus}
+                    completedSets={completedSets}
+                    totalSets={totalSets}
+                />
+            ) : (
+                <RestDayCard dayIndex={todayDayIndex} />
+            )}
+
+            {/* 浏览其他训练日 */}
+            <BrowseSection
+                instance={instance}
+                actions={actions}
+                currentDayIndex={todayDayIndex}
+                todayExecutionStatus={executionStatus}
             />
         </div>
     );

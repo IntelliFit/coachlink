@@ -29,7 +29,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
             const profileRes = await studentService.getStudentProfile(session?.user.id);
             
             if (profileRes && session?.user) {
-                // Mock data for new features until backend is ready
+                // Real data (no mock timeline data - ProgressTimeline fetches from API)
                 const mockData: ProfileData = {
                     user: session.user as any, // Type assertion needed as session user might differ slightly
                     profile: profileRes.profile,
@@ -48,32 +48,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         squat: [80, 90, 100, 105, 110, 120],
                         deadlift: [100, 110, 120, 130, 140, 150]
                     },
-                    timelineData: [
-                        {
-                            id: '1',
-                            date: '2023-06-15',
-                            title: '深蹲新纪录！',
-                            description: '成功突破120kg，动作标准，核心收紧很好。',
-                            type: 'pr',
-                            stats: { weight: 120, reps: 1, rpe: 9.5 },
-                            videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' // Placeholder
-                        },
-                        {
-                            id: '2',
-                            date: '2023-06-10',
-                            title: '完成第100次训练',
-                            description: '坚持就是胜利！继续保持。',
-                            type: 'milestone'
-                        },
-                        {
-                            id: '3',
-                            date: '2023-06-01',
-                            title: '卧推技术调整',
-                            description: '调整了握距，感觉胸肌发力更明显了。',
-                            type: 'video',
-                            videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4'
-                        }
-                    ],
+                    timelineData: [], // Empty - ProgressTimeline fetches real PR data from API
                     coachesData: [
                         {
                             id: 'c1',

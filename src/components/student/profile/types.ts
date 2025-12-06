@@ -1,5 +1,34 @@
 import { UserProfilesRow, UsersRow } from "@/types";
 
+export interface PRRecord {
+    id: string;
+    exercise_name: string;
+    max_weight: number;
+    max_reps: number;
+    load_formula: string;
+    date_achieved: string;
+    notes?: string;
+    video_url?: string;
+    action_id?: string;
+    execution_id?: string;
+    created_at: string;
+}
+
+export interface TimelineItem {
+    id: string;
+    date: string;
+    title: string;
+    description: string;
+    type: "pr" | "milestone" | "video";
+    videoUrl?: string;
+    load_formula?: string;
+    stats?: {
+        weight: number;
+        reps: number;
+        rpe?: number;
+    };
+}
+
 export interface ProfileData {
     user: UsersRow;
     profile: UserProfilesRow | null;
@@ -25,19 +54,7 @@ export interface ProfileData {
         squat: number[];
         deadlift: number[];
     };
-    timelineData: {
-        id: string;
-        date: string;
-        title: string;
-        description: string;
-        type: "pr" | "milestone" | "video";
-        videoUrl?: string;
-        stats?: {
-            weight: number;
-            reps: number;
-            rpe: number;
-        };
-    }[];
+    timelineData: TimelineItem[];
     coachesData: {
         id: string;
         name: string;

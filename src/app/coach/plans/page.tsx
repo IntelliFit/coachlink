@@ -6,11 +6,30 @@ import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { Card } from 'primereact/card';
 import { Badge } from 'primereact/badge';
+import { Divider } from 'primereact/divider';
+import { Dialog } from 'primereact/dialog';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
+import { actionLibService } from '@/app/service/actionLibService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useToastContext } from '@/context/ToastContext';
-import { CoachPlanInstanceRow } from '@/types';
+import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
+
+interface TrainingDay {
+    day_index: number;
+    type: 'training' | 'rest';
+    note?: string;
+    action_sets?: ActionSet[];
+}
+
+interface ActionSet {
+    action_id: string;
+    set_name: string;
+    sets: number;
+    reps: string;
+    intensity?: string;
+    rest_seconds?: number;
+}
 
 const TrainingPlansHome: React.FC = () => {
     const { data: session } = useSession();
@@ -21,6 +40,10 @@ const TrainingPlansHome: React.FC = () => {
     const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
     const [instances, setInstances] = useState<Record<string, CoachPlanInstanceRow | null>>({});
     const [instanceLoading, setInstanceLoading] = useState<Record<string, boolean>>({});
+    const [actions, setActions] = useState<Record<string, CoachActionRow>>({});
+    const [executions, setExecutions] = useState<Record<number, any>>({});
+    const [videoModalVisible, setVideoModalVisible] = useState(false);
+    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
     // 加载订阅信息
     useEffect(() => {
@@ -54,7 +77,7 @@ const TrainingPlansHome: React.FC = () => {
         load();
     }, [session?.user?.id]);
 
-    // 加载计划实例
+    // 加载计划实例和动作详情
     useEffect(() => {
         if (!subscriptions.length || !activeSubscriptionId) return;
 
@@ -66,8 +89,25 @@ const TrainingPlansHome: React.FC = () => {
                     subscriptionId: activeSubscriptionId
                 });
 
-                if (res) {
+                if (res && res.instance) {
                     setInstances(prev => ({ ...prev, [activeSubscriptionId]: res.instance }));
+
+                    // 使用 API 返回的 actions
+                    if (res.actions) {
+                        setActions(prev => ({ ...prev, ...res.actions }));
+                    }
+
+                    // 加载执行数据
+                    try {
+                        const execRes = await fetch(`/api/plan-instance/get-with-executions?subscriptionId=${activeSubscriptionId}`);
+                        const execData = await execRes.json();
+                        console.log('执行数据加载结果:', execData);
+                        if (execData.success && execData.data?.executions) {
+                            setExecutions(execData.data.executions);
+                        }
+                    } catch (err) {
+                        console.log('加载执行数据失败:', err);
+                    }
                 }
 
             } catch (error) {
@@ -90,6 +130,20 @@ const TrainingPlansHome: React.FC = () => {
             archived: { color: 'contrast', label: '已归档', icon: 'pi pi-archive' }
         };
         return config[status as keyof typeof config] || { color: 'surface', label: status || '未知', icon: 'pi pi-question-circle' };
+    };
+
+    // 获取星期名称
+    const getDayName = (dayIndex: number) => {
+        const days = ['', '第1天', '第2天', '第3天', '第4天', '第5天', '第6天', '第7天'];
+        return days[dayIndex] || `第${dayIndex}天`;
+    };
+
+    // 计算训练日期（从今天开始）
+    const getTrainingDate = (dayIndex: number) => {
+        const today = new Date();
+        const trainingDate = new Date(today);
+        trainingDate.setDate(today.getDate() + (dayIndex - 1));
+        return trainingDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
     };
 
     // 骨架屏
@@ -168,12 +222,231 @@ const TrainingPlansHome: React.FC = () => {
         );
     };
 
+    // 动作项显示组件
+    const ActionItem = ({ actionSet, action }: { actionSet: ActionSet; action?: any }) => {
+        const actionName = action?.name || actionSet.set_name || '未知动作';
+        const hasVideo = !!action?.url; // url 是视频链接字段
+        const actionDetail = action?.detail; // detail 是动作说明字段
+
+        return (
+            <div className="flex items-center justify-between py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors">
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center gap-2 text-surface-500">
+                        <i className="pi pi-th-large text-sm" />
+                        <span className="text-sm">{actionSet.sets}组×{actionSet.reps}次</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <i className="pi pi-box text-sm text-surface-500" />
+                        <span className="font-medium text-surface-900">{actionName}</span>
+                    </div>
+                    {actionSet.intensity && (
+                        <div className="flex items-center gap-1 text-surface-600">
+                            <span className="text-sm">💪 {actionSet.intensity}</span>
+                        </div>
+                    )}
+                    {actionSet.rest_seconds && (
+                        <div className="flex items-center gap-1 text-surface-500">
+                            <i className="pi pi-clock text-xs" />
+                            <span className="text-sm">休息{actionSet.rest_seconds}秒</span>
+                        </div>
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                    {hasVideo && (
+                        <Button
+                            icon="pi pi-video"
+                            rounded
+                            text
+                            size="small"
+                            className="text-primary"
+                            tooltip="查看动作视频"
+                            tooltipOptions={{ position: 'left' }}
+                            onClick={() => window.open(action?.url, '_blank')}
+                        />
+                    )}
+                    {actionDetail && (
+                        <Button
+                            icon="pi pi-info-circle"
+                            rounded
+                            text
+                            size="small"
+                            className="text-info"
+                            tooltip={actionDetail}
+                            tooltipOptions={{ position: 'left' }}
+                        />
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // 执行详情组件
+    const ExecutionDetailsSection = ({ execution }: { execution: any }) => {
+        if (!execution || !execution.action_executions) return null;
+
+        const completedSets = execution.action_executions.flatMap((ae: any) => 
+            (ae.sets || []).filter((s: any) => s.status === 'completed').map((s: any) => ({
+                ...s,
+                action_name: ae.action_name
+            }))
+        );
+
+        if (completedSets.length === 0) return null;
+
+        return (
+            <div className="mt-4 border-t border-surface-200 pt-4">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-3 border border-green-200">
+                    <span className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                        <i className="pi pi-check-circle" />
+                        学员执行情况
+                    </span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="bg-surface-50 text-surface-600">
+                                <th className="px-3 py-2 text-left font-medium">动作</th>
+                                <th className="px-3 py-2 text-left font-medium">组数</th>
+                                <th className="px-3 py-2 text-left font-medium">重量</th>
+                                <th className="px-3 py-2 text-left font-medium">次数</th>
+                                <th className="px-3 py-2 text-left font-medium">RPE</th>
+                                <th className="px-3 py-2 text-left font-medium">备注</th>
+                                <th className="px-3 py-2 text-left font-medium">视频</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {completedSets.map((set: any, idx: number) => (
+                                <tr key={idx} className="border-t border-surface-100 hover:bg-surface-50">
+                                    <td className="px-3 py-2 font-medium text-surface-900">
+                                        {set.action_name}
+                                        {set.is_pr && <i className="pi pi-star-fill text-yellow-500 ml-2" />}
+                                    </td>
+                                    <td className="px-3 py-2">第 {set.set_number} 组</td>
+                                    <td className="px-3 py-2">{set.actual_weight ? `${set.actual_weight}kg` : '-'}</td>
+                                    <td className="px-3 py-2">{set.actual_reps ?? '-'}</td>
+                                    <td className="px-3 py-2">
+                                        {set.rpe ? (
+                                            <span className={set.rpe >= 9 ? 'text-red-600 font-medium' : ''}>
+                                                {set.rpe}
+                                            </span>
+                                        ) : '-'}
+                                    </td>
+                                    <td className="px-3 py-2 text-surface-600 max-w-[120px] truncate">
+                                        {set.notes || '-'}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        {set.has_video && set.video_url ? (
+                                            <button
+                                                onClick={() => {
+                                                    setCurrentVideoUrl(set.video_url);
+                                                    setVideoModalVisible(true);
+                                                }}
+                                                className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                            >
+                                                <i className="pi pi-video text-sm" />
+                                                <span className="text-xs">查看</span>
+                                            </button>
+                                        ) : '-'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+    // 训练日卡片
+    const TrainingDayCard = ({ day }: { day: TrainingDay }) => {
+        const isRestDay = day.type === 'rest';
+        const actionSets = day.action_sets || [];
+        const dayExecution = executions[day.day_index];
+
+        if (isRestDay) {
+            return (
+                <div className="border border-surface-200 rounded-xl p-4 bg-surface-50">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i className="pi pi-moon text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-semibold text-surface-900">{getDayName(day.day_index)}</h4>
+                            <p className="text-sm text-surface-500">休息日 · {getTrainingDate(day.day_index)}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="border border-surface-200 rounded-xl overflow-hidden">
+                {/* 训练日头部 */}
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-surface-200">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                            <i className="pi pi-bolt text-primary" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-semibold text-surface-900">{getDayName(day.day_index)}</h4>
+                            <p className="text-sm text-surface-600">
+                                {getTrainingDate(day.day_index)} · {actionSets.length} 个动作
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {dayExecution && (
+                            <Badge value="已执行" severity="success" className="rounded-full" />
+                        )}
+                        <Badge value="训练日" severity="success" className="rounded-full" />
+                    </div>
+                </div>
+
+                {/* 动作列表 */}
+                <div className="p-4 space-y-2">
+                    {actionSets.map((actionSet, idx) => (
+                        <ActionItem
+                            key={idx}
+                            actionSet={actionSet}
+                            action={actions[actionSet.action_id]}
+                        />
+                    ))}
+                    {actionSets.length === 0 && (
+                        <p className="text-center text-surface-500 py-4">暂无动作安排</p>
+                    )}
+                </div>
+
+                {/* 训练备注 */}
+                {day.note && (
+                    <div className="px-4 pb-4">
+                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                            <div className="flex items-start gap-2">
+                                <i className="pi pi-info-circle text-amber-600 mt-0.5" />
+                                <p className="text-sm text-amber-800">{day.note}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 执行详情 */}
+                {dayExecution && (
+                    <div className="px-4 pb-4">
+                        <ExecutionDetailsSection execution={dayExecution} />
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     // 计划详情卡片
     const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
         const statusConfig = getStatusConfig(instance.status);
+        const trainingDays = (instance.training_days as TrainingDay[] || [])
+            .sort((a, b) => a.day_index - b.day_index);
 
         return (
             <div className="space-y-6">
+                {/* 计划标题和状态 */}
                 <div className="flex items-start justify-between">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
@@ -190,15 +463,9 @@ const TrainingPlansHome: React.FC = () => {
                             {instance.description || '暂无描述'}
                         </p>
                     </div>
-                    <Button
-                        label="查看详情"
-                        icon="pi pi-external-link"
-                        className="rounded-full"
-                        outlined
-                        onClick={() => {/* 导航到计划详情页 */ }}
-                    />
                 </div>
 
+                {/* 计划统计 */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="bg-surface-50 border-0">
                         <div className="flex items-center gap-3">
@@ -222,7 +489,7 @@ const TrainingPlansHome: React.FC = () => {
                             <div>
                                 <p className="text-sm text-surface-500 mb-1">训练天数</p>
                                 <p className="font-semibold">
-                                    {instance.training_days?.days?.length || 0} 天
+                                    {trainingDays.filter(d => d.type === 'training').length} 天
                                 </p>
                             </div>
                         </div>
@@ -231,12 +498,12 @@ const TrainingPlansHome: React.FC = () => {
                     <Card className="bg-surface-50 border-0">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-info/10 rounded-lg flex items-center justify-center">
-                                <i className="pi pi-id-card text-xl text-info" />
+                                <i className="pi pi-list text-xl text-info" />
                             </div>
                             <div>
-                                <p className="text-sm text-surface-500 mb-1">计划ID</p>
-                                <p className="font-mono text-sm truncate" title={instance.id}>
-                                    {instance.id.substring(0, 8)}...
+                                <p className="text-sm text-surface-500 mb-1">总动作数</p>
+                                <p className="font-semibold">
+                                    {trainingDays.reduce((sum, day) => sum + (day.action_sets?.length || 0), 0)} 个
                                 </p>
                             </div>
                         </div>
@@ -263,6 +530,27 @@ const TrainingPlansHome: React.FC = () => {
                         className="rounded-full"
                         outlined
                     />
+                </div>
+
+                <Divider />
+
+                {/* 训练日列表 */}
+                <div>
+                    <h3 className="text-lg font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                        <i className="pi pi-calendar-plus text-primary" />
+                        训练安排
+                    </h3>
+                    <div className="space-y-4">
+                        {trainingDays.map((day, idx) => (
+                            <TrainingDayCard key={idx} day={day} />
+                        ))}
+                        {trainingDays.length === 0 && (
+                            <div className="text-center py-8 text-surface-500">
+                                <i className="pi pi-inbox text-4xl mb-3" />
+                                <p>暂无训练安排</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -343,6 +631,33 @@ const TrainingPlansHome: React.FC = () => {
                     </Card>
                 </div>
             )}
+
+            {/* Video Modal */}
+            <Dialog
+                visible={videoModalVisible}
+                onHide={() => {
+                    setVideoModalVisible(false);
+                    setCurrentVideoUrl(null);
+                }}
+                header="查看视频"
+                style={{ width: '90vw', maxWidth: '800px' }}
+                modal
+                dismissableMask
+            >
+                {currentVideoUrl && (
+                    <div className="flex justify-center">
+                        <video
+                            src={currentVideoUrl}
+                            controls
+                            autoPlay
+                            className="w-full max-h-[70vh] rounded-lg"
+                            style={{ backgroundColor: '#000' }}
+                        >
+                            您的浏览器不支持视频播放
+                        </video>
+                    </div>
+                )}
+            </Dialog>
         </div>
     );
 };

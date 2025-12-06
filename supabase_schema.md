@@ -1,13 +1,14 @@
 # Supabase 数据库结构文档（public schema）
 
-- **生成时间**：2025-01-27（已更新）
-- **最后更新**：2025-12-04（根据数据库分析报告更新）
+- **生成时间**：2025-01-27
+- **最后更新**：2025-12-05（反映最新数据库变更）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
-> ⚠️
-> **重要变更说明**：根据数据库分析报告（2025-12-04），已删除6个冗余表，当前保留
-> **29个表 + 3个视图 = 32个数据库对象**。
+> ⚠️ **重要变更说明**：
+> - 根据数据库分析报告（2025-12-04），已删除6个冗余表
+> - **最新更新**（2025-12-05）：新增3个表（`coach_plan_instances`, `coach_reviews`, `student_comments`）
+> - 当前保留 **32个表 + 3个视图 = 35个数据库对象**
 
 ## 目录
 
@@ -31,7 +32,7 @@
 - `admin_users` - 系统管理员账号表
 - `shipping_info` - 快递信息表
 
-### 教练相关表（9个）
+### 教练相关表（13个）
 
 - `coaches` - 教练基本信息表
 - `coach_subscriptions` - 教练订阅关系表
@@ -43,6 +44,9 @@
 - `coach_plan_template_tags` - 模板标签表
 - `coach_questionnaires` - 教练专属问卷表
 - `coach_pricing` - 教练收费套餐表
+- `coach_plan_instances` - **教练计划实例表** ⭐ **新增**（从模板生成给学员的计划）
+- `coach_reviews` - 教练评价表 ⭐ **新增**
+- `student_comments` - 学员评论表 ⭐ **新增**
 
 ### 训练相关表（7个）
 
@@ -59,7 +63,7 @@
 - `content_interactions` - 内容交互表（点赞、收藏）
 - `conversations` - 课堂/群聊会话表
 
-### 其他表（7个）
+### 其他表（6个）
 
 - `onboarding_questionnaires` - 新用户入职问卷表
 - `lifestyle_logs` - 学员生活日志表
@@ -67,10 +71,8 @@
 - `pullup_leaderboard` - 当前活跃的引体向上排行榜表
 - `rankingboard_pullup_2025_9_10` - **历史归档**表（2025年9-10月，仅作历史快照）
 - `specialties` - 教练专业领域表
-- `coach_pending_reviews` - ⚠️ **注：实际为视图**（待审教练内容，内容审核队列）
 
-**总计：29个表**（用户4 + 教练9 + 训练7 + 内容互动2 + 其他7* =
-29，*其中1个标记为视图）
+**总计：32个表**（用户4 + 教练13 + 训练7 + 内容互动2 + 其他6 = 32）
 
 ---
 
@@ -104,13 +106,36 @@
 
 ---
 
+## 新增表（最新）
+
+根据最新数据库更新（2025-12-05），新增以下表：
+
+### 新增表（3个）
+
+1. ⭐ **`coach_plan_instances`** - 教练计划实例表
+   - 用途：从模板生成给学员的个性化训练计划实例
+   - 关联：`coach_plan_templates`（模板）和 `coach_subscriptions`（订阅）
+   - 状态：活跃使用中
+
+2. ⭐ **`coach_reviews`** - 教练评价表
+   - 用途：学员对教练的评价和反馈
+   - 关联：`coach_subscriptions`, `users`, `coaches`
+   - 状态：活跃使用中
+
+3. ⭐ **`student_comments`** - 学员评论表
+   - 用途：学员的评论功能
+   - 关联：`users`, `coaches`
+   - 状态：活跃使用中
+
+---
+
 ## 表详细说明
 
 ### 1. users（统一用户表）
 
 **基本信息**
 
-- 行数：~98
+- 行数：~99
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -162,7 +187,7 @@
 
 **基本信息**
 
-- 行数：~94
+- 行数：~95
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -170,24 +195,28 @@
 
 **字段说明**
 
-| 列名          | 类型        | 可空 | 默认值            | 约束/备注                                |
-| ------------- | ----------- | ---- | ----------------- | ---------------------------------------- |
-| id            | uuid        | NO   | gen_random_uuid() | 主键                                     |
-| user_id       | uuid        | YES  |                   | 外键 → users.id，唯一                    |
-| full_name     | text        | YES  |                   |                                          |
-| nickname      | text        | YES  |                   |                                          |
-| avatar_url    | text        | YES  |                   |                                          |
-| gender        | text        | YES  |                   | ∈ {'male','female','other'}              |
-| birth_date    | date        | YES  |                   |                                          |
-| height        | integer     | YES  |                   | 单位：厘米                               |
-| weight        | integer     | YES  |                   | 单位：千克                               |
-| fitness_goal  | text        | YES  |                   |                                          |
-| fitness_level | text        | YES  |                   | ∈ {'beginner','intermediate','advanced'} |
-| bio           | text        | YES  |                   |                                          |
-| phone         | text        | YES  |                   | **冗余：与 users.phone 重复**            |
-| address       | text        | YES  |                   |                                          |
-| created_at    | timestamptz | YES  | now()             |                                          |
-| updated_at    | timestamptz | YES  | now()             |                                          |
+| 列名                  | 类型        | 可空 | 默认值            | 约束/备注                                                |
+| --------------------- | ----------- | ---- | ----------------- | -------------------------------------------------------- |
+| id                    | uuid        | NO   | gen_random_uuid() | 主键                                                     |
+| user_id               | uuid        | YES  |                   | 外键 → users.id，唯一                                    |
+| full_name             | text        | YES  |                   |                                                          |
+| nickname              | text        | YES  |                   |                                                          |
+| avatar_url            | text        | YES  |                   |                                                          |
+| gender                | text        | YES  |                   | ∈ {'male','female','other'}                              |
+| birth_date            | date        | YES  |                   |                                                          |
+| height                | integer     | YES  |                   | 单位：厘米                                               |
+| weight                | integer     | YES  |                   | 单位：千克                                               |
+| fitness_goal          | text        | YES  |                   |                                                          |
+| fitness_level         | text        | YES  |                   | ∈ {'beginner','intermediate','advanced'}                 |
+| bio                   | text        | YES  |                   |                                                          |
+| phone                 | text        | YES  |                   | **冗余：与 users.phone 重复**                            |
+| address               | text        | YES  |                   |                                                          |
+| sport_cards           | jsonb       | YES  | '{}'              | ⭐ **新增**：运动数据卡片，包含 activeCards 数组         |
+| lifestyle             | text        | YES  |                   | ⭐ **新增**：生活作息描述，如"朝九晚五，久坐办公"        |
+| onboarding_completed  | boolean     | YES  | false             | ⭐ **新增**：初始问卷是否已完成                          |
+| age                   | integer     | YES  |                   | ⭐ **新增**：年龄                                        |
+| created_at            | timestamptz | YES  | now()             |                                                          |
+| updated_at            | timestamptz | YES  | now()             |                                                          |
 
 **外键**
 
@@ -681,7 +710,7 @@
 | auto_renew     | boolean     | YES  | true              |                                             |
 | monthly_price  | numeric     | NO   |                   |                                             |
 | order_id       | uuid        | YES  |                   | 订单编号                                    |
-| subscribe_data | jsonb       | YES  |                   | **新增：订阅附带的一些基础信息**            |
+| subscribe_data | jsonb       | YES  |                   | 订阅附带的一些基础信息                      |
 | created_at     | timestamptz | YES  | now()             |                                             |
 | updated_at     | timestamptz | YES  | now()             |                                             |
 
@@ -1043,6 +1072,89 @@
 - 外键：`user_id → users.id`
 - 说明：关联用户支付
 
+#### 30. coach_plan_instances（教练计划实例表）⭐ 新增
+
+- 行数：~1
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`coach_plan_template_id → coach_plan_templates.id`, `coach_subscription_id → coach_subscriptions.id`
+- 说明：从模板生成给学员的计划实例
+
+**字段说明**
+
+| 列名                     | 类型        | 可空 | 默认值                        | 约束/备注                                                                          |
+| ------------------------ | ----------- | ---- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| id                       | uuid        | NO   | extensions.uuid_generate_v4() | 主键                                                                               |
+| coach_plan_template_id   | uuid        | YES  |                               | 外键 → coach_plan_templates.id                                                     |
+| student_id               | uuid        | YES  |                               | 学员ID                                                                             |
+| coach_id                 | uuid        | YES  |                               | 教练ID                                                                             |
+| coach_subscription_id    | uuid        | YES  |                               | 外键 → coach_subscriptions.id                                                      |
+| name                     | varchar     | NO   |                               | 计划名称                                                                           |
+| description              | text        | YES  |                               | 计划描述                                                                           |
+| training_days            | jsonb       | NO   |                               | 训练天数详情（JSON格式）                                                           |
+| status                   | varchar     | YES  | 'active'                      | ∈ {'draft','active','paused','completed','archived'}                               |
+| start_date               | date        | YES  |                               | 开始日期                                                                           |
+| end_date                 | date        | YES  |                               | 结束日期                                                                           |
+| type                     | text        | YES  |                               | 计划类型                                                                           |
+| tags                     | text[]      | YES  |                               | 标签                                                                               |
+| suitable_for             | text        | YES  |                               | 适合人群                                                                           |
+| created_at               | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                                    |
+| updated_at               | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                                    |
+
+**外键**
+- `fk_plan_template` (coach_plan_template_id → coach_plan_templates.id)
+- `coach_plan_instances_coach_subscription_id_fkey` (coach_subscription_id → coach_subscriptions.id)
+
+#### 31. coach_reviews（教练评价表）⭐ 新增
+
+- 行数：~2
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`coach_subscription_id → coach_subscriptions.id`, `student_id → users.id`, `coach_id → coaches.id`
+- 说明：学员对教练的评价和反馈
+
+**字段说明**
+
+| 列名                   | 类型        | 可空 | 默认值                        | 约束/备注                         |
+| ---------------------- | ----------- | ---- | ----------------------------- | --------------------------------- |
+| id                     | uuid        | NO   | extensions.uuid_generate_v4() | 主键                              |
+| coach_subscription_id  | uuid        | NO   |                               | 外键 → coach_subscriptions.id     |
+| student_id             | uuid        | YES  |                               | 外键 → users.id                   |
+| coach_id               | uuid        | YES  |                               | 外键 → coaches.id                 |
+| review_text            | text        | YES  |                               | 评价文本                          |
+| media_urls             | text[]      | YES  |                               | 媒体 URL 列表                     |
+| created_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                   |
+| updated_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                   |
+
+**外键**
+- `fk_coach_subscription` (coach_subscription_id → coach_subscriptions.id)
+- `coach_reviews_student_id_fkey` (student_id → users.id)
+- `coach_reviews_coach_id_fkey` (coach_id → coaches.id)
+
+#### 32. student_comments（学员评论表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`student_id → users.id`, `coach_id → coaches.id`
+- 说明：学员的评论功能
+
+**字段说明**
+
+| 列名       | 类型        | 可空 | 默认值            | 约束/备注           |
+| ---------- | ----------- | ---- | ----------------- | ------------------- |
+| id         | uuid        | NO   | gen_random_uuid() | 主键                |
+| student_id | uuid        | NO   |                   | 外键 → users.id     |
+| coach_id   | uuid        | NO   |                   | 外键 → coaches.id   |
+| comment    | text        | NO   |                   | 评论内容            |
+| media      | jsonb       | YES  |                   | 媒体信息（JSON格式）|
+| created_at | timestamptz | YES  | now()             |                     |
+| updated_at | timestamptz | YES  | now()             |                     |
+
+**外键**
+- `student_comments_student_id_fkey` (student_id → users.id)
+- `student_comments_coach_id_fkey` (coach_id → coaches.id)
+
 ---
 
 ## 视图详细说明
@@ -1221,10 +1333,13 @@ GROUP BY user_id, plan_id;
    - `coach_plan_templates.coach_id` → `coaches.id`（建议添加）
    - `coach_questionnaires.coach_id` → `coaches.id`（建议添加）
    - `coach_subscriptions.order_id` → `alipay_orders.id`（建议添加）
+   - `coach_plan_instances.student_id` → `users.id`（建议添加）
+   - `coach_plan_instances.coach_id` → `coaches.id`（建议添加）
 
 2. **索引优化**
    - 部分表缺少常用查询字段的索引
    - 建议根据实际查询模式添加复合索引
+   - `coach_plan_instances` 建议添加 `student_id`, `coach_id`, `status` 索引
 
 3. **数据一致性**
    - `coach_subscriptions.order_id` 字段建议添加外键约束
@@ -1232,6 +1347,10 @@ GROUP BY user_id, plan_id;
 
 4. **已废弃字段清理**
    - `training_videos.workout_log_id` 字段可以删除（`workout_logs` 表已删除）
+
+5. **新增表的优化**
+   - `coach_reviews` 建议添加 `coach_id` 和 `student_id` 的复合索引
+   - `student_comments` 建议添加 `coach_id` 和 `created_at` 的复合索引
 
 ---
 
@@ -1260,7 +1379,11 @@ GROUP BY user_id, plan_id;
 
 **字段变更**
 
-- `coach_subscriptions.subscribe_data` - 新增字段：订阅附带的一些基础信息
+- `coach_subscriptions.subscribe_data` (jsonb) - 新增字段：订阅附带的一些基础信息
+- `user_profiles.sport_cards` (jsonb) - 新增字段：运动数据卡片 JSONB
+- `user_profiles.lifestyle` (text) - 新增字段：生活作息描述
+- `user_profiles.onboarding_completed` (boolean) - 新增字段：初始问卷是否已完成
+- `user_profiles.age` (integer) - 新增字段：年龄
 
 **未来计划**
 
@@ -1269,6 +1392,7 @@ GROUP BY user_id, plan_id;
   表
 - 创建 `user_1rm_history` 表替代 `personal_records`
 - 统一外键引用（`auth.users` → `public.users`）
+- 为新增表（`coach_plan_instances`, `coach_reviews`, `student_comments`）添加必要的索引和外键约束
 
 ---
 
@@ -1276,7 +1400,7 @@ GROUP BY user_id, plan_id;
 
 本文档包含了 Supabase 数据库中 `public` schema 的完整结构信息，包括：
 
-- ✅ **29个表**的详细说明（已删除6个冗余表）
+- ✅ **32个表**的详细说明（已删除6个冗余表，新增3个表）
 - ✅ **3个视图**的定义
 - ✅ 所有索引信息
 - ✅ 外键关系
@@ -1291,12 +1415,28 @@ GROUP BY user_id, plan_id;
 3. `personal_records` 标记为已废弃，建议用 `user_1rm_history` 替代
 4. `coach_subscriptions` 新增 `subscribe_data` 字段
 5. 明确了表的用途和状态
-6. **数据库对象统计**：29个表 + 3个视图 = 32个数据库对象
+
+**最新变更（2025-12-05）：**
+
+1. ⭐ **新增3个表**：
+   - `coach_plan_instances` - 教练计划实例表（从模板生成给学员的计划）
+   - `coach_reviews` - 教练评价表（学员对教练的评价和反馈）
+   - `student_comments` - 学员评论表（学员的评论功能）
+
+2. 📝 **user_profiles 表新增4个字段**：
+   - `sport_cards` (jsonb) - 运动数据卡片
+   - `lifestyle` (text) - 生活作息描述
+   - `onboarding_completed` (boolean) - 初始问卷是否已完成
+   - `age` (integer) - 年龄
+
+3. 📊 **数据库对象统计**：32个表 + 3个视图 = 35个数据库对象
 
 **下一步建议：**
 
-1. 清理冗余索引
-2. 补充缺失的外键约束
-3. 统一外键引用（`auth.users` vs `public.users`）
-4. 创建新的快照表结构（`student_training_plans` 等）
-5. 创建 `user_1rm_history` 表替代 `personal_records`
+1. 为新增表添加索引（`coach_plan_instances`, `coach_reviews`, `student_comments`）
+2. 为新增表添加缺失的外键约束
+3. 清理冗余索引
+4. 统一外键引用（`auth.users` vs `public.users`）
+5. 创建新的快照表结构（`student_training_plans` 等）
+6. 创建 `user_1rm_history` 表替代 `personal_records`
+7. 清理 `training_videos.workout_log_id` 等已废弃字段

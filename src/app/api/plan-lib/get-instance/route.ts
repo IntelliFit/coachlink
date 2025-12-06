@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabase from '@/lib/supabaseClient';
+import supabase from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
@@ -12,19 +12,19 @@ export async function POST(req: Request) {
     if (!userId) {
         return NextResponse.json({
             success: false,
-            message: "Unauthorized"
+            message: "Unauthorized",
         }, { status: 401 });
     }
 
     const {
         id,
-        subscriptionId
+        subscriptionId,
     } = await req.json() as GetInstanceDto;
 
     if (!id && !subscriptionId) {
         return NextResponse.json({
             success: false,
-            message: "Invalid parameters"
+            message: "Invalid parameters",
         });
     }
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     if (subscriptionId) {
-        query = query.eq('coach_subscription_id', subscriptionId);
+        query = query.eq("coach_subscription_id", subscriptionId);
     }
 
     // 获取计划实例
@@ -48,16 +48,16 @@ export async function POST(req: Request) {
             success: true,
             message: "No plan instance found",
             data: {
-                instance: null
-            }
-        })
+                instance: null,
+            },
+        });
     }
 
     if (error) {
         console.error("Error fetching instance:", error);
         return NextResponse.json({
             success: false,
-            message: "Failed to fetch instance"
+            message: "Failed to fetch instance",
         }, { status: 500 });
     }
 
@@ -65,18 +65,17 @@ export async function POST(req: Request) {
 
     if (session.user.is_coach) {
         const { data: coach, error: coachError } = await supabase
-            .from('coaches')
-            .select('user_id')
-            .eq('id', instance.coach_id)
+            .from("coaches")
+            .select("user_id")
+            .eq("id", instance.coach_id)
             .single();
-        
+
         if (coach.user_id !== userId) {
             return NextResponse.json({
                 success: false,
-                message: "无权限查看该教练"
+                message: "无权限查看该教练",
             }, { status: 403 });
         }
-
     } else {
         if (instance.student_id !== userId) {
             return NextResponse.json({
@@ -86,11 +85,44 @@ export async function POST(req: Request) {
         }
     }
 
-    return NextResponse.json<ApiData<GetInstanceResponseDto>>({
+    // 为学员端加载动作详情
+    let actionsMap: Record<string, any> = {};
+    if (!session.user.is_coach && instance.training_days) {
+        const trainingDays = instance.training_days as any[];
+        const actionIds = new Set<string>();
+
+        // 收集所有 action_id
+        trainingDays.forEach((day: any) => {
+            day.action_sets?.forEach((set: any) => {
+                if (set.action_id) {
+                    actionIds.add(set.action_id);
+                }
+            });
+        });
+
+        // 批量获取动作详情
+        if (actionIds.size > 0) {
+            const { data: actions } = await supabase
+                .from("coach_actions")
+                .select("*")
+                .in("id", Array.from(actionIds));
+
+            if (actions) {
+                actions.forEach((action) => {
+                    actionsMap[action.id] = action;
+                });
+            }
+        }
+    }
+
+    return NextResponse.json<ApiData<any>>({
         success: true,
         message: "获取训练计划实例成功",
         data: {
-            instance
-        }
+            instance,
+            actions: Object.keys(actionsMap).length > 0
+                ? actionsMap
+                : undefined,
+        },
     });
 }

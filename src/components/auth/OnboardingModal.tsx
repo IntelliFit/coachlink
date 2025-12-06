@@ -212,7 +212,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             modal
             blockScroll
             dismissableMask={false}
-            closable={false}
+            closable={true}
             className="onboarding-modal"
         >
             {/* 进度条 */}

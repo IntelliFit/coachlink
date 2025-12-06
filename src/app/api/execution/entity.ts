@@ -1,0 +1,125 @@
+// API Entity Types for Training Execution
+
+// Start Execution
+export interface StartExecutionDto {
+    instanceId: string;
+    dayIndex: number;
+}
+
+export interface StartExecutionResponseDto {
+    success: boolean;
+    data?: {
+        id: string;
+        instance_id: string;
+        student_id: string;
+        day_index: number;
+        status: string;
+        action_executions: any[];
+        total_sets: number;
+        completed_sets: number;
+        started_at: string;
+    };
+    message?: string;
+}
+
+// Complete Set
+export interface CompleteSetDto {
+    executionId: string;
+    actionIndex: number;
+    setIndex: number;
+    actionId: string; // For video lookup
+    actualWeight?: number;
+    actualReps?: number;
+    rpe?: number;
+    notes?: string;
+    is_pr?: boolean; // PR flag
+    has_video?: boolean; // Video uploaded flag
+}
+
+export interface CompleteSetResponseDto {
+    success: boolean;
+    data?: {
+        executionId: string;
+        completedSets: number;
+        totalSets: number;
+    };
+    message?: string;
+}
+
+// Finish Training
+export interface FinishTrainingDto {
+    executionId: string;
+    sessionNotes?: string;
+}
+
+export interface FinishTrainingResponseDto {
+    success: boolean;
+    data?: {
+        id: string;
+        status: string;
+        completed_at: string;
+        completed_sets: number;
+        total_sets: number;
+    };
+    message?: string;
+}
+
+// Upload Set Video
+export interface UploadSetVideoResponseDto {
+    success: boolean;
+    data?: {
+        id: string;
+        execution_id: string;
+        action_id: string;
+        set_number: number;
+        video_url: string;
+        storage_path: string;
+    };
+    message?: string;
+}
+
+// Create PR
+export interface CreatePRDto {
+    executionId: string;
+    actionId: string;
+    actionName: string;
+    setNumber: number;
+    weight: number;
+    reps: number;
+    rpe?: number;
+    notes?: string;
+    videoId?: string;
+}
+
+export interface CreatePRResponseDto {
+    success: boolean;
+    data?: {
+        id: string;
+        user_id: string;
+        exercise_name: string;
+        max_weight: number;
+        max_reps: number;
+        load_formula: string;
+        date_achieved: string;
+    };
+    message?: string;
+}
+
+// Get Execution
+export interface GetExecutionResponseDto {
+    success: boolean;
+    data?: {
+        id: string;
+        instance_id: string;
+        student_id: string;
+        day_index: number;
+        status: string;
+        action_executions: any[];
+        total_sets: number;
+        completed_sets: number;
+        session_notes?: string;
+        started_at: string;
+        completed_at?: string;
+    };
+    message?: string;
+}

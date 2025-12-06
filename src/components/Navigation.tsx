@@ -45,12 +45,12 @@ export default function Navigation() {
         setIsClient(true);
     }, []);
 
-    // 检查是否完成初始问卷 (Onboarding Check)
+    // 检查是否完成初始问卷 (Onboarding Check) - 仅在学员端显示
     useEffect(() => {
         if (status === 'loading') return;
 
-        // 如果用户已登录
-        if (session?.user) {
+        // 如果用户已登录且在学员端
+        if (session?.user && viewMode === 'student') {
             const profile = session.profile as any;
             
             // 检查 onboarding_completed 状态
@@ -62,7 +62,7 @@ export default function Navigation() {
                 openOnboardingModal();
             }
         }
-    }, [session, status, openOnboardingModal]);
+    }, [session, status, viewMode, openOnboardingModal]);
 
     const gotoCoachDisplayPage = async () => {
         const res = await coachService.getCoach({
