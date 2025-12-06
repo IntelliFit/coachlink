@@ -18,6 +18,7 @@ import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetInstanceDto } from '@/app/api/plan-lib/get-instance/entity';
+import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 
@@ -69,7 +70,8 @@ const StudentPlanPage = () => {
     const [instanceExists, setInstanceExists] = useState(false);
     const [selectTemplateDialogVisible, setSelectTemplateDialogVisible] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-
+    const [studentName, setStudentName] = useState<string>('');
+    const [instanceId, setInstanceId] = useState<string | null>(null);
     // Load instance data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
@@ -86,6 +88,21 @@ const StudentPlanPage = () => {
                     setActions(res.actions);
                 }
 
+                // Load student name from subscriptions
+                try {
+                    const studentsRes = await coachService.getStudents({ page: 0, limit: 100 });
+                    if (studentsRes?.students) {
+                        const student = studentsRes.students.find((s: any) => s.id === params.id);
+                        if (student?.profile?.nickname) {
+                            setStudentName(student.profile.nickname);
+                        } else if (student?.profile?.full_name) {
+                            setStudentName(student.profile.full_name);
+                        }
+                    }
+                } catch (e) {
+                    console.log('Could not load student name');
+                }
+
                 // Try to load instance data
                 try {
                     const instanceReq: GetInstanceDto = {
@@ -95,6 +112,7 @@ const StudentPlanPage = () => {
 
                     if (instanceRes) {
                         // Fill form with instance data
+                        setInstanceId(instanceRes.instance.id); // Save the instance ID
                         setName(instanceRes.instance.name);
                         setDescription(instanceRes.instance.description || '');
 
@@ -371,10 +389,10 @@ const StudentPlanPage = () => {
                 : []
         }));
 
-        if (instanceExists) {
+        if (instanceExists && instanceId) {
             // Update existing instance
             const res = await planLibService.updateInstance({
-                id: params.id as string,
+                id: instanceId, // Use the actual instance ID, not subscription ID
                 name,
                 description: description || null,
                 tags: tags || null,
@@ -520,7 +538,9 @@ const StudentPlanPage = () => {
                 coachId={coach?.id || ''}
             />
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-900">学员训练计划</h1>
+                <h1 className="text-2xl font-bold text-900">
+                    {studentName ? `${studentName}的训练计划` : '学员训练计划'}
+                </h1>
                 <Button
                     label="取消"
                     icon="pi pi-arrow-left"
@@ -531,6 +551,7 @@ const StudentPlanPage = () => {
             </div>
 
             <BasicInfoForm
+                variant="student"
                 name={name}
                 description={description}
                 tags={tags}

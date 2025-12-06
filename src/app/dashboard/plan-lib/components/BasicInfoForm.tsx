@@ -18,6 +18,7 @@ interface BasicInfoFormProps {
     saving: boolean;
     onSave: () => void;
     extraButton?: React.ReactNode;
+    variant?: 'template' | 'student';
 }
 
 const experienceLevels = [
@@ -37,10 +38,12 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     onSuitableForChange,
     saving,
     onSave,
-    extraButton
+    extraButton,
+    variant = 'template'
 }) => {
 
     const [templateTypes, setTemplateTypes] = useState<{ label: string, value: string }[]>([]);
+    const isStudent = variant === 'student';
 
     useEffect(() => {
         const allTags = [
@@ -63,7 +66,7 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
 
             <div className='flex justify-between items-center'>
                 <h2 className="text-xl font-semibold">
-                    模板基础信息
+                    {isStudent ? '计划基础信息' : '模板基础信息'}
                 </h2>
                 <div>
                     {extraButton}
@@ -80,23 +83,23 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                 gap-10
             ">
                 {/* 左侧表单区域 */}
-                <div className="flex flex-col gap-5 w-full md:max-w-md">
+                <div className={`flex flex-col gap-5 w-full ${isStudent ? '' : 'md:max-w-md'}`}>
 
-                    {/* 模板名称 */}
+                    {/* 名称 */}
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm text-900 font-medium">模板名称 *</label>
+                        <label className="text-sm text-900 font-medium">{isStudent ? '计划名称 *' : '模板名称 *'}</label>
                         <InputText
                             value={name}
                             onChange={(e) => onNameChange(e.target.value)}
-                            placeholder="输入模板名称"
+                            placeholder={isStudent ? "输入计划名称" : "输入模板名称"}
                             className="p-inputtext-sm"
                             disabled={saving}
                         />
                     </div>
 
-                    {/* 模板描述 */}
+                    {/* 描述 */}
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm text-900 font-medium">模板描述</label>
+                        <label className="text-sm text-900 font-medium">{isStudent ? '计划描述' : '模板描述'}</label>
                         <InputText
                             value={description}
                             onChange={(e) => onDescriptionChange(e.target.value)}
@@ -106,50 +109,56 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                         />
                     </div>
 
-                    {/* 模板标签 */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm text-900 font-medium">模板标签</label>
-                        <MultiSelect
-                            value={tags}
-                            options={templateTypes}
-                            onChange={(e) => onTagsChange(e.value)}
-                            placeholder="选择模板标签"
-                            className="text-sm"
-                            disabled={saving}
-                            display="chip"
-                        />
-                    </div>
+                    {!isStudent && (
+                        <>
+                            {/* 模板标签 */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm text-900 font-medium">模板标签</label>
+                                <MultiSelect
+                                    value={tags}
+                                    options={templateTypes}
+                                    onChange={(e) => onTagsChange(e.value)}
+                                    placeholder="选择模板标签"
+                                    className="text-sm"
+                                    disabled={saving}
+                                    display="chip"
+                                />
+                            </div>
 
-                    {/* 适合学员等级 */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm text-900 font-medium">适合学员等级</label>
-                        <Dropdown
-                            value={suitableFor}
-                            options={experienceLevels}
-                            onChange={(e) => onSuitableForChange(e.value)}
-                            placeholder="选择适合的学员等级"
-                            className="p-inputtext-sm"
-                            disabled={saving}
-                        />
-                    </div>
+                            {/* 适合学员等级 */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm text-900 font-medium">适合学员等级</label>
+                                <Dropdown
+                                    value={suitableFor}
+                                    options={experienceLevels}
+                                    onChange={(e) => onSuitableForChange(e.value)}
+                                    placeholder="选择适合的学员等级"
+                                    className="p-inputtext-sm"
+                                    disabled={saving}
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* 右侧说明文本 */}
-                <div className="flex-1 hidden md:flex flex-col gap-3 text-sm text-surface-600">
-                    <div>
-                        <div className="font-medium text-900">说明</div>
-                        <p>
-                            设置模板的基本信息，包括名称、描述以及类型。
-                            这些信息将帮助你在动作库和训练库中快速识别模板。
-                        </p>
-                        <p>
-                            模板标签可以多选，用于标记训练计划的特点和适用人群。
-                        </p>
-                        <p>
-                            "适合学员等级"用于标识该训练计划最适合的学员水平，请根据训练计划的复杂程度进行选择。
-                        </p>
+                {!isStudent && (
+                    <div className="flex-1 hidden md:flex flex-col gap-3 text-sm text-surface-600">
+                        <div>
+                            <div className="font-medium text-900">说明</div>
+                            <p>
+                                设置模板的基本信息，包括名称、描述以及类型。
+                                这些信息将帮助你在动作库和训练库中快速识别模板。
+                            </p>
+                            <p>
+                                模板标签可以多选，用于标记训练计划的特点和适用人群。
+                            </p>
+                            <p>
+                                "适合学员等级"用于标识该训练计划最适合的学员水平，请根据训练计划的复杂程度进行选择。
+                            </p>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
         </div>

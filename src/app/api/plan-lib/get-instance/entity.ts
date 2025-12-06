@@ -1,12 +1,12 @@
 import { CoachPlanInstanceRow } from "@/types";
 
-// 请求参数的接口类型
-export interface GetInstanceDto {
+// GET /api/plan-lib/get-instance
+export interface GetInstanceRequestDto {
     id?: string;
     subscriptionId?: string;
 }
 
-// 返回参数的接口类型
 export interface GetInstanceResponseDto {
-    instance: CoachPlanInstanceRow;
+    instance: any; // CoachPlanInstance
+    actions?: Record<string, any>; // Map of action_id -> action details
 }
