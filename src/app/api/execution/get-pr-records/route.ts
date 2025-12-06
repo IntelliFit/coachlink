@@ -30,6 +30,10 @@ interface GetPRRecordsResponse {
  * GET /api/execution/get-pr-records
  *
  * Fetches user's personal record history
+ * Query params:
+ *   - userId: Optional, for coaches to view their student's records
+ *   - limit: Max records to return (default 20)
+ *   - offset: Pagination offset (default 0)
  */
 export async function GET(request: NextRequest) {
     try {
@@ -41,16 +45,53 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const userId = session.user.id;
         const { searchParams } = new URL(request.url);
+        const requestedUserId = searchParams.get("userId");
         const limit = parseInt(searchParams.get("limit") || "20");
         const offset = parseInt(searchParams.get("offset") || "0");
+
+        let targetUserId = session.user.id;
+
+        // If userId is provided, verify the requester is a coach of this student
+        if (requestedUserId && requestedUserId !== session.user.id) {
+            // Find coach record for current user
+            const { data: coachRow } = await supabase
+                .from("coaches")
+                .select("id")
+                .eq("user_id", session.user.id)
+                .maybeSingle();
+
+            if (!coachRow?.id) {
+                return NextResponse.json<GetPRRecordsResponse>(
+                    { success: false, message: "无权查看该用户的记录" },
+                    { status: 403 },
+                );
+            }
+
+            // Verify the student is subscribed to this coach
+            const { data: subscription } = await supabase
+                .from("coach_subscriptions")
+                .select("id")
+                .eq("coach_id", coachRow.id)
+                .eq("student_id", requestedUserId)
+                .eq("status", "active")
+                .maybeSingle();
+
+            if (!subscription) {
+                return NextResponse.json<GetPRRecordsResponse>(
+                    { success: false, message: "该学员不在您的订阅列表中" },
+                    { status: 403 },
+                );
+            }
+
+            targetUserId = requestedUserId;
+        }
 
         // Get PR records from personal_records_history
         const { data: records, error, count } = await supabase
             .from("personal_records_history")
             .select("*", { count: "exact" })
-            .eq("user_id", userId)
+            .eq("user_id", targetUserId)
             .order("date_achieved", { ascending: false })
             .range(offset, offset + limit - 1);
 

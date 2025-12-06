@@ -1,6 +1,7 @@
 # 缺失功能恢复计划
 
 > 项目迁移后缺失功能的详细分析和修复方案 创建日期：2025-12-07
+> 更新日期：2025-12-07 (根据原型设计更新)
 
 ---
 
@@ -26,7 +27,15 @@
 | `AdminPullupRecordForm.tsx` | `src/components/admin/`           | 管理员编辑/添加引体排行榜记录        | ✅ 组件完整 |
 | `CoachApplicationCard.tsx`  | `src/components/student/profile/` | 教练申请状态卡片                     | ✅ 组件完整 |
 
-### 2. 缺失的路由页面
+### 2. 原型设计参考
+
+| 原型文件                  | 路径                       | 功能描述               |
+| ------------------------- | -------------------------- | ---------------------- |
+| `coach-application.html`  | `ui-prototype-pc/student/` | 学员端教练申请表单页面 |
+| `coach-applications.html` | `ui-prototype-pc/admin/`   | 管理员教练申请审核页面 |
+| `review.html`             | `ui-prototype-pc/admin/`   | 排行榜成绩审核页面     |
+
+### 3. 缺失的路由页面
 
 | 路由路径                    | 被引用位置               | 预期功能         | 优先级 |
 | --------------------------- | ------------------------ | ---------------- | ------ |
@@ -37,12 +46,71 @@
 | `/admin/coach-review`       | `AdminDashboard.tsx:149` | 教练申请审核     | 🔴 高  |
 | `/admin/leaderboard-review` | `AdminDashboard.tsx:180` | 排行榜成绩审核   | 🟡 中  |
 
-### 3. 缺失的功能集成
+### 4. 缺失的功能集成
 
 | 位置                     | 缺失内容                      | 影响                             |
 | ------------------------ | ----------------------------- | -------------------------------- |
 | `StudentProfilePage.tsx` | 未引入 `CoachApplicationCard` | 学员无法在档案页看到教练申请入口 |
 | `Navigation.tsx`         | 管理员用户无后台入口          | 管理员无法访问后台功能           |
+
+---
+
+## 📐 原型设计规范（来自 ui-prototype-pc）
+
+### 教练申请表单字段（学员端）
+
+根据 `ui-prototype-pc/student/coach-application.html`：
+
+| 字段名            | 字段 ID           | 类型                | 必填 | 说明                           |
+| ----------------- | ----------------- | ------------------- | ---- | ------------------------------ |
+| 真实姓名/品牌名   | `realName`        | text                | ✅   | -                              |
+| 头像链接          | `avatarUrl`       | url                 | ❌   | 可选，https://                 |
+| 一句话简介        | `tagline`         | text                | ✅   | 如：国家级运动员 \| 力量举教练 |
+| 专长标签          | `specialties`     | text (逗号分隔)     | ✅   | 如：力量训练, 减脂, 动作纠正   |
+| 教学年限          | `experienceYears` | number              | ❌   | 年                             |
+| 核心服务权益      | `services`        | text                | ❌   | 如：AI计划 + 每周动作点评      |
+| 自我介绍/教学理念 | `bio`             | textarea            | ✅   | 多行文本                       |
+| 代表案例/成功故事 | `cases`           | textarea            | ❌   | 多行文本                       |
+| 资质/证书         | `certificates`    | textarea (每行一条) | ❌   | 支持链接或文字                 |
+| 其他荣誉成就      | `achievements`    | textarea            | ❌   | 可选                           |
+
+### 申请状态流程
+
+```
+draft (草稿) → pending (审核中) → approved (已通过) / rejected (已拒绝)
+                                    ↓           ↓
+                              进入教练端     修改后重新提交
+```
+
+**状态对应的 UI 显示**:
+
+- `draft`: 草稿未提交 (黄色徽章)
+- `pending`: 审核中 (黄色徽章)
+- `approved`: 审核通过 (绿色徽章)
+- `rejected`: 审核未通过 (红色徽章)
+
+**申请步骤指示器**:
+
+1. 填写资料 (FileText 图标)
+2. 等待审核 (Clock3 图标)
+3. 成为教练 (Medal 图标)
+
+### 管理员审核页面设计
+
+根据 `ui-prototype-pc/admin/coach-applications.html`：
+
+**功能**:
+
+- 状态筛选下拉框（全部/待审核/已通过/已拒绝/草稿）
+- 申请列表统计
+- 申请卡片展示：
+  - 申请人头像、姓名
+  - 提交时间
+  - 状态徽章
+  - 四个字段网格显示：一句话简介、专长标签、教学年限、核心服务权益
+  - 详细内容区：自我介绍、代表案例、资质证书、其他成就
+  - 操作按钮：通过/拒绝（仅 pending 状态显示）
+  - 拒绝时需填写理由
 
 ---
 
@@ -72,8 +140,16 @@ import { CoachApplicationCard } from "./profile/CoachApplicationCard";
 **需创建的文件**:
 
 1. `src/app/apply/page.tsx` - 教练申请表单
+   - 使用上述表单字段
+   - 支持保存草稿和提交审核
+   - 状态步骤指示器
+
 2. `src/app/apply/status/page.tsx` - 申请状态查看
+   - 显示当前状态和步骤
+   - 审核通过后显示"进入教练端"按钮
+
 3. `src/app/apply/edit/page.tsx` - 申请编辑
+   - 供被驳回的申请修改后重新提交
 
 ---
 
@@ -89,7 +165,12 @@ import { CoachApplicationCard } from "./profile/CoachApplicationCard";
 
 **文件**: `src/app/admin/coach-review/page.tsx`
 
-**说明**: 列出待审核的教练申请，提供批准/拒绝操作
+**功能**:
+
+- 列出待审核的教练申请
+- 状态筛选
+- 批准/拒绝操作（拒绝需填理由）
+- 参考原型：`ui-prototype-pc/admin/coach-applications.html`
 
 #### 2.3 创建排行榜审核页面
 
@@ -121,32 +202,39 @@ if (session?.user?.role === "admin") {
 
 ## ❓ 待确认问题
 
-### 1. 教练申请表单字段（高优先级）
-
-**问题**: 教练申请需要提交哪些信息？
-
-**需确认**:
-
-- [ ] 基本信息：姓名、简介、联系方式
-- [ ] 资质证明：证书照片/文件上传
-- [ ] 教学经验：文字描述
-- [ ] 专长领域：标签选择（力量举、增肌、减脂等）
-- [ ] 其他自定义字段
-
-**参考**: 需求文档第 769-780 行（教练入驻审核）
-
-### 2. 后端 API 情况（高优先级）
+### 1. 后端 API 情况（高优先级）
 
 **问题**: 是否有现成的教练申请相关 API？
 
 **需检查**:
 
-- [ ] `/api/coach/apply` - 提交申请
-- [ ] `/api/coach/application/status` - 查询申请状态
-- [ ] `/api/admin/coach-applications` - 获取待审核列表
-- [ ] `/api/admin/review-coach` - 审核申请（批准/拒绝）
+- [ ] `POST /api/coach/apply` - 提交/保存申请
+- [ ] `GET /api/coach/application/status` - 查询申请状态
+- [ ] `GET /api/admin/coach-applications` - 获取待审核列表
+- [ ] `POST /api/admin/review-coach` - 审核申请（批准/拒绝）
 
 **如果不存在**: 需要创建完整的后端 API
+
+### 2. 数据库表结构（高优先级）
+
+**问题**: 是否有 `coach_applications` 表？
+
+**需要的字段**:
+
+```sql
+coach_applications (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    status VARCHAR(20), -- draft/pending/approved/rejected
+    form_data JSONB, -- 存储所有申请表单字段
+    submitted_at TIMESTAMPTZ,
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by UUID,
+    rejection_reason TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+)
+```
 
 ### 3. 管理员权限判断（中优先级）
 
@@ -160,28 +248,17 @@ if (session?.user?.role === "admin") {
 
 **当前发现**: 代码中发现 `admin_users` 表存在（`types/database.types.ts`）
 
-### 4. 教练申请数据表结构（中优先级）
+### 4. 原型中的 MockData 服务（参考）
 
-**问题**: 是否有 `coach_applications` 表？
+原型使用的服务接口（需在 Next.js 中实现对应 API）:
 
-**需确认字段**:
-
-- 申请人 ID
-- 申请状态（pending/approved/rejected）
-- 申请内容（JSON 或分字段）
-- 审核人 ID
-- 拒绝理由
-- 时间戳
-
-### 5. 排行榜审核已实现情况（低优先级）
-
-**问题**: `AdminReviewPage` 组件是否已完全实现？
-
-**需检查**:
-
-- [ ] 是否只支持引体向上排行榜？
-- [ ] 是否需要扩展为通用审核页面？
-- [ ] API 是否已实现？
+- `CoachApplicationService.getAll()` - 获取所有申请
+- `CoachApplicationService.getByUserId(userId)` - 获取用户申请
+- `CoachApplicationService.saveDraft(userId, formData)` - 保存草稿
+- `CoachApplicationService.submit(userId, formData)` - 提交申请
+- `CoachApplicationService.withdraw(appId)` - 撤回申请
+- `CoachApplicationService.approve(appId, reviewer)` - 批准申请
+- `CoachApplicationService.reject(appId, reviewer, reason)` - 拒绝申请
 
 ---
 
@@ -233,9 +310,12 @@ if (session?.user?.role === "admin") {
 ## 🔗 相关文档
 
 - 需求文档: `ui-prototypes-phone/需求文档详细版.md`
-- 管理员后台需求: 第 720-799 行
-- 教练入驻审核: 第 767-780 行
-- 教练申请流程: Navigation.tsx 中已有路由引用
+  - 排行榜功能: 第 638-719 行
+  - 管理员后台: 第 720-799 行
+- PC 原型设计: `ui-prototype-pc/`
+  - 学员申请表单: `student/coach-application.html`
+  - 管理员审核: `admin/coach-applications.html`
+  - 排行榜审核: `admin/review.html`
 
 ---
 
