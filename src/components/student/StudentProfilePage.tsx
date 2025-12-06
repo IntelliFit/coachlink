@@ -116,13 +116,20 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
             <ProfileHeader data={data} />
 
-            {/* Single column layout - max width for readability */}
-            <div className="max-w-4xl mx-auto space-y-6">
-                <PersonalInfoSection data={data} onUpdate={fetchData} />
-                <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
-                <ProgressTimeline data={data} />
-                <CoachNotesSection data={data} userId={session?.user.id} />
-                <MyCoachesList />
+            {/* Two-column layout on large screens, single column on small screens */}
+            <div className="flex flex-col lg:flex-row gap-6">
+                {/* Left column - slightly wider */}
+                <div className="lg:w-7/12 space-y-6">
+                    <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
+                    <ProgressTimeline data={data} />
+                    <CoachNotesSection data={data} userId={session?.user.id} />
+                </div>
+                
+                {/* Right column */}
+                <div className="lg:w-5/12 space-y-6">
+                    <PersonalInfoSection data={data} onUpdate={fetchData} />
+                    <MyCoachesList />
+                </div>
             </div>
         </div>
     );

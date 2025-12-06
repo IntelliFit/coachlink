@@ -6,10 +6,7 @@ import { getServerSession } from "../../auth/[...nextauth]/auth";
 
 export async function POST(req: Request) {
     const {
-        name,
-        detail,
-        url = '',
-        positions = [],
+        ...addData
     } = await req.json() as AddActionDto;
 
     // Check if user is logged in and has coach role
@@ -23,7 +20,7 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (!name || !detail || !positions?.length) {
+    if (!addData.name || !addData.detail || !addData.positions?.length) {
         return NextResponse.json({
             success: false,
             message: "缺少必要参数"
@@ -47,11 +44,8 @@ export async function POST(req: Request) {
     const { data: action, error } = await supabase
         .from('coach_actions')
         .insert({
-            name,
-            detail,
-            url,
-            positions,
             coach_id: userId,
+            ...addData,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         })

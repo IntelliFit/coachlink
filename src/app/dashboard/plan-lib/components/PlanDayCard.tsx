@@ -139,6 +139,11 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         return '';
     }
 
+    console.log(
+        day.actionSets
+    );
+    
+
     // 处理复制操作
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         // 检查是否需要确认覆盖

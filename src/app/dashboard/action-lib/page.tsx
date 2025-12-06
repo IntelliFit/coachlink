@@ -32,7 +32,6 @@ const ActionLib = () => {
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
     const [editingAction, setEditingAction] = useState<CoachActionRow | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
-    const [selectedAction, setSelectedAction] = useState<CoachActionRow | null>(null);
 
     const { showToast } = useToastContext();
     const itemsPerPage = 12;
@@ -124,8 +123,11 @@ const ActionLib = () => {
                     name: actionData.name || '',
                     detail: actionData.detail || '',
                     url: actionData.url || '',
-                    positions: actionData.positions || []
+                    positions: actionData.positions || [],
+                    attrs: actionData.attrs || [],
+                    enableAutoWeightCompute: actionData.enableAutoWeightCompute || false,
                 });
+                
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
 

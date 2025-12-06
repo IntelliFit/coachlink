@@ -114,9 +114,11 @@ export type Database = {
       }
       coach_actions: {
         Row: {
+          attrs: string[] | null
           coach_id: string
           created_at: string
           detail: string | null
+          enableAutoWeightCompute: boolean | null
           id: string
           name: string
           positions: string[] | null
@@ -124,9 +126,11 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          attrs?: string[] | null
           coach_id: string
           created_at?: string
           detail?: string | null
+          enableAutoWeightCompute?: boolean | null
           id?: string
           name: string
           positions?: string[] | null
@@ -134,9 +138,11 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          attrs?: string[] | null
           coach_id?: string
           created_at?: string
           detail?: string | null
+          enableAutoWeightCompute?: boolean | null
           id?: string
           name?: string
           positions?: string[] | null
