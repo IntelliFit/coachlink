@@ -1,10 +1,12 @@
 import { Dialog } from 'primereact/dialog';
-import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
 import { StudentSubscription } from '@/app/api/coach/get-students/entity';
-import { Calendar, User, Target, Video, MessageCircle } from 'lucide-react';
+import { Calendar, User, Target, Video, MessageCircle, FileText } from 'lucide-react';
 import { CoachesRow } from '@/types';
+import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
+import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
+import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
 
 interface StudentDetailDialogProps {
     visible: boolean;
@@ -59,32 +61,20 @@ export const StudentDetailDialog = ({
         return statusMap[status] || 'info';
     };
 
-    const fitnessLevelString = (fitnessLevel: string) => {
-        if (fitnessLevel === 'beginner') {
-            return '初级';
-        } else if (fitnessLevel === 'intermediate') {
-            return '中级';
-        } else if (fitnessLevel === 'advanced') {
-            return '高级';
-        } else {
-            return fitnessLevel;
-        }
-    }
-
     return (
         <Dialog
             header={getHeader()}
             visible={visible}
-            style={{ width: '650px', maxWidth: '90vw' }}
+            style={{ width: '850px', maxWidth: '95vw' }}
             className="student-detail-dialog"
             modal
             draggable={false}
             onHide={onHide}
         >
             {student && (
-                <div className="p-5">
+                <div className="p-4 max-h-[80vh] overflow-y-auto">
                     {/* 用户信息头部卡片 */}
-                    <div className="flex items-start mb-8 p-4 bg-surface-50 rounded-xl border border-surface-200">
+                    <div className="flex items-start mb-6 p-4 bg-surface-50 rounded-xl border border-surface-200">
                         <Avatar
                             image={profile?.avatar_url}
                             label={getAvatarLabel()}
@@ -112,31 +102,54 @@ export const StudentDetailDialog = ({
                                 </span>
                             </div>
 
-                            <div className="text-surface-700">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
                                     <Target size={14} />
-                                    订阅套餐等级 {student.tier}
+                                    套餐等级 {student.tier}
                                 </span>
+                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                                    <Calendar size={14} />
+                                    {formatDate(student.start_date)} 开始
+                                </span>
+                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
+                                    <Video size={14} />
+                                    {student.uploaded} 视频
+                                </span>
+                                {getPendingReviews() > 0 && (
+                                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium">
+                                        <MessageCircle size={14} />
+                                        {getPendingReviews()} 待评阅
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>
 
+                    {/* 个人档案区 - 复用用户端组件 */}
+                    <PersonalInfoDisplay profile={profile || null} phone={profile?.phone} />
+
+                    {/* 运动数据卡片 - 复用用户端组件 */}
+                    <SportCardsDisplay sportCards={profile?.sport_cards as any} />
+
+                    {/* 进步足迹 - 显示学员的PR记录 */}
+                    <CoachViewProgressTimeline studentId={student.student_id} limit={10} />
+
                     {/* 订阅问卷部分 */}
                     {student.subscribe_data?.answers?.length > 0 && (
-                        <div className="mt-8 mb-8">
+                        <div className="mt-4">
                             <div className="flex items-center gap-2 mb-4">
-                                <div className="w-1 h-6 bg-primary rounded-full"></div>
-                                <h3 className="text-xl font-bold text-surface-900">订阅问卷</h3>
+                                <FileText className="text-primary" size={18} />
+                                <h3 className="text-md font-bold text-surface-900">需求问卷</h3>
                                 <span className="ml-2 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-semibold rounded">
                                     {student.subscribe_data.answers.length} 项
                                 </span>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {student.subscribe_data.answers.map((item, index) => (
                                     <div
                                         key={`question-${index}`}
-                                        className="p-4 bg-surface-50 rounded-lg border border-surface-200 hover:border-primary-200 transition-colors"
+                                        className="p-3 bg-surface-50 rounded-lg border border-surface-200"
                                     >
                                         <div className="flex items-start gap-3">
                                             <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-primary-100 text-primary-700 text-sm font-bold rounded-full">
@@ -146,7 +159,7 @@ export const StudentDetailDialog = ({
                                                 <div className="text-sm font-semibold text-surface-700 mb-1.5">
                                                     {item.question}
                                                 </div>
-                                                <div className="text-surface-900 bg-surface p-3 rounded border border-surface-100">
+                                                <div className="text-sm text-surface-900 bg-surface p-2 rounded border border-surface-100">
                                                     {item.answer}
                                                 </div>
                                             </div>
@@ -156,68 +169,8 @@ export const StudentDetailDialog = ({
                             </div>
                         </div>
                     )}
-
-                    {/* 详细信息网格 */}
-                    <div className="grid grid-cols-2 gap-6 mb-8">
-                        <InfoCard
-                            icon={<Calendar className="text-primary" size={20} />}
-                            label="开始日期"
-                            value={formatDate(student.start_date)}
-                        />
-
-                        <InfoCard
-                            icon={<Target className="text-green-500" size={20} />}
-                            label="健身水平"
-                            value={fitnessLevelString(profile?.fitness_level) || '未设置'}
-                        />
-
-                        <InfoCard
-                            icon={<Video className="text-blue-500" size={20} />}
-                            label="已上传视频"
-                            value={`${student.uploaded} 个`}
-                            badge={student.uploaded > 0 ? "success" : undefined}
-                        />
-
-                        <InfoCard
-                            icon={<MessageCircle className="text-amber-500" size={20} />}
-                            label="待评阅视频"
-                            value={`${getPendingReviews()} 个`}
-                            badge={getPendingReviews() > 0 ? "warning" : undefined}
-                        />
-                    </div>
                 </div>
             )}
         </Dialog>
     );
 };
-
-// 优化后的 InfoCard 组件
-interface InfoCardProps {
-    icon?: React.ReactNode;
-    label: string;
-    value: string | number;
-    badge?: string;
-}
-
-const InfoCard = ({ icon, label, value, badge }: InfoCardProps) => (
-    <div className="relative p-4 bg-surface-50 rounded-xl border border-surface-200 hover:bg-surface-100 transition-colors">
-        <div className="flex items-start justify-between">
-            <div>
-                <div className="flex items-center gap-2 mb-2">
-                    {icon}
-                    <div className="text-sm font-medium text-surface-500">
-                        {label}
-                    </div>
-                </div>
-                <div className="text-sm font-bold text-surface-900">
-                    {value}
-                </div>
-            </div>
-            {badge && (
-                <div className={`w-3 h-3 rounded-full ${badge === 'success' ? 'bg-green-500' :
-                    badge === 'warning' ? 'bg-primary-500' : 'bg-blue-500'
-                    }`} />
-            )}
-        </div>
-    </div>
-);
