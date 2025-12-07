@@ -31,6 +31,12 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
                             {position}
                         </div>
                     ))}
+
+                    {action.enableAutoWeightCompute && (
+                        <div className="bg-primary-100 text-primary-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                            自动计算重量
+                        </div>
+                    )}
                 </div>
                 {action.detail && (
                     <div className="text-sm text-surface-500 mt-1">{action.detail}</div>
@@ -57,6 +63,12 @@ export const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = 
                     {position}
                 </div>
             ))}
+
+            {action.enableAutoWeightCompute && (
+                <div className="bg-primary-100 text-primary-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                    自动计算重量
+                </div>
+            )}
         </div>
     );
 };
@@ -97,10 +109,10 @@ interface PlanDayCardProps {
     totalDays: number;
     // 修改属性定义
     onCopyFromDay: (targetDayIndex: number, sourceDayIndex: number) => void;
-    existingTrainingDays: { 
-        dayIndex: number; 
-        actionSetsCount: number; 
-        type: 'training' | 'rest'; 
+    existingTrainingDays: {
+        dayIndex: number;
+        actionSetsCount: number;
+        type: 'training' | 'rest';
         note: string;
         actionSets?: ActionSet[];
     }[];
@@ -123,7 +135,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
-    
+
     // 将CoachActionRow数组转换为Dropdown选项
     const actionOptions: ActionOption[] = actions.map(action => ({
         label: action.name,
@@ -143,13 +155,13 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     console.log(
         day.actionSets
     );
-    
+
 
     // 处理复制操作
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         // 检查是否需要确认覆盖
         const hasContent = day.note.trim() !== '' || day.actionSets.length > 0;
-        
+
         if (hasContent) {
             // 显示确认对话框
             confirmDialog({
@@ -306,7 +318,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     </div>
                 </>
             )}
-            
+
             {/* 添加复制对话框 */}
             {existingTrainingDays && existingTrainingDays.length > 0 && (
                 <CopyTrainingDayDialog
@@ -322,7 +334,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     targetDayIndex={dayIndex}
                 />
             )}
-            
+
             <ConfirmDialog />
         </div>
     );

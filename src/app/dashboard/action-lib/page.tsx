@@ -127,7 +127,7 @@ const ActionLib = () => {
                     attrs: actionData.attrs || [],
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute || false,
                 });
-                
+
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
 
@@ -206,9 +206,23 @@ const ActionLib = () => {
                                 </span>
                             ))}
 
+
+
                             {action.url && (
                                 <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
                                     包含演示
+                                </span>
+                            )}
+
+                            {action.attrs && action.attrs.length > 0 && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-700">
+                                    属性: {action.attrs.length}
+                                </span>
+                            )}
+
+                            {action.enableAutoWeightCompute && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
+                                    自动重量计算
                                 </span>
                             )}
                         </div>
