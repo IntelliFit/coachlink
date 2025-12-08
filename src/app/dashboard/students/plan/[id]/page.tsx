@@ -21,8 +21,28 @@ import { GetInstanceDto } from '@/app/api/plan-lib/get-instance/entity';
 import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
-import { StudentProfilePanel } from './components/StudentProfileSidebar';
+import { StudentProfilePanel } from './components/StudentProfilePanel';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { UserProfilesRow } from '@/types'; // 导入UserProfilesRow类型
+
+// 定义学生数据类型
+interface SubscribeAnswer {
+    question: string;
+    answer: string;
+}
+
+interface StudentData {
+    id: string;
+    student_id: string;
+    tier: string;
+    status: string;
+    start_date: string;
+    end_date: string;
+    profile: UserProfilesRow | null;
+    subscribe_data: {
+        answers: SubscribeAnswer[];
+    } | null;
+}
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -36,9 +56,7 @@ const StudentPlanPage = () => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState<string[]>([]);
-
     const [type, setType] = useState<string | null>(null);
-
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
@@ -56,7 +74,11 @@ const StudentPlanPage = () => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [studentName, setStudentName] = useState<string>('');
     const [instanceId, setInstanceId] = useState<string | null>(null);
-    const [profilePanelExpanded, setProfilePanelExpanded] = useState(false);
+    
+    // Student data
+    const [studentData, setStudentData] = useState<StudentData | null>(null);
+    const [studentDataLoading, setStudentDataLoading] = useState(false);
+
     // Load instance data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
@@ -73,19 +95,32 @@ const StudentPlanPage = () => {
                     setActions(res.actions);
                 }
 
-                // Load student name from subscriptions
+                // Load student data
+                setStudentDataLoading(true);
                 try {
-                    const studentsRes = await coachService.getStudents({ page: 0, limit: 100 });
-                    if (studentsRes?.students) {
-                        const student = studentsRes.students.find((s: any) => s.id === params.id);
-                        if (student?.profile?.nickname) {
-                            setStudentName(student.profile.nickname);
-                        } else if (student?.profile?.full_name) {
-                            setStudentName(student.profile.full_name);
+                    const res = await fetch('/api/coach/get-students', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pagination: { page: 0, limit: 100 } })
+                    });
+                    const result = await res.json();
+                    
+                    if (result.success && result.data?.students) {
+                        const student = result.data.students.find((s: any) => s.id === params.id);
+                        if (student) {
+                            setStudentData(student);
+                            // Set student name
+                            if (student?.profile?.nickname) {
+                                setStudentName(student.profile.nickname);
+                            } else if (student?.profile?.full_name) {
+                                setStudentName(student.profile.full_name);
+                            }
                         }
                     }
                 } catch (e) {
-                    console.log('Could not load student name');
+                    console.log('Could not load student data');
+                } finally {
+                    setStudentDataLoading(false);
                 }
 
                 // Try to load instance data
@@ -276,17 +311,13 @@ const StudentPlanPage = () => {
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
-        // 使用类型守卫分别处理不同类型字段的赋值
         switch (field) {
             case 'actionId':
             case 'setName':
-            case 'intensity':
                 actionSet[field] = value as string;
                 break;
-            case 'sets':
-            case 'reps':
-            case 'restSeconds':
-                actionSet[field] = value as number;
+            case 'params':
+                actionSet.params = { ...actionSet.params, ...(value as any) };
                 break;
             default:
                 throw new Error(`Unknown field: ${field}`);
@@ -351,16 +382,7 @@ const StudentPlanPage = () => {
             dayIndex: day.dayIndex,
             type: day.type,
             note: day.note || null,
-            actionSets: day.type === 'training'
-                ? day.actionSets.map(set => ({
-                    action_id: set.actionId,
-                    set_name: set.setName,
-                    sets: set.sets,
-                    reps: set.reps,
-                    intensity: set.intensity || null,
-                    rest_seconds: set.restSeconds || null
-                }))
-                : []
+            actionSets: day.actionSets || []
         }));
 
         if (instanceExists && instanceId) {
@@ -449,7 +471,7 @@ const StudentPlanPage = () => {
             type: day.type,
             note: day.note,
             actionSets: day.actionSets
-        }));
+        }));    
 
     if (loading) {
         return (
@@ -518,8 +540,9 @@ const StudentPlanPage = () => {
 
                 {/* 学员信息面板 */}
                 <StudentProfilePanel 
-                    subscriptionId={params.id as string}
                     studentName={studentName}
+                    studentData={studentData}
+                    loading={studentDataLoading}
                 />
 
                 <BasicInfoForm
@@ -577,6 +600,7 @@ const StudentPlanPage = () => {
                                     totalDays={days.length}
                                     onCopyFromDay={handleCopyFromDay}
                                     existingTrainingDays={existingTrainingDays}
+                                    studentData={studentData} /* 传递studentData */
                                 />
                             ) : (
                                 <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">

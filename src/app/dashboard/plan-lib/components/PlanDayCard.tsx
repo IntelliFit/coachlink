@@ -87,13 +87,14 @@ interface PlanDayCardProps {
         dayIndex: number,
         setIndex: number,
         field: string,
-        value: string | number
+        value: string | number | object
     ) => void;
     saving: boolean;
     totalDays: number;
     // 修改属性定义
     onCopyFromDay: (targetDayIndex: number, sourceDayIndex: number) => void;
     existingTrainingDays: FormPlanTrainingDay[];
+    studentData?: any | null; // 添加studentData属性
 }
 
 const PlanDayCard: React.FC<PlanDayCardProps> = ({
@@ -109,7 +110,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     saving,
     totalDays,
     onCopyFromDay,
-    existingTrainingDays
+    existingTrainingDays,
+    studentData
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
@@ -129,11 +131,6 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
         return '';
     }
-
-    console.log(
-        day.actionSets
-    );
-
 
     // 处理复制操作
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
@@ -253,6 +250,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                         saving={saving}
                                         onActionSetChange={onActionSetChange}
                                         actions={actions}
+                                        studentData={studentData} // 传递studentData
                                     />
                                 </div>
 

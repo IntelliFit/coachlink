@@ -231,14 +231,12 @@ const CreatePlanPage = () => {
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
-        // 使用类型守卫分别处理不同类型字段的赋值
         switch (field) {
             case 'actionId':
             case 'setName':
                 actionSet[field] = value as string;
                 break;
             case 'params':
-                // 合并新的参数到现有的params对象中
                 actionSet.params = { ...actionSet.params, ...(value as object) };
                 break;
             default:

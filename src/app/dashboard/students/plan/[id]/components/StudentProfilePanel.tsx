@@ -29,10 +29,12 @@ interface StudentData {
 }
 
 interface StudentProfilePanelProps {
-    /** 订阅ID (params.id) */
-    subscriptionId: string;
-    /** 学员姓名 (已加载的) */
+    /** 学员姓名 */
     studentName: string;
+    /** 学员数据 */
+    studentData: StudentData | null;
+    /** 数据加载状态 */
+    loading: boolean;
 }
 
 /**
@@ -40,42 +42,11 @@ interface StudentProfilePanelProps {
  * 用于在计划编辑页面显示学员的档案信息
  */
 export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
-    subscriptionId,
-    studentName
+    studentName,
+    studentData,
+    loading
 }) => {
-    const [loading, setLoading] = useState(false);
-    const [studentData, setStudentData] = useState<StudentData | null>(null);
     const [expanded, setExpanded] = useState(true);
-
-    // 加载学员数据
-    useEffect(() => {
-        if (subscriptionId) {
-            loadStudentData();
-        }
-    }, [subscriptionId]);
-
-    const loadStudentData = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch('/api/coach/get-students', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pagination: { page: 0, limit: 100 } })
-            });
-            const result = await res.json();
-            
-            if (result.success && result.data?.students) {
-                const student = result.data.students.find((s: any) => s.id === subscriptionId);
-                if (student) {
-                    setStudentData(student);
-                }
-            }
-        } catch (error) {
-            console.error('加载学员数据失败:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('zh-CN', {
@@ -86,13 +57,14 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
     };
 
     // 计算订阅时长（周）
-    const calculateDuration = (startDate: string, endDate: string) => {
+    const calculateDuration = (startDate: string, endDate: string) => {        
         const start = new Date(startDate);
-        const end = new Date(endDate);
+        const end = endDate ? new Date(endDate): new Date();
         const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-        const diffMonths = Math.ceil(diffWeeks / 4);
-        return { weeks: diffWeeks, months: diffMonths };
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffWeeks = Math.ceil(diffDays / 7);
+        const diffMonths = Math.ceil(diffDays / 30); // 按每月30天计算
+        return { days: diffDays, weeks: diffWeeks, months: diffMonths };
     };
 
     const profile = studentData?.profile;
@@ -168,7 +140,7 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                                         订阅时长
                                     </div>
                                     <div className="text-sm font-semibold text-900">
-                                        {duration?.months}个月 ({duration?.weeks}周)
+                                        {duration?.days}天
                                     </div>
                                 </div>
                             </div>
