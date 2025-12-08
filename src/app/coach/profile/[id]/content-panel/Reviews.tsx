@@ -127,14 +127,17 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription }
                         <Card key={comment.id} className="shadow-sm">
                             <div className="flex gap-4">    
                                 <Avatar
-                                    label={comment.student_id.substring(0, 2).toUpperCase()}
+                                    image={comment.avatar_url || undefined}
+                                    label={(comment.nickname || comment.full_name || comment.student_id).substring(0, 1).toUpperCase()}
                                     size="large"
                                     shape="circle"
                                     className="flex-shrink-0 bg-primary-100 text-primary-700"
                                 />
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <span className="font-medium">学员</span>
+                                        <span className="font-medium">
+                                            {comment.nickname || comment.full_name || '学员'}
+                                        </span>
                                         <div className="flex text-amber-500">
                                             {[1, 2, 3, 4, 5].map((star) => (
                                                 <Star key={star} className="w-4 h-4 fill-current" />
@@ -145,6 +148,12 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription }
                                             {new Date(comment.created_at || '').toLocaleDateString('zh-CN')}
                                         </span>
                                     </div>
+                                    {/* 订阅信息 */}
+                                    {comment.created_at && (
+                                        <div className="text-xs text-surface-500 mb-1">
+                                            已订阅 {(Math.ceil((Date.now() - new Date(comment.created_at).getTime()) / (1000 * 60 * 60 * 24)))} 天
+                                        </div>
+                                    )}
                                     <p className="text-surface-700 whitespace-pre-wrap">{comment.comment}</p>
                                 </div>
                             </div>
