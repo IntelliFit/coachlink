@@ -9,7 +9,7 @@ interface GetWithExecutionsResponse {
     data?: {
         instance: any;
         training_days: any[];
-        executions: Record<number, any>; // keyed by day_index
+        executions: Record<number, any>; // keyed by dayIndex
         actions: Record<string, any>;
     };
 }
@@ -84,13 +84,13 @@ export async function GET(request: NextRequest) {
             .eq("instance_id", instance.id)
             .order("started_at", { ascending: false });
 
-        // Build executions map by day_index (most recent execution for each day)
+        // Build executions map by dayIndex (most recent execution for each day)
         const executionsMap: Record<number, any> = {};
         if (executions) {
             for (const exec of executions) {
                 // Keep only most recent execution per day
-                if (!executionsMap[exec.day_index]) {
-                    executionsMap[exec.day_index] = exec;
+                if (!executionsMap[exec.dayIndex]) {
+                    executionsMap[exec.dayIndex] = exec;
                 }
             }
         }
@@ -143,8 +143,8 @@ export async function GET(request: NextRequest) {
         const trainingDays = instance.training_days || [];
         const actionIds = new Set<string>();
         for (const day of trainingDays) {
-            if (day.action_sets && Array.isArray(day.action_sets)) {
-                for (const actionSet of day.action_sets) {
+            if (day.actionSets && Array.isArray(day.actionSets)) {
+                for (const actionSet of day.actionSets) {
                     if (actionSet.action_id) {
                         actionIds.add(actionSet.action_id);
                     }

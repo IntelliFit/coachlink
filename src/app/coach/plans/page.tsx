@@ -16,10 +16,10 @@ import { useToastContext } from '@/context/ToastContext';
 import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
 
 interface TrainingDay {
-    day_index: number;
+    dayIndex: number;
     type: 'training' | 'rest';
     note?: string;
-    action_sets?: ActionSet[];
+    actionSets?: ActionSet[];
 }
 
 interface ActionSet {
@@ -360,8 +360,8 @@ const TrainingPlansHome: React.FC = () => {
     // 训练日卡片
     const TrainingDayCard = ({ day }: { day: TrainingDay }) => {
         const isRestDay = day.type === 'rest';
-        const actionSets = day.action_sets || [];
-        const dayExecution = executions[day.day_index];
+        const actionSets = day.actionSets || [];
+        const dayExecution = executions[day.dayIndex];
 
         if (isRestDay) {
             return (
@@ -371,8 +371,8 @@ const TrainingPlansHome: React.FC = () => {
                             <i className="pi pi-moon text-blue-600" />
                         </div>
                         <div className="flex-1">
-                            <h4 className="font-semibold text-surface-900">{getDayName(day.day_index)}</h4>
-                            <p className="text-sm text-surface-500">休息日 · {getTrainingDate(day.day_index)}</p>
+                            <h4 className="font-semibold text-surface-900">{getDayName(day.dayIndex)}</h4>
+                            <p className="text-sm text-surface-500">休息日 · {getTrainingDate(day.dayIndex)}</p>
                         </div>
                     </div>
                 </div>
@@ -388,9 +388,9 @@ const TrainingPlansHome: React.FC = () => {
                             <i className="pi pi-bolt text-primary" />
                         </div>
                         <div className="flex-1">
-                            <h4 className="font-semibold text-surface-900">{getDayName(day.day_index)}</h4>
+                            <h4 className="font-semibold text-surface-900">{getDayName(day.dayIndex)}</h4>
                             <p className="text-sm text-surface-600">
-                                {getTrainingDate(day.day_index)} · {actionSets.length} 个动作
+                                {getTrainingDate(day.dayIndex)} · {actionSets.length} 个动作
                             </p>
                         </div>
                     </div>
@@ -442,7 +442,7 @@ const TrainingPlansHome: React.FC = () => {
     const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
         const statusConfig = getStatusConfig(instance.status);
         const trainingDays = (instance.training_days as TrainingDay[] || [])
-            .sort((a, b) => a.day_index - b.day_index);
+            .sort((a, b) => a.dayIndex - b.dayIndex);
 
         return (
             <div className="space-y-6">
@@ -503,7 +503,7 @@ const TrainingPlansHome: React.FC = () => {
                             <div>
                                 <p className="text-sm text-surface-500 mb-1">总动作数</p>
                                 <p className="font-semibold">
-                                    {trainingDays.reduce((sum, day) => sum + (day.action_sets?.length || 0), 0)} 个
+                                    {trainingDays.reduce((sum, day) => sum + (day.actionSets?.length || 0), 0)} 个
                                 </p>
                             </div>
                         </div>

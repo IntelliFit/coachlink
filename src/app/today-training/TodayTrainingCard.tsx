@@ -31,7 +31,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
         router.push(`/training-execution/${instanceId}?dayIndex=${dayIndex}`);
     };
 
-    const actionSets = day.action_sets || [];
+    const actionSets = day.actionSets || [];
     const isCompleted = executionStatus === 'completed';
     const isInProgress = executionStatus === 'in_progress';
 

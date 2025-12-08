@@ -18,24 +18,8 @@ import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
 import { UpdateTemplateDto } from '@/app/api/plan-lib/update-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
 
-interface PlanDay {
-    id?: string;
-    dayIndex: number;
-    type: 'training' | 'rest';
-    note: string;
-    actionSets: ActionSet[];
-}
-
-interface ActionSet {
-    id?: string;
-    actionId: string;
-    setName: string;
-    sets: number;
-    reps: number;
-    intensity: string;
-    restSeconds: number;
-}
 
 const EditPlanPage = () => {
     const router = useRouter();
@@ -52,7 +36,7 @@ const EditPlanPage = () => {
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
-    const [days, setDays] = useState<PlanDay[]>([]);
+    const [days, setDays] = useState<FormPlanTrainingDay[]>([]);
 
     // Selected day for editing
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
@@ -92,20 +76,12 @@ const EditPlanPage = () => {
                     setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
 
                     // Convert days data to local format
-                    const convertedDays: PlanDay[] = templateRes.days.map((day: any) => ({
+                    const convertedDays: FormPlanTrainingDay[] = templateRes.days.map((day: any) => ({
                         id: day.id,
-                        dayIndex: day.day_index,
+                        dayIndex: day.dayIndex,
                         type: day.type as 'training' | 'rest',
                         note: day.note || '',
-                        actionSets: day.action_sets.map((actionSet: any) => ({
-                            id: actionSet.id,
-                            actionId: actionSet.action_id,
-                            setName: actionSet.set_name || '',
-                            sets: actionSet.sets,
-                            reps: actionSet.reps,
-                            intensity: actionSet.intensity || '',
-                            restSeconds: actionSet.rest_seconds || 60
-                        }))
+                        actionSets: day.actionSets || []
                     })).sort((a, b) => a.dayIndex - b.dayIndex);
 
                     setDays(convertedDays);
@@ -239,10 +215,7 @@ const EditPlanPage = () => {
         newDays[actualDayIndex].actionSets.push({
             actionId: '',
             setName: '',
-            sets: 3,
-            reps: 10,
-            intensity: '',
-            restSeconds: 60
+            params: {}
         });
         setDays(newDays);
     };
@@ -259,7 +232,7 @@ const EditPlanPage = () => {
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
-        field: keyof ActionSet,
+        field: string,
         value: string | number
     ) => {
         const newDays = [...days];
@@ -350,21 +323,11 @@ const EditPlanPage = () => {
         try {
             // Prepare data according to API format
             const daysData = days.map(day => ({
-                day_index: day.dayIndex,
+                dayIndex: day.dayIndex,
                 type: day.type,
                 note: day.note || null,
-                action_sets: day.type === 'training'
-                    ? day.actionSets.map(set => ({
-                        action_id: set.actionId,
-                        set_name: set.setName,
-                        sets: set.sets,
-                        reps: set.reps,
-                        intensity: set.intensity || null,
-                        rest_seconds: set.restSeconds || null
-                    }))
-                    : []
+                actionSets: day.actionSets || []
             }));
-
 
             await planLibService.updateTemplate({
                 id: params.id as string,

@@ -5,26 +5,13 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { CoachActionRow } from '@/types';
 import { ArrowRight, Calendar, Copy } from 'lucide-react';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
 
-interface TrainingDay {
-    dayIndex: number;
-    actionSetsCount: number;
-    type: 'training' | 'rest';
-    note: string;
-    actionSets?: {
-        actionId: string;
-        setName: string;
-        sets: number;
-        reps: number;
-        intensity: string;
-        restSeconds: number;
-    }[];
-}
 
 interface CopyTrainingDayDialogProps {
     visible: boolean;
     onHide: () => void;
-    trainingDays: TrainingDay[];
+    trainingDays: FormPlanTrainingDay[];
     onSelectDay: (dayIndex: number) => void;
     saving: boolean;
     actions: CoachActionRow[]; // 添加 actions 属性
@@ -40,7 +27,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     actions,
     targetDayIndex
 }) => {
-    const [selectedSourceDay, setSelectedSourceDay] = useState<TrainingDay | null>(null);
+    const [selectedSourceDay, setSelectedSourceDay] = useState<FormPlanTrainingDay | null>(null);
 
     // 计算周数和天数
     const getWeekAndDay = (dayIndex: number) => {
@@ -51,10 +38,10 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
 
     // 按周分组训练日
     const groupDaysByWeek = () => {
-        const weeks: { [key: number]: TrainingDay[] } = {};
+        const weeks: { [key: number]: FormPlanTrainingDay[] } = {};
 
         console.log(trainingDays);
-        
+
 
         trainingDays.forEach(day => {
             const { week } = getWeekAndDay(day.dayIndex - 1);
@@ -62,7 +49,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                 weeks[week] = [];
             }
             weeks[week].push(day);
-        });        
+        });
 
         return weeks;
     };
@@ -70,40 +57,40 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     // 渲染带周标识的日历视图
     const renderCalendarWithWeeks = () => {
         const weeks = groupDaysByWeek();
-        const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);        
-        
+        const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+
         return (
             <>
                 {weekNumbers.map(weekNum => {
                     // 获取当前周的所有天
                     const daysInWeek = weeks[weekNum] || [];
-                    
+
                     // 创建一个映射，方便通过星期几查找训练日
-                    const dayMap: { [key: number]: TrainingDay } = {};
-                    
+                    const dayMap: { [key: number]: FormPlanTrainingDay } = {};
+
                     daysInWeek.forEach(day => {
                         const { day: dayOfWeek } = getWeekAndDay(day.dayIndex - 1);
                         dayMap[dayOfWeek] = day;
                     });
-                    
+
                     return (
                         <div key={weekNum} className="mb-6">
                             {/* 周标识 */}
                             <div className="text-left font-bold mb-2 text-sm">
                                 第 {weekNum} 周
                             </div>
-                            
+
                             {/* 该周的天数 */}
                             <div className="grid grid-cols-7 gap-2">
                                 {Array.from({ length: 7 }, (_, dayIndex) => {
-                                    const day = dayMap[dayIndex + 1];                                    
-                                    
+                                    const day = dayMap[dayIndex + 1];
+
                                     if (day) {
                                         const isTraining = day.type === 'training';
                                         const isSelected = selectedSourceDay?.dayIndex === day.dayIndex;
                                         // 检查是否为目标天数（需要排除的天数）
-                                        const isTargetDay = day.dayIndex === targetDayIndex + 1;                                        
-                                        
+                                        const isTargetDay = day.dayIndex === targetDayIndex + 1;
+
                                         return (
                                             <div
                                                 key={day.dayIndex}
@@ -115,24 +102,24 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                                     cursor-pointer border-round p-3 shadow-sm 
                                                     border-1 transition-all flex flex-col items-center justify-center gap-1
                                                     ${isSelected
-                                                            ? 'ring-2 ring-primary-500 scale-105'
-                                                            : ''}
-                                                    ${isTargetDay 
-                                                            ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-700' 
-                                                            : ''}
+                                                        ? 'ring-2 ring-primary-500 scale-105'
+                                                        : ''}
+                                                    ${isTargetDay
+                                                        ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+                                                        : ''}
                                                     ${saving ? 'opacity-60 cursor-not-allowed' : ''}
                                                 `}
                                                 style={{
                                                     borderLeft: `6px solid ${isTraining
-                                                            ? 'var(--primary-400)'
-                                                            : 'var(--surface-400)'
+                                                        ? 'var(--primary-400)'
+                                                        : 'var(--surface-400)'
                                                         }`
                                                 }}
                                             >
                                                 <span className="text-xs opacity-70">
                                                     第{day.dayIndex}天
                                                 </span>
-                                                
+
                                                 <span
                                                     className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'} ${isTargetDay ? 'opacity-60' : ''}`}
                                                 >
@@ -148,8 +135,8 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                         // 渲染一个空的占位符
                                         const dayIndexNumber = (weekNum - 1) * 7 + dayIndex + 1;
                                         return (
-                                            <div 
-                                                key={`empty-${dayIndexNumber}`} 
+                                            <div
+                                                key={`empty-${dayIndexNumber}`}
                                                 className="p-3 opacity-50 border-round border-1 border-transparent"
                                             >
                                                 <span className="text-xs opacity-70">
@@ -174,7 +161,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
         }
     }, [visible, trainingDays, selectedSourceDay]);
 
-    const handleSelectDay = (day: TrainingDay) => {
+    const handleSelectDay = (day: FormPlanTrainingDay) => {
         if (saving) return;
         setSelectedSourceDay(day);
     };
@@ -213,6 +200,28 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
             </div>
         );
     };
+
+    const getUnit = (attr: string) => {
+        switch (attr) {
+            case '组数':
+                return '组';
+
+            case '次数':
+                return '次';
+
+            case '强度':
+                return 'RM';
+
+            case '休息时间':
+                return 's';
+
+            case '持续时间':
+                return 's';
+
+            default:
+                break;
+        }
+    }
 
     return (
         <Dialog
@@ -288,11 +297,12 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                                 <div className="flex justify-between items-center mb-2">
                                                     <span className="font-medium text-sm">{getActionName(set.actionId)}</span>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div>组数: {set.sets}</div>
-                                                    <div>次数: {set.reps}</div>
-                                                    <div>强度: {set.intensity || '--'}</div>
-                                                    <div>休息: {set.restSeconds}秒</div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs"> 
+                                                    {actions.find(action => action.id === set.actionId)?.attrs.map(attr => (
+                                                        <div key={attr}>
+                                                            <div>{attr}: {set.params[attr] || '--'}</div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         ))}

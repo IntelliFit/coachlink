@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
         // 收集所有 action_id
         trainingDays.forEach((day: any) => {
-            day.action_sets?.forEach((set: any) => {
+            day.actionSets?.forEach((set: any) => {
                 if (set.action_id) {
                     actionIds.add(set.action_id);
                 }

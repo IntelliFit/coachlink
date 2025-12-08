@@ -22,24 +22,7 @@ import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfileSidebar';
-
-interface PlanDay {
-    id?: string;
-    dayIndex: number;
-    type: 'training' | 'rest';
-    note: string;
-    actionSets: ActionSet[];
-}
-
-interface ActionSet {
-    id?: string;
-    actionId: string;
-    setName: string;
-    sets: number;
-    reps: number;
-    intensity: string;
-    restSeconds: number;
-}
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -59,7 +42,7 @@ const StudentPlanPage = () => {
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
-    const [days, setDays] = useState<PlanDay[]>([]);
+    const [days, setDays] = useState<FormPlanTrainingDay[]>([]);
 
     // Selected day for editing
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
@@ -119,20 +102,12 @@ const StudentPlanPage = () => {
                         setDescription(instanceRes.instance.description || '');
 
                         // Convert days data to local format
-                        const convertedDays: PlanDay[] = (instanceRes.instance.training_days as any[] || []).map((day: any) => ({
+                        const convertedDays: FormPlanTrainingDay[] = (instanceRes.instance.training_days as any[] || []).map((day: any) => ({
                             id: day.id,
-                            dayIndex: day.day_index,
+                            dayIndex: day.dayIndex,
                             type: day.type as 'training' | 'rest',
                             note: day.note || '',
-                            actionSets: day.action_sets?.map((actionSet: any) => ({
-                                id: actionSet.id,
-                                actionId: actionSet.action_id,
-                                setName: actionSet.set_name || '',
-                                sets: actionSet.sets,
-                                reps: actionSet.reps,
-                                intensity: actionSet.intensity || '',
-                                restSeconds: actionSet.rest_seconds || 60
-                            })) || []
+                            actionSets: day.actionSets || []
                         })).sort((a, b) => a.dayIndex - b.dayIndex);
 
                         setDays(convertedDays);
@@ -271,10 +246,7 @@ const StudentPlanPage = () => {
         newDays[actualDayIndex].actionSets.push({
             actionId: '',
             setName: '',
-            sets: 3,
-            reps: 10,
-            intensity: '',
-            restSeconds: 60
+            params: {}
         });
         setDays(newDays);
     };
@@ -291,7 +263,7 @@ const StudentPlanPage = () => {
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
-        field: keyof ActionSet,
+        field: string,
         value: string | number
     ) => {
         const newDays = [...days];
@@ -376,10 +348,10 @@ const StudentPlanPage = () => {
         setSaving(true);
         // Prepare data according to API format
         const daysData = days.map(day => ({
-            day_index: day.dayIndex,
+            dayIndex: day.dayIndex,
             type: day.type,
             note: day.note || null,
-            action_sets: day.type === 'training'
+            actionSets: day.type === 'training'
                 ? day.actionSets.map(set => ({
                     action_id: set.actionId,
                     set_name: set.setName,
@@ -457,19 +429,8 @@ const StudentPlanPage = () => {
         setSelectedTemplateId(templateData.template.id);
 
         // 转换训练日数据
-        const convertedDays: PlanDay[] = (templateData.days || []).map((day: any) => ({
-            dayIndex: day.day_index,
-            type: day.type as 'training' | 'rest',
-            note: day.note || '',
-            actionSets: day.action_sets?.map((actionSet: any) => ({
-                actionId: actionSet.action_id,
-                setName: actionSet.set_name || '',
-                sets: actionSet.sets,
-                reps: actionSet.reps,
-                intensity: actionSet.intensity || '',
-                restSeconds: actionSet.rest_seconds || 60
-            })) || []
-        })).sort((a: PlanDay, b: PlanDay) => a.dayIndex - b.dayIndex);
+        const convertedDays: FormPlanTrainingDay[] = (templateData.days || [])
+            .sort((a: FormPlanTrainingDay, b: FormPlanTrainingDay) => a.dayIndex - b.dayIndex);
 
         setDays(convertedDays);
         setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);

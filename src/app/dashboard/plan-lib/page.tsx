@@ -15,7 +15,7 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { useRouter } from 'next/navigation';
 import { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity';
-import TemplateCard from '@/app/dashboard/students/plan/[id]/components/TemplateCard';
+import TemplateCard from './components/TemplateCard';
 
 const PlanLib = () => {
     const { data: session } = useSession();

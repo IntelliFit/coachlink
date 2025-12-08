@@ -71,8 +71,15 @@ const SelectTemplateDialog: React.FC<SelectTemplateDialogProps> = ({
 
     const handleSelect = async (template: CoachPlansPreview) => {
         try {
-            const templateDetails = await planLibService.getTemplate({ id: template.id });
-            onSelectTemplate(templateDetails);
+            const res = await planLibService.getTemplate({ id: template.id });
+
+            if (res) {
+                onSelectTemplate({
+                    template: res.template,
+                    days: res.days
+                });
+            }
+
             onHide();
         } catch (error) {
             console.error('获取模板详情失败:', error);

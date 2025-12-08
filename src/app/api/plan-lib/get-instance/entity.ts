@@ -1,7 +1,7 @@
 import { CoachPlanInstanceRow } from "@/types";
 
 // GET /api/plan-lib/get-instance
-export interface GetInstanceRequestDto {
+export interface GetInstanceDto {
     id?: string;
     subscriptionId?: string;
 }

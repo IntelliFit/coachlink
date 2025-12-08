@@ -6,3 +6,9 @@ export type AddActionDto = Omit<CoachLinkTable['coach_actions']['Insert'], 'coac
 export interface AddActionResponseDto {
     action: CoachActionRow
 }
+
+export interface ActionSetAttr {
+    name: string;
+    type: 'string' | 'number';
+    unit: string;
+}
