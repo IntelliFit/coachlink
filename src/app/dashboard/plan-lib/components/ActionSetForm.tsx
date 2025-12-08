@@ -1,11 +1,31 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Dropdown } from 'primereact/dropdown';
-import { InputText } from 'primereact/inputtext';
 import { CoachActionRow } from '@/types';
 import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
 import { CoachPlanAction } from '@/app/api/plan-lib/add-template/entity';
+import { InputNumber } from 'primereact/inputnumber';
+import { calcRecommendedLoad, LambdaModel } from '@/lib/rmCaculator'; // 导入计算函数
+
+// 定义学生数据类型（与页面组件中一致）
+interface SubscribeAnswer {
+    question: string;
+    answer: string;
+}
+
+interface StudentData {
+    id: string;
+    student_id: string;
+    tier: string;
+    status: string;
+    start_date: string;
+    end_date: string;
+    profile: any; // 使用any以避免引入更多类型依赖
+    subscribe_data: {
+        answers: SubscribeAnswer[];
+    } | null;
+}
 
 interface ActionSetFormProps {
     set: CoachPlanAction;
@@ -20,6 +40,7 @@ interface ActionSetFormProps {
         value: string | number
     ) => void;
     actions: CoachActionRow[]; // 新增props
+    studentData?: StudentData | null; // 添加studentData属性
 }
 
 const ActionSetForm: React.FC<ActionSetFormProps> = ({
@@ -29,60 +50,102 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     dayIndex,
     saving,
     onActionSetChange,
-    actions // 解构新增props
+    actions, // 解构新增props
+    studentData // 解构studentData
 }) => {
     // 根据actionId找到对应的action
     const currentAction = actions.find(action => action.id === set.actionId);
 
-    // 根据attrs动态判断需要显示的字段
-    const shouldShowField = (field: string): boolean => {
-        // 如果没有定义attrs，则显示所有字段
-        if (!currentAction?.attrs || currentAction.attrs.length === 0) {
-            return true;
-        }
-        
-        // 如果定义了attrs，则只显示包含在attrs中的字段
-        return currentAction.attrs.includes(field);
-    };
+    const getUnit = (attr: string) => {
+        switch (attr) {
+            case '组数':
+                return '组';
 
-    // 定义字段配置
-    const fieldConfig = [
-        { 
-            key: '组数', 
-            label: '组数', 
-            type: 'number', 
-            paramKey: 'sets',
-            placeholder: ''
-        },
-        { 
-            key: '次数', 
-            label: '次数', 
-            type: 'number', 
-            paramKey: 'reps',
-            placeholder: ''
-        },
-        { 
-            key: '强度', 
-            label: '强度', 
-            type: 'text', 
-            paramKey: 'intensity',
-            placeholder: 'RPE8 / 20kg 等'
-        },
-        { 
-            key: '休息时间', 
-            label: '休息(秒)', 
-            type: 'number', 
-            paramKey: 'restSeconds',
-            placeholder: ''
-        },
-        { 
-            key: '持续时间', 
-            label: '持续时间(秒)', 
-            type: 'number', 
-            paramKey: 'duration',
-            placeholder: ''
+            case '次数':
+                return '次';
+
+            case '强度':
+                return 'RM';
+
+            case '休息时间':
+                return 's';
+
+            case '持续时间':
+                return 's';
+
+            default:
+                break;
         }
-    ];
+    }
+
+    const getUserOneRM = () => {
+        switch (currentAction.name) {
+            case '卧推':
+                return studentData.profile.sport_cards?.powerlifting?.bench;
+        
+            case '深蹲':
+                return studentData.profile.sport_cards?.powerlifting?.squat;
+
+            case '硬拉':
+                return studentData.profile.sport_cards?.powerlifting?.deadlift;
+            
+            case '平板支撑':
+                return studentData.profile.sport_cards?.fitness?.plank;
+
+            case '引体向上':
+                return studentData.profile.sport_cards?.fitness?.pullups;
+
+            case '俯卧撑':
+                return studentData.profile.sport_cards?.fitness?.pushups;
+
+            default:
+                return undefined;
+        }
+    }
+
+    const considerBodyWeightActions = ['深蹲', '引体向上', '俯卧撑', '平板支撑'];
+
+    // 当参数或算法变化时，自动计算推荐负重
+    useEffect(() => {
+        const oneRm = getUserOneRM();
+        const userBodyWeight = studentData?.profile?.weight;
+
+        
+        if (currentAction?.enableAutoWeightCompute && oneRm && userBodyWeight) {
+            // 获取强度值（RM值）
+            const intensity = set.params?.['强度'];
+            // 获取算法
+            const algorithm = set.params?.algorithm || '综合计算';
+
+            // 只有当强度值存在且大于0时才计算
+            if (intensity && intensity > 0) {
+                // 将中文算法名称映射到LambdaModel枚举
+                const modelMap: Record<string, LambdaModel> = {
+                    'Epley': 'epley',
+                    'Brzycki': 'brzycki',
+                    'Lombardi': 'lombardi',
+                    '综合计算': 'average'
+                };
+
+                const model = modelMap[algorithm] || 'average';
+
+                // 计算推荐负重
+                const recommendedWeight = calcRecommendedLoad(
+                    oneRm,
+                    userBodyWeight,
+                    intensity,
+                    considerBodyWeightActions.includes(currentAction.name) ? 1 : 0,
+                    model
+                );
+
+                // 更新推荐数值
+                onActionSetChange(dayIndex, setIndex, 'params', {
+                    ...set.params,
+                    '负重': recommendedWeight
+                });
+            }
+        }
+    }, [set.params?.['强度'], set.params?.algorithm, studentData, currentAction]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -105,30 +168,74 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             </div>
 
             {/* 基于attrs动态渲染字段 */}
-            {fieldConfig
-                .filter(field => shouldShowField(field.key))
-                .map(field => (
-                    <div key={field.key}>
-                        <label className="block text-900 text-xs mb-1">{field.label}</label>
-                        <InputText
-                            value={set.params?.[field.paramKey]?.toString() || ''}
-                            type={field.type as any}
-                            onChange={(e) => {
-                                const value = field.type === 'number' 
-                                    ? Number(e.target.value) || 0 
-                                    : e.target.value;
-                                onActionSetChange(dayIndex, setIndex, 'params', { 
-                                    ...set.params, 
-                                    [field.paramKey]: value 
+            {currentAction.attrs
+                .map(attr => (
+                    <div key={attr}>
+                        <label className="block text-900 text-xs mb-1">{attr}</label>
+                        <InputNumber
+                            value={set.params?.[attr] || 0}
+                            onValueChange={e => {
+                                onActionSetChange(dayIndex, setIndex, 'params', {
+                                    ...set.params,
+                                    [attr]: e.value
                                 });
                             }}
-                            placeholder={field.placeholder}
+                            showButtons
+                            suffix={getUnit(attr)}
                             className="w-full"
                             disabled={saving}
                         />
                     </div>
                 ))
             }
+
+            {currentAction.enableAutoWeightCompute && studentData && (
+                <div className="md:col-span-2 border-t border-surface-200 pt-3 mt-2">
+
+
+                    {/* 智能计算输入和算法选择 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-900 text-xs mb-1">推荐数值 (kg)</label>
+                            <InputNumber
+                                value={set.params?.recommendedWeight || 0}
+                                onValueChange={e => {
+                                    onActionSetChange(dayIndex, setIndex, 'params', {
+                                        ...set.params,
+                                        '负重': e.value
+                                    });
+                                }}
+                                suffix="kg"
+                                className="w-full"
+                                disabled={saving}
+                                min={0}
+                                maxFractionDigits={2}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-900 text-xs mb-1">计算算法</label>
+                            <Dropdown
+                                value={set.params?.algorithm || '综合计算'}
+                                options={[
+                                    { label: '综合计算', value: '综合计算' },
+                                    { label: 'Epley', value: 'Epley' },
+                                    { label: 'Brzycki', value: 'Brzycki' },
+                                    { label: 'Lombardi', value: 'Lombardi' }
+                                ]}
+                                onChange={e => {
+                                    onActionSetChange(dayIndex, setIndex, 'params', {
+                                        ...set.params,
+                                        algorithm: e.value
+                                    });
+                                }}
+                                className="w-full"
+                                disabled={saving}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

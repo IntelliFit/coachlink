@@ -40,9 +40,6 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     const groupDaysByWeek = () => {
         const weeks: { [key: number]: FormPlanTrainingDay[] } = {};
 
-        console.log(trainingDays);
-
-
         trainingDays.forEach(day => {
             const { week } = getWeekAndDay(day.dayIndex - 1);
             if (!weeks[week]) {

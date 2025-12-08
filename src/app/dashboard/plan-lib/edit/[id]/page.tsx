@@ -243,22 +243,15 @@ const EditPlanPage = () => {
             return;
         }
 
-        console.log(actualDayIndex, setIndex);
-
-
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
-        // 使用类型守卫分别处理不同类型字段的赋值
         switch (field) {
             case 'actionId':
             case 'setName':
-            case 'intensity':
                 actionSet[field] = value as string;
                 break;
-            case 'sets':
-            case 'reps':
-            case 'restSeconds':
-                actionSet[field] = value as number;
+            case 'params':
+                actionSet.params = { ...actionSet.params, ...(value as any) };
                 break;
             default:
                 throw new Error(`Unknown field: ${field}`);
