@@ -142,7 +142,8 @@ export default function Navigation() {
              items.push(
                 { label: '我的主页', icon: 'pi pi-home', command: () => gotoCoachDisplayPage() },
                 { label: '动作库', icon: 'pi pi-database', command: () => router.push('/dashboard/action-lib') },
-                { label: '定价与服务', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') },
+                { label: '订阅设置', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') },
+                { label: '学员问卷', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/questionnaire') },
                 { separator: true }
              );
         }
