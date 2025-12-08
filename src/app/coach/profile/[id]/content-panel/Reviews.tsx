@@ -8,19 +8,18 @@ import { Card } from 'primereact/card';
 import { Skeleton } from 'primereact/skeleton';
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
-import type { CoachStudentCommentRow } from '@/types';
+import type { CoachStudentCommentRow, UserProfilesRow } from '@/types';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import ReviewDialog from './components/ReviewDialog';
 
 interface ReviewsProps {
     coachId: string;
     userSubscription: QueryCoachSubscription | null;
-    isOwnProfile: boolean;
 }
 
-const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, isOwnProfile }) => {
+const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription }) => {
     const { showToast } = useToastContext();
-    const [comments, setComments] = useState<CoachStudentCommentRow[]>([]);
+    const [comments, setComments] = useState<(CoachStudentCommentRow & UserProfilesRow)[]>([]);
     const [loading, setLoading] = useState(true);
     const [hasUserSubscription, setHasUserSubscription] = useState(false);
     const [subscriptionDuration, setSubscriptionDuration] = useState('');
@@ -51,7 +50,10 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
             const res = await userService.getStudentComments({ coach_id: coachId });
 
             if (res) {
-                setComments(res.comments);
+                setComments(res.comments.map((comment) => ({
+                    ...comment,
+                    ...res.users[comment.student_id]
+                })));
             }
         } catch (error) {
             console.error('获取评论失败:', error);
@@ -87,7 +89,7 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
 
     return (
         <div className="space-y-6">
-            {!isOwnProfile && hasUserSubscription && (
+            {hasUserSubscription && (
                 <div className="bg-primary-50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                         <div>
@@ -111,7 +113,7 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
                 <div className="text-center py-12">
                     <MessageCircle className="w-16 h-16 text-surface-400 mx-auto mb-4" />
                     <p className="text-surface-600 text-lg">暂无学员评价</p>
-                    {!isOwnProfile && hasUserSubscription && (
+                    {hasUserSubscription && (
                         <p className="text-surface-500 mt-2">成为第一个发表评价的学员吧！</p>
                     )}
                 </div>
@@ -123,7 +125,7 @@ const CoachReviewsPanel: React.FC<ReviewsProps> = ({ coachId, userSubscription, 
 
                     {comments.map((comment) => (
                         <Card key={comment.id} className="shadow-sm">
-                            <div className="flex gap-4">
+                            <div className="flex gap-4">    
                                 <Avatar
                                     label={comment.student_id.substring(0, 2).toUpperCase()}
                                     size="large"

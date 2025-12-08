@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { GetStudentCommentApiResponse } from './entity';
+import { UserProfilesRow } from '@/types';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -43,11 +44,24 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    // 计算学员 id 到具体信息的映射
+    const users = {} as Record<string, UserProfilesRow>;
+    await Promise.all(data.map(async (comment) => {
+        const studentId = comment.student_id;
+        const { data: userData } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', studentId)
+            .single();
+        users[studentId] = userData;
+    }));
+
     return NextResponse.json<GetStudentCommentApiResponse>({
         success: true,
         message: '获取评论成功',
         data: {
-            comments: data
+            comments: data,
+            users
         }
     });
 }

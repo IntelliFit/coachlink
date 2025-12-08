@@ -1,5 +1,5 @@
 import type { ApiData } from '@/types/api';
-import type { CoachStudentCommentRow } from '@/types';
+import type { CoachStudentCommentRow, UserProfilesRow } from '@/types';
 
 // 请求参数的接口类型
 export interface GetStudentCommentDto {
@@ -11,6 +11,7 @@ export interface GetStudentCommentDto {
 // 返回参数的接口类型
 export interface GetStudentCommentResponseDto {
     comments: CoachStudentCommentRow[];
+    users: Record<string, UserProfilesRow>;
 }
 
 export type GetStudentCommentApiResponse = ApiData<GetStudentCommentResponseDto>;
