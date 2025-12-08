@@ -3,11 +3,9 @@ import { Json } from "@/types/database.types";
 
 export interface CoachPlanAction {
     // action-lib 中的编号
-    action_id: string
-    intensity: string
-    reps: number
-    rest_seconds: number
-    sets: number
+    actionId: string
+    setName: string
+    params: any;
     [key: string]: Json | undefined
 }
 
@@ -15,7 +13,7 @@ export interface CoachPlanAction {
 export interface CoachPlanTrainingDay {
     type: string;
     note?: string;
-    action_sets?: CoachPlanAction[];
+    actionSets?: CoachPlanAction[];
     [key: string]: Json | undefined
 }
 
@@ -31,4 +29,12 @@ export interface AddTemplateDto {
 // 返回参数的接口类型
 export interface AddTemplateResponseDto {
     template: CoachPlanTemplateRow;
+}
+
+export interface FormPlanTrainingDay {
+    dayIndex: number;
+    actionSetsCount?: number;
+    type: 'training' | 'rest';
+    note: string;
+    actionSets?: CoachPlanAction[];
 }

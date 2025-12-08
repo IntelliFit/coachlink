@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
                 id: data.id,
                 instance_id: data.instance_id,
                 student_id: data.student_id,
-                day_index: data.day_index,
+                dayIndex: data.dayIndex,
                 status: data.status,
                 action_executions: data.action_executions,
                 total_sets: data.total_sets,

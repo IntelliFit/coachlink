@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
             .from("plan_instance_executions")
             .select("*")
             .eq("instance_id", instanceId)
-            .eq("day_index", dayIndex)
+            .eq("dayIndex", dayIndex)
             .eq("student_id", userId)
             .gte("started_at", new Date().toISOString().split("T")[0]) // 今天开始的
             .neq("status", "abandoned")
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 
         // 6. 找到对应的训练日
         const trainingDays = instance.training_days as any[];
-        const trainingDay = trainingDays.find((d) => d.day_index === dayIndex);
+        const trainingDay = trainingDays.find((d) => d.dayIndex === dayIndex);
 
         if (!trainingDay) {
             return NextResponse.json<StartExecutionResponseDto>(
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 7. 获取动作库信息（用于获取真实动作名称）
-        const actionSets = trainingDay.action_sets || [];
+        const actionSets = trainingDay.actionSets || [];
         const actionIds = actionSets
             .map((a: any) => a.action_id)
             .filter((id: string) => id);
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
             .insert({
                 instance_id: instanceId,
                 student_id: userId,
-                day_index: dayIndex,
+                dayIndex: dayIndex,
                 action_executions: actionExecutions,
                 total_sets: totalSets,
                 completed_sets: 0,

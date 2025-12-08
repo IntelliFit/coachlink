@@ -4,12 +4,13 @@ import type { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity
 
 interface TemplateCardProps {
     template: CoachPlansPreview;
-    onEdit: (id: string) => void;
+    onEdit?: (id: string) => void;
+    onSelect?: (template: CoachPlansPreview) => void;
 }
 
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit }) => {
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect }) => {
     return (
-        <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors">
+        <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors mb-4">
             <div className="flex items-start justify-between">
                 <div className="flex-1">
                     <h3 className="text-lg font-semibold text-900 mb-2">{template.name}</h3>
@@ -40,12 +41,22 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit }) => {
                     </div>
                 </div>
                 <div className="flex gap-1 ml-2">
-                    <Button
-                        icon="pi pi-pencil"
-                        className="p-button-rounded p-button-text"
-                        tooltip="编辑"
-                        onClick={() => onEdit(template.id)}
-                    />
+                    {onSelect && (
+                        <Button
+                            icon="pi pi-check"
+                            className="p-button-rounded p-button-text"
+                            tooltip="选择"
+                            onClick={() => onSelect(template)}
+                        />
+                    )}
+                    {onEdit && (
+                        <Button
+                            icon="pi pi-pencil"
+                            className="p-button-rounded p-button-text"
+                            tooltip="编辑"
+                            onClick={() => onEdit(template.id)}
+                        />
+                    )}
                 </div>
             </div>
         </div>

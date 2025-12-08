@@ -9,6 +9,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { CoachActionRow } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
 import ActionSetForm from './ActionSetForm';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -73,25 +74,8 @@ export const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = 
     );
 };
 
-
-interface ActionSet {
-    actionId: string;
-    setName: string;
-    sets: number;
-    reps: number;
-    intensity: string;
-    restSeconds: number;
-}
-
-interface PlanDay {
-    dayIndex: number;
-    type: 'training' | 'rest';
-    note: string;
-    actionSets: ActionSet[];
-}
-
 interface PlanDayCardProps {
-    day: PlanDay;
+    day: FormPlanTrainingDay;
     dayIndex: number;
     actions: CoachActionRow[];
     onDayTypeChange: (index: number, type: 'training' | 'rest') => void;
@@ -102,20 +86,14 @@ interface PlanDayCardProps {
     onActionSetChange: (
         dayIndex: number,
         setIndex: number,
-        field: keyof ActionSet,
+        field: string,
         value: string | number
     ) => void;
     saving: boolean;
     totalDays: number;
     // 修改属性定义
     onCopyFromDay: (targetDayIndex: number, sourceDayIndex: number) => void;
-    existingTrainingDays: {
-        dayIndex: number;
-        actionSetsCount: number;
-        type: 'training' | 'rest';
-        note: string;
-        actionSets?: ActionSet[];
-    }[];
+    existingTrainingDays: FormPlanTrainingDay[];
 }
 
 const PlanDayCard: React.FC<PlanDayCardProps> = ({

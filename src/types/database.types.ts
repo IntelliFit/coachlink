@@ -1078,7 +1078,7 @@ export type Database = {
           completed_at: string | null
           completed_sets: number
           created_at: string
-          day_index: number
+          dayIndex: number
           id: string
           instance_id: string
           last_saved_at: string | null
@@ -1095,7 +1095,7 @@ export type Database = {
           completed_at?: string | null
           completed_sets?: number
           created_at?: string
-          day_index: number
+          dayIndex: number
           id?: string
           instance_id: string
           last_saved_at?: string | null
@@ -1112,7 +1112,7 @@ export type Database = {
           completed_at?: string | null
           completed_sets?: number
           created_at?: string
-          day_index?: number
+          dayIndex?: number
           id?: string
           instance_id?: string
           last_saved_at?: string | null

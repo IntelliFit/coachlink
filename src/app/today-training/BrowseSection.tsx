@@ -23,7 +23,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     const [selectedDayIndex, setSelectedDayIndex] = useState(currentDayIndex);
 
     const trainingDays = (instance?.training_days || []) as any[];
-    const selectedDay = trainingDays.find(d => d.day_index === selectedDayIndex);
+    const selectedDay = trainingDays.find(d => d.dayIndex === selectedDayIndex);
 
     // Calculate dates for each day
     const getDayDate = (dayIndex: number) => {
@@ -52,7 +52,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                     <div className="grid grid-cols-7 gap-2">
                         {weekDays.map((dayIndex) => {
                             const dayDate = getDayDate(dayIndex);
-                            const day = trainingDays.find(d => d.day_index === dayIndex);
+                            const day = trainingDays.find(d => d.dayIndex === dayIndex);
                             const isTrainingDay = day && day.type === 'training';
                             const isTodayBool = isToday(dayIndex);
                             const isSelected = selectedDayIndex === dayIndex;
@@ -99,12 +99,12 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     })}
                                 </h4>
                                 <p className="text-sm text-gray-500">
-                                    {selectedDay.action_sets?.length || 0} 个动作
+                                    {selectedDay.actionSets?.length || 0} 个动作
                                 </p>
                             </div>
 
                             <div className="space-y-2 mb-4">
-                                {(selectedDay.action_sets || []).map((actionSet: any, idx: number) => {
+                                {(selectedDay.actionSets || []).map((actionSet: any, idx: number) => {
                                     const action = actions[actionSet.action_id];
                                     return (
                                         <div key={idx} className="bg-gray-50 rounded p-3 text-sm">

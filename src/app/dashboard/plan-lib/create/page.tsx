@@ -14,22 +14,7 @@ import BasicInfoForm from '../components/BasicInfoForm';
 import PlanDayCard from '../components/PlanDayCard';
 import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
-
-interface PlanDay {
-    dayIndex: number;
-    type: 'training' | 'rest';
-    note: string;
-    actionSets: ActionSet[];
-}
-
-interface ActionSet {
-    actionId: string;
-    setName: string;
-    sets: number;
-    reps: number;
-    intensity: string;
-    restSeconds: number;
-}
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -44,14 +29,14 @@ const CreatePlanPage = () => {
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
 
     // Days management
-    const [days, setDays] = useState<PlanDay[]>([
-        { dayIndex: 1, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 2, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 3, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 4, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 5, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 6, type: 'training', note: '', actionSets: [] },
-        { dayIndex: 7, type: 'training', note: '', actionSets: [] }
+    const [days, setDays] = useState<FormPlanTrainingDay[]>([
+        { dayIndex: 1, type: 'training', note: '', actionSets: [], actionSetsCount: 0 },
+        { dayIndex: 2, type: 'training', note: '', actionSets: [], actionSetsCount: 0 },
+        { dayIndex: 3, type: 'training', note: '', actionSets: [], actionSetsCount: 0 },
+        { dayIndex: 4, type: 'training', note: '', actionSets: [], actionSetsCount: 0 },
+        { dayIndex: 5, type: 'training', note: '', actionSets: [], actionSetsCount: 0 },
+        { dayIndex: 6, type: 'training', note: '', actionSets: [], actionSetsCount: 0 },
+        { dayIndex: 7, type: 'training', note: '', actionSets: [], actionSetsCount: 0 }
     ]);
 
     // Selected day for editing
@@ -97,7 +82,8 @@ const CreatePlanPage = () => {
                 dayIndex: currentLength + i,
                 type: 'training',
                 note: '',
-                actionSets: []
+                actionSets: [],
+                actionSetsCount: 0
             });
         }
 
@@ -121,7 +107,8 @@ const CreatePlanPage = () => {
                 dayIndex: 0, // 临时索引，后面会重新计算
                 type: 'rest',
                 note: '',
-                actionSets: []
+                actionSets: [],
+                actionSetsCount: 0
             });
         }
 
@@ -204,10 +191,7 @@ const CreatePlanPage = () => {
         newDays[actualDayIndex].actionSets.push({
             actionId: '',
             setName: '',
-            sets: 3,
-            reps: 10,
-            intensity: '',
-            restSeconds: 60
+            params: {} // 初始化为空对象
         });
         setDays(newDays);
     };
@@ -234,8 +218,8 @@ const CreatePlanPage = () => {
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
-        field: keyof ActionSet,
-        value: string | number
+        field: string,
+        value: string | number | object
     ) => {
         const newDays = [...days];
 
@@ -251,13 +235,11 @@ const CreatePlanPage = () => {
         switch (field) {
             case 'actionId':
             case 'setName':
-            case 'intensity':
                 actionSet[field] = value as string;
                 break;
-            case 'sets':
-            case 'reps':
-            case 'restSeconds':
-                actionSet[field] = value as number;
+            case 'params':
+                // 合并新的参数到现有的params对象中
+                actionSet.params = { ...actionSet.params, ...(value as object) };
                 break;
             default:
                 throw new Error(`Unknown field: ${field}`);
@@ -273,21 +255,6 @@ const CreatePlanPage = () => {
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
         if (targetIndex === -1 || sourceIndex === -1) return;
-
-        // 复制源日的动作集到目标日，但要保持目标日的dayIndex不变
-        newDays[targetIndex] = {
-            ...newDays[targetIndex],
-            actionSets: newDays[sourceIndex].actionSets.map(set => ({
-                ...set,
-                // 为新复制的动作集生成新的唯一标识符
-                actionId: set.actionId,
-                setName: set.setName,
-                sets: set.sets,
-                reps: set.reps,
-                intensity: set.intensity,
-                restSeconds: set.restSeconds
-            }))
-        };
 
         setDays(newDays);
         showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
@@ -305,19 +272,10 @@ const CreatePlanPage = () => {
         try {
             // Prepare data according to API format
             const daysData = days.map(day => ({
-                day_index: day.dayIndex,
+                dayIndex: day.dayIndex,
                 type: day.type,
                 note: day.note || null,
-                action_sets: day.type === 'training'
-                    ? day.actionSets.map(set => ({
-                        action_id: set.actionId,
-                        set_order: day.actionSets.indexOf(set) + 1,
-                        sets: set.sets,
-                        reps: set.reps,
-                        intensity: set.intensity || null,
-                        rest_seconds: set.restSeconds || null
-                    }))
-                    : []
+                actionSets: day.actionSets || []
             }));
 
             await planLibService.addTemplate({

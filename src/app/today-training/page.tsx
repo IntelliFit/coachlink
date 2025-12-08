@@ -160,7 +160,7 @@ const TodayTrainingPage: React.FC = () => {
 
     // 找到今天的训练日
     const trainingDays = (instance.training_days || []) as any[];
-    const todayTraining = trainingDays.find(d => d.day_index === todayDayIndex);
+    const todayTraining = trainingDays.find(d => d.dayIndex === todayDayIndex);
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
