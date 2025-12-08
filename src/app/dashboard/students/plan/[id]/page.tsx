@@ -492,9 +492,9 @@ const StudentPlanPage = () => {
     }
 
     return (
-        <div className="flex h-[calc(100vh-80px)]">
-            {/* 左侧：主编辑区域 */}
-            <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex h-[fit-content]">
+            {/* 主编辑区域 */}
+            <div className="flex-1 p-4">
                 <ConfirmDialog />
                 <SelectTemplateDialog
                     visible={selectTemplateDialogVisible}
@@ -502,6 +502,7 @@ const StudentPlanPage = () => {
                     onSelectTemplate={handleSelectTemplate}
                     coachId={coach?.id || ''}
                 />
+                
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-2xl font-bold text-900">
                         {studentName ? `${studentName}的训练计划` : '学员训练计划'}
@@ -514,6 +515,12 @@ const StudentPlanPage = () => {
                         disabled={saving}
                     />
                 </div>
+
+                {/* 学员信息面板 */}
+                <StudentProfilePanel 
+                    subscriptionId={params.id as string}
+                    studentName={studentName}
+                />
 
                 <BasicInfoForm
                     variant="student"
@@ -600,14 +607,6 @@ const StudentPlanPage = () => {
                     </div>
                 </Card>
             </div>
-
-            {/* 右侧：学员档案面板 */}
-            <StudentProfilePanel
-                subscriptionId={params.id as string}
-                studentName={studentName}
-                expanded={profilePanelExpanded}
-                onToggle={() => setProfilePanelExpanded(!profilePanelExpanded)}
-            />
         </div>
     );
 };
