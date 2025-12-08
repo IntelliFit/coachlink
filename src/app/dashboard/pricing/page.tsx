@@ -6,7 +6,6 @@ import { getCoach } from '@/app/dashboard/util';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import PricingSettings from './PricingSettings';
-import IntakeQuestionSettings from './QuestionSettings';
 import { Card } from 'primereact/card';
 import { Pricing } from '@/app/api/coach/get-pricing/entity';
 
@@ -19,14 +18,13 @@ const PricingPage = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">服务与定价</h1>
+                    <h1 className="text-2xl font-bold">订阅费用设置</h1>
                 </div>
             </div>
 
             {
                 <>
                     <PricingSettings coachId={coach.id} />
-                    <IntakeQuestionSettings coachId={coach.id} />
                 </>
             }
         </div>
