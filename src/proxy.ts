@@ -7,6 +7,7 @@ const PUBLIC_PATHS = new Set([
     '/login',
     '/register',
     '/api/auth',
+    '/api/sms/send-verification-code',
     '/api/coach/get-all-coaches'
 ]);
 

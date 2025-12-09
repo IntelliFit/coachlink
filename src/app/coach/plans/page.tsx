@@ -98,15 +98,9 @@ const TrainingPlansHome: React.FC = () => {
                     }
 
                     // 加载执行数据
-                    try {
-                        const execRes = await fetch(`/api/plan-instance/get-with-executions?subscriptionId=${activeSubscriptionId}`);
-                        const execData = await execRes.json();
-                        console.log('执行数据加载结果:', execData);
-                        if (execData.success && execData.data?.executions) {
-                            setExecutions(execData.data.executions);
-                        }
-                    } catch (err) {
-                        console.log('加载执行数据失败:', err);
+                    const exeRes = await planLibService.getWithExecutions({ subscriptionId: activeSubscriptionId });
+                    if (exeRes) {
+                        setExecutions(exeRes.executions);
                     }
                 }
 
@@ -284,7 +278,7 @@ const TrainingPlansHome: React.FC = () => {
     const ExecutionDetailsSection = ({ execution }: { execution: any }) => {
         if (!execution || !execution.action_executions) return null;
 
-        const completedSets = execution.action_executions.flatMap((ae: any) => 
+        const completedSets = execution.action_executions.flatMap((ae: any) =>
             (ae.sets || []).filter((s: any) => s.status === 'completed').map((s: any) => ({
                 ...s,
                 action_name: ae.action_name
@@ -579,14 +573,14 @@ const TrainingPlansHome: React.FC = () => {
                                     <button
                                         key={subscription.id}
                                         className={`group relative px-5 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
-                                                ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
-                                                : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
+                                            ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
+                                            : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
                                             }`}
                                         onClick={() => setActiveSubscriptionId(subscription.id)}
                                     >
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive
-                                                ? 'bg-surface/20'
-                                                : 'bg-surface-100'
+                                            ? 'bg-surface/20'
+                                            : 'bg-surface-100'
                                             }`}>
                                             <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
                                         </div>

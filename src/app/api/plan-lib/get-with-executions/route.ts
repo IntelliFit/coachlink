@@ -1,37 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-
-interface GetWithExecutionsResponse {
-    success: boolean;
-    message?: string;
-    data?: {
-        instance: any;
-        training_days: any[];
-        executions: Record<number, any>; // keyed by dayIndex
-        actions: Record<string, any>;
-    };
-}
+import { ApiData } from "@/types/api";
+import type { GetWithExecutionsDto, GetWithExecutionsResponseDto } from "./entity";
 
 /**
- * GET /api/plan-instance/get-with-executions
+ * GET /api/plan-lib/get-with-executions
  *
  * Fetches the user's current plan instance with all execution data
  */
-export async function GET(request: NextRequest) {
+export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<GetWithExecutionsResponse>(
-                { success: false, message: "未登录" },
+            return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
+                { success: false, message: "未登录", data: null },
                 { status: 401 },
             );
         }
 
         const userId = session.user.id;
-        const { searchParams } = new URL(request.url);
-        const subscriptionId = searchParams.get("subscriptionId");
+        const {
+            subscriptionId
+        } = req.json() as GetWithExecutionsDto;
 
         // 1. Get user's active subscription if not provided
         let activeSub: any = null;
@@ -55,8 +46,8 @@ export async function GET(request: NextRequest) {
         }
 
         if (!activeSub) {
-            return NextResponse.json<GetWithExecutionsResponse>(
-                { success: false, message: "未找到有效订阅" },
+            return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
+                { success: false, message: "未找到有效订阅", data: null },
                 { status: 404 },
             );
         }
@@ -71,8 +62,8 @@ export async function GET(request: NextRequest) {
             .single();
 
         if (!instance) {
-            return NextResponse.json<GetWithExecutionsResponse>(
-                { success: false, message: "未找到训练计划" },
+            return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
+                { success: false, message: "未找到训练计划", data: null },
                 { status: 404 },
             );
         }
@@ -140,7 +131,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 6. Get action details from coach_actions
-        const trainingDays = instance.training_days || [];
+        const trainingDays = (instance.training_days as any[]) || [];
         const actionIds = new Set<string>();
         for (const day of trainingDays) {
             if (day.actionSets && Array.isArray(day.actionSets)) {
@@ -166,8 +157,9 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        return NextResponse.json<GetWithExecutionsResponse>({
+        return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>({
             success: true,
+            message: "获取训练计划执行数据成功",
             data: {
                 instance,
                 training_days: trainingDays,
@@ -177,8 +169,8 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error("获取训练计划执行数据失败:", error);
-        return NextResponse.json<GetWithExecutionsResponse>(
-            { success: false, message: "服务器错误" },
+        return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
+            { success: false, message: "服务器错误", data: null },
             { status: 500 },
         );
     }
