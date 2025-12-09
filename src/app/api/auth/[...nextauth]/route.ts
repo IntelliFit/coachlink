@@ -3,6 +3,8 @@ import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import supabase from "@/lib/supabaseClient";
 import { verifyPassword } from "./verify";
+import redis from '@/lib/redisClient';
+import { getWhiteList } from "@/lib/devUsers";
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -11,8 +13,35 @@ export const authOptions: AuthOptions = {
             credentials: {
                 phone: { label: "Phone", type: "text" },
                 password: { label: "Password", type: "password" },
+                verifyCode: { label: "verifyCode", type: "text" },
             },
             async authorize(credentials) {
+                // 如果是开发者模式 获取白名单
+                const whiteList = getWhiteList();
+                if (!whiteList.some(user => user.phone === credentials?.phone)) {
+
+                    if (!credentials?.verifyCode) {
+                        throw new Error("请输入验证码");
+                    }
+
+                    // 验证验证码
+                    if (!redis) {
+                        throw new Error("验证服务不可用");
+                    }
+
+                    const storedCode = await redis.get(`sms_verification_code:${credentials.phone.trim()}`);
+                    if (!storedCode) {
+                        throw new Error("验证码已过期或不存在");
+                    }
+
+                    if (storedCode !== credentials.verifyCode.trim()) {
+                        throw new Error("验证码错误");
+                    }
+
+                    // 验证成功后删除验证码，防止重复使用
+                    await redis.del(`sms_verification_code:${credentials.phone.trim()}`);
+                }
+
                 if (!credentials?.phone || !credentials?.password) {
                     throw new Error("请输入手机号和密码");
                 }

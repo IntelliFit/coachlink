@@ -9,6 +9,7 @@ import { Password } from 'primereact/password';
 import { FloatLabel } from 'primereact/floatlabel';
 import { useToastContext } from '@/context/ToastContext';
 import { signIn } from 'next-auth/react';
+import { smsService } from '@/app/service/smsService';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -28,6 +29,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [password, setPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [loading, setLoading] = useState(false);
+    const [countdown, setCountdown] = useState(0); // 验证码倒计时
+    const [sendingCode, setSendingCode] = useState(false); // 发送验证码状态
 
     // 从环境变量读取开发账号
     const devUsers = useMemo<DevUser[]>(() => {
@@ -42,20 +45,70 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         return [];
     }, []);
 
+    // 倒计时效果
+    useMemo(() => {
+        let timer: NodeJS.Timeout;
+        if (countdown > 0) {
+            timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [countdown]);
+
+    // 发送验证码
+    const sendVerificationCode = async () => {
+        if (!phone.trim()) {
+            showToast({ severity: 'warn', summary: '请输入手机号' });
+            return;
+        }
+
+        // 验证手机号格式
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号' });
+            return;
+        }
+
+        setSendingCode(true);
+        try {
+            await smsService.sendVerificationCode({ phoneNumber: phone });
+            setCountdown(60); // 设置60秒倒计时
+            showToast({ severity: 'success', summary: '验证码已发送，请注意查收' });
+        } catch (error: any) {
+            console.error('发送验证码失败:', error);
+            showToast({ severity: 'error', summary: '发送验证码失败', detail: error.message || '请稍后重试' });
+        } finally {
+            setSendingCode(false);
+        }
+    };
+
     const handleLogin = async (e?: React.FormEvent) => {
         e?.preventDefault();
 
-        if (!phone.trim() || !password.trim()) {
-            showToast({ severity: 'warn', summary: '请输入手机号和密码' });
+        if (!phone.trim() || !password.trim() || !verificationCode.trim()) {
+            showToast({ severity: 'warn', summary: '请输入手机号、密码和验证码' });
+            return;
+        }
+
+        // 验证手机号格式
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号' });
+            return;
+        }
+
+        // 验证验证码格式
+        if (!/^\d{6}$/.test(verificationCode)) {
+            showToast({ severity: 'warn', summary: '请输入6位数字验证码' });
             return;
         }
 
         setLoading(true);
 
         try {
+
+            // 验证码正确，执行登录
             const result = await signIn('credentials', {
                 phone: phone.trim(),
                 password: password.trim(),
+                verifyCode: verificationCode.trim(), // 传递验证码给后端
                 redirect: false,
             });
 
@@ -66,8 +119,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 onClose();
                 router.refresh();
             }
-        } catch (error) {
-            showToast({ severity: 'error', summary: '登录失败，请重试' });
+        } catch (error) {            
+            showToast({ severity: 'error', summary: '登录失败，请重试', detail: error.toString() });
         } finally {
             setLoading(false);
         }
@@ -187,15 +240,28 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                             <label htmlFor="login_password">密码</label>
                         </FloatLabel>
 
-                        <FloatLabel>
-                            <InputText
-                                id="login_code"
-                                value={verificationCode}
-                                onChange={(e) => setVerificationCode(e.target.value)}
-                                className="w-full"
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <FloatLabel>
+                                    <InputText
+                                        id="login_code"
+                                        value={verificationCode}
+                                        onChange={(e) => setVerificationCode(e.target.value)}
+                                        className="w-full"
+                                        maxLength={6}
+                                    />
+                                    <label htmlFor="login_code">验证码</label>
+                                </FloatLabel>
+                            </div>
+                            <Button
+                                label={countdown > 0 ? `${countdown}秒后重发` : "获取验证码"}
+                                onClick={sendVerificationCode}
+                                disabled={countdown > 0 || sendingCode || !phone.trim()}
+                                loading={sendingCode}
+                                outlined
+                                className="w-32"
                             />
-                            <label htmlFor="login_code">验证码</label>
-                        </FloatLabel>
+                        </div>
 
                         <Button
                             label="登录"
