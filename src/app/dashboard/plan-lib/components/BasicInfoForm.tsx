@@ -5,6 +5,8 @@ import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
+import { trainingItemService } from '@/app/service/trainingItemService';
+import { useToastContext } from '@/context/ToastContext';
 
 interface BasicInfoFormProps {
     name: string;
@@ -42,24 +44,37 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     variant = 'template'
 }) => {
 
+    const { showToast } = useToastContext();
     const [templateTypes, setTemplateTypes] = useState<{ label: string, value: string }[]>([]);
+    const [loadingTemplateTypes, setLoadingTemplateTypes] = useState(false);
     const isStudent = variant === 'student';
 
     useEffect(() => {
-        const allTags = [
-            '新手训练',
-            '力量训练',
-            '耐力训练',
-            '增肌训练',
-            '减脂训练',
-            '康复训练',
-            '功能性训练',
-            '爆发力训练',
-        ];
+        const loadTrainingItems = async () => {
+            if (variant === 'template') {
+                setLoadingTemplateTypes(true);
+                try {
+                    const response = await trainingItemService.listTrainingItems();
+                    const items = response.trainingItems.map(item => ({
+                        label: item.name,
+                        value: item.id
+                    }));
+                    setTemplateTypes(items);
+                } catch (error) {
+                    console.error('获取训练项目失败:', error);
+                    showToast({ 
+                        severity: 'error', 
+                        summary: '获取训练项目失败', 
+                        detail: error instanceof Error ? error.message : '未知错误' 
+                    });
+                } finally {
+                    setLoadingTemplateTypes(false);
+                }
+            }
+        };
 
-        setTemplateTypes(allTags.map(tag => ({ label: tag, value: tag })));
-    }, []);
-
+        loadTrainingItems();
+    }, [variant, showToast]);
 
     return (
         <div className="flex flex-col gap-4 mb-10">
@@ -120,8 +135,11 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                                     onChange={(e) => onTagsChange(e.value)}
                                     placeholder="选择模板标签"
                                     className="text-sm"
-                                    disabled={saving}
+                                    disabled={saving || loadingTemplateTypes}
                                     display="chip"
+                                    filter
+                                    showClear
+                                    virtualScrollerOptions={{ itemSize: 38 }}
                                 />
                             </div>
 
