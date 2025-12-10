@@ -107,6 +107,10 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
     // 当参数或算法变化时，自动计算推荐负重
     useEffect(() => {
+        if (!studentData) {
+            return;
+        }
+
         const oneRm = getUserOneRM();
         const userBodyWeight = studentData?.profile?.weight;
 
