@@ -1,5 +1,8 @@
 'use client';
 
+// 强制动态渲染，禁用静态生成和缓存
+export const dynamic = 'force-dynamic';
+
 import { Button } from "primereact/button";
 
 export default function Home() {
