@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { coachService } from '@/app/service/coachService';
@@ -14,88 +14,87 @@ import { useToastContext } from '@/context/ToastContext';
 import QuestionPreviewDialog from './components/QuestionPreviewDialog';
 import AddQuestionOverlay from './components/AddQuestionOverlay';
 import AddQuestionDialog from './components/AddQuestionDialog';
+import OptionQuestionManager from './components/OptionQuestionManager';
 import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, QuestionType } from '@/types/questionnaires';
 const QuestionarePage = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
     const { showToast } = useToastContext();
     const overlayPanel = useRef<OverlayPanel>(null);
-    
+
     const [questionId, setQuestionId] = useState<string | null>(null);
     const [questions, setQuestions] = useState<TrainingItem[]>([]);
     const [saving, setSaving] = useState<boolean>(false);
     const [addQuestionDialogVisible, setAddQuestionDialogVisible] = useState<boolean>(false);
     const [previewDialogVisible, setPreviewDialogVisible] = useState<boolean>(false);
     const [newQuestionType, setNewQuestionType] = useState<QuestionType | null>(null);
-    
+
     // 新问题状态
-    const [newOptionQuestion, setNewOptionQuestion] = useState<{question: string; options: string[]}>({ question: '', options: [''] });
     const [newTextQuestion, setNewTextQuestion] = useState<string>('');
+
+    const loadQuestions = useCallback(async () => {
+        if (!coach?.id) return;
+
+        const res = await coachService.getQuestionnaires({ coachId: coach.id });
+        if (res) {
+            setQuestionId(res.id);
+
+            // 解析问题
+            const trainingQuestions: TrainingItem[] = [];
+
+            for (const item of res.questionnaires) {
+                switch (item.type) {
+                    case 'tags':
+                        trainingQuestions.push({
+                            type: 'tags'
+                        });
+                        break;
+                    case 'times':
+                        trainingQuestions.push({
+                            type: 'times'
+                        });
+                        break;
+                    case 'option':
+                        trainingQuestions.push({
+                            type: 'option',
+                            question: item.question,
+                            options: item.options,
+                        });
+                        break;
+                    case 'text':
+                        trainingQuestions.push({
+                            type: 'text',
+                            question: item.question,
+                        });
+                        break;
+                    default:
+                        if (typeof item === 'string') {
+                            trainingQuestions.push({
+                                type: 'text',
+                                question: item,
+                            });
+                        }
+                }
+            }
+
+            setQuestions(trainingQuestions);
+        } else {
+            showToast({ severity: 'error', summary: '错误', detail: '加载问卷问题失败' });
+        }
+    }, [coach?.id, showToast]);
 
     useEffect(() => {
         if (coach?.id) {
             loadQuestions();
         }
-    }, [coach?.id]);
-
-    const loadQuestions = async () => {
-        try {
-            const result = await coachService.getQuestionnaires({ coachId: coach.id });
-            if (result) {
-                setQuestionId(result.id);
-                
-                // 解析问题
-                const parsedQuestions: TrainingItem[] = [];
-                let hasTagsQuestion = false;
-                let hasTimesQuestion = false;
-                
-                result.questionnaires.forEach(q => {
-                    try {
-                        const question = JSON.parse(q) as TrainingItem;
-                        if (question.type === 'tags') {
-                            if (!hasTagsQuestion) {
-                                parsedQuestions.push(question);
-                                hasTagsQuestion = true;
-                            }
-                        } else if (question.type === 'times') {
-                            if (!hasTimesQuestion) {
-                                parsedQuestions.push(question);
-                                hasTimesQuestion = true;
-                            }
-                        } else {
-                            parsedQuestions.push(question);
-                        }
-                    } catch (e) {
-                        console.warn('Failed to parse question:', q);
-                    }
-                });
-                
-                // 确保默认问题存在
-                if (!hasTagsQuestion) {
-                    parsedQuestions.unshift({ type: 'tags' });
-                }
-                
-                if (!hasTimesQuestion) {
-                    parsedQuestions.unshift({ type: 'times' });
-                }
-                
-                setQuestions(parsedQuestions);
-            }
-        } catch (error) {
-            console.error('加载问卷问题失败:', error);
-            showToast({ severity: 'error', summary: '错误', detail: '加载问卷问题失败' });
-        }
-    };
+    }, [coach?.id, loadQuestions]);
 
     const saveQuestions = async () => {
         setSaving(true);
         try {
-            // 将问题序列化为字符串数组
-            const serializedQuestions = questions.map(q => JSON.stringify(q));
-            
             const result = await coachService.updateQuestionnaires({
                 id: questionId || '',
-                questionnaires: serializedQuestions
+                questionnaires: questions
             });
 
             if (result) {
@@ -127,20 +126,10 @@ const QuestionarePage = () => {
     };
 
     // 添加选项问题
-    const addOptionQuestion = () => {
-        if (newOptionQuestion.question.trim() && 
-            newOptionQuestion.options.some(opt => opt.trim())) {
-            const optionQuestion: TrainingOptionQuestion = {
-                type: 'option',
-                options: newOptionQuestion.options.filter(opt => opt.trim())
-            };
-            setQuestions([...questions, optionQuestion]);
-            setNewOptionQuestion({ question: '', options: [''] });
-            setAddQuestionDialogVisible(false);
-            setNewQuestionType(null);
-        } else {
-            showToast({ severity: 'error', summary: '错误', detail: '请输入有效的选项问题和至少一个选项' });
-        }
+    const addOptionQuestion = (question: TrainingOptionQuestion) => {
+        setQuestions([...questions, question]);
+        setAddQuestionDialogVisible(false);
+        setNewQuestionType(null);
     };
 
     // 添加文本问题
@@ -196,38 +185,19 @@ const QuestionarePage = () => {
     // 更新选项问题的题目
     const updateOptionQuestionText = (questionIndex: number, text: string) => {
         const newQuestions = [...questions];
-        if (newQuestions[questionIndex].type === 'option') {
+        const question = newQuestions[questionIndex];
+
+        if (question.type === 'option') {
             // 我们将题目存储在选项的第一个位置作为特殊处理
-            if (newQuestions[questionIndex].options.length === 0) {
-                newQuestions[questionIndex].options = [text];
+            if (question.options.length === 0) {
+                question.options = [text];
             } else {
-                newQuestions[questionIndex].options[0] = text;
+                question.options[0] = text;
             }
             setQuestions(newQuestions);
         }
     };
 
-    // 更新新选项问题的选项
-    const updateNewOptionQuestionOption = (index: number, value: string) => {
-        const updatedOptions = [...newOptionQuestion.options];
-        updatedOptions[index] = value;
-        setNewOptionQuestion({ ...newOptionQuestion, options: updatedOptions });
-    };
-
-    // 添加新选项问题的选项
-    const addNewOptionQuestionOption = () => {
-        setNewOptionQuestion({ 
-            ...newOptionQuestion, 
-            options: [...newOptionQuestion.options, ''] 
-        });
-    };
-
-    // 删除新选项问题的选项
-    const removeNewOptionQuestionOption = (index: number) => {
-        const updatedOptions = [...newOptionQuestion.options];
-        updatedOptions.splice(index, 1);
-        setNewOptionQuestion({ ...newOptionQuestion, options: updatedOptions });
-    };
 
     const renderQuestion = (question: TrainingItem, index: number) => {
         switch (question.type) {
@@ -239,8 +209,8 @@ const QuestionarePage = () => {
                                 <h4 className="font-medium">训练项目偏好</h4>
                                 <p className="text-sm text-surface-500">学员可以选择偏好的训练项目</p>
                             </div>
-                            <Button 
-                                icon="pi pi-trash" 
+                            <Button
+                                icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
                                 disabled={true} // 默认问题不能删除
@@ -248,7 +218,7 @@ const QuestionarePage = () => {
                         </div>
                     </div>
                 );
-            
+
             case 'times':
                 return (
                     <div className="mb-4 p-3 bg-surface-100 rounded">
@@ -257,8 +227,8 @@ const QuestionarePage = () => {
                                 <h4 className="font-medium">每周训练次数</h4>
                                 <p className="text-sm text-surface-500">学员可以选择每周训练的次数（1-7次）</p>
                             </div>
-                            <Button 
-                                icon="pi pi-trash" 
+                            <Button
+                                icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
                                 disabled={true} // 默认问题不能删除
@@ -266,28 +236,28 @@ const QuestionarePage = () => {
                         </div>
                     </div>
                 );
-            
+
             case 'option':
                 return (
                     <div className="mb-4 p-3 bg-surface-100 rounded">
                         <div className="flex justify-between items-start mb-2">
                             <InputText
-                                value={question.options[0] || ''}
+                                value={question.question || ''}
                                 onChange={(e) => updateOptionQuestionText(index, e.target.value)}
                                 placeholder="输入问题..."
                                 className="font-medium flex-1 mr-2"
                             />
-                            <Button 
-                                icon="pi pi-trash" 
+                            <Button
+                                icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
                             />
                         </div>
                         <div className="ml-2">
-                            {question.options.slice(1).map((option, optionIndex) => (
+                            {question.options.map((option, optionIndex) => (
                                 <div key={optionIndex} className="flex items-center gap-2 mb-1">
-                                    <RadioButton 
-                                        name={`question${index}`} 
+                                    <RadioButton
+                                        name={`question${index}`}
                                         disabled
                                     />
                                     <InputText
@@ -296,16 +266,16 @@ const QuestionarePage = () => {
                                         placeholder={`选项 ${optionIndex + 1}`}
                                         className="flex-1 text-sm"
                                     />
-                                    <Button 
-                                        icon="pi pi-trash" 
+                                    <Button
+                                        icon="pi pi-trash"
                                         className="p-button-text p-button-danger p-2"
                                         onClick={() => removeOption(index, optionIndex + 1)}
                                     />
                                 </div>
                             ))}
-                            <Button 
-                                label="添加选项" 
-                                icon="pi pi-plus" 
+                            <Button
+                                label="添加选项"
+                                icon="pi pi-plus"
                                 onClick={() => addOption(index)}
                                 className="mt-2"
                                 size="small"
@@ -314,7 +284,7 @@ const QuestionarePage = () => {
                         </div>
                     </div>
                 );
-            
+
             case 'text':
                 return (
                     <div className="mb-4 p-3 bg-surface-100 rounded">
@@ -331,66 +301,33 @@ const QuestionarePage = () => {
                                 placeholder="输入文本问题..."
                                 className="font-medium flex-1 mr-2"
                             />
-                            <Button 
-                                icon="pi pi-trash" 
+                            <Button
+                                icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
                             />
                         </div>
                     </div>
                 );
-            
+
             default:
                 return null;
         }
     };
 
-    const questionTypeOptions = [
-        { label: '训练项目偏好', value: 'tags' },
-        { label: '每周训练次数', value: 'times' },
-        { label: '选项问题', value: 'option' },
-        { label: '文本问题', value: 'text' }
-    ];
-
     const renderNewQuestionForm = () => {
         switch (newQuestionType) {
             case 'option':
                 return (
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">问题</label>
-                        <InputText
-                            value={newOptionQuestion.question}
-                            onChange={(e) => setNewOptionQuestion({...newOptionQuestion, question: e.target.value})}
-                            placeholder="输入问题..."
-                            className="w-full mb-2"
-                        />
-                        
-                        <label className="block text-sm font-medium mb-2">选项</label>
-                        {newOptionQuestion.options.map((option, index) => (
-                            <div key={index} className="flex items-center gap-2 mb-2">
-                                <InputText
-                                    value={option}
-                                    onChange={(e) => updateNewOptionQuestionOption(index, e.target.value)}
-                                    placeholder={`选项 ${index + 1}`}
-                                    className="flex-1"
-                                />
-                                <Button 
-                                    icon="pi pi-trash" 
-                                    className="p-button-text p-button-danger p-2"
-                                    onClick={() => removeNewOptionQuestionOption(index)}
-                                />
-                            </div>
-                        ))}
-                        <Button 
-                            label="添加选项" 
-                            icon="pi pi-plus" 
-                            onClick={addNewOptionQuestionOption}
-                            className="w-full md:w-auto mt-2"
-                            outlined
-                        />
-                    </div>
+                    <OptionQuestionManager
+                        onAddOptionQuestion={addOptionQuestion}
+                        onCancel={() => {
+                            setAddQuestionDialogVisible(false);
+                            setNewQuestionType(null);
+                        }}
+                    />
                 );
-            
+
             case 'text':
                 return (
                     <div className="mb-4">
@@ -403,7 +340,7 @@ const QuestionarePage = () => {
                         />
                     </div>
                 );
-            
+
             default:
                 return null;
         }
@@ -426,23 +363,8 @@ const QuestionarePage = () => {
                     <div className="mb-8 p-4 border border-surface-200 rounded-lg">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-lg">问题设置</h3>
-                            <div className="flex gap-2">
-                                <Button 
-                                    label="预览问卷" 
-                                    icon="pi pi-eye" 
-                                    onClick={() => setPreviewDialogVisible(true)}
-                                    className="w-full md:w-auto"
-                                    outlined
-                                />
-                                <Button 
-                                    label="添加问题" 
-                                    icon="pi pi-plus" 
-                                    onClick={(e) => overlayPanel.current?.toggle(e)}
-                                    className="w-full md:w-auto"
-                                />
-                            </div>
                         </div>
-                        
+
                         {questions.length === 0 ? (
                             <div className="p-4 text-center text-surface-500 border-2 border-dashed border-surface-300 rounded">
                                 <i className="pi pi-question text-2xl mb-2"></i>
@@ -461,10 +383,26 @@ const QuestionarePage = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
-                        <div></div>
-                        <Button 
-                            label="保存问卷设置" 
-                            icon="pi pi-save" 
+                        <div>
+                            <div className="flex gap-2">
+                                <Button
+                                    label="预览问卷"
+                                    icon="pi pi-eye"
+                                    onClick={() => setPreviewDialogVisible(true)}
+                                    className="w-full md:w-auto"
+                                    outlined
+                                />
+                                <Button
+                                    label="添加问题"
+                                    icon="pi pi-plus"
+                                    onClick={(e) => overlayPanel.current?.toggle(e)}
+                                    className="w-full md:w-auto"
+                                />
+                            </div>
+                        </div>
+                        <Button
+                            label="保存问卷设置"
+                            icon="pi pi-save"
                             onClick={saveQuestions}
                             loading={saving}
                             className="w-full md:w-auto"
@@ -497,18 +435,16 @@ const QuestionarePage = () => {
                 visible={addQuestionDialogVisible}
                 newQuestionType={newQuestionType}
                 renderNewQuestionForm={renderNewQuestionForm}
-                onAddOptionQuestion={addOptionQuestion}
                 onAddTextQuestion={addTextQuestion}
                 onCancel={() => {
                     setAddQuestionDialogVisible(false);
                     setNewQuestionType(null);
-                    setNewOptionQuestion({ question: '', options: [''] });
                     setNewTextQuestion('');
                 }}
             />
 
             {/* 问卷预览对话框 */}
-            <QuestionPreviewDialog 
+            <QuestionPreviewDialog
                 visible={previewDialogVisible}
                 onHide={() => setPreviewDialogVisible(false)}
                 questions={questions}
