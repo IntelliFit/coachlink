@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { RadioButton } from 'primereact/radiobutton';
 import { Checkbox } from 'primereact/checkbox';
-import { Chip } from 'primereact/chip';
+import { Skeleton } from 'primereact/skeleton';
+import { planLibService } from '@/app/service/planLibService';
 import type { TrainingItem } from '@/types/questionnaires';
 
 interface QuestionPreviewDialogProps {
@@ -17,6 +18,30 @@ interface QuestionPreviewDialogProps {
 const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({ visible, onHide, questions }) => {
     // 状态用于存储用户对问题的回答
     const [answers, setAnswers] = useState<Record<string, any>>({});
+    const [tags, setTags] = useState<string[]>([]);
+    const [loadingTags, setLoadingTags] = useState<boolean>(true);
+
+    useEffect(() => {
+        const fetchTags = async () => {
+            setLoadingTags(true);
+            try {
+                const res = await planLibService.getUniqueTemplateTags({});
+                if (res && res.tags) {
+                    setTags(res.tags);
+                }
+            } catch (error) {
+                console.error("获取训练标签失败:", error);
+                // Fallback to default tags
+                setTags(['胸部训练', '背部训练', '腿部训练', '肩部训练', '手臂训练']);
+            } finally {
+                setLoadingTags(false);
+            }
+        };
+
+        if (visible) {
+            fetchTags();
+        }
+    }, [visible]);
 
     // 更新答案
     const updateAnswer = (questionIndex: number, value: any) => {
@@ -32,26 +57,49 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({ visible, 
             case 'tags':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">训练项目偏好</label>
-                        <p className="text-sm text-surface-500 mb-2">请选择您偏好的训练项目（可多选）</p>
-                        <div className="flex flex-wrap gap-2">
-                            <Chip label="胸部训练" />
-                            <Chip label="背部训练" />
-                            <Chip label="腿部训练" />
-                            <Chip label="肩部训练" />
-                            <Chip label="手臂训练" />
-                        </div>
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
+                        {loadingTags ? (
+                            <div className="flex flex-col gap-2">
+                                {[1, 2, 3, 4, 5].map((_, i) => (
+                                    <div key={i} className="flex align-items-center">
+                                        <Skeleton width="20px" height="20px" className="mr-2" />
+                                        <Skeleton width="100px" height="1rem" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                {tags.map((tag, tagIndex) => (
+                                    <div key={tagIndex} className="flex align-items-center">
+                                        <Checkbox 
+                                            inputId={`tag${index}-${tagIndex}`} 
+                                            name={`tags${index}`} 
+                                            value={tag}
+                                            onChange={(e) => {
+                                                const currentTags = answers[index] || [];
+                                                if (e.checked) {
+                                                    updateAnswer(index, [...currentTags, tag]);
+                                                } else {
+                                                    updateAnswer(index, currentTags.filter((t: string) => t !== tag));
+                                                }
+                                            }} 
+                                            checked={(answers[index] || []).includes(tag)}
+                                        />
+                                        <label htmlFor={`tag${index}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 );
             
             case 'times':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">每周训练次数</label>
-                        <p className="text-sm text-surface-500 mb-2">您希望每周训练几次？</p>
-                        <div className="grid grid-cols-4 gap-2">
+                        <label className="block text-sm font-medium mb-2">Q{index + 1}. 您希望每周训练几次？</label>
+                        <div className="flex flex-wrap gap-2">
                             {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                                <div key={num} className="flex items-center">
+                                <div key={num} className="flex items-center rounded px-3 py-2">
                                     <RadioButton 
                                         inputId={`times${index}-${num}`} 
                                         name={`times${index}`} 
@@ -69,11 +117,11 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({ visible, 
             case 'option':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">
-                            {question.options[0] || `问题 ${index + 1}`}
+                        <label className="block text-sm font-medium mb-4">
+                            Q{index + 1}. {question.question || `问题 ${index + 1}`}
                         </label>
-                        <div className="flex flex-column gap-2">
-                            {question.options.slice(1).map((option, optionIndex) => (
+                        <div className="flex flex-col gap-4">
+                            {question.options.map((option, optionIndex) => (
                                 <div key={optionIndex} className="flex items-center">
                                     <RadioButton 
                                         inputId={`option${index}-${optionIndex}`} 
@@ -92,7 +140,7 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({ visible, 
             case 'text':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">{question.question}</label>
+                        <label className="block text-sm font-medium mb-2">Q{index + 1}. {question.question}</label>
                         <InputTextarea
                             value={answers[index] || ''}
                             onChange={(e) => updateAnswer(index, e.target.value)}
@@ -125,12 +173,6 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({ visible, 
             maximizable
         >
             <div className="p-4">
-                <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r">
-                    <p className="text-sm text-blue-800">
-                        <strong>预览说明：</strong>这是学员在订阅时将看到的问卷样式。您可以在此预览问题的显示效果。
-                    </p>
-                </div>
-                
                 {questions.length === 0 ? (
                     <div className="text-center py-8">
                         <i className="pi pi-question text-5xl text-surface-300 mb-4 block"></i>
