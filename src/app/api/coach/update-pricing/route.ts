@@ -27,6 +27,37 @@ export async function POST(req: Request) {
         pricings
     } = await req.json() as UpdatePricingDto;
 
+    // 检查是否只有一个推荐项
+    const recommendedCount = pricings.filter((tier: any) => tier.is_recommend).length;
+    if (recommendedCount > 1) {
+        return NextResponse.json<ApiData<UpdatePricingResponseDto>>({
+            success: false,
+            message: '只能有一个推荐档位',
+            data: null
+        });
+    }
+
+    // 检查AI订阅计划
+    const aiPlanCount = pricings.filter((tier: any) => tier.is_ai_plan).length;
+    
+    // 如果有AI订阅计划但不在第一个位置，返回错误
+    if (aiPlanCount > 0 && !pricings[0].is_ai_plan) {
+        return NextResponse.json<ApiData<UpdatePricingResponseDto>>({
+            success: false,
+            message: 'AI订阅计划只能设置在第一个档位',
+            data: null
+        });
+    }
+
+    // 如果有超过一个AI订阅计划，返回错误
+    if (aiPlanCount > 1) {
+        return NextResponse.json<ApiData<UpdatePricingResponseDto>>({
+            success: false,
+            message: '只能有一个AI订阅计划',
+            data: null
+        });
+    }
+
     const { data: coach, error: coachError } = await supabase
         .from('coaches')
         .select('id, user_id, name, status')
