@@ -5,9 +5,8 @@ import { QuestionType } from '@/types/questionnaires';
 
 interface AddQuestionDialogProps {
     visible: boolean;
-    newQuestionType: QuestionType;
+    newQuestionType: QuestionType | null;
     renderNewQuestionForm: () => React.ReactNode;
-    onAddOptionQuestion: () => void;
     onAddTextQuestion: () => void;
     onCancel: () => void;
 }
@@ -16,10 +15,12 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({
     visible,
     newQuestionType,
     renderNewQuestionForm,
-    onAddOptionQuestion,
     onAddTextQuestion,
     onCancel
 }) => {
+    // 对于选项问题，我们不再使用对话框底部的按钮，因为OptionQuestionManager有自己的按钮
+    const isOptionQuestion = newQuestionType === 'option';
+
     return (
         <Dialog 
             header={newQuestionType === 'option' ? "添加选项问题" : "添加文本问题"}
@@ -30,25 +31,25 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({
         >
             <div>
                 {renderNewQuestionForm()}
-                <div className="flex justify-end gap-2 mt-4">
-                    <Button 
-                        label="取消" 
-                        icon="pi pi-times" 
-                        onClick={onCancel}
-                        className="p-button-text"
-                    />
-                    <Button 
-                        label="添加" 
-                        icon="pi pi-check" 
-                        onClick={() => {
-                            if (newQuestionType === 'option') {
-                                onAddOptionQuestion();
-                            } else if (newQuestionType === 'text') {
-                                onAddTextQuestion();
-                            }
-                        }}
-                    />
-                </div>
+                {!isOptionQuestion && (
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button 
+                            label="取消" 
+                            icon="pi pi-times" 
+                            onClick={onCancel}
+                            className="p-button-text"
+                        />
+                        <Button 
+                            label="添加" 
+                            icon="pi pi-check" 
+                            onClick={() => {
+                                if (newQuestionType === 'text') {
+                                    onAddTextQuestion();
+                                }
+                            }}
+                        />
+                    </div>
+                )}
             </div>
         </Dialog>
     );

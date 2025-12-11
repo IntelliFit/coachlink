@@ -3,6 +3,7 @@ import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import type { ApiData } from '@/types/api';
 import type { GetQuestionnairesDto, GetQuestionnairesResponseDto } from './entity';
+import { TrainingItem } from '@/types/questionnaires';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
         const { data: coach, error: coachError } = await supabase
             .from('coaches')
             .select('*')
-            .eq('id', coachId)
+            .eq('user_id', coachId)
             .single();
 
         if (coachError) {
@@ -55,6 +56,8 @@ export async function POST(req: Request) {
         .maybeSingle();
 
     if (questionnaireError) {
+        console.error(questionnaireError);
+        
         return NextResponse.json({
             success: false,
             message: '获取问卷失败',
@@ -72,7 +75,7 @@ export async function POST(req: Request) {
         message: '获取问卷成功',
         data: {
             id: questionnairesData.id,
-            questionnaires: questionnairesData.questions as string[]
+            questionnaires: questionnairesData.questions as unknown as TrainingItem[]
         }
     });
 }

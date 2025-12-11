@@ -9,6 +9,7 @@ export interface TrainingTimesQuestion {
 
 export interface TrainingOptionQuestion {
     type: 'option'
+    question: string
     options: string[]
 }
 
