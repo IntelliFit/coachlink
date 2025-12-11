@@ -17,4 +17,6 @@ export interface TrainingTextQuestion {
     question: string
 }
 
+export type QuestionType = 'tags' | 'times' | 'option' | 'text';
+
 export type TrainingItem = TrainingTagsQuestion | TrainingTimesQuestion | TrainingOptionQuestion | TrainingTextQuestion; 
