@@ -10,6 +10,7 @@ import type { CreateInstanceDto, CreateInstanceResponseDto } from "@/app/api/pla
 import type { UpdateInstanceDto, UpdateInstanceResponseDto } from "@/app/api/plan-lib/update-instance/entity";
 import type { DeleteInstanceDto, DeleteInstanceResponseDto } from "@/app/api/plan-lib/delete-instance/entity";
 import { GetWithExecutionsDto, GetWithExecutionsResponseDto } from "../api/plan-lib/get-with-executions/entity";
+import type { GetUniqueTemplateTagsDto, GetUniqueTemplateTagsResponseDto } from "@/app/api/plan-lib/get-unique-template-tags/entity";
 
 export class PlanLibService extends BaseService {
 
@@ -91,6 +92,14 @@ export class PlanLibService extends BaseService {
         const res = await this.post<GetWithExecutionsResponseDto>("get-with-executions", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to get plan with executions");
+        }
+        return res.data.data;
+    }
+
+    async getUniqueTemplateTags(reqData: GetUniqueTemplateTagsDto) {
+        const res = await this.post<GetUniqueTemplateTagsResponseDto>("get-unique-template-tags", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to fetch template tags");
         }
         return res.data.data;
     }
