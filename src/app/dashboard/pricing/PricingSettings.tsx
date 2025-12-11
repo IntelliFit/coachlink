@@ -6,6 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
+import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
 
@@ -15,6 +16,7 @@ interface Pricing {
     price: number;
     features: string[];
     is_recommend: boolean;
+    is_ai_plan?: boolean;
 }
 
 interface PricingSettingsProps {
@@ -183,24 +185,69 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
             return;
         }
 
-        setSaving(true);
-        try {
-            const result = await coachService.updatePricing({ pricings });
+        // 检查是否有AI订阅计划
+        const aiPlanCount = pricings.filter(tier => tier.is_ai_plan).length;
 
-            if (result) {
-                showToast({ severity: 'success', summary: '成功', detail: '价格设置已保存' });
-            } else {
-                showToast({ severity: 'error', summary: '错误', detail: '保存失败' });
-            }
-        } catch (error) {
-            showToast({ severity: 'error', summary: '错误', detail: '保存失败' });
-        } finally {
-            setSaving(false);
+        console.log('enter');
+        
+        // 如果没有AI订阅计划，提示用户是否将第一个计划设置为AI订阅计划
+        if (aiPlanCount === 0) {
+            confirmDialog({
+                message: '当前没有设置AI订阅计划，是否需要将第一个计划自动设置为AI订阅计划？',
+                header: '确认设置AI订阅计划',
+                icon: 'pi pi-exclamation-triangle',
+                acceptLabel: '是',
+                rejectLabel: '否',
+                accept: async () => {
+                    // 用户选择是，将第一个计划设置为AI订阅计划
+                    const updatedPricings = [...pricings];
+                    updatedPricings[0] = { ...updatedPricings[0], is_ai_plan: true };
+                    setPricings(updatedPricings);
+                    
+                    setSaving(true);
+                    try {
+                        const result = await coachService.updatePricing({ pricings: updatedPricings });
+
+                        if (result) {
+                            showToast({ severity: 'success', summary: '成功', detail: '价格设置已保存，已将第一个计划设置为AI订阅计划' });
+                        } else {
+                            showToast({ severity: 'error', summary: '错误', detail: '保存失败' });
+                        }
+                    } catch (error) {
+                        showToast({ severity: 'error', summary: '错误', detail: '保存失败' });
+                    } finally {
+                        setSaving(false);
+                    }
+                },
+                reject: async () => {
+                    // 用户选择否，继续保存但不设置AI计划
+                    setSaving(true);
+                    try {
+                        const result = await coachService.updatePricing({ pricings });
+
+                        if (result) {
+                            showToast({ severity: 'success', summary: '成功', detail: '价格设置已保存' });
+                        } else {
+                            showToast({ severity: 'error', summary: '错误', detail: '保存失败' });
+                        }
+                    } catch (error) {
+                        showToast({ severity: 'error', summary: '错误', detail: '保存失败' });
+                    } finally {
+                        setSaving(false);
+                    }
+                }
+            });            
+
+            return;
         }
+
+        // 在确认对话框的 reject 回调中已经处理了保存逻辑，
+        // 所以这里不需要再重复执行保存操作
     };
 
     return (
         <Card>
+            <ConfirmDialog />
             <div className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
@@ -269,6 +316,8 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                                     className="w-full"
                                                 />
                                             </div>
+                                            
+                                            <br />
 
                                             {/* 推荐 */}
                                             <div className="flex items-end">
@@ -280,6 +329,23 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                                     />
                                                     <label htmlFor={`rec-${tier.id}`} className="ml-2 text-sm">
                                                         设置为推荐订阅
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <br />
+
+                                            {/* AI计划 */}
+                                            <div className="flex items-end">
+                                                <div className="flex items-center">
+                                                    <Checkbox
+                                                        inputId={`ai-${tier.id}`}
+                                                        onChange={e => updateTier(tier.id, 'is_ai_plan', e.checked ?? false)}
+                                                        checked={tier.is_ai_plan}
+                                                        disabled={index !== 0} // 只有第一个计划可以设置为AI订阅计划
+                                                    />
+                                                    <label htmlFor={`ai-${tier.id}`} className="ml-2 text-sm">
+                                                        设置为AI订阅计划
                                                     </label>
                                                 </div>
                                             </div>
@@ -342,6 +408,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                             <li>定价档位价格必须严格递增（每个档位价格必须高于前一个）。</li>
                             <li>每个档位可以有多个特点描述。</li>
                             <li>最多只能标记一个档位为"推荐"。</li>
+                            <li>最多只能标记一个档位为"AI订阅计划"，且只能设置在第一个档位。</li>
                             <li>"我的主页"页面会显示此处设置的定价策略。</li>
                         </ul>
 
