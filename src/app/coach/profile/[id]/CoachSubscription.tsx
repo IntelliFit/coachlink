@@ -249,7 +249,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                             key={index}
                             className={`relative p-6 rounded-xl border-2
                                 ${tier.is_recommend
-                                    ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-red-50 dark:bg-primary-800 shadow-lg'
+                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900 shadow-lg'
                                     : 'border-surface-200 bg-surface hover:shadow-md'
                                 } transition-all duration-200`}
                         >
@@ -287,7 +287,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                     label="已经订阅"
                                     disabled={true}
                                     className={`w-full ${tier.is_recommend
-                                        ? 'bg-gradient-to-r from-primary-500 to-red-500'
+                                        ? 'bg-red-500'
                                         : 'p-button-primary'
                                         }`}
                                 />
@@ -298,7 +298,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                     loading={subscribingStates[index]}
                                     disabled={subscribingStates[index]}
                                     className={`w-full ${tier.is_recommend
-                                        ? 'bg-gradient-to-r from-primary-500 to-red-500'
+                                        ? 'bg-primary'
                                         : 'p-button-primary'
                                         }`}
                                 />
