@@ -9,17 +9,12 @@ import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { RadioButton } from 'primereact/radiobutton';
-import { Checkbox } from 'primereact/checkbox';
-import { Dropdown } from 'primereact/dropdown';
-import { Dialog } from 'primereact/dialog';
 import { OverlayPanel } from 'primereact/overlaypanel';
 import { useToastContext } from '@/context/ToastContext';
 import QuestionPreviewDialog from './components/QuestionPreviewDialog';
 import AddQuestionOverlay from './components/AddQuestionOverlay';
-import type { TrainingItem, TrainingTagsQuestion, TrainingTimesQuestion, TrainingOptionQuestion, TrainingTextQuestion } from '@/types/questionnaires';
-
-type QuestionType = 'tags' | 'times' | 'option' | 'text';
-
+import AddQuestionDialog from './components/AddQuestionDialog';
+import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, QuestionType } from '@/types/questionnaires';
 const QuestionarePage = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
@@ -119,7 +114,7 @@ const QuestionarePage = () => {
     const addTagsQuestion = () => {
         const hasTags = questions.some(q => q.type === 'tags');
         if (!hasTags) {
-            setQuestions([{ type: 'tags' }, ...questions]);
+            setQuestions([...questions, { type: 'tags' }]);
         }
     };
 
@@ -127,7 +122,7 @@ const QuestionarePage = () => {
     const addTimesQuestion = () => {
         const hasTimes = questions.some(q => q.type === 'times');
         if (!hasTimes) {
-            setQuestions([{ type: 'times' }, ...questions]);
+            setQuestions([...questions, { type: 'times' }]);
         }
     };
 
@@ -482,6 +477,7 @@ const QuestionarePage = () => {
             {/* 添加问题的OverlayPanel */}
             <AddQuestionOverlay
                 overlayPanel={overlayPanel}
+                questions={questions}
                 onAddTagsQuestion={addTagsQuestion}
                 onAddTimesQuestion={addTimesQuestion}
                 onAddOptionQuestion={() => {
@@ -496,47 +492,20 @@ const QuestionarePage = () => {
                 }}
             />
 
-            {/* 添加问题对话框（用于选项问题和文本问题） */}
-            <Dialog 
-                header={newQuestionType === 'option' ? "添加选项问题" : "添加文本问题"}
-                visible={addQuestionDialogVisible} 
-                onHide={() => {
+            {/* 添加问题对话框（使用新组件） */}
+            <AddQuestionDialog
+                visible={addQuestionDialogVisible}
+                newQuestionType={newQuestionType}
+                renderNewQuestionForm={renderNewQuestionForm}
+                onAddOptionQuestion={addOptionQuestion}
+                onAddTextQuestion={addTextQuestion}
+                onCancel={() => {
                     setAddQuestionDialogVisible(false);
                     setNewQuestionType(null);
                     setNewOptionQuestion({ question: '', options: [''] });
                     setNewTextQuestion('');
                 }}
-                style={{ width: '500px' }}
-                modal
-            >
-                <div>
-                    {renderNewQuestionForm()}
-                    <div className="flex justify-content-end gap-2 mt-4">
-                        <Button 
-                            label="取消" 
-                            icon="pi pi-times" 
-                            onClick={() => {
-                                setAddQuestionDialogVisible(false);
-                                setNewQuestionType(null);
-                                setNewOptionQuestion({ question: '', options: [''] });
-                                setNewTextQuestion('');
-                            }}
-                            className="p-button-text"
-                        />
-                        <Button 
-                            label="添加" 
-                            icon="pi pi-check" 
-                            onClick={() => {
-                                if (newQuestionType === 'option') {
-                                    addOptionQuestion();
-                                } else if (newQuestionType === 'text') {
-                                    addTextQuestion();
-                                }
-                            }}
-                        />
-                    </div>
-                </div>
-            </Dialog>
+            />
 
             {/* 问卷预览对话框 */}
             <QuestionPreviewDialog 
