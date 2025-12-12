@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
@@ -8,6 +8,9 @@ import { useSession } from 'next-auth/react';
 import { CoachesRow } from '@/types';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
+import { Button } from 'primereact/button';
+import EditCoachProfileDialog from './EditCoachProfileDialog';
+import { Chip } from 'primereact/chip';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
@@ -18,6 +21,9 @@ interface CoachIntroductionProps {
 const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo }) => {
     const { data: session } = useSession();
     const isSubscribed = userSubscription?.status === 'active';
+    const isOwnProfile = session?.user?.id === coach.user_id;
+    
+    const [editDialogVisible, setEditDialogVisible] = useState(false);
 
     return (
         <div className="bg-surface">
@@ -65,8 +71,23 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
 
                     {/* 右侧 - 教练详细信息 */}
                     <div className="flex-1">
-                        <h1 className="text-2xl font-bold text-surface-900 mb-2">{coach.name}</h1>
-                        <p className="text-lg text-surface-600 mb-6">{coach.title}</p>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h1 className="text-2xl font-bold text-surface-900 mb-2">{coach.name}</h1>
+                            </div>
+                            
+                            {/* 编辑按钮 - 仅在查看自己的资料时显示 */}
+                            {isOwnProfile && (
+                                <Button 
+                                    icon="pi pi-pencil" 
+                                    rounded 
+                                    outlined 
+                                    onClick={() => setEditDialogVisible(true)}
+                                    tooltip="编辑个人资料"
+                                    tooltipOptions={{ position: 'left' }}
+                                />
+                            )}
+                        </div>
 
                         {/* 统计信息 */}
                         <div className="flex flex-wrap gap-4 mb-6 text-sm">
@@ -88,16 +109,6 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                     {aggregatedInfo?.studentCount || 0}
                                 </span>
                                 <span className="text-surface-500 ml-1">学员</span>
-                            </div>
-                            
-                            <div className="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                </svg>
-                                <span className="text-surface-900 font-medium">
-                                    {aggregatedInfo?.reviewCount || 0}
-                                </span>
-                                <span className="text-surface-500 ml-1">评论</span>
                             </div>
                             
                             <div className="flex items-center">
@@ -148,6 +159,13 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                     </div>
                 </div>
             </div>
+            
+            <EditCoachProfileDialog 
+                visible={editDialogVisible}
+                onHide={() => setEditDialogVisible(false)}
+                coach={coach}
+                onSave={() => window.location.reload()} // 简单实现，刷新页面以获取最新数据
+            />
         </div>
     );
 };

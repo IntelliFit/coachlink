@@ -60,21 +60,17 @@ import type {
     GetAggregatedInfoResponseDto
 } from '@/app/api/coach/get-aggregated-info/entity';
 
+// 教练资料更新相关接口
+import type {
+    UpdateCoachProfileDto,
+    UpdateCoachProfileResponseDto
+} from '@/app/api/coach/update-coach-profile/entity';
+
 // 添加UpdateContentDto和DeleteContentDto类型
 interface DeleteContentDto {
     id: string;
 }
 
-interface UpdateContentDto extends Partial<PublishContentDto> {
-    id: string;
-}
-
-// 添加DeleteContentDto类型
-interface DeleteContentDto {
-    id: string;
-}
-
-// 添加UpdateContentDto类型
 interface UpdateContentDto extends Partial<PublishContentDto> {
     id: string;
 }
@@ -140,6 +136,15 @@ class CoachService extends BaseService {
 
     async getCoach(reqData: GetCoachDto) {
         const res = await this.post<GetCoachResponseDto>('get-coach', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
+    }
+
+    async updateCoachProfile(reqData: UpdateCoachProfileDto) {
+        const res = await this.post<UpdateCoachProfileResponseDto>('update-coach-profile', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }

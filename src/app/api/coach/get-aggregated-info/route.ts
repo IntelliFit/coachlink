@@ -3,6 +3,7 @@ import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetAggregatedInfoDto, GetAggregatedInfoResponseDto } from './entity';
+import redis from '@/lib/redisClient';
 
 
 async function getUniqueTags(userId: string) {
@@ -20,6 +21,76 @@ async function getUniqueTags(userId: string) {
     const uniqueTags = Array.from(new Set(allTags));
 
     return uniqueTags;
+}
+
+async function getContentCount(coachId: string) {
+    const { count, error } = await supabase
+        .from('coach_contents')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', coachId);
+
+    if (error) {
+        console.error(error);
+        return 0;
+    }
+
+    return count || 0;
+}
+
+async function getStudentCount(coachId: string) {
+    const { count, error } = await supabase
+        .from('coach_subscriptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', coachId)
+        .eq('status', 'active');
+
+    if (error) {
+        console.error(error);
+        return 0;
+    }
+
+    return count || 0;
+}
+
+async function getReviewCount(coachId: string) {
+    const cacheKey = `coach:reviews:${coachId}`;
+    
+    // 尝试从缓存中获取数据
+    try {
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+            return JSON.parse(cachedData as string);
+        }
+    } catch (err) {
+        console.error('Redis get error:', err);
+    }
+
+    // 获取评论数量和平均评分
+    const { data: reviewsData, error: reviewsError } = await supabase
+        .from('student_comments')
+        .select('rating')
+        .eq('coach_id', coachId);
+
+    let reviewCount = 0;
+    let averageRating = 0;
+
+    if (!reviewsError && reviewsData) {
+        reviewCount = reviewsData.length;
+        if (reviewCount > 0) {
+            const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
+            averageRating = parseFloat((totalRating / reviewCount).toFixed(1));
+        }
+    }
+
+    // 将结果存入缓存，设置5分钟过期时间
+    const result = { reviewCount, averageRating };
+    try {
+        await redis.setex(cacheKey, 300, JSON.stringify(result));
+    } catch (err) {
+        console.error('Redis set error:', err);
+    }
+
+    return result;
 }
 
 export async function POST(req: Request) {
@@ -51,40 +122,16 @@ export async function POST(req: Request) {
         });
     }
 
-    // 获取教学内容数量
-    const { count: contentCount, error: contentCountError } = await supabase
-        .from('coach_content')
-        .select('*', { count: 'exact', head: true })
-        .eq('coach_id', coachId);
-
-    // 获取学员数量
-    const { count: studentCount, error: studentCountError } = await supabase
-        .from('coach_subscriptions')
-        .select('*', { count: 'exact', head: true })
-        .eq('coach_id', coachId)
-        .eq('status', 'active');
-
-    // 获取评论数量和平均评分
-    const { data: reviewsData, error: reviewsError } = await supabase
-        .from('coach_reviews')
-        .select('rating')
-        .eq('coach_id', coachId);
-
-    let reviewCount = 0;
-    let averageRating = 0;
-
-    if (!reviewsError && reviewsData) {
-        reviewCount = reviewsData.length;
-        if (reviewCount > 0) {
-            const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
-            averageRating = parseFloat((totalRating / reviewCount).toFixed(1));
-        }
-    }
-
     const [
-
+        studentCount,
+        contentCount,
+        specialties,
+        { reviewCount, averageRating }
     ] = await Promise.all([
-        getUniqueTags(userId)
+        getStudentCount(coach.id),
+        getContentCount(coach.id),
+        getUniqueTags(coach.user_id),
+        getReviewCount(coach.id),
     ]);
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
@@ -92,11 +139,11 @@ export async function POST(req: Request) {
         message: '获取成功',
         data: {
             coach,
-            contentCount: contentCount || 0,
-            studentCount: studentCount || 0,
+            contentCount,
+            studentCount,
             reviewCount,
             averageRating,
-            specialties: []
+            specialties
         }
     });
 }
