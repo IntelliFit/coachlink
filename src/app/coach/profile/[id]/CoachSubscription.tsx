@@ -1,9 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Zap } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { useToastContext } from '@/context/ToastContext';
+
+// 定义问卷问题的类型
+interface Questionnaire {
+    question: string;
+    // 可以根据实际API返回的数据添加更多字段，例如 id?: number; required?: boolean;
+}
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
@@ -32,7 +38,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const [subscriptionTiers, setSubscriptionTiers] = useState<Pricing[]>([]);
     const [loading, setLoading] = useState(true);
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
-    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<string[]>([]);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<Array<{
+      type: string;
+      question?: string;
+      options?: string[];
+    }>>([]);
 
     // 为每个订阅选项维护独立的加载状态
     const [subscribingStates, setSubscribingStates] = useState<boolean[]>([]);
@@ -132,7 +142,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         // 订阅成功后获取问卷
         const res = await coachService.getQuestionnaires({ coachId: coach.id });
 
-        if (res && res.questionnaires && res.questionnaires.length > 0) {
+        if (res?.questionnaires && res.questionnaires.length > 0) {
             // 如果有问卷，显示问卷表单
             setQuestionnaireQuestions(res.questionnaires);
             setQuestionnaireVisible(true);
@@ -248,7 +258,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                         <div
                             key={index}
                             className={`relative p-6 rounded-xl border-2
-                                ${tier.is_recommend
+                                ${(tier.is_recommend)
                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900 shadow-lg'
                                     : 'border-surface-200 bg-surface hover:shadow-md'
                                 } transition-all duration-200`}
@@ -257,6 +267,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                                     <span className="bg-primary-500 text-surface px-3 py-1 rounded-full text-sm font-medium">
                                         推荐
+                                    </span>
+                                </div>
+                            )}
+                            
+                            {tier.is_ai_plan && !tier.is_recommend && (
+                                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                    <span className="bg-purple-500 text-surface px-3 py-1 rounded-full text-sm font-medium">
+                                        AI智能
                                     </span>
                                 </div>
                             )}
@@ -276,6 +294,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                         <span className="text-surface-700 text-sm">{feature}</span>
                                     </li>
                                 ))}
+                                
+                                {tier.is_ai_plan && (
+                                    <li className="flex items-start text-purple-600 font-medium">
+                                        <Zap className="h-5 w-5 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
+                                        <span className="text-sm">AI智能个性化训练计划</span>
+                                    </li>
+                                )}
                             </ul>
 
                             {(mySubscriptions.some(
@@ -286,7 +311,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                 <Button
                                     label="已经订阅"
                                     disabled={true}
-                                    className={`w-full ${tier.is_recommend
+                                    className={`w-full ${(tier.is_recommend)
                                         ? 'bg-red-500'
                                         : 'p-button-primary'
                                         }`}
@@ -297,9 +322,10 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                     onClick={() => onSubscribe(index)}
                                     loading={subscribingStates[index]}
                                     disabled={subscribingStates[index]}
-                                    className={`w-full ${tier.is_recommend
-                                        ? 'bg-primary'
-                                        : 'p-button-primary'
+
+                                    className={`w-full ${tier.is_recommend ? 'bg-primary'
+                                        : tier.is_ai_plan ? 'bg-purple-500' :
+                                        'p-button-primary'
                                         }`}
                                 />
                             )}
@@ -311,7 +337,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             <QuestionnaireForm
                 visible={questionnaireVisible}
                 onHide={() => setQuestionnaireVisible(false)}
-                questions={questionnaireQuestions}
+                questions={questionnaireQuestions.map(q => {
+                    if (q.type === 'text' || q.type === 'option') {
+                        return q.question;
+                    }
+                    // 对于其他类型的问题，返回一个通用描述
+                    return `请提供您的${q.type === 'tags' ? '训练偏好标签' : '训练时间'}信息`;
+                })}
                 onSubmit={handleQuestionnaireSubmit}
                 loading={subscribingStates.some(state => state)} // 如果有任何一个处于加载状态，则禁用问卷提交
             />
