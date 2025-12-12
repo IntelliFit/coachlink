@@ -258,6 +258,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                         <div
                             key={index}
                             className={`relative p-6 rounded-xl border-2
+                                flex flex-col justify-between
                                 ${(tier.is_recommend)
                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900 shadow-lg'
                                     : 'border-surface-200 bg-surface hover:shadow-md'

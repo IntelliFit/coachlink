@@ -1,0 +1,75 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from '../../auth/[...nextauth]/auth';
+import supabase from '@/lib/supabaseClient';
+import type { ApiData } from '@/types/api';
+import type { GetAggregatedInfoDto, GetAggregatedInfoResponseDto } from './entity';
+
+export async function POST(req: Request) {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+        return NextResponse.json({
+            success: false,
+            message: '用户未登录',
+            data: null
+        }, { status: 401 });
+    }
+
+    const { coachId } = await req.json() as GetAggregatedInfoDto;
+
+    // 获取教练基本信息
+    const { data: coach, error: coachError } = await supabase
+        .from('coaches')
+        .select('*')
+        .eq('id', coachId)
+        .single();
+
+    if (coachError || !coach) {
+        return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
+            success: false,
+            message: '教练信息不存在',
+            data: null
+        });
+    }
+
+    // 获取教学内容数量
+    const { count: contentCount, error: contentCountError } = await supabase
+        .from('coach_content')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', coachId);
+
+    // 获取学员数量
+    const { count: studentCount, error: studentCountError } = await supabase
+        .from('coach_subscriptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', coachId)
+        .eq('status', 'active');
+
+    // 获取评论数量和平均评分
+    const { data: reviewsData, error: reviewsError } = await supabase
+        .from('coach_reviews')
+        .select('rating')
+        .eq('coach_id', coachId);
+
+    let reviewCount = 0;
+    let averageRating = 0;
+    
+    if (!reviewsError && reviewsData) {
+        reviewCount = reviewsData.length;
+        if (reviewCount > 0) {
+            const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
+            averageRating = parseFloat((totalRating / reviewCount).toFixed(1));
+        }
+    }
+
+    return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
+        success: true,
+        message: '获取成功',
+        data: {
+            coach,
+            contentCount: contentCount || 0,
+            studentCount: studentCount || 0,
+            reviewCount,
+            averageRating
+        }
+    });
+}

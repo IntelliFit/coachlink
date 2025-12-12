@@ -11,6 +11,7 @@ import { CoachesRow } from '@/types';
 import CoachIntroduction from './CoachIntroduction';
 import CoachContent from './CoachContent';
 import CoachSubscription from './CoachSubscription';
+import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
 
 const CoachProfilePage: React.FC = () => {
     const searchParam = useSearchParams();
@@ -38,6 +39,8 @@ const CoachProfilePage: React.FC = () => {
         user_id: null,
         years_experience: null,
     });
+    
+    const [aggregatedInfo, setAggregatedInfo] = useState<GetAggregatedInfoResponseDto | null>(null);
     const safeAchievements = Array.isArray(coach.achievements) ? coach.achievements : [];
     const safeCertification = Array.isArray((coach as any).certification) ? (coach as any).certification : [];
     const [isLoadingCoach, setIsLoadingCoach] = useState(true);
@@ -73,6 +76,18 @@ const CoachProfilePage: React.FC = () => {
         }
     };
 
+    // 获取教练聚合信息
+    const initAggregatedInfo = async () => {
+        try {
+            const res = await coachService.getAggregatedInfo({ coachId: coachId?.toString() || '' });
+            if (res) {
+                setAggregatedInfo(res);
+            }
+        } catch (error) {
+            console.error('获取教练聚合信息失败:', error);
+        }
+    };
+
     const initSubscriptions = async () => {
         const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });        
         if (res) {
@@ -85,6 +100,7 @@ const CoachProfilePage: React.FC = () => {
         const tabId = parseInt(searchParams.get('tab') || '0');
         setActiveTab(tabId);
         initCoach();
+        initAggregatedInfo();
     }, []);
 
     useEffect(() => {
@@ -180,6 +196,7 @@ const CoachProfilePage: React.FC = () => {
             <CoachIntroduction
                 coach={coach}
                 userSubscription={userSubscription}
+                aggregatedInfo={aggregatedInfo}
             />
 
             {/* 教练内容部分（包含标签页） */}
