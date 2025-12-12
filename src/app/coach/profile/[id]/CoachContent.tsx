@@ -42,19 +42,19 @@ const CoachContent: React.FC<CoachContentProps> = ({
     };
 
     return (
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto min-h-screen">
             <TabView activeIndex={activeTab} onTabChange={handleTabChange}>
                 <TabPanel header="关于教练">
                     <CoachAboutPanel coach={coach} />
                 </TabPanel>
-                <TabPanel header={`教学内容(${aggregatedInfo.contentCount})`}>
+                <TabPanel header={`教学内容(${aggregatedInfo?.contentCount || 0})`}>
                     <CoachContentPanel
                         coachId={coachId}
                         userSubscription={userSubscription}
                         onSubscribeSuccess={onSubscribeSuccess}
                     />
                 </TabPanel>
-                <TabPanel header={`学员评价(${aggregatedInfo.reviewCount})`}>
+                <TabPanel header={`学员评价(${aggregatedInfo?.reviewCount || 0})`}>
                     <CoachReviewsPanel
                         coachId={coachId}
                         userSubscription={userSubscription}

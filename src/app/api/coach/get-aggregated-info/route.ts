@@ -4,6 +4,24 @@ import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetAggregatedInfoDto, GetAggregatedInfoResponseDto } from './entity';
 
+
+async function getUniqueTags(userId: string) {
+    const { data, error } = await supabase
+        .from('coach_plan_templates')
+        .select('tags')
+        .eq('coach_id', userId);
+
+    if (error) {
+        return [];
+    }
+
+    // 提取并去重所有标签
+    const allTags = data.flatMap(template => template.tags || []);
+    const uniqueTags = Array.from(new Set(allTags));
+
+    return uniqueTags;
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -14,7 +32,9 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const { coachId } = await req.json() as GetAggregatedInfoDto;
+    const {
+        coachId
+    } = await req.json() as GetAggregatedInfoDto;
 
     // 获取教练基本信息
     const { data: coach, error: coachError } = await supabase
@@ -52,7 +72,7 @@ export async function POST(req: Request) {
 
     let reviewCount = 0;
     let averageRating = 0;
-    
+
     if (!reviewsError && reviewsData) {
         reviewCount = reviewsData.length;
         if (reviewCount > 0) {
@@ -60,6 +80,12 @@ export async function POST(req: Request) {
             averageRating = parseFloat((totalRating / reviewCount).toFixed(1));
         }
     }
+
+    const [
+
+    ] = await Promise.all([
+        getUniqueTags(userId)
+    ]);
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
         success: true,
@@ -69,7 +95,8 @@ export async function POST(req: Request) {
             contentCount: contentCount || 0,
             studentCount: studentCount || 0,
             reviewCount,
-            averageRating
+            averageRating,
+            specialties: []
         }
     });
 }

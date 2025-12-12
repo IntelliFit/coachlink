@@ -12,10 +12,16 @@ import type { TrainingItem } from '@/types/questionnaires';
 interface QuestionPreviewDialogProps {
     visible: boolean;
     onHide: () => void;
+    coachId?: string;
     questions: TrainingItem[];
 }
 
-const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({ visible, onHide, questions }) => {
+const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
+    visible,
+    onHide,
+    coachId,
+    questions
+}) => {
     // 状态用于存储用户对问题的回答
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [tags, setTags] = useState<string[]>([]);
