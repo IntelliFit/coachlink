@@ -201,9 +201,9 @@ const PlanLib = () => {
                 {/* 训练计划模板列表区域 */}
                 <div className="p-4 md:p-6">
                     {shouldShowSkeleton() ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                             {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="border rounded-lg p-4">
+                                <div key={i} className="border border-surface-300 rounded-lg p-4">
                                     <Skeleton width="100%" height="1.5rem" className="mb-3" />
                                     <Skeleton width="80%" height="1rem" className="mb-2" />
                                     <Skeleton width="60%" height="1rem" className="mb-4" />

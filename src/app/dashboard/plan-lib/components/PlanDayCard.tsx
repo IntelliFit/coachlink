@@ -226,7 +226,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                             {day.actionSets.map((set, setIndex) => (
                                 <div
                                     key={setIndex}
-                                    className="p-4 bg-surface-50 border-round-lg shadow-sm border-1 border-surface-200"
+                                    className="p-4 bg-surface-100 rounded-sm shadow-sm border border-surface-200"
                                 >
                                     {/* 动作卡片头部 */}
                                     <div className="flex justify-between items-start mb-3">
