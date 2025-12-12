@@ -369,10 +369,14 @@ const QuestionarePage = () => {
                         </div>
 
                         {questions.length === 0 ? (
-                            <div className="p-4 text-center text-surface-500 border-2 border-dashed border-surface-300 rounded">
-                                <i className="pi pi-question text-2xl mb-2"></i>
-                                <p>暂无问题</p>
-                                <p className="text-sm mt-1">添加问题后，学员订阅时将需要回答这些问题</p>
+                            <div className="space-y-4">
+                                <Skeleton height="3rem" className="mb-2" />
+                                <Skeleton height="4rem" className="mb-2" />
+                                <Skeleton height="4rem" width="80%" className="mb-2" />
+                                <Skeleton height="3rem" width="60%" />
+                                <div className="text-center text-surface-500 mt-4">
+                                    <p className="text-sm">添加问题后，学员订阅时将需要回答这些问题</p>
+                                </div>
                             </div>
                         ) : (
                             <div className="mb-4">
