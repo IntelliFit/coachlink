@@ -204,18 +204,13 @@ const CoachProfilePage: React.FC = () => {
                 coach={coach}
                 coachId={coach.id}
                 userSubscription={userSubscription}
-                onSubscribeSuccess={() => handleSubscribeSuccess()}
+                mySubscriptions={mySubscriptions}
+                aggregatedInfo={aggregatedInfo}
+                onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
             />
 
-            {/* 订阅计划区域 */}
-            <CoachSubscription
-                coach={coach}
-                mySubscriptions={mySubscriptions}
-                onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
-                isOwnProfile={isOwnProfile}
-            />
         </div>
     );
 };

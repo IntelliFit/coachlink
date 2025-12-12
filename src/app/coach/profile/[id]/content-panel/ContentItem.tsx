@@ -12,7 +12,7 @@ interface CoachContentItemProps {
     content: CoachContentRow;
     coachId: string;
     userSubscription: any;
-    onSubscribeSuccess: () => void;
+    onSubscribeSuccess: (tier: number) => void;
 }
 
 const CoachContentItem: React.FC<CoachContentItemProps> = ({
