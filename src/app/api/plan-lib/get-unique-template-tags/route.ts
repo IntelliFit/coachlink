@@ -16,11 +16,32 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    // 通过 session 获取用户 ID
-    const userId = session.user.id;
 
     // 获取请求体（虽然这里没有实际参数）
-    await req.json() as GetUniqueTemplateTagsDto;
+    const {
+        coachId
+    } = await req.json() as GetUniqueTemplateTagsDto;
+
+    let userId = session.user.id;
+
+    if (coachId) {
+        const { data: coach, error: coachError } = await supabase
+            .from('coaches')
+            .select('*')
+            .eq('id', coachId)
+            .single();
+
+        if (coachError || !coach) {
+            return NextResponse.json<ApiData<GetUniqueTemplateTagsResponseDto>>({
+                success: false,
+                message: '教练信息不存在',
+                data: null
+            });
+        }
+
+        userId = coach.user_id;
+    }
+
 
     // 从数据库获取该教练的所有模板，并聚合去重 tags
     const { data, error } = await supabase

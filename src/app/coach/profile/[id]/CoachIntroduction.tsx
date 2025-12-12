@@ -18,8 +18,6 @@ interface CoachIntroductionProps {
 const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo }) => {
     const { data: session } = useSession();
     const isSubscribed = userSubscription?.status === 'active';
-    const safeSpecialties = Array.isArray(coach.specialties) ? coach.specialties : [];
-    const safeAchievements = Array.isArray(coach.achievements) ? coach.achievements : [];
 
     return (
         <div className="bg-surface">
@@ -113,17 +111,15 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                             </div>
                         </div>
 
-                        {/* 专业领域 */}
                         <div className="mb-6">
                             <h3 className="text-sm font-medium text-surface-900 mb-2">专业领域</h3>
                             <div className="flex flex-wrap gap-2">
-                                {safeSpecialties.map((specialty, index) => (
+                                {aggregatedInfo.specialties.map((specialty, index) => (
                                     <Tag key={index} value={specialty} rounded />
                                 ))}
                             </div>
                         </div>
 
-                        {/* 教学经验和成就 */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <div>
                                 <h3 className="text-sm font-medium text-surface-900 mb-2">教学经验</h3>

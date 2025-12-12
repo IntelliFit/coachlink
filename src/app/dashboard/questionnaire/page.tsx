@@ -35,7 +35,10 @@ const QuestionarePage = () => {
     const loadQuestions = useCallback(async () => {
         if (!coach?.id) return;
 
-        const res = await coachService.getQuestionnaires({ coachId: coach.id });
+        const res = await coachService.getQuestionnaires({
+            coachId: coach.id
+        });
+
         if (res) {
             setQuestionId(res.id);
 

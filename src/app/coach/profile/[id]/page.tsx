@@ -20,29 +20,9 @@ const CoachProfilePage: React.FC = () => {
 
     const [mySubscriptions, setMySubscriptions] = useState<QueryCoachSubscription[]>([]);
     const [userSubscription, setUserSubscription] = useState<QueryCoachSubscription | null>(null);
+    const [coach, setCoach] = useState<CoachesRow | null>(null);
 
-    const [coach, setCoach] = useState<CoachesRow>({
-        achievements: [],
-        avatar_url: null,
-        bio: null,
-        created_at: null,
-        id: '',
-        is_featured: null,
-        name: '',
-        rating: null,
-        search_vector: '',
-        specialties: [],
-        status: null,
-        title: null,
-        total_students: null,
-        updated_at: null,
-        user_id: null,
-        years_experience: null,
-    });
-    
     const [aggregatedInfo, setAggregatedInfo] = useState<GetAggregatedInfoResponseDto | null>(null);
-    const safeAchievements = Array.isArray(coach.achievements) ? coach.achievements : [];
-    const safeCertification = Array.isArray((coach as any).certification) ? (coach as any).certification : [];
     const [isLoadingCoach, setIsLoadingCoach] = useState(true);
 
     const router = useRouter();
@@ -89,14 +69,14 @@ const CoachProfilePage: React.FC = () => {
     };
 
     const initSubscriptions = async () => {
-        const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });        
+        const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });
         if (res) {
             setMySubscriptions(res.subscriptions || []);
             setUserSubscription(res.subscriptions.find(sub => sub.coach_id === coachId) || null);
         }
     }
     // 检查URL参数以设置初始活动标签
-    useEffect(() => {        
+    useEffect(() => {
         const tabId = parseInt(searchParams.get('tab') || '0');
         setActiveTab(tabId);
         initCoach();
@@ -156,7 +136,40 @@ const CoachProfilePage: React.FC = () => {
     );
 
     // 在教练信息加载完成前显示骨架屏
-    if (isLoadingCoach) {
+    if (coach && aggregatedInfo) {
+        const handleSubscribeSuccess = (tier?: number) => {
+            // 如果传入了tier，说明是订阅操作，需要刷新订阅列表
+            if (tier !== undefined) {
+                initSubscriptions();
+            }
+            // 如果没有传入tier，说明是内容订阅，只需刷新当前组件
+        };
+
+        return (
+            <div className="min-h-screen bg-surface-50">
+                {/* 教练介绍部分 */}
+                <CoachIntroduction
+                    coach={coach}
+                    userSubscription={userSubscription}
+                    aggregatedInfo={aggregatedInfo}
+                />
+
+                {/* 教练内容部分（包含标签页） */}
+                <CoachContent
+                    coach={coach}
+                    coachId={coach.id}
+                    userSubscription={userSubscription}
+                    mySubscriptions={mySubscriptions}
+                    aggregatedInfo={aggregatedInfo}
+                    onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                />
+
+            </div>
+        );
+
+    } else {
         return (
             <div className="min-h-screen bg-surface-50">
                 {/* 顶部导航骨架 */}
@@ -178,41 +191,6 @@ const CoachProfilePage: React.FC = () => {
             </div>
         );
     }
-
-    const handleSubscribeSuccess = (tier?: number) => {
-        // 如果传入了tier，说明是订阅操作，需要刷新订阅列表
-        if (tier !== undefined) {
-            initSubscriptions();
-        }
-        // 如果没有传入tier，说明是内容订阅，只需刷新当前组件
-    };
-
-    // 判断是否是用户自己的教练页面
-    const isOwnProfile = session?.user?.id === coach.user_id;
-
-    return (
-        <div className="min-h-screen bg-surface-50">
-            {/* 教练介绍部分 */}
-            <CoachIntroduction
-                coach={coach}
-                userSubscription={userSubscription}
-                aggregatedInfo={aggregatedInfo}
-            />
-
-            {/* 教练内容部分（包含标签页） */}
-            <CoachContent
-                coach={coach}
-                coachId={coach.id}
-                userSubscription={userSubscription}
-                mySubscriptions={mySubscriptions}
-                aggregatedInfo={aggregatedInfo}
-                onSubscribeSuccess={(tier) => handleSubscribeSuccess(tier)}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-            />
-
-        </div>
-    );
 };
 
 export default CoachProfilePage;

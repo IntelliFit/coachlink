@@ -10,4 +10,6 @@ export interface GetAggregatedInfoResponseDto {
     studentCount: number;
     reviewCount: number;
     averageRating: number;
+    specialties: string[];
+    
 }
