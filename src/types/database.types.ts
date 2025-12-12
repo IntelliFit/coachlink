@@ -345,30 +345,6 @@ export type Database = {
           },
         ]
       }
-      coach_plan_template_tags: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: number
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: number
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       coach_plan_templates: {
         Row: {
           coach_id: string
@@ -650,6 +626,7 @@ export type Database = {
           id: string
           is_featured: boolean | null
           name: string
+          profile: Json | null
           rating: number | null
           search_vector: unknown
           specialties: string[] | null
@@ -668,6 +645,7 @@ export type Database = {
           id?: string
           is_featured?: boolean | null
           name: string
+          profile?: Json | null
           rating?: number | null
           search_vector?: unknown
           specialties?: string[] | null
@@ -686,6 +664,7 @@ export type Database = {
           id?: string
           is_featured?: boolean | null
           name?: string
+          profile?: Json | null
           rating?: number | null
           search_vector?: unknown
           specialties?: string[] | null
