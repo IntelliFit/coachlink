@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { act, useEffect, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -9,7 +9,8 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { CoachActionRow } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
 import ActionSetForm from './ActionSetForm';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { TrainingItem, TrainingOptionQuestion } from '@/types/questionnaires';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -95,7 +96,9 @@ interface PlanDayCardProps {
     onCopyFromDay: (targetDayIndex: number, sourceDayIndex: number) => void;
     existingTrainingDays: FormPlanTrainingDay[];
     studentData?: any | null; // 添加studentData属性
+    questions?: TrainingItem[];
 }
+
 
 const PlanDayCard: React.FC<PlanDayCardProps> = ({
     day,
@@ -111,10 +114,35 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     totalDays,
     onCopyFromDay,
     existingTrainingDays,
-    studentData
+    studentData,
+    questions
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
+    // 条件筛选相关状态
+    const [filterDialogVisible, setFilterDialogVisible] = useState(false);
+    const [selectedQuestions, setSelectedQuestions] = useState<TrainingOptionQuestion[]>([]);
+    const [currentActionSetIndex, setCurrentActionSetIndex] = useState<number | null>(null);
+    const [activeTabIndexes, setActiveTabIndexes] = useState([]);
+
+    useEffect(() => {
+        const indexes = [];
+        for (let i = 0; i < day.actionSets.length; i++) {
+            indexes.push(0);
+        }
+        setActiveTabIndexes(indexes);
+
+        const questions: TrainingOptionQuestion[] = [];
+        for (const actionSet of day.actionSets) {
+            if (actionSet.type === 'no-filter') {
+                questions.push(null);
+            } else {
+                questions.push(actionSet.question);
+            }
+        }
+
+        setSelectedQuestions(questions);
+    }, [day]);
 
     // 将CoachActionRow数组转换为Dropdown选项
     const actionOptions: ActionOption[] = actions.map(action => ({
@@ -124,12 +152,18 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     }));
 
     const actionName = (setIndex: number) => {
-        const actionId = day.actionSets[setIndex].actionId;
-        if (actionId) {
-            return actionOptions.find(option => option.action.id === actionId)?.label || '';
-        }
+        const actionSet = day.actionSets[setIndex];
 
-        return '';
+        if (actionSet.type === 'one-filter') {
+            return actionSet.question.question;
+        } else {
+            const actionId = day.actionSets[setIndex].actionId;
+            if (actionId) {
+                return actionOptions.find(option => option.action.id === actionId)?.label || '';
+            }
+
+            return '';
+        }
     }
 
     // 处理复制操作
@@ -152,6 +186,38 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         } else {
             onCopyFromDay(targetDayIndex, sourceDayIndex)
         }
+    };
+
+    const optionQuestions = questions?.filter(
+        q => q.type === 'option'
+    ) as TrainingOptionQuestion[] || [];
+
+    // 检查是否应该显示条件筛选按钮
+    const shouldShowFilterButton = questions && optionQuestions.length > 0;
+
+    // 处理条件筛选
+    const handleFilterSelect = (question: TrainingOptionQuestion) => {
+        const newSelectedQuestions = [...selectedQuestions];
+        newSelectedQuestions[currentActionSetIndex] = question;
+        setSelectedQuestions(newSelectedQuestions);
+
+        const actionSet = day.actionSets[currentActionSetIndex];
+        actionSet.type = 'one-filter';
+        actionSet.question = question;
+        // 初始化 actions
+        actionSet.actions = question.options.map(option => ({
+            type: 'no-filter',
+            actionId: '',
+            setName: '',
+            params: {}
+        }));
+        onActionSetChange(dayIndex, currentActionSetIndex, 'all', actionSet);
+
+        const newActiveIndexes = [...activeTabIndexes];
+        newActiveIndexes[currentActionSetIndex] = 0;
+        setActiveTabIndexes(newActiveIndexes);
+
+        setFilterDialogVisible(false);
     };
 
     return (
@@ -230,28 +296,95 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                 >
                                     {/* 动作卡片头部 */}
                                     <div className="flex justify-between items-start mb-3">
-                                        <h5 className="font-medium text-900 text-md">
-                                            A{setIndex + 1} {actionName(setIndex)}
-                                        </h5>
+                                        <div className='flex gap-2 items-center'>
+                                            <h5 className="font-medium text-900 text-md">
+                                                A{setIndex + 1} {actionName(setIndex)}
+                                            </h5>
+                                            {shouldShowFilterButton && (
+                                                <Button
+                                                    icon="pi pi-filter"
+                                                    text
+                                                    size='small'
+                                                    className="p-button-sm p-button-outlined"
+                                                    onClick={() => {
+                                                        setCurrentActionSetIndex(setIndex);
+                                                        setFilterDialogVisible(true);
+                                                    }}
+                                                    tooltip="设置条件筛选"
+                                                />
+                                            )}
+
+                                            {selectedQuestions[setIndex] && (
+                                                selectedQuestions[setIndex].options.map((option, index) => (
+                                                    <Button
+                                                        key={index}
+                                                        text={activeTabIndexes[setIndex] !== index}
+                                                        outlined={activeTabIndexes[setIndex] === index}
+                                                        size='small'
+                                                        onClick={() => {
+                                                            setActiveTabIndexes(prev => {
+                                                                const newIndexes = [...prev];
+                                                                newIndexes[setIndex] = index;
+                                                                return newIndexes;
+                                                            });
+                                                        }}
+                                                        label={option}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+
                                         <Button
                                             icon="pi pi-trash"
+                                            text
+                                            size='small'
                                             className="p-button-rounded p-button-text p-button-danger p-button-sm"
                                             onClick={() => onRemoveActionSet(dayIndex, setIndex)}
                                             disabled={saving}
                                         />
                                     </div>
 
-                                    {/* 表单 */}
                                     <ActionSetForm
-                                        set={set}
+                                        set={set.type === 'one-filter' ? set.actions[activeTabIndexes[setIndex] || 0] : set}
                                         setIndex={setIndex}
                                         actionOptions={actionOptions}
                                         dayIndex={dayIndex}
                                         saving={saving}
-                                        onActionSetChange={onActionSetChange}
+                                        onActionSetChange={(dayIndex: number,
+                                            innerSetIndex: number,
+                                            field: string,
+                                            value: string | number
+                                        ) => {
+                                            if (set.type === 'one-filter') {
+                                                switch (field) {
+                                                    case 'actionId':
+                                                    case 'setName':
+                                                        set.actions[activeTabIndexes[setIndex]][field] = value as string;
+                                                        break;
+                                                    case 'params':
+                                                        set.actions[activeTabIndexes[setIndex]].params = {
+                                                            ...set.actions[activeTabIndexes[setIndex]].params,
+                                                            ...(value as any)
+                                                        };
+                                                        break;
+                                                    case 'all':
+                                                        set.actions[activeTabIndexes[setIndex]] = value as any;
+                                                        break;
+                                                    default:
+                                                        throw new Error(`Unknown field: ${field}`);
+                                                }
+                                                onActionSetChange(dayIndex, setIndex, 'all', set);
+                                            } else {
+                                                onActionSetChange(dayIndex, innerSetIndex, field, value);
+
+                                            }
+                                        }}
                                         actions={actions}
-                                        studentData={studentData} // 传递studentData
+                                        studentData={studentData}
                                     />
+
+
+
                                 </div>
 
                             ))}
@@ -269,6 +402,54 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                             disabled={saving}
                         />
                     </div>
+
+                    {/* 条件筛选对话框 */}
+                    {shouldShowFilterButton && (
+                        <ConfirmDialog
+                            visible={filterDialogVisible}
+                            onHide={() => setFilterDialogVisible(false)}
+                            message={
+                                <div className="flex flex-col gap-3 p-3">
+                                    <div className='text-sm text-surface-400 mb-4'>
+                                        <span>为当前动作选择一个分支条件用于匹配AI计划，
+
+                                            <br />
+                                            如果需要修改下面的选项，请前往
+
+                                            <a href="/dashboard/questionnaire" className='text-primary underline'>学员问卷</a>
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {optionQuestions.map((question, index) => (
+                                            <Button
+                                                key={index}
+                                                label={`${index + 1}. ${question.question}(共${question.options.length}项)`}
+                                                onClick={() => handleFilterSelect(question)}
+                                                className="p-button-outlined text-left justify-start"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            }
+                            header="选择筛选条件"
+                            footer={
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        label="取消当前条件"
+                                        icon="pi pi-times"
+                                        onClick={() => {
+                                            const newSelectedQuestions = [...selectedQuestions];
+                                            newSelectedQuestions[currentActionSetIndex] = null;
+                                            setSelectedQuestions(newSelectedQuestions);
+
+                                            setFilterDialogVisible(false);
+                                        }}
+                                        className="p-button-text"
+                                    />
+                                </div>
+                            }
+                        />
+                    )}
                 </>
             ) : (
                 <>

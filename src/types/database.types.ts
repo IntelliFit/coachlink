@@ -348,6 +348,7 @@ export type Database = {
       coach_plan_templates: {
         Row: {
           coach_id: string
+          contained_options: Json[] | null
           created_at: string | null
           description: string | null
           id: string
@@ -359,9 +360,11 @@ export type Database = {
           training_days_count: number | null
           type: string
           updated_at: string | null
+          week_days: number[] | null
         }
         Insert: {
           coach_id: string
+          contained_options?: Json[] | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -373,9 +376,11 @@ export type Database = {
           training_days_count?: number | null
           type: string
           updated_at?: string | null
+          week_days?: number[] | null
         }
         Update: {
           coach_id?: string
+          contained_options?: Json[] | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -387,6 +392,7 @@ export type Database = {
           training_days_count?: number | null
           type?: string
           updated_at?: string | null
+          week_days?: number[] | null
         }
         Relationships: []
       }

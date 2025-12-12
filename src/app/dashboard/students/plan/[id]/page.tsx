@@ -22,7 +22,7 @@ import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfilePanel';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { UserProfilesRow } from '@/types'; // 导入UserProfilesRow类型
 
 // 定义学生数据类型

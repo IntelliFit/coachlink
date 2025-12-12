@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachActionRow } from '@/types';
 import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
-import { CoachPlanAction } from '@/app/api/plan-lib/add-template/entity';
+import { CoachPlanAction, CoachPlanActionWithOneFilter } from '@/app/api/plan-lib/create-template/entity';
 import { InputNumber } from 'primereact/inputnumber';
 import { calcRecommendedLoad, LambdaModel } from '@/lib/rmCaculator'; // 导入计算函数
 
@@ -28,7 +28,7 @@ interface StudentData {
 }
 
 interface ActionSetFormProps {
-    set: CoachPlanAction;
+    set: CoachPlanAction | CoachPlanActionWithOneFilter;
     setIndex: number;
     actionOptions: { label: string; value: string; action: CoachActionRow }[];
     dayIndex: number;
@@ -39,8 +39,8 @@ interface ActionSetFormProps {
         field: string,
         value: string | number
     ) => void;
-    actions: CoachActionRow[]; // 新增props
-    studentData?: StudentData | null; // 添加studentData属性
+    actions: CoachActionRow[];
+    studentData?: StudentData | null;
 }
 
 const ActionSetForm: React.FC<ActionSetFormProps> = ({
@@ -50,10 +50,10 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     dayIndex,
     saving,
     onActionSetChange,
-    actions, // 解构新增props
-    studentData // 解构studentData
+    actions,
+    studentData,
 }) => {
-    // 根据actionId找到对应的action
+    // 根据actionId找到对应的action    
     const currentAction = actions.find(action => action.id === set.actionId);
 
     const getUnit = (attr: string) => {
@@ -154,7 +154,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-                <label className="block text-900 text-xs mb-1">动作 *</label>
+                <label className="block text-900 text-xs mb-1">动作</label>
                 <Dropdown
                     value={set.actionId}
                     options={actionOptions}

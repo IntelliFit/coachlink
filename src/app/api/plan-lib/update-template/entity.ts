@@ -1,5 +1,5 @@
 import { CoachPlanTemplateRow, CoachLinkTable } from "@/types";
-import { CoachPlanTrainingDay } from "../add-template/entity";
+import { CoachPlanTrainingDay } from "../create-template/entity";
 
 export type CoachPlanTemplatesUpdate = CoachLinkTable['coach_plan_templates']['Update'];
 

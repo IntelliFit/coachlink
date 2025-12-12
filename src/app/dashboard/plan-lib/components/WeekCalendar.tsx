@@ -5,7 +5,7 @@ import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { useToastContext } from '@/context/ToastContext';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 
 interface WeekCalendarProps {
     days: FormPlanTrainingDay[];
