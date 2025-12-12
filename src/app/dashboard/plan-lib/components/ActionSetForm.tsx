@@ -172,7 +172,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             </div>
 
             {/* 基于attrs动态渲染字段 */}
-            {currentAction.attrs
+            {currentAction?.attrs
                 .map(attr => (
                     <div key={attr}>
                         <label className="block text-900 text-xs mb-1">{attr}</label>
@@ -193,7 +193,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 ))
             }
 
-            {currentAction.enableAutoWeightCompute && studentData && (
+            {currentAction?.enableAutoWeightCompute && studentData && (
                 <div className="md:col-span-2 border-t border-surface-200 pt-3 mt-2">
 
 

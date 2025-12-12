@@ -111,7 +111,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     };
 
     return (
-        <div className="h-full border-1 bg-surface-100 p-2 rounded-lg">
+        <div className="h-full rounded-lg">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-900">训练日历</h3>
                 <div className="relative">
