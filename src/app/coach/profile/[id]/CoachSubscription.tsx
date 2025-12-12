@@ -19,19 +19,18 @@ import QuestionnaireForm from './QuestionnaireForm';
 import PaymentDialog from '@/components/payment/paymentDialog';
 import type { CreateAlipayOrderDto } from '@/app/api/payment/alipay/create/entity';
 import { CoachSubscriptionRow } from '@/types';
+import { useSession } from 'next-auth/react';
 
 interface CoachSubscriptionProps {
     coach: any;
     mySubscriptions: QueryCoachSubscription[];
     onSubscribeSuccess: (tier: number) => void;
-    isOwnProfile: boolean;
 }
 
 const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     coach,
     mySubscriptions,
     onSubscribeSuccess,
-    isOwnProfile
 }) => {
     const { showToast } = useToastContext();
     const router = useRouter();
@@ -43,6 +42,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
       question?: string;
       options?: string[];
     }>>([]);
+
+    const { data: session } = useSession();
 
     // 为每个订阅选项维护独立的加载状态
     const [subscribingStates, setSubscribingStates] = useState<boolean[]>([]);
@@ -235,7 +236,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-surface-900 mb-2" id='choose-pricing'>选择您的订阅计划</h2>
                 <p className="text-surface-500">选择最适合您需求的服务层级</p>
-                {isOwnProfile && (
+                {(session?.user?.id === coach.user_id) && (
                     <div className="mt-4">
                         <Button
                             label="编辑定价策略"

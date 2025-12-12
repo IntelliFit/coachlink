@@ -10,7 +10,7 @@ import { Paginator, PaginatorPageChangeEvent } from 'primereact/paginator';
 interface CoachContentPanelProps {
     coachId: string;
     userSubscription: any;
-    onSubscribeSuccess: () => void;
+    onSubscribeSuccess: (tier: number) => void;
 }
 
 const CoachContentPanel: React.FC<CoachContentPanelProps> = ({

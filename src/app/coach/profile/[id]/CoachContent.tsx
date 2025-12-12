@@ -8,13 +8,17 @@ import CoachReviewsPanel from './content-panel/Reviews';
 import { useSearchParams } from 'next/navigation';
 import { CoachesRow } from '@/types';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import CoachSubscription from './CoachSubscription';
+import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
 
 
 interface CoachContentProps {
     coach: CoachesRow;
     coachId: string;
     userSubscription: QueryCoachSubscription | null;
-    onSubscribeSuccess: () => void;
+    mySubscriptions: QueryCoachSubscription[];
+    aggregatedInfo: GetAggregatedInfoResponseDto;
+    onSubscribeSuccess: (tier: number) => void;
     activeTab: number;
     onTabChange: (tab: number) => void;
 }
@@ -23,6 +27,8 @@ const CoachContent: React.FC<CoachContentProps> = ({
     coach,
     coachId,
     userSubscription,
+    mySubscriptions,
+    aggregatedInfo,
     onSubscribeSuccess,
     activeTab,
     onTabChange
@@ -41,17 +47,24 @@ const CoachContent: React.FC<CoachContentProps> = ({
                 <TabPanel header="关于教练">
                     <CoachAboutPanel coach={coach} />
                 </TabPanel>
-                <TabPanel header="教学内容">
+                <TabPanel header={`教学内容(${aggregatedInfo.contentCount})`}>
                     <CoachContentPanel
                         coachId={coachId}
                         userSubscription={userSubscription}
                         onSubscribeSuccess={onSubscribeSuccess}
                     />
                 </TabPanel>
-                <TabPanel header="学员评价">
+                <TabPanel header={`学员评价(${aggregatedInfo.reviewCount})`}>
                     <CoachReviewsPanel
                         coachId={coachId}
                         userSubscription={userSubscription}
+                    />
+                </TabPanel>
+                <TabPanel header="订阅价格">
+                    <CoachSubscription
+                        coach={coach}
+                        mySubscriptions={mySubscriptions}
+                        onSubscribeSuccess={(tier) => onSubscribeSuccess(tier)}
                     />
                 </TabPanel>
             </TabView>
