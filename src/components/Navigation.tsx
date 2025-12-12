@@ -31,7 +31,6 @@ export default function Navigation() {
     // View Mode State: 'coach' or 'student'
     const [viewMode, setViewMode] = useState<'coach' | 'student'>('student');
 
-    // Initialize view mode based on primary role when session loads
     useEffect(() => {
         if (session?.user?.primary_role === 'coach') {
             setViewMode('coach');
@@ -40,12 +39,10 @@ export default function Navigation() {
         }
     }, [session?.user?.primary_role]);
 
-    // Client-side hydration check
     useEffect(() => {
         setIsClient(true);
     }, []);
 
-    // 检查是否完成初始问卷 (Onboarding Check) - 仅在学员端显示
     useEffect(() => {
         if (status === 'loading') return;
 
@@ -85,7 +82,6 @@ export default function Navigation() {
         }
     }, [viewMode, router]);
 
-    // ✅ Coach Navigation Items
     const coachMenuItems = useMemo(() => [
         { label: '概览', icon: 'pi pi-chart-line', command: () => router.push('/dashboard/overview') },
         { label: '视频点评', icon: 'pi pi-play-circle', command: () => router.push('/dashboard/videos') },
@@ -94,7 +90,6 @@ export default function Navigation() {
         { label: '计划模板', icon: 'pi pi-clipboard', command: () => router.push('/dashboard/plan-lib') },
     ], [router]); 
 
-    // ✅ Student Navigation Items
     const studentMenuItems = useMemo(() => [
         {
             label: '今日训练',
@@ -281,26 +276,6 @@ export default function Navigation() {
                                 {session.profile?.nickname || session.user.phone}
                             </span>
                             <div className="flex gap-1">
-                                {session.user.subscription_level && (
-                                    <span
-                                        className={`text-xs px-1.5 py-0.5 rounded-full ${session.user.subscription_level === 'basic'
-                                            ? 'bg-gray-100 text-gray-600'
-                                            : session.user.subscription_level === 'advanced'
-                                                ? 'bg-blue-100 text-blue-600'
-                                                : session.user.subscription_level === 'premium'
-                                                    ? 'bg-purple-100 text-purple-600'
-                                                    : ''
-                                            }`}
-                                    >
-                                        {session.user.subscription_level === 'basic'
-                                            ? '基础会员'
-                                            : session.user.subscription_level === 'advanced'
-                                                ? '高级会员'
-                                                : session.user.subscription_level === 'premium'
-                                                    ? '至尊会员'
-                                                    : ''}
-                                    </span>
-                                )}
                                 {session.user.primary_role && (
                                     <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
                                         {viewMode === 'student'

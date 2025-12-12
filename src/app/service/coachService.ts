@@ -1,17 +1,73 @@
 import { BaseService } from "@/lib/baseService";
 import { ApiData } from "@/types/api";
 import { Coach, CoachStudentItem } from "@/types/coach";
-import type { GetContentsDto, GetContentsResponseDto } from '../api/coach/get-contents/entity';
-import type { PublishContentDto, PublishContentResponseDto } from "@/app/api/coach/publish-content/entity";
-import type { GetAllCoachesDto, GetAllCoachesResponseDto } from "@/app/api/coach/get-all-coaches/entity";
-import type { GetSpecialtiesResponseDto } from "../api/coach/get-specialties/entity";
-import type { GetCoachRulepacksDto, GetCoachRulepacksResponseDto } from "../api/coach/get-coach-rulepacks/entity";
-import type { GetCoachDto, GetCoachResponseDto } from "../api/coach/get-coach/entity";
-import type { GetStudentsResponseDto } from "../api/coach/get-students/entity";
-import type { GetPricingDto, GetPricingResponseDto } from "../api/coach/get-pricing/entity";
-import type { UpdatePricingDto, UpdatePricingResponseDto } from "../api/coach/update-pricing/entity";
-import type { GetQuestionnairesDto, GetQuestionnairesResponseDto } from "../api/coach/get-questionnaires/entity";
-import type { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/coach/update-questionnaires/entity";
+
+// Coach 相关接口
+import type {
+    GetCoachDto,
+    GetCoachResponseDto
+} from '@/app/api/coach/get-coach/entity';
+import type {
+    GetStudentsResponseDto
+} from '@/app/api/coach/get-students/entity';
+import type {
+    GetAllCoachesDto,
+    GetAllCoachesResponseDto
+} from '@/app/api/coach/get-all-coaches/entity';
+
+// 内容管理相关接口
+import type {
+    GetContentsDto,
+    GetContentsResponseDto
+} from '@/app/api/coach/get-contents/entity';
+import type {
+    PublishContentDto,
+    PublishContentResponseDto
+} from '@/app/api/coach/publish-content/entity';
+
+// 规则包与专长相关接口
+import type {
+    GetSpecialtiesResponseDto
+} from '@/app/api/coach/get-specialties/entity';
+import type {
+    GetCoachRulepacksDto,
+    GetCoachRulepacksResponseDto
+} from '@/app/api/coach/get-coach-rulepacks/entity';
+
+// 定价管理相关接口
+import type {
+    GetPricingDto,
+    GetPricingResponseDto
+} from '@/app/api/coach/get-pricing/entity';
+import type {
+    UpdatePricingDto,
+    UpdatePricingResponseDto
+} from '@/app/api/coach/update-pricing/entity';
+
+// 问卷管理相关接口
+import type {
+    GetQuestionnairesDto,
+    GetQuestionnairesResponseDto
+} from '@/app/api/coach/get-questionnaires/entity';
+import type {
+    UpdateQuestionnairesDto,
+    UpdateQuestionnairesResponseDto
+} from '@/app/api/coach/update-questionnaires/entity';
+
+// 聚合信息相关接口
+import type {
+    GetAggregatedInfoDto,
+    GetAggregatedInfoResponseDto
+} from '@/app/api/coach/get-aggregated-info/entity';
+
+// 添加UpdateContentDto和DeleteContentDto类型
+interface DeleteContentDto {
+    id: string;
+}
+
+interface UpdateContentDto extends Partial<PublishContentDto> {
+    id: string;
+}
 
 // 添加DeleteContentDto类型
 interface DeleteContentDto {
@@ -121,6 +177,13 @@ class CoachService extends BaseService {
 
     async updateQuestionnaires(reqData: UpdateQuestionnairesDto) {
         const res = await this.post<UpdateQuestionnairesResponseDto>('update-questionnaires', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async getAggregatedInfo(reqData: GetAggregatedInfoDto) {
+        const res = await this.post<GetAggregatedInfoResponseDto>('get-aggregated-info', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

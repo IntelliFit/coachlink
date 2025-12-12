@@ -1,135 +1,153 @@
 'use client';
 
 import React from 'react';
-import { Star, Users, Award, Calendar, Clock, CheckCircle, Heart, Play } from 'lucide-react';
+import Image from 'next/image';
+import { Avatar } from 'primereact/avatar';
+import { Tag } from 'primereact/tag';
+import { useSession } from 'next-auth/react';
 import { CoachesRow } from '@/types';
-import { ContactCoachButton } from '@/components/chat';
+import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
-    userSubscription: any;
+    userSubscription: QueryCoachSubscription | null;
+    aggregatedInfo: GetAggregatedInfoResponseDto | null;
 }
 
-const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription }) => {    
-    // 安全默认值，避免真实教练缺少字段导致崩溃
+const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo }) => {
+    const { data: session } = useSession();
+    const isSubscribed = userSubscription?.status === 'active';
     const safeSpecialties = Array.isArray(coach.specialties) ? coach.specialties : [];
-    const safeTitle = coach.title || '专业健身教练';
-    const safeRating = typeof coach.rating === 'number' ? coach.rating : 4.8;
-    const safeStudents = typeof coach.total_students === 'number' ? coach.total_students : 0;
-    const safeYears = typeof coach.years_experience === 'number' ? coach.years_experience : 1;
-    const safeRespHrs = (coach as any).response_time_hours ?? 24;
-    const safeFitnessLevel = (coach as any).fitness_level || '专业级';
+    const safeAchievements = Array.isArray(coach.achievements) ? coach.achievements : [];
 
     return (
         <div className="bg-surface">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col md:flex-row gap-8">
-                    {/* 头像和基本信息 */}
-                    <div className="flex-shrink-0">
-                        <div className="w-32 h-32 bg-gradient-to-r from-primary-500 to-red-600 rounded-full flex items-center justify-center mb-4">
+                    {/* 左侧 - 教练头像和徽章 */}
+                    <div className="flex-shrink-0 text-center">
+                        <div className="relative inline-block">
                             {coach.avatar_url ? (
-                                <img src={coach.avatar_url} alt={coach.name} className="w-full h-full rounded-full object-cover" />
+                                <div className="w-32 h-32 rounded-full overflow-hidden mx-auto">
+                                    <Image
+                                        src={coach.avatar_url}
+                                        alt={coach.name}
+                                        width={128}
+                                        height={128}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
                             ) : (
-                                <span className="text-4xl font-bold text-surface">{coach.name.charAt(0)}</span>
+                                <Avatar
+                                    label={coach.name?.substring(0, 1).toUpperCase() || 'CN'}
+                                    shape="circle"
+                                    size="xlarge"
+                                    className="text-4xl w-32 h-32 bg-gradient-to-r from-primary-500 to-red-600 rounded-full flex items-center justify-center mb-4"
+                                />
+                            )}
+                            {coach.is_featured && (
+                                <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full p-1 shadow-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                    </svg>
+                                </div>
                             )}
                         </div>
-
-                        {(coach as any).featured_video_url && (
-                            <div className="relative rounded-lg overflow-hidden">
-                                <video className="w-full h-24 object-cover" poster="/api/placeholder/200/100">
-                                    <source src={(coach as any).featured_video_url} type="video/mp4" />
-                                </video>
-                                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                                    <Play className="w-8 h-8 text-surface" />
-                                </div>
+                        
+                        {isSubscribed && (
+                            <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                已订阅
                             </div>
                         )}
                     </div>
 
-                    {/* 详细信息 */}
+                    {/* 右侧 - 教练详细信息 */}
                     <div className="flex-1">
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h1 className="text-3xl font-bold text-surface-900 mb-2">{coach.name}</h1>
-                                <p className="text-xl text-surface-600 mb-2">{safeTitle}</p>
-                                <div className="flex items-center space-x-4 text-sm text-surface-500">
-                                    <div className="flex items-center space-x-1">
-                                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                        <span>{safeRating}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                        <Users className="w-4 h-4" />
-                                        <span>{safeStudents} 学员</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>{safeYears} 年经验</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                        <Clock className="w-4 h-4" />
-                                        <span>{safeRespHrs}h 回复</span>
-                                    </div>
-                                </div>
-                            </div>
+                        <h1 className="text-2xl font-bold text-surface-900 mb-2">{coach.name}</h1>
+                        <p className="text-lg text-surface-600 mb-6">{coach.title}</p>
 
-                            <div className="flex flex-col gap-2 items-end">
-                                {userSubscription && (
-                                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                                        已订阅 Tier {userSubscription.tier}
-                                    </div>
-                                )}
-                                <ContactCoachButton 
-                                    coachId={coach.id}
-                                    label="联系教练"
-                                    icon="pi pi-comment"
-                                />
+                        {/* 统计信息 */}
+                        <div className="flex flex-wrap gap-4 mb-6 text-sm">
+                            <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                                <span className="text-surface-900 font-medium">
+                                    {aggregatedInfo?.contentCount || 0}
+                                </span>
+                                <span className="text-surface-500 ml-1">教学内容</span>
+                            </div>
+                            
+                            <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span className="text-surface-900 font-medium">
+                                    {aggregatedInfo?.studentCount || 0}
+                                </span>
+                                <span className="text-surface-500 ml-1">学员</span>
+                            </div>
+                            
+                            <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                </svg>
+                                <span className="text-surface-900 font-medium">
+                                    {aggregatedInfo?.reviewCount || 0}
+                                </span>
+                                <span className="text-surface-500 ml-1">评论</span>
+                            </div>
+                            
+                            <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                </svg>
+                                <span className="text-surface-900 font-medium">
+                                    {aggregatedInfo?.averageRating?.toFixed(1) || '0.0'}
+                                </span>
+                                <span className="text-surface-500 ml-1">评分</span>
                             </div>
                         </div>
 
                         {/* 专业领域 */}
-                        <div className="mb-4">
-                            <h3 className="text-sm font-semibold text-surface-700 mb-2">专业领域</h3>
+                        <div className="mb-6">
+                            <h3 className="text-sm font-medium text-surface-900 mb-2">专业领域</h3>
                             <div className="flex flex-wrap gap-2">
                                 {safeSpecialties.map((specialty, index) => (
-                                    <span
-                                        key={index}
-                                        className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm"
-                                    >
-                                        {specialty}
-                                    </span>
+                                    <Tag key={index} value={specialty} rounded />
                                 ))}
                             </div>
                         </div>
 
-                        {/* 成就认证 */}
-                        <div className="mb-4">
-                            <h3 className="text-sm font-semibold text-surface-700 mb-2">认证与成就</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div className="flex items-center space-x-2">
-                                    <Award className="w-4 h-4 text-yellow-600" />
-                                    <span>{(coach as any).success_stories || 0} 成功案例</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                    <span>专业认证</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Star className="w-4 h-4 text-purple-600" />
-                                    <span>{safeFitnessLevel}</span>
-                                </div>
-                                {coach.is_featured && (
-                                    <div className="flex items-center space-x-2">
-                                        <Heart className="w-4 h-4 text-red-600" />
-                                        <span>明星教练</span>
-                                    </div>
-                                )}
+                        {/* 教学经验和成就 */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <h3 className="text-sm font-medium text-surface-900 mb-2">教学经验</h3>
+                                <p className="text-surface-600">
+                                    {coach.years_experience 
+                                        ? `${coach.years_experience}年专业教练经验` 
+                                        : '暂无经验信息'}
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <h3 className="text-sm font-medium text-surface-900 mb-2">成功案例</h3>
+                                <p className="text-surface-600">
+                                    {aggregatedInfo?.studentCount || 0}+ 学员受益
+                                </p>
                             </div>
                         </div>
 
-                        {/* 简介 */}
+                        {/* 教练简介 */}
                         <div>
-                            <h3 className="text-sm font-semibold text-surface-700 mb-2">教练简介</h3>
-                            <p className="text-surface-600 leading-relaxed">{coach.bio}</p>
+                            <h3 className="text-sm font-medium text-surface-900 mb-2">教练简介</h3>
+                            <p className="text-surface-600 whitespace-pre-line">
+                                {coach.bio || '暂无简介'}
+                            </p>
                         </div>
                     </div>
                 </div>
