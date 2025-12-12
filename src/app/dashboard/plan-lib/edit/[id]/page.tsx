@@ -18,7 +18,9 @@ import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
 import { UpdateTemplateDto } from '@/app/api/plan-lib/update-template/entity';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { TrainingItem } from '@/types/questionnaires';
+import { coachService } from '@/app/service/coachService';
 
 
 const EditPlanPage = () => {
@@ -45,58 +47,69 @@ const EditPlanPage = () => {
     const [actions, setActions] = useState<CoachActionRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [questions, setQuestions] = useState<TrainingItem[]>([]);
 
     // Load template data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
 
-        const loadTemplate = async () => {
-            try {
-                // Load actions first
-                const reqData: ListActionsDto = {
-                    page: 1,
-                    limit: 100
-                };
-                const res = await actionLibService.listActions(reqData);
-                if (res) {
-                    setActions(res.actions);
-                }
-
-                // Load template data
-                const templateReq: GetTemplateDto = {
-                    id: params.id as string
-                };
-                const templateRes = await planLibService.getTemplate(templateReq);
-
-                if (templateRes) {
-                    // Fill form with template data
-                    setName(templateRes.template.name);
-                    setDescription(templateRes.template.description || '');
-                    setTags(templateRes.template.tags || []);
-                    setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
-
-                    // Convert days data to local format
-                    const convertedDays: FormPlanTrainingDay[] = templateRes.days.map((day: any) => ({
-                        id: day.id,
-                        dayIndex: day.dayIndex,
-                        type: day.type as 'training' | 'rest',
-                        note: day.note || '',
-                        actionSets: day.actionSets || []
-                    })).sort((a, b) => a.dayIndex - b.dayIndex);
-
-                    setDays(convertedDays);
-                    setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
-                }
-            } catch (error) {
-                console.error('加载训练计划模板失败:', error);
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法加载训练计划模板' });
-            } finally {
-                setLoading(false);
-            }
-        };
-
         loadTemplate();
+        loadQuestions();
     }, [coach?.id, params.id]);
+
+    const loadTemplate = async () => {
+        try {
+            // Load actions first
+            const reqData: ListActionsDto = {
+                page: 1,
+                limit: 100
+            };
+            const res = await actionLibService.listActions(reqData);
+            if (res) {
+                setActions(res.actions);
+            }
+
+            // Load template data
+            const templateReq: GetTemplateDto = {
+                id: params.id as string
+            };
+            const templateRes = await planLibService.getTemplate(templateReq);
+
+            if (templateRes) {
+                // Fill form with template data
+                setName(templateRes.template.name);
+                setDescription(templateRes.template.description || '');
+                setTags(templateRes.template.tags || []);
+                setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
+
+                // Convert days data to local format
+                const convertedDays: FormPlanTrainingDay[] = templateRes.days.map((day: any) => ({
+                    id: day.id,
+                    dayIndex: day.dayIndex,
+                    type: day.type as 'training' | 'rest',
+                    note: day.note || '',
+                    actionSets: day.actionSets || []
+                })).sort((a, b) => a.dayIndex - b.dayIndex);
+
+                setDays(convertedDays);
+                setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
+            }
+        } catch (error) {
+            console.error('加载训练计划模板失败:', error);
+            showToast({ severity: 'error', summary: '加载失败', detail: '无法加载训练计划模板' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadQuestions = async () => {
+        const res = await coachService.getQuestionnaires();
+        if (res) {
+            setQuestions(res.questionnaires || []);
+        } else {
+            showToast({ severity: 'error', summary: '加载失败', detail: '无法加载问卷列表' });
+        }
+    };
 
     const handleAddWeek = () => {
         const currentLength = days.length;
@@ -118,13 +131,13 @@ const EditPlanPage = () => {
     const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
         const currentLength = days.length;
         const newDays = [...days];
-        
+
         // 获取源周的起始索引
         const sourceWeekStartIndex = sourceWeekIndex * 7;
-        
+
         // 获取源周的7天数据
         const sourceWeekDays = days.slice(sourceWeekStartIndex, sourceWeekStartIndex + 7);
-        
+
         // 如果源周不足7天，用默认休息日填充
         const fullWeekDays = [...sourceWeekDays];
         while (fullWeekDays.length < 7) {
@@ -135,7 +148,7 @@ const EditPlanPage = () => {
                 actionSets: []
             });
         }
-        
+
         // 添加到新周，更新索引
         fullWeekDays.forEach((day, index) => {
             newDays.push({
@@ -213,6 +226,7 @@ const EditPlanPage = () => {
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].actionSets.push({
+            type: 'no-filter',
             actionId: '',
             setName: '',
             params: {}
@@ -253,6 +267,9 @@ const EditPlanPage = () => {
             case 'params':
                 actionSet.params = { ...actionSet.params, ...(value as any) };
                 break;
+            case 'all':
+                newDays[actualDayIndex].actionSets[setIndex] = value as any;
+                break;
             default:
                 throw new Error(`Unknown field: ${field}`);
         }
@@ -264,7 +281,7 @@ const EditPlanPage = () => {
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         const newDays = [...days];
         console.log(targetDayIndex, sourceDayIndex);
-        
+
         const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
@@ -279,13 +296,6 @@ const EditPlanPage = () => {
             note: newDays[sourceIndex].note, // 复制备注
             actionSets: newDays[sourceIndex].actionSets.map(set => ({
                 ...set,
-                // 我们保留原始属性，只更新必要的字段
-                actionId: set.actionId,
-                setName: set.setName,
-                sets: set.sets,
-                reps: set.reps,
-                intensity: set.intensity,
-                restSeconds: set.restSeconds
             }))
         };
 
@@ -454,6 +464,7 @@ const EditPlanPage = () => {
                                 totalDays={days.length}
                                 onCopyFromDay={handleCopyFromDay}
                                 existingTrainingDays={existingTrainingDays}
+                                questions={questions}
                             />
                         ) : (
                             <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">

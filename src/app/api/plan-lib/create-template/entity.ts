@@ -1,11 +1,20 @@
 import { CoachPlanTemplateRow } from "@/types";
 import { Json } from "@/types/database.types";
+import { TrainingOptionQuestion } from "@/types/questionnaires";
 
 export interface CoachPlanAction {
     // action-lib 中的编号
+    type: 'no-filter';
     actionId: string
     setName: string
     params: any;
+    [key: string]: Json | undefined
+}
+
+export interface CoachPlanActionWithOneFilter {
+    type: 'one-filter';
+    question: Omit<TrainingOptionQuestion, ''>;
+    actions: CoachPlanAction[];
     [key: string]: Json | undefined
 }
 
@@ -13,7 +22,7 @@ export interface CoachPlanAction {
 export interface CoachPlanTrainingDay {
     type: string;
     note?: string;
-    actionSets?: CoachPlanAction[];
+    actionSets?: (CoachPlanAction | CoachPlanActionWithOneFilter)[];
     [key: string]: Json | undefined
 }
 
@@ -36,5 +45,5 @@ export interface FormPlanTrainingDay {
     actionSetsCount?: number;
     type: 'training' | 'rest';
     note: string;
-    actionSets?: CoachPlanAction[];
+    actionSets?: (CoachPlanAction | CoachPlanActionWithOneFilter)[];
 }

@@ -1,5 +1,5 @@
 import { CoachPlanTemplateRow } from "@/types";
-import { CoachPlanAction, FormPlanTrainingDay } from "../add-template/entity";
+import { CoachPlanAction, FormPlanTrainingDay } from "../create-template/entity";
 
 // 请求参数的接口类型
 export interface GetTemplateDto {

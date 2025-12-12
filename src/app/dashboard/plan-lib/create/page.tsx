@@ -14,7 +14,7 @@ import BasicInfoForm from '../components/BasicInfoForm';
 import PlanDayCard from '../components/PlanDayCard';
 import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -189,10 +189,12 @@ const CreatePlanPage = () => {
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].actionSets.push({
+            type: 'no-filter',
             actionId: '',
             setName: '',
-            params: {} // 初始化为空对象
+            params: {}
         });
+
         setDays(newDays);
     };
 
@@ -237,7 +239,10 @@ const CreatePlanPage = () => {
                 actionSet[field] = value as string;
                 break;
             case 'params':
-                actionSet.params = { ...actionSet.params, ...(value as object) };
+                actionSet.params = { ...actionSet.params, ...(value as any) };
+                break;
+            case 'all':
+                newDays[actualDayIndex].actionSets[setIndex] = value as any;
                 break;
             default:
                 throw new Error(`Unknown field: ${field}`);

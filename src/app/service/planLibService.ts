@@ -2,7 +2,7 @@ import { BaseService } from "@/lib/baseService";
 import { TrainingPlanRow } from "@/types";
 import { ListTemplatesDto, ListTemplatesResponseDto } from "@/app/api/plan-lib/list-templates/entity";
 import { GetTemplateDto, GetTemplateResponseDto } from "@/app/api/plan-lib/get-template/entity";
-import { AddTemplateDto, AddTemplateResponseDto } from "@/app/api/plan-lib/add-template/entity";
+import { AddTemplateDto, AddTemplateResponseDto } from "@/app/api/plan-lib/create-template/entity";
 import { UpdateTemplateDto, UpdateTemplateResponseDto } from "@/app/api/plan-lib/update-template/entity";
 import { DeleteTemplateDto, DeleteTemplateResponseDto } from "@/app/api/plan-lib/delete-template/entity";
 import type { GetInstanceDto, GetInstanceResponseDto } from "@/app/api/plan-lib/get-instance/entity";
@@ -31,7 +31,7 @@ export class PlanLibService extends BaseService {
     }
 
     async addTemplate(reqData: AddTemplateDto) {
-        const res = await this.post<AddTemplateResponseDto>("add-template", reqData);
+        const res = await this.post<AddTemplateResponseDto>("create-template", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to add template");
         }

@@ -3,6 +3,7 @@ import supabase from '@/lib/supabaseClient';
 import { CoachPlanTemplatesUpdate, UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { makeWeekDays } from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
         updateData.training_days = trainingDays;
         updateData.training_days_count = trainingDays.filter(day => day.type === 'training').length;
         updateData.rest_days_count = trainingDays.filter(day => day.type === 'rest').length;
+        updateData.week_days = makeWeekDays(trainingDays);
     }
 
     let template;

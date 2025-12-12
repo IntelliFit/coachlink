@@ -5,7 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { CoachActionRow } from '@/types';
 import { ArrowRight, Calendar, Copy } from 'lucide-react';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/add-template/entity';
+import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 
 
 interface CopyTrainingDayDialogProps {

@@ -4,6 +4,7 @@ import { AddTemplateDto, AddTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 import { Json } from "@/types/database.types";
+import { makeWeekDays } from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -53,6 +54,8 @@ export async function POST(req: Request) {
             name,
             description: description || null,
             tags: tags || [],
+            week_days: makeWeekDays(trainingDays),
+            contained_options: [],
             suitable_for: suitableFor,
             training_days: trainingDays,
             training_days_count: trainingDays.filter(day => day.type === 'training').length,
