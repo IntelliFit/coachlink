@@ -4,7 +4,7 @@ import { AddTemplateDto, AddTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 import { Json } from "@/types/database.types";
-import { makeWeekDays } from "@/utils/template";
+import { checkTrainingDays, makeContainedOptions, makeWeekDays } from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -45,7 +45,16 @@ export async function POST(req: Request) {
             message: "Forbidden",
         }, { status: 403 });
     }
-    
+
+    const validInfo = checkTrainingDays(trainingDays);
+    if (!validInfo.valid) {
+        return NextResponse.json({
+            success: false,
+            message: validInfo.message
+        }, { status: 400 });
+    }
+
+
     // 创建模板，将所有计划日数据存储在training_days字段中（作为JSON数据）
     const { data: template, error: templateError } = await supabase
         .from("coach_plan_templates")
@@ -55,7 +64,7 @@ export async function POST(req: Request) {
             description: description || null,
             tags: tags || [],
             week_days: makeWeekDays(trainingDays),
-            contained_options: [],
+            contained_options: makeContainedOptions(trainingDays),
             suitable_for: suitableFor,
             training_days: trainingDays,
             training_days_count: trainingDays.filter(day => day.type === 'training').length,

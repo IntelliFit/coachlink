@@ -15,6 +15,7 @@ import PlanDayCard from '../components/PlanDayCard';
 import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { checkTrainingDays } from '@/utils/template';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -271,16 +272,22 @@ const CreatePlanPage = () => {
             return;
         }
 
+        const daysData = days.map(day => ({
+            dayIndex: day.dayIndex,
+            type: day.type,
+            note: day.note || null,
+            actionSets: day.actionSets || []
+        }));
+
+        const validInfo = checkTrainingDays(daysData);
+
+        if (!validInfo.valid) {
+            showToast({ severity: 'error', summary: '保存失败', detail: validInfo.message, life: 10000 });
+            return;
+        }
+
         setSaving(true);
         try {
-            // Prepare data according to API format
-            const daysData = days.map(day => ({
-                dayIndex: day.dayIndex,
-                type: day.type,
-                note: day.note || null,
-                actionSets: day.actionSets || []
-            }));
-
             await planLibService.addTemplate({
                 name,
                 description: description || null,

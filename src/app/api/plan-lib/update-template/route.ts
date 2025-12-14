@@ -3,7 +3,7 @@ import supabase from '@/lib/supabaseClient';
 import { CoachPlanTemplatesUpdate, UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
-import { makeWeekDays } from "@/utils/template";
+import { checkTrainingDays, makeContainedOptions, makeWeekDays } from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -59,10 +59,20 @@ export async function POST(req: Request) {
 
     // 将计划日数据存储在training_days字段中
     if (trainingDays) {
+
+        const validInfo = checkTrainingDays(trainingDays);
+        if (!validInfo.valid) {
+            return NextResponse.json({
+                success: false,
+                message: validInfo.message
+            }, { status: 400 });
+        }
+
         updateData.training_days = trainingDays;
         updateData.training_days_count = trainingDays.filter(day => day.type === 'training').length;
         updateData.rest_days_count = trainingDays.filter(day => day.type === 'rest').length;
         updateData.week_days = makeWeekDays(trainingDays);
+        updateData.contained_options = makeContainedOptions(trainingDays);
     }
 
     let template;
