@@ -16,9 +16,9 @@ import AddQuestionOverlay from './components/AddQuestionOverlay';
 import AddQuestionDialog from './components/AddQuestionDialog';
 import OptionQuestionManager from './components/OptionQuestionManager';
 import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, QuestionType } from '@/types/questionnaires';
+import { CoachesRow } from '@/types';
 const QuestionarePage = () => {
     const { data: session } = useSession();
-    const coach = getCoach(session);
     const { showToast } = useToastContext();
     const overlayPanel = useRef<OverlayPanel>(null);
 
@@ -29,11 +29,29 @@ const QuestionarePage = () => {
     const [previewDialogVisible, setPreviewDialogVisible] = useState<boolean>(false);
     const [newQuestionType, setNewQuestionType] = useState<QuestionType | null>(null);
 
+    const [coach, setCoach] = useState<CoachesRow>(null);
+
     // 新问题状态
     const [newTextQuestion, setNewTextQuestion] = useState<string>('');
 
+    const loadCoach = async () => {
+
+        if (!session?.user?.id) {
+            return;
+        }
+
+        const res = await coachService.getCoach({ userId: session.user.id });
+        if (res) {
+            setCoach(res.coach);
+        }
+    }
+
     const loadQuestions = useCallback(async () => {
-        if (!coach?.id) return;
+        if (!session?.user?.id) {
+            return;
+        }
+
+        await loadCoach();
 
         const res = await coachService.getQuestionnaires({
             coachId: coach.id
@@ -84,13 +102,13 @@ const QuestionarePage = () => {
         } else {
             showToast({ severity: 'error', summary: '错误', detail: '加载问卷问题失败' });
         }
-    }, [coach?.id, showToast]);
+    }, [session?.user?.id, showToast]);
 
     useEffect(() => {
-        if (coach?.id) {
+        if (session?.user?.id) {
             loadQuestions();
         }
-    }, [coach?.id, loadQuestions]);
+    }, [session?.user?.id, loadQuestions]);
 
     const saveQuestions = async () => {
         setSaving(true);

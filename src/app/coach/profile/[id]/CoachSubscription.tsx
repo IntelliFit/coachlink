@@ -4,12 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle, Zap } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { useToastContext } from '@/context/ToastContext';
-
-// 定义问卷问题的类型
-interface Questionnaire {
-    question: string;
-    // 可以根据实际API返回的数据添加更多字段，例如 id?: number; required?: boolean;
-}
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
@@ -18,11 +12,11 @@ import { Pricing } from '@/app/api/coach/get-pricing/entity';
 import QuestionnaireForm from './QuestionnaireForm';
 import PaymentDialog from '@/components/payment/paymentDialog';
 import type { CreateAlipayOrderDto } from '@/app/api/payment/alipay/create/entity';
-import { CoachSubscriptionRow } from '@/types';
+import { CoachesRow, CoachSubscriptionRow } from '@/types';
 import { useSession } from 'next-auth/react';
 
 interface CoachSubscriptionProps {
-    coach: any;
+    coach: CoachesRow;
     mySubscriptions: QueryCoachSubscription[];
     onSubscribeSuccess: (tier: number) => void;
 }
@@ -42,6 +36,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
       question?: string;
       options?: string[];
     }>>([]);
+        const [latestQuestionnaireAnswers, setLatestQuestionnaireAnswers] = useState<{ question: string; answer: any }[] | null>(null);
 
     const { data: session } = useSession();
 
@@ -58,7 +53,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         const fetchPricing = async () => {
             try {
                 setLoading(true);
-                const res = await coachService.getPricing({ coachId: coach.id });
+                const res = await coachService.getPricing({
+                    coachId: coach.id
+                });
 
                 if (res) {
                     setSubscriptionTiers(res.pricings);
@@ -98,25 +95,35 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             }
 
             // 获取选中的定价档位
-            // 获取选中的定价档位
             const selectedTier = subscriptionTiers[index];
 
-            // 设置待处理的订单详情和选中的套餐
-            const orderDetails: CreateAlipayOrderDto = {
-                subject: `订阅教练 ${coach?.name}`,
-                totalAmount: selectedTier.price,
-                orderType: '教练服务订阅',
-                orderData: {
-                    coachId: coach?.id,
-                    tierId: selectedTier.id
-                },
-                // TODO: 等待测试完成，切换为 common
-                createMode: 'test'
-            };
+            // 先尝试获取问卷：如果存在问卷，则先展示问卷；否则直接走付款流程
+            const qRes = await coachService.getQuestionnaires({
+                coachId: coach.id
+            });
 
-            setPendingOrderDetails(orderDetails);
             setSelectedTierForPayment({ index });
-            setPaymentDialogVisible(true);
+
+            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+            } else {
+                // 设置待处理的订单详情和选中的套餐（直接付款）
+                const orderDetails: CreateAlipayOrderDto = {
+                    subject: `订阅教练 ${coach?.name}`,
+                    totalAmount: selectedTier.price,
+                    orderType: '教练服务订阅',
+                    orderData: {
+                        coachId: coach?.id,
+                        tierId: selectedTier.id
+                    },
+                    // TODO: 等待测试完成，切换为 common
+                    createMode: 'test'
+                };
+
+                setPendingOrderDetails(orderDetails);
+                setPaymentDialogVisible(true);
+            }
         } catch (error) {
             console.error('订阅过程中出现错误:', error);
             showToast({ severity: 'error', summary: '订阅过程中出现错误' });
@@ -139,16 +146,6 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         return res;
     };
 
-    const handleQuestionnaireShow = async (index: number) => {
-        // 订阅成功后获取问卷
-        const res = await coachService.getQuestionnaires({ coachId: coach.id });
-
-        if (res?.questionnaires && res.questionnaires.length > 0) {
-            // 如果有问卷，显示问卷表单
-            setQuestionnaireQuestions(res.questionnaires);
-            setQuestionnaireVisible(true);
-        }
-    };
 
     const handlePaymentSuccess = async () => {
         if (selectedTierForPayment) {
@@ -160,9 +157,28 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             if (subscribeResponse?.subscription) {
                 // 更新订阅列表
                 onSubscribeSuccess(tier);
-                
                 setCoachSubscription(subscribeResponse.subscription);
-                handleQuestionnaireShow(index);
+
+                // 如果在付款前提交过问卷，把问卷答案写入订阅信息
+                if (latestQuestionnaireAnswers) {
+                    try {
+                        const res = await subscriptionService.updateSubscription({
+                            id: subscribeResponse.subscription.id,
+                            subscribe_data: { answers: latestQuestionnaireAnswers }
+                        });
+
+                        if (res) {
+                            showToast({ severity: 'success', summary: '问卷提交成功' });
+                        } else {
+                            showToast({ severity: 'warn', summary: '问卷保存失败' });
+                        }
+                    } catch (err) {
+                        console.error('保存问卷失败', err);
+                        showToast({ severity: 'error', summary: '问卷保存失败' });
+                    } finally {
+                        setLatestQuestionnaireAnswers(null);
+                    }
+                }
             } else {
                 showToast({ severity: 'error', summary: '订阅失败' });
             }
@@ -178,27 +194,34 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         setSelectedTierForPayment(null);
     };
 
-    const handleQuestionnaireSubmit = async (answers: { question: string; answer: string }[]) => {
-        // 这里应该提交问卷答案
-        if (!coachSubscription) {
-            return;
-        }
+    const handleQuestionnaireSubmit = async (answers: { question: string; answer: any }[]) => {
+        // 问卷提交后先保存答案到本地状态，然后进入付款流程
+        setLatestQuestionnaireAnswers(answers);
 
-        // 更新订阅信息（问卷回答存储在订阅信息里面）
-        const res = await subscriptionService.updateSubscription({
-            id: coachSubscription.id,
-            subscribe_data: {
-                answers
-            }
-        });
+        // 准备订单并打开支付对话框
+        if (selectedTierForPayment) {
+            const { index } = selectedTierForPayment;
+            const selectedTier = subscriptionTiers[index];
 
-        if (res) {
-            showToast({ severity: 'success', summary: '成功', detail: '问卷提交成功' });
+            const orderDetails: CreateAlipayOrderDto = {
+                subject: `订阅教练 ${coach?.name}`,
+                totalAmount: selectedTier.price,
+                orderType: '教练服务订阅',
+                orderData: {
+                    coachId: coach?.id,
+                    tierId: selectedTier.id
+                },
+                createMode: 'test'
+            };
+
+            setPendingOrderDetails(orderDetails);
+            setQuestionnaireVisible(false);
+            setPaymentDialogVisible(true);
         } else {
-            showToast({ severity: 'error', summary: '错误', detail: '问卷提交失败' });
+            // 没有选中的套餐（理论上不会发生），直接隐藏问卷
+            setQuestionnaireVisible(false);
+            showToast({ severity: 'warn', summary: '未选择套餐', detail: '请重试' });
         }
-        
-        setQuestionnaireVisible(false);
     };
 
     const handleEditPricing = () => {
@@ -296,13 +319,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                         <span className="text-surface-700 text-sm">{feature}</span>
                                     </li>
                                 ))}
-                                
-                                {tier.is_ai_plan && (
-                                    <li className="flex items-start text-purple-600 font-medium">
-                                        <Zap className="h-5 w-5 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
-                                        <span className="text-sm">AI智能个性化训练计划</span>
-                                    </li>
-                                )}
+                            
                             </ul>
 
                             {(mySubscriptions.some(
@@ -314,7 +331,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                                     label="已经订阅"
                                     disabled={true}
                                     className={`w-full ${(tier.is_recommend)
-                                        ? 'bg-red-500'
+                                        ? 'bg-red-500' :
+                                        tier.is_ai_plan ? 'bg-purple-500'
                                         : 'p-button-primary'
                                         }`}
                                 />
@@ -339,13 +357,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             <QuestionnaireForm
                 visible={questionnaireVisible}
                 onHide={() => setQuestionnaireVisible(false)}
-                questions={questionnaireQuestions.map(q => {
-                    if (q.type === 'text' || q.type === 'option') {
-                        return q.question;
-                    }
-                    // 对于其他类型的问题，返回一个通用描述
-                    return `请提供您的${q.type === 'tags' ? '训练偏好标签' : '训练时间'}信息`;
-                })}
+                questions={questionnaireQuestions}
                 onSubmit={handleQuestionnaireSubmit}
                 loading={subscribingStates.some(state => state)} // 如果有任何一个处于加载状态，则禁用问卷提交
             />

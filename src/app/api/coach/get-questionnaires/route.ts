@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         const { data: coach, error: coachError } = await supabase
             .from('coaches')
             .select('*')
-            .eq('user_id', coachId)
+            .eq('id', coachId)
             .single();
 
         if (coachError) {

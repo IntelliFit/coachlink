@@ -19,13 +19,6 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (!name || !trainingDays) {
-        return NextResponse.json({
-            success: false,
-            message: "缺少必要参数"
-        }, { status: 400 });
-    }
-
     const { data: subscription, error: subscriptionError } = await supabase
         .from('coach_subscriptions')
         .select('*')
@@ -39,7 +32,14 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    subscription.subscribe_data
+    const questions = subscription.subscribe_data?.['questions'];
+    if (!questions) {
+        return NextResponse.json({
+            success: false,
+            message: "订阅者并没有填写问卷"
+        }, { status: 503 });
+    }
+
 
     // 创建计划实例
     const { data: instance, error } = await supabase
