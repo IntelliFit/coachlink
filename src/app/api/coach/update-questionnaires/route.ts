@@ -3,7 +3,6 @@ import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import type { ApiData } from '@/types/api';
 import type { CoachQuestionnairesInsert, UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from './entity';
-import { CoachLinkTable } from '@/types';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -35,7 +34,7 @@ export async function POST(req: Request) {
         const { data, error } = await supabase
             .from('coach_questionnaires')
             .update({
-                questions: questionnaires,
+                questions: questionnaires as any,
             })
             .eq('id', id)
             .select()
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
     } else {
         const insertData: CoachQuestionnairesInsert = {
             coach_id: userId,
-            questions: questionnaires,
+            questions: questionnaires as any,
         }
 
         const { data, error } = await supabase

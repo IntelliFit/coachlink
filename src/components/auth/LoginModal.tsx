@@ -178,7 +178,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     <img 
                         src="/favicon.jpg" 
                         alt="CoachLink Logo" 
-                        className="w-32 h-32 rounded-2xl shadow-lg mb-6"
+                        className="h-32 rounded-2xl shadow-lg mb-6"
                     />
                     <h1 className="text-2xl font-bold text-gray-800 mb-2">
                         CoachLink - 智健联盟
