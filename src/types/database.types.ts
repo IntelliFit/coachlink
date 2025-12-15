@@ -178,6 +178,7 @@ export type Database = {
           last_message_at: string | null
           members: string[] | null
           subscription_id: string | null
+          type: string | null
           unread_members: string[] | null
           updated_at: string
         }
@@ -189,6 +190,7 @@ export type Database = {
           last_message_at?: string | null
           members?: string[] | null
           subscription_id?: string | null
+          type?: string | null
           unread_members?: string[] | null
           updated_at?: string
         }
@@ -200,6 +202,7 @@ export type Database = {
           last_message_at?: string | null
           members?: string[] | null
           subscription_id?: string | null
+          type?: string | null
           unread_members?: string[] | null
           updated_at?: string
         }

@@ -6,25 +6,25 @@ import { InputText } from 'primereact/inputtext';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { chatService } from '@/app/service/chatService';
 import { useToastContext } from '@/context/ToastContext';
-import type { ConversationItem } from '@/app/api/chat/list-chatrooms/entity';
+import type { ChatroomItem } from '@/app/api/chat/list-chatrooms/entity';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 
 export default function MessagesPage() {
     const { showToast } = useToastContext();
-    const [conversations, setConversations] = useState<ConversationItem[]>([]);
-    const [filteredConversations, setFilteredConversations] = useState<ConversationItem[]>([]);
+    const [chatrooms, setChatrooms] = useState<ChatroomItem[]>([]);
+    const [filteredChatrooms, setFilteredChatrooms] = useState<ChatroomItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchText, setSearchText] = useState('');
 
     const loadConversations = async () => {
         setLoading(true);
         try {
-            const data = await chatService.getConversations({ page: 1, limit: 50 });
+            const res = await chatService.listChatrooms({ page: 1, limit: 50 });
 
-            if (data) {
-                setConversations(data.conversations);
-                setFilteredConversations(data.conversations);
+            if (res) {
+                setChatrooms(res.chatRooms);
+                setFilteredChatrooms(res.chatRooms);
             }
         } catch (error: any) {
             console.error('加载会话列表失败:', error);
@@ -52,16 +52,15 @@ export default function MessagesPage() {
 
     useEffect(() => {
         if (searchText.trim() === '') {
-            setFilteredConversations(conversations);
+            setFilteredChatrooms(chatrooms);
         } else {
-            const filtered = conversations.filter(conv =>
-                conv.coach_name.toLowerCase().includes(searchText.toLowerCase()) ||
-                conv.student_name.toLowerCase().includes(searchText.toLowerCase()) ||
-                (conv.last_message && conv.last_message.toLowerCase().includes(searchText.toLowerCase()))
+            const filtered = chatrooms.filter(room =>
+                room.chatUserProfile.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                (room.lastMessage?.toLowerCase().includes(searchText.toLowerCase()))
             );
-            setFilteredConversations(filtered);
+            setFilteredChatrooms(filtered);
         }
-    }, [searchText, conversations]);
+    }, [searchText, chatrooms]);
 
     return (
         <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -89,7 +88,7 @@ export default function MessagesPage() {
                 </div>
 
                 <ConversationList
-                    conversations={filteredConversations}
+                    chatrooms={filteredChatrooms}
                     loading={loading}
                 />
             </Card>

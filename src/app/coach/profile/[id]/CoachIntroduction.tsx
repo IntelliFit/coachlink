@@ -11,6 +11,10 @@ import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-inf
 import { Button } from 'primereact/button';
 import EditCoachProfileDialog from './EditCoachProfileDialog';
 import { Chip } from 'primereact/chip';
+import { chatService } from '@/app/service/chatService';
+import { useToastContext } from '@/context/ToastContext';
+import ChatDialog from '@/components/chat/ChatDialog';
+import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
@@ -22,8 +26,32 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
     const { data: session } = useSession();
     const isSubscribed = userSubscription?.status === 'active';
     const isOwnProfile = session?.user?.id === coach.user_id;
-    
+
     const [editDialogVisible, setEditDialogVisible] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [chatDialogVisible, setChatDialogVisible] = useState(false);
+    const [chatroom, setChatroom] = useState<ChatroomDetail>(null);
+
+    const { showToast } = useToastContext();
+
+    const contactCoach = async () => {
+        if (!session?.user?.id) {
+            return;
+        }
+
+        if (session.user.id === coach.user_id) {
+            return;
+        }
+
+        const res = await chatService.getChatroom({ members: [session.user.id, coach.user_id] });
+
+        if (res) {
+            setChatroom(res.chatroom);
+            setChatDialogVisible(true);
+        } else {
+            showToast({ severity: 'error', summary: '创建聊天室出错' });
+        }
+    }
 
     return (
         <div className="bg-surface">
@@ -47,7 +75,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                     label={coach.name?.substring(0, 1).toUpperCase() || 'CN'}
                                     shape="circle"
                                     size="xlarge"
-                                    className="text-4xl w-32 h-32 bg-gradient-to-r from-primary-500 to-red-600 rounded-full flex items-center justify-center mb-4"
+                                    className="text-4xl text-surface-100 w-32 h-32 bg-gradient-to-r from-primary-500 to-red-600 rounded-full flex items-center justify-center mb-4"
                                 />
                             )}
                             {coach.is_featured && (
@@ -58,35 +86,46 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                 </div>
                             )}
                         </div>
-                        
-                        {isSubscribed && (
-                            <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                已订阅
-                            </div>
-                        )}
+
                     </div>
 
                     {/* 右侧 - 教练详细信息 */}
                     <div className="flex-1">
                         <div className="flex justify-between items-start">
-                            <div>
+                            <div className='flex flex-row items-center gap-2'>
                                 <h1 className="text-2xl font-bold text-surface-900 mb-2">{coach.name}</h1>
+                                {isSubscribed && (
+                                    <div className="inline-flex items-center px-3 py-1 mb-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        已订阅
+                                    </div>
+                                )}
                             </div>
-                            
-                            {/* 编辑按钮 - 仅在查看自己的资料时显示 */}
-                            {isOwnProfile && (
-                                <Button 
-                                    icon="pi pi-pencil" 
-                                    rounded 
-                                    outlined 
-                                    onClick={() => setEditDialogVisible(true)}
-                                    tooltip="编辑个人资料"
-                                    tooltipOptions={{ position: 'left' }}
+
+                            <div className="flex flex-row gap-2 items-center">
+                                {/* 联系教练按钮 */}
+                                <Button
+                                    label="联系教练"
+                                    icon="pi pi-comments"
+                                    className="p-button-primary"
+                                    loading={loading}
+                                    disabled={loading}
+                                    onClick={contactCoach}
                                 />
-                            )}
+                                {/* 编辑按钮 - 仅在查看自己的资料时显示 */}
+                                {isOwnProfile && (
+                                    <Button
+                                        icon="pi pi-pencil"
+                                        rounded
+                                        outlined
+                                        onClick={() => setEditDialogVisible(true)}
+                                        tooltip="编辑个人资料"
+                                        tooltipOptions={{ position: 'left' }}
+                                    />
+                                )}
+                            </div>
                         </div>
 
                         {/* 统计信息 */}
@@ -100,7 +139,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                 </span>
                                 <span className="text-surface-500 ml-1">教学内容</span>
                             </div>
-                            
+
                             <div className="flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -110,7 +149,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                 </span>
                                 <span className="text-surface-500 ml-1">学员</span>
                             </div>
-                            
+
                             <div className="flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -135,12 +174,12 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                             <div>
                                 <h3 className="text-sm font-medium text-surface-900 mb-2">教学经验</h3>
                                 <p className="text-surface-600">
-                                    {coach.years_experience 
-                                        ? `${coach.years_experience}年专业教练经验` 
+                                    {coach.years_experience
+                                        ? `${coach.years_experience}年专业教练经验`
                                         : '暂无经验信息'}
                                 </p>
                             </div>
-                            
+
                             <div>
                                 <h3 className="text-sm font-medium text-surface-900 mb-2">成功案例</h3>
                                 <p className="text-surface-600">
@@ -159,12 +198,18 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                     </div>
                 </div>
             </div>
-            
-            <EditCoachProfileDialog 
+
+            <EditCoachProfileDialog
                 visible={editDialogVisible}
                 onHide={() => setEditDialogVisible(false)}
                 coach={coach}
                 onSave={() => window.location.reload()} // 简单实现，刷新页面以获取最新数据
+            />
+
+            <ChatDialog
+                visible={chatDialogVisible}
+                chatroom={chatroom}
+                onHide={() => setChatDialogVisible(false)}
             />
         </div>
     );

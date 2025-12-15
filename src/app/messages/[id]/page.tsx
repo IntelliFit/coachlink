@@ -19,9 +19,9 @@ export default function ChatPage() {
     const router = useRouter();
     const { showToast } = useToastContext();
     const { data: session } = useSession();
-    const isCoach = !!(session as any)?.user?.is_coach;
-    const conversationId = params.id as string;
-    
+
+    const roomId = params.id as string;
+
     const [messages, setMessages] = useState<MessageItemType[]>([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
@@ -30,7 +30,7 @@ export default function ChatPage() {
         name: string;
         avatar: string | null;
     } | null>(null);
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -40,44 +40,44 @@ export default function ChatPage() {
 
     const loadMessages = async () => {
         try {
-            const data = await chatService.getMessages({
-                conversation_id: conversationId,
+            const data = await chatService.listMessages({
+                roomId,
                 page: 1,
                 limit: 50
             });
-            
+
             if (data) {
                 setMessages(data.messages);
-                
+
                 // 设置聊天对象信息
                 if (data.messages.length > 0) {
-                    const firstMessage = data.messages.find(m => !m.is_mine);
+                    const firstMessage = data.messages.find(m => !m.isMine);
                     if (firstMessage) {
                         setChatPartner({
-                            name: firstMessage.sender_name,
-                            avatar: firstMessage.sender_avatar
+                            name: firstMessage.chatUserProfile.name,
+                            avatar: firstMessage.chatUserProfile.avatar
                         });
                     } else {
                         // 若当前仅有自己的消息，回退到会话信息获取对方资料
-                        try {
-                            const convData = await chatService.getConversations({ page: 1, limit: 50 });
-                            const conv = convData?.conversations.find(c => c.id === conversationId);
-                            if (conv) {
+                        const res = await chatService.listChatrooms({ page: 1, limit: 50 });
+                        if (res) {
+                            const room = res.chatRooms.find(room => room.id === roomId);
+                            if (room) {
                                 setChatPartner({
-                                    name: isCoach ? conv.student_name : conv.coach_name,
-                                    avatar: isCoach ? conv.student_avatar : conv.coach_avatar
+                                    name: room.chatUserProfile.name,
+                                    avatar: room.chatUserProfile.avatar
                                 });
                             }
-                        } catch {}
+                        }
                     }
                 }
-                
+
                 // 标记为已读
-                await chatService.markAsRead({ conversation_id: conversationId });
-                
+                await chatService.markAsRead({ roomId });
+
                 // 触发未读数更新事件
                 window.dispatchEvent(new Event('chat-unread-update'));
-                
+
                 setTimeout(scrollToBottom, 100);
             }
         } catch (error: any) {
@@ -100,20 +100,20 @@ export default function ChatPage() {
         setSending(true);
         try {
             const data = await chatService.sendMessage({
-                conversation_id: conversationId,
-                message_type: 'text',
+                roomId,
+                messageType: 'text',
                 content: messageText.trim()
             });
 
             if (data) {
                 setMessageText('');
-                
+
                 // 重新加载消息
                 await loadMessages();
-                
+
                 // 触发新消息事件
                 window.dispatchEvent(new Event('chat-new-message'));
-                
+
                 showToast({
                     severity: 'success',
                     summary: '成功',
@@ -146,15 +146,15 @@ export default function ChatPage() {
     };
 
     useEffect(() => {
-        if (conversationId) {
+        if (roomId) {
             loadMessages();
-            
+
             // 定时刷新消息（每10秒）
             const interval = setInterval(loadMessages, 10000);
-            
+
             return () => clearInterval(interval);
         }
-    }, [conversationId]);
+    }, [roomId]);
 
     const renderHeader = () => {
         if (loading || !chatPartner) {
@@ -197,7 +197,7 @@ export default function ChatPage() {
         <div className="h-screen flex flex-col bg-surface-50 dark:bg-surface-900">
             {renderHeader()}
 
-            <div 
+            <div
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto p-4 md:p-6"
                 style={{ maxHeight: 'calc(100vh - 200px)' }}
@@ -236,7 +236,7 @@ export default function ChatPage() {
                         tooltip="发送文件"
                         tooltipOptions={{ position: 'top' }}
                     />
-                    
+
                     <InputTextarea
                         value={messageText}
                         onChange={(e) => setMessageText(e.target.value)}
@@ -247,7 +247,7 @@ export default function ChatPage() {
                         className="flex-1"
                         disabled={sending}
                     />
-                    
+
                     <Button
                         icon="pi pi-send"
                         onClick={sendMessage}

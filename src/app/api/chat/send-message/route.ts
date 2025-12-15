@@ -34,27 +34,20 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
     // 获取会话信息
-    const { data: conversation, error: conversationError } = await supabase
+    const { data: chatRoom, error: chatRoomError } = await supabase
         .from('chat_rooms')
         .select('members')
         .eq('id', roomId)
         .single();
 
-    if (conversationError) {
-        console.error('获取会话信息失败:', conversationError);
+    if (chatRoomError) {
+        console.error('获取会话信息失败:', chatRoomError);
         return NextResponse.json({
             success: false,
             message: '获取会话信息失败',
             data: null
         }, { status: 500 });
     }
-
-    // 确定接收者
-    const { data: coachData } = await supabase
-        .from('coaches')
-        .select('id, user_id')
-        .eq('user_id', userId)
-        .single();
 
     // 插入消息
     const { data: message, error } = await supabase
@@ -77,6 +70,26 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             message: '发送消息失败',
+            data: null
+        }, { status: 500 });
+    }
+
+    // 更新会话状态，将除了发送者之外的人全部加入未读列表
+    const { error: updateChatroomError } = await supabase
+        .from('chat_rooms')
+        .update({
+            last_message: fileName ? '[文件]' : mediaUrl ? '图片' : content,
+            last_message_at: message.created_at,
+            unread_members: chatRoom.members.filter(member => member !== userId)
+        })
+        .eq('id', roomId);
+
+    if (updateChatroomError) {
+        console.error(updateChatroomError);
+        
+        return NextResponse.json<ApiData<SendMessageResponseDto>>({
+            success: false,
+            message: '更新会话状态失败',
             data: null
         }, { status: 500 });
     }

@@ -85,7 +85,7 @@ async function getReviewCount(coachId: string) {
     // 将结果存入缓存，设置5分钟过期时间
     const result = { reviewCount, averageRating };
     try {
-        await redis.setex(cacheKey, 300, JSON.stringify(result));
+        await redis.setEx(cacheKey, 300, JSON.stringify(result));
     } catch (err) {
         console.error('Redis set error:', err);
     }

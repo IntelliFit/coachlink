@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
-import type { GetChatroomsDto, GetChatroomsResponseDto, ConversationItem } from './entity';
+import type { GetChatroomsDto, GetChatroomsResponseDto, ChatroomItem } from './entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     profiles?.forEach(p => userMap.set(p.user_id, p));
 
     // 组装数据
-    const returnChatRooms: ConversationItem[] = chatRooms.map(room => {
+    const returnChatRooms: ChatroomItem[] = chatRooms.map(room => {
         // 拿第一个非自己的用户名作为对话的缩略
         const chatUserId = room.members.find(id => id !== userId);
         const chatUserProfile = userMap.get(chatUserId);

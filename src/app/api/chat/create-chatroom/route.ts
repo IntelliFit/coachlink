@@ -4,6 +4,7 @@ import supabase from '@/lib/supabaseClient';
 import type { createChatroomsDto, createChatroomsResponseDto } from './entity';
 import { ApiData } from '@/types/api';
 
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -34,7 +35,6 @@ export async function POST(req: Request) {
             data: null
         }, { status: 401 });
     }
-
     const { data: chatRoomData, error: chatRoomError } = await supabase
         .from('chat_rooms')
         .insert({

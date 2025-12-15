@@ -94,7 +94,7 @@ export async function POST(req: Request) {
 
     if (!result) {
         await supabase
-            .from('orders')
+            .from('alipay_orders')
             .delete()
             .eq('id', order.id);
 
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
         });
     } else if (createMode === 'test') {
         await supabase
-            .from('orders')
+            .from('alipay_orders')
             .delete()
             .eq('id', order.id);
     }
