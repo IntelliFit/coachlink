@@ -74,7 +74,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
 
         if (visible && (chatroom.id || session?.user?.id)) {
             fetchChat();
-            // fetchChatPartner();
+            fetchChatPartner();
         }
         return () => { active = false; };
     }, [visible, session?.user?.id, chatroom, showToast]);
