@@ -212,12 +212,7 @@ const QuestionarePage = () => {
         const question = newQuestions[questionIndex];
 
         if (question.type === 'option') {
-            // 我们将题目存储在选项的第一个位置作为特殊处理
-            if (question.options.length === 0) {
-                question.options = [text];
-            } else {
-                question.options[0] = text;
-            }
+            question.question = text;
             setQuestions(newQuestions);
         }
     };
@@ -286,7 +281,7 @@ const QuestionarePage = () => {
                                     />
                                     <InputText
                                         value={option}
-                                        onChange={(e) => updateOption(index, optionIndex + 1, e.target.value)}
+                                        onChange={(e) => updateOption(index, optionIndex, e.target.value)}
                                         placeholder={`选项 ${optionIndex + 1}`}
                                         className="flex-1 text-sm"
                                     />

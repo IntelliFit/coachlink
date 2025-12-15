@@ -182,13 +182,13 @@ const PlanLib = () => {
                             </IconField>
                         </div>
                         <div className="flex gap-2">
-                            <Dropdown
+                            {/* <Dropdown
                                 value={templateType}
                                 options={templateTypes}
                                 onChange={(e) => setTemplateType(e.value)}
                                 placeholder="训练类型"
                                 className="w-full md:w-40"
-                            />
+                            /> */}
                             <Button
                                 label="搜索"
                                 icon="pi pi-search"

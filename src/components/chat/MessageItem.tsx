@@ -2,7 +2,7 @@
 
 import { Avatar } from 'primereact/avatar';
 import { Image } from 'primereact/image';
-import type { MessageItem as MessageItemType } from '@/app/api/chat/get-messages/entity';
+import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
 
 interface MessageItemProps {
     message: MessageItemType;

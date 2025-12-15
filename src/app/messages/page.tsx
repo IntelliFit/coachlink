@@ -6,7 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { chatService } from '@/app/service/chatService';
 import { useToastContext } from '@/context/ToastContext';
-import type { ConversationItem } from '@/app/api/chat/get-conversations/entity';
+import type { ConversationItem } from '@/app/api/chat/list-chatrooms/entity';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 

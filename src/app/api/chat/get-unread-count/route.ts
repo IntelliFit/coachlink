@@ -27,8 +27,8 @@ export async function POST(req: Request) {
         const isCoach = !!coachData;
 
         // 查询未读数
-        const { data: conversations, error } = await supabase
-            .from('conversations' as any)
+        const { data: chat_rooms, error } = await supabase
+            .from('chat_rooms' as any)
             .select(isCoach ? 'coach_unread' : 'student_unread')
             .eq(isCoach ? 'coach_id' : 'student_id', isCoach ? coachData.id : userId)
             .eq('is_archived', false) as any;
@@ -42,11 +42,11 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        const totalUnread = conversations?.reduce((sum, conv) => {
+        const totalUnread = chat_rooms?.reduce((sum, conv) => {
             return sum + (isCoach ? (conv.coach_unread || 0) : (conv.student_unread || 0));
         }, 0) || 0;
 
-        const conversationsWithUnread = conversations?.filter(conv => {
+        const conversationsWithUnread = chat_rooms?.filter(conv => {
             return (isCoach ? (conv.coach_unread || 0) : (conv.student_unread || 0)) > 0;
         }).length || 0;
 

@@ -112,6 +112,107 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          duration: number | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          is_read: boolean | null
+          media_url: string | null
+          message_type: string
+          room_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          duration?: number | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          is_read?: boolean | null
+          media_url?: string | null
+          message_type: string
+          room_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          duration?: number | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          is_read?: boolean | null
+          media_url?: string | null
+          message_type?: string
+          room_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string
+          id: string
+          is_archived: boolean
+          last_message: string | null
+          last_message_at: string | null
+          members: string[] | null
+          subscription_id: string | null
+          unread_members: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          last_message?: string | null
+          last_message_at?: string | null
+          members?: string[] | null
+          subscription_id?: string | null
+          unread_members?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          last_message?: string | null
+          last_message_at?: string | null
+          members?: string[] | null
+          subscription_id?: string | null
+          unread_members?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "coach_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_actions: {
         Row: {
           attrs: string[] | null
@@ -213,66 +314,6 @@ export type Database = {
           },
         ]
       }
-      coach_messages: {
-        Row: {
-          content: string
-          conversation_id: string
-          created_at: string | null
-          duration: number | null
-          file_name: string | null
-          file_size: number | null
-          id: string
-          is_read: boolean | null
-          media_url: string | null
-          message_type: string
-          receiver_id: string
-          sender_id: string
-        }
-        Insert: {
-          content: string
-          conversation_id: string
-          created_at?: string | null
-          duration?: number | null
-          file_name?: string | null
-          file_size?: number | null
-          id?: string
-          is_read?: boolean | null
-          media_url?: string | null
-          message_type: string
-          receiver_id: string
-          sender_id: string
-        }
-        Update: {
-          content?: string
-          conversation_id?: string
-          created_at?: string | null
-          duration?: number | null
-          file_name?: string | null
-          file_size?: number | null
-          id?: string
-          is_read?: boolean | null
-          media_url?: string | null
-          message_type?: string
-          receiver_id?: string
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "coach_messages_receiver_id_fkey"
-            columns: ["receiver_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "coach_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       coach_plan_instances: {
         Row: {
           coach_id: string | null
@@ -348,7 +389,7 @@ export type Database = {
       coach_plan_templates: {
         Row: {
           coach_id: string
-          contained_options: Json[] | null
+          contained_options: string[] | null
           created_at: string | null
           description: string | null
           id: string
@@ -364,7 +405,7 @@ export type Database = {
         }
         Insert: {
           coach_id: string
-          contained_options?: Json[] | null
+          contained_options?: string[] | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -380,7 +421,7 @@ export type Database = {
         }
         Update: {
           coach_id?: string
-          contained_options?: Json[] | null
+          contained_options?: string[] | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -729,70 +770,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      conversations: {
-        Row: {
-          coach_id: string
-          coach_unread: number
-          created_at: string
-          id: string
-          is_archived: boolean
-          last_message: string | null
-          last_message_at: string | null
-          student_id: string
-          student_unread: number
-          subscription_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          coach_id: string
-          coach_unread?: number
-          created_at?: string
-          id?: string
-          is_archived?: boolean
-          last_message?: string | null
-          last_message_at?: string | null
-          student_id: string
-          student_unread?: number
-          subscription_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          coach_id?: string
-          coach_unread?: number
-          created_at?: string
-          id?: string
-          is_archived?: boolean
-          last_message?: string | null
-          last_message_at?: string | null
-          student_id?: string
-          student_unread?: number
-          subscription_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_coach_id_fkey"
-            columns: ["coach_id"]
-            isOneToOne: false
-            referencedRelation: "coaches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "coach_subscriptions"
             referencedColumns: ["id"]
           },
         ]

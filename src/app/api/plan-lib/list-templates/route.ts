@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     // Build query
     let query = supabase
         .from("coach_plan_templates")
-        .select('id,name,description,type,tags,suitable_for,rest_days_count,training_days_count', { count: "exact" })
+        .select('id,name,description,type,tags,suitable_for,rest_days_count,training_days_count,contained_options,week_days', { count: "exact" })
         .eq("coach_id", userId)
         .order("created_at", { ascending: false }); // 默认按创建时间倒序排序
 
@@ -79,7 +79,9 @@ export async function POST(req: Request) {
                 tags: template.tags || [],
                 suitableFor: template.suitable_for,
                 restDaysCount: template.rest_days_count || 0,
-                trainingDaysCount: template.training_days_count || 0
+                trainingDaysCount: template.training_days_count || 0,
+                containedOptions: template.contained_options || [],
+                weekDays: template.week_days || [],
             })),
             totalCount: count || 0,
             page,

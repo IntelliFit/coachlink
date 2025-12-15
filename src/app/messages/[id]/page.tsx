@@ -12,7 +12,7 @@ import { FileUpload } from 'primereact/fileupload';
 import { MessageItem } from '@/components/chat/MessageItem';
 import { chatService } from '@/app/service/chatService';
 import { useToastContext } from '@/context/ToastContext';
-import type { MessageItem as MessageItemType } from '@/app/api/chat/get-messages/entity';
+import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
 
 export default function ChatPage() {
     const params = useParams();
