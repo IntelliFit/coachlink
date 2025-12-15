@@ -14,6 +14,7 @@ import PaymentDialog from '@/components/payment/paymentDialog';
 import type { CreateAlipayOrderDto } from '@/app/api/payment/alipay/create/entity';
 import { CoachesRow, CoachSubscriptionRow } from '@/types';
 import { useSession } from 'next-auth/react';
+import { TrainingItem } from '@/types/questionnaires';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
@@ -31,12 +32,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const [subscriptionTiers, setSubscriptionTiers] = useState<Pricing[]>([]);
     const [loading, setLoading] = useState(true);
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
-    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<Array<{
-      type: string;
-      question?: string;
-      options?: string[];
-    }>>([]);
-        const [latestQuestionnaireAnswers, setLatestQuestionnaireAnswers] = useState<{ question: string; answer: any }[] | null>(null);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
+    const [latestQuestionnaireAnswers, setLatestQuestionnaireAnswers] = useState<{ question: string; answer: any }[] | null>(null);
 
     const { data: session } = useSession();
 
@@ -358,6 +355,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 visible={questionnaireVisible}
                 onHide={() => setQuestionnaireVisible(false)}
                 questions={questionnaireQuestions}
+                coach={coach}
                 onSubmit={handleQuestionnaireSubmit}
                 loading={subscribingStates.some(state => state)} // 如果有任何一个处于加载状态，则禁用问卷提交
             />

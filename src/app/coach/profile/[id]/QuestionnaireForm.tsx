@@ -35,6 +35,10 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     const [loadingTags, setLoadingTags] = useState<boolean>(true);
 
     useEffect(() => {
+        if (!coach) {
+            return;
+        }
+        
         const fetchTags = async () => {
             setLoadingTags(true);
             try {
@@ -55,7 +59,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         if (visible) {
             fetchTags();
         }
-    }, [visible]);
+    }, [visible, coach]);
 
     const updateAnswer = (questionIndex: number, value: any) => {
         setAnswers(prev => ({

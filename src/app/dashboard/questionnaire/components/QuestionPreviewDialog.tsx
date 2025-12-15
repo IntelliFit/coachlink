@@ -28,6 +28,7 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     const [loadingTags, setLoadingTags] = useState<boolean>(true);
 
     useEffect(() => {
+
         const fetchTags = async () => {
             setLoadingTags(true);
             try {

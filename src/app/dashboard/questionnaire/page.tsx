@@ -41,17 +41,16 @@ const QuestionarePage = () => {
         }
 
         const res = await coachService.getCoach({ userId: session.user.id });
+        
         if (res) {
             setCoach(res.coach);
         }
     }
 
-    const loadQuestions = useCallback(async () => {
-        if (!session?.user?.id) {
+    const loadQuestions = async () => {
+        if (!session?.user?.id || !coach) {
             return;
         }
-
-        await loadCoach();
 
         const res = await coachService.getQuestionnaires({
             coachId: coach.id
@@ -102,13 +101,17 @@ const QuestionarePage = () => {
         } else {
             showToast({ severity: 'error', summary: '错误', detail: '加载问卷问题失败' });
         }
-    }, [session?.user?.id, showToast]);
+    }
+
+    useEffect(() => { 
+        loadCoach();
+    }, [session?.user?.id]);
 
     useEffect(() => {
         if (session?.user?.id) {
             loadQuestions();
         }
-    }, [session?.user?.id, loadQuestions]);
+    }, [coach]);
 
     const saveQuestions = async () => {
         setSaving(true);
@@ -473,6 +476,7 @@ const QuestionarePage = () => {
                 visible={previewDialogVisible}
                 onHide={() => setPreviewDialogVisible(false)}
                 questions={questions}
+                coachId={coach?.id || ''}
             />
         </div>
     );

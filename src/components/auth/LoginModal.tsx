@@ -259,7 +259,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 disabled={countdown > 0 || sendingCode || !phone.trim()}
                                 loading={sendingCode}
                                 outlined
-                                className="w-32"
+                                className="w-40"
                             />
                         </div>
 
