@@ -15,9 +15,12 @@ export async function POST(req: Request) {
     }
 
     const userId = session.user.id;
-    const { conversation_id, message_ids } = await req.json() as MarkAsReadDto;
+    const {
+        roomId,
+        messageIds
+    } = await req.json() as MarkAsReadDto;
 
-    if (!conversation_id) {
+    if (!roomId) {
         return NextResponse.json({
             success: false,
             message: '缺少会话ID',
@@ -25,44 +28,34 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    try {
-        // 构建更新查询
-        let query = supabase
-            .from('coach_messages')
-            .update({ is_read: true })
-            .eq('conversation_id', conversation_id)
-            .eq('receiver_id', userId)
-            .eq('is_read', false);
+    // 构建更新查询
+    let query = supabase
+        .from('chat_messages')
+        .update({ is_read: true })
+        .eq('room_id', roomId)
+        .eq('is_read', false);
 
-        if (message_ids && message_ids.length > 0) {
-            query = query.in('id', message_ids);
-        }
+    if (messageIds && messageIds.length > 0) {
+        query = query.in('id', messageIds);
+    }
 
-        const { count, error } = await query;
+    const { count, error } = await query;
 
-        if (error) {
-            console.error('标记已读失败:', error);
-            return NextResponse.json({
-                success: false,
-                message: '标记已读失败',
-                data: null
-            }, { status: 500 });
-        }
-
-        return NextResponse.json<ApiData<MarkAsReadResponseDto>>({
-            success: true,
-            message: '标记已读成功',
-            data: {
-                marked_count: count || 0
-            }
-        });
-    } catch (error: any) {
-        console.error('标记已读错误:', error);
+    if (error) {
+        console.error('标记已读失败:', error);
         return NextResponse.json({
             success: false,
-            message: error?.message || '服务器错误',
+            message: '标记已读失败',
             data: null
         }, { status: 500 });
     }
+
+    return NextResponse.json<ApiData<MarkAsReadResponseDto>>({
+        success: true,
+        message: '标记已读成功',
+        data: {
+            markedCount: count || 0
+        }
+    });
 }
 

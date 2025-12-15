@@ -3,7 +3,7 @@ export interface GetChatroomsDto {
     limit?: number;
 }
 
-export interface ConversationItem {
+export interface ChatroomItem {
     id: string;
     chatUserId: string;
     chatUserProfile: {
@@ -17,7 +17,7 @@ export interface ConversationItem {
 }
 
 export interface GetChatroomsResponseDto {
-    chatRooms: ConversationItem[];
+    chatRooms: ChatroomItem[];
     total: number;
 }
 

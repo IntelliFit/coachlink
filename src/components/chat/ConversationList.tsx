@@ -3,36 +3,34 @@
 import { Avatar } from 'primereact/avatar';
 import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
-import type { ConversationItem } from '@/app/api/chat/list-chatrooms/entity';
+import type { ChatroomItem } from '@/app/api/chat/list-chatrooms/entity';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import React, { useState } from 'react';
+import ChatDialog from '@/components/chat/ChatDialog';
 
 interface ConversationListProps {
-    conversations: ConversationItem[];
+    chatrooms: ChatroomItem[];
     loading?: boolean;
-    onConversationClick?: (conversation: ConversationItem) => void;
+    onConversationClick?: (room: ChatroomItem) => void;
 }
 
 export function ConversationList({
-    conversations,
+    chatrooms,
     loading = false,
     onConversationClick
 }: ConversationListProps) {
     const router = useRouter();
     const { data: session } = useSession();
-    const isCoach = !!(session as any)?.user?.is_coach;
-
-    const getPartnerName = (conversation: ConversationItem) =>
-        isCoach ? conversation.student_name : conversation.coach_name;
-
-    const getPartnerAvatar = (conversation: ConversationItem) =>
-        isCoach ? conversation.student_avatar : conversation.coach_avatar;
-
-    const handleClick = (conversation: ConversationItem) => {
+    const userId = session?.user?.id;
+    const [chatDialogVisible, setChatDialogVisible] = useState(false);
+    const [currentCoachId, setCurrentCoachId] = useState<string | null>(null);
+    const handleClick = (room: ChatroomItem) => {
         if (onConversationClick) {
-            onConversationClick(conversation);
+            onConversationClick(room);
         } else {
-            router.push(`/messages/${conversation.id}`);
+            setCurrentCoachId(room.chatUserId);
+            setChatDialogVisible(true);
         }
     };
 
@@ -73,7 +71,7 @@ export function ConversationList({
         );
     }
 
-    if (conversations.length === 0) {
+    if (chatrooms.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-surface-500">
                 <i className="pi pi-comment text-4xl mb-4" />
@@ -84,56 +82,58 @@ export function ConversationList({
     }
 
     return (
-        <div className="space-y-0">
-            {conversations.map((conversation) => (
-                <div
-                    key={conversation.id}
-                    className="p-4 border-b border-surface-200 dark:border-surface-700 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
-                    onClick={() => handleClick(conversation)}
-                >
-                    <div className="flex items-start gap-3">
-                        <div className="relative">
-                            <Avatar
-                                image={getPartnerAvatar(conversation) || undefined}
-                                label={
-                                    !getPartnerAvatar(conversation)
-                                        ? getPartnerName(conversation).charAt(0)
-                                        : undefined
-                                }
-                                size="large"
-                                shape="circle"
-                                className="bg-primary-500 text-white"
-                            />
-                            {conversation.unread_count > 0 && (
-                                <Badge
-                                    value={conversation.unread_count > 99 ? '99+' : conversation.unread_count}
-                                    severity="danger"
-                                    className="absolute -top-1 -right-1"
+        <>
+            <div className="space-y-0">
+                {chatrooms.map((room) => (
+                    <div
+                        key={room.id}
+                        className="p-4 border-b border-surface-200 dark:border-surface-700 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
+                        onClick={() => handleClick(room)}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="relative">
+                                <Avatar
+                                    image={room.chatUserProfile.avatar}
+                                    label={room.chatUserProfile.name?.charAt(0)}
+                                    size="large"
+                                    shape="circle"
+                                    className="bg-primary-500 text-white"
                                 />
-                            )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                                <h3 className="font-semibold text-surface-900 dark:text-surface-0 truncate">
-                                    {getPartnerName(conversation)}
-                                </h3>
-                                <span className="text-xs text-surface-500 whitespace-nowrap ml-2">
-                                    {formatTime(conversation.last_message_at)}
-                                </span>
+                                {room.unreadMembers.includes(userId) && (
+                                    <Badge
+                                        severity="danger"
+                                        className="absolute -top-1 -right-1"
+                                    />
+                                )}
                             </div>
-                            <p className={`text-sm truncate ${
-                                conversation.unread_count > 0 
-                                    ? 'text-surface-900 dark:text-surface-0 font-medium' 
-                                    : 'text-surface-600 dark:text-surface-400'
-                            }`}>
-                                {conversation.last_message || '暂无消息'}
-                            </p>
+                            
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                    <h3 className="font-semibold text-surface-900 dark:text-surface-0 truncate">
+                                        {room.chatUserProfile.name}
+                                    </h3>
+                                    <span className="text-xs text-surface-500 whitespace-nowrap ml-2">
+                                        {formatTime(room.lastMessageAt)}
+                                    </span>
+                                </div>
+                                <p className={`text-sm truncate ${
+                                    room.unreadMembers.includes(userId)
+                                        ? 'text-surface-900 dark:text-surface-0 font-medium' 
+                                        : 'text-surface-600 dark:text-surface-400'
+                                }`}>
+                                    {room.lastMessage || '暂无消息'}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            ))}
-        </div>
+                ))}
+            </div>
+            <ChatDialog
+                coachId={currentCoachId || ''}
+                visible={chatDialogVisible}
+                onHide={() => setChatDialogVisible(false)}
+            />
+        </>
     );
 }
 
