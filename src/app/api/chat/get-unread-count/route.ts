@@ -6,6 +6,7 @@ import type { GetUnreadCountResponseDto } from './entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
+    
     if (!session?.user?.id) {
         return NextResponse.json({
             success: false,
