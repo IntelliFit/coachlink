@@ -1,5 +1,6 @@
 import { BaseService } from "@/lib/baseService";
 import type { UpdateProfileResponseDto, UpdateProileDto } from "../api/user/update-profile/entity";
+import type { GetUserProfileResponseDto, GetUserProfileDto } from "../api/user/get-profile/entity";
 import type { GetTrainingPlansDto, GetTrainingPlansResponseDto } from "../api/user/get-training-plans/entity";
 import type { GetTrainingPlansDetailDto, GetTrainingPlansDetailResponseDto } from "../api/user/get-training-detail/entity";
 // 导入训练提醒相关的类型定义
@@ -86,6 +87,14 @@ class UserPlanService extends BaseService {
         if (res.data && res.data.success) {
             return res.data.data;
         }
+    }
+
+    async getProfile(reqData: GetUserProfileDto) {
+        const res = await this.post<GetUserProfileResponseDto>('get-profile', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
     }
     
     // 训练提醒相关方法

@@ -63,11 +63,18 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
                 return;
             }
 
-            
+            const res = await userService.getProfile({ userId: partner });
+            if (res) {
+                setChatPartner({
+                    name: res.profile.nickname,
+                    avatar: res.profile.avatar_url
+                });
+            }
         }
 
         if (visible && (chatroom.id || session?.user?.id)) {
             fetchChat();
+            // fetchChatPartner();
         }
         return () => { active = false; };
     }, [visible, session?.user?.id, chatroom, showToast]);

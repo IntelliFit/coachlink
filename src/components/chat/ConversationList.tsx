@@ -129,8 +129,8 @@ export function ConversationList({
                 ))}
             </div>
             <ChatDialog
-                coachId={currentCoachId || ''}
                 visible={chatDialogVisible}
+                chatroom={''}
                 onHide={() => setChatDialogVisible(false)}
             />
         </>
