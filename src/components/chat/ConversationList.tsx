@@ -3,7 +3,7 @@
 import { Avatar } from 'primereact/avatar';
 import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
-import type { ConversationItem } from '@/app/api/chat/get-conversations/entity';
+import type { ConversationItem } from '@/app/api/chat/list-chatrooms/entity';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 

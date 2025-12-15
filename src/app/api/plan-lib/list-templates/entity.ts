@@ -15,6 +15,8 @@ export interface CoachPlansPreview {
     suitableFor: string;
     restDaysCount: number;
     trainingDaysCount: number;
+    containedOptions: string[];
+    weekDays: number[];
 }
 
 export interface ListTemplatesResponseDto {

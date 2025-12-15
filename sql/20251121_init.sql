@@ -17,10 +17,7 @@ CREATE SCHEMA IF NOT EXISTS "public";
 
 ALTER SCHEMA "public" OWNER TO "pg_database_owner";
 
-
 COMMENT ON SCHEMA "public" IS 'standard public schema';
-
-
 
 CREATE OR REPLACE FUNCTION "public"."calculate_pull_up_score"() RETURNS "trigger"
     LANGUAGE "plpgsql"

@@ -19,13 +19,17 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect 
                     </p>
                     <div className="flex flex-wrap items-center gap-2 mb-3">
                         <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                            {Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7)} 周训练
+                            {Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7)} 周
+
+                            ({template.weekDays.join(',')})
                         </span>
+
                         {/* 显示适用人群 */}
                         {template.suitableFor && (
-                            <div className="">
-                                <span className="text-xs text-600">适用人群:</span>
-                                <span className="ml-1 text-sm text-900">{template.suitableFor}</span>
+                            <div className="flex flex-wrap gap-1">
+                                <span className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full">
+                                    {template.suitableFor}
+                                </span>
                             </div>
                         )}
                         {/* 显示标签 */}
@@ -33,6 +37,17 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect 
                             <div className="flex flex-wrap gap-1">
                                 {template.tags.map((tag, index) => (
                                     <span key={index} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 显示 options */}
+                        {template.containedOptions && template.containedOptions.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                                {template.containedOptions.map((tag, index) => (
+                                    <span key={index} className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded-full">
                                         {tag}
                                     </span>
                                 ))}
