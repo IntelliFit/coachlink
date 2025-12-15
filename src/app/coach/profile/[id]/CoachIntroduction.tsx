@@ -43,13 +43,19 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
             return;
         }
 
-        const res = await chatService.getChatroom({ members: [session.user.id, coach.user_id] });
+        setLoading(true);
 
-        if (res) {
-            setChatroom(res.chatroom);
-            setChatDialogVisible(true);
-        } else {
-            showToast({ severity: 'error', summary: '创建聊天室出错' });
+        try {
+            const res = await chatService.getChatroom({ members: [session.user.id, coach.user_id] });
+
+            if (res) {
+                setChatroom(res.chatroom);
+                setChatDialogVisible(true);
+            } else {
+                showToast({ severity: 'error', summary: '创建聊天室出错' });
+            }
+        } finally {
+            setLoading(false);
         }
     }
 
