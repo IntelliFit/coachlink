@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
     // 如果提供了 user_id 参数且当前用户是管理员，则可以查询其他用户的资料
     // 否则只能查询自己的资料
-    const targetUserId = (userId && session.user.is_admin) ? userId : currentUserId;
+    const targetUserId = userId ? userId : currentUserId;
 
     // 查询用户档案
     const { data: profile, error } = await supabase

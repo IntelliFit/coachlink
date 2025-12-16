@@ -31,7 +31,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
 
     // 加载会话和消息
     useEffect(() => {
-        if (!visible || !chatroom || session?.user?.id) {
+        if (!visible || !chatroom || !session?.user?.id) {
             setMessages([]);
             setChatPartner(null);
             return;
@@ -58,12 +58,20 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
 
         const fetchChatPartner = async () => {
             const userId = session?.user?.id;
+            console.log(chatroom.members);
+            console.log(userId);
+            
+            
             const partner = chatroom.members.find(m => m != userId);
             if (!partner) {
                 return;
             }
 
+            console.log(partner);
+            
             const res = await userService.getProfile({ userId: partner });
+            console.log(res);
+            
             if (res) {
                 setChatPartner({
                     name: res.profile.nickname,
@@ -77,7 +85,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
             fetchChatPartner();
         }
         return () => { active = false; };
-    }, [visible, session?.user?.id, chatroom, showToast]);
+    }, [visible, session?.user?.id, chatroom]);
 
     // 滚动到底部
     useEffect(() => {
@@ -122,22 +130,22 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
     const renderHeader = () => {
         if (loading || !chatPartner) {
             return (
-                <div className="flex items-center gap-3 p-4 border-b border-surface-200 dark:border-surface-700">
+                <div className="flex items-center gap-3 p-4 border-b border-surface-200">
                     <Skeleton shape="circle" size="2.5rem" />
                     <Skeleton width="8rem" height="1.5rem" />
                 </div>
             );
         }
         return (
-            <div className="flex items-center gap-3 p-4 border-b border-surface-200 dark:border-surface-700">
+            <div className="flex items-center gap-3 p-4 border-b border-surface-200">
                 <Avatar
                     image={chatPartner.avatar || undefined}
                     label={!chatPartner.avatar ? chatPartner.name.charAt(0) : undefined}
                     size="large"
                     shape="circle"
-                    className="bg-primary-500 text-white"
+                    className="bg-primary-500"
                 />
-                <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0">
+                <h2 className="text-xl font-semibold text-surface-500">
                     {chatPartner.name}
                 </h2>
             </div>
@@ -148,7 +156,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
         <Dialog
             header={renderHeader()}
             visible={visible}
-            style={{ width: '100%', maxWidth: 1020, minHeight: 600 }}
+            style={{ width: '100%', maxWidth: 800, minHeight: 600 }}
             onHide={onHide}
             modal
             contentClassName="flex flex-col h-[70vh] md:h-[600px]"
@@ -159,7 +167,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
                 </div>
             ) : (
                 <>
-                    <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8 bg-surface-50 dark:bg-surface-900 rounded-t-lg" style={{ minHeight: 320 }}>
+                    <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8 rounded-t-lg" style={{ minHeight: 320 }}>
                         {messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-surface-500">
                                 <i className="pi pi-comment text-5xl mb-4" />
@@ -174,7 +182,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
                             </div>
                         )}
                     </div>
-                    <div className="border-t border-surface-200 dark:border-surface-700 px-4 py-4 bg-white dark:bg-surface-800 rounded-b-lg">
+                    <div className="border-t border-surface-300 px-4 py-4 rounded-b-lg">
                         <div className="flex gap-3 items-end max-w-2xl mx-auto">
                             <Button
                                 icon="pi pi-paperclip"
@@ -192,7 +200,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
                                 placeholder="输入消息... (Enter发送, Shift+Enter换行)"
                                 rows={1}
                                 autoResize
-                                className="flex-1 min-h-[44px] max-h-32 px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 text-surface-900 dark:text-surface-0 shadow-sm"
+                                className="flex-1 min-h-[44px] max-h-32 px-3 py-3 rounded-lg text-surface-700 shadow-sm"
                                 disabled={sending}
                                 style={{ resize: 'none' }}
                             />
