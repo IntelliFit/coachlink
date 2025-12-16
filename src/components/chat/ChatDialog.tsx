@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
 import { userService } from '@/app/service/userService';
+import { CoachLinkTable } from '@/types';
 
 interface ChatDialogProps {
     visible: boolean;
@@ -28,6 +29,36 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
     const [messageText, setMessageText] = useState('');
     const [chatPartner, setChatPartner] = useState<{ name: string; avatar: string | null } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
+
+    const userMap: Record<string, { name: string; avatar: string | null }> = {};
+
+    useEffect(() => {
+        if (!chatroom) return;
+        // 根据 chatroom.members 获取成员信息
+        const loadUserProfiles = async () => {
+            for (const id of chatroom.members) {
+                if (id === session.user.id) {
+                    userMap[id] = {
+                        name: session.profile.nickname,
+                        avatar: session.profile.avatar_url
+                    };
+                } else {
+                    const res = await userService.getProfile({ userId: id });
+                    if (res) {
+                        userMap[id] = {
+                            name: res.profile.nickname,
+                            avatar: res.profile.avatar_url
+                        };
+                    }
+                }
+            }
+        }
+
+        loadUserProfiles();
+
+    }, [visible, chatroom?.id, session?.user?.id]);
+
 
     // 加载会话和消息
     useEffect(() => {
@@ -37,7 +68,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
             return;
         }
         let active = true;
-        
+
         const fetchChat = async () => {
             if (!chatroom) {
                 return;
@@ -60,18 +91,18 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
             const userId = session?.user?.id;
             console.log(chatroom.members);
             console.log(userId);
-            
-            
+
+
             const partner = chatroom.members.find(m => m != userId);
             if (!partner) {
                 return;
             }
 
             console.log(partner);
-            
+
             const res = await userService.getProfile({ userId: partner });
             console.log(res);
-            
+
             if (res) {
                 setChatPartner({
                     name: res.profile.nickname,
@@ -94,30 +125,148 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
         }
     }, [messages, visible]);
 
+    useEffect(() => {
+        if (!visible || !chatroom?.id || !session?.user?.id) {
+            return;
+        }
+
+        // 防止重复订阅
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+
+        const es = new EventSource(
+            `/api/chat/receive-stream?roomId=${chatroom.id}`
+        );
+        eventSourceRef.current = es;
+
+        es.onmessage = (event) => {
+            console.log(event.data);
+
+            try {
+                const newMessage = JSON.parse(event.data) as CoachLinkTable['chat_messages']['Insert'];
+
+                // 如果是自己刚发的消息（已 optimistic），跳过
+                if (newMessage.sender_id === session.user.id) {
+                    return;
+                }
+
+                const userProfile = userMap[newMessage.sender_id];
+
+                console.log(userMap);
+                console.log(newMessage);
+
+
+
+                const incoming: MessageItemType = {
+                    id: newMessage.id,
+                    chatUserId: newMessage.sender_id,
+                    chatUserProfile: {
+                        name: userProfile.name,
+                        avatar: userProfile.avatar,
+                    },
+                    messageType: newMessage.message_type,
+                    content: newMessage.content,
+                    mediaUrl: newMessage.media_url,
+                    fileName: newMessage.file_name,
+                    fileSize: newMessage.file_size,
+                    isRead: true,
+                    createdAt: newMessage.created_at,
+                    isMine: false,
+                    duration: null,
+                };
+
+                setMessages(prev => [...prev, incoming]);
+            } catch (e) {
+                console.error('SSE message parse error', e);
+            }
+        };
+
+        es.onerror = (err) => {
+            console.error('SSE error', err);
+            es.close();
+            eventSourceRef.current = null;
+        };
+
+        return () => {
+            es.close();
+            eventSourceRef.current = null;
+        };
+    }, [visible, chatroom?.id, session?.user?.id]);
+
+
     // 发送消息
     const sendMessage = async () => {
-        if (!messageText.trim() || !chatroom) return;
-        setSending(true);
-        try {
-            const data = await chatService.sendMessage({
-                roomId: chatroom.id,
-                messageType: 'text',
-                content: messageText.trim()
-            });
-            if (data) {
-                setMessageText('');
-                // 重新加载消息
-                const msgRes = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
-                if (msgRes) setMessages(msgRes.messages);
-                showToast({ severity: 'success', summary: '成功', detail: '消息发送成功' });
-            } else {
-                showToast({ severity: 'error', summary: '错误', detail: '消息发送失败' });
-            }
-        } catch (error: any) {
-            showToast({ severity: 'error', summary: '错误', detail: error?.message || '发送失败' });
-        } finally {
-            setSending(false);
+        if (sending) {
+            return;
         }
+
+        if (!messageText.trim() || !chatroom) {
+            return;
+        }
+
+        if (!session?.user?.id) {
+            return;
+        }
+
+        setSending(true);
+
+        const content = messageText.trim();
+
+        setMessageText('');
+        // 更新消息
+        const newMessages = [...messages];
+        newMessages.push({
+            id: 'new' + newMessages.length,
+            chatUserId: session.user.id,
+            chatUserProfile: {
+                name: session.profile.nickname,
+                avatar: session.profile.avatar_url
+            },
+            messageType: 'text',
+            content,
+            mediaUrl: null,
+            fileName: null,
+            fileSize: null,
+            isRead: false,
+            createdAt: null,
+            isMine: true,
+            duration: null
+        });
+
+        setMessages(newMessages);
+
+        const res = await chatService.sendMessage({
+            roomId: chatroom.id,
+            messageType: 'text',
+            content
+        });
+
+        if (res) {
+            setMessages(prev => {
+                if (prev.length === 0) return prev;
+
+                return prev.map((msg, index) =>
+                    index === prev.length - 1
+                        ? {
+                            ...msg,
+                            id: res.messageId,
+                            createdAt: res.createdAt,
+                        }
+                        : msg
+                );
+            });
+
+        } else {
+            showToast({ severity: 'error', summary: '错误', detail: '消息发送失败' });
+            // 复原输入和信息
+            setMessageText(content);
+            const newMessages = [...messages];
+            newMessages.pop();
+            setMessages(newMessages);
+        }
+
+        setSending(false);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -162,7 +311,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
             contentClassName="flex flex-col h-[70vh] md:h-[600px]"
         >
             {loading ? (
-                <div className="flex justify-center items-center min-h-[300px]">
+                <div className="flex justify-center items-center h-[70vh]">
                     <ProgressSpinner />
                 </div>
             ) : (
