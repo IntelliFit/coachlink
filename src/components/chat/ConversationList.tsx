@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';
 import ChatDialog from '@/components/chat/ChatDialog';
+import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 
 interface ConversationListProps {
     chatrooms: ChatroomItem[];
@@ -25,11 +26,21 @@ export function ConversationList({
     const userId = session?.user?.id;
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [currentCoachId, setCurrentCoachId] = useState<string | null>(null);
+    const [currentChatroom, setCurrentChatroom] = useState<ChatroomDetail | null>(null);
+
     const handleClick = (room: ChatroomItem) => {
         if (onConversationClick) {
             onConversationClick(room);
         } else {
             setCurrentCoachId(room.chatUserId);
+            setCurrentChatroom({
+                id: room.id,
+                members: [room.chatUserId, session.user.id],
+                lastMessage: room.lastMessage,
+                lastMessageAt: room.lastMessageAt,
+                unreadMembers: room.unreadMembers,
+                isArchived: room.isArchived,
+            });
             setChatDialogVisible(true);
         }
     };
@@ -128,9 +139,10 @@ export function ConversationList({
                     </div>
                 ))}
             </div>
+
             <ChatDialog
                 visible={chatDialogVisible}
-                chatroom={''}
+                chatroom={currentChatroom}
                 onHide={() => setChatDialogVisible(false)}
             />
         </>
