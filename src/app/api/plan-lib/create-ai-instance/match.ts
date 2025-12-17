@@ -1,27 +1,32 @@
 import supabase from "@/lib/supabaseClient";
 import { TrainingItem } from "@/types/questionnaires";
 
-async function walkTags(query) {
-
-}
-
-async function walkTimes(query) {
-    
-}
-
-async function walkOption(params:type) {
-    
-}
-
 
 export async function matchPlan(questionare: TrainingItem[]) {
     let query = supabase.from('coach_plan_templates')
         .select('*');
     
-    // 根据条件构建查询管道
-    query = await walkTags(query);
-    query = await walkTimes(query);
-    query = await walkOption(query);
+    const tagsInfo = questionare.find(item => item.type === 'tags');
+    if (tagsInfo) {
+        query = query.contains('tags', tagsInfo.userSelections);
+    }
 
+    const timesInfo = questionare.find(item => item.type === 'times');
+    if (timesInfo) {
+        query = query.contains('times', timesInfo.userSelection);
+    }
     
+    const optionInfos = questionare.filter(item => item.type === 'option');
+    for (const optionInfo of optionInfos) {
+        query = query.contains('contained_options', optionInfo.question);
+    }
+
+    const { data: planTemplates, error: planTemplatesError } = await query;
+
+    if (planTemplatesError) {
+        console.error(planTemplatesError);
+        return null;
+    }
+
+    return planTemplates;
 }

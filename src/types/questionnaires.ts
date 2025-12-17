@@ -1,10 +1,12 @@
 
 export interface TrainingTagsQuestion {
     type: 'tags'
+    userSelections?: string[]
 }
 
 export interface TrainingTimesQuestion {
     type: 'times'
+    userSelection?: string[]
 }
 
 export interface TrainingOptionQuestion {
