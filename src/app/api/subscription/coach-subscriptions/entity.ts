@@ -3,6 +3,7 @@ import { CoachesRow, CoachSubscriptionRow } from "@/types";
 export interface CoachSubscriptionGetDto {
     studentId?: string;
     coachId?: string;
+    onlyActive?: boolean;
 }
 
 export interface CoachSubscriptionGetResponseDto {

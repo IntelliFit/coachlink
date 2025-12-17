@@ -10,14 +10,17 @@ import { Skeleton } from 'primereact/skeleton';
 import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
 import type { TrainingItem } from '@/types/questionnaires';
-import { CoachesRow } from '@/types';
+import { CoachesRow, CoachSubscriptionRow } from '@/types';
+import { subscriptionService } from '@/app/service/subscriptionService';
+import { useSession } from 'next-auth/react';
+import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 
 interface QuestionnaireFormProps {
     coach: CoachesRow;
     visible: boolean;
     onHide: () => void;
     questions: TrainingItem[];
-    onSubmit: (answers: { question: string; answer: any }[]) => void;
+    onSubmit: (answers: TrainingItem[]) => void;
     loading: boolean;
 }
 
@@ -30,9 +33,21 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     loading
 }) => {
     const { showToast } = useToastContext();
-    const [answers, setAnswers] = useState<Record<number, any>>({});
+    const [answers, setAnswers] = useState<TrainingItem[]>(questions);
     const [tags, setTags] = useState<string[]>([]);
     const [loadingTags, setLoadingTags] = useState<boolean>(true);
+    const [coachSubscription, setCoachSubscription] = useState<QueryCoachSubscription | null>(null);
+    const { data: session } = useSession()
+
+    useEffect(() => {
+        setAnswers(questions);
+        if (visible) {
+            loadSubscription();
+        }
+    }, [questions, visible]);
+
+    useEffect(() => {
+    }, [session?.user?.id, coach?.id]);
 
     useEffect(() => {
         if (!coach) {
@@ -61,49 +76,68 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         }
     }, [visible, coach]);
 
+    const loadSubscription = async () => {
+        const res = await subscriptionService.getCoachSubscriptions({
+            coachId: coach.id,
+            studentId: session.user.id,
+            onlyActive: false
+        });
+
+        if (res && res.subscriptions.length > 0) {
+            setCoachSubscription(res.subscriptions[0]);
+            const subscribeData = res.subscriptions[0].subscribe_data as any;            
+            setAnswers(subscribeData);
+        }        
+    }
+
     const updateAnswer = (questionIndex: number, value: any) => {
-        setAnswers(prev => ({
-            ...prev,
-            [questionIndex]: value
+        setAnswers(prev => prev.map((item, idx) => {
+            if (idx !== questionIndex) return item;
+            switch (item.type) {
+                case 'tags':
+                    return { ...item, userSelections: value };
+                case 'times':
+                    return { ...item, userSelection: value };
+                case 'option':
+                    return { ...item, userSelection: value };
+                case 'text':
+                    return { ...item, userSelection: value };
+                default:
+                    return item;
+            }
         }));
     };
 
     const handleSubmit = () => {
         // 验证: 对于每个问题，若为必填类型则检查
+        
         for (let i = 0; i < questions.length; i++) {
-            const q = questions[i];
-            const ans = answers[i];
-            if ((q.type === 'text' || q.type === 'option' || q.type === 'times') && (ans === undefined || ans === null || (typeof ans === 'string' && ans.trim() === ''))) {
-                showToast({ severity: 'error', summary: '提交失败', detail: `请回答第 ${i + 1} 个问题` });
+            const q = answers[i];            
+            if (q.type === 'tags' && (!q.userSelections || q.userSelections.length === 0)) {
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                return;
+            }
+            if (q.type === 'times' && (![1, 2, 3, 4, 5, 6, 7].includes(q.userSelection))) {
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                return;
+            }
+            if (q.type === 'option' && (q.userSelection === undefined || q.userSelection === null)) {
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                return;
+            }
+            if (q.type === 'text' && !(q as any).userSelection && (typeof (q as any).userSelection !== 'string' || (q as any).userSelection?.trim() === '')) {
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
                 return;
             }
         }
-
-        const answersArray = questions.map((question, index) => {
-            const raw = answers[index];
-            let answer = raw;
-            if (Array.isArray(raw)) {
-                answer = raw; // keep as array for tags
-            } else if (raw === undefined || raw === null) {
-                answer = '';
-            } else {
-                answer = String(raw);
-            }
-
-            return {
-                question: question.question || `问题 ${index + 1}`,
-                answer
-            };
-        });
-
-        onSubmit(answersArray);
+        onSubmit(answers);
     };
 
     const renderQuestion = (question: TrainingItem, index: number) => {
         switch (question.type) {
             case 'tags':
                 return (
-                    <div className="mb-4" key={index}>
+                    <div className="mb-8" key={index}>
                         <label className="block text-sm font-medium mb-4">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
                         {loadingTags ? (
                             <div className="flex flex-col gap-2">
@@ -123,14 +157,14 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                             name={`tags${index}`}
                                             value={tag}
                                             onChange={(e) => {
-                                                const currentTags = answers[index] || [];
+                                                const currentTags = (question.userSelections || []);                                                
                                                 if (e.checked) {
                                                     updateAnswer(index, [...currentTags, tag]);
                                                 } else {
                                                     updateAnswer(index, currentTags.filter((t: string) => t !== tag));
                                                 }
                                             }}
-                                            checked={(answers[index] || []).includes(tag)}
+                                            checked={(question.userSelections || []).includes(tag)}
                                         />
                                         <label htmlFor={`tag${index}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
                                     </div>
@@ -142,28 +176,28 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
             case 'times':
                 return (
-                    <div className="mb-4" key={index}>
-                        <label className="block text-sm font-medium mb-2">Q{index + 1}. 您希望每周训练几次？</label>
-                        <div className="flex flex-wrap gap-2">
-                            {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                                <div key={num} className="flex items-center rounded px-3 py-2">
-                                    <RadioButton
-                                        inputId={`times${index}-${num}`}
-                                        name={`times${index}`}
-                                        value={num}
-                                        onChange={(e) => updateAnswer(index, e.value)}
-                                        checked={answers[index] === num}
-                                    />
-                                    <label htmlFor={`times${index}-${num}`} className="ml-2 text-sm">{num}次</label>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="mb-8" key={index}>
+                    <label className="block text-sm font-medium mb-2">Q{index + 1}. 您希望每周训练几次？</label>
+                    <div className="flex flex-wrap gap-2">
+                        {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                            <div key={num} className="flex items-center rounded px-3 py-2">
+                                <RadioButton
+                                    inputId={`times${index}-${num}`}
+                                    name={`times${index}`}
+                                    value={num}
+                                    onChange={(e) => updateAnswer(index, e.value)}
+                                    checked={question.userSelection === num}
+                                />
+                                <label htmlFor={`times${index}-${num}`} className="ml-2 text-sm">{num}次</label>
+                            </div>
+                        ))}
                     </div>
+                </div>
                 );
 
             case 'option':
                 return (
-                    <div className="mb-4" key={index}>
+                    <div className="mb-8" key={index}>
                         <label className="block text-sm font-medium mb-4">Q{index + 1}. {question.question || `问题 ${index + 1}`}</label>
                         <div className="flex flex-col gap-4">
                             {question.options?.map((option, optionIndex) => (
@@ -171,9 +205,9 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                     <RadioButton
                                         inputId={`option${index}-${optionIndex}`}
                                         name={`option${index}`}
-                                        value={option}
+                                        value={optionIndex}
                                         onChange={(e) => updateAnswer(index, e.value)}
-                                        checked={answers[index] === option}
+                                        checked={question.userSelection === optionIndex}
                                     />
                                     <label htmlFor={`option${index}-${optionIndex}`} className="ml-2 text-sm">{option}</label>
                                 </div>
@@ -185,10 +219,10 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'text':
             default:
                 return (
-                    <div className="mb-4" key={index}>
+                    <div className="mb-8" key={index}>
                         <label className="block text-sm font-medium mb-2">Q{index + 1}. {question.question}</label>
                         <InputTextarea
-                            value={answers[index] || ''}
+                            value={(question as any).userSelection || ''}
                             onChange={(e) => updateAnswer(index, e.target.value)}
                             className="w-full"
                             rows={3}
@@ -208,7 +242,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 disabled={loading}
             />
             <Button
-                label="确认"
+                label={coachSubscription ? '更新' : '确认'}
                 icon="pi pi-check"
                 onClick={handleSubmit}
                 loading={loading}
@@ -227,17 +261,17 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             draggable={false}
             resizable={false}
             modal
-            className="w-full max-w-2xl"
+            className="w-full max-w-3xl"
         >
             <div className="p-4">
-                <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-r">
-                    <p className="text-sm text-green-800">
-                        💡 您的公共档案（身高、体重、力量数据等）将自动授权给教练查看，无需重复填写。
+                <div className="mb-4 p-3 bg-primary-50 border-l-4 border-primary-500 rounded-r">
+                    <p className="text-sm text-primary-800">
+                        您填写的这些数据将更好帮助教练了解您的情况，并制定对应的计划。不同教练有自己独家的不同问卷。
                     </p>
                 </div>
 
                 <div className="space-y-4">
-                    {questions.map((q, idx) => renderQuestion(q, idx))}
+                    {answers.map((q, idx) => renderQuestion(q, idx))}
                 </div>
             </div>
         </Dialog>

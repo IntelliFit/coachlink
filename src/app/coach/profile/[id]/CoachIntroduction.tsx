@@ -24,7 +24,6 @@ interface CoachIntroductionProps {
 
 const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo }) => {
     const { data: session } = useSession();
-    const isSubscribed = userSubscription?.status === 'active';
     const isOwnProfile = session?.user?.id === coach.user_id;
 
     const [editDialogVisible, setEditDialogVisible] = useState(false);
@@ -100,12 +99,21 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                         <div className="flex justify-between items-start">
                             <div className='flex flex-row items-center gap-2'>
                                 <h1 className="text-2xl font-bold text-surface-900 mb-2">{coach.name}</h1>
-                                {isSubscribed && (
+                                {userSubscription?.status === 'active' && (
                                     <div className="inline-flex items-center px-3 py-1 mb-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
                                         已订阅
+                                    </div>
+                                )}
+
+                                {userSubscription?.status === 'waiting' && (
+                                    <div className="inline-flex items-center px-3 py-1 mb-2 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        等待教练确认
                                     </div>
                                 )}
                             </div>

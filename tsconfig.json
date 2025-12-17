@@ -35,7 +35,7 @@
         "**/*.tsx",
         ".next/types/**/*.ts",
         ".next/dev/types/**/*.ts"
-    ],
+, "src/app/coach/profile/[id]/CoachSubscription.tsx.backup", "src/components/payment/paymentDialog.tsx.backup"    ],
     "exclude": [
         "node_modules"
     ]

@@ -65,6 +65,7 @@ import type {
     UpdateCoachProfileDto,
     UpdateCoachProfileResponseDto
 } from '@/app/api/coach/update-coach-profile/entity';
+import { GetPaymentWaitingStudentsDto, GetPaymentWaitingStudentsResponseDto } from "../api/coach/get-payment-waiting-students/entity";
 
 // 添加UpdateContentDto和DeleteContentDto类型
 interface DeleteContentDto {
@@ -192,6 +193,14 @@ class CoachService extends BaseService {
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
+    }
+
+    async getPaymentWaitingStudents(reqData: GetPaymentWaitingStudentsDto) {
+        const res = await this.post<GetPaymentWaitingStudentsResponseDto>('get-payment-waiting-students', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
     }
 }
 

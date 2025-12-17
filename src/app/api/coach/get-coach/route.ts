@@ -1,12 +1,17 @@
 import supabase from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
-import { GetCoachDto } from "./entity";
+import { GetCoachDto, GetCoachResponseDto } from "./entity";
+import { ApiData } from "@/types/api";
+import { CoachesRow } from "@/types";
 
 export async function POST(req: Request) {
     const {
         id,
-        userId
+        userId,
+        needQrCode = false
     } = await req.json() as GetCoachDto;
+
+    let coach: CoachesRow | null = null;
 
     if (id) {
         // 构建查询
@@ -16,7 +21,7 @@ export async function POST(req: Request) {
             .eq("id", id)
             .single();
 
-        const { data: coach, error } = await query;
+        const { data: coachData, error } = await query;
 
         if (error) {
             return NextResponse.json({
@@ -25,20 +30,14 @@ export async function POST(req: Request) {
             });
         }
 
-        if (!coach) {
+        if (!coachData) {
             return NextResponse.json({
                 success: false,
                 message: "未找到指定的教练"
             });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: "获取成功",
-            data: {
-                coach
-            }
-        });
+        coach = coachData;
     }
 
     if (userId) {
@@ -48,7 +47,7 @@ export async function POST(req: Request) {
             .eq("user_id", userId)
             .single();
 
-        const { data: coach, error } = await query;
+        const { data: coachData, error } = await query;
 
         if (error) {
             return NextResponse.json({
@@ -57,24 +56,25 @@ export async function POST(req: Request) {
             });
         }
 
-        if (!coach) {
+        if (!coachData) {
             return NextResponse.json({
                 success: false,
                 message: "未找到指定的教练"
             });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: "获取成功",
-            data: {
-                coach
-            }
-        });
+        coach = coachData;
     }
 
-    return NextResponse.json({
-        success: false,
-        message: "教练ID是必需的"
+    if (!needQrCode && coach) {
+        coach.payment_qr_code = undefined;
+    }
+
+    return NextResponse.json<ApiData<GetCoachResponseDto>>({
+        success: true,
+        message: '获取定价信息成功',
+        data: {
+            coach: coach,
+        }
     });
 }
