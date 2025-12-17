@@ -18,9 +18,10 @@ interface ChatDialogProps {
     visible: boolean;
     onHide: () => void;
     chatroom: ChatroomDetail;
+    onMarkSuccess?: (roomId: string) => void;
 }
 
-const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) => {
+const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMarkSuccess }) => {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
     const [loading, setLoading] = useState(false);
@@ -76,15 +77,18 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
 
             setLoading(true);
             // 获取消息
-            const res = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
-            if (active && res) {
-                setMessages(res.messages);
-                // 设置聊天对象信息
-                chatroom.isArchived
+            const messagesRes = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
+            if (active && messagesRes) {
+                setMessages(messagesRes.messages);
             }
 
             setLoading(false);
 
+            // 标记为已读
+            const markRes = await chatService.markAsRead({ roomId: chatroom.id });
+            if (markRes && onMarkSuccess) {
+                onMarkSuccess(chatroom.id);
+            }
         };
 
         const fetchChatPartner = async () => {

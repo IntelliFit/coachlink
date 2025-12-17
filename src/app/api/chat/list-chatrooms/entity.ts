@@ -13,6 +13,7 @@ export interface ChatroomItem {
     lastMessage: string | null;
     lastMessageAt: string | null;
     unreadMembers: string[];
+    unreadCount: number;
     isArchived: boolean;
 }
 

@@ -64,15 +64,6 @@ export default function MessagesPage() {
 
     return (
         <div className="container mx-auto px-4 py-6 max-w-4xl">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-surface-900 dark:text-surface-0 mb-2">
-                    消息
-                </h1>
-                <p className="text-surface-600 dark:text-surface-400">
-                    与教练和学员的对话
-                </p>
-            </div>
-
             <Card className="shadow-md">
                 <div className="mb-4">
 

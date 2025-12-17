@@ -15,7 +15,7 @@ export function MessageBadge({ className }: MessageBadgeProps) {
         try {
             const data = await chatService.getUnreadCount({});
             if (data) {
-                setUnreadCount(data.total_unread);
+                setUnreadCount(data.totalUnread);
             }
         } catch (error) {
             console.error('获取未读消息数失败:', error);
@@ -47,7 +47,7 @@ export function MessageBadge({ className }: MessageBadgeProps) {
 
     return (
         <Badge 
-            value={unreadCount > 99 ? '99+' : unreadCount} 
+            value={unreadCount > 99 ? '99+' : unreadCount}
             severity="danger" 
             className={className}
         />

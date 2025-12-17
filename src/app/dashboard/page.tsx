@@ -7,10 +7,6 @@ import { CoachDashboardProps } from '@/types/coach';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 
-// PrimeReact imports
-import { Button } from 'primereact/button';
-import { Badge } from 'primereact/badge';
-
 const CoachDashboard: React.FC<CoachDashboardProps> = () => {
     const { data: session, status } = useSession();
     const router = useRouter();

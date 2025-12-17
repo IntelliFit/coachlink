@@ -2,10 +2,18 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '../../auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
-import type { MarkAsReadDto, MarkAsReadResponseDto } from './entity';
+
+export interface MarkAsReadDto {
+    roomId: string;
+}
+
+export interface MarkAsReadResponseDto {
+    markedCount: number;
+}
 
 export async function POST(req: Request) {
     const session = await getServerSession();
+
     if (!session?.user?.id) {
         return NextResponse.json({
             success: false,
@@ -15,10 +23,7 @@ export async function POST(req: Request) {
     }
 
     const userId = session.user.id;
-    const {
-        roomId,
-        messageIds
-    } = await req.json() as MarkAsReadDto;
+    const { roomId } = (await req.json()) as MarkAsReadDto;
 
     if (!roomId) {
         return NextResponse.json({
@@ -28,21 +33,19 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 构建更新查询
-    let query = supabase
-        .from('chat_messages')
-        .update({ is_read: true })
+    /* ===============================
+     * 1️⃣ 更新 chat_room_unreads
+     * =============================== */
+    const { data: unreadRow, error: unreadError } = await supabase
+        .from('chat_room_unreads')
+        .update({ unread_count: 0 })
         .eq('room_id', roomId)
-        .eq('is_read', false);
+        .eq('user_id', userId)
+        .select()
+        .single();
 
-    if (messageIds && messageIds.length > 0) {
-        query = query.in('id', messageIds);
-    }
-
-    const { count, error } = await query;
-
-    if (error) {
-        console.error('标记已读失败:', error);
+    if (unreadError) {
+        console.error('更新未读数失败:', unreadError);
         return NextResponse.json({
             success: false,
             message: '标记已读失败',
@@ -54,8 +57,7 @@ export async function POST(req: Request) {
         success: true,
         message: '标记已读成功',
         data: {
-            markedCount: count || 0
+            markedCount: unreadRow ? 1 : 0
         }
     });
 }
-

@@ -22,9 +22,9 @@ export async function POST(req: Request) {
         .from('chat_rooms')
         .select('*', { count: 'exact' })
         .eq('is_archived', false)
+        .contains('members', [userId])
         .order('updated_at', { ascending: false })
-        .range(offset, offset + limit - 1)
-        .contains('members', [userId]);
+        .range(offset, offset + limit - 1);
 
     if (error) {
         console.error('查询会话失败:', error);
@@ -46,27 +46,43 @@ export async function POST(req: Request) {
         });
     }
 
-    // 获取对话者信息
-    const idSet = new Set<string>();
-    for (const chatRoom of chatRooms) {
-        chatRoom.members.forEach(id => idSet.add(id));
+    const roomIds = chatRooms.map(room => room.id);
+
+    const { data: unreadRows, error: unreadError } = await supabase
+        .from('chat_room_unreads')
+        .select('room_id, unread_count')
+        .eq('user_id', userId)
+        .in('room_id', roomIds);
+
+    if (unreadError) {
+        console.error('查询未读数失败:', unreadError);
+        return NextResponse.json({
+            success: false,
+            message: '获取未读数失败',
+            data: null
+        }, { status: 500 });
     }
 
+    const unreadMap = new Map<string, number>();
+    (unreadRows || []).forEach(row => unreadMap.set(row.room_id, row.unread_count));
+
+    const idSet = new Set<string>();
+    chatRooms.forEach(room => room.members.forEach(id => idSet.add(id)));
     idSet.delete(userId);
 
     const userMap = new Map<string, { user_id: string, nickname: string, avatar_url: string }>();
-    const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('user_id, nickname, avatar_url')
-        .in('user_id', [...idSet]);
+    if (idSet.size > 0) {
+        const { data: profiles } = await supabase
+            .from('user_profiles')
+            .select('user_id, nickname, avatar_url')
+            .in('user_id', [...idSet]);
 
-    profiles?.forEach(p => userMap.set(p.user_id, p));
+        profiles?.forEach(p => userMap.set(p.user_id, p));
+    }
 
-    // 组装数据
     const returnChatRooms: ChatroomItem[] = chatRooms.map(room => {
-        // 拿第一个非自己的用户名作为对话的缩略
         const chatUserId = room.members.find(id => id !== userId);
-        const chatUserProfile = userMap.get(chatUserId);
+        const chatUserProfile = chatUserId ? userMap.get(chatUserId) : null;
 
         return {
             id: room.id,
@@ -77,6 +93,7 @@ export async function POST(req: Request) {
             },
             lastMessage: room.last_message,
             lastMessageAt: room.last_message_at,
+            unreadCount: unreadMap.get(room.id) ?? 0,
             unreadMembers: room.unread_members || [],
             isArchived: room.is_archived || false
         };
@@ -91,4 +108,3 @@ export async function POST(req: Request) {
         }
     });
 }
-
