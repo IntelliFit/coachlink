@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';
 import ChatDialog from '@/components/chat/ChatDialog';
 import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
+import MarkdownIt from 'markdown-it';
 
 interface ConversationListProps {
     chatrooms: ChatroomItem[];
@@ -62,6 +63,15 @@ export function ConversationList({
         } else {
             return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
         }
+    };
+
+    const md = React.useMemo(() => new MarkdownIt({ html: false, linkify: false, typographer: false }), []);
+    const getPlainTextFromMarkdown = (markdown: string) => {
+        // 只提取纯文本内容
+        const html = md.render(markdown || '');
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
     };
 
     if (loading) {
@@ -131,8 +141,8 @@ export function ConversationList({
                                     room.unreadMembers.includes(userId)
                                         ? 'text-surface-900 dark:text-surface-0 font-medium' 
                                         : 'text-surface-600 dark:text-surface-400'
-                                }`}>
-                                    {room.lastMessage || '暂无消息'}
+                                }`} title={room.lastMessage ? getPlainTextFromMarkdown(room.lastMessage) : '暂无消息'}>
+                                    {room.lastMessage ? getPlainTextFromMarkdown(room.lastMessage) : '暂无消息'}
                                 </p>
                             </div>
                         </div>

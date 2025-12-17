@@ -258,6 +258,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 </FloatLabel>
                             </div>
                             <Button
+                                type="button"
                                 label={countdown > 0 ? `${countdown}秒后重发` : "获取验证码"}
                                 onClick={sendVerificationCode}
                                 disabled={countdown > 0 || sendingCode || !phone.trim()}

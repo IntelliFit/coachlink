@@ -99,3 +99,19 @@ body {
         margin: 0;
     }
 }
+
+.markdown-message-content {
+    /* 保证基础排版美观 */
+    line-height: 1.7;
+    word-break: break-word;
+}
+
+.markdown-message-content a {
+    color: var(--primary-500, #f59e42);
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.markdown-message-content a:hover {
+    color: var(--primary-700, #c7771a);
+}

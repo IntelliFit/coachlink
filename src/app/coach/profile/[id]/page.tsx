@@ -71,7 +71,11 @@ const CoachProfilePage: React.FC = () => {
     };
 
     const initSubscriptions = async () => {
-        const res = await subscriptionService.getCoachSubscriptions({ studentId: session?.user.id || '' });
+        const res = await subscriptionService.getCoachSubscriptions({
+            studentId: session?.user.id || '',
+            onlyActive: false
+        });
+        
         if (res) {
             setMySubscriptions(res.subscriptions || []);
             setUserSubscription(res.subscriptions.find(sub => sub.coach_id === coachId) || null);

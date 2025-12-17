@@ -280,20 +280,12 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom }) =>
         if (loading || !chatPartner) {
             return (
                 <div className="flex items-center gap-3 p-4 border-b border-surface-200">
-                    <Skeleton shape="circle" size="2.5rem" />
                     <Skeleton width="8rem" height="1.5rem" />
                 </div>
             );
         }
         return (
             <div className="flex items-center gap-3 p-4 border-b border-surface-200">
-                <Avatar
-                    image={chatPartner.avatar || undefined}
-                    label={!chatPartner.avatar ? chatPartner.name.charAt(0) : undefined}
-                    size="large"
-                    shape="circle"
-                    className="bg-primary-500"
-                />
                 <h2 className="text-xl font-semibold text-surface-500">
                     {chatPartner.name}
                 </h2>
