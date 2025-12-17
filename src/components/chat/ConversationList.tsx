@@ -28,6 +28,22 @@ export function ConversationList({
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [currentCoachId, setCurrentCoachId] = useState<string | null>(null);
     const [currentChatroom, setCurrentChatroom] = useState<ChatroomDetail | null>(null);
+    const [chatroomState, setChatroomState] = useState<ChatroomItem[]>(chatrooms);
+
+    // 保持 chatrooms prop 变化时同步
+    React.useEffect(() => {
+        setChatroomState(chatrooms);
+    }, [chatrooms]);
+
+    const handleMarkSuccess = (roomId: string) => {
+        setChatroomState(prev => prev.map(room =>
+            room.id === roomId
+                ? { ...room, unreadCount: 0, unreadMembers: room.unreadMembers.filter(id => id !== userId) }
+                : room
+        ));
+        // 通知 MessageBadge 组件刷新
+        window.dispatchEvent(new Event('chat-unread-update'));
+    };
 
     const handleClick = (room: ChatroomItem) => {
         if (onConversationClick) {
@@ -105,7 +121,7 @@ export function ConversationList({
     return (
         <>
             <div className="space-y-0">
-                {chatrooms.map((room) => (
+                {chatroomState.map((room) => (
                     <div
                         key={room.id}
                         className="p-4 border-b border-surface-200 dark:border-surface-700 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
@@ -120,10 +136,11 @@ export function ConversationList({
                                     shape="circle"
                                     className="bg-primary-500 text-white"
                                 />
-                                {room.unreadMembers.includes(userId) && (
+                                {room.unreadCount > 0 && (
                                     <Badge
                                         severity="danger"
                                         className="absolute -top-1 -right-1"
+                                        value={room.unreadCount > 99 ? '99+' : room.unreadCount}
                                     />
                                 )}
                             </div>
@@ -154,6 +171,7 @@ export function ConversationList({
                 visible={chatDialogVisible}
                 chatroom={currentChatroom}
                 onHide={() => setChatDialogVisible(false)}
+                onMarkSuccess={handleMarkSuccess}
             />
         </>
     );

@@ -133,29 +133,24 @@ export function MessageItem({ message }: MessageItemProps) {
 
     return (
         <div className={`flex gap-3 mb-4 ${message.isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-            {!message.isMine && (
-                <Avatar
-                    image={message.chatUserProfile?.avatar || undefined}
-                    label={!message.chatUserProfile?.avatar && message.chatUserProfile?.name ? message.chatUserProfile.name.charAt(0) : undefined}
-                    shape="circle"
-                    className="bg-primary-500 text-white flex-shrink-0"
-                />
-            )}
-            
+            <Avatar
+                image={message.chatUserProfile?.avatar || undefined}
+                label={!message.chatUserProfile?.avatar && message.chatUserProfile?.name ? message.chatUserProfile.name.charAt(0) : undefined}
+                shape="circle"
+                className="bg-primary-500 text-white flex-shrink-0"
+            />
             <div className={`flex flex-col gap-1 ${message.isMine ? 'items-end' : 'items-start'}`}>
-                {!message.isMine && (
-                    <span className="text-xs text-surface-500 px-2">{message.chatUserProfile?.name}</span>
-                )}
+                <span className="text-xs text-surface-500 px-2">{message.chatUserProfile?.name}</span>
                 {renderContent()}
                 <div className="flex items-center gap-2 px-2">
                     <span className="text-xs text-surface-500">
                         {formatTime(message.createdAt)}
                     </span>
-                    {message.isMine && (
+                    {/* {message.isMine && (
                         <span className="text-xs text-surface-500">
                             {message.isRead ? '已读' : '未读'}
                         </span>
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>

@@ -65,7 +65,7 @@ export async function POST(req: Request) {
 
         if (chatRoomError) {
             console.error(chatRoomError);
-            
+
             return NextResponse.json({
                 success: false,
                 message: '创建聊天室失败',
@@ -73,16 +73,18 @@ export async function POST(req: Request) {
             });
         }
 
-        return NextResponse.json({
+        return NextResponse.json<ApiData<GetChatroomResponseDto>>({
             success: true,
             message: '创建聊天室成功',
             data: {
-                id: chatRoomData.id,
-                members,
-                lastMessage: '',
-                lastMessageAt: new Date().toISOString(),
-                unreadMembers: [],
-                isArchived: false
+                chatroom: {
+                    id: chatRoomData.id,
+                    members,
+                    lastMessage: '',
+                    lastMessageAt: new Date().toISOString(),
+                    unreadMembers: [],
+                    isArchived: false
+                }
             }
         });
     }

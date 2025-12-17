@@ -169,6 +169,35 @@ export type Database = {
           },
         ]
       }
+      chat_room_unreads: {
+        Row: {
+          last_read_at: string | null
+          room_id: string
+          unread_count: number
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string | null
+          room_id: string
+          unread_count?: number
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string | null
+          room_id?: string
+          unread_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_unreads_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_rooms: {
         Row: {
           created_at: string
