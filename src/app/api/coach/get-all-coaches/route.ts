@@ -46,11 +46,38 @@ export async function POST(req: Request) {
         });
     }
 
+    // 并发获取每个教练的学员数量和平均评分
+    const coachesWithStats = await Promise.all(
+        (coaches || []).map(async (coach) => {
+            // 学员数量
+            const { count: studentCount } = await supabase
+                .from('coach_subscriptions')
+                .select('*', { count: 'exact', head: true })
+                .eq('coach_id', coach.id)
+                .eq('status', 'active');
+            // 平均评分
+            const { data: reviews } = await supabase
+                .from('student_comments')
+                .select('rating')
+                .eq('coach_id', coach.id);
+            let averageRating = 0;
+            if (reviews && reviews.length > 0) {
+                const total = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+                averageRating = parseFloat((total / reviews.length).toFixed(1));
+            }
+            return {
+                ...coach,
+                studentCount: studentCount || 0,
+                averageRating
+            };
+        })
+    );
+
     return NextResponse.json({
         success: true,
         message: "获取成功",
         data: {
-            coaches,
+            coaches: coachesWithStats,
             count,
             pagination: { page, limit }
         }
