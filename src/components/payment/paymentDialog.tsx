@@ -3,95 +3,93 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { Checkbox } from 'primereact/checkbox';
 import { useToastContext } from '@/context/ToastContext';
-import { alipayService } from '@/app/service/alipayService';
-import type { CreateAlipayOrderDto } from '@/app/api/payment/alipay/create/entity';
-import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from '@/app/api/payment/alipay/query/entity';
+import { coachService } from '@/app/service/coachService';
+import { CoachesRow } from '@/types';
 
 interface PaymentDialogProps {
     visible: boolean;
     onHide: () => void;
-    orderDetails?: CreateAlipayOrderDto;
-    onSuccess?: () => void;
+    coachId: string;
+    amount?: number;
+    onSuccess?: (note?: string) => void;
     onCancel?: () => void;
 }
 
 const PaymentDialog: React.FC<PaymentDialogProps> = ({
     visible,
     onHide,
-    orderDetails,
+    coachId,
+    amount,
     onSuccess,
     onCancel
 }) => {
     const { showToast } = useToastContext();
-    const [processing, setProcessing] = useState(false);
-    const [polling, setPolling] = useState(false);
-    const [orderId, setOrderId] = useState<string | null>(null);
-    const [paymentHtml, setPaymentHtml] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [coach, setCoach] = useState<CoachesRow | null>(null);
+    const [paymentNote, setPaymentNote] = useState('');
+    const [showTermsDialog, setShowTermsDialog] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-    // 轮询检查订单状态
-    useEffect(() => {
-        let pollInterval: NodeJS.Timeout | null = null;
+    const loadCoach = async () => {
+        const res = await coachService.getCoach({
+            id: coachId,
+            needQrCode: true
+        });
 
-        if (polling && orderId) {
-            pollInterval = setInterval(async () => {
-                try {
-                    const queryDto: QueryAlipayOrderDto = { orderId: orderId };
-                    // const result: QueryAlipayOrderResponseDto | null = await alipayService.queryOrder(queryDto);
-                    // const tradeStatus = result?.order?.trade_status as TradeStatus | undefined;
-                    
-                    // 模拟 tradeStatus 的数值
-                    let tradeStatus = Math.random() > 0.5 ? 'WAIT_BUYER_PAY' : 'TRADE_SUCCESS';
-
-                    if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
-                        clearInterval(pollInterval!);
-                        setPolling(false);
-                        showToast({ severity: 'success', summary: '支付成功', detail: '订单已支付成功' });
-                        onSuccess?.();
-                        onHide();
-                    } else if (tradeStatus === 'TRADE_CLOSED') {
-                        clearInterval(pollInterval!);
-                        setPolling(false);
-                        showToast({ severity: 'warn', summary: '支付取消', detail: '订单支付已被取消' });
-                    }
-                } catch (error) {
-                    console.error('轮询订单状态失败:', error);
-                }
-            }, 3000); // 每3秒轮询一次
+        if (res) {
+            setCoach(res.coach);
         }
 
-        return () => {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-            }
-        };
-    }, [polling, orderId, onSuccess, onHide]);
+        setLoading(false);
+    }
 
-    const handlePayment = async () => {
-        try {
-            setProcessing(true);
+    useEffect(() => {
+        if (visible && coachId) {
+            setLoading(true);
+            loadCoach();
+            
+        } else if (!visible) {
+            setCoach(null);
+        }
+    }, [visible, coachId, showToast]);
 
-            const orderResponse = await alipayService.createOrder(orderDetails);
+    const handlePaymentConfirmation = () => {
+        setShowTermsDialog(true);
+    };
 
-            if (orderResponse?.order?.id) {
-                setOrderId(orderResponse.order.id);
-            }
-
-            if (orderResponse?.paymentInfo?.formHtml) {
-                // 在当前对话框中通过 iframe 显示支付页面
-                setPaymentHtml(orderResponse.paymentInfo.formHtml);
-                // 开始轮询订单状态
-                setPolling(true);
-            } else {
-                showToast({ severity: 'error', summary: '支付信息不完整', detail: '无法完成支付' });
-            }
-        } catch (error) {
-            console.error('支付过程中出现错误:', error);
-            showToast({ severity: 'error', summary: '支付过程中出现错误' });
-        } finally {
-            setProcessing(false);
+    const handleTermsAccept = () => {
+        if (agreedToTerms) {
+            setShowTermsDialog(false);
+            showToast({ severity: 'success', summary: '请等待教练确认收款', detail: '支付后请联系教练，系统会通知教练确认收款' });
+            onSuccess?.(paymentNote);
+            onHide();
         }
     };
+
+    const handleTermsReject = () => {
+        setShowTermsDialog(false);
+    };
+
+    const termsFooterContent = (
+        <div className="flex justify-end gap-2">
+            <Button
+                label="取消"
+                icon="pi pi-times"
+                onClick={handleTermsReject}
+                className="p-button-text"
+            />
+            <Button
+                label="我已知晓"
+                icon="pi pi-check"
+                onClick={handleTermsAccept}
+                disabled={!agreedToTerms}
+                className="p-button-primary"
+            />
+        </div>
+    );
 
     const footerContent = (
         <div className="flex justify-end gap-2">
@@ -103,75 +101,90 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     onHide();
                 }}
                 className="p-button-text"
-                disabled={processing || polling}
+                disabled={loading}
             />
             <Button
-                label='确认支付'
-                icon={polling ? "pi pi-spin pi-spinner" : "pi pi-check"}
-                onClick={handlePayment}
-                loading={processing}
-                disabled={polling}
+                label='我已支付'
+                icon="pi pi-check"
+                onClick={handlePaymentConfirmation}
+                disabled={!coach?.payment_qr_code}
                 autoFocus
+                className="p-button-primary"
             />
         </div>
     );
 
     return (
-        <Dialog
-            header="确认订单"
-            visible={visible}
-            onHide={() => {
-                if (!polling) {
-                    onHide();
-                }
-            }}
-            footer={footerContent}
-            modal
-            draggable={false}
-            resizable={false}
-            style={{
-                width: '90%',
-                maxWidth: '800px'
-            }}
-            closable={!polling}
-        >
-            <div className="p-4">
-                <div className="mb-4">
-                    <div className="surface-card p-4 rounded-lg">
-                        <div className="flex justify-between mb-2">
-                            <span className="text-surface-600">服务名称</span>
-                            <span className="font-medium">{orderDetails?.subject}</span>
+        <>
+            <Dialog
+                header="扫码支付"
+                visible={visible}
+                onHide={onHide}
+                footer={footerContent}
+                modal
+                draggable={false}
+                resizable={false}
+                style={{ width: '90%', maxWidth: '500px' }}
+            >
+                <div className="p-4 flex flex-col items-center">
+                    {loading ? (
+                        <div className="text-center text-surface-500">
+                            
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-surface-600">金额</span>
-                            <span className="font-bold text-primary">¥{orderDetails?.totalAmount.toFixed(2)}</span>
-                        </div>
+                    ) : coach?.payment_qr_code ? (
+                        <>
+                            <img src={coach.payment_qr_code} alt="支付宝收款二维码" className="max-w-[300px] object-contain mb-4 border rounded" />
+                            <div className="mb-2 text-center">
+                                <div className="font-bold text-lg text-surface-900">{coach.name} 收款码</div>
+                                {amount && <div className="text-primary font-bold mt-2">支付金额：¥{amount.toFixed(2)}</div>}
+                            </div>
+                            <InputText
+                                type="text"
+                                className="w-full border rounded px-3 py-2 mb-2 text-sm"
+                                placeholder="支付备注（选填，例：学员姓名/手机号/用途等）"
+                                value={paymentNote}
+                                onChange={e => setPaymentNote(e.target.value)}
+                            />
+                            <div className="text-surface-500 text-xs mb-2">请使用支付宝扫码支付，支付后请联系教练确认收款</div>
+                        </>
+                    ) : (
+                        <div className="text-center text-surface-500">未能获取二维码</div>
+                    )}
+                </div>
+            </Dialog>
+
+            <Dialog
+                header="服务条款确认"
+                visible={showTermsDialog}
+                onHide={() => setShowTermsDialog(false)}
+                footer={termsFooterContent}
+                modal
+                draggable={false}
+                resizable={false}
+                style={{ width: '90%', maxWidth: '500px' }}
+            >
+                <div className="p-4">
+                    <div className="mb-4 text-surface-900">
+                        <h3 className="font-bold text-lg mb-2">请仔细阅读以下服务条款：</h3>
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li>未来我们很快会支持全链路的支付，不再需要您点击确认，当前只是过度方案。</li>
+                            <li>支付完成后，请主动联系教练确认收款</li>
+                            <li>教练确认收款后，服务即生效</li>
+                        </ul>
+                    </div>
+                    <div className="flex items-center mb-4">
+                        <Checkbox 
+                            inputId="agreement" 
+                            onChange={e => setAgreedToTerms(e.checked || false)} 
+                            checked={agreedToTerms} 
+                        />
+                        <label htmlFor="agreement" className="ml-2 text-surface-900">
+                            我已阅读并同意以上服务条款
+                        </label>
                     </div>
                 </div>
-                {!paymentHtml ? (
-                    <>
-                        <div className="mb-4">
-                            <p className="text-surface-600 text-sm">
-                                {polling
-                                    ? "支付页面已在新窗口打开，请在新窗口中完成支付。此窗口将自动检测支付结果..."
-                                    : "请确认订单信息无误，点击\"确认支付\"按钮将在新窗口中打开支付页面。"}
-                            </p>
-                        </div>
-                    </>
-                ) : (
-                    <div className="w-full">
-                        <iframe
-                            srcDoc={paymentHtml}
-                            className="w-full h-[300px] border-none"
-                            title="支付页面"
-                        />
-                        <p className="text-center text-surface-600 text-sm mt-2">
-                            请扫码支付，支付过程中请不要关闭此页面
-                        </p>
-                    </div>
-                )}
-            </div>
-        </Dialog>
+            </Dialog>
+        </>
     );
 };
 

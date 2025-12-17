@@ -50,7 +50,7 @@ export async function getSystemChatroom(adminId: string, userId: string) {
 
 export async function sendSystemMessage(
     userId: string,
-    message: CoachLinkTable['chat_messages']['Insert']
+    message: Omit<CoachLinkTable['chat_messages']['Insert'], 'sender_id' | 'message_type' | 'created_at' | 'room_id'>
 ) {
     const admin = await getAdmin();
 
@@ -65,14 +65,15 @@ export async function sendSystemMessage(
         return false;
     }
 
-    message.room_id = systemChatroom.id;
-    message.sender_id = admin.user_id;
-    message.message_type = 'system';
-    message.created_at = new Date().toISOString();
-
     const { data: messageInsert, error: messageInsertError } = await supabase
         .from('chat_messages')
-        .insert(message)
+        .insert({
+            ...message,
+            room_id: systemChatroom.id,
+            sender_id: admin.user_id,
+            message_type: 'system',
+            created_at: new Date().toISOString(),
+        })
         .single();
 
     if (messageInsertError) {

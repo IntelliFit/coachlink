@@ -40,7 +40,8 @@ export async function POST(req: Request) {
 
     const {
         studentId = '',
-        coachId = ''
+        coachId = '',
+        onlyActive = true
     } = await req.json() as CoachSubscriptionGetDto;
 
     // 参数检查
@@ -59,11 +60,15 @@ export async function POST(req: Request) {
 
     // 动态添加 where 条件
     if (studentId) {
-        query = query.eq('student_id', studentId).eq('status', 'active');
+        query = query.eq('student_id', studentId);
     }
 
     if (coachId) {
         query = query.eq('coach_id', coachId);
+    }
+
+    if (onlyActive) {
+        query = query.eq('status', 'active');
     }
 
     // 执行查询

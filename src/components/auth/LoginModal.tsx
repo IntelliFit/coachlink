@@ -119,7 +119,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 onClose();
                 router.refresh();
             }
-        } catch (error) {            
+        } catch (error) {
             showToast({ severity: 'error', summary: '登录失败，请重试', detail: error.toString() });
         } finally {
             setLoading(false);
@@ -169,26 +169,30 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         >
             <div className="flex min-h-[500px]">
                 {/* 左侧品牌区域 */}
-                <div 
-                    className="hidden md:flex flex-col justify-center items-center w-2/5 p-8"
-                    style={{
-                        background: 'linear-gradient(135deg, #fff5eb 0%, #ffe4c4 100%)'
-                    }}
+                <div
+                    className="
+                        hidden md:flex
+                        w-2/5 p-8
+                        flex-col items-center justify-center
+                        bg-gradient-to-br
+                        from-surface to-primary-200
+                        dark:from-surface dark:to-primary-800
+                    "
                 >
-                    <img 
-                        src="/favicon.jpg" 
-                        alt="CoachLink Logo" 
+                    <img
+                        src="/favicon.jpg"
+                        alt="CoachLink Logo"
                         className="h-32 rounded-2xl shadow-lg mb-6"
                     />
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                    <h1 className="text-2xl font-bold text-surface-800 mb-2">
                         CoachLink - 智健联盟
                     </h1>
-                    <p className="text-gray-600 text-sm mb-8">专业教练订阅平台</p>
-                    
+                    <p className="text-surface-600 text-sm mb-8">专业教练订阅平台</p>
+
                     {/* 开发模式快捷登录 */}
                     {isDev && devUsers.length > 0 && (
                         <div className="w-full">
-                            <p className="text-center text-sm text-gray-600 mb-3">开发模式快速登录:</p>
+                            <p className="text-center text-sm text-surface-600 mb-3">开发模式快速登录:</p>
                             <div className="flex flex-wrap justify-center gap-2">
                                 {devUsers.map((user, index) => (
                                     <Button
@@ -207,11 +211,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
 
                 {/* 右侧表单区域 */}
-                <div className="flex-1 p-8 flex flex-col justify-center relative bg-white">
+                <div className="flex-1 p-8 flex flex-col justify-center relative bg-surface">
                     {/* 关闭按钮 */}
-                    <button 
+                    <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="absolute top-4 right-4 text-surface-400 hover:text-surface-600 transition-colors"
                     >
                         <i className="pi pi-times text-xl"></i>
                     </button>
@@ -271,7 +275,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                             type="submit"
                         />
 
-                        <div className="text-center text-sm text-gray-500">
+                        <div className="text-center text-sm text-surface-500">
                             还没有账户？{' '}
                             <button
                                 onClick={handleRegister}

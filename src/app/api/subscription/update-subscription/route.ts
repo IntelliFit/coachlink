@@ -5,6 +5,7 @@ import supabase from '@/lib/supabaseClient';
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
 import type { UpdateSubscriptionDto, UpdateSubscriptionResponseDto } from './entity';
+import { sendSystemMessage } from '@/lib/chat';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -66,6 +67,13 @@ export async function POST(req: Request) {
         .eq('id', id)
         .select()
         .single();
+
+    // 如果需要的可以提醒教练
+    if (updateData.has_remind_coach) {
+        await sendSystemMessage(subscription.coach_id, {
+            content: `新的学员订阅来了！请前往 []() 及时处理`
+        });
+    }
 
     if (updateError || !updatedSubscription) {
         return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({

@@ -6,7 +6,7 @@ export interface TrainingTagsQuestion {
 
 export interface TrainingTimesQuestion {
     type: 'times'
-    userSelection?: string[]
+    userSelection?: number
 }
 
 export interface TrainingOptionQuestion {

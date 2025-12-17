@@ -610,9 +610,11 @@ export type Database = {
           coach_id: string
           created_at: string | null
           end_date: string | null
+          has_remind_coach: boolean | null
           id: string
           monthly_price: number
           order_id: string | null
+          remind_coach_note: string | null
           start_date: string | null
           status: string | null
           student_id: string
@@ -625,9 +627,11 @@ export type Database = {
           coach_id: string
           created_at?: string | null
           end_date?: string | null
+          has_remind_coach?: boolean | null
           id?: string
           monthly_price: number
           order_id?: string | null
+          remind_coach_note?: string | null
           start_date?: string | null
           status?: string | null
           student_id: string
@@ -640,9 +644,11 @@ export type Database = {
           coach_id?: string
           created_at?: string | null
           end_date?: string | null
+          has_remind_coach?: boolean | null
           id?: string
           monthly_price?: number
           order_id?: string | null
+          remind_coach_note?: string | null
           start_date?: string | null
           status?: string | null
           student_id?: string
@@ -676,6 +682,7 @@ export type Database = {
           id: string
           is_featured: boolean | null
           name: string
+          payment_qr_code: string | null
           profile: Json | null
           rating: number | null
           search_vector: unknown
@@ -695,6 +702,7 @@ export type Database = {
           id?: string
           is_featured?: boolean | null
           name: string
+          payment_qr_code?: string | null
           profile?: Json | null
           rating?: number | null
           search_vector?: unknown
@@ -714,6 +722,7 @@ export type Database = {
           id?: string
           is_featured?: boolean | null
           name?: string
+          payment_qr_code?: string | null
           profile?: Json | null
           rating?: number | null
           search_vector?: unknown

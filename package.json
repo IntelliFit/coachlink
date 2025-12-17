@@ -46,6 +46,7 @@
     },
     "devDependencies": {
         "@types/jsonwebtoken": "^9.0.10",
-        "baseline-browser-mapping": "^2.9.5"
+        "baseline-browser-mapping": "^2.9.5",
+        "supabase": "^2.67.2"
     }
 }
