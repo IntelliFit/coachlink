@@ -11,6 +11,7 @@ export interface Pricing {
     price: number;         
     features: string[];    
     is_recommend: boolean;
+    is_ai_plan: boolean;
     [key: string]: Json;
 }
 

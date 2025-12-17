@@ -27,7 +27,7 @@ export default function Navigation() {
     const { data: session, status } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
-    
+
     // View Mode State: 'coach' or 'student'
     const [viewMode, setViewMode] = useState<'coach' | 'student'>('student');
 
@@ -49,7 +49,7 @@ export default function Navigation() {
         // 如果用户已登录且在学员端
         if (session?.user && viewMode === 'student') {
             const profile = session.profile as any;
-            
+
             // 检查 onboarding_completed 状态
             // 注意：如果 profile 不存在，也视为未完成（需要创建档案）
             const isCompleted = profile?.onboarding_completed === true;
@@ -76,9 +76,9 @@ export default function Navigation() {
         // Optional: Redirect to home or specific dashboard page when switching?
         // For now, let's keep user on current page or redirect to root if needed.
         if (viewMode === 'coach') {
-             router.push('/'); // Switch to student -> go to home
+            router.push('/'); // Switch to student -> go to home
         } else {
-             router.push('/dashboard/overview'); // Switch to coach -> go to dashboard
+            router.push('/dashboard/overview'); // Switch to coach -> go to dashboard
         }
     }, [viewMode, router]);
 
@@ -88,7 +88,7 @@ export default function Navigation() {
         { label: '我的学员', icon: 'pi pi-user', command: () => router.push('/dashboard/students') },
         { label: '内容管理', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/content') },
         { label: '计划模板', icon: 'pi pi-clipboard', command: () => router.push('/dashboard/plan-lib') },
-    ], [router]); 
+    ], [router]);
 
     const studentMenuItems = useMemo(() => [
         {
@@ -134,60 +134,60 @@ export default function Navigation() {
 
         // Coach Specific Items (in User Menu)
         if (viewMode === 'coach') {
-             items.push(
+            items.push(
                 { label: '我的主页', icon: 'pi pi-home', command: () => gotoCoachDisplayPage() },
                 { label: '动作库', icon: 'pi pi-database', command: () => router.push('/dashboard/action-lib') },
                 { label: '订阅设置', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') },
                 { label: '学员问卷', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/questionnaire') },
                 { separator: true }
-             );
+            );
         }
 
         // Common Items
         if (viewMode === 'student') {
-             items.push(
+            items.push(
                 {
                     label: '我的订阅',
                     icon: 'pi pi-book',
                     command: () => router.push('/coach/subscription'),
                 },
                 { separator: true }
-             );
-             if (session?.user?.primary_role !== 'coach') {
-                 // Get label and route based on coach_status
-                 const coachStatus = session?.user?.coach_status || 'none';
-                 let label = '申请成为教练';
-                 let route = '/apply';
-                 let statusBadge = '';
-                 
-                 switch (coachStatus) {
-                     case 'pending':
-                         label = '教练申请 (审核中)';
-                         route = '/apply/status';
-                         break;
-                     case 'approved':
-                         label = '教练申请 (已通过)';
-                         route = '/coach/onboarding';
-                         break;
-                     case 'rejected':
-                         label = '教练申请 (被驳回)';
-                         route = '/apply/edit';
-                         break;
-                     case 'draft':
-                         label = '教练申请 (草稿)';
-                         route = '/apply/edit';
-                         break;
-                     default:
-                         label = '申请成为教练';
-                         route = '/apply';
-                 }
-                 
-                 items.push({
+            );
+            if (session?.user?.primary_role !== 'coach') {
+                // Get label and route based on coach_status
+                const coachStatus = session?.user?.coach_status || 'none';
+                let label = '申请成为教练';
+                let route = '/apply';
+                let statusBadge = '';
+
+                switch (coachStatus) {
+                    case 'pending':
+                        label = '教练申请 (审核中)';
+                        route = '/apply/status';
+                        break;
+                    case 'approved':
+                        label = '教练申请 (已通过)';
+                        route = '/coach/onboarding';
+                        break;
+                    case 'rejected':
+                        label = '教练申请 (被驳回)';
+                        route = '/apply/edit';
+                        break;
+                    case 'draft':
+                        label = '教练申请 (草稿)';
+                        route = '/apply/edit';
+                        break;
+                    default:
+                        label = '申请成为教练';
+                        route = '/apply';
+                }
+
+                items.push({
                     label: label,
                     icon: 'pi pi-user-plus',
                     command: () => router.push(route),
                 }, { separator: true });
-             }
+            }
         }
 
         items.push(
@@ -206,12 +206,10 @@ export default function Navigation() {
         return items;
     }, [session, viewMode, toggleViewMode, openProfileSetupModal, router]);
 
-    // ✅ Handle User Menu Toggle
     const handleUserMenuToggle = useCallback((event: React.MouseEvent) => {
         menuRef.current?.toggle(event);
     }, []);
 
-    // ✅ Logo
     const start = (
         <Link href={viewMode === 'coach' ? "/dashboard/overview" : "/"} className="flex items-center space-x-3 mr-4">
             <img src="/favicon.jpg" alt="logo" className="h-10 rounded-md" />
@@ -222,7 +220,6 @@ export default function Navigation() {
         </Link>
     );
 
-    // ✅ Right Side: Login/User/Theme
     const end = (
         <div className="flex items-center gap-3 h-full">
             {status === 'loading' ? (
@@ -239,17 +236,29 @@ export default function Navigation() {
             ) : session?.user ? (
                 <>
                     {/* Message Button */}
-                    <Tooltip target=".message-button" position="bottom" />
                     <div className="relative">
                         <Button
-                            icon="pi pi-comment"
                             onClick={() => router.push('/messages')}
-                            rounded
                             text
-                            className="message-button shrink-0"
+                            className="text-surface-500 message-button shrink-0 flex flex-col items-center justify-center px-2 py-1"
                             data-pr-tooltip="消息"
-                        />
+                        >
+                            <i className="pi pi-comment text-lg mb-0.5" />
+                            <span className="text-xs mt-0.5">消息</span>
+                        </Button>
                         <MessageBadge className="absolute -top-1 -right-1" />
+                    </div>
+
+                    <div>
+                        <Button
+                            onClick={toggleTheme}
+                            text
+                            className="theme-toggle shrink-0 flex flex-col items-center justify-center px-2 py-1"
+                            data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
+                        >
+                            <i className={`${theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'} text-lg mb-0.5`} />
+                            <span className="text-xs mt-0.5">{theme === 'light' ? '日间' : '夜间'}</span>
+                        </Button>
                     </div>
 
                     {/* User Avatar & Info */}
@@ -296,17 +305,6 @@ export default function Navigation() {
                     className="p-button-outlined"
                 />
             )}
-
-            {/* Theme Toggle */}
-            <Tooltip target=".theme-toggle" position="bottom" />
-            <Button
-                icon={theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'}
-                onClick={toggleTheme}
-                rounded
-                text
-                className="theme-toggle shrink-0"
-                data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-            />
         </div>
     );
 
