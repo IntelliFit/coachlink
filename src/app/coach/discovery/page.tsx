@@ -114,9 +114,7 @@ const CoachDiscoveryPage: React.FC = () => {
         loadCoaches(event.page + 1);
     };
 
-    // 移除了客户端过滤，现在由服务端处理搜索和筛选
-
-    const renderCoachCard = (coach: CoachesRow) => (
+    const renderCoachCard = (coach: CoachesRow & { studentCount?: number; averageRating?: number }) => (
         <div
             key={coach.id}
             className="rounded-xl shadow-sm p-card p-6 hover:shadow-md transition-shadow cursor-pointer"
@@ -147,13 +145,14 @@ const CoachDiscoveryPage: React.FC = () => {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-lg font-bold text-surface-900">{coach.name}</h3>
-                        <div className="flex items-center space-x-1">
-                            <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                            <span className="text-sm font-medium text-surface-700">{coach.rating}</span>
+                        <div className="flex items-center space-x-2">
+                            <span className="flex items-center gap-1 text-yellow-600 font-semibold">
+                                <Star className="w-4 h-4" />
+                                {typeof coach.averageRating === 'number' ? coach.averageRating.toFixed(1) : (coach.rating ?? '0.0')}
+                            </span>
                         </div>
                     </div>
 
-                    <p className="text-sm text-surface-600 mb-2">{coach.title}</p>
 
                     <div className="flex flex-wrap gap-1 mb-3">
                         {coach.specialties?.map((specialty, index) => (
@@ -170,16 +169,15 @@ const CoachDiscoveryPage: React.FC = () => {
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4 text-sm text-surface-500">
-                            <div className="flex items-center space-x-1">
+                            <span className="flex items-center gap-1 text-surface-500">
                                 <Users className="w-4 h-4" />
-                                <span>{coach.total_students}学员</span>
-                            </div>
+                                {coach.studentCount ?? coach.total_students ?? 0} 学员
+                            </span>
                             <div className="flex items-center space-x-1">
                                 <Clock className="w-4 h-4" />
-                                <span>{coach.years_experience}年经验</span>
+                                <span>{coach.years_experience || 0}年经验</span>
                             </div>
                         </div>
-
                         {typeof (coach as any).subscription_price_tier1 === 'number' && (
                             <div className="text-right">
                                 <div className="text-sm text-surface-500">起价</div>
