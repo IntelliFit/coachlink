@@ -34,6 +34,7 @@ export async function POST(req: Request) {
         .from('coach_subscriptions')
         .select('*')
         .eq('coach_id', coach.id)
+        .eq('status', 'waiting')
         .order('created_at', { ascending: false });
 
     if (subscriptionError) {

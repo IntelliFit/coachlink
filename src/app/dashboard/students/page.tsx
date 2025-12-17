@@ -12,9 +12,12 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { StudentDetailDialog } from './StudentDetailDialog';
 import { CoachReviewDialog } from './CoachReviewDialog';
+import { PaymentConfirmationDialog } from './PaymentConfirmationDialog';
 import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
+import { subscriptionService } from '@/app/service/subscriptionService';
+import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 
 interface StudentWithPlan extends StudentSubscription {
     plan?: {
@@ -25,6 +28,7 @@ interface StudentWithPlan extends StudentSubscription {
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentWithPlan[]>([]);
+    const [waitingStudents, setWaitingStudents] = useState<GetPaymentWaitingStudentsResponseDto['subscriptions']>([]);
     const [coach, setCoach] = useState<CoachesRow | null>(null);
     const [loading, setLoading] = useState(true);
     const [first, setFirst] = useState(0);
@@ -33,10 +37,18 @@ export default function StudentsPage() {
     const [selectedStudent, setSelectedStudent] = useState<StudentWithPlan | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [reviewDialogVisible, setReviewDialogVisible] = useState(false);
+    const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
 
     const router = useRouter();
     const { showToast } = useToastContext();
     const { status, data: session } = useSession();
+
+    const loadWaitingStudents = async () => {
+        const res = await coachService.getPaymentWaitingStudents({});
+        if (res) {
+            setWaitingStudents(res.subscriptions || []);
+        }
+    }
 
     /** 加载训练计划并更新到 students */
     const loadTrainingPlan = async (subscriptionId: string) => {
@@ -113,6 +125,7 @@ export default function StudentsPage() {
 
         loadStudents(0, rows);
         loadCoach();
+        loadWaitingStudents();
     }, [status, session, router, rows]);
 
     const onPage = (event: any) => {
@@ -223,7 +236,7 @@ export default function StudentsPage() {
         return (
             <div className="p-6">
                 <Skeleton width="150px" height="32px" className="mb-6" />
-                <div className="bg-surface rounded-xl border">
+                <div className="bg-surface rounded-xl border border-surface-200">
                     <div className="p-4 border-b">
                         <Skeleton width="100%" height="24px" />
                     </div>
@@ -247,9 +260,17 @@ export default function StudentsPage() {
 
     return (
         <div className="min-h-screen p-6">
-            <h1 className="text-2xl font-semibold mb-4">我的学员</h1>
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-2xl font-semibold">我的学员</h1>
+                <Button 
+                    label='待确认学员支付'
+                    onClick={() => setPaymentDialogVisible(true)}
+                    className="p-button-primary"
+                    badge={waitingStudents.length.toString()}
+                />
+            </div>
 
-            <div className="bg-surface border">
+            <div className="bg-surface border border-surface-200">
                 <DataTable
                     value={students}
                     className="rounded-xl"
@@ -282,6 +303,18 @@ export default function StudentsPage() {
                 student={selectedStudent}
                 onHide={() => setReviewDialogVisible(false)}
                 onSave={() => loadStudents()}
+            />
+            
+            <PaymentConfirmationDialog
+                visible={paymentDialogVisible}
+                subscriptions={waitingStudents}
+                onHide={() => setPaymentDialogVisible(false)}
+                onConfirm={() => {
+                    // 重新加载等待支付的学生列表
+                    loadWaitingStudents();
+                    // 重新加载学生列表以更新状态
+                    loadStudents(0, rows);
+                }}
             />
         </div>
     );
