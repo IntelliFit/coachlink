@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { TrainingItem } from "@/types/questionnaires";
+import { CreateAiInstanceDto, CreateAiInstanceResponseDto } from "./entity";
+import { matchPlan } from "./match";
 
 export async function POST(req: Request) {
     const {
         subscriptionId,
-    } = await req.json();
+    } = await req.json() as CreateAiInstanceDto;
 
     // Check if user is logged in
     const session = await getServerSession();
@@ -32,49 +35,16 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    const questions = subscription.subscribe_data?.['questions'];
-    if (!questions) {
-        return NextResponse.json({
-            success: false,
-            message: "订阅者并没有填写问卷"
-        }, { status: 503 });
-    }
+    const answers = subscription.subscribe_data as unknown as TrainingItem[];
+    const template = await matchPlan(answers);
 
 
-    // 创建计划实例
-    const { data: instance, error } = await supabase
-        .from("coach_plan_instances")
-        .insert({
-            name,
-            description: description || null,
-            coach_subscription_id: subscriptionId,
-            coach_id: subscription.coach_id || null,
-            student_id: subscription.student_id || null,
-            coach_plan_template_id: templateId || null,
-            start_date: startDate || null,
-            end_date: endDate || null,
-            tags: tags || null,
-            type: type || null,
-            suitable_for: suitableFor || null,
-            status: status || "active",
-            training_days: trainingDays
-        })
-        .select()
-        .single();
 
-    if (error) {
-        console.error("Error creating instance:", error);
-        return NextResponse.json({
-            success: false,
-            message: "Failed to create instance"
-        }, { status: 500 });
-    }
-
-    return NextResponse.json<ApiData<CreateInstanceResponseDto>>({
+    return NextResponse.json<ApiData<CreateAiInstanceResponseDto>>({
         success: true,
         message: "创建训练计划实例成功",
         data: {
-            instance
+            template
         }
     });
 }

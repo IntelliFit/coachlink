@@ -1,7 +1,6 @@
 import supabase from "@/lib/supabaseClient";
 import { TrainingItem } from "@/types/questionnaires";
 
-
 export async function matchPlan(questionare: TrainingItem[]) {
     let query = supabase.from('coach_plan_templates')
         .select('*');
@@ -13,7 +12,7 @@ export async function matchPlan(questionare: TrainingItem[]) {
 
     const timesInfo = questionare.find(item => item.type === 'times');
     if (timesInfo) {
-        query = query.contains('times', timesInfo.userSelection);
+        query = query.contains('times', timesInfo.userSelection.toString());
     }
     
     const optionInfos = questionare.filter(item => item.type === 'option');

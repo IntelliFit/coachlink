@@ -23,6 +23,7 @@ export interface StudentSubscription {
     profile: UserProfilesRow | null;
     uploaded: number;
     reviewed: number;
+    monthly_price: number;
     subscribe_data: SubscribeData | null;
 }
 

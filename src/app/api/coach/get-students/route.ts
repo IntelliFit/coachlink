@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     // 构建查询
     const query = supabase
         .from('coach_subscriptions')
-        .select('id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data', { count: 'exact' })
+        .select('id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price', { count: 'exact' })
         .eq('coach_id', coachRow.id)
         .eq('status', 'active')
         .order('updated_at', { ascending: false });

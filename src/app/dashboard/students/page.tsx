@@ -16,7 +16,6 @@ import { PaymentConfirmationDialog } from './PaymentConfirmationDialog';
 import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
-import { subscriptionService } from '@/app/service/subscriptionService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 
 interface StudentWithPlan extends StudentSubscription {
@@ -38,10 +37,23 @@ export default function StudentsPage() {
     const [dialogVisible, setDialogVisible] = useState(false);
     const [reviewDialogVisible, setReviewDialogVisible] = useState(false);
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
+    const [pricingMap, setPricingMap] = useState<Record<number, { is_ai_plan: boolean }>>({});
 
     const router = useRouter();
     const { showToast } = useToastContext();
     const { status, data: session } = useSession();
+
+    const loadPricing = async () => {
+        if (!coach) return;
+        const res = await coachService.getPricing({ coachId: coach.id });
+        if (res && Array.isArray(res.pricings)) {
+            const map: Record<number, { is_ai_plan: boolean }> = {};
+            res.pricings.forEach((p: any, idx: number) => {
+                map[idx + 1] = { is_ai_plan: !!p.is_ai_plan };
+            });
+            setPricingMap(map);
+        }
+    };
 
     const loadWaitingStudents = async () => {
         const res = await coachService.getPaymentWaitingStudents({});
@@ -128,11 +140,25 @@ export default function StudentsPage() {
         loadWaitingStudents();
     }, [status, session, router, rows]);
 
+    useEffect(() => {
+        if (coach) {
+            loadPricing();
+        }
+    }, [coach]);
+
     const onPage = (event: any) => {
         setFirst(event.first);
         setRows(event.rows);
         loadStudents(event.page, event.rows);
     };
+
+    const makeAiInstance = async (student: StudentWithPlan) => {
+        const res = await planLibService.createAiInstance({
+            subscriptionId: student.id
+        });
+
+        console.log(res);
+    }
 
     /** 学员列 */
     const studentTemplate = (student: StudentWithPlan) => (
@@ -156,9 +182,27 @@ export default function StudentsPage() {
                 className="bg-primary text-surface font-bold flex-shrink-0"
                 size="normal"
             />
-            <div className="font-medium">{student.profile?.nickname}</div>
+            <div>
+                <div className="font-medium">{student.profile?.nickname}</div>
+                {pricingMap[student.tier]?.is_ai_plan && (
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">AI 计划</span>
+                )}
+            </div>
         </div>
     );
+
+    const subscribeTemplate = (student: StudentWithPlan) => (
+        <div className="flex flex-col gap-1 text-sm">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface-100 text-surface-700 w-fit">
+                <i className="pi pi-wallet text-xs" /> 套餐{student.tier} ¥{student.monthly_price}/月
+            </span>
+            {/* <Button
+                label='测试AI计划生成'
+                size='small'
+                onClick={() => makeAiInstance(student)}
+            ></Button> */}
+        </div>
+    )
 
     /** 注册时间列 */
     const startDateTemplate = (student: StudentWithPlan) => (
@@ -171,12 +215,11 @@ export default function StudentsPage() {
     const videoStatsTemplate = (student: StudentWithPlan) => {
         const unreviewed = student.uploaded - student.reviewed;
         return (
-            <div className="flex flex-col">
-                <div className="text-sm">
-                    <span className="font-medium">{student.uploaded}</span>
-                    <span className="text-surface-500"> 个视频</span>
-                </div>
-                <div className="text-xs text-orange-500">{unreviewed} 个未评阅</div>
+            <div className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary-50 text-primary-700 font-medium w-fit">
+                    <i className="pi pi-video text-xs" />
+                    {student.uploaded - unreviewed} / {student.uploaded}
+                </span>
             </div>
         );
     };
@@ -224,6 +267,7 @@ export default function StudentsPage() {
         <Button
             size="small"
             icon="pi pi-comment"
+            text
             label="评价"
             onClick={() => {
                 setSelectedStudent(student);
@@ -262,7 +306,7 @@ export default function StudentsPage() {
         <div className="min-h-screen p-6">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-2xl font-semibold">我的学员</h1>
-                <Button 
+                <Button
                     label='待确认学员支付'
                     onClick={() => setPaymentDialogVisible(true)}
                     className="p-button-primary"
@@ -283,9 +327,10 @@ export default function StudentsPage() {
                     removableSort
                 >
                     <Column field="student" header="学员" body={studentTemplate} sortable />
+                    <Column field="subscription" header="订阅" body={subscribeTemplate} />
                     <Column field="trainingPlan" header="训练计划" body={trainingPlanTemplate} />
-                    <Column field="start_date" header="注册时间" body={startDateTemplate} sortable />
-                    <Column field="uploaded" header="视频数量" body={videoStatsTemplate} sortable />
+                    <Column field="start_date" header="订阅时间" body={startDateTemplate} />
+                    <Column field="uploaded" header="已评价/视频总数" body={videoStatsTemplate} />
                     <Column field="action" header="操作" body={actionTemplate} />
                 </DataTable>
             </div>
@@ -304,7 +349,7 @@ export default function StudentsPage() {
                 onHide={() => setReviewDialogVisible(false)}
                 onSave={() => loadStudents()}
             />
-            
+
             <PaymentConfirmationDialog
                 visible={paymentDialogVisible}
                 subscriptions={waitingStudents}

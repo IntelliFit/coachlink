@@ -72,7 +72,7 @@ export const StudentDetailDialog = ({
             onHide={onHide}
         >
             {student && (
-                <div className="p-4 max-h-[80vh] overflow-y-auto">
+                <div className="p-4 max-h-[80vh]">
                     {/* 用户信息头部卡片 */}
                     <div className="flex items-start mb-6 p-4 bg-surface-50 rounded-xl border border-surface-200">
                         <Avatar
@@ -85,21 +85,14 @@ export const StudentDetailDialog = ({
 
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                                <h2 className="text-2xl font-bold text-surface-900">
-                                    {profile?.nickname || '未设置昵称'}
+                                <h2 className="flex flex-row gap-1 items-center text-2xl font-bold text-surface-900">
+                                    <User/> {profile?.nickname || '未设置昵称'}
                                 </h2>
                                 <Tag
                                     value={student.status.toUpperCase()}
                                     severity={getStatusSeverity(student.status)}
                                     className="font-medium"
                                 />
-                            </div>
-
-                            <div className="text-surface-600 mb-3">
-                                <span className="flex items-center gap-2">
-                                    <User size={16} />
-                                    {profile?.phone || '未设置手机号'}
-                                </span>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">

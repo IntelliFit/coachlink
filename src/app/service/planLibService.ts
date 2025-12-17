@@ -11,6 +11,7 @@ import type { UpdateInstanceDto, UpdateInstanceResponseDto } from "@/app/api/pla
 import type { DeleteInstanceDto, DeleteInstanceResponseDto } from "@/app/api/plan-lib/delete-instance/entity";
 import { GetWithExecutionsDto, GetWithExecutionsResponseDto } from "../api/plan-lib/get-with-executions/entity";
 import type { GetUniqueTemplateTagsDto, GetUniqueTemplateTagsResponseDto } from "@/app/api/plan-lib/get-unique-template-tags/entity";
+import { CreateAiInstanceDto, CreateAiInstanceResponseDto } from "../api/plan-lib/create-ai-instance/entity";
 
 export class PlanLibService extends BaseService {
 
@@ -68,6 +69,14 @@ export class PlanLibService extends BaseService {
         const res = await this.post<CreateInstanceResponseDto>("create-instance", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to create instance");
+        }
+        return res.data.data;
+    }
+
+    async createAiInstance(reqData: CreateAiInstanceDto) {
+        const res = await this.post<CreateAiInstanceResponseDto>("create-ai-instance", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to create ai instance");
         }
         return res.data.data;
     }

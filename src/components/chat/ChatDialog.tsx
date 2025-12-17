@@ -145,8 +145,6 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         eventSourceRef.current = es;
 
         es.onmessage = (event) => {
-            console.log(event.data);
-
             try {
                 const newMessage = JSON.parse(event.data) as CoachLinkTable['chat_messages']['Insert'];
 
