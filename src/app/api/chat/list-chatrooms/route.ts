@@ -18,7 +18,8 @@ export async function POST(req: Request) {
     const { page = 1, limit = 20 } = await req.json() as GetChatroomsDto;
     const offset = (page - 1) * limit;
 
-    const { data: chatRooms, error, count } = await supabase.from('chat_rooms')
+    const { data: chatRooms, error, count } = await supabase
+        .from('chat_rooms')
         .select('*', { count: 'exact' })
         .eq('is_archived', false)
         .order('updated_at', { ascending: false })

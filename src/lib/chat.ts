@@ -52,7 +52,7 @@ export async function sendSystemMessage(
     userId: string,
     message: Omit<CoachLinkTable['chat_messages']['Insert'], 'sender_id' | 'message_type' | 'created_at' | 'room_id'>
 ) {
-    const admin = await getAdmin();
+    const admin = await getAdmin();    
 
     if (!admin) {
         return false;
@@ -65,16 +65,37 @@ export async function sendSystemMessage(
         return false;
     }
 
+    const createdAt = new Date().toISOString();
+
     const { data: messageInsert, error: messageInsertError } = await supabase
         .from('chat_messages')
         .insert({
             ...message,
             room_id: systemChatroom.id,
             sender_id: admin.user_id,
-            message_type: 'system',
-            created_at: new Date().toISOString(),
+            message_type: 'text',
+            created_at: createdAt,
         })
         .single();
+    
+    if (messageInsertError) {
+        console.error(messageInsertError);
+    }
+
+    // 更新 chatRoom
+    const { data: chatRoomUpdate, error: chatRoomUpdateError } = await supabase
+        .from('chat_rooms')
+        .update({
+            last_message: message.content,
+            last_message_at: createdAt,
+            unread_members: [userId]
+        })
+        .eq('id', systemChatroom.id)
+        .single();
+
+    if (chatRoomUpdateError) {
+        console.error(chatRoomUpdateError);
+    }
 
     if (messageInsertError) {
         console.error('插入系统消息失败:', messageInsertError);

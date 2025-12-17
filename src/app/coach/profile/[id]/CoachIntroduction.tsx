@@ -31,7 +31,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [chatroom, setChatroom] = useState<ChatroomDetail>(null);
 
-    const { showToast } = useToastContext();
+    const { showToast } = useToastContext();    
 
     const contactCoach = async () => {
         if (!session?.user?.id) {

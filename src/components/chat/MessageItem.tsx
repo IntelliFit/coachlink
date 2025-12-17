@@ -3,12 +3,20 @@
 import { Avatar } from 'primereact/avatar';
 import { Image } from 'primereact/image';
 import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
+import MarkdownIt from 'markdown-it';
+let DOMPurify: any;
+if (typeof window !== 'undefined') {
+    DOMPurify = require('dompurify').default || require('dompurify');
+}
+import { useMemo } from 'react';
 
 interface MessageItemProps {
     message: MessageItemType;
 }
 
 export function MessageItem({ message }: MessageItemProps) {
+    const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
+
     const formatTime = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -18,13 +26,16 @@ export function MessageItem({ message }: MessageItemProps) {
         switch (message.messageType) {
             case 'text':
                 return (
-                    <div className={`px-4 py-2 rounded-lg max-w-md break-words ${
-                        message.isMine
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
-                    }`}>
-                        {message.content}
-                    </div>
+                    <div
+                        className={`px-4 py-2 rounded-lg max-w-md break-words markdown-message-content ${
+                            message.isMine
+                                ? 'bg-primary-500 text-white'
+                                : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
+                        }`}
+                        dangerouslySetInnerHTML={{
+                            __html: DOMPurify?.sanitize(md.render(message.content || '')),
+                        }}
+                    />
                 );
 
             case 'image':

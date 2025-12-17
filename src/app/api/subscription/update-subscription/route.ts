@@ -49,8 +49,26 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
+    let coachId = userId;
+    if (session.user.is_coach) {
+        const { data: coach, error: coachError } = await supabase
+            .from('coaches')
+            .select('id')
+            .eq('user_id', coachId)
+            .single();
+        
+        if (coachError) {
+            return NextResponse.json({
+                success: false,
+                message: coachError.message
+            });
+        }
+
+        coachId = coach.id;
+    }
+
     // 验证用户权限（必须是学生或教练）
-    if (subscription.student_id !== userId && subscription.coach_id !== userId) {
+    if (subscription.student_id !== userId && subscription.coach_id !== coachId) {
         return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
             success: false,
             message: '无权修改此订阅',
@@ -70,9 +88,31 @@ export async function POST(req: Request) {
 
     // 如果需要的可以提醒教练
     if (updateData.has_remind_coach) {
-        await sendSystemMessage(subscription.coach_id, {
-            content: `新的学员订阅来了！请前往 []() 及时处理`
-        });
+        const { data: coach, error: coachError } = await supabase
+            .from('coaches')
+            .select('user_id')
+            .eq('id', subscription.coach_id)
+            .single();
+
+        if (coachError) {
+            return NextResponse.json({
+                success: false,
+                message: coachError.message,
+                data: null
+            }, { status: 500 });
+        }
+
+        const ok = await sendSystemMessage(coach.user_id, {
+            content: `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 的「待确认学员支付」及时处理`
+        });        
+
+        if (!ok) {
+            return NextResponse.json({
+                success: false,
+                message: '更新订阅失败',
+                data: null
+            }, { status: 500 });
+        }
     }
 
     if (updateError || !updatedSubscription) {
