@@ -259,7 +259,6 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                 <h4 className="font-medium text-900 text-md"></h4>
                 <div className="flex gap-2">
                     {existingTrainingDays && existingTrainingDays.length > 0 && onCopyFromDay && (
-                        // 替换原来的 Dropdown 为 Button
                         <Button
                             label="从其他训练日复制"
                             icon="pi pi-copy"

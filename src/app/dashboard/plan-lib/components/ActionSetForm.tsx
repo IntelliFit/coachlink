@@ -67,7 +67,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     }
 
     const getUserOneRM = () => {
-        switch (currentAction.name) {
+        switch (currentAction?.name) {
 
             default:
                 return undefined;
@@ -109,7 +109,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     oneRm,
                     userBodyWeight,
                     intensity,
-                    considerBodyWeightActions.includes(currentAction.name) ? 1 : 0,
+                    considerBodyWeightActions.includes(currentAction?.name) ? 1 : 0,
                     model
                 );
 
