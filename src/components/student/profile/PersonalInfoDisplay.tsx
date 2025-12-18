@@ -39,13 +39,15 @@ const InfoItem = ({ label, value }: { label: string, value: string | number | nu
  */
 export const PersonalInfoDisplay: React.FC<PersonalInfoDisplayProps> = ({ profile, phone }) => {
     return (
-        <div className="bg-surface rounded-xl p-4 mb-4">
-            <div className="flex items-center gap-2 mb-4">
-                <User className="text-primary" size={18} />
-                <h3 className="text-md font-bold text-surface-900">个人信息</h3>
+        <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200 mb-4">
+            <div className="px-5 py-3 border-b border-surface-200">
+                <h3 className="text-base font-bold flex items-center gap-2 text-surface-900">
+                    <User className="w-5 h-5 text-primary" />
+                    个人信息
+                </h3>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-5">
                 <InfoItem label="昵称" value={profile?.nickname || phone || '-'} />
                 <InfoItem label="年龄" value={profile?.age ? `${profile.age}岁` : null} />
                 <InfoItem label="性别" value={getGenderDisplay(profile?.gender)} />

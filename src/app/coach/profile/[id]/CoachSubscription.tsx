@@ -90,12 +90,12 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 return;
             }
 
-            // if (mySubscriptions.find(
-            //     sub => sub.coach_id === coach?.id && sub.status === 'waiting'
-            // )) {
-            //     showToast({ severity: 'info', summary: '您已订阅该教练，请等待激活' });
-            //     return;
-            // }
+            if (mySubscriptions.find(
+                sub => sub.coach_id === coach?.id && sub.status === 'waiting'
+            )) {
+                showToast({ severity: 'info', summary: '您已订阅该教练，请等待激活' });
+                return;
+            }
 
             // 获取选中的定价档位
             const selectedTier = subscriptionTiers[index];

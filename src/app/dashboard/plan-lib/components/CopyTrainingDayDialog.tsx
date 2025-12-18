@@ -54,94 +54,130 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
     // 渲染带周标识的日历视图
     const renderCalendarWithWeeks = () => {
         const weeks = groupDaysByWeek();
-        const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+        const weekNumbers = Object.keys(weeks)
+            .map(Number)
+            .sort((a, b) => a - b);
 
         return (
             <>
                 {weekNumbers.map(weekNum => {
-                    // 获取当前周的所有天
                     const daysInWeek = weeks[weekNum] || [];
 
-                    // 创建一个映射，方便通过星期几查找训练日
                     const dayMap: { [key: number]: FormPlanTrainingDay } = {};
-
                     daysInWeek.forEach(day => {
                         const { day: dayOfWeek } = getWeekAndDay(day.dayIndex - 1);
                         dayMap[dayOfWeek] = day;
                     });
 
                     return (
-                        <div key={weekNum} className="mb-6">
-                            {/* 周标识 */}
-                            <div className="text-left font-bold mb-2 text-sm">
+                        <div key={weekNum} className="mb-8">
+                            {/* 周标题 */}
+                            <div className="mb-3 text-sm font-semibold text-700">
                                 第 {weekNum} 周
                             </div>
 
-                            {/* 该周的天数 */}
-                            <div className="grid grid-cols-7 gap-2">
+                            <div className="grid grid-cols-7 gap-3">
                                 {Array.from({ length: 7 }, (_, dayIndex) => {
                                     const day = dayMap[dayIndex + 1];
 
                                     if (day) {
                                         const isTraining = day.type === 'training';
-                                        const isSelected = selectedSourceDay?.dayIndex === day.dayIndex;
-                                        // 检查是否为目标天数（需要排除的天数）
-                                        const isTargetDay = day.dayIndex === targetDayIndex + 1;
+                                        const isSelected =
+                                            selectedSourceDay?.dayIndex === day.dayIndex;
+                                        const isTargetDay =
+                                            day.dayIndex === targetDayIndex + 1;
+
+                                        const isDisabled = isTargetDay || saving;
 
                                         return (
                                             <div
                                                 key={day.dayIndex}
                                                 onClick={() => {
-                                                    if (isTargetDay || saving) return;
+                                                    if (isDisabled) return;
                                                     handleSelectDay(day);
                                                 }}
                                                 className={`
-                                                    cursor-pointer border-round p-3 shadow-sm 
-                                                    border-1 transition-all flex flex-col items-center justify-center gap-1
-                                                    ${isSelected
-                                                        ? 'ring-2 ring-primary-500 scale-105'
-                                                        : ''}
-                                                    ${isTargetDay
-                                                        ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
-                                                        : ''}
-                                                    ${saving ? 'opacity-60 cursor-not-allowed' : ''}
-                                                `}
-                                                style={{
-                                                    borderLeft: `6px solid ${isTraining
-                                                        ? 'var(--primary-400)'
-                                                        : 'var(--surface-400)'
-                                                        }`
-                                                }}
-                                            >
-                                                <span className="text-xs opacity-70">
-                                                    第{day.dayIndex}天
-                                                </span>
+                                                    relative rounded-xl p-3
+                                                    flex flex-col items-center justify-center gap-1
+                                                    border border-surface-200
+                                                    bg-surface-0
+                                                    transition-all duration-200 ease-out
 
-                                                <span
-                                                    className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'} ${isTargetDay ? 'opacity-60' : ''}`}
-                                                >
-                                                    {isTraining ? (
-                                                        <i className="pi pi-bolt"></i>
-                                                    ) : (
-                                                        <i className="pi pi-moon"></i>
-                                                    )}
-                                                </span>
-                                            </div>
-                                        );
-                                    } else {
-                                        // 渲染一个空的占位符
-                                        const dayIndexNumber = (weekNum - 1) * 7 + dayIndex + 1;
-                                        return (
-                                            <div
-                                                key={`empty-${dayIndexNumber}`}
-                                                className="p-3 opacity-50 border-round border-1 border-transparent"
+                                                    ${!isDisabled && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}
+                                                    ${isSelected &&
+                                                        'ring-2 ring-primary-300 border-primary-400 shadow-md scale-[1.02] bg-primary-50/40'}
+                                                    ${isDisabled && 'opacity-50 cursor-not-allowed'}
+                                                `}
                                             >
-                                                <span className="text-xs opacity-70">
-                                                    第{dayIndexNumber}天
-                                                </span>
+                                                {/* 顶部状态条 */}
+                                                <div
+                                                    className={`
+                                                        absolute top-0 left-0 right-0 h-1 rounded-t-xl
+                                                        transition-all
+                                                        ${isTraining
+                                                                ? isSelected
+                                                                    ? 'bg-primary-500'
+                                                                    : 'bg-primary-300'
+                                                                : isSelected
+                                                                    ? ''
+                                                                    : 'bg-surface-300'}
+                                                    `}
+                                                />
+
+                                                {!isTargetDay && (
+                                                    <div>
+                                                        <span className="text-xs text-500 mt-1">
+                                                            第 {day.dayIndex} 天
+                                                        </span>
+
+                                                        <span
+                                                            className={`
+                                                                text-xl transition-all
+                                                                ${isTraining ? 'text-primary-600' : 'text-600'}
+                                                                ${isSelected ? 'scale-110' : ''}
+                                                            `}
+                                                        >
+                                                            <i
+                                                                className={
+                                                                    isTraining
+                                                                        ? 'pi pi-bolt'
+                                                                        : 'pi pi-moon'
+                                                                }
+                                                            />
+                                                        </span>
+
+                                                        <span className="text-xs opacity-60">
+                                                            {isTraining ? '训练' : '休息'}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {isTargetDay && (
+                                                    <span className="text-[10px] text-400">
+                                                        当前目标
+                                                    </span>
+                                                )}
                                             </div>
                                         );
                                     }
+
+                                    // 空占位
+                                    const dayIndexNumber =
+                                        (weekNum - 1) * 7 + dayIndex + 1;
+
+                                    return (
+                                        <div
+                                            key={`empty-${dayIndexNumber}`}
+                                            className="
+                                            rounded-xl border border-dashed border-surface-200
+                                            flex flex-col items-center justify-center
+                                            text-400 text-xs
+                                            bg-surface-0
+                                        "
+                                        >
+                                            —
+                                        </div>
+                                    );
                                 })}
                             </div>
                         </div>
@@ -150,6 +186,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
             </>
         );
     };
+
 
     // 默认选择第一个训练日
     useEffect(() => {
@@ -294,7 +331,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                                 <div className="flex justify-between items-center mb-2">
                                                     <span className="font-medium text-sm">{getActionName(set.actionId)}</span>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2 text-xs"> 
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
                                                     {actions.find(action => action.id === set.actionId)?.attrs.map(attr => (
                                                         <div key={attr}>
                                                             <div>{attr}: {set.params[attr] || '--'}</div>

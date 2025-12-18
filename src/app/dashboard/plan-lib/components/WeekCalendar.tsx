@@ -92,7 +92,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     </div>
                 ),
                 visible: true,
-                accept: () => {                    
+                accept: () => {
                     showToast({ severity: 'success', summary: '添加成功' })
                 },
                 reject: () => { },
@@ -166,8 +166,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                     />
                                 )}
                             </div>
-
-                            <div className="grid grid-cols-7 gap-2">
+                            <div className="grid grid-cols-7 gap-3">
                                 {week.map((day) => {
                                     const isSelected = selectedDayIndex === day.dayIndex;
                                     const isTraining = day.type === 'training';
@@ -177,33 +176,42 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                             key={day.dayIndex}
                                             onClick={() => !saving && onSelectDay(day.dayIndex)}
                                             className={`
-                                                cursor-pointer border-round p-3 shadow-sm 
-                                                border-1 transition-all 
+                                                relative cursor-pointer rounded-xl p-3
+                                                border border-surface-200
                                                 flex flex-col items-center justify-center gap-1
+                                                transition-all duration-200
+                                                bg-surface-0
+
+                                                hover:-translate-y-0.5
+
                                                 ${isSelected
-                                                    ? 'border-primary-500 ring-2 ring-primary-200'
-                                                    : 'border-surface-200 hover:bg-surface-50'}
-                                            `}
-                                            style={{
-                                                borderLeft: `6px solid ${isTraining
-                                                        ? 'var(--primary-400)'
-                                                        : 'var(--surface-400)'
-                                                    }`
-                                            }}
+                                                    ? 'ring-2 ring-primary-300 border-primary-400 shadow-md'
+                                                    : 'hover:bg-surface-50'}
+                                                `}
                                         >
-                                            <span className="text-xs opacity-70">
-                                                第{day.dayIndex}天
+                                            {/* 顶部状态条 */}
+                                            <div
+                                                className={`
+                                                    absolute top-0 left-0 right-0 h-1 rounded-t-xl
+                                                    ${isSelected ? '' : isTraining ? 'bg-primary-400' : 'bg-surface-300'}
+                                                `}
+                                            />
+
+                                            <span className="text-xs text-500 mt-1">
+                                                第 {day.dayIndex} 天
                                             </span>
 
                                             <span
-                                                className={`text-xl ${isTraining ? 'text-primary-600' : 'text-600'
-                                                    }`}
+                                                className={`
+                                                    text-xl
+                                                    ${isTraining ? 'text-primary-600' : 'text-600'}
+                                                `}
                                             >
-                                                {isTraining ? (
-                                                    <i className="pi pi-bolt"></i>
-                                                ) : (
-                                                    <i className="pi pi-moon"></i>
-                                                )}
+                                                <i className={isTraining ? 'pi pi-bolt' : 'pi pi-moon'} />
+                                            </span>
+
+                                            <span className="text-xs opacity-60">
+                                                {isTraining ? '训练' : '休息'}
                                             </span>
                                         </div>
                                     );
@@ -212,13 +220,18 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                 {Array.from({ length: 7 - week.length }).map((_, i) => (
                                     <div
                                         key={`empty-${i}`}
-                                        className="p-3 border-round border-1 border-dashed border-surface-200 
-                                                   flex items-center justify-center text-400 text-xs"
+                                        className="
+                                            rounded-xl border border-dashed border-surface-200
+                                            flex items-center justify-center
+                                            text-400 text-xs
+                                            bg-surface-0
+                                        "
                                     >
-                                        -
+                                        —
                                     </div>
                                 ))}
                             </div>
+
                         </div>
                     );
                 })}
