@@ -17,13 +17,16 @@ import AddQuestionDialog from './components/AddQuestionDialog';
 import OptionQuestionManager from './components/OptionQuestionManager';
 import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, QuestionType } from '@/types/questionnaires';
 import { CoachesRow } from '@/types';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { v4 as uuidv4 } from "uuid";
+
 const QuestionarePage = () => {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
     const overlayPanel = useRef<OverlayPanel>(null);
 
     const [questionId, setQuestionId] = useState<string | null>(null);
-    const [questions, setQuestions] = useState<TrainingItem[]>([]);
+    const [questions, setQuestions] = useState<(TrainingItem & { id: string })[]>([]);
     const [saving, setSaving] = useState<boolean>(false);
     const [addQuestionDialogVisible, setAddQuestionDialogVisible] = useState<boolean>(false);
     const [previewDialogVisible, setPreviewDialogVisible] = useState<boolean>(false);
@@ -41,7 +44,7 @@ const QuestionarePage = () => {
         }
 
         const res = await coachService.getCoach({ userId: session.user.id });
-        
+
         if (res) {
             setCoach(res.coach);
         }
@@ -97,13 +100,17 @@ const QuestionarePage = () => {
                 }
             }
 
-            setQuestions(trainingQuestions);
+            setQuestions(trainingQuestions.map(item => ({
+                ...item,
+                id: uuidv4()
+            })));
+
         } else {
             showToast({ severity: 'error', summary: '错误', detail: '加载问卷问题失败' });
         }
     }
 
-    useEffect(() => { 
+    useEffect(() => {
         loadCoach();
     }, [session?.user?.id]);
 
@@ -118,7 +125,10 @@ const QuestionarePage = () => {
         try {
             const result = await coachService.updateQuestionnaires({
                 id: questionId || '',
-                questionnaires: questions
+                questionnaires: questions.map(item => {
+                    const { id, ...q } = item;
+                    return q;
+                })
             });
 
             if (result) {
@@ -137,7 +147,7 @@ const QuestionarePage = () => {
     const addTagsQuestion = () => {
         const hasTags = questions.some(q => q.type === 'tags');
         if (!hasTags) {
-            setQuestions([...questions, { type: 'tags' }]);
+            setQuestions([...questions, { type: 'tags', id: uuidv4() }]);
         }
     };
 
@@ -145,13 +155,13 @@ const QuestionarePage = () => {
     const addTimesQuestion = () => {
         const hasTimes = questions.some(q => q.type === 'times');
         if (!hasTimes) {
-            setQuestions([...questions, { type: 'times' }]);
+            setQuestions([...questions, { type: 'times', id: uuidv4() }]);
         }
     };
 
     // 添加选项问题
     const addOptionQuestion = (question: TrainingOptionQuestion) => {
-        setQuestions([...questions, question]);
+        setQuestions([...questions, { ...question, id: uuidv4() }]);
         setAddQuestionDialogVisible(false);
         setNewQuestionType(null);
     };
@@ -163,7 +173,7 @@ const QuestionarePage = () => {
                 type: 'text',
                 question: newTextQuestion.trim()
             };
-            setQuestions([...questions, textQuestion]);
+            setQuestions([...questions, { ...textQuestion, id: uuidv4() }]);
             setNewTextQuestion('');
             setAddQuestionDialogVisible(false);
             setNewQuestionType(null);
@@ -181,7 +191,7 @@ const QuestionarePage = () => {
 
     // 更新选项问题的选项
     const updateOption = (questionIndex: number, optionIndex: number, value: string) => {
-        const newQuestions = [...questions] as TrainingOptionQuestion[];
+        const newQuestions = [...questions];
         if (newQuestions[questionIndex].type === 'option') {
             newQuestions[questionIndex].options[optionIndex] = value;
             setQuestions(newQuestions);
@@ -190,7 +200,7 @@ const QuestionarePage = () => {
 
     // 添加选项问题的选项
     const addOption = (questionIndex: number) => {
-        const newQuestions = [...questions] as TrainingOptionQuestion[];
+        const newQuestions = [...questions];
         if (newQuestions[questionIndex].type === 'option') {
             newQuestions[questionIndex].options.push('');
             setQuestions(newQuestions);
@@ -199,7 +209,7 @@ const QuestionarePage = () => {
 
     // 删除选项问题的选项
     const removeOption = (questionIndex: number, optionIndex: number) => {
-        const newQuestions = [...questions] as TrainingOptionQuestion[];
+        const newQuestions = [...questions];
         if (newQuestions[questionIndex].type === 'option') {
             newQuestions[questionIndex].options.splice(optionIndex, 1);
             setQuestions(newQuestions);
@@ -217,6 +227,18 @@ const QuestionarePage = () => {
         }
     };
 
+    // 处理拖拽结束事件
+    const onDragEnd = (result: DropResult) => {
+        if (!result.destination) {
+            return;
+        }
+
+        const items = Array.from(questions);
+        const [reorderedItem] = items.splice(result.source.index, 1);
+        items.splice(result.destination.index, 0, reorderedItem);
+
+        setQuestions(items);
+    };
 
     const renderQuestion = (question: TrainingItem, index: number) => {
         switch (question.type) {
@@ -226,13 +248,12 @@ const QuestionarePage = () => {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h4 className="font-medium">训练项目偏好</h4>
-                                <p className="text-sm text-surface-500">学员可以选择偏好的训练项目</p>
+                                <p className="text-sm text-surface-500">学员可以选择偏好的训练项目（AI计划将会自动根据这个项目进行匹配）</p>
                             </div>
                             <Button
                                 icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
-                                disabled={true} // 默认问题不能删除
                             />
                         </div>
                     </div>
@@ -244,17 +265,34 @@ const QuestionarePage = () => {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h4 className="font-medium">每周训练次数</h4>
-                                <p className="text-sm text-surface-500">学员可以选择每周训练的次数（1-7次）</p>
+                                <p className="text-sm text-surface-500">学员可以选择每周训练的次数（AI计划将会自动根据这个项目进行匹配）</p>
                             </div>
                             <Button
                                 icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
-                                disabled={true} // 默认问题不能删除
                             />
                         </div>
                     </div>
                 );
+
+            case 'rm':
+                return (
+                    <div className="mb-4 p-3 bg-surface-100 rounded">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h4 className="font-medium">RM 训练</h4>
+                                <p className="text-sm text-surface-500">学员选择RM训练的次数和重量（AI计划将会自动根据这个项目进行数值计算）</p>
+                            </div>
+                            <Button
+                                icon="pi pi-trash"
+                                className="p-button-text p-button-danger p-2"
+                                onClick={() => removeQuestion(index)}
+                                disabled={true}
+                            />
+                        </div>
+                    </div>
+                )
 
             case 'option':
                 return (
@@ -288,7 +326,7 @@ const QuestionarePage = () => {
                                     <Button
                                         icon="pi pi-trash"
                                         className="p-button-text p-button-danger p-2"
-                                        onClick={() => removeOption(index, optionIndex + 1)}
+                                        onClick={() => removeOption(index, optionIndex)}
                                     />
                                 </div>
                             ))}
@@ -311,7 +349,7 @@ const QuestionarePage = () => {
                             <InputText
                                 value={question.question}
                                 onChange={(e) => {
-                                    const newQuestions = [...questions] as TrainingTextQuestion[];
+                                    const newQuestions = [...questions];
                                     if (newQuestions[index].type === 'text') {
                                         newQuestions[index].question = e.target.value;
                                         setQuestions(newQuestions);
@@ -360,6 +398,8 @@ const QuestionarePage = () => {
                     </div>
                 );
 
+
+
             default:
                 return null;
         }
@@ -395,13 +435,37 @@ const QuestionarePage = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="mb-4">
-                                {questions.map((question, index) => (
-                                    <div key={index}>
-                                        {renderQuestion(question, index)}
-                                    </div>
-                                ))}
-                            </div>
+                            <DragDropContext onDragEnd={onDragEnd}>
+                                <Droppable droppableId="questions"
+                                    direction='vertical'
+                                    isDropDisabled={false}
+                                    isCombineEnabled={false}
+                                    ignoreContainerClipping
+                                >
+                                    {(provided, snapshot) => (
+                                        <div
+                                            {...provided.droppableProps}
+                                            ref={provided.innerRef}
+                                        >
+                                            {questions.map((question, index) => (
+                                                <Draggable key={index} draggableId={`question-${index}`} index={index}>
+                                                    {(provided, snapshot) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            {...provided.dragHandleProps}
+                                                            className={`${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                                                        >
+                                                            {renderQuestion(question, index)}
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            </DragDropContext>
                         )}
                     </div>
 

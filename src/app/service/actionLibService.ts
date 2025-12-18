@@ -5,13 +5,21 @@ import { AddActionDto, AddActionResponseDto } from "@/app/api/action-lib/add-act
 import { UpdateActionRequest, UpdateActionResponse } from "@/app/api/action-lib/update-action/entity";
 import { DeleteActionDto, DeleteActionResponseDto } from "@/app/api/action-lib/delete-action/entity";
 import { GetActionDto, GetActionResponseDto } from "@/app/api/action-lib/get-action/entity";
-import { ApiData } from "@/types/api";
+import { ListAutoComputeActionsDto, ListAutoComputeActionsResponseDto } from "../api/action-lib/list-auto-compute-actions/entity";
 
 export class ActionLibService extends BaseService {
     async listActions(reqData: ListActionsDto) {
         const res = await this.post<ListActionsResponseDto>("list-actions", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to fetch actions");
+        }
+        return res.data.data;
+    }
+
+    async listAutoComputeActions(reqData: ListAutoComputeActionsDto) {
+        const res = await this.post<ListAutoComputeActionsResponseDto>("list-auto-compute-actions", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to fetch auto compute actions");
         }
         return res.data.data;
     }
