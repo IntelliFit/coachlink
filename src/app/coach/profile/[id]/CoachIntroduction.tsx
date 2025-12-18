@@ -31,7 +31,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [chatroom, setChatroom] = useState<ChatroomDetail>(null);
 
-    const { showToast } = useToastContext();    
+    const { showToast } = useToastContext();
 
     const contactCoach = async () => {
         if (!session?.user?.id) {
@@ -123,8 +123,23 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
 
                             <div className="flex flex-row gap-2 items-center">
                                 {/* 联系教练按钮 */}
+
+                                {['waiting', 'active'].includes(userSubscription?.status) && (
+                                    <Button
+                                        label="查看问卷"
+                                        size='small'
+                                        text
+                                        icon="pi pi-comments"
+                                        className="p-button-primary"
+                                        loading={loading}
+                                        disabled={loading}
+                                        onClick={contactCoach}
+                                    />
+                                )}
+
                                 <Button
                                     label="联系教练"
+                                    size='small'
                                     icon="pi pi-comments"
                                     className="p-button-primary"
                                     loading={loading}
