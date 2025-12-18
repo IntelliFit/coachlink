@@ -71,10 +71,9 @@ const EditPlanPage = () => {
             }
 
             // Load template data
-            const templateReq: GetTemplateDto = {
+            const templateRes = await planLibService.getTemplate({
                 id: params.id as string
-            };
-            const templateRes = await planLibService.getTemplate(templateReq);
+            });
 
             if (templateRes) {
                 // Fill form with template data
