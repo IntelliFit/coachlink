@@ -1,7 +1,7 @@
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
-import { StudentSubscription } from '@/app/api/coach/get-students/entity';
+import { StudentSubscription } from '@/app/api/coach/list-students/entity';
 import { Calendar, User, Target, Video, MessageCircle, FileText } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';

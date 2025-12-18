@@ -27,7 +27,14 @@ export interface StudentSubscription {
     subscribe_data: SubscribeData | null;
 }
 
-export interface GetStudentsResponseDto {
+export interface ListStudentsDto {
+    pagination: {
+        page: number;
+        limit: number;
+    };
+}
+
+export interface ListStudentsResponseDto {
     students: StudentSubscription[];
     pagination: {
         page: number;
