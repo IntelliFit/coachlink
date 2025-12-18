@@ -8,12 +8,17 @@ import type {
     GetCoachResponseDto
 } from '@/app/api/coach/get-coach/entity';
 import type {
-    GetStudentsResponseDto
-} from '@/app/api/coach/get-students/entity';
+    ListStudentsDto,
+    ListStudentsResponseDto
+} from '@/app/api/coach/list-students/entity';
 import type {
     GetAllCoachesDto,
     GetAllCoachesResponseDto
 } from '@/app/api/coach/get-all-coaches/entity';
+import type {
+    GetStudentDto,
+    GetStudentResponseDto
+} from '@/app/api/coach/get-student/entity';
 
 // 内容管理相关接口
 import type {
@@ -86,9 +91,12 @@ class CoachService extends BaseService {
         return null;
     }
 
-    async getStudents(pagination?: { page: number; limit: number }) {
-        const res = await this.post<GetStudentsResponseDto>('get-students', {
-            pagination: pagination || { page: 0, limit: 20 }
+    async listStudents(reqData?: ListStudentsDto) {
+        const res = await this.post<ListStudentsResponseDto>('list-students', reqData || {
+            pagination: {
+                page: 0,
+                limit: 20
+            }
         });
         if (res.data && res.data.success) {
             return res.data.data;
@@ -197,6 +205,14 @@ class CoachService extends BaseService {
 
     async getPaymentWaitingStudents(reqData: GetPaymentWaitingStudentsDto) {
         const res = await this.post<GetPaymentWaitingStudentsResponseDto>('get-payment-waiting-students', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async getStudent(reqData: GetStudentDto) {
+        const res = await this.post<GetStudentResponseDto>('get-student', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

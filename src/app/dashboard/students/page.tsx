@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
-import { StudentSubscription, GetStudentsResponseDto } from '@/app/api/coach/get-students/entity';
+import { StudentSubscription, GetStudentsResponseDto } from '@/app/api/coach/list-students/entity';
 import { Avatar } from 'primereact/avatar';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
@@ -98,7 +98,9 @@ export default function StudentsPage() {
         try {
             setLoading(true);
 
-            const data = await coachService.getStudents({ page, limit });
+            const data = await coachService.listStudents({
+                pagination: { page, limit }
+            });
 
             if (data) {
                 // 初次注入 plan 字段
@@ -278,22 +280,50 @@ export default function StudentsPage() {
 
     if (loading && students.length === 0) {
         return (
-            <div className="p-6">
+            <div className="min-h-screen p-6">
                 <Skeleton width="150px" height="32px" className="mb-6" />
                 <div className="bg-surface rounded-xl border border-surface-200">
-                    <div className="p-4 border-b">
-                        <Skeleton width="100%" height="24px" />
+                    <div className="p-4 border-b border-surface-200">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <Skeleton width="200px" height="24px" />
+                                <Skeleton width="80px" height="20px" borderRadius="6px" />
+                            </div>
+                            <Skeleton width="120px" height="36px" borderRadius="6px" />
+                        </div>
                     </div>
-                    {[1, 2, 3].map((item) => (
-                        <div key={item} className="p-4 border-b last:border-b-0">
-                            <div className="flex items-center space-x-4">
-                                <Skeleton width="40px" height="40px" borderRadius="50%" />
-                                <div className="flex-1">
-                                    <Skeleton width="120px" height="20px" className="mb-2" />
-                                    <Skeleton width="200px" height="16px" />
+                    {[1, 2, 3, 4, 5].map((item) => (
+                        <div key={item} className="p-4 border-b last:border-b-0 border-surface-200">
+                            <div className="grid grid-cols-12 gap-4 items-center">
+                                <div className="col-span-12 md:col-span-3">
+                                    <div className="flex items-center space-x-3">
+                                        <Skeleton width="40px" height="40px" borderRadius="50%" />
+                                        <div>
+                                            <Skeleton width="80px" height="20px" className="mb-1" />
+                                            <Skeleton width="60px" height="16px" />
+                                        </div>
+                                    </div>
                                 </div>
-                                <Skeleton width="60px" height="16px" />
-                                <Skeleton width="80px" height="32px" />
+                                <div className="col-span-12 md:col-span-2">
+                                    <Skeleton width="100%" height="28px" borderRadius="16px" />
+                                </div>
+                                <div className="col-span-12 md:col-span-3">
+                                    <div className="p-3">
+                                        <Skeleton width="120px" height="20px" className="mb-1" />
+                                        <Skeleton width="80px" height="16px" />
+                                    </div>
+                                </div>
+                                <div className="col-span-6 md:col-span-1">
+                                    <Skeleton width="80px" height="20px" />
+                                </div>
+                                <div className="col-span-6 md:col-span-2">
+                                    <Skeleton width="100%" height="28px" borderRadius="16px" />
+                                </div>
+                                <div className="col-span-12 md:col-span-1">
+                                    <div className="flex justify-end">
+                                        <Skeleton width="60px" height="32px" borderRadius="6px" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ))}

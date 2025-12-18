@@ -23,26 +23,7 @@ import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfilePanel';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
-import { UserProfilesRow } from '@/types'; // 导入UserProfilesRow类型
-
-// 定义学生数据类型
-interface SubscribeAnswer {
-    question: string;
-    answer: string;
-}
-
-interface StudentData {
-    id: string;
-    student_id: string;
-    tier: string;
-    status: string;
-    start_date: string;
-    end_date: string;
-    profile: UserProfilesRow | null;
-    subscribe_data: {
-        answers: SubscribeAnswer[];
-    } | null;
-}
+import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -72,11 +53,10 @@ const StudentPlanPage = () => {
     const [instanceExists, setInstanceExists] = useState(false);
     const [selectTemplateDialogVisible, setSelectTemplateDialogVisible] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-    const [studentName, setStudentName] = useState<string>('');
     const [instanceId, setInstanceId] = useState<string | null>(null);
     
     // Student data
-    const [studentData, setStudentData] = useState<StudentData | null>(null);
+    const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
     const [studentDataLoading, setStudentDataLoading] = useState(false);
 
     // Load instance data
@@ -98,30 +78,15 @@ const StudentPlanPage = () => {
                 // Load student data
                 setStudentDataLoading(true);
                 try {
-                    const res = await fetch('/api/coach/get-students', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pagination: { page: 0, limit: 100 } })
-                    });
-                    const result = await res.json();
-                    
-                    if (result.success && result.data?.students) {
-                        const student = result.data.students.find((s: any) => s.id === params.id);
-                        if (student) {
-                            setStudentData(student);
-                            // Set student name
-                            if (student?.profile?.nickname) {
-                                setStudentName(student.profile.nickname);
-                            } else if (student?.profile?.full_name) {
-                                setStudentName(student.profile.full_name);
-                            }
-                        }
+                    const res = await coachService.getStudent({ subscriptionId: params.id.toString() });
+                    if (res) {
+                        setStudentData(res.student);
                     }
                 } catch (e) {
                     console.log('Could not load student data');
                 } finally {
-                    setStudentDataLoading(false);
                 }
+                    setStudentDataLoading(false);
 
                 // Try to load instance data
                 try {
@@ -281,7 +246,8 @@ const StudentPlanPage = () => {
         newDays[actualDayIndex].actionSets.push({
             actionId: '',
             setName: '',
-            params: {}
+            params: {},
+            type: 'no-filter',
         });
         setDays(newDays);
     };
@@ -319,6 +285,9 @@ const StudentPlanPage = () => {
             case 'params':
                 actionSet.params = { ...actionSet.params, ...(value as any) };
                 break;
+            case 'all':
+                newDays[actualDayIndex].actionSets[setIndex] = value as any;
+                break;
             default:
                 throw new Error(`Unknown field: ${field}`);
         }
@@ -337,20 +306,11 @@ const StudentPlanPage = () => {
             return;
         }
 
-        // 复制源日的所有数据到目标日，包括类型
         newDays[targetIndex] = {
             ...newDays[targetIndex],
-            type: newDays[sourceIndex].type, // 复制类型
-            note: newDays[sourceIndex].note, // 复制备注
-            actionSets: newDays[sourceIndex].actionSets.map(set => ({
-                ...set,
-                actionId: set.actionId,
-                setName: set.setName,
-                sets: set.sets,
-                reps: set.reps,
-                intensity: set.intensity,
-                restSeconds: set.restSeconds
-            }))
+            type: newDays[sourceIndex].type,
+            note: newDays[sourceIndex].note,
+            actionSets: newDays[sourceIndex].actionSets
         };
 
         setDays(newDays);
@@ -477,10 +437,7 @@ const StudentPlanPage = () => {
         return (
             <div className="mx-auto">
                 <div className="flex items-center justify-between mb-6">
-                    {/* 标题 Skeleton */}
                     <Skeleton width="12rem" height="2rem" />
-
-                    {/* 返回按钮 Skeleton */}
                     <Skeleton width="5rem" height="2rem" borderRadius="8px" />
                 </div>
 
@@ -527,7 +484,7 @@ const StudentPlanPage = () => {
                 
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-2xl font-bold text-900">
-                        {studentName ? `${studentName}的训练计划` : '学员训练计划'}
+                        {studentData?.profile?.nickname ? `${studentData?.profile?.nickname}的训练计划` : '学员训练计划'}
                     </h1>
                     <Button
                         label="取消"
@@ -540,7 +497,6 @@ const StudentPlanPage = () => {
 
                 {/* 学员信息面板 */}
                 <StudentProfilePanel 
-                    studentName={studentName}
                     studentData={studentData}
                     loading={studentDataLoading}
                 />

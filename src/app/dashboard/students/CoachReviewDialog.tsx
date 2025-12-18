@@ -5,7 +5,7 @@ import { Toast } from 'primereact/toast';
 import { useRef, useState, useEffect } from 'react';
 import { CoachesRow, CoachReviewRow, CoachSubscriptionRow } from '@/types';
 import { subscriptionService } from '@/app/service/subscriptionService';
-import { StudentSubscription } from '@/app/api/coach/get-students/entity';
+import { StudentSubscription } from '@/app/api/coach/list-students/entity';
 
 interface CoachReviewDialogProps {
     visible: boolean;

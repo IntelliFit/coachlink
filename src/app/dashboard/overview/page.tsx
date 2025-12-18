@@ -22,7 +22,7 @@ const Overview = () => {
         const loadStudents = async () => {
             setLoadingStudents(true);
             try {
-                const items = await coachService.getStudents();
+                const items = await coachService.listStudents();
                 
                 const mapped: Student[] = (items || [] as CoachStudentItem[]).map((it) => ({
                     id: it.student?.id || it.student_id,

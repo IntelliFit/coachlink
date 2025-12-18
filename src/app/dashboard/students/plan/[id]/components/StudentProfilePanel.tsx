@@ -9,44 +9,19 @@ import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDi
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
 import { UserProfilesRow } from '@/types';
+import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 
-interface SubscribeAnswer {
-    question: string;
-    answer: string;
-}
-
-interface StudentData {
-    id: string;
-    student_id: string;
-    tier: string;
-    status: string;
-    start_date: string;
-    end_date: string;
-    profile: UserProfilesRow | null;
-    subscribe_data: {
-        answers: SubscribeAnswer[];
-    } | null;
-}
 
 interface StudentProfilePanelProps {
-    /** 学员姓名 */
-    studentName: string;
-    /** 学员数据 */
-    studentData: StudentData | null;
-    /** 数据加载状态 */
+    studentData: GetStudentResponseDto['student'] | null;
     loading: boolean;
 }
 
-/**
- * 学员档案面板组件（内嵌式）
- * 用于在计划编辑页面显示学员的档案信息
- */
 export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
-    studentName,
     studentData,
     loading
 }) => {
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(false);
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('zh-CN', {
@@ -107,14 +82,14 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                             <div className="flex items-center gap-3 p-3 bg-surface-50 rounded-lg border border-surface-200">
                                 <Avatar
                                     image={profile?.avatar_url}
-                                    label={profile?.nickname?.charAt(0) || studentName?.charAt(0) || 'U'}
+                                    label={profile?.nickname?.charAt(0) || studentData?.profile?.nickname.charAt(0) || 'U'}
                                     size="large"
                                     shape="circle"
                                     className="bg-primary-500 text-white font-bold"
                                 />
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-lg font-bold text-900 truncate">
-                                        {profile?.nickname || studentName || '学员'}
+                                        {profile?.nickname || studentData?.profile?.nickname || '学员'}
                                     </h3>
                                     <div className="flex items-center gap-1 text-xs text-600 mt-0.5">
                                         <Users size={12} />
@@ -152,15 +127,38 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                                         <FileText className="text-primary-700" size={16} />
                                         <h4 className="font-bold text-primary-900 text-sm">本期需求</h4>
                                     </div>
-                                    <div className="space-y-2">
-                                        {studentData.subscribe_data.answers.map((item, index) => (
-                                            <div key={`q-${index}`} className="bg-white rounded-lg p-3 border border-primary-100">
-                                                <div className="text-xs font-medium text-primary-700 mb-1">
-                                                    Q{index + 1}: {item.question}
+                                    <div className="space-y-4">
+                                        {studentData.subscribe_data.map((item, index) => (
+                                            <div key={`q-${index}`} className="bg-white rounded-lg p-4 border border-primary-100 shadow-sm">
+                                                <div className="text-sm font-medium text-primary-700 mb-2">
+                                                    Q{index + 1}. {item.question}
                                                 </div>
-                                                <div className="text-sm text-900 bg-primary-25 p-2 rounded">
-                                                    {item.answer}
-                                                </div>
+                                                {item.type === 'tags' ? (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {item.userSelections?.map((tag, tagIndex) => (
+                                                            <span 
+                                                                key={tagIndex} 
+                                                                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
+                                                            >
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : item.type === 'times' ? (
+                                                    <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800">
+                                                        每周 {item.userSelection} 次
+                                                    </div>
+                                                ) : item.type === 'option' ? (
+                                                    <div className="text-900 p-2 rounded">
+                                                        {item.options && typeof item.userSelection === 'number' 
+                                                            ? item.options[item.userSelection] 
+                                                            : '未选择'}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-900 bg-primary-25 p-2 rounded">
+                                                        {item.userSelection || '未填写'}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
