@@ -8,6 +8,8 @@ import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
 import { planLibService } from '@/app/service/planLibService';
 import type { TrainingItem } from '@/types/questionnaires';
+import { InputNumber } from 'primereact/inputnumber';
+import { actionLibService } from '@/app/service/actionLibService';
 
 interface QuestionPreviewDialogProps {
     visible: boolean;
@@ -27,6 +29,9 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     const [tags, setTags] = useState<string[]>([]);
     const [loadingTags, setLoadingTags] = useState<boolean>(true);
 
+    const [autoComputeActions, setAutoComputeActions] = useState<string[]>([]);
+    
+
     useEffect(() => {
 
         const fetchTags = async () => {
@@ -45,8 +50,20 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
             }
         };
 
+        const fetchAutoComputeActions = async () => {
+            try {
+                const res = await actionLibService.listAutoComputeActions({});
+                if (res && res.actions) {
+                    setAutoComputeActions(res.actions);
+                }
+            } catch (error) {
+                console.error("获取自动计算动作失败:", error);
+            }
+        };
+
         if (visible) {
             fetchTags();
+            fetchAutoComputeActions();
         }
     }, [visible]);
 
@@ -120,6 +137,21 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                         </div>
                     </div>
                 );
+
+            case 'rm':
+                return (
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入您最常用的重量和 repetition</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <InputNumber
+                                showButtons
+                                min={0}
+                                value={answers[index]?.weight} 
+                                onValueChange={(e) => updateAnswer(index, { ...answers[index],})}
+                            />
+                        </div>
+                    </div>
+                )
             
             case 'option':
                 return (

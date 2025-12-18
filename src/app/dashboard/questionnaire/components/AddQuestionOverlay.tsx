@@ -8,6 +8,7 @@ interface AddQuestionOverlayProps {
     questions: TrainingItem[];
     onAddTagsQuestion: () => void;
     onAddTimesQuestion: () => void;
+    onAddRmQuestion: () => void;
     onAddOptionQuestion: () => void;
     onAddTextQuestion: () => void;
 }
@@ -17,6 +18,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
     questions,
     onAddTagsQuestion,
     onAddTimesQuestion,
+    onAddRmQuestion,
     onAddOptionQuestion,
     onAddTextQuestion
 }) => {
@@ -62,7 +64,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
                     label="RM问题"
                     icon="pi pi-chart-bar"
                     disabled={questions.some(q => q.type === 'rm')}
-                    onClick={() => {}}
+                    onClick={onAddRmQuestion}
                     text
                     className="
                         w-full flex justify-start gap-2 
