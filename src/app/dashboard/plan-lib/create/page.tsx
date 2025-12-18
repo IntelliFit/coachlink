@@ -16,6 +16,8 @@ import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { checkTrainingDays } from '@/utils/template';
+import { TrainingItem } from '@/types/questionnaires';
+import { coachService } from '@/app/service/coachService';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -47,30 +49,16 @@ const CreatePlanPage = () => {
     const [actions, setActions] = useState<CoachActionRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [questions, setQuestions] = useState<TrainingItem[]>([]);
+
 
     // Load actions from library
     useEffect(() => {
         if (!coach?.id) return;
 
-        const loadActions = async () => {
-            try {
-                const reqData: ListActionsDto = {
-                    page: 1,
-                    limit: 100
-                };
-                const res = await actionLibService.listActions(reqData);
-                if (res) {
-                    setActions(res.actions);
-                }
-            } catch (error) {
-                console.error('加载动作库失败:', error);
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法加载动作库' });
-            } finally {
-                setLoading(false);
-            }
-        };
-
         loadActions();
+        loadQuestions();
+
     }, [coach?.id]);
 
     const handleAddWeek = () => {
@@ -89,6 +77,33 @@ const CreatePlanPage = () => {
         }
 
         setDays(newDays);
+    };
+
+    const loadActions = async () => {
+        try {
+            const reqData: ListActionsDto = {
+                page: 1,
+                limit: 100
+            };
+            const res = await actionLibService.listActions(reqData);
+            if (res) {
+                setActions(res.actions);
+            }
+        } catch (error) {
+            console.error('加载动作库失败:', error);
+            showToast({ severity: 'error', summary: '加载失败', detail: '无法加载动作库' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadQuestions = async () => {
+        const res = await coachService.getQuestionnaires();
+        if (res) {
+            setQuestions(res.questionnaires || []);
+        } else {
+            showToast({ severity: 'error', summary: '加载失败', detail: '无法加载问卷列表' });
+        }
     };
 
     const handleAddWeekFromExisting = (sourceWeekIndex: number) => {
@@ -255,13 +270,27 @@ const CreatePlanPage = () => {
     // 新增函数：处理从其他训练日复制动作集
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         const newDays = [...days];
+        console.log(targetDayIndex, sourceDayIndex);
+
         const targetIndex = newDays.findIndex(d => d.dayIndex === targetDayIndex);
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
-        if (targetIndex === -1 || sourceIndex === -1) return;
+        if (targetIndex === -1 || sourceIndex === -1) {
+            return;
+        }
+
+        // 复制源日的所有数据到目标日，包括类型
+        newDays[targetIndex] = {
+            ...newDays[targetIndex],
+            type: newDays[sourceIndex].type, // 复制类型
+            note: newDays[sourceIndex].note, // 复制备注
+            actionSets: newDays[sourceIndex].actionSets.map(set => ({
+                ...set,
+            }))
+        };
 
         setDays(newDays);
-        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制动作到第${targetDayIndex}天` });
+        showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制内容到第${targetDayIndex}天` });
     };
 
     const handleSave = async () => {
@@ -368,6 +397,7 @@ const CreatePlanPage = () => {
                                 totalDays={days.length}
                                 onCopyFromDay={handleCopyFromDay}
                                 existingTrainingDays={existingTrainingDays}
+                                questions={questions}
                             />
                         ) : (
                             <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">

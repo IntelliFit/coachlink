@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
-import { StudentSubscription, GetStudentsResponseDto } from '@/app/api/coach/list-students/entity';
+import { StudentSubscription } from '@/app/api/coach/list-students/entity';
 import { Avatar } from 'primereact/avatar';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
@@ -155,11 +155,34 @@ export default function StudentsPage() {
     };
 
     const makeAiInstance = async (student: StudentWithPlan) => {
+        showToast({ severity: 'info', summary: 'AI 生成中', detail: '正在根据学员问卷自动创建训练计划' });
         const res = await planLibService.createAiInstance({
             subscriptionId: student.id
         });
 
-        console.log(res);
+        if (res) {
+            if (res.template) {
+                showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
+                // 当res.template非空时，更新当前表单
+                setStudents(prev =>
+                    prev.map(s =>
+                        s.id === student.id
+                            ? {
+                                ...s,
+                                plan: {
+                                    name: res.template.name || 'AI 生成计划',
+                                    description: res.template.description || '暂无描述'
+                                }
+                            }
+                            : s
+                    )
+                );
+            } else {
+                showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项目' });
+            }
+        } else {
+            showToast({ severity: 'error', summary: '创建失败', detail: '无法创建AI实例' });
+        }
     }
 
     /** 学员列 */
@@ -234,12 +257,22 @@ export default function StudentsPage() {
 
         if (student.plan === null) {
             return (
-                <div
-                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-3 hover:bg-surface-100 rounded"
+                <div className='flex items-center gap-1'>
+                    <div
+                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-2 hover:bg-surface-100 rounded"
                     onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                 >
                     <i className="pi pi-plus-circle mr-2"></i>
-                    创建训练计划
+                    创建计划
+                </div>
+                /
+                <div
+                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-2 hover:bg-surface-100 rounded"
+                    onClick={() => makeAiInstance(student)}
+                >
+                    <i className="pi pi-plus-circle mr-2"></i>
+                    AI 生成
+                </div>
                 </div>
             );
         }
@@ -250,7 +283,7 @@ export default function StudentsPage() {
                 onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
             >
                 <div className="font-medium">{student.plan.name}</div>
-                <div className="text-sm text-surface-500 truncate max-w-xs">
+                <div className="text-sm text-surface-400 truncate max-w-xs">
                     {student.plan.description ? (
                         <>
                             {student.plan.description.substring(0, 10)}
