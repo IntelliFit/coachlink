@@ -171,7 +171,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     // 处理复制操作
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         // 检查是否需要确认覆盖
-        const hasContent = day.note.trim() !== '' || day.actionSets.length > 0;
+        const hasContent = day.note.trim() !== '' || day.actionSets.length > 0;        
 
         if (hasContent) {
             // 显示确认对话框

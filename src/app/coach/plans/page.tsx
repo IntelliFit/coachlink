@@ -14,22 +14,7 @@ import { actionLibService } from '@/app/service/actionLibService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useToastContext } from '@/context/ToastContext';
 import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
-
-interface TrainingDay {
-    dayIndex: number;
-    type: 'training' | 'rest';
-    note?: string;
-    actionSets?: ActionSet[];
-}
-
-interface ActionSet {
-    action_id: string;
-    set_name: string;
-    sets: number;
-    reps: string;
-    intensity?: string;
-    rest_seconds?: number;
-}
+import { CoachPlanAction, CoachPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 
 const TrainingPlansHome: React.FC = () => {
     const { data: session } = useSession();
@@ -217,7 +202,7 @@ const TrainingPlansHome: React.FC = () => {
     };
 
     // 动作项显示组件
-    const ActionItem = ({ actionSet, action }: { actionSet: ActionSet; action?: any }) => {
+    const ActionItem = ({ actionSet, action }: { actionSet: CoachPlanAction; action?: any }) => {
         const actionName = action?.name || actionSet.set_name || '未知动作';
         const hasVideo = !!action?.url; // url 是视频链接字段
         const actionDetail = action?.detail; // detail 是动作说明字段
@@ -352,7 +337,7 @@ const TrainingPlansHome: React.FC = () => {
     };
 
     // 训练日卡片
-    const TrainingDayCard = ({ day }: { day: TrainingDay }) => {
+    const TrainingDayCard = ({ day }: { day: CoachPlanTrainingDay }) => {
         const isRestDay = day.type === 'rest';
         const actionSets = day.actionSets || [];
         const dayExecution = executions[day.dayIndex];
@@ -435,7 +420,7 @@ const TrainingPlansHome: React.FC = () => {
     // 计划详情卡片
     const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
         const statusConfig = getStatusConfig(instance.status);
-        const trainingDays = (instance.training_days as TrainingDay[] || [])
+        const trainingDays = (instance.training_days as unknown as TrainingDay[] || [])
             .sort((a, b) => a.dayIndex - b.dayIndex);
 
         return (

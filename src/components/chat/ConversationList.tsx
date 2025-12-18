@@ -94,7 +94,7 @@ export function ConversationList({
         return (
             <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="p-4 border-b border-surface-200 dark:border-surface-700">
+                    <div key={i} className="p-4 border-b border-surface-200">
                         <div className="flex items-center gap-3">
                             <Skeleton shape="circle" size="3rem" />
                             <div className="flex-1">
@@ -124,7 +124,7 @@ export function ConversationList({
                 {chatroomState.map((room) => (
                     <div
                         key={room.id}
-                        className="p-4 border-b border-surface-200 dark:border-surface-700 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
+                        className="p-4 border-b border-surface-200 cursor-pointer hover:bg-surface-100 transition-colors"
                         onClick={() => handleClick(room)}
                     >
                         <div className="flex items-start gap-3">
@@ -147,7 +147,7 @@ export function ConversationList({
                             
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
-                                    <h3 className="font-semibold text-surface-900 dark:text-surface-0 truncate">
+                                    <h3 className="font-semibold text-surface-900 truncate">
                                         {room.chatUserProfile.name}
                                     </h3>
                                     <span className="text-xs text-surface-500 whitespace-nowrap ml-2">
