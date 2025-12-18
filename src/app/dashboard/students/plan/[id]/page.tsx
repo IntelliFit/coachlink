@@ -24,6 +24,7 @@ import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfilePanel';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
+import { subscriptionService } from '@/app/service/subscriptionService';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -42,6 +43,9 @@ const StudentPlanPage = () => {
 
     // Days management
     const [days, setDays] = useState<FormPlanTrainingDay[]>([]);
+
+    // Subscription data
+    const [subscription, setSubscription] = useState<any>(null);
 
     // Selected day for editing
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
@@ -126,7 +130,18 @@ const StudentPlanPage = () => {
             }
         };
 
+        const loadSubscription = async () => {
+            const res = await subscriptionService.getSubscription({
+                id: params.id as string
+            });
+            
+            if (res?.subscription) {
+                setSubscription(res.subscription);
+            }
+        }
+
         loadData();
+        loadSubscription();
     }, [coach?.id, params.id]);
 
     const handleAddWeek = () => {
@@ -498,6 +513,7 @@ const StudentPlanPage = () => {
                 {/* 学员信息面板 */}
                 <StudentProfilePanel 
                     studentData={studentData}
+                    subscription={subscription}
                     loading={studentDataLoading}
                 />
 
@@ -557,6 +573,7 @@ const StudentPlanPage = () => {
                                     onCopyFromDay={handleCopyFromDay}
                                     existingTrainingDays={existingTrainingDays}
                                     studentData={studentData} /* 传递studentData */
+                                    subscription={subscription}
                                 />
                             ) : (
                                 <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
