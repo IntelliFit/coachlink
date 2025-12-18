@@ -10,6 +10,7 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { RadioButton } from 'primereact/radiobutton';
 import { OverlayPanel } from 'primereact/overlaypanel';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 import { useToastContext } from '@/context/ToastContext';
 import QuestionPreviewDialog from './components/QuestionPreviewDialog';
 import AddQuestionOverlay from './components/AddQuestionOverlay';
@@ -149,6 +150,7 @@ const QuestionarePage = () => {
         if (!hasTags) {
             setQuestions([...questions, { type: 'tags', id: uuidv4() }]);
         }
+        overlayPanel.current?.hide();
     };
 
     // 添加训练次数问题（最多只能有一个）
@@ -157,6 +159,16 @@ const QuestionarePage = () => {
         if (!hasTimes) {
             setQuestions([...questions, { type: 'times', id: uuidv4() }]);
         }
+        overlayPanel.current?.hide();
+    };
+
+    // 添加RM问题
+    const addRmQuestion = () => {
+        const hasRm = questions.some(q => q.type === 'rm');
+        if (!hasRm) {
+            setQuestions([...questions, { type: 'rm', id: uuidv4() }]);
+        }
+        overlayPanel.current?.hide();
     };
 
     // 添加选项问题
@@ -192,8 +204,10 @@ const QuestionarePage = () => {
     // 更新选项问题的选项
     const updateOption = (questionIndex: number, optionIndex: number, value: string) => {
         const newQuestions = [...questions];
-        if (newQuestions[questionIndex].type === 'option') {
-            newQuestions[questionIndex].options[optionIndex] = value;
+        const question = newQuestions[questionIndex];
+
+        if (question.type === 'option') {
+            question.options[optionIndex] = value;
             setQuestions(newQuestions);
         }
     };
@@ -201,8 +215,10 @@ const QuestionarePage = () => {
     // 添加选项问题的选项
     const addOption = (questionIndex: number) => {
         const newQuestions = [...questions];
-        if (newQuestions[questionIndex].type === 'option') {
-            newQuestions[questionIndex].options.push('');
+        const question = newQuestions[questionIndex];
+
+        if (question.type === 'option') {
+            question.options.push('');
             setQuestions(newQuestions);
         }
     };
@@ -210,8 +226,10 @@ const QuestionarePage = () => {
     // 删除选项问题的选项
     const removeOption = (questionIndex: number, optionIndex: number) => {
         const newQuestions = [...questions];
-        if (newQuestions[questionIndex].type === 'option') {
-            newQuestions[questionIndex].options.splice(optionIndex, 1);
+        const question = newQuestions[questionIndex];
+
+        if (question.type === 'option') {
+            question.options.splice(optionIndex, 1);
             setQuestions(newQuestions);
         }
     };
@@ -288,57 +306,63 @@ const QuestionarePage = () => {
                                 icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
                                 onClick={() => removeQuestion(index)}
-                                disabled={true}
                             />
                         </div>
                     </div>
                 )
-
             case 'option':
                 return (
-                    <div className="mb-4 p-3 bg-surface-100 rounded">
-                        <div className="flex justify-between items-start mb-2">
-                            <InputText
-                                value={question.question || ''}
-                                onChange={(e) => updateOptionQuestionText(index, e.target.value)}
-                                placeholder="输入问题..."
-                                className="font-medium flex-1 mr-2"
-                            />
-                            <Button
-                                icon="pi pi-trash"
-                                className="p-button-text p-button-danger p-2"
-                                onClick={() => removeQuestion(index)}
-                            />
-                        </div>
-                        <div className="ml-2">
-                            {question.options.map((option, optionIndex) => (
-                                <div key={optionIndex} className="flex items-center gap-2 mb-1">
-                                    <RadioButton
-                                        name={`question${index}`}
-                                        disabled
-                                    />
+                    <div className="mb-4 rounded">
+                        <Accordion activeIndex={-1} className='bg-surface-100'>
+                            <AccordionTab header={
+                                <div className="flex justify-between items-start w-full">
                                     <InputText
-                                        value={option}
-                                        onChange={(e) => updateOption(index, optionIndex, e.target.value)}
-                                        placeholder={`选项 ${optionIndex + 1}`}
-                                        className="flex-1 text-sm"
+                                        value={question.question || ''}
+                                        onChange={(e) => updateOptionQuestionText(index, e.target.value)}
+                                        placeholder="输入问题..."
+                                        className="font-medium flex-1 mr-2"
                                     />
                                     <Button
                                         icon="pi pi-trash"
                                         className="p-button-text p-button-danger p-2"
-                                        onClick={() => removeOption(index, optionIndex)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            removeQuestion(index);
+                                        }}
                                     />
                                 </div>
-                            ))}
-                            <Button
-                                label="添加选项"
-                                icon="pi pi-plus"
-                                onClick={() => addOption(index)}
-                                className="mt-2"
-                                size="small"
-                                outlined
-                            />
-                        </div>
+                            }>
+                                <div className="ml-2 pt-2">
+                                    {question.options.map((option, optionIndex) => (
+                                        <div key={optionIndex} className="flex items-center gap-2 mb-1">
+                                            <RadioButton
+                                                name={`question${index}`}
+                                                disabled
+                                            />
+                                            <InputText
+                                                value={option}
+                                                onChange={(e) => updateOption(index, optionIndex, e.target.value)}
+                                                placeholder={`选项 ${optionIndex + 1}`}
+                                                className="flex-1 text-sm"
+                                            />
+                                            <Button
+                                                icon="pi pi-trash"
+                                                className="p-button-text p-button-danger p-2"
+                                                onClick={() => removeOption(index, optionIndex)}
+                                            />
+                                        </div>
+                                    ))}
+                                    <Button
+                                        label="添加选项"
+                                        icon="pi pi-plus"
+                                        onClick={() => addOption(index)}
+                                        className="mt-2"
+                                        size="small"
+                                        outlined
+                                    />
+                                </div>
+                            </AccordionTab>
+                        </Accordion>
                     </div>
                 );
 
@@ -498,13 +522,13 @@ const QuestionarePage = () => {
                 </div>
             </Card>
 
-            {/* 添加问题的Popover */}
             {/* 添加问题的OverlayPanel */}
             <AddQuestionOverlay
                 overlayPanel={overlayPanel}
                 questions={questions}
                 onAddTagsQuestion={addTagsQuestion}
                 onAddTimesQuestion={addTimesQuestion}
+                onAddRmQuestion={addRmQuestion}
                 onAddOptionQuestion={() => {
                     setNewQuestionType('option');
                     setAddQuestionDialogVisible(true);
