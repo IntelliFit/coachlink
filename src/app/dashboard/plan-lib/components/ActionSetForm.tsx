@@ -7,25 +7,7 @@ import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
 import { CoachPlanAction, CoachPlanActionWithOneFilter } from '@/app/api/plan-lib/create-template/entity';
 import { InputNumber } from 'primereact/inputnumber';
 import { calcRecommendedLoad, LambdaModel } from '@/lib/rmCaculator'; // 导入计算函数
-
-// 定义学生数据类型（与页面组件中一致）
-interface SubscribeAnswer {
-    question: string;
-    answer: string;
-}
-
-interface StudentData {
-    id: string;
-    student_id: string;
-    tier: string;
-    status: string;
-    start_date: string;
-    end_date: string;
-    profile: any; // 使用any以避免引入更多类型依赖
-    subscribe_data: {
-        answers: SubscribeAnswer[];
-    } | null;
-}
+import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 
 interface ActionSetFormProps {
     set: CoachPlanAction | CoachPlanActionWithOneFilter;
@@ -40,7 +22,7 @@ interface ActionSetFormProps {
         value: string | number
     ) => void;
     actions: CoachActionRow[];
-    studentData?: StudentData | null;
+    studentData?: GetStudentResponseDto['student'] | null;
 }
 
 const ActionSetForm: React.FC<ActionSetFormProps> = ({
@@ -53,8 +35,14 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     actions,
     studentData,
 }) => {
-    // 根据actionId找到对应的action    
+    // 根据actionId找到对应的action
+    console.log(actions);
+    console.log(set);
+     
     const currentAction = actions.find(action => action.id === set.actionId);
+
+    console.log(currentAction);
+    
 
     const getUnit = (attr: string) => {
         switch (attr) {
@@ -80,23 +68,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
     const getUserOneRM = () => {
         switch (currentAction.name) {
-            case '卧推':
-                return studentData.profile.sport_cards?.powerlifting?.bench;
-        
-            case '深蹲':
-                return studentData.profile.sport_cards?.powerlifting?.squat;
-
-            case '硬拉':
-                return studentData.profile.sport_cards?.powerlifting?.deadlift;
-            
-            case '平板支撑':
-                return studentData.profile.sport_cards?.fitness?.plank;
-
-            case '引体向上':
-                return studentData.profile.sport_cards?.fitness?.pullups;
-
-            case '俯卧撑':
-                return studentData.profile.sport_cards?.fitness?.pushups;
 
             default:
                 return undefined;

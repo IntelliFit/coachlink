@@ -395,7 +395,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     <div className="mt-5 mb-5">
                         <label className="block text-900 font-medium text-sm mb-2">备注</label>
                         <InputTextarea
-                            value={day.note}
+                            value={day.note || ''}
                             onChange={(e) => onNoteChange(dayIndex, e.target.value)}
                             placeholder="训练日备注（可选）"
                             className="w-full"
