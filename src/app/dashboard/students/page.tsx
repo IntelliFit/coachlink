@@ -336,12 +336,12 @@ export default function StudentsPage() {
         <div className="min-h-screen p-6">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-2xl font-semibold">我的学员</h1>
-                <Button
+                {/* <Button
                     label='待确认学员支付'
                     onClick={() => setPaymentDialogVisible(true)}
                     className="p-button-primary"
                     badge={waitingStudents.length.toString()}
-                />
+                /> */}
             </div>
 
             <div className="bg-surface border border-surface-200">

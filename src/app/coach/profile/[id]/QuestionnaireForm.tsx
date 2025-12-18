@@ -7,10 +7,12 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { RadioButton } from 'primereact/radiobutton';
 import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
+import { InputNumber } from 'primereact/inputnumber';
 import { planLibService } from '@/app/service/planLibService';
+import { actionLibService } from '@/app/service/actionLibService';
 import { useToastContext } from '@/context/ToastContext';
 import type { TrainingItem } from '@/types/questionnaires';
-import { CoachesRow, CoachSubscriptionRow } from '@/types';
+import { CoachesRow, CoachSubscriptionRow, CoachActionRow } from '@/types';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useSession } from 'next-auth/react';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
@@ -37,6 +39,8 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     const [tags, setTags] = useState<string[]>([]);
     const [loadingTags, setLoadingTags] = useState<boolean>(true);
     const [coachSubscription, setCoachSubscription] = useState<QueryCoachSubscription | null>(null);
+    const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
+    const [loadingActions, setLoadingActions] = useState<boolean>(true);
     const { data: session } = useSession()
 
     useEffect(() => {
@@ -71,8 +75,23 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             }
         };
 
+        const fetchAutoComputeActions = async () => {
+            setLoadingActions(true);
+            try {
+                const res = await actionLibService.listAutoComputeActions({});
+                if (res && res.actions) {
+                    setAutoComputeActions(res.actions);
+                }
+            } catch (error) {
+                console.error("获取自动计算动作失败:", error);
+            } finally {
+                setLoadingActions(false);
+            }
+        };
+
         if (visible) {
             fetchTags();
+            fetchAutoComputeActions();
         }
     }, [visible, coach]);
 
@@ -98,6 +117,8 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                     return { ...item, userSelections: value };
                 case 'times':
                     return { ...item, userSelection: value };
+                case 'rm':
+                    return { ...item, userSelection: value };
                 case 'option':
                     return { ...item, userSelection: value };
                 case 'text':
@@ -120,6 +141,9 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             if (q.type === 'times' && (![1, 2, 3, 4, 5, 6, 7].includes(q.userSelection))) {
                 showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
                 return;
+            }
+            if (q.type === 'rm') {
+                // RM 问题可以选填，不做强制验证
             }
             if (q.type === 'option' && (q.userSelection === undefined || q.userSelection === null)) {
                 showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
@@ -193,6 +217,46 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                         ))}
                     </div>
                 </div>
+                );
+                
+            case 'rm':
+                return (
+                    <div className="mb-8" key={index}>
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的 RM</label>
+                        {loadingActions ? (
+                            <div className="flex flex-col gap-3">
+                                {[1, 2, 3].map((_, i) => (
+                                    <div key={i} className="flex flex-column gap-2">
+                                        <Skeleton width="100px" height="0.75rem" />
+                                        <Skeleton width="150px" height="2rem" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : autoComputeActions && (
+                            <div className="flex flex-col gap-4">
+                                {autoComputeActions.map((action, actionIndex) => (
+                                    <div key={actionIndex} className="flex flex-col">
+                                        <label className="block text-xs text-600 mb-1">{action.name}</label>
+                                        
+                                        <InputNumber
+                                            className='text-xs'
+                                            showButtons
+                                            min={0}
+                                            suffix='RM'
+                                            value={(answers[index] as any)?.userSelection?.[action.id] || null}
+                                            onValueChange={(e) => {
+                                                const currentSelections = (answers[index] as any)?.userSelection || {};
+                                                updateAnswer(index, {
+                                                    ...currentSelections,
+                                                    [action.id]: e.value
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 );
 
             case 'option':

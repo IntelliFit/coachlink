@@ -34,15 +34,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     onActionSetChange,
     actions,
     studentData,
-}) => {
-    // 根据actionId找到对应的action
-    console.log(actions);
-    console.log(set);
-     
+}) => {     
     const currentAction = actions.find(action => action.id === set.actionId);
-
-    console.log(currentAction);
-    
 
     const getUnit = (attr: string) => {
         switch (attr) {
