@@ -58,6 +58,20 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
                     "
                 />
 
+                <Button
+                    label="RM问题"
+                    icon="pi pi-chart-bar"
+                    disabled={questions.some(q => q.type === 'rm')}
+                    onClick={() => {}}
+                    text
+                    className="
+                        w-full flex justify-start gap-2 
+                        p-3 border-round 
+                        text-left
+                        surface-100 
+                        hover:surface-200
+                    "
+                />
 
                 <Button
                     label="选项问题"

@@ -9,6 +9,11 @@ export interface TrainingTimesQuestion {
     userSelection?: number
 }
 
+export interface TrainingRmQuestion {
+    type: 'rm'
+    userInputs?: Record<string, number>
+}
+
 export interface TrainingOptionQuestion {
     type: 'option'
     question: string
@@ -21,6 +26,7 @@ export interface TrainingTextQuestion {
     question: string
 }
 
-export type QuestionType = 'tags' | 'times' | 'option' | 'text';
 
-export type TrainingItem = TrainingTagsQuestion | TrainingTimesQuestion | TrainingOptionQuestion | TrainingTextQuestion; 
+export type QuestionType = 'tags' | 'times' | 'option' | 'text' | 'rm';
+
+export type TrainingItem = TrainingTagsQuestion | TrainingTimesQuestion | TrainingOptionQuestion | TrainingTextQuestion | TrainingRmQuestion; 
