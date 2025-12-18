@@ -24,6 +24,7 @@ export interface TrainingOptionQuestion {
 export interface TrainingTextQuestion {
     type: 'text'
     question: string
+    userSelection?: string
 }
 
 
