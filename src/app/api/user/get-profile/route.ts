@@ -23,11 +23,11 @@ export async function POST(req: Request) {
         userId
     } = await req.json() as GetUserProfileDto;
 
-    // 如果提供了 user_id 参数且当前用户是管理员，则可以查询其他用户的资料
-    // 否则只能查询自己的资料
     const targetUserId = userId ? userId : currentUserId;
 
     // 查询用户档案
+    console.log(targetUserId);
+    
     const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -35,6 +35,8 @@ export async function POST(req: Request) {
         .single();
 
     if (error) {
+        console.error(error);
+        
         return NextResponse.json<ApiData<GetUserProfileResponseDto>>({
             success: false,
             message: error.message,

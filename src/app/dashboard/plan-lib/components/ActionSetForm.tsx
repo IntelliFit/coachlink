@@ -39,7 +39,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     subscription,
 }) => {     
     const currentAction = actions.find(action => action.id === set.actionId);
-    const userInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm').userInputs || {};    
+    const userInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};    
 
     const getUnit = (attr: string) => {
         switch (attr) {
@@ -155,6 +155,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                 });
                             }}
                             showButtons
+                            min={0}
                             suffix={getUnit(attr)}
                             className="w-full"
                             disabled={saving}

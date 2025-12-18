@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -10,12 +10,15 @@ import { User } from 'lucide-react';
 import { FloatLabel } from 'primereact/floatlabel';
 import { useToastContext } from '@/context/ToastContext';
 import { authService } from '../service/authService';
+import { smsService } from '../service/smsService';
 
 export default function RegisterPage() {
     const [phone, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
+    const [countdown, setCountdown] = useState(0); // 验证码倒计时
+
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -31,30 +34,64 @@ export default function RegisterPage() {
 
         setLoading(true);
 
-        const res = await authService.register({
-            phone: phone.trim(),
-            password: password.trim(),
-            verifyCode: verificationCode.trim(),
-        });
+        try {
+            const res = await authService.register({
+                phone: phone.trim(),
+                password: password.trim(),
+                verifyCode: verificationCode.trim(),
+            });
 
-        if (res) {
-            showToast({ severity: 'success', summary: '注册成功' });
-            router.push('/login');
-        } else {
-            showToast({ severity: 'error', summary: '注册失败' });
+            if (res) {
+                showToast({ severity: 'success', summary: '注册成功' });
+                router.push('/login');
+            } else {
+                showToast({ severity: 'error', summary: '注册失败' });
+            }
+        } catch (error) {
+            // 726182
+            showToast({ severity: 'error', summary: '注册失败', detail: error.message || '请稍后重试' });
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     };
 
     const [sendingCode, setSendingCode] = useState(false);
 
-    const sendVerificationCode = () => {
-        // 模拟发送验证码
+    // 倒计时效果
+    useMemo(() => {
+        let timer: NodeJS.Timeout;
+        if (countdown > 0) {
+            timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [countdown]);
+
+    // 发送验证码
+    const sendVerificationCode = async () => {
+        if (!phone.trim()) {
+            showToast({ severity: 'warn', summary: '请输入手机号' });
+            return;
+        }
+
+        // 验证手机号格式
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号' });
+            return;
+        }
+
         setSendingCode(true);
-        showToast({ severity: 'info', summary: '验证码已发送', detail: '验证码为：123456' });
-        setTimeout(() => setSendingCode(false), 3000);
+        try {
+            await smsService.sendVerificationCode({ phoneNumber: phone });
+            setCountdown(60); // 设置60秒倒计时
+            showToast({ severity: 'success', summary: '验证码已发送，请注意查收' });
+        } catch (error: any) {
+            console.error('发送验证码失败:', error);
+            showToast({ severity: 'error', summary: '发送验证码失败', detail: error.message || '请稍后重试' });
+        } finally {
+            setSendingCode(false);
+        }
     };
+
 
     return (
         <>
@@ -138,10 +175,12 @@ export default function RegisterPage() {
                                         />
                                         <Button
                                             type="button"
-                                            label='发送验证码'
+                                            label={countdown > 0 ? `${countdown}秒后重发` : "获取验证码"}
                                             onClick={sendVerificationCode}
+                                            disabled={countdown > 0 || sendingCode || !phone.trim()}
                                             loading={sendingCode}
-                                            className='w-[50%]'
+                                            outlined
+                                            className="w-40"
                                         />
                                     </div>
                                     <label htmlFor="verificationCode">验证码</label>
