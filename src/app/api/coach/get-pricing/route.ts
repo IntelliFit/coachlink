@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if (userId && !coachId) {
         const { data: coach, error } = await supabase
             .from("coaches")
-            .select("*")
+            .select("id")
             .eq("user_id", userId)
             .single();
 
@@ -52,22 +52,35 @@ export async function POST(req: Request) {
         });
     }
 
+    // 如果是教练本人则返回缺省，否则返回空
+    let defaultVal = [] as Pricing[];
+    if (session.user.is_coach) {
+        const { data: coach, error: coachError } = await supabase
+            .from('coaches')
+            .select('user_id')
+            .eq('id', coachId)
+            .single();
+
+        if (session.user.id === coach.user_id) {
+            defaultVal = [
+                {
+                    title: session.profile.nickname + '的基础订阅计划',
+                    price: 100,
+                    features: [
+                        '服务1',
+                        '服务2',
+                    ],
+                    is_recommend: false,
+                    is_ai_plan: false
+                }
+            ];
+
+        }
+    }
+
+
     const pricingData = data ?? {
-        id: null,
-        coach_id: coachId,
-        pricings: [
-            {
-                title: session.profile.nickname + '的基础订阅计划',
-                price: 100,
-                features: [
-                    '服务1',
-                    '服务2',
-                ],
-                is_recommend: false,
-            }
-        ],
-        created_at: null,
-        updated_at: null,
+        pricings: defaultVal
     };
 
     return NextResponse.json<ApiData<GetPricingResponseDto>>({
