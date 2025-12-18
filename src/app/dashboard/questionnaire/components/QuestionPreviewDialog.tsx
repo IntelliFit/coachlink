@@ -10,6 +10,8 @@ import { planLibService } from '@/app/service/planLibService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { InputNumber } from 'primereact/inputnumber';
 import { actionLibService } from '@/app/service/actionLibService';
+import { CoachActionRow } from '@/types';
+import { FloatLabel } from 'primereact/floatlabel';
 
 interface QuestionPreviewDialogProps {
     visible: boolean;
@@ -28,9 +30,9 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [tags, setTags] = useState<string[]>([]);
     const [loadingTags, setLoadingTags] = useState<boolean>(true);
-
-    const [autoComputeActions, setAutoComputeActions] = useState<string[]>([]);
     
+    const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
+    const [loadingActions, setLoadingActions] = useState<boolean>(true);
 
     useEffect(() => {
 
@@ -51,6 +53,7 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
         };
 
         const fetchAutoComputeActions = async () => {
+            setLoadingActions(true);
             try {
                 const res = await actionLibService.listAutoComputeActions({});
                 if (res && res.actions) {
@@ -58,6 +61,8 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                 }
             } catch (error) {
                 console.error("获取自动计算动作失败:", error);
+            } finally {
+                setLoadingActions(false);
             }
         };
 
@@ -137,22 +142,42 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                         </div>
                     </div>
                 );
-
+            
             case 'rm':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入您最常用的重量和 repetition</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <InputNumber
-                                showButtons
-                                min={0}
-                                value={answers[index]?.weight} 
-                                onValueChange={(e) => updateAnswer(index, { ...answers[index],})}
-                            />
-                        </div>
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的 RM</label>
+                        {loadingActions ? (
+                            <div className="flex flex-col gap-3">
+                                {[1, 2, 3].map((_, i) => (
+                                    <div key={i} className="flex flex-column gap-2">
+                                        <Skeleton width="100px" height="0.75rem" />
+                                        <Skeleton width="150px" height="2rem" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : autoComputeActions && (
+                            <div className="flex flex-col gap-4">
+                                {autoComputeActions.map((action, actionIndex) => (
+                                    <div key={actionIndex} className="flex flex-col">
+                                        <label className="block text-xs text-600 mb-1">{action.name}</label>
+                                        
+                                        <InputNumber
+                                            className='text-xs'
+                                            showButtons
+                                            min={0}
+                                            suffix='RM'
+                                            value={answers[index]?.weight}
+                                            onValueChange={(e) => updateAnswer(index, { ...answers[index], })}
+                                        />
+                                        
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )
-            
+
             case 'option':
                 return (
                     <div className="mb-4">
@@ -195,7 +220,7 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     };
 
     const footerContent = (
-        <div className="flex justify-content-end gap-2">
+        <div className="flex justify-end pt-2 gap-2">
             <Button label="关闭" icon="pi pi-times" onClick={onHide} className="p-button-text" />
             <Button label="提交" icon="pi pi-check" onClick={onHide} />
         </div>
