@@ -10,11 +10,14 @@ import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptio
 import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
 import { Button } from 'primereact/button';
 import EditCoachProfileDialog from './EditCoachProfileDialog';
-import { Chip } from 'primereact/chip';
 import { chatService } from '@/app/service/chatService';
 import { useToastContext } from '@/context/ToastContext';
 import ChatDialog from '@/components/chat/ChatDialog';
 import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
+import QuestionnaireForm from './QuestionnaireForm';
+import { coachService } from '@/app/service/coachService';
+import type { TrainingItem } from '@/types/questionnaires';
+import { subscriptionService } from '@/app/service/subscriptionService';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
@@ -30,8 +33,12 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
     const [loading, setLoading] = useState(false);
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [chatroom, setChatroom] = useState<ChatroomDetail>(null);
+    
+    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
+    const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
 
-    const { showToast } = useToastContext();    
+    const { showToast } = useToastContext();
 
     const contactCoach = async () => {
         if (!session?.user?.id) {
@@ -58,6 +65,42 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
             }
         } finally {
             setLoading(false);
+        }
+    }
+
+    const openQuestionnaire = async () => {
+        setQuestionnaireLoading(true);
+        try {
+            // 获取问卷问题
+            const qRes = await coachService.getQuestionnaires({
+                coachId: coach.id
+            });
+
+            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+            } else {
+                showToast({ severity: 'info', summary: '该教练暂无问卷' });
+            }
+        } catch (error) {
+            console.error('获取问卷失败:', error);
+            showToast({ severity: 'error', summary: '获取问卷失败' });
+        } finally {
+            setQuestionnaireLoading(false);
+        }
+    };
+
+    const handleQuestionnaireSubmit = async (answers: TrainingItem[]) => {
+        const res = await subscriptionService.updateSubscription({
+            id: userSubscription.id,
+            subscribe_data: answers as any
+        });
+
+        if (res?.subscription) {
+            showToast({ severity: 'success', summary: '问卷更新成功' });
+            setQuestionnaireVisible(false);
+        } else {
+            showToast({ severity: 'error', summary: '问卷更新失败' });
         }
     }
 
@@ -123,8 +166,23 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
 
                             <div className="flex flex-row gap-2 items-center">
                                 {/* 联系教练按钮 */}
+
+                                {['waiting', 'active'].includes(userSubscription?.status) && (
+                                    <Button
+                                        label="查看问卷"
+                                        size='small'
+                                        text
+                                        icon="pi pi-comments"
+                                        className="p-button-primary"
+                                        loading={questionnaireLoading}
+                                        disabled={questionnaireLoading}
+                                        onClick={openQuestionnaire}
+                                    />
+                                )}
+
                                 <Button
                                     label="联系教练"
+                                    size='small'
                                     icon="pi pi-comments"
                                     className="p-button-primary"
                                     loading={loading}
@@ -169,7 +227,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
 
                             <div className="flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-surface-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                                 </svg>
                                 <span className="text-surface-900 font-medium">
                                     {aggregatedInfo?.averageRating?.toFixed(1) || '0.0'}
@@ -227,6 +285,15 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                 visible={chatDialogVisible}
                 chatroom={chatroom}
                 onHide={() => setChatDialogVisible(false)}
+            />
+            
+            <QuestionnaireForm
+                visible={questionnaireVisible}
+                onHide={() => setQuestionnaireVisible(false)}
+                questions={questionnaireQuestions}
+                coach={coach}
+                onSubmit={handleQuestionnaireSubmit}
+                loading={false}
             />
         </div>
     );

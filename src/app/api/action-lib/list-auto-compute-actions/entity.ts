@@ -1,6 +1,7 @@
 import { CoachActionRow } from "@/types";
 
 export interface ListAutoComputeActionsDto {
+    coachId: string
 }
 
 

@@ -8,13 +8,16 @@ import { User, FileText, Calendar, Users, Clock, ChevronUp, ChevronDown } from '
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
-import { UserProfilesRow } from '@/types';
+import { CoachSubscriptionRow, UserProfilesRow } from '@/types';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { RadioButton } from 'primereact/radiobutton';
-
+import { actionLibService } from '@/app/service/actionLibService';
+import { CoachActionRow } from '@/types';
+import { useSession } from 'next-auth/react';
 
 interface StudentProfilePanelProps {
     studentData: GetStudentResponseDto['student'] | null;
+    subscription: CoachSubscriptionRow | null;
     loading: boolean;
 }
 
@@ -23,6 +26,31 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
     loading
 }) => {
     const [expanded, setExpanded] = useState(false);
+    const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
+    const [loadingActions, setLoadingActions] = useState<boolean>(true);
+    const { data: session } = useSession();
+
+    useEffect(() => {
+
+        if (!session?.user?.id) return;
+        const fetchAutoComputeActions = async () => {
+            setLoadingActions(true);
+            try {
+                const res = await actionLibService.listAutoComputeActions({
+                    coachId: session.user.id
+                });
+                if (res && res.actions) {
+                    setAutoComputeActions(res.actions);
+                }
+            } catch (error) {
+                console.error("获取自动计算动作失败:", error);
+            } finally {
+                setLoadingActions(false);
+            }
+        };
+
+        fetchAutoComputeActions();
+    }, [session?.user?.id]);
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('zh-CN', {
@@ -163,6 +191,36 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                                                                 </div>
                                                             ))}
                                                         </div>
+                                                    </>
+                                                ) : item.type === 'rm' ? (
+                                                    <>
+                                                        <div className="text-sm font-medium text-primary-700 dark:text-primary-400 mb-2">
+                                                            Q{index + 1}. 请输入以下动作您的 RM
+                                                        </div>
+                                                        {loadingActions ? (
+                                                            <div className="flex flex-col gap-3">
+                                                                {[1, 2, 3].map((_, i) => (
+                                                                    <div key={i} className="flex flex-column gap-2">
+                                                                        <Skeleton width="100px" height="0.75rem" />
+                                                                        <Skeleton width="150px" height="2rem" />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-4">
+                                                                {autoComputeActions.map((action) => {
+                                                                    const rmValue = item.userInputs?.[action.id];
+                                                                    return (
+                                                                        <div key={action.id} className="flex flex-col">
+                                                                            <label className="block text-xs text-600 mb-1">{action.name}</label>
+                                                                            <div className="p-2 bg-surface-50 border border-surface-200 rounded">
+                                                                                {rmValue ? `${rmValue} RM` : '未填写'}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </>
                                                 ) : item.type === 'option' ? (
                                                     <>

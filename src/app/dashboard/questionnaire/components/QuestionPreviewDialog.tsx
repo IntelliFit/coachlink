@@ -12,6 +12,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { actionLibService } from '@/app/service/actionLibService';
 import { CoachActionRow } from '@/types';
 import { FloatLabel } from 'primereact/floatlabel';
+import { useSession } from 'next-auth/react';
 
 interface QuestionPreviewDialogProps {
     visible: boolean;
@@ -34,6 +35,8 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(true);
 
+    const { data: session } = useSession();
+
     useEffect(() => {
 
         const fetchTags = async () => {
@@ -55,7 +58,10 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
         const fetchAutoComputeActions = async () => {
             setLoadingActions(true);
             try {
-                const res = await actionLibService.listAutoComputeActions({});
+                const res = await actionLibService.listAutoComputeActions({
+                    coachId: session.user.id
+                });
+
                 if (res && res.actions) {
                     setAutoComputeActions(res.actions);
                 }

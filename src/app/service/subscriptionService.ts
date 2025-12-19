@@ -9,6 +9,7 @@ import type { GetCoachReviewsDto, GetCoachReviewsResponseDto } from "../api/subs
 import type { CreateCoachReviewsDto, CreateCoachReviewsResponseDto } from "../api/subscription/create-coach-reviews/entity";
 import type { UpdateCoachReviewsDto, UpdateCoachReviewsResponseDto } from "../api/subscription/update-coach-reviews/entity";
 import type { DeleteCoachReviewsDto, DeleteCoachReviewsResponseDto } from "../api/subscription/delete-coach-reviews/entity";
+import type { GetSubscriptionDto, GetSubscriptionResponseDto } from "../api/subscription/get-subscription/entity";
 
 interface SubscriptionStats {
     aiPlans: number;
@@ -110,6 +111,15 @@ class SubscriptionService extends BaseService {
         }
         return null;
     }
+
+    async getSubscription(reqData: GetSubscriptionDto) {
+        const res = await this.post<GetSubscriptionResponseDto>('get-subscription', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
 }
 
 export const subscriptionService = new SubscriptionService('/api/subscription');

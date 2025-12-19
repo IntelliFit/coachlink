@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ArrowDownAZ, CheckCircle, Zap } from 'lucide-react';
+import { Inbox, CheckCircle, Zap } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { useToastContext } from '@/context/ToastContext';
 import { subscriptionService } from '@/app/service/subscriptionService';
@@ -218,6 +218,49 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                             <div className="h-10 bg-surface-200 rounded w-full"></div>
                         </div>
                     ))}
+                </div>
+            </div>
+        );
+    }
+
+    // 添加空状态检查
+    if (!loading && (!subscriptionTiers || subscriptionTiers.length === 0)) {
+        return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-surface-900 mb-2" id='choose-pricing'>选择您的订阅计划</h2>
+                    <p className="text-surface-500">选择最适合您需求的服务层级</p>
+                    {(session?.user?.id === coach.user_id) && (
+                        <div className="mt-4">
+                            <Button
+                                label="编辑定价策略"
+                                icon="pi pi-pencil"
+                                onClick={handleEditPricing}
+                                className="p-button-outlined"
+                            />
+                        </div>
+                    )}
+                </div>
+                
+                {/* 空状态显示 */}
+                <div className="flex flex-col items-center justify-center py-12">
+                    <div className="bg-surface-100 dark:bg-surface-800 rounded-full p-4 mb-6">
+                        <Inbox className="h-12 w-12 text-surface-500 dark:text-surface-0" />
+                    </div>
+                    <h3 className="text-xl font-medium text-surface-900 mb-2">暂无订阅计划</h3>
+                    <p className="text-surface-500 dark:text-surface-400 mb-6 text-center max-w-md">
+                        {session?.user?.id === coach.user_id 
+                            ? "您还没有设置任何订阅计划，请先创建定价策略" 
+                            : "该教练尚未设置订阅计划"}
+                    </p>
+                    {session?.user?.id === coach.user_id && (
+                        <Button 
+                            label="创建定价策略" 
+                            icon="pi pi-plus" 
+                            onClick={handleEditPricing}
+                            className="p-button-primary"
+                        />
+                    )}
                 </div>
             </div>
         );

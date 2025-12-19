@@ -10,7 +10,6 @@ import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
 import CoachIntroduction from './CoachIntroduction';
 import CoachContent from './CoachContent';
-import CoachSubscription from './CoachSubscription';
 import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
 
 const CoachProfilePage: React.FC = () => {

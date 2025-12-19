@@ -2,12 +2,13 @@
 
 import React, { useEffect } from 'react';
 import { Dropdown } from 'primereact/dropdown';
-import { CoachActionRow } from '@/types';
+import { CoachActionRow, CoachSubscriptionRow } from '@/types';
 import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
 import { CoachPlanAction, CoachPlanActionWithOneFilter } from '@/app/api/plan-lib/create-template/entity';
 import { InputNumber } from 'primereact/inputnumber';
 import { calcRecommendedLoad, LambdaModel } from '@/lib/rmCaculator'; // 导入计算函数
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
+import { TrainingItem } from '@/types/questionnaires';
 
 interface ActionSetFormProps {
     set: CoachPlanAction | CoachPlanActionWithOneFilter;
@@ -23,6 +24,7 @@ interface ActionSetFormProps {
     ) => void;
     actions: CoachActionRow[];
     studentData?: GetStudentResponseDto['student'] | null;
+    subscription?: CoachSubscriptionRow | null;
 }
 
 const ActionSetForm: React.FC<ActionSetFormProps> = ({
@@ -34,15 +36,10 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     onActionSetChange,
     actions,
     studentData,
-}) => {
-    // 根据actionId找到对应的action
-    console.log(actions);
-    console.log(set);
-     
+    subscription,
+}) => {     
     const currentAction = actions.find(action => action.id === set.actionId);
-
-    console.log(currentAction);
-    
+    const userInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};    
 
     const getUnit = (attr: string) => {
         switch (attr) {
@@ -67,11 +64,11 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     }
 
     const getUserOneRM = () => {
-        switch (currentAction?.name) {
-
-            default:
-                return undefined;
-        }
+        if (!currentAction) {
+            return 1;
+        }        
+        
+        return userInput[currentAction.id] || 1;
     }
 
     const considerBodyWeightActions = ['深蹲', '引体向上', '俯卧撑', '平板支撑'];
@@ -82,11 +79,11 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             return;
         }
 
-        const oneRm = getUserOneRM();
+        const oneRm = getUserOneRM();        
         const userBodyWeight = studentData?.profile?.weight;
 
-        
         if (currentAction?.enableAutoWeightCompute && oneRm && userBodyWeight) {
+            
             // 获取强度值（RM值）
             const intensity = set.params?.['强度'];
             // 获取算法
@@ -113,10 +110,12 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     model
                 );
 
+                console.log(recommendedWeight);
+
                 // 更新推荐数值
                 onActionSetChange(dayIndex, setIndex, 'params', {
                     ...set.params,
-                    '负重': recommendedWeight
+                    'load': recommendedWeight
                 });
             }
         }
@@ -156,6 +155,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                 });
                             }}
                             showButtons
+                            min={0}
                             suffix={getUnit(attr)}
                             className="w-full"
                             disabled={saving}
