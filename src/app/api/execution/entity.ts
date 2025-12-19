@@ -12,7 +12,7 @@ export interface StartExecutionResponseDto {
         id: string;
         instance_id: string;
         student_id: string;
-        dayIndex: number;
+        day_index: number;
         status: string;
         action_executions: any[];
         total_sets: number;

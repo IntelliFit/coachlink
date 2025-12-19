@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
-import type { GetWithExecutionsDto, GetWithExecutionsResponseDto } from "./entity";
+import type {
+    GetWithExecutionsDto,
+    GetWithExecutionsResponseDto,
+} from "./entity";
 
 /**
  * GET /api/plan-lib/get-with-executions
@@ -21,8 +24,8 @@ export async function POST(req: NextRequest) {
 
         const userId = session.user.id;
         const {
-            subscriptionId
-        } = req.json() as GetWithExecutionsDto;
+            subscriptionId,
+        } = await req.json() as GetWithExecutionsDto;
 
         // 1. Get user's active subscription if not provided
         let activeSub: any = null;
@@ -80,8 +83,8 @@ export async function POST(req: NextRequest) {
         if (executions) {
             for (const exec of executions) {
                 // Keep only most recent execution per day
-                if (!executionsMap[exec.dayIndex]) {
-                    executionsMap[exec.dayIndex] = exec;
+                if (!executionsMap[exec.day_index]) {
+                    executionsMap[exec.day_index] = exec;
                 }
             }
         }
@@ -131,13 +134,34 @@ export async function POST(req: NextRequest) {
         }
 
         // 6. Get action details from coach_actions
+        // 收集来自两个来源的 action IDs:
+        // 1. 当前计划的 training_days
+        // 2. 执行记录中的 action_executions (用于显示旧执行记录的动作名)
         const trainingDays = (instance.training_days as any[]) || [];
         const actionIds = new Set<string>();
+
+        // 从 training_days 收集
         for (const day of trainingDays) {
             if (day.actionSets && Array.isArray(day.actionSets)) {
                 for (const actionSet of day.actionSets) {
-                    if (actionSet.action_id) {
-                        actionIds.add(actionSet.action_id);
+                    // 支持两种字段名: action_id 和 actionId
+                    const actionId = actionSet.action_id || actionSet.actionId;
+                    if (actionId) {
+                        actionIds.add(actionId);
+                    }
+                }
+            }
+        }
+
+        // 从执行记录收集 (用于显示可能来自旧计划的执行记录)
+        for (const dayIndex of Object.keys(executionsMap)) {
+            const exec = executionsMap[parseInt(dayIndex)];
+            if (
+                exec.action_executions && Array.isArray(exec.action_executions)
+            ) {
+                for (const actionExec of exec.action_executions) {
+                    if (actionExec.action_id) {
+                        actionIds.add(actionExec.action_id);
                     }
                 }
             }
@@ -147,7 +171,7 @@ export async function POST(req: NextRequest) {
         if (actionIds.size > 0) {
             const { data: actions } = await supabase
                 .from("coach_actions")
-                .select("id, name, detail, url, target_body_part")
+                .select("id, name, detail, url")
                 .in("id", Array.from(actionIds));
 
             if (actions) {
