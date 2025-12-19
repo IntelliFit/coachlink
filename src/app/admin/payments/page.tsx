@@ -8,26 +8,22 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Skeleton } from 'primereact/skeleton';
 import { Tag } from 'primereact/tag';
-import { Card } from 'primereact/card';
 import { Avatar } from 'primereact/avatar';
-import { userService } from '@/app/service/userService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
+import { Dropdown } from 'primereact/dropdown';
+import { InputText } from 'primereact/inputtext';
 import type { CoachSubscriptionRow } from '@/types';
-import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
+import type { ListSubscriptionGetDto, ListSubscriptionGetResponseDto, QueryCoachSubscription } from '@/app/api/subscription/list-subscriptions/entity';
 
-interface SubscriptionWithProfiles extends CoachSubscriptionRow {
-    studentProfile?: GetUserProfileResponseDto['profile'] | null;
-    coachProfile?: GetUserProfileResponseDto['profile'] | null;
-    loadingStudentProfile?: boolean;
-    loadingCoachProfile?: boolean;
+interface SubscriptionWithProfiles extends QueryCoachSubscription {
 }
 
 export default function AdminPaymentsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const { showToast } = useToastContext();
-    
+
     const [subscriptions, setSubscriptions] = useState<SubscriptionWithProfiles[]>([]);
     const [loading, setLoading] = useState(true);
     const [first, setFirst] = useState(0);
@@ -38,71 +34,29 @@ export default function AdminPaymentsPage() {
     useEffect(() => {
         // 检查用户权限
         if (status === 'loading') return;
-        
+
         if (!session?.user?.is_admin) {
             router.push('/');
             return;
         }
-        
-        loadSubscriptions();
+
+        // 加载第一页数据
+        loadSubscriptions(1, rows);
     }, [session, status]);
 
-    const loadSubscriptions = async () => {
+    const loadSubscriptions = async (page: number = 1, limit: number = rows) => {
         try {
             setLoading(true);
-            
-            // 获取所有等待支付确认的订阅
-            const res = await subscriptionService.getCoachSubscriptions({
-                status: 'waiting'
-            });
-            
+
+            // 使用新的分页接口获取所有等待支付确认的订阅
+            const res: ListSubscriptionGetResponseDto | null = await subscriptionService.listSubscriptions({
+                page: page,
+                limit: limit
+            } as ListSubscriptionGetDto);
+
             if (res) {
-                // 初始化订阅列表，添加加载状态
-                const initialSubscriptions = res.subscriptions.map(sub => ({
-                    ...sub,
-                    loadingStudentProfile: true,
-                    loadingCoachProfile: true,
-                    studentProfile: undefined,
-                    coachProfile: undefined
-                }));
-                setSubscriptions(initialSubscriptions);
-
-                // 并行获取所有学员和教练信息
-                const profilePromises = res.subscriptions.map(async (subscription) => {
-                    try {
-                        // 获取学员信息
-                        const studentProfilePromise = userService.getProfile({ userId: subscription.student_id });
-                        
-                        // 获取教练信息
-                        const coachProfilePromise = userService.getProfile({ userId: subscription.coach_id });
-                        
-                        const [studentProfileRes, coachProfileRes] = await Promise.all([
-                            studentProfilePromise,
-                            coachProfilePromise
-                        ]);
-                        
-                        return {
-                            ...subscription,
-                            loadingStudentProfile: false,
-                            loadingCoachProfile: false,
-                            studentProfile: studentProfileRes?.profile || null,
-                            coachProfile: coachProfileRes?.profile || null
-                        };
-                    } catch (error) {
-                        console.error(`获取订阅 ${subscription.id} 的用户信息失败:`, error);
-                        return {
-                            ...subscription,
-                            loadingStudentProfile: false,
-                            loadingCoachProfile: false,
-                            studentProfile: null,
-                            coachProfile: null
-                        };
-                    }
-                });
-
-                const updatedSubscriptions = await Promise.all(profilePromises);
-                setSubscriptions(updatedSubscriptions);
-                setTotalRecords(updatedSubscriptions.length);
+                setSubscriptions(res.subscriptions);
+                setTotalRecords(res.total || 0);
             }
         } catch (error) {
             console.error('加载订阅信息失败:', error);
@@ -123,15 +77,16 @@ export default function AdminPaymentsPage() {
             );
 
             await Promise.all(updatePromises);
-            
+
             showToast({
                 severity: 'success',
                 summary: '成功',
                 detail: `成功确认 ${selectedSubscriptions.length} 位学员的支付`
             });
-            
-            // 重新加载数据
-            loadSubscriptions();
+
+            // 重新加载数据，保持当前分页
+            const currentPage = Math.floor(first / rows) + 1;
+            loadSubscriptions(currentPage, rows);
             setSelectedSubscriptions([]);
         } catch (error) {
             console.error('确认支付失败:', error);
@@ -145,31 +100,23 @@ export default function AdminPaymentsPage() {
 
     const studentTemplate = (subscription: SubscriptionWithProfiles) => (
         <div className="flex items-center space-x-3">
-            {subscription.loadingStudentProfile ? (
-                <Skeleton shape="circle" width="2.5rem" height="2.5rem" />
-            ) : (
-                <Avatar
-                    image={subscription.studentProfile?.avatar_url || undefined}
-                    label={
-                        subscription.studentProfile?.avatar_url
-                            ? undefined
-                            : subscription.studentProfile?.nickname?.charAt(0) ||
-                              subscription.studentProfile?.full_name?.charAt(0) ||
-                              'U'
-                    }
-                    shape="circle"
-                    className="bg-primary text-surface font-bold flex-shrink-0"
-                    size="normal"
-                />
-            )}
+            <Avatar
+                image={subscription.studentProfile?.avatar_url || undefined}
+                label={
+                    subscription.studentProfile?.avatar_url
+                        ? undefined
+                        : subscription.studentProfile?.nickname?.charAt(0) ||
+                        subscription.studentProfile?.full_name?.charAt(0) ||
+                        'U'
+                }
+                shape="circle"
+                className="bg-primary text-surface font-bold flex-shrink-0"
+                size="normal"
+            />
             <div>
-                {subscription.loadingStudentProfile ? (
-                    <Skeleton width="6rem" height="1rem" />
-                ) : (
-                    <div className="font-medium">
-                        {subscription.studentProfile?.nickname || subscription.studentProfile?.full_name || '未知用户'}
-                    </div>
-                )}
+                <div className="font-medium">
+                    {subscription.studentProfile?.nickname || subscription.studentProfile?.full_name || '未知用户'}
+                </div>
                 <div className="text-sm text-surface-500">
                     订阅等级: {subscription.tier}
                 </div>
@@ -179,31 +126,23 @@ export default function AdminPaymentsPage() {
 
     const coachTemplate = (subscription: SubscriptionWithProfiles) => (
         <div className="flex items-center space-x-3">
-            {subscription.loadingCoachProfile ? (
-                <Skeleton shape="circle" width="2.5rem" height="2.5rem" />
-            ) : (
-                <Avatar
-                    image={subscription.coachProfile?.avatar_url || undefined}
-                    label={
-                        subscription.coachProfile?.avatar_url
-                            ? undefined
-                            : subscription.coachProfile?.nickname?.charAt(0) ||
-                              subscription.coachProfile?.full_name?.charAt(0) ||
-                              'C'
-                    }
-                    shape="circle"
-                    className="bg-green-500 text-surface font-bold flex-shrink-0"
-                    size="normal"
-                />
-            )}
+            <Avatar
+                image={subscription.coachProfile?.avatar_url || undefined}
+                label={
+                    subscription.coachProfile?.avatar_url
+                        ? undefined
+                        : subscription.coachProfile?.nickname?.charAt(0) ||
+                        subscription.coachProfile?.full_name?.charAt(0) ||
+                        'C'
+                }
+                shape="circle"
+                className="bg-green-500 text-surface font-bold flex-shrink-0"
+                size="normal"
+            />
             <div>
-                {subscription.loadingCoachProfile ? (
-                    <Skeleton width="6rem" height="1rem" />
-                ) : (
-                    <div className="font-medium">
-                        {subscription.coachProfile?.nickname || subscription.coachProfile?.full_name || '未知教练'}
-                    </div>
-                )}
+                <div className="font-medium">
+                    {subscription.coachProfile?.nickname || subscription.coachProfile?.full_name || '未知教练'}
+                </div>
             </div>
         </div>
     );
@@ -234,14 +173,78 @@ export default function AdminPaymentsPage() {
     );
 
     const statusTemplate = (rowData: SubscriptionWithProfiles) => {
-        const severity = rowData.status === 'active' ? 'success' : 
-                        rowData.status === 'waiting' ? 'warning' : 
-                        rowData.status === 'cancelled' ? 'danger' : 'info';
-        const label = rowData.status === 'active' ? '已激活' : 
-                     rowData.status === 'waiting' ? '待确认' : 
-                     rowData.status === 'cancelled' ? '已取消' : rowData.status;
-        
+        const severity = rowData.status === 'active' ? 'success' :
+            rowData.status === 'waiting' ? 'warning' :
+                rowData.status === 'inactive' ? 'danger' : 'info';
+        const label = rowData.status === 'active' ? '已激活' :
+            rowData.status === 'waiting' ? '等待确认' :
+                rowData.status === 'inactive' ? '未支付' : rowData.status;
+
         return <Tag severity={severity} value={label} />;
+    };
+
+    // 状态过滤器组件
+    const statusFilterTemplate = (options: any) => {
+        const statusOptions = [
+            { label: '未支付', value: 'inactive' },
+            { label: '等待确认', value: 'waiting' },
+            { label: '已激活', value: 'active' }
+        ];
+
+        return (
+            <Dropdown
+                value={options.value}
+                options={statusOptions}
+                onChange={(e) => options.filterApplyCallback(e.value)}
+                placeholder="选择状态"
+                className="p-column-filter"
+                showClear
+            />
+        );
+    };
+
+    // 订阅等级过滤器组件
+    const tierFilterTemplate = (options: any) => {
+        const tierOptions = [
+            { label: '等级 1', value: 1 },
+            { label: '等级 2', value: 2 },
+            { label: '等级 3', value: 3 }
+        ];
+
+        return (
+            <Dropdown
+                value={options.value}
+                options={tierOptions}
+                onChange={(e) => options.filterApplyCallback(e.value)}
+                placeholder="选择等级"
+                className="p-column-filter"
+                showClear
+            />
+        );
+    };
+
+    // 学员姓名过滤器组件
+    const studentFilterTemplate = (options: any) => {
+        return (
+            <InputText
+                value={options.value || ''}
+                onChange={(e) => options.filterApplyCallback(e.target.value)}
+                placeholder="搜索学员"
+                className="p-column-filter"
+            />
+        );
+    };
+
+    // 教练姓名过滤器组件
+    const coachFilterTemplate = (options: any) => {
+        return (
+            <InputText
+                value={options.value || ''}
+                onChange={(e) => options.filterApplyCallback(e.target.value)}
+                placeholder="搜索教练"
+                className="p-column-filter"
+            />
+        );
     };
 
     const dateTemplate = (rowData: SubscriptionWithProfiles) => {
@@ -251,6 +254,8 @@ export default function AdminPaymentsPage() {
     const onPage = (event: any) => {
         setFirst(event.first);
         setRows(event.rows);
+        const page = event.page + 1; // API使用1基索引
+        loadSubscriptions(page, event.rows);
     };
 
     if (status === 'loading' || loading) {
@@ -259,11 +264,9 @@ export default function AdminPaymentsPage() {
                 <div className="mb-6">
                     <Skeleton width="200px" height="32px" />
                 </div>
-                <Card>
-                    <div className="p-4">
-                        <Skeleton width="100%" height="400px" />
-                    </div>
-                </Card>
+                <div className="p-4">
+                    <Skeleton width="100%" height="400px" />
+                </div>
             </div>
         );
     }
@@ -273,13 +276,16 @@ export default function AdminPaymentsPage() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-surface-900">支付管理</h1>
                 <div className="flex gap-2">
-                    <Button 
-                        label="刷新" 
-                        icon="pi pi-refresh" 
-                        onClick={loadSubscriptions}
+                    <Button
+                        label="刷新"
+                        icon="pi pi-refresh"
+                        onClick={() => {
+                            const currentPage = Math.floor(first / rows) + 1;
+                            loadSubscriptions(currentPage, rows);
+                        }}
                         className="p-button-outlined"
                     />
-                    <Button 
+                    <Button
                         label={`确认支付 (${selectedSubscriptions.length})`}
                         icon="pi pi-check"
                         onClick={handleConfirm}
@@ -289,41 +295,69 @@ export default function AdminPaymentsPage() {
                 </div>
             </div>
 
-            <Card>
-                <DataTable 
-                    value={subscriptions} 
-                    paginator 
-                    rows={rows}
-                    totalRecords={totalRecords}
-                    first={first}
-                    onPage={onPage}
-                    loading={loading}
-                    stripedRows
-                    tableStyle={{ minWidth: '50rem' }}
-                    selection={selectedSubscriptions}
-                    onSelectionChange={(e) => setSelectedSubscriptions(e.value as SubscriptionWithProfiles[])}
-                    dataKey="id"
-                    selectionMode="checkbox"
-                >
-                    <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
-                    <Column field="student" header="学员" body={studentTemplate}></Column>
-                    <Column field="coach" header="教练" body={coachTemplate}></Column>
-                    <Column field="tier" header="订阅等级" body={tierTemplate}></Column>
-                    <Column field="monthly_price" header="月费" body={priceTemplate} align="right"></Column>
-                    <Column field="status" header="状态" body={statusTemplate}></Column>
-                    <Column 
-                        field="remind_coach_note" 
-                        header="支付备注" 
-                        body={noteTemplate}
-                    ></Column>
-                    <Column 
-                        field="created_at" 
-                        header="申请时间" 
-                        body={dateTemplate}
-                    ></Column>
-                </DataTable>
-            </Card>
-            
+            <DataTable
+                value={subscriptions}
+                paginator
+                rows={rows}
+                totalRecords={totalRecords}
+                first={first}
+                onPage={onPage}
+                loading={loading}
+                stripedRows
+                tableStyle={{ minWidth: '50rem' }}
+                selection={selectedSubscriptions}
+                onSelectionChange={(e) => setSelectedSubscriptions(e.value as SubscriptionWithProfiles[])}
+                dataKey="id"
+                selectionMode="checkbox"
+                filterDisplay="row"
+            >
+                <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
+                <Column
+                    filterField="studentProfile.full_name"
+                    header="学员"
+                    body={studentTemplate}
+                    filter
+                    filterElement={studentFilterTemplate}
+                    showFilterMenu={false}
+                ></Column>
+                <Column
+                    filterField="coachProfile.full_name"
+                    header="教练"
+                    body={coachTemplate}
+                    filter
+                    filterElement={coachFilterTemplate}
+                    showFilterMenu={false}
+                ></Column>
+                <Column
+                    filterField="tier"
+                    header="订阅等级"
+                    body={tierTemplate}
+                    filter
+                    filterElement={tierFilterTemplate}
+                    showFilterMenu={false}
+                ></Column>
+                <Column field="monthly_price" header="月费" body={priceTemplate} align="right"></Column>
+                <Column
+                    filterField="status"
+                    header="状态"
+                    body={statusTemplate}
+                    filter
+                    filterElement={statusFilterTemplate}
+                    showFilterMenu={false}
+                    showClearButton
+                ></Column>
+                <Column
+                    field="remind_coach_note"
+                    header="支付备注"
+                    body={noteTemplate}
+                ></Column>
+                <Column
+                    field="created_at"
+                    header="申请时间"
+                    body={dateTemplate}
+                ></Column>
+            </DataTable>
+
             {subscriptions.length > 0 && (
                 <div className="mt-4 text-sm text-surface-500">
                     已选择 {selectedSubscriptions.length} 个订阅，确认支付后将激活这些订阅。
