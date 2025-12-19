@@ -54,6 +54,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         return () => clearTimeout(timer);
     }, [countdown]);
 
+    // 是否使用模拟验证码（开发模式或设置了环境变量）
+    const useMockSms = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
+
     // 发送验证码
     const sendVerificationCode = async () => {
         if (!phone.trim()) {
@@ -69,9 +72,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
         setSendingCode(true);
         try {
-            await smsService.sendVerificationCode({ phoneNumber: phone });
-            setCountdown(60); // 设置60秒倒计时
-            showToast({ severity: 'success', summary: '验证码已发送，请注意查收' });
+            if (useMockSms) {
+                // 开发模式：使用模拟验证码
+                setCountdown(60);
+                showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
+            } else {
+                // 生产模式：使用真实短信服务
+                await smsService.sendVerificationCode({ phoneNumber: phone });
+                setCountdown(60);
+                showToast({ severity: 'success', summary: '验证码已发送，请注意查收' });
+            }
         } catch (error: any) {
             console.error('发送验证码失败:', error);
             showToast({ severity: 'error', summary: '发送验证码失败', detail: error.message || '请稍后重试' });
