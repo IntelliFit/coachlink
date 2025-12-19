@@ -155,10 +155,10 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                 });
                             }}
                             showButtons
-                            min={0}
                             suffix={getUnit(attr)}
                             className="w-full"
                             disabled={saving}
+                            min={1}
                         />
                     </div>
                 ))

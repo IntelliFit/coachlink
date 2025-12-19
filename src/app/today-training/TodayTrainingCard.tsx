@@ -98,7 +98,9 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                 {/* Action List */}
                 <div className="space-y-3">
                     {actionSets.map((actionSet: any, idx: number) => {
-                        const action = actions[actionSet.action_id];
+                        // 支持两种字段名: action_id 和 actionId
+                        const actionId = actionSet.action_id || actionSet.actionId;
+                        const action = actions[actionId];
                         
                         return (
                             <div
@@ -118,16 +120,16 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                         
                                         <div className="mt-2 flex flex-wrap gap-3 text-sm">
                                             <span className="text-gray-600">
-                                                <strong>{actionSet.sets}组</strong> × <strong>{actionSet.reps}次</strong>
+                                                <strong>{actionSet.params?.['组数'] || actionSet.sets}组</strong> × <strong>{actionSet.params?.['次数'] || actionSet.reps}次</strong>
                                             </span>
-                                            {actionSet.intensity && (
+                                            {(actionSet.params?.['强度'] || actionSet.intensity) && (
                                                 <span className="text-gray-600">
-                                                    💪 {actionSet.intensity}
+                                                    💪 {actionSet.params?.['强度'] || actionSet.intensity}
                                                 </span>
                                             )}
-                                            {actionSet.rest_seconds && (
+                                            {(actionSet.params?.['休息时间'] || actionSet.rest_seconds) && (
                                                 <span className="text-gray-600">
-                                                    ⏱️ 休息{actionSet.rest_seconds}秒
+                                                    ⏱️ 休息{actionSet.params?.['休息时间'] || actionSet.rest_seconds}秒
                                                 </span>
                                             )}
                                         </div>
