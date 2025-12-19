@@ -5,9 +5,6 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 
 export async function POST(req: Request) {
-    const {
-    } = await req.json() as ListAutoComputeActionsDto;
-
     const session = await getServerSession();
     const userId = session?.user?.id || null;
 
@@ -18,23 +15,14 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('is_coach')
-        .eq('id', userId)
-        .single();
-
-    if (userError || !user.is_coach) {
-        return NextResponse.json({
-            success: false,
-            message: "Forbidden",
-        }, { status: 403 });
-    }
+    const {
+        coachId
+    } = await req.json() as ListAutoComputeActionsDto;
 
     const { data: actions, count, error } = await supabase
         .from("coach_actions")
         .select("*", { count: "exact" })
-        .eq("coach_id", userId)
+        .eq("coach_id", coachId)
         .eq('enableAutoWeightCompute', true)
         .order("created_at", { ascending: false });
 

@@ -6,7 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { CoachActionRow } from '@/types';
+import { CoachActionRow, CoachSubscriptionRow } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
 import ActionSetForm from './ActionSetForm';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
@@ -97,6 +97,7 @@ interface PlanDayCardProps {
     existingTrainingDays: FormPlanTrainingDay[];
     studentData?: any | null; // 添加studentData属性
     questions?: TrainingItem[];
+    subscription?: CoachSubscriptionRow | null;
 }
 
 
@@ -115,7 +116,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     onCopyFromDay,
     existingTrainingDays,
     studentData,
-    questions
+    questions,
+    subscription
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
@@ -169,7 +171,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     // 处理复制操作
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         // 检查是否需要确认覆盖
-        const hasContent = day.note.trim() !== '' || day.actionSets.length > 0;
+        const hasContent = day.note.trim() !== '' || day.actionSets.length > 0;        
 
         if (hasContent) {
             // 显示确认对话框
@@ -380,6 +382,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                         }}
                                         actions={actions}
                                         studentData={studentData}
+                                        subscription={subscription}
                                     />
 
 

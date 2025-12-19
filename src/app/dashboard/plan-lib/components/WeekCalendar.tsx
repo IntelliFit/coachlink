@@ -115,13 +115,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-900">训练日历</h3>
                 <div className="relative">
-                    <Button
-                        label="添加周"
-                        icon="pi pi-plus"
-                        onClick={showAddWeekPopup}
-                        disabled={saving}
-                        className="p-button-sm"
-                    />
+                    {weeks.length > 0 && (
+                        <Button
+                            label="添加周"
+                            icon="pi pi-plus"
+                            onClick={showAddWeekPopup}
+                            disabled={saving}
+                            className="p-button-sm"
+                        />
+                    )}
                     <ConfirmPopup
                         content={({ message, hide }) => (
                             <div className="bg-surface-0 text-surface-900 border-round p-3 shadow-lg">
@@ -140,102 +142,119 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-                {weeks.map((week, weekIndex) => {
-                    const weekStartIndex = weekIndex * 7;
-                    const weekNumber = weekIndex + 1;
+            {weeks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
+                    <div className="text-center p-8 rounded-lg">
+                        <i className="pi pi-calendar text-5xl text-surface-400 mb-4 block"></i>
+                        <h4 className="text-xl font-medium text-900 mb-2">暂无训练日历</h4>
+                        <p className="text-surface-500 mb-4">点击"添加周"按钮创建第一周训练计划</p>
+                        <Button
+                            label="添加周"
+                            icon="pi pi-plus"
+                            onClick={showAddWeekPopup}
+                            disabled={saving}
+                            className="p-button-sm"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-4">
+                    {weeks.map((week, weekIndex) => {
+                        const weekStartIndex = weekIndex * 7;
+                        const weekNumber = weekIndex + 1;
 
-                    return (
-                        <div
-                            key={weekIndex}
-                            className="border-round p-3 border-surface-50 rounded-lg"
-                        >
-                            <div className="flex justify-between items-center mb-3 h-[40px]">
-                                <span className="font-medium text-800">第 {weekNumber} 周</span>
+                        return (
+                            <div
+                                key={weekIndex}
+                                className="border-round p-3 border-surface-50 rounded-lg"
+                            >
+                                <div className="flex justify-between items-center mb-3 h-[40px]">
+                                    <span className="font-medium text-800">第 {weekNumber} 周</span>
 
-                                {weeks.length > 1 && (
-                                    <Button
-                                        icon="pi pi-trash"
-                                        className="p-button-text p-button-danger p-button-sm text-sm"
-                                        disabled={saving}
-                                        tooltip="删除整周"
-                                        onClick={() => {
-                                            setPendingDeleteWeekIndex(weekStartIndex);
-                                            setDeleteConfirmVisible(true);
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            <div className="grid grid-cols-7 gap-3">
-                                {week.map((day) => {
-                                    const isSelected = selectedDayIndex === day.dayIndex;
-                                    const isTraining = day.type === 'training';
+                                    {weeks.length > 1 && (
+                                        <Button
+                                            icon="pi pi-trash"
+                                            className="p-button-text p-button-danger p-button-sm text-sm"
+                                            disabled={saving}
+                                            tooltip="删除整周"
+                                            onClick={() => {
+                                                setPendingDeleteWeekIndex(weekStartIndex);
+                                                setDeleteConfirmVisible(true);
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-7 gap-3">
+                                    {week.map((day) => {
+                                        const isSelected = selectedDayIndex === day.dayIndex;
+                                        const isTraining = day.type === 'training';
 
-                                    return (
-                                        <div
-                                            key={day.dayIndex}
-                                            onClick={() => !saving && onSelectDay(day.dayIndex)}
-                                            className={`
-                                                relative cursor-pointer rounded-xl p-3
-                                                border border-surface-200
-                                                flex flex-col items-center justify-center gap-1
-                                                transition-all duration-200
-                                                bg-surface-0
-
-                                                hover:-translate-y-0.5
-
-                                                ${isSelected
-                                                    ? 'ring-2 ring-primary-300 border-primary-400 shadow-md'
-                                                    : 'hover:bg-surface-50'}
-                                                `}
-                                        >
-                                            {/* 顶部状态条 */}
+                                        return (
                                             <div
+                                                key={day.dayIndex}
+                                                onClick={() => !saving && onSelectDay(day.dayIndex)}
                                                 className={`
-                                                    absolute top-0 left-0 right-0 h-1 rounded-t-xl
-                                                    ${isSelected ? '' : isTraining ? 'bg-primary-400' : 'bg-surface-300'}
-                                                `}
-                                            />
+                                                    relative cursor-pointer rounded-xl p-3
+                                                    border border-surface-200
+                                                    flex flex-col items-center justify-center gap-1
+                                                    transition-all duration-200
+                                                    bg-surface-0
 
-                                            <span className="text-xs text-500 mt-1">
-                                                第 {day.dayIndex} 天
-                                            </span>
+                                                    hover:-translate-y-0.5
 
-                                            <span
-                                                className={`
-                                                    text-xl
-                                                    ${isTraining ? 'text-primary-600' : 'text-600'}
+                                                    ${isSelected
+                                                        ? 'ring-2 ring-primary-300 border-primary-400 shadow-md'
+                                                        : 'hover:bg-surface-50'}
                                                 `}
                                             >
-                                                <i className={isTraining ? 'pi pi-bolt' : 'pi pi-moon'} />
-                                            </span>
+                                                {/* 顶部状态条 */}
+                                                <div
+                                                    className={`
+                                                        absolute top-0 left-0 right-0 h-1 rounded-t-xl
+                                                        ${isSelected ? '' : isTraining ? 'bg-primary-400' : 'bg-surface-300'}
+                                                    `}
+                                                />
 
-                                            <span className="text-xs opacity-60">
-                                                {isTraining ? '训练' : '休息'}
-                                            </span>
+                                                <span className="text-xs text-500 mt-1">
+                                                    第 {day.dayIndex} 天
+                                                </span>
+
+                                                <span
+                                                    className={`
+                                                        text-xl
+                                                        ${isTraining ? 'text-primary-600' : 'text-600'}
+                                                    `}
+                                                >
+                                                    <i className={isTraining ? 'pi pi-bolt' : 'pi pi-moon'} />
+                                                </span>
+
+                                                <span className="text-xs opacity-60">
+                                                    {isTraining ? '训练' : '休息'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {Array.from({ length: 7 - week.length }).map((_, i) => (
+                                        <div
+                                            key={`empty-${i}`}
+                                            className="
+                                                rounded-xl border border-dashed border-surface-200
+                                                flex items-center justify-center
+                                                text-400 text-xs
+                                                bg-surface-0
+                                            "
+                                        >
+                                            —
                                         </div>
-                                    );
-                                })}
+                                    ))}
+                                </div>
 
-                                {Array.from({ length: 7 - week.length }).map((_, i) => (
-                                    <div
-                                        key={`empty-${i}`}
-                                        className="
-                                            rounded-xl border border-dashed border-surface-200
-                                            flex items-center justify-center
-                                            text-400 text-xs
-                                            bg-surface-0
-                                        "
-                                    >
-                                        —
-                                    </div>
-                                ))}
                             </div>
-
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* 删除确认对话框 */}
             <Dialog

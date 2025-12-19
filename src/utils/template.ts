@@ -69,5 +69,5 @@ export function makeContainedOptions(trainingDays: CoachPlanTrainingDay[]) {
         }
     }
 
-    return options;
+    return [...new Set(options)];
 }

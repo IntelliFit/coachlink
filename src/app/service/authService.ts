@@ -9,6 +9,8 @@ export class AuthService extends BaseService {
             return res.data.data;
         }
 
+        throw new Error(res.data.message || '注册失败');
+
         return null;
     }
 }

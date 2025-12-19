@@ -57,8 +57,9 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                     const response = await trainingItemService.listTrainingItems();
                     const items = response.trainingItems.map(item => ({
                         label: item.name,
-                        value: item.id
+                        value: item.name
                     }));
+                    
                     setTemplateTypes(items);
                 } catch (error) {
                     console.error('获取训练项目失败:', error);

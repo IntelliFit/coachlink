@@ -15,12 +15,13 @@ export interface CoachPlanActionWithOneFilter {
     type: 'one-filter';
     question: Omit<TrainingOptionQuestion, ''>;
     actions: CoachPlanAction[];
+    dayIndex: number;
     [key: string]: Json | undefined
 }
 
 // 计划日创建信息，包含动作组
 export interface CoachPlanTrainingDay {
-    type: string;
+    type: 'training' | 'rest';
     note?: string;
     actionSets?: (CoachPlanAction | CoachPlanActionWithOneFilter)[];
     [key: string]: Json | undefined

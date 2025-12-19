@@ -202,6 +202,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
 
     const handleConfirm = () => {
         if (selectedSourceDay) {
+            console.log(selectedSourceDay);
             onSelectDay(selectedSourceDay.dayIndex);
         }
     };

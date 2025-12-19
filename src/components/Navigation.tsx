@@ -29,10 +29,12 @@ export default function Navigation() {
     const [isClient, setIsClient] = useState(false);
 
     // View Mode State: 'coach' or 'student'
-    const [viewMode, setViewMode] = useState<'coach' | 'student'>('student');
+    const [viewMode, setViewMode] = useState<'coach' | 'student' | 'admin'>('student');
 
     useEffect(() => {
-        if (session?.user?.primary_role === 'coach') {
+        if (session?.user?.is_admin) {
+            setViewMode('admin');
+        } else if (session?.user?.primary_role === 'coach') {
             setViewMode('coach');
         } else {
             setViewMode('student');
@@ -116,6 +118,30 @@ export default function Navigation() {
             icon: 'pi pi-chart-line',
             command: () => router.push('/ranking'),
         },
+    ], [router]);
+
+    const adminMenuItems = useMemo(() => [
+        {
+            label: '支付管理',
+            icon: 'pi pi-users',
+            command: () => {
+                router.push('/admin/payments');
+            },
+        },
+        {
+            label: '教练申请',
+            icon: 'pi pi-file-edit',
+            command: () => {
+                router.push('/admin/coach-applications');
+            },
+        },
+        {
+            label: '排行榜管理',
+            icon: 'pi pi-wallet',
+            command: () => {
+                router.push('/admin/rankings');
+            },
+        }
     ], [router]);
 
     // ✅ User Menu Items (Avatar Dropdown)
@@ -216,6 +242,7 @@ export default function Navigation() {
             <span className="text-2xl font-extrabold">
                 教<span className="text-primary">链</span>
                 {viewMode === 'coach' && <span className="ml-2 text-xs bg-primary text-white px-2 py-0.5 rounded-full align-middle">教练端</span>}
+                {viewMode === 'admin' && <span className="ml-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded-full align-middle">后台管理</span>}
             </span>
         </Link>
     );
@@ -285,11 +312,19 @@ export default function Navigation() {
                                 {session.profile?.nickname || session.user.phone}
                             </span>
                             <div className="flex gap-1">
-                                {session.user.primary_role && (
-                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
-                                        {viewMode === 'student'
-                                            ? '学员'
-                                            : '教练'}
+                                {viewMode === 'student' && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary-100 text-primary-600">
+                                        学员
+                                    </span>
+                                )}
+                                {viewMode === 'coach' && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary-100 text-primary-600">
+                                        教练
+                                    </span>
+                                )}
+                                {viewMode === 'admin' && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+                                        管理员
                                     </span>
                                 )}
                             </div>
@@ -311,7 +346,8 @@ export default function Navigation() {
     return (
         <>
             <Menubar
-                model={viewMode === 'coach' ? coachMenuItems : studentMenuItems}
+                model={viewMode === 'coach' ? coachMenuItems :
+                    viewMode === 'student' ? studentMenuItems : adminMenuItems}
                 start={start}
                 end={end}
                 className="sticky top-0 z-50 border-b shadow-sm px-4"

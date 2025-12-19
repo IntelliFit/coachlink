@@ -14,6 +14,9 @@ const PUBLIC_PATHS = new Set([
 // 需要仅匹配前缀的路径（如 /api/auth/...）
 const AUTH_BASE_URL = '/api/auth';
 
+// 管理员路径前缀
+const ADMIN_BASE_URL = '/admin';
+
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
 export async function proxy(request: NextRequest) {
@@ -36,6 +39,19 @@ export async function proxy(request: NextRequest) {
     // 已认证访问登录/注册 → 重定向首页
     if ((pathname === '/login' || pathname === '/register') && isAuthenticated) {
         return NextResponse.redirect(`${origin}/`);
+    }
+
+    // 管理员路由访问控制
+    if (pathname.startsWith(ADMIN_BASE_URL)) {
+        console.log(token);
+        
+        // 检查用户是否为管理员
+        const isAdmin = token?.user?.is_admin === true;
+        
+        // 非管理员访问管理员页面 → 重定向首页
+        if (!isAdmin) {
+            return NextResponse.redirect(`${origin}/`);
+        }
     }
 
     return NextResponse.next();
