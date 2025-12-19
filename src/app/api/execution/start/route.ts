@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
             .from("plan_instance_executions")
             .select("*")
             .eq("instance_id", instanceId)
-            .eq("dayIndex", dayIndex)
+            .eq("day_index", dayIndex)
             .eq("student_id", userId)
             .gte("started_at", new Date().toISOString().split("T")[0]) // 今天开始的
             .neq("status", "abandoned")
@@ -118,8 +118,9 @@ export async function POST(request: NextRequest) {
 
         // 7. 获取动作库信息（用于获取真实动作名称）
         const actionSets = trainingDay.actionSets || [];
+        // 支持两种字段名: action_id 和 actionId
         const actionIds = actionSets
-            .map((a: any) => a.action_id)
+            .map((a: any) => a.action_id || a.actionId)
             .filter((id: string) => id);
 
         let actionsMap: Record<string, any> = {};
@@ -141,23 +142,34 @@ export async function POST(request: NextRequest) {
         const actionExecutions = actionSets.map((
             actionSet: any,
             idx: number,
-        ) => ({
-            action_id: actionSet.action_id,
-            action_name: actionsMap[actionSet.action_id]?.name ||
-                actionSet.set_name || "未知动作",
-            action_order: idx + 1,
-            sets: Array.from({ length: actionSet.sets || 1 }, (_, i) => ({
-                set_number: i + 1,
-                status: "pending",
-                planned_reps: actionSet.reps,
-                planned_weight: actionSet.intensity,
-                planned_rest_seconds: actionSet.rest_seconds || 90,
-                has_video: false,
-                is_pr: false,
-            })),
-            total_sets: actionSet.sets || 1,
-            completed_sets: 0,
-        }));
+        ) => {
+            // 支持两种字段名
+            const actionId = actionSet.action_id || actionSet.actionId;
+            // 从 params 对象读取组数/次数等，兼容旧格式
+            const sets = actionSet.params?.["组数"] || actionSet.sets || 1;
+            const reps = actionSet.params?.["次数"] || actionSet.reps;
+            const intensity = actionSet.params?.["强度"] || actionSet.intensity;
+            const restSeconds = actionSet.params?.["休息时间"] ||
+                actionSet.rest_seconds || 90;
+
+            return {
+                action_id: actionId,
+                action_name: actionsMap[actionId]?.name ||
+                    actionSet.set_name || "未知动作",
+                action_order: idx + 1,
+                sets: Array.from({ length: sets }, (_, i) => ({
+                    set_number: i + 1,
+                    status: "pending",
+                    planned_reps: reps,
+                    planned_weight: intensity,
+                    planned_rest_seconds: restSeconds,
+                    has_video: false,
+                    is_pr: false,
+                })),
+                total_sets: sets,
+                completed_sets: 0,
+            };
+        });
 
         const totalSets = actionExecutions.reduce(
             (sum, a) => sum + a.total_sets,
@@ -170,7 +182,7 @@ export async function POST(request: NextRequest) {
             .insert({
                 instance_id: instanceId,
                 student_id: userId,
-                dayIndex: dayIndex,
+                day_index: dayIndex,
                 action_executions: actionExecutions,
                 total_sets: totalSets,
                 completed_sets: 0,

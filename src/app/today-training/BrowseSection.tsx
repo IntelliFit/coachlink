@@ -105,15 +105,17 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 
                             <div className="space-y-2 mb-4">
                                 {(selectedDay.actionSets || []).map((actionSet: any, idx: number) => {
-                                    const action = actions[actionSet.action_id];
+                                    // 支持两种字段名: action_id 和 actionId
+                                    const actionId = actionSet.action_id || actionSet.actionId;
+                                    const action = actions[actionId];
                                     return (
                                         <div key={idx} className="bg-gray-50 rounded p-3 text-sm">
                                             <div className="font-medium">
                                                 {idx + 1}. {action?.name || actionSet.set_name}
                                             </div>
                                             <div className="text-gray-600">
-                                                {actionSet.sets}组 × {actionSet.reps}次
-                                                {actionSet.intensity && ` · ${actionSet.intensity}`}
+                                                {actionSet.params?.['组数'] || actionSet.sets}组 × {actionSet.params?.['次数'] || actionSet.reps}次
+                                                {(actionSet.params?.['强度'] || actionSet.intensity) && ` · ${actionSet.params?.['强度'] || actionSet.intensity}`}
                                             </div>
                                         </div>
                                     );

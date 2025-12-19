@@ -3,7 +3,7 @@ import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import supabase from "@/lib/supabaseClient";
 import { verifyPassword } from "./verify";
-import redis from '@/lib/redisClient';
+import redis from "@/lib/redisClient";
 import { getWhiteList } from "@/lib/devUsers";
 
 export const authOptions: AuthOptions = {
@@ -18,28 +18,41 @@ export const authOptions: AuthOptions = {
             async authorize(credentials) {
                 // 如果是开发者模式 获取白名单
                 const whiteList = getWhiteList();
-                if (!whiteList.some(user => user.phone === credentials?.phone)) {
-
+                if (
+                    !whiteList.some((user) => user.phone === credentials?.phone)
+                ) {
                     if (!credentials?.verifyCode) {
                         throw new Error("请输入验证码");
                     }
 
-                    // 验证验证码
-                    if (!redis) {
-                        throw new Error("验证服务不可用");
-                    }
+                    // 开发模式下接受模拟验证码 123456
+                    const useMockSms = process.env.NODE_ENV === "development" ||
+                        process.env.NEXT_PUBLIC_USE_MOCK_SMS === "true";
+                    const isMockCode = useMockSms &&
+                        credentials.verifyCode.trim() === "123456";
 
-                    const storedCode = await redis.get(`sms_verification_code:${credentials.phone.trim()}`);
-                    if (!storedCode) {
-                        throw new Error("验证码已过期或不存在");
-                    }
+                    if (!isMockCode) {
+                        // 验证验证码
+                        if (!redis) {
+                            throw new Error("验证服务不可用");
+                        }
 
-                    if (storedCode !== credentials.verifyCode.trim()) {
-                        throw new Error("验证码错误");
-                    }
+                        const storedCode = await redis.get(
+                            `sms_verification_code:${credentials.phone.trim()}`,
+                        );
+                        if (!storedCode) {
+                            throw new Error("验证码已过期或不存在");
+                        }
 
-                    // 验证成功后删除验证码，防止重复使用
-                    await redis.del(`sms_verification_code:${credentials.phone.trim()}`);
+                        if (storedCode !== credentials.verifyCode.trim()) {
+                            throw new Error("验证码错误");
+                        }
+
+                        // 验证成功后删除验证码，防止重复使用
+                        await redis.del(
+                            `sms_verification_code:${credentials.phone.trim()}`,
+                        );
+                    }
                 }
 
                 if (!credentials?.phone || !credentials?.password) {
@@ -98,9 +111,9 @@ export const authOptions: AuthOptions = {
                 .select("*")
                 .eq("user_id", user.id)
                 .single();
-            
+
             if (error) {
-                console.error('获取用户档案失败：', error);
+                console.error("获取用户档案失败：", error);
             }
 
             if (profile) {

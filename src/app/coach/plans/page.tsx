@@ -227,21 +227,21 @@ const TrainingPlansHome: React.FC = () => {
                 <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center gap-2 text-surface-500">
                         <i className="pi pi-th-large text-sm" />
-                        <span className="text-sm">{actionSet.sets}组×{actionSet.reps}次</span>
+                        <span className="text-sm">{(actionSet as any).params?.['组数'] || actionSet.sets}组×{(actionSet as any).params?.['次数'] || actionSet.reps}次</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <i className="pi pi-box text-sm text-surface-500" />
                         <span className="font-medium text-surface-900">{actionName}</span>
                     </div>
-                    {actionSet.intensity && (
+                    {((actionSet as any).params?.['强度'] || actionSet.intensity) && (
                         <div className="flex items-center gap-1 text-surface-600">
-                            <span className="text-sm">💪 {actionSet.intensity}</span>
+                            <span className="text-sm">💪 {(actionSet as any).params?.['强度'] || actionSet.intensity}</span>
                         </div>
                     )}
-                    {actionSet.rest_seconds && (
+                    {((actionSet as any).params?.['休息时间'] || actionSet.rest_seconds) && (
                         <div className="flex items-center gap-1 text-surface-500">
                             <i className="pi pi-clock text-xs" />
-                            <span className="text-sm">休息{actionSet.rest_seconds}秒</span>
+                            <span className="text-sm">休息{(actionSet as any).params?.['休息时间'] || actionSet.rest_seconds}秒</span>
                         </div>
                     )}
                 </div>
@@ -398,13 +398,17 @@ const TrainingPlansHome: React.FC = () => {
 
                 {/* 动作列表 */}
                 <div className="p-4 space-y-2">
-                    {actionSets.map((actionSet, idx) => (
-                        <ActionItem
-                            key={idx}
-                            actionSet={actionSet}
-                            action={actions[actionSet.action_id]}
-                        />
-                    ))}
+                    {actionSets.map((actionSet, idx) => {
+                        // 支持两种字段名: action_id 和 actionId
+                        const actionId = (actionSet as any).action_id || (actionSet as any).actionId;
+                        return (
+                            <ActionItem
+                                key={idx}
+                                actionSet={actionSet}
+                                action={actions[actionId]}
+                            />
+                        );
+                    })}
                     {actionSets.length === 0 && (
                         <p className="text-center text-surface-500 py-4">暂无动作安排</p>
                     )}

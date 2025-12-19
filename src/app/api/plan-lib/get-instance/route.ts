@@ -77,7 +77,31 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
     } else {
-        if (instance.student_id !== userId) {
+        // 学员权限检查：优先检查 student_id，如果没有则通过 subscription 验证
+        if (instance.student_id) {
+            if (instance.student_id !== userId) {
+                return NextResponse.json({
+                    success: false,
+                    message: "权限不足",
+                }, { status: 403 });
+            }
+        } else if (instance.coach_subscription_id) {
+            // 通过 subscription 验证学员权限
+            const { data: subscription, error: subError } = await supabase
+                .from("coach_subscriptions")
+                .select("student_id")
+                .eq("id", instance.coach_subscription_id)
+                .single();
+
+            if (
+                subError || !subscription || subscription.student_id !== userId
+            ) {
+                return NextResponse.json({
+                    success: false,
+                    message: "权限不足",
+                }, { status: 403 });
+            }
+        } else {
             return NextResponse.json({
                 success: false,
                 message: "权限不足",
@@ -91,11 +115,13 @@ export async function POST(req: Request) {
         const trainingDays = instance.training_days as any[];
         const actionIds = new Set<string>();
 
-        // 收集所有 action_id
+        // 收集所有 action_id（兼容 actionId 和 action_id 两种字段名）
         trainingDays.forEach((day: any) => {
             day.actionSets?.forEach((set: any) => {
-                if (set.action_id) {
-                    actionIds.add(set.action_id);
+                // 支持两种字段名: action_id 和 actionId
+                const actionId = set.action_id || set.actionId;
+                if (actionId) {
+                    actionIds.add(actionId);
                 }
             });
         });
