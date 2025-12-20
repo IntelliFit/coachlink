@@ -1,19 +1,22 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
+import { NextResponse } from "next/server";
+import { getServerSession } from "../../auth/[...nextauth]/auth";
+import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
-import type { ApiData } from '@/types/api';
-import type { UpdateSubscriptionDto, UpdateSubscriptionResponseDto } from './entity';
-import { sendSystemMessage } from '@/lib/chat';
+import type { ApiData } from "@/types/api";
+import type {
+    UpdateSubscriptionDto,
+    UpdateSubscriptionResponseDto,
+} from "./entity";
+import { sendSystemMessage } from "@/lib/chat";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({
             success: false,
-            message: '用户未登录',
-            data: null
+            message: "用户未登录",
+            data: null,
         }, { status: 401 });
     }
 
@@ -29,88 +32,93 @@ export async function POST(req: Request) {
     if (!id) {
         return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
             success: false,
-            message: '缺少订阅ID',
-            data: null
+            message: "缺少订阅ID",
+            data: null,
         }, { status: 400 });
     }
 
     // 检查订阅是否存在且属于当前用户
     const { data: subscription, error: subscriptionError } = await supabase
-        .from('coach_subscriptions')
-        .select('*')
-        .eq('id', id)
+        .from("coach_subscriptions")
+        .select("*")
+        .eq("id", id)
         .single();
 
     if (subscriptionError || !subscription) {
         return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
             success: false,
-            message: '指定的订阅不存在',
-            data: null
+            message: "指定的订阅不存在",
+            data: null,
         }, { status: 404 });
     }
 
     let coachId = userId;
     if (session.user.is_coach) {
         const { data: coach, error: coachError } = await supabase
-            .from('coaches')
-            .select('id')
-            .eq('user_id', coachId)
-            .single();
-        
-        if (coachError) {
-            return NextResponse.json({
-                success: false,
-                message: coachError.message
-            });
-        }
-
-        coachId = coach.id;
-    }
-
-    // 验证用户权限（必须是学生或教练）
-    if (subscription.student_id !== userId && subscription.coach_id !== coachId) {
-        return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
-            success: false,
-            message: '无权修改此订阅',
-            data: null
-        }, { status: 403 });
-    }
-
-    // 更新订阅记录
-    const { data: updatedSubscription, error: updateError } = await supabase
-        .from('coach_subscriptions')
-        .update({
-            ...updateData,
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-    // 如果需要的可以提醒教练
-    if (updateData.has_remind_coach) {
-        const { data: coach, error: coachError } = await supabase
-            .from('coaches')
-            .select('user_id')
-            .eq('id', subscription.coach_id)
+            .from("coaches")
+            .select("id")
+            .eq("user_id", coachId)
             .single();
 
         if (coachError) {
             return NextResponse.json({
                 success: false,
                 message: coachError.message,
-                data: null
+            });
+        }
+
+        coachId = coach.id;
+    }
+
+    // 验证用户权限（必须是学生、教练或管理员）
+    const isAdmin = session.user.is_admin === true;
+    if (
+        !isAdmin && subscription.student_id !== userId &&
+        subscription.coach_id !== coachId
+    ) {
+        return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
+            success: false,
+            message: "无权修改此订阅",
+            data: null,
+        }, { status: 403 });
+    }
+
+    // 更新订阅记录
+    const { data: updatedSubscription, error: updateError } = await supabase
+        .from("coach_subscriptions")
+        .update({
+            ...updateData,
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+    // 如果需要的可以提醒教练
+    if (updateData.has_remind_coach) {
+        const { data: coach, error: coachError } = await supabase
+            .from("coaches")
+            .select("user_id")
+            .eq("id", subscription.coach_id)
+            .single();
+
+        if (coachError) {
+            return NextResponse.json({
+                success: false,
+                message: coachError.message,
+                data: null,
             }, { status: 500 });
         }
 
         const ok = await sendSystemMessage(coach.user_id, {
-            content: `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 的「待确认学员支付」及时处理`
-        });        
+            content:
+                `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 的「待确认学员支付」及时处理`,
+        });
 
         if (!ok) {
             return NextResponse.json({
                 success: false,
-                message: '更新订阅失败',
-                data: null
+                message: "更新订阅失败",
+                data: null,
             }, { status: 500 });
         }
     }
@@ -118,18 +126,19 @@ export async function POST(req: Request) {
     if (updateError || !updatedSubscription) {
         return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
             success: false,
-            message: '更新订阅失败: ' + (updateError?.message || 'Unknown error'),
-            data: null
+            message: "更新订阅失败: " +
+                (updateError?.message || "Unknown error"),
+            data: null,
         }, { status: 500 });
     }
 
     // 重要！必须申请接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
         success: true,
-        message: '订阅更新成功',
+        message: "订阅更新成功",
         // UpdateSubscriptionResponseDto 反应的就是这个地方 data 的数据结构
         data: {
-            subscription: updatedSubscription
-        }
+            subscription: updatedSubscription,
+        },
     });
 }
