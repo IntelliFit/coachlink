@@ -5,6 +5,21 @@ interface TierFilterComponentProps {
     options: any;
 }
 
+export const tierTemplate = (tier: number) => {
+    if (!tier) {
+        return (
+            <span>选择等级</span>
+        )
+    }
+
+    return (
+        <span className="px-2 py-1 bg-primary text-surface rounded-full text-sm">
+            等级 {tier}
+        </span>
+    );
+};
+
+
 export const TierFilterComponent: React.FC<TierFilterComponentProps> = ({ options }) => {
     const tierOptions = [
         { label: '等级 1', value: 1 },
@@ -21,6 +36,8 @@ export const TierFilterComponent: React.FC<TierFilterComponentProps> = ({ option
             }}
             placeholder="选择等级"
             className="p-column-filter"
+            itemTemplate={option => tierTemplate(option?.value)}
+            valueTemplate={() => tierTemplate(options.value)}
             showClear
         />
     );

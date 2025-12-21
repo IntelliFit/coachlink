@@ -7,20 +7,15 @@ import { Button } from 'primereact/button';
 import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Skeleton } from 'primereact/skeleton';
-import { Tag } from 'primereact/tag';
-import { Avatar } from 'primereact/avatar';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
-import type { CoachSubscriptionRow } from '@/types';
 import type { ListSubscriptionGetDto, ListSubscriptionGetResponseDto, QueryCoachSubscription } from '@/app/api/subscription/list-subscriptions/entity';
-import { StatusFilterComponent } from './StatusFilterComponent';
-import { TierFilterComponent } from './TierFilterComponent';
+import { StatusFilterComponent, statusTemplate } from './StatusFilterComponent';
+import { TierFilterComponent, tierTemplate } from './TierFilterComponent';
 import { StudentFilterComponent } from './StudentFilterComponent';
 import { CoachFilterComponent } from './CoachFilterComponent';
 import { StudentInfoComponent } from './StudentInfoComponent';
 import { CoachInfoComponent } from './CoachInfoComponent';
-import { TierInfoComponent } from './TierInfoComponent';
-import { StatusInfoComponent } from './StatusInfoComponent';
 
 interface SubscriptionWithProfiles extends QueryCoachSubscription {
 }
@@ -135,14 +130,6 @@ export default function AdminPaymentsPage() {
 
     const coachTemplate = (subscription: SubscriptionWithProfiles) => (
         <CoachInfoComponent profile={subscription.coachProfile} />
-    );
-
-    const tierTemplate = (subscription: SubscriptionWithProfiles) => (
-        <TierInfoComponent tier={subscription.tier} />
-    );
-
-    const statusTemplate = (rowData: SubscriptionWithProfiles) => (
-        <StatusInfoComponent status={rowData.status} />
     );
 
     const priceTemplate = (subscription: SubscriptionWithProfiles) => (
@@ -263,7 +250,7 @@ export default function AdminPaymentsPage() {
                 <Column
                     filterField="tier"
                     header="订阅等级"
-                    body={tierTemplate}
+                    body={item => tierTemplate(item.tier)}
                     filter
                     filterElement={(options) => <TierFilterComponent options={options} />}
                     showFilterMenu={false}
@@ -281,7 +268,7 @@ export default function AdminPaymentsPage() {
                 <Column
                     filterField="status"
                     header="状态"
-                    body={statusTemplate}
+                    body={item => statusTemplate(item.status)}
                     filter
                     filterElement={(options) => <StatusFilterComponent options={options} />}
                     showFilterMenu={false}
