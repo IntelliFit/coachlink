@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     if (search.trim()) {
         // 使用 ilike 做模糊匹配（简单方案）：
         query = query.or(
-            `name.ilike.%${search}%,title.ilike.%${search}%,bio.ilike.%${search}%`
+            `name.ilike.%${search}%,title.ilike.%${search}%`
         );
     }
 
