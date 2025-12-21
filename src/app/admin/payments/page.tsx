@@ -32,8 +32,8 @@ export default function AdminPaymentsPage() {
     const [totalRecords, setTotalRecords] = useState(0);
     const [selectedSubscriptions, setSelectedSubscriptions] = useState<SubscriptionWithProfiles[]>([]);
     const [filters, setFilters] = useState<any>({
-        'studentProfile.full_name': { value: null, matchMode: 'contains' },
-        'coachProfile.full_name': { value: null, matchMode: 'contains' },
+        'student': { value: null, matchMode: 'contains' },
+        'coach': { value: null, matchMode: 'contains' },
         'tier': { value: null, matchMode: 'equals' },
         'status': { value: null, matchMode: 'equals' }
     });
@@ -64,6 +64,14 @@ export default function AdminPaymentsPage() {
                 page: page,
                 limit: limit
             };
+            
+            if (filters?.coach?.value) {
+                reqData.coachId = filters.coach.value.id;
+            }
+
+            if (filters?.student?.value) {
+                reqData.studentId = filters.student.value.id;
+            }
 
             if (filters?.status.value) {
                 reqData.status = filters.status.value;
@@ -72,7 +80,7 @@ export default function AdminPaymentsPage() {
             if (filters?.tier.value) {
                 reqData.tier = filters.tier.value;
             }
- 
+
             // 使用新的分页接口获取所有等待支付确认的订阅
             // 管理员需要看到所有状态的订阅，包括 waiting
             const res: ListSubscriptionGetResponseDto | null = await subscriptionService.listSubscriptions(reqData);
@@ -122,9 +130,9 @@ export default function AdminPaymentsPage() {
     };
 
     const studentTemplate = (subscription: SubscriptionWithProfiles) => (
-        <StudentInfoComponent 
-            profile={subscription.studentProfile} 
-            tier={subscription.tier} 
+        <StudentInfoComponent
+            profile={subscription.studentProfile}
+            tier={subscription.tier}
         />
     );
 
@@ -164,25 +172,25 @@ export default function AdminPaymentsPage() {
     };
 
     const onFilter = (event: DataTableStateEvent) => {
-        setFilters(event.filters);        
-        
+        setFilters(event.filters);
+
         // 重置到第一页并加载数据
         setFirst(0);
         loadSubscriptions(1, rows, event.filters);
     };
 
-    if (status === 'loading' || loading) {
-        return (
-            <div className="p-6">
-                <div className="mb-6">
-                    <Skeleton width="200px" height="32px" />
-                </div>
-                <div className="p-4">
-                    <Skeleton width="100%" height="400px" />
-                </div>
-            </div>
-        );
-    }
+    // 创建骨架数据用于加载状态
+    const skeletonData = Array.from({ length: rows }).map((_, index) => ({
+        id: `skeleton-${index}`,
+        studentProfile: {},
+        coachProfile: {},
+        tier: '',
+        monthly_price: 0,
+        status: '',
+        remind_coach_note: '',
+        created_at: '',
+        order_id: ''
+    }));
 
     return (
         <div className="p-6">
@@ -209,15 +217,14 @@ export default function AdminPaymentsPage() {
             </div>
 
             <DataTable
-                value={subscriptions}
+                value={loading ? skeletonData : subscriptions}
                 paginator
                 rows={rows}
-                totalRecords={totalRecords}
+                totalRecords={loading ? rows : totalRecords}
                 first={first}
                 onPage={onPage}
                 onFilter={onFilter}
                 filters={filters}
-                loading={loading}
                 stripedRows
                 tableStyle={{ minWidth: '50rem' }}
                 selection={selectedSubscriptions}
@@ -228,9 +235,9 @@ export default function AdminPaymentsPage() {
             >
                 <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
                 <Column
-                    filterField="studentProfile.full_name"
+                    filterField="student"
                     header="学员"
-                    body={studentTemplate}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : studentTemplate(rowData)}
                     filter
                     filterElement={(options) => <StudentFilterComponent options={options} />}
                     showFilterMenu={false}
@@ -238,9 +245,9 @@ export default function AdminPaymentsPage() {
                     bodyStyle={{ width: '20%' }}
                 ></Column>
                 <Column
-                    filterField="coachProfile.full_name"
+                    filterField="coach"
                     header="教练"
-                    body={coachTemplate}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : coachTemplate(rowData)}
                     filter
                     filterElement={(options) => <CoachFilterComponent options={options} />}
                     showFilterMenu={false}
@@ -250,7 +257,7 @@ export default function AdminPaymentsPage() {
                 <Column
                     filterField="tier"
                     header="订阅等级"
-                    body={item => tierTemplate(item.tier)}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : tierTemplate(rowData.tier)}
                     filter
                     filterElement={(options) => <TierFilterComponent options={options} />}
                     showFilterMenu={false}
@@ -260,7 +267,7 @@ export default function AdminPaymentsPage() {
                 <Column
                     field="monthly_price"
                     header="月费"
-                    body={priceTemplate}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : priceTemplate(rowData)}
                     align="right"
                     headerStyle={{ width: '10%' }}
                     bodyStyle={{ width: '10%' }}
@@ -268,7 +275,7 @@ export default function AdminPaymentsPage() {
                 <Column
                     filterField="status"
                     header="状态"
-                    body={item => statusTemplate(item.status)}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : statusTemplate(rowData.status)}
                     filter
                     filterElement={(options) => <StatusFilterComponent options={options} />}
                     showFilterMenu={false}
@@ -279,20 +286,20 @@ export default function AdminPaymentsPage() {
                 <Column
                     field="remind_coach_note"
                     header="支付备注"
-                    body={noteTemplate}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : noteTemplate(rowData)}
                     headerStyle={{ width: '15%' }}
                     bodyStyle={{ width: '15%' }}
                 ></Column>
                 <Column
                     field="created_at"
                     header="申请时间"
-                    body={dateTemplate}
+                    body={(rowData) => loading ? <Skeleton width="100%" height="2rem" /> : dateTemplate(rowData)}
                     headerStyle={{ width: '12%' }}
                     bodyStyle={{ width: '12%' }}
                 ></Column>
             </DataTable>
 
-            {subscriptions.length > 0 && (
+            {!loading && subscriptions.length > 0 && (
                 <div className="mt-4 text-sm text-surface-500">
                     已选择 {selectedSubscriptions.length} 个订阅，确认支付后将激活这些订阅。
                 </div>
