@@ -19,7 +19,6 @@ export interface ListSubscriptionGetResponseDto {
 }
 
 export interface QueryCoachSubscription extends CoachSubscriptionRow {
-    coach: CoachesRow | null;
-    studentProfile?: UserProfilesRow | null;
-    coachProfile?: UserProfilesRow | null;
+    student?: UserProfilesRow | null;
+    coach?: UserProfilesRow | null;
 }

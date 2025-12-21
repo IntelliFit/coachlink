@@ -63,8 +63,8 @@ export default function AdminPaymentsPage() {
             const reqData: ListSubscriptionGetDto = {
                 page: page,
                 limit: limit
-            };            
-            
+            };
+
             if (filters?.coach?.value) {
                 reqData.coachId = filters.coach.value.id;
             }
@@ -86,7 +86,6 @@ export default function AdminPaymentsPage() {
             const res = await subscriptionService.listSubscriptions(reqData);
 
             console.log(res);
-            
 
             if (res) {
                 setSubscriptions(res.subscriptions);
@@ -132,15 +131,19 @@ export default function AdminPaymentsPage() {
         }
     };
 
-    const studentTemplate = (subscription: SubscriptionWithProfiles) => (
-        <StudentInfoComponent
-            profile={subscription.studentProfile}
-            tier={subscription.tier}
-        />
-    );
+    const studentTemplate = (subscription: SubscriptionWithProfiles) => {
+        console.log(subscription);
+        
+        return (
+            <StudentInfoComponent
+                profile={subscription.student}
+                tier={subscription.tier}
+            />
+        )
+    }
 
     const coachTemplate = (subscription: SubscriptionWithProfiles) => (
-        <CoachInfoComponent profile={subscription.coachProfile} />
+        <CoachInfoComponent profile={subscription.coach} />
     );
 
     const priceTemplate = (subscription: SubscriptionWithProfiles) => (
@@ -185,8 +188,8 @@ export default function AdminPaymentsPage() {
     // 创建骨架数据用于加载状态
     const skeletonData = Array.from({ length: rows }).map((_, index) => ({
         id: `skeleton-${index}`,
-        studentProfile: {},
-        coachProfile: {},
+        student: {},
+        coach: {},
         tier: '',
         monthly_price: 0,
         status: '',

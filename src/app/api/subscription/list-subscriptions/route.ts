@@ -64,9 +64,8 @@ async function embeddingCaochesIntoSubscriptions(
         const coachUserId = coach?.user_id;
         querySubscriptions.push({
             ...subscription,
-            coach: coach || null,
-            studentProfile: students.get(subscription.student_id) || null,
-            coachProfile: coachUserId
+            student: students.get(subscription.student_id) || null,
+            coach: coachUserId
                 ? coachesProfiles.get(coachUserId) || null
                 : null,
         });
