@@ -5,14 +5,10 @@ export interface GetAllUsersDto {
 }
 
 export interface GetAllUsersResponseDto {
-    success: boolean;
-    message: string;
-    data?: {
-        users: any[];
-        count: number;
-        pagination: {
-            page: number;
-            limit: number;
-        };
+    users: any[];
+    count: number;
+    pagination: {
+        page: number;
+        limit: number;
     };
 }
