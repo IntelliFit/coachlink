@@ -1,6 +1,7 @@
 import supabase from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
-import { GetAllUsersDto } from "./entity";
+import { GetAllUsersDto, GetAllUsersResponseDto } from "./entity";
+import { ApiData } from "@/types/api";
 
 export async function POST(req: Request) {
     const {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
         });
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiData<<GetAllUsersResponseDto>>({
         success: true,
         message: "获取成功",
         data: {
