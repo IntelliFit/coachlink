@@ -32,8 +32,8 @@ export default function AdminPaymentsPage() {
     const [totalRecords, setTotalRecords] = useState(0);
     const [selectedSubscriptions, setSelectedSubscriptions] = useState<SubscriptionWithProfiles[]>([]);
     const [filters, setFilters] = useState<any>({
-        'student': { value: null, matchMode: 'contains' },
-        'coach': { value: null, matchMode: 'contains' },
+        'student': { value: null, matchMode: 'equals' },
+        'coach': { value: null, matchMode: 'equals' },
         'tier': { value: null, matchMode: 'equals' },
         'status': { value: null, matchMode: 'equals' }
     });
@@ -63,7 +63,7 @@ export default function AdminPaymentsPage() {
             const reqData: ListSubscriptionGetDto = {
                 page: page,
                 limit: limit
-            };
+            };            
             
             if (filters?.coach?.value) {
                 reqData.coachId = filters.coach.value.id;
@@ -304,7 +304,7 @@ export default function AdminPaymentsPage() {
 
             {!loading && subscriptions.length > 0 && (
                 <div className="mt-4 text-sm text-surface-500">
-                    已选择 {selectedSubscriptions.length} 个订阅，确认支付后将激活这些订阅。
+                    已选择 {selectedSubscriptions.length}/{subscriptions.length} 个订阅，确认支付后将激活这些订阅。
                 </div>
             )}
         </div>

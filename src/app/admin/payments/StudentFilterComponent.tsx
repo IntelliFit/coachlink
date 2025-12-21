@@ -58,6 +58,7 @@ export const StudentFilterComponent: React.FC<StudentFilterComponentProps> = ({ 
 
     // 自定义选项模板
     const itemTemplate = (option: StudentOption) => {
+        if (!option) return null;
         return (
             <div className="flex items-center space-x-3">
                 <StudentInfoComponent profile={{

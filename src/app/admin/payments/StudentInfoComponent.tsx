@@ -8,7 +8,7 @@ interface StudentInfoComponentProps {
 }
 
 export const StudentInfoComponent: React.FC<StudentInfoComponentProps> = ({ profile, tier }) => {
-    
+
     return (
         <div className="flex items-center space-x-3">
             <Avatar
