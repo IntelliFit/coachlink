@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Dropdown, DropdownFilterEvent } from 'primereact/dropdown';
 import { StudentInfoComponent } from './StudentInfoComponent';
+import { userService } from '@/app/service/userService';
 
 interface StudentFilterComponentProps {
     options: any;
@@ -16,7 +17,7 @@ export const StudentFilterComponent: React.FC<StudentFilterComponentProps> = ({ 
     const [filteredOptions, setFilteredOptions] = useState<StudentOption[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // 搜索学生（由于没有专门的学生搜索API，这里模拟实现）
+    // 搜索学生
     const searchStudents = async (searchText: string) => {
         if (!searchText.trim()) {
             setFilteredOptions([]);
@@ -25,21 +26,23 @@ export const StudentFilterComponent: React.FC<StudentFilterComponentProps> = ({ 
 
         setLoading(true);
         try {
-            // 注意：当前项目中没有提供专门搜索学生的API
-            // 这里只是模拟实现，实际项目中应该替换为真实的API调用
-            // 模拟API调用延迟
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // 模拟搜索结果
-            const mockStudents: StudentOption[] = [
-                { name: '张三丰', id: '1', avatar_url: undefined },
-                { name: '李小龙', id: '2', avatar_url: undefined },
-                { name: '王大锤', id: '3', avatar_url: undefined },
-                { name: '赵子龙', id: '4', avatar_url: undefined },
-                { name: '钱学森', id: '5', avatar_url: undefined }
-            ].filter(student => student.name.includes(searchText));
-            
-            setFilteredOptions(mockStudents);
+            // 使用userService.getAllUsers API进行搜索
+            const res = await userService.getAllUsers({
+                search: searchText,
+                page: 1,
+                limit: 10
+            });
+
+            if (res && res.users) {
+                const students: StudentOption[] = res.users.map((user: any) => ({
+                    name: user.nickname || user.full_name || '未知用户',
+                    id: user.id,
+                    avatar_url: user.avatar_url || undefined
+                }));
+                setFilteredOptions(students);
+            } else {
+                setFilteredOptions([]);
+            }
         } catch (error) {
             console.error('搜索学生失败:', error);
             setFilteredOptions([]);

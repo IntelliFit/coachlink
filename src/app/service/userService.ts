@@ -36,6 +36,9 @@ import type { CreateStudentCommentDto, CreateStudentCommentResponseDto } from ".
 import type { UpdateStudentCommentDto, UpdateStudentCommentResponseDto } from "../api/user/update-student-comment/entity";
 import type { DeleteStudentCommentDto, DeleteStudentCommentResponseDto } from "../api/user/delete-student-comment/entity";
 
+// 导入获取所有用户相关的类型定义
+import type { GetAllUsersDto, GetAllUsersResponseDto } from "../api/user/get-all-users/entity";
+
 class UserPlanService extends BaseService {
     /**
      * @description 获取训练计划
@@ -297,6 +300,20 @@ class UserPlanService extends BaseService {
     
     async deleteStudentComment(reqData: DeleteStudentCommentDto) {
         const res = await this.post<DeleteStudentCommentResponseDto>('delete-student-comment', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * @description 获取所有用户，支持分页和昵称模糊搜索
+     * @param reqData 
+     * @returns 
+     */
+    async getAllUsers(reqData: GetAllUsersDto) {
+        const res = await this.post<GetAllUsersResponseDto>('get-all-users', reqData);
         if (res.data && res.data.success) {
             return res.data.data;
         }
