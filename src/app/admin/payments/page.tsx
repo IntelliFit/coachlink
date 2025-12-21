@@ -11,10 +11,16 @@ import { Tag } from 'primereact/tag';
 import { Avatar } from 'primereact/avatar';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
-import { Dropdown } from 'primereact/dropdown';
-import { InputText } from 'primereact/inputtext';
 import type { CoachSubscriptionRow } from '@/types';
 import type { ListSubscriptionGetDto, ListSubscriptionGetResponseDto, QueryCoachSubscription } from '@/app/api/subscription/list-subscriptions/entity';
+import { StatusFilterComponent } from './StatusFilterComponent';
+import { TierFilterComponent } from './TierFilterComponent';
+import { StudentFilterComponent } from './StudentFilterComponent';
+import { CoachFilterComponent } from './CoachFilterComponent';
+import { StudentInfoComponent } from './StudentInfoComponent';
+import { CoachInfoComponent } from './CoachInfoComponent';
+import { TierInfoComponent } from './TierInfoComponent';
+import { StatusInfoComponent } from './StatusInfoComponent';
 
 interface SubscriptionWithProfiles extends QueryCoachSubscription {
 }
@@ -121,58 +127,22 @@ export default function AdminPaymentsPage() {
     };
 
     const studentTemplate = (subscription: SubscriptionWithProfiles) => (
-        <div className="flex items-center space-x-3">
-            <Avatar
-                image={subscription.studentProfile?.avatar_url || undefined}
-                label={
-                    subscription.studentProfile?.avatar_url
-                        ? undefined
-                        : subscription.studentProfile?.nickname?.charAt(0) ||
-                        subscription.studentProfile?.full_name?.charAt(0) ||
-                        'U'
-                }
-                shape="circle"
-                className="bg-primary text-surface font-bold flex-shrink-0"
-                size="normal"
-            />
-            <div>
-                <div className="font-medium">
-                    {subscription.studentProfile?.nickname || subscription.studentProfile?.full_name || '未知用户'}
-                </div>
-                <div className="text-sm text-surface-500">
-                    订阅等级: {subscription.tier}
-                </div>
-            </div>
-        </div>
+        <StudentInfoComponent 
+            profile={subscription.studentProfile} 
+            tier={subscription.tier} 
+        />
     );
 
     const coachTemplate = (subscription: SubscriptionWithProfiles) => (
-        <div className="flex items-center space-x-3">
-            <Avatar
-                image={subscription.coachProfile?.avatar_url || undefined}
-                label={
-                    subscription.coachProfile?.avatar_url
-                        ? undefined
-                        : subscription.coachProfile?.nickname?.charAt(0) ||
-                        subscription.coachProfile?.full_name?.charAt(0) ||
-                        'C'
-                }
-                shape="circle"
-                className="bg-green-500 text-surface font-bold flex-shrink-0"
-                size="normal"
-            />
-            <div>
-                <div className="font-medium">
-                    {subscription.coachProfile?.nickname || subscription.coachProfile?.full_name || '未知教练'}
-                </div>
-            </div>
-        </div>
+        <CoachInfoComponent profile={subscription.coachProfile} />
     );
 
     const tierTemplate = (subscription: SubscriptionWithProfiles) => (
-        <span className="px-2 py-1 bg-primary text-surface rounded-full text-sm">
-            等级 {subscription.tier}
-        </span>
+        <TierInfoComponent tier={subscription.tier} />
+    );
+
+    const statusTemplate = (rowData: SubscriptionWithProfiles) => (
+        <StatusInfoComponent status={rowData.status} />
     );
 
     const priceTemplate = (subscription: SubscriptionWithProfiles) => (
@@ -194,88 +164,6 @@ export default function AdminPaymentsPage() {
         )
     );
 
-    const statusTemplate = (rowData: SubscriptionWithProfiles) => {
-        const severity = rowData.status === 'active' ? 'success' :
-            rowData.status === 'waiting' ? 'warning' :
-                rowData.status === 'inactive' ? 'danger' : 'info';
-        const label = rowData.status === 'active' ? '已激活' :
-            rowData.status === 'waiting' ? '等待确认' :
-                rowData.status === 'inactive' ? '未支付' : rowData.status;
-
-        return <Tag severity={severity} value={label} />;
-    };
-
-    // 状态过滤器组件
-    const statusFilterTemplate = (options: any) => {
-        const statusOptions = [
-            { label: '未支付', value: 'inactive' },
-            { label: '等待确认', value: 'waiting' },
-            { label: '已激活', value: 'active' }
-        ];
-
-        return (
-            <Dropdown
-                value={options.value}
-                options={statusOptions}
-                onChange={(e) => {
-                    options.filterApplyCallback(e.value);
-                }}
-                placeholder="选择状态"
-                className="p-column-filter"
-                showClear
-            />
-        );
-    };
-
-    // 订阅等级过滤器组件
-    const tierFilterTemplate = (options: any) => {
-        const tierOptions = [
-            { label: '等级 1', value: 1 },
-            { label: '等级 2', value: 2 },
-            { label: '等级 3', value: 3 }
-        ];
-
-        return (
-            <Dropdown
-                value={options.value}
-                options={tierOptions}
-                onChange={(e) => {
-                    options.filterApplyCallback(e.value);
-                }}
-                placeholder="选择等级"
-                className="p-column-filter"
-                showClear
-            />
-        );
-    };
-
-    // 学员姓名过滤器组件
-    const studentFilterTemplate = (options: any) => {
-        return (
-            <InputText
-                value={options.value || ''}
-                onChange={(e) => {
-                    options.filterApplyCallback(e.target.value);
-                }}
-                placeholder="搜索学员"
-                className="p-column-filter"
-            />
-        );
-    };
-
-    // 教练姓名过滤器组件
-    const coachFilterTemplate = (options: any) => {
-        return (
-            <InputText
-                value={options.value || ''}
-                onChange={(e) => {
-                    options.filterApplyCallback(e.target.value);
-                }}
-                placeholder="搜索教练"
-                className="p-column-filter"
-            />
-        );
-    };
 
     const dateTemplate = (rowData: SubscriptionWithProfiles) => {
         return new Date(rowData.created_at).toLocaleString('zh-CN');
@@ -357,7 +245,7 @@ export default function AdminPaymentsPage() {
                     header="学员"
                     body={studentTemplate}
                     filter
-                    filterElement={studentFilterTemplate}
+                    filterElement={(options) => <StudentFilterComponent options={options} />}
                     showFilterMenu={false}
                     headerStyle={{ width: '20%' }}
                     bodyStyle={{ width: '20%' }}
@@ -367,7 +255,7 @@ export default function AdminPaymentsPage() {
                     header="教练"
                     body={coachTemplate}
                     filter
-                    filterElement={coachFilterTemplate}
+                    filterElement={(options) => <CoachFilterComponent options={options} />}
                     showFilterMenu={false}
                     headerStyle={{ width: '20%' }}
                     bodyStyle={{ width: '20%' }}
@@ -377,7 +265,7 @@ export default function AdminPaymentsPage() {
                     header="订阅等级"
                     body={tierTemplate}
                     filter
-                    filterElement={tierFilterTemplate}
+                    filterElement={(options) => <TierFilterComponent options={options} />}
                     showFilterMenu={false}
                     headerStyle={{ width: '10%' }}
                     bodyStyle={{ width: '10%' }}
@@ -395,7 +283,7 @@ export default function AdminPaymentsPage() {
                     header="状态"
                     body={statusTemplate}
                     filter
-                    filterElement={statusFilterTemplate}
+                    filterElement={(options) => <StatusFilterComponent options={options} />}
                     showFilterMenu={false}
                     showClearButton
                     headerStyle={{ width: '10%' }}
