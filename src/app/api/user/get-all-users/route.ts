@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         });
     }
 
-    return NextResponse.json<ApiData<<GetAllUsersResponseDto>>({
+    return NextResponse.json<ApiData<GetAllUsersResponseDto>>({
         success: true,
         message: "获取成功",
         data: {

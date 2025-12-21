@@ -30,13 +30,13 @@ export const StudentFilterComponent: React.FC<StudentFilterComponentProps> = ({ 
             const res = await userService.getAllUsers({
                 search: searchText,
                 page: 1,
-                limit: 10
+                limit: 100
             });
 
             if (res && res.users) {
-                const students: StudentOption[] = res.users.map((user: any) => ({
+                const students: StudentOption[] = res.users.map(user => ({
                     name: user.nickname || user.full_name || '未知用户',
-                    id: user.id,
+                    id: user.user_id,
                     avatar_url: user.avatar_url || undefined
                 }));
                 setFilteredOptions(students);

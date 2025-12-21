@@ -59,6 +59,8 @@ async function embeddingCaochesIntoSubscriptions(
 
     for (const subscription of subscriptions) {
         const coach = coaches.get(subscription.coach_id);
+        subscription.subscribe_data = undefined;
+        
         const coachUserId = coach?.user_id;
         querySubscriptions.push({
             ...subscription,

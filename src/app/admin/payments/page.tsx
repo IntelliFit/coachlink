@@ -83,7 +83,10 @@ export default function AdminPaymentsPage() {
 
             // 使用新的分页接口获取所有等待支付确认的订阅
             // 管理员需要看到所有状态的订阅，包括 waiting
-            const res: ListSubscriptionGetResponseDto | null = await subscriptionService.listSubscriptions(reqData);
+            const res = await subscriptionService.listSubscriptions(reqData);
+
+            console.log(res);
+            
 
             if (res) {
                 setSubscriptions(res.subscriptions);

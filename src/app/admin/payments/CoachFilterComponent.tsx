@@ -30,7 +30,7 @@ export const CoachFilterComponent: React.FC<CoachFilterComponentProps> = ({ opti
             const res: GetAllCoachesResponseDto | null = await coachService.getAllCoaches({
                 search: searchText,
                 page: 1,
-                limit: 10
+                limit: 100
             });
 
             if (res && res.coaches) {
@@ -52,7 +52,7 @@ export const CoachFilterComponent: React.FC<CoachFilterComponentProps> = ({ opti
     };
 
     // 处理搜索输入变化
-    const handleFilterChange = (e: DropdownFilterEvent) => {
+    const handleFilterChange = (e: DropdownFilterEvent) => {        
         searchCoaches(e.filter);
     };
 
