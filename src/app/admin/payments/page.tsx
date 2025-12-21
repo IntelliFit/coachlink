@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Skeleton } from 'primereact/skeleton';
 import { Tag } from 'primereact/tag';
@@ -30,6 +30,12 @@ export default function AdminPaymentsPage() {
     const [rows, setRows] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [selectedSubscriptions, setSelectedSubscriptions] = useState<SubscriptionWithProfiles[]>([]);
+    const [filters, setFilters] = useState<any>({
+        'studentProfile.full_name': { value: null, matchMode: 'contains' },
+        'coachProfile.full_name': { value: null, matchMode: 'contains' },
+        'tier': { value: null, matchMode: 'equals' },
+        'status': { value: null, matchMode: 'equals' }
+    });
 
     useEffect(() => {
         // 检查用户权限
@@ -44,17 +50,31 @@ export default function AdminPaymentsPage() {
         loadSubscriptions(1, rows);
     }, [session, status]);
 
-    const loadSubscriptions = async (page: number = 1, limit: number = rows) => {
+    const loadSubscriptions = async (
+        page: number = 1,
+        limit: number = rows,
+        filters?: any
+    ) => {
         try {
             setLoading(true);
 
+            // 构造过滤参数
+            const reqData: ListSubscriptionGetDto = {
+                page: page,
+                limit: limit
+            };
+
+            if (filters?.status.value) {
+                reqData.status = filters.status.value;
+            }
+
+            if (filters?.tier.value) {
+                reqData.tier = filters.tier.value;
+            }
+ 
             // 使用新的分页接口获取所有等待支付确认的订阅
             // 管理员需要看到所有状态的订阅，包括 waiting
-            const res: ListSubscriptionGetResponseDto | null = await subscriptionService.listSubscriptions({
-                page: page,
-                limit: limit,
-                onlyActive: false
-            } as ListSubscriptionGetDto);
+            const res: ListSubscriptionGetResponseDto | null = await subscriptionService.listSubscriptions(reqData);
 
             if (res) {
                 setSubscriptions(res.subscriptions);
@@ -166,7 +186,7 @@ export default function AdminPaymentsPage() {
 
     const noteTemplate = (subscription: SubscriptionWithProfiles) => (
         subscription.remind_coach_note ? (
-            <div className="max-w-xs truncate" title={subscription.remind_coach_note}>
+            <div className="max-w-xs" title={subscription.remind_coach_note}>
                 {subscription.remind_coach_note}
             </div>
         ) : (
@@ -197,7 +217,9 @@ export default function AdminPaymentsPage() {
             <Dropdown
                 value={options.value}
                 options={statusOptions}
-                onChange={(e) => options.filterApplyCallback(e.value)}
+                onChange={(e) => {
+                    options.filterApplyCallback(e.value);
+                }}
                 placeholder="选择状态"
                 className="p-column-filter"
                 showClear
@@ -217,7 +239,9 @@ export default function AdminPaymentsPage() {
             <Dropdown
                 value={options.value}
                 options={tierOptions}
-                onChange={(e) => options.filterApplyCallback(e.value)}
+                onChange={(e) => {
+                    options.filterApplyCallback(e.value);
+                }}
                 placeholder="选择等级"
                 className="p-column-filter"
                 showClear
@@ -230,7 +254,9 @@ export default function AdminPaymentsPage() {
         return (
             <InputText
                 value={options.value || ''}
-                onChange={(e) => options.filterApplyCallback(e.target.value)}
+                onChange={(e) => {
+                    options.filterApplyCallback(e.target.value);
+                }}
                 placeholder="搜索学员"
                 className="p-column-filter"
             />
@@ -242,7 +268,9 @@ export default function AdminPaymentsPage() {
         return (
             <InputText
                 value={options.value || ''}
-                onChange={(e) => options.filterApplyCallback(e.target.value)}
+                onChange={(e) => {
+                    options.filterApplyCallback(e.target.value);
+                }}
                 placeholder="搜索教练"
                 className="p-column-filter"
             />
@@ -258,6 +286,14 @@ export default function AdminPaymentsPage() {
         setRows(event.rows);
         const page = event.page + 1; // API使用1基索引
         loadSubscriptions(page, event.rows);
+    };
+
+    const onFilter = (event: DataTableStateEvent) => {
+        setFilters(event.filters);        
+        
+        // 重置到第一页并加载数据
+        setFirst(0);
+        loadSubscriptions(1, rows, event.filters);
     };
 
     if (status === 'loading' || loading) {
@@ -304,6 +340,8 @@ export default function AdminPaymentsPage() {
                 totalRecords={totalRecords}
                 first={first}
                 onPage={onPage}
+                onFilter={onFilter}
+                filters={filters}
                 loading={loading}
                 stripedRows
                 tableStyle={{ minWidth: '50rem' }}
@@ -321,6 +359,8 @@ export default function AdminPaymentsPage() {
                     filter
                     filterElement={studentFilterTemplate}
                     showFilterMenu={false}
+                    headerStyle={{ width: '20%' }}
+                    bodyStyle={{ width: '20%' }}
                 ></Column>
                 <Column
                     filterField="coachProfile.full_name"
@@ -329,6 +369,8 @@ export default function AdminPaymentsPage() {
                     filter
                     filterElement={coachFilterTemplate}
                     showFilterMenu={false}
+                    headerStyle={{ width: '20%' }}
+                    bodyStyle={{ width: '20%' }}
                 ></Column>
                 <Column
                     filterField="tier"
@@ -337,8 +379,17 @@ export default function AdminPaymentsPage() {
                     filter
                     filterElement={tierFilterTemplate}
                     showFilterMenu={false}
+                    headerStyle={{ width: '10%' }}
+                    bodyStyle={{ width: '10%' }}
                 ></Column>
-                <Column field="monthly_price" header="月费" body={priceTemplate} align="right"></Column>
+                <Column
+                    field="monthly_price"
+                    header="月费"
+                    body={priceTemplate}
+                    align="right"
+                    headerStyle={{ width: '10%' }}
+                    bodyStyle={{ width: '10%' }}
+                ></Column>
                 <Column
                     filterField="status"
                     header="状态"
@@ -347,16 +398,22 @@ export default function AdminPaymentsPage() {
                     filterElement={statusFilterTemplate}
                     showFilterMenu={false}
                     showClearButton
+                    headerStyle={{ width: '10%' }}
+                    bodyStyle={{ width: '10%' }}
                 ></Column>
                 <Column
                     field="remind_coach_note"
                     header="支付备注"
                     body={noteTemplate}
+                    headerStyle={{ width: '15%' }}
+                    bodyStyle={{ width: '15%' }}
                 ></Column>
                 <Column
                     field="created_at"
                     header="申请时间"
                     body={dateTemplate}
+                    headerStyle={{ width: '12%' }}
+                    bodyStyle={{ width: '12%' }}
                 ></Column>
             </DataTable>
 

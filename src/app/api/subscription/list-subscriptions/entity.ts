@@ -3,10 +3,10 @@ import { CoachesRow, CoachSubscriptionRow, UserProfilesRow } from "@/types";
 export interface ListSubscriptionGetDto {
     studentId?: string;
     coachId?: string;
-    onlyActive?: boolean;
+    tier?: 1 | 2 | 3;
+    status?: string;
     page?: number;
     limit?: number;
-    status?: string;
 }
 
 export interface ListSubscriptionGetResponseDto {
