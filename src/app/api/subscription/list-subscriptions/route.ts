@@ -87,10 +87,10 @@ export async function POST(req: Request) {
     const {
         studentId = "",
         coachId = "",
-        onlyActive = true,
         page = 1,
         limit = 10,
         status,
+        tier,
     } = await req.json() as ListSubscriptionGetDto;
 
     // 构建基础查询
@@ -108,12 +108,12 @@ export async function POST(req: Request) {
         query = query.eq("coach_id", coachId);
     }
 
-    if (onlyActive && !status) {
-        query = query.eq("status", "active");
-    }
-
     if (status) {
         query = query.eq("status", status);
+    }
+
+    if (tier) {
+        query = query.eq("tier", tier);
     }
 
     // 添加分页
