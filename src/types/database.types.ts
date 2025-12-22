@@ -284,6 +284,102 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_applications: {
+        Row: {
+          achievements: string[] | null
+          applied_at: string
+          avatar_url: string | null
+          bio: string | null
+          case_studies: string[] | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          credentials: Json[] | null
+          id: string
+          name: string
+          portfolio_url: string | null
+          resume_url: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          social_links: Json | null
+          specialties: string[] | null
+          status: string
+          teaching_philosophy: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+          years_experience: number | null
+        }
+        Insert: {
+          achievements?: string[] | null
+          applied_at?: string
+          avatar_url?: string | null
+          bio?: string | null
+          case_studies?: string[] | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          credentials?: Json[] | null
+          id?: string
+          name: string
+          portfolio_url?: string | null
+          resume_url?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_links?: Json | null
+          specialties?: string[] | null
+          status?: string
+          teaching_philosophy?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          years_experience?: number | null
+        }
+        Update: {
+          achievements?: string[] | null
+          applied_at?: string
+          avatar_url?: string | null
+          bio?: string | null
+          case_studies?: string[] | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          credentials?: Json[] | null
+          id?: string
+          name?: string
+          portfolio_url?: string | null
+          resume_url?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_links?: Json | null
+          specialties?: string[] | null
+          status?: string
+          teaching_philosophy?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          years_experience?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_contents: {
         Row: {
           coach_id: string
@@ -403,10 +499,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "coach_plan_instances_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "coach_plan_instances_coach_subscription_id_fkey"
             columns: ["coach_subscription_id"]
             isOneToOne: false
             referencedRelation: "coach_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_plan_instances_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {

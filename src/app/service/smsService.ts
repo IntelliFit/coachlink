@@ -1,8 +1,6 @@
 import { BaseService } from "@/lib/baseService";
-import type { SendSmsDto, SendSmsResponseDto } from '../api/sms/send/entity';
 import type { SendVerificationCodeDto, SendVerificationCodeResponseDto } from '../api/sms/send-verification-code/entity';
 import type { VerifyCodeDto, VerifyCodeResponseDto } from '../api/sms/verify-code/entity';
-import { ApiData } from "@/types/api";
 
 class SmsService extends BaseService {
 

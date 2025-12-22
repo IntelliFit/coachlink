@@ -72,6 +72,24 @@ import type {
 } from '@/app/api/coach/update-coach-profile/entity';
 import { GetPaymentWaitingStudentsDto, GetPaymentWaitingStudentsResponseDto } from "../api/coach/get-payment-waiting-students/entity";
 
+// 添加教练申请相关的接口类型
+import type {
+    CreateCoachApplicationDto,
+    CreateCoachApplicationResponseDto
+} from '@/app/api/coach/create-coach-application/entity';
+import type {
+    GetCoachApplicationDto,
+    GetCoachApplicationResponseDto
+} from '@/app/api/coach/get-coach-application/entity';
+import type {
+    ListCoachApplicationsDto,
+    ListCoachApplicationsResponseDto
+} from '@/app/api/coach/list-coach-applications/entity';
+import type {
+    UpdateCoachApplicationDto,
+    UpdateCoachApplicationResponseDto
+} from '@/app/api/coach/update-coach-application/entity';
+
 // 添加UpdateContentDto和DeleteContentDto类型
 interface DeleteContentDto {
     id: string;
@@ -213,6 +231,39 @@ class CoachService extends BaseService {
 
     async getStudent(reqData: GetStudentDto) {
         const res = await this.post<GetStudentResponseDto>('get-student', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    // 教练申请相关方法
+    async createCoachApplication(reqData: CreateCoachApplicationDto) {
+        const res = await this.post<CreateCoachApplicationResponseDto>('create-coach-application', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async getCoachApplication(reqData?: GetCoachApplicationDto) {
+        const res = await this.post<GetCoachApplicationResponseDto>('get-coach-application', reqData || {});
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async listCoachApplications(reqData?: ListCoachApplicationsDto) {
+        const res = await this.post<ListCoachApplicationsResponseDto>('list-coach-applications', reqData || {});
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async updateCoachApplication(reqData: UpdateCoachApplicationDto) {
+        const res = await this.post<UpdateCoachApplicationResponseDto>('update-coach-application', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
