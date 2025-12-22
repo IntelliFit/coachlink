@@ -12,6 +12,7 @@ import { MultiSelect } from 'primereact/multiselect';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
 import CoachApplicationDialog from './CoachApplicationDialog';
+import ReviewNotesDialog from './ReviewNotesDialog';
 import type { CoachApplicationRow } from '@/types';
 
 // 定义状态选项
@@ -39,6 +40,8 @@ export default function AdminCoachApplicationsPage() {
     });
     const [dialogVisible, setDialogVisible] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState<CoachApplicationRow | null>(null);
+    const [reviewNotesDialogVisible, setReviewNotesDialogVisible] = useState(false);
+    const [applicationToReject, setApplicationToReject] = useState<string | null>(null);
 
     useEffect(() => {
         // 检查用户权限
@@ -174,7 +177,7 @@ export default function AdminCoachApplicationsPage() {
                             rounded
                             text
                             severity="danger"
-                            onClick={() => rejectApplication(rowData.id)}
+                            onClick={() => openRejectDialog(rowData.id)}
                         />
                     </>
                 )}
@@ -196,6 +199,35 @@ export default function AdminCoachApplicationsPage() {
         }
     };
 
+    const openRejectDialog = (applicationId: string) => {
+        setApplicationToReject(applicationId);
+        setReviewNotesDialogVisible(true);
+    };
+
+    const handleRejectSubmit = async (notes: string) => {
+        if (!applicationToReject) return;
+
+        try {
+            await coachService.updateCoachApplication({
+                id: applicationToReject,
+                status: 'rejected',
+                reviewNotes: notes
+            });
+
+            showToast({ severity: 'info', summary: '操作成功', detail: `已拒绝申请` });
+
+            // 重新加载当前页数据
+            const currentPage = Math.floor(first / rows) + 1;
+            const statusFilter = filters.status.value;
+            loadApplications(currentPage, rows, statusFilter);
+        } catch (error) {
+            console.error('拒绝申请失败:', error);
+            showToast({ severity: 'error', summary: '操作失败', detail: '无法拒绝申请' });
+        } finally {
+            setApplicationToReject(null);
+        }
+    };
+
     const approveApplication = async (id: string) => {
         try {
             await coachService.updateCoachApplication({
@@ -212,25 +244,6 @@ export default function AdminCoachApplicationsPage() {
         } catch (error) {
             console.error('批准申请失败:', error);
             showToast({ severity: 'error', summary: '操作失败', detail: '无法批准申请' });
-        }
-    };
-
-    const rejectApplication = async (id: string) => {
-        try {
-            await coachService.updateCoachApplication({
-                id,
-                status: 'rejected'
-            });
-
-            showToast({ severity: 'info', summary: '操作成功', detail: `已拒绝申请` });
-
-            // 重新加载当前页数据
-            const currentPage = Math.floor(first / rows) + 1;
-            const statusFilter = filters.status.value;
-            loadApplications(currentPage, rows, statusFilter);
-        } catch (error) {
-            console.error('拒绝申请失败:', error);
-            showToast({ severity: 'error', summary: '操作失败', detail: '无法拒绝申请' });
         }
     };
 
@@ -368,6 +381,16 @@ export default function AdminCoachApplicationsPage() {
                 visible={dialogVisible}
                 application={selectedApplication}
                 onHide={() => setDialogVisible(false)}
+            />
+
+            <ReviewNotesDialog
+                visible={reviewNotesDialogVisible}
+                applicationId={applicationToReject || ''}
+                onSubmit={handleRejectSubmit}
+                onHide={() => {
+                    setReviewNotesDialogVisible(false);
+                    setApplicationToReject(null);
+                }}
             />
         </div>
     );
