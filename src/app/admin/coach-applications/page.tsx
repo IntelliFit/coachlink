@@ -331,13 +331,14 @@ export default function AdminCoachApplicationsPage() {
                 totalRecords={totalRecords}
                 first={first}
                 onPage={onPage}
-                loading={false} // 我们自己控制加载状态
+                loading={false}
                 stripedRows
                 tableStyle={{ minWidth: '70rem' }}
                 selection={selectedApplications}
                 onSelectionChange={(e) => !loading && setSelectedApplications(e.value as CoachApplicationRow[])}
                 filters={filters}
                 onFilter={onFilter}
+                selectionMode="checkbox"
                 filterDisplay="row"
             >
                 <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>

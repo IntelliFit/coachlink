@@ -8,6 +8,7 @@ import type {
     UpdateCoachApplicationDto,
     UpdateCoachApplicationResponseDto
 } from './entity';
+import { sendSystemMessage } from '@/lib/chat';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -109,6 +110,57 @@ export async function POST(req: Request) {
             message: '更新教练申请失败: ' + error.message,
             data: null
         }, { status: 500 });
+    }
+
+
+    if (isAdmin) {
+        // 根据选择的值进行后续处理
+        if (body.status === 'approved') {
+            // 如果不存在教练账号则创建
+            const { data: existCoach, error: existCoachError } = await supabase
+                .from('coaches')
+                .select('*')
+                .eq('user_id', existingApplication.user_id)
+                .maybeSingle();
+            
+            if (existCoachError) {
+                return NextResponse.json<ApiData<null>>({
+                    success: false,
+                    message: '查询教练失败: ' + existCoachError.message,
+                    data: null
+                }, { status: 500 });
+            }
+
+            if (!existCoach) {
+                const { error: createCoachError } = await supabase
+                    .from('coaches')
+                    .insert({
+                        user_id: existingApplication.user_id,
+                        name: existingApplication.name,
+                        title: existingApplication.title,
+                        avatar_url: existingApplication.avatar_url,
+                        specialties: existingApplication.specialties,
+                        bio: existingApplication.bio,
+                    });
+
+                if (createCoachError) {
+                    return NextResponse.json<ApiData<null>>({
+                        success: false,
+                        message: '创建教练失败: ' + createCoachError.message,
+                        data: null
+                    }, { status: 500 });
+                }
+            }
+
+            await sendSystemMessage(existingApplication.user_id, {
+                content: '您提交的教练申请已经通过🎉，恭喜您成为了一名教链平台的教练。在正式开始您的招生生意前，您需要先完成 [订阅设置](/dashboard/pricing) 和 [学员问卷](/dashboard/questionnaire) 这两部分的编辑，这样，才能最大限度利用教链平台提供的功能为您服务。'
+            });
+        } else if (body.status === 'rejected') {
+
+            await sendSystemMessage(existingApplication.user_id, {
+                content: `您提交的教练申请未通过，原因： ${body.reviewNotes || '无'}。\n您可以在 [申请成为教练](/coach/application) 查看原因并加以修改。`
+            });
+        }
     }
 
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>
