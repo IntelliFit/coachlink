@@ -997,6 +997,95 @@ export type Database = {
           },
         ]
       }
+      leaderboard_entries: {
+        Row: {
+          created_at: string | null
+          evidence_url: string | null
+          form_data: Json
+          id: string
+          score: number | null
+          status: string | null
+          template_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          evidence_url?: string | null
+          form_data: Json
+          id?: string
+          score?: number | null
+          status?: string | null
+          template_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          evidence_url?: string | null
+          form_data?: Json
+          id?: string
+          score?: number | null
+          status?: string | null
+          template_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaderboard_entries_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leaderboard_templates: {
+        Row: {
+          created_at: string | null
+          creator_id: string | null
+          description: string | null
+          end_at: string | null
+          form_schema: Json | null
+          id: string
+          rank_by_field: string
+          remarks: string | null
+          rules: Json | null
+          sort_order: string | null
+          start_at: string | null
+          title: string
+          type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id?: string | null
+          description?: string | null
+          end_at?: string | null
+          form_schema?: Json | null
+          id?: string
+          rank_by_field: string
+          remarks?: string | null
+          rules?: Json | null
+          sort_order?: string | null
+          start_at?: string | null
+          title: string
+          type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string | null
+          description?: string | null
+          end_at?: string | null
+          form_schema?: Json | null
+          id?: string
+          rank_by_field?: string
+          remarks?: string | null
+          rules?: Json | null
+          sort_order?: string | null
+          start_at?: string | null
+          title?: string
+          type?: string | null
+        }
+        Relationships: []
+      }
       lifestyle_logs: {
         Row: {
           created_at: string | null
