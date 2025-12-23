@@ -218,11 +218,29 @@ const TrainingPlansHome: React.FC = () => {
                         <i className="pi pi-box text-sm text-surface-500" />
                         <span className="font-medium text-surface-900">{actionName}</span>
                     </div>
-                    {((actionSet as any).params?.['强度'] || actionSet.intensity) && (
-                        <div className="flex items-center gap-1 text-surface-600">
-                            <span className="text-sm">💪 {(actionSet as any).params?.['强度'] || actionSet.intensity}</span>
-                        </div>
-                    )}
+                    {/* 强度显示：优先显示计算后的重量，否则显示RM */}
+                    {(() => {
+                        const params = (actionSet as any).params || {};
+                        const load = params.load;
+                        const intensity = params['强度'] || actionSet.intensity;
+                        
+                        if (load && load > 0) {
+                            // 显示自动计算的具体重量
+                            return (
+                                <div className="flex items-center gap-1 text-green-600">
+                                    <span className="text-sm">💪 {load}kg</span>
+                                </div>
+                            );
+                        } else if (intensity) {
+                            // 显示RM强度
+                            return (
+                                <div className="flex items-center gap-1 text-surface-600">
+                                    <span className="text-sm">💪 {intensity}RM</span>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
                     {((actionSet as any).params?.['休息时间'] || actionSet.rest_seconds) && (
                         <div className="flex items-center gap-1 text-surface-500">
                             <i className="pi pi-clock text-xs" />

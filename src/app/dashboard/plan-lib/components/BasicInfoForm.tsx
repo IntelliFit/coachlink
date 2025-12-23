@@ -5,8 +5,10 @@ import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
+import { SelectButton } from 'primereact/selectbutton';
 import { trainingItemService } from '@/app/service/trainingItemService';
 import { useToastContext } from '@/context/ToastContext';
+import { TrainingOptionQuestion } from '@/types/questionnaires';
 
 interface BasicInfoFormProps {
     name: string;
@@ -21,6 +23,12 @@ interface BasicInfoFormProps {
     onSave: () => void;
     extraButton?: React.ReactNode;
     variant?: 'template' | 'student';
+    // 新增props
+    weekDays?: number[];
+    onWeekDaysChange?: (days: number[]) => void;
+    globalQuestions?: TrainingOptionQuestion[];
+    globalAnswers?: Record<string, number>;
+    onGlobalAnswerChange?: (question: string, answerIndex: number) => void;
 }
 
 const experienceLevels = [
@@ -41,7 +49,12 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     saving,
     onSave,
     extraButton,
-    variant = 'template'
+    variant = 'template',
+    weekDays = [],
+    onWeekDaysChange,
+    globalQuestions = [],
+    globalAnswers = {},
+    onGlobalAnswerChange
 }) => {
 
     const { showToast } = useToastContext();
@@ -127,14 +140,14 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
 
                     {!isStudent && (
                         <>
-                            {/* 模板标签 */}
+                            {/* 训练项目 */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-sm text-900 font-medium">模板标签</label>
+                                <label className="text-sm text-900 font-medium">训练项目</label>
                                 <MultiSelect
                                     value={tags}
                                     options={templateTypes}
                                     onChange={(e) => onTagsChange(e.value)}
-                                    placeholder="选择模板标签"
+                                    placeholder="选择训练项目"
                                     className="text-sm"
                                     disabled={saving || loadingTemplateTypes}
                                     display="chip"
@@ -144,18 +157,39 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                                 />
                             </div>
 
-                            {/* 适合学员等级 */}
+
+                        </>
+                    )}
+
+                    {!isStudent && (
+                        <>
+                            {/* 适用每周训练次数 */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-sm text-900 font-medium">适合学员等级</label>
-                                <Dropdown
-                                    value={suitableFor}
-                                    options={experienceLevels}
-                                    onChange={(e) => onSuitableForChange(e.value)}
-                                    placeholder="选择适合的学员等级"
-                                    className="p-inputtext-sm"
+                                <label className="text-sm text-900 font-medium">适用每周训练次数</label>
+                                <MultiSelect
+                                    value={weekDays}
+                                    options={[1, 2, 3, 4, 5, 6, 7].map(n => ({ label: `${n}次`, value: n }))}
+                                    onChange={(e) => onWeekDaysChange?.(e.value)}
+                                    placeholder="选择适用的训练频率"
+                                    className="text-sm"
                                     disabled={saving}
+                                    display="chip"
+                                    showClear
                                 />
                             </div>
+
+                            {/* 动态显示全局选项问题 */}
+                            {globalQuestions.map((question, idx) => (
+                                <div key={idx} className="flex flex-col gap-2">
+                                    <label className="text-sm text-900 font-medium">{question.question}</label>
+                                    <SelectButton
+                                        value={globalAnswers[question.question]}
+                                        options={question.options.map((opt, i) => ({ label: opt, value: i }))}
+                                        onChange={(e) => onGlobalAnswerChange?.(question.question, e.value)}
+                                        disabled={saving}
+                                    />
+                                </div>
+                            ))}
                         </>
                     )}
                 </div>
@@ -170,10 +204,13 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                                 这些信息将帮助你在动作库和训练库中快速识别模板。
                             </p>
                             <p>
-                                模板标签可以多选，用于标记训练计划的特点和适用人群。
+                                <strong>训练项目</strong>可以多选，用于标记训练计划的特点和适用人群。
                             </p>
                             <p>
-                                "适合学员等级"用于标识该训练计划最适合的学员水平，请根据训练计划的复杂程度进行选择。
+                                <strong>适用每周训练次数</strong>用于匹配学员问卷中的训练频率，可多选（如2次、3次）。
+                            </p>
+                            <p>
+                                <strong>全局选项问题</strong>会根据问卷设置自动显示，用于进一步匹配学员需求。
                             </p>
                         </div>
                     </div>

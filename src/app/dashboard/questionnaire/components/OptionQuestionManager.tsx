@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
+import { RadioButton } from 'primereact/radiobutton';
 import { TrainingOptionQuestion } from '@/types/questionnaires';
 
 interface OptionQuestionManagerProps {
@@ -12,9 +13,10 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
     onAddOptionQuestion,
     onCancel
 }) => {
-    const [newOptionQuestion, setNewOptionQuestion] = useState<{ question: string; options: string[] }>({ 
+    const [newOptionQuestion, setNewOptionQuestion] = useState<{ question: string; options: string[]; scope: 'global' | 'action' }>({ 
         question: '', 
-        options: [''] 
+        options: [''],
+        scope: 'action'  // 默认为动作选择
     });
 
     // 更新新选项问题的选项
@@ -45,10 +47,11 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
             const optionQuestion: TrainingOptionQuestion = {
                 type: 'option',
                 question: newOptionQuestion.question,
-                options: newOptionQuestion.options.filter(opt => opt.trim())
+                options: newOptionQuestion.options.filter(opt => opt.trim()),
+                scope: newOptionQuestion.scope
             };
             onAddOptionQuestion(optionQuestion);
-            setNewOptionQuestion({ question: '', options: [''] });
+            setNewOptionQuestion({ question: '', options: [''], scope: 'action' });
         }
     };
 
@@ -64,6 +67,34 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
                 placeholder="输入问题..."
                 className="w-full mb-2"
             />
+
+            <label className="block text-sm font-medium mb-2">问题作用范围</label>
+            <div className="flex gap-4 mb-4">
+                <div className="flex items-center">
+                    <RadioButton
+                        inputId="scope-global"
+                        name="scope"
+                        value="global"
+                        onChange={(e) => setNewOptionQuestion({ ...newOptionQuestion, scope: e.value })}
+                        checked={newOptionQuestion.scope === 'global'}
+                    />
+                    <label htmlFor="scope-global" className="ml-2 text-sm">
+                        🌐 全局匹配 <span className="text-surface-500">(用于匹配模板)</span>
+                    </label>
+                </div>
+                <div className="flex items-center">
+                    <RadioButton
+                        inputId="scope-action"
+                        name="scope"
+                        value="action"
+                        onChange={(e) => setNewOptionQuestion({ ...newOptionQuestion, scope: e.value })}
+                        checked={newOptionQuestion.scope === 'action'}
+                    />
+                    <label htmlFor="scope-action" className="ml-2 text-sm">
+                        🎯 动作选择 <span className="text-surface-500">(用于筛选动作)</span>
+                    </label>
+                </div>
+            </div>
 
             <label className="block text-sm font-medium mb-2">选项</label>
             {newOptionQuestion.options.map((option, index) => (

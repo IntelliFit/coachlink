@@ -61,7 +61,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
                 />
 
                 <Button
-                    label="RM问题"
+                    label="用户极限（1RM）"
                     icon="pi pi-chart-bar"
                     disabled={questions.some(q => q.type === 'rm')}
                     onClick={onAddRmQuestion}

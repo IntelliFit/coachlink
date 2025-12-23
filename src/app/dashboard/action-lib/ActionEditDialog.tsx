@@ -28,6 +28,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [positions, setPositions] = useState<string[]>([]);
     const [attrs, setAttrs] = useState<string[]>([]); // 新增：动作属性状态
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false); // 新增状态
+    const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false); // 新增：是否包含自重
     const [loading, setLoading] = useState(false);
 
     const actionTypes = [
@@ -59,6 +60,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             // 新增：设置动作属性
             setAttrs(action.attrs || []);
             setEnableAutoWeightCompute(action.enableAutoWeightCompute || false); // 新增：设置自动计算负重状态
+            setIncludesBodyWeight(action.includesBodyWeight || false); // 新增：设置是否包含自重
         } else {
             // 重置表单
             setName('');
@@ -68,6 +70,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             // 修改：设置默认动作属性
             setAttrs(['组数', '次数', '强度', '休息时间']);
             setEnableAutoWeightCompute(false); // 新增：默认值为false
+            setIncludesBodyWeight(false); // 新增：默认值为false
         }
     }, [action, visible]);
 
@@ -83,7 +86,8 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 positions,
                 // 新增：保存动作属性
                 attrs,
-                enableAutoWeightCompute // 新增：保存自动计算负重设置
+                enableAutoWeightCompute, // 新增：保存自动计算负重设置
+                includesBodyWeight: enableAutoWeightCompute ? includesBodyWeight : false // 只有启用自动计算时才保存
             };
 
             if (action) {
@@ -144,6 +148,27 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                         是否自动计算负重
                     </label>
                 </div>
+
+                {/* 新增：是否包含自重开关（仅在启用自动计算时显示） */}
+                {enableAutoWeightCompute && (
+                    <div className="flex items-center gap-2 ml-6 p-3 bg-surface-100 rounded-lg">
+                        <InputSwitch 
+                            id="includesBodyWeight"
+                            checked={includesBodyWeight}
+                            onChange={(e) => setIncludesBodyWeight(e.value || false)}
+                        />
+                        <div className="flex flex-col">
+                            <label htmlFor="includesBodyWeight" className="font-medium">
+                                包含自重计算
+                            </label>
+                            <span className="text-xs text-surface-500">
+                                {includesBodyWeight 
+                                    ? '适用于负重引体、负重臂屈伸等动作' 
+                                    : '适用于深蹲、卧推、硬拉等动作'}
+                            </span>
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex flex-col gap-2">
                     <label htmlFor="positions" className="font-medium">动作类型</label>

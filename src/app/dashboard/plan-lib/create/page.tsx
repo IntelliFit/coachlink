@@ -30,6 +30,8 @@ const CreatePlanPage = () => {
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
+    const [weekDays, setWeekDays] = useState<number[]>([]);  // 新增
+    const [globalAnswers, setGlobalAnswers] = useState<Record<string, number>>({});  // 新增
 
     // Days management
     const [days, setDays] = useState<FormPlanTrainingDay[]>([
@@ -363,6 +365,13 @@ const CreatePlanPage = () => {
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
+                weekDays={weekDays}
+                onWeekDaysChange={setWeekDays}
+                globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
+                globalAnswers={globalAnswers}
+                onGlobalAnswerChange={(question, answerIndex) => {
+                    setGlobalAnswers({ ...globalAnswers, [question]: answerIndex });
+                }}
             />
 
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">

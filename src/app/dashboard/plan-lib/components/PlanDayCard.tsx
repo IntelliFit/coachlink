@@ -191,7 +191,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     };
 
     const optionQuestions = questions?.filter(
-        q => q.type === 'option'
+        q => q.type === 'option' && q.scope !== 'global'  // 只显示非全局的选项问题
     ) as TrainingOptionQuestion[] || [];
 
     // 检查是否应该显示条件筛选按钮

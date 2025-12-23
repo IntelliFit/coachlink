@@ -173,11 +173,11 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         <div>
                             <label className="block text-900 text-xs mb-1">推荐数值 (kg)</label>
                             <InputNumber
-                                value={set.params?.recommendedWeight || 0}
+                                value={set.params?.load || 0}
                                 onValueChange={e => {
                                     onActionSetChange(dayIndex, setIndex, 'params', {
                                         ...set.params,
-                                        '负重': e.value
+                                        'load': e.value
                                     });
                                 }}
                                 suffix="kg"

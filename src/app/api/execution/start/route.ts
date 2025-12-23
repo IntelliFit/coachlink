@@ -149,8 +149,14 @@ export async function POST(request: NextRequest) {
             const sets = actionSet.params?.["组数"] || actionSet.sets || 1;
             const reps = actionSet.params?.["次数"] || actionSet.reps;
             const intensity = actionSet.params?.["强度"] || actionSet.intensity;
+            const load = actionSet.params?.load; // 自动计算的实际重量
             const restSeconds = actionSet.params?.["休息时间"] ||
                 actionSet.rest_seconds || 90;
+
+            // 优先使用自动计算的重量(load)，否则显示RM值
+            const plannedWeight = load
+                ? `${Math.round(load * 10) / 10}kg`
+                : (intensity ? `${intensity}RM` : null);
 
             return {
                 action_id: actionId,
@@ -160,8 +166,8 @@ export async function POST(request: NextRequest) {
                 sets: Array.from({ length: sets }, (_, i) => ({
                     set_number: i + 1,
                     status: "pending",
-                    planned_reps: reps,
-                    planned_weight: intensity,
+                    planned_reps: reps ? `${reps}` : null,
+                    planned_weight: plannedWeight,
                     planned_rest_seconds: restSeconds,
                     has_video: false,
                     is_pr: false,
