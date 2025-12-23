@@ -72,11 +72,7 @@ import type {
 } from '@/app/api/coach/update-coach-profile/entity';
 import { GetPaymentWaitingStudentsDto, GetPaymentWaitingStudentsResponseDto } from "../api/coach/get-payment-waiting-students/entity";
 
-// 添加教练申请相关的接口类型
-import type {
-    CreateCoachApplicationDto,
-    CreateCoachApplicationResponseDto
-} from '@/app/api/coach/create-coach-application/entity';
+
 import type {
     GetCoachApplicationDto,
     GetCoachApplicationResponseDto
@@ -89,6 +85,7 @@ import type {
     UpdateCoachApplicationDto,
     UpdateCoachApplicationResponseDto
 } from '@/app/api/coach/update-coach-application/entity';
+import { CreateCoachApplicationDto, CreateCoachApplicationResponseDto } from "../api/coach/create-coach-application/entity";
 
 // 添加UpdateContentDto和DeleteContentDto类型
 interface DeleteContentDto {

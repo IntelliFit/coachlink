@@ -1,5 +1,5 @@
 import { BaseService } from "@/lib/baseService";
-import type { GetLeaderboardDto, GetLeaderboardResponseDto } from "../api/ranking/get-leaderboard/entity";
+import type { GetLeaderboardDto, GetLeaderboardResponseDto } from "../api/ranking/old-get-leaderboard/entity";
 
 export class RankingService extends BaseService {
     async getLeaderboard(reqData: GetLeaderboardDto) {
