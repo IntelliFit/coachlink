@@ -93,6 +93,41 @@ function TrainingExecutionContent() {
         }
     }, [isResting, restTimer]);
 
+    // 预填充推荐值：当切换到新组时自动填入教练计划的重量和次数
+    useEffect(() => {
+        if (!execution) return;
+        const actionExecutions = execution.action_executions || [];
+        const currentAction = actionExecutions[expandedAction];
+        if (!currentAction) return;
+        
+        const currentSet = currentAction.sets[currentSetIndex];
+        if (currentSet && currentSet.status === 'pending') {
+            // 解析 planned_weight (去掉 "kg" 后缀)
+            const weightStr = String(currentSet.planned_weight || '');
+            
+            console.log('预填充调试:', {
+                planned_weight: currentSet.planned_weight,
+                planned_reps: currentSet.planned_reps,
+                weightStr
+            });
+            
+            // 只有当包含 "kg" 时才预填充重量（避免把 RM 值填进去）
+            if (weightStr.includes('kg') && weight === null) {
+                const numericWeight = parseFloat(weightStr.replace(/[^0-9.]/g, ''));
+                if (numericWeight > 0) {
+                    setWeight(numericWeight);
+                }
+            }
+            
+            // 预填充次数
+            const repsStr = String(currentSet.planned_reps || '0');
+            const plannedReps = parseInt(repsStr.replace(/[^0-9]/g, ''));
+            if (plannedReps > 0 && reps === null) {
+                setReps(plannedReps);
+            }
+        }
+    }, [expandedAction, currentSetIndex, execution]);
+
     const startTraining = async () => {
         try {
             setLoading(true);
@@ -302,7 +337,7 @@ function TrainingExecutionContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-900 text-white p-4">
+            <div className="min-h-screen bg-surface-50 p-4">
                 <Skeleton height="60px" className="mb-4" />
                 <Skeleton height="200px" className="mb-4" />
                 <Skeleton height="300px" />
@@ -312,10 +347,10 @@ function TrainingExecutionContent() {
 
     if (!session?.user?.id) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+            <div className="min-h-screen flex items-center justify-center bg-surface-50">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2">未登录</h2>
-                    <p className="text-gray-400">请先登录</p>
+                    <h2 className="text-2xl font-bold mb-2 text-surface-900">未登录</h2>
+                    <p className="text-surface-500">请先登录</p>
                 </div>
             </div>
         );
@@ -323,9 +358,9 @@ function TrainingExecutionContent() {
 
     if (!execution) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+            <div className="min-h-screen flex items-center justify-center bg-surface-50">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2">加载失败</h2>
+                    <h2 className="text-2xl font-bold mb-2 text-surface-900">加载失败</h2>
                     <Button label="返回" onClick={() => router.back()} />
                 </div>
             </div>
@@ -338,7 +373,7 @@ function TrainingExecutionContent() {
         : 0;
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white">
+        <div className="min-h-screen bg-surface-50">
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 sticky top-0 z-10">
                 <div className="flex items-center justify-between mb-3">
@@ -394,14 +429,14 @@ function TrainingExecutionContent() {
                                 onClick={() => setExpandedAction(isExpanded ? -1 : actionIndex)}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                                        isCompleted ? 'bg-green-500' : 'bg-purple-500'
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
+                                        isCompleted ? 'bg-green-500' : 'bg-orange-500'
                                     }`}>
                                         {isCompleted ? <Check className="w-5 h-5" /> : actionExec.action_order}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold">{action?.name || actionExec.action_name}</h3>
-                                        <p className="text-sm text-gray-400">
+                                        <h3 className="font-bold text-surface-900">{action?.name || actionExec.action_name}</h3>
+                                        <p className="text-sm text-surface-500">
                                             {actionExec.completed_sets}/{actionExec.total_sets} 组完成
                                         </p>
                                     </div>
@@ -449,9 +484,14 @@ function TrainingExecutionContent() {
                                                     )}
                                                 </div>
 
-                                                {/* Planned values */}
-                                                <div className="bg-gray-800 rounded p-2 mb-3 text-sm text-gray-400">
-                                                    教练计划: {setData.planned_weight || '-'} × {setData.planned_reps || '-'}次
+                                                {/* Planned values - 更醒目的显示 */}
+                                                <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg p-3 mb-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-orange-600 text-xs font-medium">📋 教练计划</span>
+                                                    </div>
+                                                    <div className="text-surface-900 text-lg font-bold">
+                                                        {setData.planned_weight || '-'} × {setData.planned_reps || '-'}次
+                                                    </div>
                                                 </div>
 
                                                 {isSetCompleted ? (
@@ -459,27 +499,27 @@ function TrainingExecutionContent() {
                                                     <div className="space-y-3">
                                                         <div className="grid grid-cols-3 gap-3">
                                                             <div>
-                                                                <label className="text-xs text-gray-400">重量(kg)</label>
-                                                                <div className="bg-gray-800 rounded p-2 text-white font-medium">
+                                                                <label className="text-xs text-surface-500">重量(kg)</label>
+                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
                                                                     {setData.actual_weight || '-'}
                                                                 </div>
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs text-gray-400">次数</label>
-                                                                <div className="bg-gray-800 rounded p-2 text-white font-medium">
+                                                                <label className="text-xs text-surface-500">次数</label>
+                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
                                                                     {setData.actual_reps || '-'}
                                                                 </div>
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs text-gray-400">RPE</label>
-                                                                <div className="bg-gray-800 rounded p-2 text-white font-medium">
+                                                                <label className="text-xs text-surface-500">RPE</label>
+                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
                                                                     {setData.rpe || '-'}
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         {setData.notes && (
-                                                            <div className="bg-gray-800 rounded p-2 text-sm text-gray-300">
+                                                            <div className="bg-surface-100 rounded p-2 text-sm text-surface-600">
                                                                 📝 {setData.notes}
                                                             </div>
                                                         )}
@@ -520,32 +560,29 @@ function TrainingExecutionContent() {
                                                     <div className="space-y-3">
                                                         <div className="grid grid-cols-3 gap-3">
                                                             <div>
-                                                                <label className="text-xs text-gray-400">重量(kg)</label>
+                                                                <label className="text-xs text-surface-600 font-medium">重量(kg)</label>
                                                                 <InputNumber 
                                                                     value={weight}
                                                                     onValueChange={(e) => setWeight(e.value ?? null)}
                                                                     className="w-full"
-                                                                    inputClassName="!bg-gray-800 !text-white"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs text-gray-400">次数</label>
+                                                                <label className="text-xs text-surface-600 font-medium">次数</label>
                                                                 <InputNumber 
                                                                     value={reps}
                                                                     onValueChange={(e) => setReps(e.value ?? null)}
                                                                     className="w-full"
-                                                                    inputClassName="!bg-gray-800 !text-white"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="text-xs text-gray-400">RPE</label>
+                                                                <label className="text-xs text-surface-600 font-medium">RPE</label>
                                                                 <InputNumber 
                                                                     value={rpe}
                                                                     onValueChange={(e) => setRpe(e.value ?? null)}
                                                                     min={1}
                                                                     max={10}
                                                                     className="w-full"
-                                                                    inputClassName="!bg-gray-800 !text-white"
                                                                 />
                                                             </div>
                                                         </div>
@@ -555,7 +592,7 @@ function TrainingExecutionContent() {
                                                             onChange={(e) => setSetNotes(e.target.value)}
                                                             placeholder="添加备注（可选）"
                                                             rows={2}
-                                                            className="w-full !bg-gray-800 !text-white"
+                                                            className="w-full"
                                                         />
 
                                                         <div className="flex items-center gap-4 flex-wrap">
@@ -617,13 +654,13 @@ function TrainingExecutionContent() {
             </div>
 
             {/* Finish Section */}
-            <div className="p-4 border-t border-gray-700">
+            <div className="p-4 border-t border-surface-200 bg-white">
                 <InputTextarea 
                     value={sessionNotes}
                     onChange={(e) => setSessionNotes(e.target.value)}
                     placeholder="训练备注（可选）"
                     rows={2}
-                    className="w-full !bg-gray-800 !text-white mb-4"
+                    className="w-full mb-4"
                 />
                 <Button 
                     label="完成训练"

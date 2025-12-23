@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
-import supabase from '@/lib/supabaseClient';
-import { CoachPlanTemplatesUpdate, UpdateTemplateDto, UpdateTemplateResponseDto } from "./entity";
+import supabase from "@/lib/supabaseClient";
+import {
+    CoachPlanTemplatesUpdate,
+    UpdateTemplateDto,
+    UpdateTemplateResponseDto,
+} from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
-import { checkTrainingDays, makeContainedOptions, makeWeekDays } from "@/utils/template";
+import {
+    checkTrainingDays,
+    makeContainedOptions,
+    makeWeekDays,
+} from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -12,7 +20,8 @@ export async function POST(req: Request) {
         description,
         tags,
         suitableFor,
-        trainingDays
+        weekDays, // 新增
+        trainingDays,
     } = await req.json() as UpdateTemplateDto;
 
     // Check if user is logged in and has coach role
@@ -22,14 +31,14 @@ export async function POST(req: Request) {
     if (!userId) {
         return NextResponse.json({
             success: false,
-            message: "Unauthorized"
+            message: "Unauthorized",
         }, { status: 401 });
     }
 
     const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('is_coach')
-        .eq('id', userId)
+        .from("users")
+        .select("is_coach")
+        .eq("id", userId)
         .single();
 
     if (userError || !user.is_coach) {
@@ -59,20 +68,33 @@ export async function POST(req: Request) {
 
     // 将计划日数据存储在training_days字段中
     if (trainingDays) {
-
         const validInfo = checkTrainingDays(trainingDays);
         if (!validInfo.valid) {
             return NextResponse.json({
                 success: false,
-                message: validInfo.message
+                message: validInfo.message,
             }, { status: 400 });
         }
 
         updateData.training_days = trainingDays;
-        updateData.training_days_count = trainingDays.filter(day => day.type === 'training').length;
-        updateData.rest_days_count = trainingDays.filter(day => day.type === 'rest').length;
-        updateData.week_days = makeWeekDays(trainingDays);
+        updateData.training_days_count = trainingDays.filter((day) =>
+            day.type === "training"
+        ).length;
+        updateData.rest_days_count = trainingDays.filter((day) =>
+            day.type === "rest"
+        ).length;
+
+        // 如果前端提供了 weekDays，使用前端的值；否则自动计算
+        if (weekDays !== undefined) {
+            updateData.week_days = weekDays;
+        } else {
+            updateData.week_days = makeWeekDays(trainingDays);
+        }
+
         updateData.contained_options = makeContainedOptions(trainingDays);
+    } else if (weekDays !== undefined) {
+        // 如果只更新 weekDays 而没有更新 trainingDays
+        updateData.week_days = weekDays;
     }
 
     let template;
@@ -89,7 +111,7 @@ export async function POST(req: Request) {
             console.error("Error updating template:", updateError);
             return NextResponse.json({
                 success: false,
-                message: "Failed to update template"
+                message: "Failed to update template",
             }, { status: 500 });
         }
 
@@ -107,7 +129,7 @@ export async function POST(req: Request) {
             console.error("Error fetching template:", fetchError);
             return NextResponse.json({
                 success: false,
-                message: "Template not found"
+                message: "Template not found",
             }, { status: 404 });
         }
 
@@ -118,7 +140,7 @@ export async function POST(req: Request) {
         success: true,
         message: "更新训练计划模板成功",
         data: {
-            template
-        }
+            template,
+        },
     });
 }

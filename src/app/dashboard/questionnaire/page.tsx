@@ -78,11 +78,17 @@ const QuestionarePage = () => {
                             type: 'times'
                         });
                         break;
+                    case 'rm':
+                        trainingQuestions.push({
+                            type: 'rm'
+                        });
+                        break;
                     case 'option':
                         trainingQuestions.push({
                             type: 'option',
                             question: item.question,
                             options: item.options,
+                            scope: item.scope,  // 保留scope字段
                         });
                         break;
                     case 'text':
@@ -99,6 +105,10 @@ const QuestionarePage = () => {
                             });
                         }
                 }
+            }
+            // 确保始终包含用户极限（1RM）问题
+            if (!trainingQuestions.some(q => q.type === 'rm')) {
+                trainingQuestions.push({ type: 'rm' });
             }
 
             setQuestions(trainingQuestions.map(item => ({
@@ -296,17 +306,15 @@ const QuestionarePage = () => {
 
             case 'rm':
                 return (
-                    <div className="mb-4 p-3 bg-surface-100 rounded">
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
                         <div className="flex justify-between items-start">
                             <div>
-                                <h4 className="font-medium">RM 训练</h4>
-                                <p className="text-sm text-surface-500">学员选择RM训练的次数和重量（AI计划将会自动根据这个项目进行数值计算）</p>
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-medium">用户极限（1RM）</h4>
+                                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">必须</span>
+                                </div>
+                                <p className="text-sm text-surface-500">学员填写各动作的极限重量，用于AI计划自动计算训练负重</p>
                             </div>
-                            <Button
-                                icon="pi pi-trash"
-                                className="p-button-text p-button-danger p-2"
-                                onClick={() => removeQuestion(index)}
-                            />
                         </div>
                     </div>
                 )

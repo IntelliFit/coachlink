@@ -280,7 +280,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'rm':
                 return (
                     <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的 RM</label>
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的 1RM（极限重量）</label>
                         {loadingActions ? (
                             <div className="flex flex-col gap-3">
                                 {[1, 2, 3].map((_, i) => (
@@ -300,7 +300,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                             className='text-xs'
                                             showButtons
                                             min={0}
-                                            suffix='RM'
+                                            suffix=' kg'
                                             value={(question.userInputs || {})[action.id] || 0}
                                             onValueChange={(e) => {
                                                 const currentUserInputs = question.userInputs || {};

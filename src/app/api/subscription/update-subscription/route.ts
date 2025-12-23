@@ -111,7 +111,7 @@ export async function POST(req: Request) {
 
         const ok = await sendSystemMessage(coach.user_id, {
             content:
-                `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 的「待确认学员支付」及时处理`,
+                `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 查看`,
         });
 
         if (!ok) {

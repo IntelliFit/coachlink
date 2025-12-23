@@ -37,6 +37,8 @@ const EditPlanPage = () => {
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
+    const [weekDays, setWeekDays] = useState<number[]>([]);  // 新增
+    const [globalAnswers, setGlobalAnswers] = useState<Record<string, number>>({});  // 新增
 
     // Days management
     const [days, setDays] = useState<FormPlanTrainingDay[]>([]);
@@ -81,6 +83,8 @@ const EditPlanPage = () => {
                 setDescription(templateRes.template.description || '');
                 setTags(templateRes.template.tags || []);
                 setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
+                setWeekDays(templateRes.template.week_days || []);  // 新增加载
+                // TODO: 加载 globalAnswers 从 contained_options
 
                 // Convert days data to local format
                 const convertedDays: FormPlanTrainingDay[] = templateRes.days.map((day: any) => ({
@@ -345,6 +349,7 @@ const EditPlanPage = () => {
                 description: description || null,
                 tags: tags,
                 suitableFor: suitableFor,
+                weekDays: weekDays,  // 新增
                 trainingDays: daysData
             });
 
@@ -437,6 +442,13 @@ const EditPlanPage = () => {
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
+                weekDays={weekDays}
+                onWeekDaysChange={setWeekDays}
+                globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
+                globalAnswers={globalAnswers}
+                onGlobalAnswerChange={(question, answerIndex) => {
+                    setGlobalAnswers({ ...globalAnswers, [question]: answerIndex });
+                }}
             />
 
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">

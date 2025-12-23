@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
                 "id, status, completed_sets, total_sets, started_at, completed_at",
             )
             .eq("instance_id", instanceId)
-            .eq("dayIndex", dayIndex)
+            .eq("day_index", dayIndex)
             .eq("student_id", userId)
             .gte("started_at", today)
             .order("started_at", { ascending: false })

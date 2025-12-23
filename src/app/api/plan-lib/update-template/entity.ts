@@ -1,7 +1,8 @@
-import { CoachPlanTemplateRow, CoachLinkTable } from "@/types";
+import { CoachLinkTable, CoachPlanTemplateRow } from "@/types";
 import { CoachPlanTrainingDay } from "../create-template/entity";
 
-export type CoachPlanTemplatesUpdate = CoachLinkTable['coach_plan_templates']['Update'];
+export type CoachPlanTemplatesUpdate =
+    CoachLinkTable["coach_plan_templates"]["Update"];
 
 // 请求参数的接口类型
 export interface UpdateTemplateDto {
@@ -10,6 +11,7 @@ export interface UpdateTemplateDto {
     description?: string | null;
     tags?: string[];
     suitableFor?: string;
+    weekDays?: number[]; // 新增
     trainingDays?: CoachPlanTrainingDay[];
 }
 
