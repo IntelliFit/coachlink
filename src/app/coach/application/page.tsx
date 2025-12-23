@@ -15,6 +15,7 @@ import TagListField from './TagListField';
 import CredentialField from './CredentialField';
 import SocialLinkField from './SocialLinkField';
 import SubmitButton from './SubmitButton';
+import ReviewInfoDisplay from './ReviewInfoDisplay'; // 新增审核信息显示组件
 
 // 导入自定义图标组件
 import DouyinIcon from '@/components/icons/douyin';
@@ -25,27 +26,28 @@ import KuaishouIcon from '@/components/icons/kuaishou';
 
 // 定义资质证书和社交媒体的类型
 interface Credential {
-  name: string;
-  url?: string;
+    name: string;
+    url?: string;
 }
 
 interface SocialLink {
-  name: string;
-  url?: string;
+    name: string;
+    url?: string;
 }
 
 // 社交媒体平台选项类型
 interface SocialMediaOption {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
+    label: string;
+    value: string;
+    icon: React.ReactNode;
 }
 
 // 定义审核信息接口
-interface ReviewInfo {
+export interface ReviewInfo {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
+  status?: string;
 }
 
 const CoachApplicationPage = () => {
@@ -73,7 +75,8 @@ const CoachApplicationPage = () => {
     const [reviewInfo, setReviewInfo] = useState<ReviewInfo>({
         reviewed_by: null,
         reviewed_at: null,
-        review_notes: null
+        review_notes: null,
+        status: undefined
     });
 
     // UI状态
@@ -82,35 +85,35 @@ const CoachApplicationPage = () => {
 
     // 社交媒体平台选项
     const socialMediaOptions: SocialMediaOption[] = [
-        { 
-            label: '抖音', 
-            value: '抖音', 
-            icon: <DouyinIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '抖音',
+            value: '抖音',
+            icon: <DouyinIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '小红书', 
-            value: '小红书', 
-            icon: <XiaohongshuIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '小红书',
+            value: '小红书',
+            icon: <XiaohongshuIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '知乎', 
-            value: '知乎', 
-            icon: <ZhihuIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '知乎',
+            value: '知乎',
+            icon: <ZhihuIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: 'B站', 
-            value: 'B站', 
-            icon: <BilibiliIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: 'B站',
+            value: 'B站',
+            icon: <BilibiliIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '快手', 
-            value: '快手', 
-            icon: <KuaishouIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '快手',
+            value: '快手',
+            icon: <KuaishouIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '其他网站', 
-            value: '其他网站', 
-            icon: <i className="pi pi-globe text-surface-500" /> 
+        {
+            label: '其他网站',
+            value: '其他网站',
+            icon: <i className="pi pi-globe text-surface-500" />
         }
     ];
 
@@ -144,7 +147,7 @@ const CoachApplicationPage = () => {
             try {
                 setLoading(true);
                 const response = await coachService.getCoachApplication();
-                
+
                 if (response?.application) {
                     const app = response.application;
                     setFormData({
@@ -179,7 +182,8 @@ const CoachApplicationPage = () => {
                     setReviewInfo({
                         reviewed_by: app.reviewed_by || null,
                         reviewed_at: app.reviewed_at || null,
-                        review_notes: app.review_notes || null
+                        review_notes: app.review_notes || null,
+                        status: app.status
                     });
                 } else if (session?.user) {
                     // 如果没有申请但有用户信息，则预填姓名
@@ -334,7 +338,7 @@ const CoachApplicationPage = () => {
     const handleSubmit = async () => {
         try {
             setSaving(true);
-            
+
             // 检查必填字段
             if (!formData.name.trim()) {
                 toast.current?.show({
@@ -366,7 +370,7 @@ const CoachApplicationPage = () => {
 
             // 如果已有申请ID，则更新，否则创建新申请
             const existingApplication = await coachService.getCoachApplication();
-            
+
             if (existingApplication?.application) {
                 // 更新现有申请
                 await coachService.updateCoachApplication({
@@ -384,7 +388,7 @@ const CoachApplicationPage = () => {
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
                 });
-                
+
                 toast.current?.show({
                     severity: 'success',
                     summary: '成功',
@@ -407,14 +411,14 @@ const CoachApplicationPage = () => {
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
                 });
-                
+
                 toast.current?.show({
                     severity: 'success',
                     summary: '成功',
                     detail: '申请已提交',
                     life: 3000
                 });
-                
+
                 // 跳转到申请状态页面
                 setTimeout(() => {
                     router.push('/me/profile');
@@ -440,7 +444,7 @@ const CoachApplicationPage = () => {
                     <div className="h-8 bg-surface-200 rounded w-1/3 mb-4 animate-pulse"></div>
                     <div className="h-4 bg-surface-200 rounded w-2/3 animate-pulse"></div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {[1, 2, 3, 4].map((item) => (
                         <div key={item} className="bg-surface-100 rounded-xl p-6">
@@ -457,7 +461,7 @@ const CoachApplicationPage = () => {
         <div className="p-4 md:p-6 max-w-4xl mx-auto">
             <Toast ref={toast} />
             <ConfirmDialog />
-            
+
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-surface-900 mb-2">申请成为教练</h1>
                 <p className="text-surface-600">
@@ -600,37 +604,8 @@ const CoachApplicationPage = () => {
                         socialMediaValueTemplate={socialMediaValueTemplate}
                     />
 
-                    {/* 审核信息部分 - 仅在有审核信息时显示 */}
-                    {(reviewInfo.reviewed_by || reviewInfo.reviewed_at || reviewInfo.review_notes) && (
-                        <div className="md:col-span-2 mt-6 pt-6 border-t border-surface-200">
-                            <h2 className="text-xl font-semibold text-surface-800 mb-4">审核信息</h2>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {reviewInfo.reviewed_by && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-surface-700 mb-1">审核人</label>
-                                        <div className="text-surface-900">{reviewInfo.reviewed_by}</div>
-                                    </div>
-                                )}
-                                
-                                {reviewInfo.reviewed_at && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-surface-700 mb-1">审核时间</label>
-                                        <div className="text-surface-900">{new Date(reviewInfo.reviewed_at).toLocaleString('zh-CN')}</div>
-                                    </div>
-                                )}
-                                
-                                {reviewInfo.review_notes && (
-                                    <div className="md:col-span-3">
-                                        <label className="block text-sm font-medium text-surface-700 mb-1">审核意见</label>
-                                        <div className="text-surface-900 p-3 bg-surface-50 rounded-md border border-surface-200">
-                                            {reviewInfo.review_notes}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    {/* 审核信息部分 - 使用新组件 */}
+                    <ReviewInfoDisplay reviewInfo={reviewInfo} />
                 </div>
 
                 <SubmitButton saving={saving} onClick={handleSubmit} />

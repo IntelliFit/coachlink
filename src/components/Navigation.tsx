@@ -16,6 +16,7 @@ import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { coachService } from '@/app/service/coachService';
+import { Badge } from 'primereact/badge';
 
 export default function Navigation() {
     const pathname = usePathname();
@@ -120,6 +121,15 @@ export default function Navigation() {
         },
     ], [router]);
 
+    const itemRenderer = (item) => (
+        <a className="flex align-items-center p-menuitem-link">
+            <span className={item.icon} />
+            <span className="mx-2">{item.label}</span>
+            {item.badge && <Badge className="ml-auto bg-red-500" value={item.badge} />}
+            {item.shortcut && <span className="ml-auto border-1 surface-border border-round surface-100 text-xs p-1">{item.shortcut}</span>}
+        </a>
+    );
+
     const adminMenuItems = useMemo(() => [
         {
             label: '支付管理',
@@ -134,6 +144,8 @@ export default function Navigation() {
             command: () => {
                 router.push('/admin/coach-applications');
             },
+            badge: 3,
+            template: itemRenderer
         },
         {
             label: '排行榜管理',
