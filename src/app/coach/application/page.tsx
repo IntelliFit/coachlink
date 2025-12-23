@@ -1,18 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { coachService } from '@/app/service/coachService';
-import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
-import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
-import { Toast } from 'primereact/toast';
-import { Chip } from 'primereact/chip';
 import { ConfirmDialog } from 'primereact/confirmdialog';
-import { InputNumber, InputNumberValueChangeEvent } from 'primereact/inputnumber';
-import { Dropdown } from 'primereact/dropdown';
+import { InputNumberValueChangeEvent } from 'primereact/inputnumber';
+
+// 导入新创建的组件
+import CoachFormField from './CoachFormField';
+import TagListField from './TagListField';
+import CredentialField from './CredentialField';
+import SocialLinkField from './SocialLinkField';
+import SubmitButton from './SubmitButton';
+import ReviewInfoDisplay from './ReviewInfoDisplay';
 
 // 导入自定义图标组件
 import DouyinIcon from '@/components/icons/douyin';
@@ -20,29 +22,39 @@ import BilibiliIcon from '@/components/icons/bilibili';
 import ZhihuIcon from '@/components/icons/zhihu';
 import XiaohongshuIcon from '@/components/icons/xiaohongshu';
 import KuaishouIcon from '@/components/icons/kuaishou';
+import { useToastContext } from '@/context/ToastContext';
 
 // 定义资质证书和社交媒体的类型
 interface Credential {
-  name: string;
-  url?: string;
+    name: string;
+    url?: string;
 }
 
 interface SocialLink {
-  name: string;
-  url?: string;
+    name: string;
+    url?: string;
 }
 
 // 社交媒体平台选项类型
 interface SocialMediaOption {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
+    label: string;
+    value: string;
+    icon: React.ReactNode;
+}
+
+// 定义审核信息接口
+export interface ReviewInfo {
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  status?: string;
 }
 
 const CoachApplicationPage = () => {
     const router = useRouter();
     const { data: session } = useSession();
-    const toast = React.useRef<Toast>(null);
+
+    const { showToast } = useToastContext();
 
     // 表单状态
     const [formData, setFormData] = useState({
@@ -60,46 +72,49 @@ const CoachApplicationPage = () => {
         socialLinks: [] as SocialLink[] // 社交媒体链接
     });
 
+    // 审核信息状态
+    const [reviewInfo, setReviewInfo] = useState<ReviewInfo>({
+        reviewed_by: null,
+        reviewed_at: null,
+        review_notes: null,
+        status: undefined
+    });
+
     // UI状态
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [newSpecialty, setNewSpecialty] = useState('');
-    const [newAchievement, setNewAchievement] = useState('');
-    const [newCaseStudy, setNewCaseStudy] = useState('');
-    const [newCredential, setNewCredential] = useState<Credential>({ name: '', url: '' });
-    const [newSocialLink, setNewSocialLink] = useState<SocialLink>({ name: '', url: '' });
 
     // 社交媒体平台选项
     const socialMediaOptions: SocialMediaOption[] = [
-        { 
-            label: '抖音', 
-            value: '抖音', 
-            icon: <DouyinIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '抖音',
+            value: '抖音',
+            icon: <DouyinIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '小红书', 
-            value: '小红书', 
-            icon: <XiaohongshuIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '小红书',
+            value: '小红书',
+            icon: <XiaohongshuIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '知乎', 
-            value: '知乎', 
-            icon: <ZhihuIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '知乎',
+            value: '知乎',
+            icon: <ZhihuIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: 'B站', 
-            value: 'B站', 
-            icon: <BilibiliIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: 'B站',
+            value: 'B站',
+            icon: <BilibiliIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '快手', 
-            value: '快手', 
-            icon: <KuaishouIcon width="20" height="20" className="text-surface-500" /> 
+        {
+            label: '快手',
+            value: '快手',
+            icon: <KuaishouIcon width="20" height="20" className="text-surface-500" />
         },
-        { 
-            label: '其他网站', 
-            value: '其他网站', 
-            icon: <i className="pi pi-globe text-surface-500" /> 
+        {
+            label: '其他网站',
+            value: '其他网站',
+            icon: <i className="pi pi-globe text-surface-500" />
         }
     ];
 
@@ -133,7 +148,7 @@ const CoachApplicationPage = () => {
             try {
                 setLoading(true);
                 const response = await coachService.getCoachApplication();
-                
+
                 if (response?.application) {
                     const app = response.application;
                     setFormData({
@@ -163,6 +178,14 @@ const CoachApplicationPage = () => {
                             return { name, url: value as string };
                         }) : []
                     });
+                    
+                    // 设置审核信息
+                    setReviewInfo({
+                        reviewed_by: app.reviewed_by || null,
+                        reviewed_at: app.reviewed_at || null,
+                        review_notes: app.review_notes || null,
+                        status: app.status
+                    });
                 } else if (session?.user) {
                     // 如果没有申请但有用户信息，则预填姓名
                     setFormData(prev => ({
@@ -173,7 +196,7 @@ const CoachApplicationPage = () => {
                 }
             } catch (error) {
                 console.error('获取申请信息失败:', error);
-                toast.current?.show({
+                showToast({
                     severity: 'error',
                     summary: '错误',
                     detail: '获取申请信息失败',
@@ -209,14 +232,11 @@ const CoachApplicationPage = () => {
     };
 
     // 添加专业领域
-    const addSpecialty = () => {
-        if (newSpecialty.trim() && !formData.specialties.includes(newSpecialty.trim())) {
-            setFormData(prev => ({
-                ...prev,
-                specialties: [...prev.specialties, newSpecialty.trim()]
-            }));
-            setNewSpecialty('');
-        }
+    const addSpecialty = (specialty: string) => {
+        setFormData(prev => ({
+            ...prev,
+            specialties: [...prev.specialties, specialty]
+        }));
     };
 
     // 删除专业领域
@@ -231,14 +251,11 @@ const CoachApplicationPage = () => {
     };
 
     // 添加成就
-    const addAchievement = () => {
-        if (newAchievement.trim() && !formData.achievements.includes(newAchievement.trim())) {
-            setFormData(prev => ({
-                ...prev,
-                achievements: [...prev.achievements, newAchievement.trim()]
-            }));
-            setNewAchievement('');
-        }
+    const addAchievement = (achievement: string) => {
+        setFormData(prev => ({
+            ...prev,
+            achievements: [...prev.achievements, achievement]
+        }));
     };
 
     // 删除成就
@@ -253,14 +270,11 @@ const CoachApplicationPage = () => {
     };
 
     // 添加案例研究
-    const addCaseStudy = () => {
-        if (newCaseStudy.trim() && !formData.caseStudies.includes(newCaseStudy.trim())) {
-            setFormData(prev => ({
-                ...prev,
-                caseStudies: [...prev.caseStudies, newCaseStudy.trim()]
-            }));
-            setNewCaseStudy('');
-        }
+    const addCaseStudy = (caseStudy: string) => {
+        setFormData(prev => ({
+            ...prev,
+            caseStudies: [...prev.caseStudies, caseStudy]
+        }));
     };
 
     // 删除案例研究
@@ -275,14 +289,11 @@ const CoachApplicationPage = () => {
     };
 
     // 添加资质证书
-    const addCredential = () => {
-        if (newCredential.name.trim()) {
-            setFormData(prev => ({
-                ...prev,
-                credentials: [...prev.credentials, { ...newCredential }]
-            }));
-            setNewCredential({ name: '', url: '' });
-        }
+    const addCredential = (credential: Credential) => {
+        setFormData(prev => ({
+            ...prev,
+            credentials: [...prev.credentials, { ...credential }]
+        }));
     };
 
     // 删除资质证书
@@ -292,6 +303,7 @@ const CoachApplicationPage = () => {
             newCredentials.splice(index, 1);
             return { ...prev, credentials: newCredentials };
         });
+
         return true;
     };
 
@@ -305,14 +317,11 @@ const CoachApplicationPage = () => {
     };
 
     // 添加社交媒体链接
-    const addSocialLink = () => {
-        if (newSocialLink.name.trim() && newSocialLink.url.trim()) {
-            setFormData(prev => ({
-                ...prev,
-                socialLinks: [...prev.socialLinks, { ...newSocialLink }]
-            }));
-            setNewSocialLink({ name: '', url: '' });
-        }
+    const addSocialLink = (socialLink: SocialLink) => {
+        setFormData(prev => ({
+            ...prev,
+            socialLinks: [...prev.socialLinks, { ...socialLink }]
+        }));
     };
 
     // 删除社交媒体链接
@@ -326,22 +335,14 @@ const CoachApplicationPage = () => {
         return true;
     };
 
-    // 更新社交媒体链接字段
-    const handleSocialLinkChange = (field: keyof SocialLink, value: string) => {
-        setNewSocialLink(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
     // 提交申请
     const handleSubmit = async () => {
         try {
             setSaving(true);
-            
+
             // 检查必填字段
             if (!formData.name.trim()) {
-                toast.current?.show({
+                showToast({
                     severity: 'warn',
                     summary: '警告',
                     detail: '请输入姓名',
@@ -370,7 +371,7 @@ const CoachApplicationPage = () => {
 
             // 如果已有申请ID，则更新，否则创建新申请
             const existingApplication = await coachService.getCoachApplication();
-            
+
             if (existingApplication?.application) {
                 // 更新现有申请
                 await coachService.updateCoachApplication({
@@ -388,8 +389,8 @@ const CoachApplicationPage = () => {
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
                 });
-                
-                toast.current?.show({
+
+                showToast({
                     severity: 'success',
                     summary: '成功',
                     detail: '申请已更新',
@@ -411,22 +412,20 @@ const CoachApplicationPage = () => {
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
                 });
-                
-                toast.current?.show({
+
+                showToast({
                     severity: 'success',
                     summary: '成功',
                     detail: '申请已提交',
                     life: 3000
                 });
-                
-                // 跳转到申请状态页面
-                setTimeout(() => {
-                    router.push('/me/profile');
-                }, 1500);
+
+                // 刷新页面
+                router.refresh();
             }
         } catch (error: any) {
             console.error('提交申请失败:', error);
-            toast.current?.show({
+            showToast({
                 severity: 'error',
                 summary: '错误',
                 detail: error.message || '提交申请失败',
@@ -437,42 +436,6 @@ const CoachApplicationPage = () => {
         }
     };
 
-    // 处理回车键添加标签
-    const handleSpecialtyKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addSpecialty();
-        }
-    };
-
-    const handleAchievementKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addAchievement();
-        }
-    };
-
-    const handleCaseStudyKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addCaseStudy();
-        }
-    };
-
-    const handleCredentialKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addCredential();
-        }
-    };
-
-    const handleSocialLinkKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addSocialLink();
-        }
-    };
-
     if (loading) {
         return (
             <div className="p-6 max-w-4xl mx-auto">
@@ -480,7 +443,7 @@ const CoachApplicationPage = () => {
                     <div className="h-8 bg-surface-200 rounded w-1/3 mb-4 animate-pulse"></div>
                     <div className="h-4 bg-surface-200 rounded w-2/3 animate-pulse"></div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {[1, 2, 3, 4].map((item) => (
                         <div key={item} className="bg-surface-100 rounded-xl p-6">
@@ -495,9 +458,8 @@ const CoachApplicationPage = () => {
 
     return (
         <div className="p-4 md:p-6 max-w-4xl mx-auto">
-            <Toast ref={toast} />
             <ConfirmDialog />
-            
+
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-surface-900 mb-2">申请成为教练</h1>
                 <p className="text-surface-600">
@@ -505,312 +467,146 @@ const CoachApplicationPage = () => {
                 </p>
             </div>
 
-            <Card className="mb-6">
+            <Card className="mb-6 shadow-none border border-surface-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* 姓名 */}
-                    <div className="md:col-span-2">
-                        <label htmlFor="name" className="block text-sm font-medium text-surface-900 mb-2">
-                            姓名 *
-                        </label>
-                        <InputText
-                            id="name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            className="w-full"
-                            placeholder="请输入您的姓名"
-                        />
-                    </div>
+                    {/* 姓名 - 必填字段 */}
+                    <CoachFormField
+                        id="name"
+                        name="name"
+                        label="姓名 *"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder="请输入您的姓名"
+                        required
+                    />
 
                     {/* 称号/头衔 */}
-                    <div className="md:col-span-2">
-                        <label htmlFor="title" className="block text-sm font-medium text-surface-900 mb-2">
-                            称号/头衔
-                        </label>
-                        <InputText
-                            id="title"
-                            name="title"
-                            value={formData.title}
-                            onChange={handleInputChange}
-                            className="w-full"
-                            placeholder="如：国家一级健身指导员、CrossFit教练等"
-                        />
-                    </div>
+                    <CoachFormField
+                        id="title"
+                        name="title"
+                        label="称号/头衔"
+                        value={formData.title}
+                        onChange={handleInputChange}
+                        placeholder="如：国家一级健身指导员、CrossFit教练等"
+                    />
 
                     {/* 专业领域 */}
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            专业领域
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {formData.specialties.map((specialty, index) => (
-                                <Chip 
-                                    key={index} 
-                                    label={specialty} 
-                                    removable 
-                                    onRemove={() => removeSpecialty(index)}
-                                    className="bg-primary-100 text-primary-700"
-                                />
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <InputText
-                                value={newSpecialty}
-                                onChange={(e) => setNewSpecialty(e.target.value)}
-                                onKeyDown={handleSpecialtyKeyPress}
-                                className="flex-1"
-                                placeholder="输入专业领域，按回车添加"
-                            />
-                            <Button 
-                                icon="pi pi-plus" 
-                                onClick={addSpecialty}
-                                disabled={!newSpecialty.trim()}
-                            />
-                        </div>
-                    </div>
+                    <TagListField
+                        label="专业领域"
+                        tags={formData.specialties}
+                        onAdd={addSpecialty}
+                        onRemove={removeSpecialty}
+                        placeholder="输入专业领域，按回车添加"
+                        colorClass="bg-primary-100 text-primary-700"
+                    />
 
                     {/* 教学年限 */}
                     <div>
                         <label htmlFor="yearsExperience" className="block text-sm font-medium text-surface-900 mb-2">
                             教学年限（年）
                         </label>
-                        <InputNumber
-                            id="yearsExperience"
-                            name="yearsExperience"
-                            showButtons
-                            value={formData.yearsExperience}
-                            onValueChange={handleNumberChange}
-                            className="w-full"
-                            min={0}
-                        />
+                        <div className="w-full">
+                            <CoachFormField
+                                id="yearsExperience"
+                                name="yearsExperience"
+                                label=""
+                                value={formData.yearsExperience}
+                                onChange={handleInputChange}
+                                type="number"
+                                min={0}
+                                onValueChange={handleNumberChange}
+                            />
+                        </div>
                     </div>
 
                     {/* 联系邮箱 */}
-                    <div>
-                        <label htmlFor="contactEmail" className="block text-sm font-medium text-surface-900 mb-2">
-                            联系邮箱
-                        </label>
-                        <InputText
-                            id="contactEmail"
-                            name="contactEmail"
-                            type="email"
-                            value={formData.contactEmail}
-                            onChange={handleInputChange}
-                            className="w-full"
-                            placeholder="example@email.com"
-                        />
-                    </div>
+                    <CoachFormField
+                        id="contactEmail"
+                        name="contactEmail"
+                        label="联系邮箱"
+                        value={formData.contactEmail}
+                        onChange={handleInputChange}
+                        type="email"
+                        placeholder="example@email.com"
+                    />
 
                     {/* 联系电话 */}
-                    <div>
-                        <label htmlFor="contactPhone" className="block text-sm font-medium text-surface-900 mb-2">
-                            联系电话
-                        </label>
-                        <InputText
-                            id="contactPhone"
-                            name="contactPhone"
-                            value={formData.contactPhone}
-                            onChange={handleInputChange}
-                            className="w-full"
-                            placeholder="请输入联系电话"
-                        />
-                    </div>
+                    <CoachFormField
+                        id="contactPhone"
+                        name="contactPhone"
+                        label="联系电话"
+                        value={formData.contactPhone}
+                        onChange={handleInputChange}
+                        placeholder="请输入联系电话"
+                    />
 
                     {/* 个人简介 */}
-                    <div className="md:col-span-2">
-                        <label htmlFor="bio" className="block text-sm font-medium text-surface-900 mb-2">
-                            个人简介
-                        </label>
-                        <InputTextarea
-                            id="bio"
-                            name="bio"
-                            value={formData.bio}
-                            onChange={handleInputChange}
-                            rows={3}
-                            className="w-full"
-                            placeholder="简要介绍您的背景、资质等信息"
-                        />
-                    </div>
+                    <CoachFormField
+                        id="bio"
+                        name="bio"
+                        label="个人简介"
+                        value={formData.bio}
+                        onChange={handleInputChange}
+                        type="textarea"
+                        placeholder="简要介绍您的背景、资质等信息"
+                        rows={3}
+                    />
 
                     {/* 教学理念 */}
-                    <div className="md:col-span-2">
-                        <label htmlFor="teachingPhilosophy" className="block text-sm font-medium text-surface-900 mb-2">
-                            教学理念
-                        </label>
-                        <InputTextarea
-                            id="teachingPhilosophy"
-                            name="teachingPhilosophy"
-                            value={formData.teachingPhilosophy}
-                            onChange={handleInputChange}
-                            rows={3}
-                            className="w-full"
-                            placeholder="描述您的教学方法和理念"
-                        />
-                    </div>
+                    <CoachFormField
+                        id="teachingPhilosophy"
+                        name="teachingPhilosophy"
+                        label="教学理念"
+                        value={formData.teachingPhilosophy}
+                        onChange={handleInputChange}
+                        type="textarea"
+                        placeholder="描述您的教学方法和理念"
+                        rows={3}
+                    />
 
                     {/* 成就奖项 */}
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            成就奖项
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {formData.achievements.map((achievement, index) => (
-                                <Chip 
-                                    key={index} 
-                                    label={achievement} 
-                                    removable 
-                                    onRemove={() => removeAchievement(index)}
-                                    className="bg-green-100 text-green-700"
-                                />
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <InputText
-                                value={newAchievement}
-                                onChange={(e) => setNewAchievement(e.target.value)}
-                                onKeyDown={handleAchievementKeyPress}
-                                className="flex-1"
-                                placeholder="输入成就奖项，按回车添加"
-                            />
-                            <Button 
-                                icon="pi pi-plus" 
-                                onClick={addAchievement}
-                                disabled={!newAchievement.trim()}
-                            />
-                        </div>
-                    </div>
+                    <TagListField
+                        label="成就奖项"
+                        tags={formData.achievements}
+                        onAdd={addAchievement}
+                        onRemove={removeAchievement}
+                        placeholder="输入成就奖项，按回车添加"
+                        colorClass="bg-green-100 text-green-700"
+                    />
 
                     {/* 代表案例 */}
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            代表案例
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {formData.caseStudies.map((caseStudy, index) => (
-                                <Chip 
-                                    key={index} 
-                                    label={caseStudy} 
-                                    removable 
-                                    onRemove={() => removeCaseStudy(index)}
-                                    className="bg-purple-100 text-purple-700"
-                                />
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <InputText
-                                value={newCaseStudy}
-                                onChange={(e) => setNewCaseStudy(e.target.value)}
-                                onKeyDown={handleCaseStudyKeyPress}
-                                className="flex-1"
-                                placeholder="输入代表案例，按回车添加"
-                            />
-                            <Button 
-                                icon="pi pi-plus" 
-                                onClick={addCaseStudy}
-                                disabled={!newCaseStudy.trim()}
-                            />
-                        </div>
-                    </div>
+                    <TagListField
+                        label="代表案例"
+                        tags={formData.caseStudies}
+                        onAdd={addCaseStudy}
+                        onRemove={removeCaseStudy}
+                        placeholder="输入代表案例，按回车添加"
+                        colorClass="bg-purple-100 text-purple-700"
+                    />
 
                     {/* 资质证书 */}
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            资质证书
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {formData.credentials.map((credential, index) => (
-                                <Chip 
-                                    key={index} 
-                                    label={`${credential.name}${credential.url ? `` : ''}`} 
-                                    removable 
-                                    onRemove={() => removeCredential(index)}
-                                    className="bg-blue-100 text-blue-700"
-                                />
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-                            <InputText
-                                value={newCredential.name}
-                                onChange={(e) => setNewCredential({...newCredential, name: e.target.value})}
-                                placeholder="证书名称"
-                            />
-                            <div className="flex gap-2">
-                                <InputText
-                                    value={newCredential.url || ''}
-                                    onChange={(e) => setNewCredential({...newCredential, url: e.target.value})}
-                                    placeholder="证书链接（可选）"
-                                    className="flex-1"
-                                />
-                                <Button 
-                                    icon="pi pi-plus" 
-                                    onClick={addCredential}
-                                    disabled={!newCredential.name.trim()}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    <CredentialField
+                        credentials={formData.credentials}
+                        onAdd={addCredential}
+                        onRemove={removeCredential}
+                        onUpdate={handleCredentialChange}
+                    />
 
                     {/* 社交媒体链接 */}
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            社交媒体
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {formData.socialLinks.map((socialLink, index) => (
-                                <Chip 
-                                    key={index} 
-                                    label={`${socialLink.name}: ${socialLink.url}`} 
-                                    removable 
-                                    onRemove={() => removeSocialLink(index)}
-                                    className="bg-indigo-100 text-indigo-700"
-                                />
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                            <div className="md:col-span-1">
-                                <Dropdown
-                                    value={newSocialLink.name}
-                                    options={socialMediaOptions}
-                                    onChange={(e) => handleSocialLinkChange('name', e.value)}
-                                    placeholder="选择平台"
-                                    className="w-full"
-                                    itemTemplate={socialMediaOptionTemplate}
-                                    valueTemplate={socialMediaValueTemplate}
-                                />
-                            </div>
-                            <div className="md:col-span-2 flex gap-2">
-                                <InputText
-                                    value={newSocialLink.url || ''}
-                                    onChange={(e) => handleSocialLinkChange('url', e.target.value)}
-                                    placeholder="请输入链接"
-                                    className="flex-1"
-                                    onKeyDown={handleSocialLinkKeyPress}
-                                />
-                                <Button 
-                                    icon="pi pi-plus" 
-                                    onClick={addSocialLink}
-                                    disabled={!newSocialLink.name.trim() || !newSocialLink.url?.trim()}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    <SocialLinkField
+                        socialLinks={formData.socialLinks}
+                        onAdd={addSocialLink}
+                        onRemove={removeSocialLink}
+                        socialMediaOptions={socialMediaOptions}
+                        socialMediaOptionTemplate={socialMediaOptionTemplate}
+                        socialMediaValueTemplate={socialMediaValueTemplate}
+                    />
+
+                    {/* 审核信息部分 - 使用新组件 */}
+                    <ReviewInfoDisplay reviewInfo={reviewInfo} />
                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
-                    <Button 
-                        label="返回" 
-                        icon="pi pi-arrow-left"
-                        onClick={() => router.back()}
-                        className="p-button-text"
-                    />
-                    <Button 
-                        label={saving ? "提交中..." : "提交申请"}
-                        icon={saving ? "pi pi-spin pi-spinner" : "pi pi-send"}
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="p-button-primary"
-                    />
-                </div>
+                <SubmitButton saving={saving} onClick={handleSubmit} />
             </Card>
         </div>
     );
