@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { coachService } from '@/app/service/coachService';
 import { Card } from 'primereact/card';
-import { Toast } from 'primereact/toast';
 import { ConfirmDialog } from 'primereact/confirmdialog';
 import { InputNumberValueChangeEvent } from 'primereact/inputnumber';
 
@@ -15,7 +14,7 @@ import TagListField from './TagListField';
 import CredentialField from './CredentialField';
 import SocialLinkField from './SocialLinkField';
 import SubmitButton from './SubmitButton';
-import ReviewInfoDisplay from './ReviewInfoDisplay'; // 新增审核信息显示组件
+import ReviewInfoDisplay from './ReviewInfoDisplay';
 
 // 导入自定义图标组件
 import DouyinIcon from '@/components/icons/douyin';
@@ -23,6 +22,7 @@ import BilibiliIcon from '@/components/icons/bilibili';
 import ZhihuIcon from '@/components/icons/zhihu';
 import XiaohongshuIcon from '@/components/icons/xiaohongshu';
 import KuaishouIcon from '@/components/icons/kuaishou';
+import { useToastContext } from '@/context/ToastContext';
 
 // 定义资质证书和社交媒体的类型
 interface Credential {
@@ -53,7 +53,8 @@ export interface ReviewInfo {
 const CoachApplicationPage = () => {
     const router = useRouter();
     const { data: session } = useSession();
-    const toast = useRef<Toast>(null);
+
+    const { showToast } = useToastContext();
 
     // 表单状态
     const [formData, setFormData] = useState({
@@ -195,7 +196,7 @@ const CoachApplicationPage = () => {
                 }
             } catch (error) {
                 console.error('获取申请信息失败:', error);
-                toast.current?.show({
+                showToast({
                     severity: 'error',
                     summary: '错误',
                     detail: '获取申请信息失败',
@@ -341,7 +342,7 @@ const CoachApplicationPage = () => {
 
             // 检查必填字段
             if (!formData.name.trim()) {
-                toast.current?.show({
+                showToast({
                     severity: 'warn',
                     summary: '警告',
                     detail: '请输入姓名',
@@ -389,7 +390,7 @@ const CoachApplicationPage = () => {
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
                 });
 
-                toast.current?.show({
+                showToast({
                     severity: 'success',
                     summary: '成功',
                     detail: '申请已更新',
@@ -412,21 +413,19 @@ const CoachApplicationPage = () => {
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
                 });
 
-                toast.current?.show({
+                showToast({
                     severity: 'success',
                     summary: '成功',
                     detail: '申请已提交',
                     life: 3000
                 });
 
-                // 跳转到申请状态页面
-                setTimeout(() => {
-                    router.push('/me/profile');
-                }, 1500);
+                // 刷新页面
+                router.refresh();
             }
         } catch (error: any) {
             console.error('提交申请失败:', error);
-            toast.current?.show({
+            showToast({
                 severity: 'error',
                 summary: '错误',
                 detail: error.message || '提交申请失败',
@@ -459,7 +458,6 @@ const CoachApplicationPage = () => {
 
     return (
         <div className="p-4 md:p-6 max-w-4xl mx-auto">
-            <Toast ref={toast} />
             <ConfirmDialog />
 
             <div className="mb-6">

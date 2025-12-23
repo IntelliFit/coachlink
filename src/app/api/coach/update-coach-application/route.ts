@@ -94,6 +94,8 @@ export async function POST(req: Request) {
             updateData.reviewed_by = userId;
             updateData.reviewed_at = new Date().toISOString();
         }
+    } else {
+        updateData.status = 'pending';
     }
 
     // 更新申请记录
