@@ -127,22 +127,7 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh })
 
             <div className="mt-auto pt-4 flex justify-between">
                 <div></div> {/* 用于对齐 */}
-                <Button
-                    icon="pi pi-ellipsis-v"
-                    size="small"
-                    text
-                    rounded
-                    onClick={toggleMenu}
-                />
-            </div>
-
-            <OverlayPanel
-                ref={overlayRef}
-                className="p-2"
-                showCloseIcon={false}
-                dismissable={true}
-            >
-                <div className="flex flex-col">
+                <div className="flex flex-row gap-4">
                     <Button
                         label="编辑"
                         icon="pi pi-pencil"
@@ -169,10 +154,12 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh })
                         }}
                     />
                 </div>
-            </OverlayPanel>
+            </div>
+
+
 
             <EditLeaderboardForm
-                leaderboard={ranking}
+                leaderboardId={ranking?.id}
                 visible={editDialogVisible}
                 onHide={() => setEditDialogVisible(false)}
                 onSuccess={() => {
