@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { UpdatePersonalRecordsDto, UpdatePersonalRecordsResponseDto } from './entity';
 import { ApiData } from '@/types/api';

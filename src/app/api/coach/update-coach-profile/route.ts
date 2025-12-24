@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { Database } from "@/types/database.types";
 import type { UpdateCoachProfileDto, UpdateCoachProfileResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
 export async function POST(request: Request) {

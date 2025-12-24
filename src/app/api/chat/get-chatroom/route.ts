@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import type { ApiData } from '@/types/api';
 import type { GetChatroomDto, ChatroomDetail, GetChatroomResponseDto } from './entity';
 import supabase from '@/lib/supabaseClient';
