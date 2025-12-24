@@ -7,227 +7,148 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
+import { addLocale } from 'primereact/api';
 import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 
+// 配置中文语言包
+addLocale('zh-CN', {
+    firstDayOfWeek: 1,
+    dayNames: ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'],
+    dayNamesShort: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+    dayNamesMin: ['日', '一', '二', '三', '四', '五', '六'],
+    monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
+    monthNamesShort: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+    today: '今天',
+    clear: '清除'
+});
+
 interface CreateLeaderboardFormProps {
-  onSuccess: () => void;
+    onSuccess: () => void;
 }
 
 export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFormProps) {
-  const { showToast } = useToastContext();
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    start_at: null as Date | null,
-    end_at: null as Date | null,
-    rank_by_field: '',
-    sort_order: 'desc',
-    type: 'score',
-    remarks: ''
-  });
-  
-  const [submitting, setSubmitting] = useState(false);
+    const { showToast } = useToastContext();
+    const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    
-    try {
-      const reqData = {
-        ...formData,
-        start_at: formData.start_at ? formData.start_at.toISOString() : undefined,
-        end_at: formData.end_at ? formData.end_at.toISOString() : undefined
-      };
-      
-      const result = await rankingService.createLeaderboard(reqData);
-      
-      if (result) {
-        showToast({ 
-          severity: 'success', 
-          summary: '成功', 
-          detail: '排行榜创建成功' 
-        });
-        onSuccess();
-      } else {
-        showToast({ 
-          severity: 'error', 
-          summary: '失败', 
-          detail: '排行榜创建失败' 
-        });
-      }
-    } catch (error) {
-      console.error('创建排行榜失败:', error);
-      showToast({ 
-        severity: 'error', 
-        summary: '失败', 
-        detail: '排行榜创建失败' 
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    const initialFormState = {
+        title: '',
+        description: '',
+        start_at: null as Date | null,
+        end_at: null as Date | null,
+        rank_by_field: '',
+        sort_order: 'desc',
+        type: 'score',
+        remarks: ''
+    };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { value: any; target: { name: string; value: any } }) => {
-    const name = e.target.name || '';
-    const value = e.value;
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    const [formData, setFormData] = useState(initialFormState);
 
-  const sortOptions = [
-    { label: '降序 (高到低)', value: 'desc' },
-    { label: '升序 (低到高)', value: 'asc' }
-  ];
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const reqData = {
+                ...formData,
+                start_at: formData.start_at?.toISOString(),
+                end_at: formData.end_at?.toISOString()
+            };
+            const result = await rankingService.createLeaderboard(reqData);
+            if (result) {
+                showToast({ severity: 'success', summary: '成功', detail: '排行榜创建成功' });
+                onSuccess();
+            }
+        } catch (error) {
+            showToast({ severity: 'error', summary: '错误', detail: '创建失败，请检查输入' });
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-  const typeOptions = [
-    { label: '分数', value: 'score' },
-    { label: '时间', value: 'time' },
-    { label: '其他', value: 'other' }
-  ];
+    const handleChange = (e: any) => {
+        const name = e.target?.name || (e.originalEvent?.target as any)?.name;
+        const value = e.value !== undefined ? e.value : e.target.value;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-  return (
-    <Card className="border border-surface-200 shadow-none">
-      <form onSubmit={handleSubmit} className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="field">
-            <label htmlFor="title" className="block font-medium mb-2">标题 *</label>
-            <InputText
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="w-full"
-              required
+    // 定义 Card 的底部按钮区
+    const footer = (
+        <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
+            <Button 
+                type="button" 
+                label="重置" 
+                icon="pi pi-refresh" 
+                className="p-button-text p-button-secondary" 
+                onClick={() => setFormData(initialFormState)} 
             />
-          </div>
-          
-          <div className="field">
-            <label htmlFor="rank_by_field" className="block font-medium mb-2">排名字段 *</label>
-            <InputText
-              id="rank_by_field"
-              name="rank_by_field"
-              value={formData.rank_by_field}
-              onChange={handleChange}
-              className="w-full"
-              required
-              placeholder="如: score, time, points"
+            <Button 
+                type="submit" 
+                form="leaderboard-form" // 关联表单 ID
+                label="确认创建" 
+                icon="pi pi-check" 
+                loading={submitting} 
             />
-          </div>
         </div>
-        
-        <div className="field mb-4">
-          <label htmlFor="description" className="block font-medium mb-2">描述</label>
-          <InputTextarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            className="w-full"
-            rows={3}
-            placeholder="排行榜的详细描述"
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="field">
-            <label htmlFor="start_at" className="block font-medium mb-2">开始时间</label>
-            <Calendar
-              id="start_at"
-              name="start_at"
-              value={formData.start_at}
-              onChange={handleChange}
-              className="w-full"
-              showTime
-              dateFormat="yy-mm-dd"
-              hourFormat="24"
-              placeholder="选择开始时间"
-            />
-          </div>
-          
-          <div className="field">
-            <label htmlFor="end_at" className="block font-medium mb-2">结束时间</label>
-            <Calendar
-              id="end_at"
-              name="end_at"
-              value={formData.end_at}
-              onChange={handleChange}
-              className="w-full"
-              showTime
-              dateFormat="yy-mm-dd"
-              hourFormat="24"
-              placeholder="选择结束时间"
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="field">
-            <label htmlFor="sort_order" className="block font-medium mb-2">排序方式</label>
-            <Dropdown
-              id="sort_order"
-              name="sort_order"
-              value={formData.sort_order}
-              onChange={handleChange}
-              options={sortOptions}
-              className="w-full"
-            />
-          </div>
-          
-          <div className="field">
-            <label htmlFor="type" className="block font-medium mb-2">排行榜类型</label>
-            <Dropdown
-              id="type"
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              options={typeOptions}
-              className="w-full"
-            />
-          </div>
-          
-          <div className="field">
-            <label htmlFor="remarks" className="block font-medium mb-2">备注</label>
-            <InputText
-              id="remarks"
-              name="remarks"
-              value={formData.remarks}
-              onChange={handleChange}
-              className="w-full"
-              placeholder="备注信息"
-            />
-          </div>
-        </div>
-        
-        <div className="flex justify-end gap-2 pt-4">
-          <Button 
-            type="button" 
-            label="重置" 
-            severity="secondary" 
-            outlined
-            onClick={() => setFormData({
-              title: '',
-              description: '',
-              start_at: null,
-              end_at: null,
-              rank_by_field: '',
-              sort_order: 'desc',
-              type: 'score',
-              remarks: ''
-            })}
-          />
-          <Button 
-            type="submit" 
-            label="创建排行榜" 
-            icon="pi pi-plus"
-            loading={submitting}
-          />
-        </div>
-      </form>
-    </Card>
-  );
+    );
+
+    return (
+        <Card footer={footer} className="shadow-none border border-gray-200 rounded-lg">
+            <form id="leaderboard-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
+                
+                {/* 第一行：标题与字段 */}
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 flex flex-col gap-2">
+                        <label htmlFor="title" className="text-sm font-bold text-gray-700">标题 <span className="text-red-500">*</span></label>
+                        <InputText id="title" name="title" value={formData.title} onChange={handleChange} placeholder="请输入排行榜名称" className="w-full" required />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-2">
+                        <label htmlFor="rank_by_field" className="text-sm font-bold text-gray-700">排名字段 <span className="text-red-500">*</span></label>
+                        <InputText id="rank_by_field" name="rank_by_field" value={formData.rank_by_field} onChange={handleChange} placeholder="例如: score" className="w-full" required />
+                    </div>
+                </div>
+
+                {/* 第二行：描述 */}
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="description" className="text-sm font-bold text-gray-700">描述</label>
+                    <InputTextarea id="description" name="description" value={formData.description} onChange={handleChange} rows={2} className="w-full" placeholder="排行榜用途说明" />
+                </div>
+
+                {/* 第三行：时间范围 */}
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 flex flex-col gap-2">
+                        <label htmlFor="start_at" className="text-sm font-bold text-gray-700">开始时间</label>
+                        <Calendar 
+                            id="start_at" name="start_at" value={formData.start_at} onChange={handleChange} 
+                            showTime hourFormat="24" locale="zh-CN" showIcon showButtonBar
+                            placeholder="选择起始日期" className="w-full" 
+                        />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-2">
+                        <label htmlFor="end_at" className="text-sm font-bold text-gray-700">结束时间</label>
+                        <Calendar 
+                            id="end_at" name="end_at" value={formData.end_at} onChange={handleChange} 
+                            showTime hourFormat="24" locale="zh-CN" showIcon showButtonBar
+                            placeholder="选择截止日期" className="w-full" 
+                        />
+                    </div>
+                </div>
+
+                {/* 第四行：配置项 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">排序</label>
+                        <Dropdown name="sort_order" value={formData.sort_order} options={[{label:'降序', value:'desc'}, {label:'升序', value:'asc'}]} onChange={handleChange} className="w-full" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">类型</label>
+                        <Dropdown name="type" value={formData.type} options={[{label:'分数', value:'score'}, {label:'用时', value:'time'}]} onChange={handleChange} className="w-full" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-gray-700">备注</label>
+                        <InputText name="remarks" value={formData.remarks} onChange={handleChange} placeholder="选填" className="w-full" />
+                    </div>
+                </div>
+            </form>
+        </Card>
+    );
 }
