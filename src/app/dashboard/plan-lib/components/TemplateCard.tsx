@@ -6,9 +6,11 @@ interface TemplateCardProps {
     template: CoachPlansPreview;
     onEdit?: (id: string) => void;
     onSelect?: (template: CoachPlansPreview) => void;
+    onCopy?: (id: string) => void;
+    onDelete?: (id: string) => void;
 }
 
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect }) => {
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete }) => {
     return (
         <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors mb-4">
             <div className="flex items-start justify-between">
@@ -64,12 +66,28 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect 
                             onClick={() => onSelect(template)}
                         />
                     )}
+                    {onCopy && (
+                        <Button
+                            icon="pi pi-copy"
+                            className="p-button-rounded p-button-text"
+                            tooltip="复制"
+                            onClick={() => onCopy(template.id)}
+                        />
+                    )}
                     {onEdit && (
                         <Button
                             icon="pi pi-pencil"
                             className="p-button-rounded p-button-text"
                             tooltip="编辑"
                             onClick={() => onEdit(template.id)}
+                        />
+                    )}
+                    {onDelete && (
+                        <Button
+                            icon="pi pi-trash"
+                            className="p-button-rounded p-button-text p-button-danger"
+                            tooltip="删除"
+                            onClick={() => onDelete(template.id)}
                         />
                     )}
                 </div>

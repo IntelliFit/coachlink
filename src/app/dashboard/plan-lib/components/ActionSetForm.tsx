@@ -53,7 +53,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 return 'RM';
 
             case '休息时间':
-                return 's';
+                return 'min';
 
             case '持续时间':
                 return 's';
@@ -147,18 +147,21 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     <div key={attr}>
                         <label className="block text-900 text-xs mb-1">{attr}</label>
                         <InputNumber
-                            value={set.params?.[attr] || 0}
+                            value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
                             onValueChange={e => {
+                                const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
                                 onActionSetChange(dayIndex, setIndex, 'params', {
                                     ...set.params,
-                                    [attr]: e.value
+                                    [attr]: value
                                 });
                             }}
                             showButtons
                             suffix={getUnit(attr)}
                             className="w-full"
                             disabled={saving}
-                            min={1}
+                            min={attr === '休息时间' ? 0.5 : 1}
+                            step={attr === '休息时间' ? 0.5 : 1}
+                            maxFractionDigits={attr === '休息时间' ? 1 : 0}
                         />
                     </div>
                 ))

@@ -129,7 +129,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                             )}
                                             {(actionSet.params?.['休息时间'] || actionSet.rest_seconds) && (
                                                 <span className="text-gray-600">
-                                                    ⏱️ 休息{actionSet.params?.['休息时间'] || actionSet.rest_seconds}秒
+                                                    ⏱️ 休息{((actionSet.params?.['休息时间'] || actionSet.rest_seconds) / 60).toFixed(1)}分钟
                                                 </span>
                                             )}
                                         </div>

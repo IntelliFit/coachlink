@@ -1,22 +1,64 @@
 import { BaseService } from "@/lib/baseService";
 import { TrainingPlanRow } from "@/types";
-import { ListTemplatesDto, ListTemplatesResponseDto } from "@/app/api/plan-lib/list-templates/entity";
-import { GetTemplateDto, GetTemplateResponseDto } from "@/app/api/plan-lib/get-template/entity";
-import { AddTemplateDto, AddTemplateResponseDto } from "@/app/api/plan-lib/create-template/entity";
-import { UpdateTemplateDto, UpdateTemplateResponseDto } from "@/app/api/plan-lib/update-template/entity";
-import { DeleteTemplateDto, DeleteTemplateResponseDto } from "@/app/api/plan-lib/delete-template/entity";
-import type { GetInstanceDto, GetInstanceResponseDto } from "@/app/api/plan-lib/get-instance/entity";
-import type { CreateInstanceDto, CreateInstanceResponseDto } from "@/app/api/plan-lib/create-instance/entity";
-import type { UpdateInstanceDto, UpdateInstanceResponseDto } from "@/app/api/plan-lib/update-instance/entity";
-import type { DeleteInstanceDto, DeleteInstanceResponseDto } from "@/app/api/plan-lib/delete-instance/entity";
-import { GetWithExecutionsDto, GetWithExecutionsResponseDto } from "../api/plan-lib/get-with-executions/entity";
-import type { GetUniqueTemplateTagsDto, GetUniqueTemplateTagsResponseDto } from "@/app/api/plan-lib/get-unique-template-tags/entity";
-import { CreateAiInstanceDto, CreateAiInstanceResponseDto } from "../api/plan-lib/create-ai-instance/entity";
+import {
+    ListTemplatesDto,
+    ListTemplatesResponseDto,
+} from "@/app/api/plan-lib/list-templates/entity";
+import {
+    GetTemplateDto,
+    GetTemplateResponseDto,
+} from "@/app/api/plan-lib/get-template/entity";
+import {
+    AddTemplateDto,
+    AddTemplateResponseDto,
+} from "@/app/api/plan-lib/create-template/entity";
+import {
+    UpdateTemplateDto,
+    UpdateTemplateResponseDto,
+} from "@/app/api/plan-lib/update-template/entity";
+import {
+    DeleteTemplateDto,
+    DeleteTemplateResponseDto,
+} from "@/app/api/plan-lib/delete-template/entity";
+import {
+    CopyTemplateDto,
+    CopyTemplateResponseDto,
+} from "@/app/api/plan-lib/copy-template/entity";
+import type {
+    GetInstanceDto,
+    GetInstanceResponseDto,
+} from "@/app/api/plan-lib/get-instance/entity";
+import type {
+    CreateInstanceDto,
+    CreateInstanceResponseDto,
+} from "@/app/api/plan-lib/create-instance/entity";
+import type {
+    UpdateInstanceDto,
+    UpdateInstanceResponseDto,
+} from "@/app/api/plan-lib/update-instance/entity";
+import type {
+    DeleteInstanceDto,
+    DeleteInstanceResponseDto,
+} from "@/app/api/plan-lib/delete-instance/entity";
+import {
+    GetWithExecutionsDto,
+    GetWithExecutionsResponseDto,
+} from "../api/plan-lib/get-with-executions/entity";
+import type {
+    GetUniqueTemplateTagsDto,
+    GetUniqueTemplateTagsResponseDto,
+} from "@/app/api/plan-lib/get-unique-template-tags/entity";
+import {
+    CreateAiInstanceDto,
+    CreateAiInstanceResponseDto,
+} from "../api/plan-lib/create-ai-instance/entity";
 
 export class PlanLibService extends BaseService {
-
     async listTemplates(reqData: ListTemplatesDto) {
-        const res = await this.post<ListTemplatesResponseDto>("list-templates", reqData);
+        const res = await this.post<ListTemplatesResponseDto>(
+            "list-templates",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to fetch templates");
         }
@@ -24,7 +66,10 @@ export class PlanLibService extends BaseService {
     }
 
     async getTemplate(reqData: GetTemplateDto) {
-        const res = await this.post<GetTemplateResponseDto>("get-template", reqData);
+        const res = await this.post<GetTemplateResponseDto>(
+            "get-template",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to fetch template");
         }
@@ -32,7 +77,10 @@ export class PlanLibService extends BaseService {
     }
 
     async addTemplate(reqData: AddTemplateDto) {
-        const res = await this.post<AddTemplateResponseDto>("create-template", reqData);
+        const res = await this.post<AddTemplateResponseDto>(
+            "create-template",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to add template");
         }
@@ -40,7 +88,10 @@ export class PlanLibService extends BaseService {
     }
 
     async updateTemplate(reqData: UpdateTemplateDto) {
-        const res = await this.post<UpdateTemplateResponseDto>("update-template", reqData);
+        const res = await this.post<UpdateTemplateResponseDto>(
+            "update-template",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to update template");
         }
@@ -48,17 +99,34 @@ export class PlanLibService extends BaseService {
     }
 
     async deleteTemplate(reqData: DeleteTemplateDto) {
-        const res = await this.post<DeleteTemplateResponseDto>("delete-template", reqData);
+        const res = await this.post<DeleteTemplateResponseDto>(
+            "delete-template",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete template");
         }
         return res.data.data;
     }
-    
+
+    async copyTemplate(reqData: CopyTemplateDto) {
+        const res = await this.post<CopyTemplateResponseDto>(
+            "copy-template",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to copy template");
+        }
+        return res.data.data;
+    }
+
     // 实例相关方法
-    
+
     async getInstance(reqData: GetInstanceDto) {
-        const res = await this.post<GetInstanceResponseDto>("get-instance", reqData);
+        const res = await this.post<GetInstanceResponseDto>(
+            "get-instance",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to fetch instance");
         }
@@ -66,7 +134,10 @@ export class PlanLibService extends BaseService {
     }
 
     async createInstance(reqData: CreateInstanceDto) {
-        const res = await this.post<CreateInstanceResponseDto>("create-instance", reqData);
+        const res = await this.post<CreateInstanceResponseDto>(
+            "create-instance",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to create instance");
         }
@@ -74,7 +145,10 @@ export class PlanLibService extends BaseService {
     }
 
     async createAiInstance(reqData: CreateAiInstanceDto) {
-        const res = await this.post<CreateAiInstanceResponseDto>("create-ai-instance", reqData);
+        const res = await this.post<CreateAiInstanceResponseDto>(
+            "create-ai-instance",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to create ai instance");
         }
@@ -82,7 +156,10 @@ export class PlanLibService extends BaseService {
     }
 
     async updateInstance(reqData: UpdateInstanceDto) {
-        const res = await this.post<UpdateInstanceResponseDto>("update-instance", reqData);
+        const res = await this.post<UpdateInstanceResponseDto>(
+            "update-instance",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to update instance");
         }
@@ -90,7 +167,10 @@ export class PlanLibService extends BaseService {
     }
 
     async deleteInstance(reqData: DeleteInstanceDto) {
-        const res = await this.post<DeleteInstanceResponseDto>("delete-instance", reqData);
+        const res = await this.post<DeleteInstanceResponseDto>(
+            "delete-instance",
+            reqData,
+        );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete instance");
         }
@@ -98,20 +178,30 @@ export class PlanLibService extends BaseService {
     }
 
     async getWithExecutions(reqData: GetWithExecutionsDto) {
-        const res = await this.post<GetWithExecutionsResponseDto>("get-with-executions", reqData);
+        const res = await this.post<GetWithExecutionsResponseDto>(
+            "get-with-executions",
+            reqData,
+        );
         if (!res || !res.data.success) {
-            throw new Error(res.data.message || "Failed to get plan with executions");
+            throw new Error(
+                res.data.message || "Failed to get plan with executions",
+            );
         }
         return res.data.data;
     }
 
     async getUniqueTemplateTags(reqData: GetUniqueTemplateTagsDto) {
-        const res = await this.post<GetUniqueTemplateTagsResponseDto>("get-unique-template-tags", reqData);
+        const res = await this.post<GetUniqueTemplateTagsResponseDto>(
+            "get-unique-template-tags",
+            reqData,
+        );
         if (!res || !res.data.success) {
-            throw new Error(res.data.message || "Failed to fetch template tags");
+            throw new Error(
+                res.data.message || "Failed to fetch template tags",
+            );
         }
         return res.data.data;
     }
 }
 
-export const planLibService = new PlanLibService('/api/plan-lib');
+export const planLibService = new PlanLibService("/api/plan-lib");

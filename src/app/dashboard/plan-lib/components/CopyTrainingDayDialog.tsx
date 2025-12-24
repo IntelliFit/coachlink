@@ -248,7 +248,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                 return 'RM';
 
             case '休息时间':
-                return 's';
+                return 'min';
 
             case '持续时间':
                 return 's';
@@ -335,7 +335,7 @@ const CopyTrainingDayDialog: React.FC<CopyTrainingDayDialogProps> = ({
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                                     {actions.find(action => action.id === set.actionId)?.attrs.map(attr => (
                                                         <div key={attr}>
-                                                            <div>{attr}: {set.params[attr] || '--'}</div>
+                                                            <div>{attr}: {attr === '休息时间' ? ((set.params[attr] || 0) / 60).toFixed(1) : (set.params[attr] || '--')}{getUnit(attr)}</div>
                                                         </div>
                                                     ))}
                                                 </div>

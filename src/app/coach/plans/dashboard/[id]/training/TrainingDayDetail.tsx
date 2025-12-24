@@ -78,7 +78,7 @@ const TrainingDayDetail: React.FC<TrainingDayDetailProps> = ({ dayDetail, visibl
               {exercise.rest_sec && (
                 <div className="text-sm text-surface-foreground mb-1 flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
-                  <span>休息 {exercise.rest_sec}秒</span>
+                  <span>休息 {(exercise.rest_sec / 60).toFixed(1)}分钟</span>
                 </div>
               )}
               
