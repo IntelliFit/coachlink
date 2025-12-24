@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { TrainingItem } from "@/types/questionnaires";
 import { CreateAiInstanceDto, CreateAiInstanceResponseDto } from "./entity";
 import { fillTemplate, matchPlan } from "./match";

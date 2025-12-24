@@ -6,7 +6,7 @@ import {
     UpdateTemplateResponseDto,
 } from "./entity";
 import { ApiData } from "@/types/api";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import {
     checkTrainingDays,
     makeContainedOptions,

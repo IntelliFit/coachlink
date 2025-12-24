@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import type { GetVideoStatsDto, GetVideoStatsResponseDto } from './entity';
 export async function POST(req: Request) {
     try {

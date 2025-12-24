@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
 import { GetActionDto, GetActionResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 export async function POST(req: Request) {
     const {
