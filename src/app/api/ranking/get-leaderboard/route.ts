@@ -49,8 +49,8 @@ export async function POST(req: Request) {
                 rank_by_field: data.rank_by_field,
                 sort_order: data.sort_order,
                 type: data.type,
-                rules: data.rules,
-                form_schema: data.form_schema,
+                rules: data.rules as any,
+                form_schema: data.form_schema as any,
                 remarks: data.remarks,
                 created_at: data.created_at,
                 creator_id: data.creator_id

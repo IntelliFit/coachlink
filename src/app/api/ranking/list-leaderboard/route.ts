@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // 查询排行榜列表和总数
     const { data, error, count } = await supabase
         .from('leaderboard_templates')
-        .select('*', { count: 'exact' })
+        .select('id, title, description, start_at, end_at, rank_by_field, sort_order, type, remarks, created_at, creator_id', { count: 'exact' })
         .range(offset, offset + limit - 1);
 
     if (error) {
