@@ -87,3 +87,27 @@ export async function POST(req: Request) {
     });
 }
 ```
+
+### 权限获取
+
+你可以通过如下的代码获取身份信息
+
+```typescript
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+
+export async function POST(req: Request) {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+        return NextResponse.json({
+            success: false,
+            message: '用户未登录',
+            data: null
+        }, { status: 401 });
+    }
+
+    // session.user.id 为用户 ID
+    // session.user.is_admin 为用户是否是管理员
+    // session.user.is_coach 为用户是否是教练
+}
+```
+

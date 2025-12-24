@@ -1,6 +1,6 @@
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { NextRequest } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 
 export const runtime = 'nodejs'; // ⚠️ 不能是 edge
 

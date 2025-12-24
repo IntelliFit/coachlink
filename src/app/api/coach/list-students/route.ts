@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
+import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { GetStudentsDto } from './entity';
 import { UserProfilesRow } from '@/types';
 import pLimit from 'p-limit';
