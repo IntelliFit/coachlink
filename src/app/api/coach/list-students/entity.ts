@@ -9,7 +9,7 @@ export interface GetStudentsDto {
 }
 
 export interface SubscribeData {
-    answers: { answer: string; question: string }[]
+    answers: { answer: string; question: string }[];
 }
 
 export interface StudentSubscription {
@@ -25,6 +25,7 @@ export interface StudentSubscription {
     reviewed: number;
     monthly_price: number;
     subscribe_data: SubscribeData | null;
+    subscribed_weeks: number | null;
 }
 
 export interface ListStudentsDto {

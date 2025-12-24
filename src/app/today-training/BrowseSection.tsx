@@ -54,7 +54,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                             const dayDate = getDayDate(dayIndex);
                             const day = trainingDays.find(d => d.dayIndex === dayIndex);
                             const isTrainingDay = day && day.type === 'training';
-                            const isTodayBool = isToday(dayIndex);
+                            const isRecommended = dayIndex === currentDayIndex; // 推荐的下一个训练日
                             const isSelected = selectedDayIndex === dayIndex;
 
                             return (
@@ -68,17 +68,18 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                             : isTrainingDay
                                             ? 'bg-gray-50 hover:bg-gray-100'
                                             : 'bg-gray-50 opacity-60 hover:opacity-80'}
-                                        ${isTodayBool && !isSelected ? 'ring-2 ring-primary-500' : ''}
+                                        ${isRecommended && !isSelected ? 'ring-2 ring-primary-500' : ''}
                                     `}
                                 >
                                     <div className={`text-xs mb-1 ${isSelected ? 'text-white opacity-90' : 'text-gray-500'}`}>
-                                        {dayDate.toLocaleDateString('zh-CN', { weekday: 'short' })}
+                                        第{dayIndex}天
                                     </div>
                                     <div className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                                        {dayDate.getDate()}
+                                        {dayIndex}
                                     </div>
                                     <div className={`text-xs mt-1 truncate max-w-full ${isSelected ? 'text-white opacity-90' : 'text-gray-600'}`}>
                                         {isTrainingDay ? '训练' : '休息'}
+                                        {isRecommended && !isSelected && ' 📍'}
                                     </div>
                                 </button>
                             );
@@ -122,8 +123,8 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 })}
                             </div>
 
-                            {/* Button based on whether it's today and execution status */}
-                            {isToday(selectedDayIndex) && todayExecutionStatus === 'completed' ? (
+                            {/* Button based on whether it's recommended day and execution status */}
+                            {selectedDayIndex === currentDayIndex && todayExecutionStatus === 'completed' ? (
                                 <Button
                                     label="查看记录"
                                     icon={<Eye className="w-5 h-5" />}
@@ -132,7 +133,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     severity="secondary"
                                     outlined
                                 />
-                            ) : isToday(selectedDayIndex) && todayExecutionStatus === 'in_progress' ? (
+                            ) : selectedDayIndex === currentDayIndex && todayExecutionStatus === 'in_progress' ? (
                                 <Button
                                     label="继续训练"
                                     icon={<Play className="w-5 h-5" />}
@@ -142,11 +143,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 />
                             ) : (
                                 <Button
-                                    label={isToday(selectedDayIndex) ? "开始训练" : "查看训练"}
+                                    label={selectedDayIndex === currentDayIndex ? "开始训练" : "查看训练"}
                                     icon={<Play className="w-5 h-5" />}
                                     onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${selectedDayIndex}`)}
                                     className="w-full"
-                                    severity={isToday(selectedDayIndex) ? "success" : "info"}
+                                    severity={selectedDayIndex === currentDayIndex ? "success" : "info"}
                                 />
                             )}
                         </div>

@@ -96,14 +96,27 @@ export const StudentDetailDialog = ({
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
+                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                                    Number(student.tier) === 3 ? 'bg-amber-50 text-amber-700' :
+                                    Number(student.tier) === 2 ? 'bg-blue-50 text-blue-700' :
+                                    Number(student.tier) === 1 ? 'bg-green-50 text-green-700' :
+                                    'bg-primary-50 text-primary-700'
+                                }`}>
                                     <Target size={14} />
-                                    套餐等级 {student.tier}
+                                    {Number(student.tier) === 1 ? '特惠版' : Number(student.tier) === 2 ? '专业指导版' : Number(student.tier) === 3 ? '全能指导版' : `套餐 ${student.tier}`}
                                 </span>
                                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
                                     <Calendar size={14} />
                                     {formatDate(student.start_date)} 开始
                                 </span>
+                                {student.end_date && (
+                                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                                        new Date(student.end_date) < new Date() ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                                    }`}>
+                                        <Calendar size={14} />
+                                        {new Date(student.end_date) < new Date() ? '已到期' : `${formatDate(student.end_date)} 到期`}
+                                    </span>
+                                )}
                                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
                                     <Video size={14} />
                                     {student.uploaded} 视频

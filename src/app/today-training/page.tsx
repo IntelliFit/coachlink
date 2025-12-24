@@ -71,28 +71,25 @@ const TodayTrainingPage: React.FC = () => {
             setInstance(res.instance);
             setActions(res.actions || {});
 
-            // 3. 计算今天是第几天
-            const planStartDate = new Date(res.instance.created_at);
-            const today = new Date();
-            const daysDiff = Math.floor(
-                (today.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24)
-            );
-            
-            // Day index循环：1-7
-            const calculatedDayIndex = ((daysDiff % 7) + 1);
-            setTodayDayIndex(calculatedDayIndex);
-
-            // 4. 检查今天的执行状态
+            // 3. 获取下一个待执行的训练日（自动顺延逻辑）
             try {
-                const execRes = await fetch(`/api/execution/check-today?instanceId=${res.instance.id}&dayIndex=${calculatedDayIndex}`);
-                const execData = await execRes.json();
-                if (execData.success && execData.data) {
-                    setExecutionStatus(execData.data.status);
-                    setCompletedSets(execData.data.completed_sets || 0);
-                    setTotalSets(execData.data.total_sets || 0);
+                const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
+                const nextDayData = await nextDayRes.json();
+                if (nextDayData.success && nextDayData.data) {
+                    setTodayDayIndex(nextDayData.data.nextDayIndex);
+                    
+                    // 检查该天的执行状态
+                    const execRes = await fetch(`/api/execution/check-today?instanceId=${res.instance.id}&dayIndex=${nextDayData.data.nextDayIndex}`);
+                    const execData = await execRes.json();
+                    if (execData.success && execData.data) {
+                        setExecutionStatus(execData.data.status);
+                        setCompletedSets(execData.data.completed_sets || 0);
+                        setTotalSets(execData.data.total_sets || 0);
+                    }
                 }
             } catch (e) {
-                console.log('No execution found for today');
+                console.log('Failed to get next training day, using default');
+                setTodayDayIndex(1);
             }
 
         } catch (error) {

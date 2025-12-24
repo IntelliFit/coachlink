@@ -5,7 +5,7 @@ import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
-import { SelectButton } from 'primereact/selectbutton';
+import { Checkbox } from 'primereact/checkbox';
 import { trainingItemService } from '@/app/service/trainingItemService';
 import { useToastContext } from '@/context/ToastContext';
 import { TrainingOptionQuestion } from '@/types/questionnaires';
@@ -182,12 +182,32 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                             {globalQuestions.map((question, idx) => (
                                 <div key={idx} className="flex flex-col gap-2">
                                     <label className="text-sm text-900 font-medium">{question.question}</label>
-                                    <SelectButton
-                                        value={globalAnswers[question.question]}
-                                        options={question.options.map((opt, i) => ({ label: opt, value: i }))}
-                                        onChange={(e) => onGlobalAnswerChange?.(question.question, e.value)}
-                                        disabled={saving}
-                                    />
+                                    <div className="flex flex-wrap gap-2">
+                                        {question.options.map((opt, i) => (
+                                            <label
+                                                key={i}
+                                                className={`
+                                                    flex items-center gap-2 px-4 py-2 
+                                                    border rounded-lg cursor-pointer
+                                                    transition-all duration-200
+                                                    ${globalAnswers[question.question] === i
+                                                        ? 'border-primary bg-primary/10 text-primary'
+                                                        : 'border-surface-300 hover:border-primary/50 hover:bg-surface-50'
+                                                    }
+                                                    ${saving ? 'opacity-50 cursor-not-allowed' : ''}
+                                                `}
+                                            >
+                                                <Checkbox
+                                                    checked={globalAnswers[question.question] === i}
+                                                    onChange={() => onGlobalAnswerChange?.(question.question, i)}
+                                                    disabled={saving}
+                                                    className="hidden"
+                                                />
+                                                <i className={`pi ${globalAnswers[question.question] === i ? 'pi-check-circle text-primary' : 'pi-circle text-surface-400'}`} />
+                                                <span className="text-sm font-medium">{opt}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             ))}
                         </>

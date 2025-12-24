@@ -151,20 +151,51 @@ export const MyCoachesList: React.FC<MyCoachesListProps> = ({}) => {
                         </div>
 
                         <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-1 text-surface-600">
+                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${
+                                Number(coach.tier) === 3 ? 'bg-amber-100 text-amber-700' :
+                                Number(coach.tier) === 2 ? 'bg-blue-100 text-blue-700' :
+                                Number(coach.tier) === 1 ? 'bg-green-100 text-green-700' :
+                                'bg-surface-100 text-surface-600'
+                            }`}>
                                 <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                                <span>Tier {coach.tier}</span>
+                                <span>{Number(coach.tier) === 1 ? '特惠版' : Number(coach.tier) === 2 ? '专业指导版' : Number(coach.tier) === 3 ? '全能指导版' : `套餐 ${coach.tier}`}</span>
                             </div>
-                            <div className="text-surface-500 text-xs">
-                                到期: {coach.end_date ? new Date(coach.end_date).toLocaleDateString() : '长期有效'}
+                            <div className={`text-xs ${
+                                coach.status === 'completed' ? 'text-green-600' : 'text-surface-500'
+                            }`}>
+                                {coach.subscribed_weeks && <span className="mr-2">共{coach.subscribed_weeks}周</span>}
+                                {(() => {
+                                    if (coach.status === 'completed') {
+                                        return '已完成';
+                                    }
+                                    if (coach.end_date) {
+                                        const endDate = new Date(coach.end_date);
+                                        const now = new Date();
+                                        if (endDate < now) {
+                                            return '已完成';
+                                        }
+                                        const dateStr = endDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+                                        return `预计 ${dateStr} 完成`;
+                                    }
+                                    return '进行中';
+                                })()}
                             </div>
                         </div>
 
-                        <Button 
-                            label="查看主页" 
-                            className="w-full mt-4 p-button-sm p-button-outlined" 
-                            onClick={() => router.push(`/coach/profile/${coach.coach?.id}`)}
-                        />
+                        <div className="flex gap-2 mt-4">
+                            <Button 
+                                label="查看主页" 
+                                className="flex-1 p-button-sm p-button-outlined" 
+                                onClick={() => router.push(`/coach/profile/${coach.coach?.id}`)}
+                            />
+                            {coach.status === 'active' && (
+                                <Button 
+                                    label="续费" 
+                                    className="flex-1 p-button-sm p-button-outlined p-button-secondary" 
+                                    onClick={() => router.push(`/coach/profile/${coach.coach?.id}?renew=true`)}
+                                />
+                            )}
+                        </div>
                     </div>
                 ))}
             </div>
