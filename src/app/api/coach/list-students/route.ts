@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { GetStudentsDto } from "./entity";
 import { UserProfilesRow } from "@/types";
 import pLimit from "p-limit";
@@ -16,11 +16,10 @@ async function getVideoStats(studentIds: string[]) {
                 .in("user_id", [id]); // 这里使用 IN 但只有一个元素
 
             const uploaded = videos?.length || 0;
-            const reviewed =
-                videos?.filter(
-                    (v) => (!!v.coach_feedback &&
-                        Object.keys(v.coach_feedback).length > 0)
-                ).length || 0;
+            const reviewed = videos?.filter(
+                (v) => (!!v.coach_feedback &&
+                    Object.keys(v.coach_feedback).length > 0),
+            ).length || 0;
 
             return {
                 student_id: id,
@@ -95,7 +94,7 @@ export async function POST(req: Request) {
     }
 
     const studentIds = Array.from(
-        new Set((subs || []).map((s) => s.student_id)),
+        new Set(((subs as any[]) || []).map((s) => s.student_id)),
     ).filter(Boolean);
 
     // 用户与档案
@@ -114,7 +113,7 @@ export async function POST(req: Request) {
 
     const students = [];
 
-    for (const sub of subs || []) {
+    for (const sub of (subs as any[]) || []) {
         const id = sub.student_id;
         const profile = profileMap.get(id);
         const view = studentViews.get(id);

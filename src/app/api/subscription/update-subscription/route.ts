@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
