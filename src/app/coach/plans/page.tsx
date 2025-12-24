@@ -244,7 +244,7 @@ const TrainingPlansHome: React.FC = () => {
                     {((actionSet as any).params?.['休息时间'] || actionSet.rest_seconds) && (
                         <div className="flex items-center gap-1 text-surface-500">
                             <i className="pi pi-clock text-xs" />
-                            <span className="text-sm">休息{(actionSet as any).params?.['休息时间'] || actionSet.rest_seconds}秒</span>
+                            <span className="text-sm">休息{(((actionSet as any).params?.['休息时间'] || actionSet.rest_seconds) / 60).toFixed(1)}分钟</span>
                         </div>
                     )}
                 </div>

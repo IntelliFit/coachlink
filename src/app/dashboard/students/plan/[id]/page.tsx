@@ -25,6 +25,8 @@ import { StudentProfilePanel } from './components/StudentProfilePanel';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import StudentPlanExecutionView from '@/components/training/StudentPlanExecutionView';
+import { Panel } from 'primereact/panel';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -62,6 +64,9 @@ const StudentPlanPage = () => {
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
     const [studentDataLoading, setStudentDataLoading] = useState(false);
+
+    // Execution data
+    const [executions, setExecutions] = useState<Record<number, any>>({});
 
     // Load instance data
     useEffect(() => {
@@ -117,6 +122,15 @@ const StudentPlanPage = () => {
                         setDays(convertedDays);
                         setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
                         setInstanceExists(true);
+                    }
+                    // Load execution data for this subscription
+                    try {
+                        const exeRes = await planLibService.getWithExecutions({ subscriptionId: params.id as string });
+                        if (exeRes?.executions) {
+                            setExecutions(exeRes.executions);
+                        }
+                    } catch (exeError) {
+                        console.log('No execution data available');
                     }
                 } catch (instanceError) {
                     // Instance doesn't exist, which is fine - we'll create a new one
@@ -540,6 +554,24 @@ const StudentPlanPage = () => {
                     }
                 />
 
+                {/* 学员执行情况展示 - 可折叠区域 */}
+                {instanceExists && (
+                    <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
+                        <Panel 
+                            header={
+                                <div className="flex items-center gap-2">
+                                    <i className="pi pi-chart-bar text-primary" />
+                                    <span className="font-semibold">学员执行情况</span>
+                                </div>
+                            }
+                            toggleable
+                            collapsed={true}
+                        >
+                            <StudentPlanExecutionView subscriptionId={params.id as string} />
+                        </Panel>
+                    </Card>
+                )}
+
                 <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                         {/* 左侧：周历视图 */}
@@ -574,6 +606,7 @@ const StudentPlanPage = () => {
                                     existingTrainingDays={existingTrainingDays}
                                     studentData={studentData} /* 传递studentData */
                                     subscription={subscription}
+                                    execution={executions[selectedDay.dayIndex]}
                                 />
                             ) : (
                                 <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">

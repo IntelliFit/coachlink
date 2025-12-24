@@ -16,6 +16,7 @@ import { InputIcon } from 'primereact/inputicon';
 import { useRouter } from 'next/navigation';
 import { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity';
 import TemplateCard from './components/TemplateCard';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 
 const PlanLib = () => {
     const { data: session } = useSession();
@@ -82,6 +83,48 @@ const PlanLib = () => {
         router.push('/dashboard/plan-lib/create');
     };
 
+    const handleCopyTemplate = async (id: string) => {
+        try {
+            await planLibService.copyTemplate({ id });
+            showToast({ severity: 'success', summary: '复制成功', detail: '训练计划模板已复制' });
+            // 重新加载列表
+            if (searchTerm) {
+                handleSearch();
+            } else {
+                loadTemplates();
+            }
+        } catch (error) {
+            console.error('复制训练计划模板失败:', error);
+            showToast({ severity: 'error', summary: '复制失败', detail: '无法复制训练计划模板' });
+        }
+    };
+
+    const handleDeleteTemplate = (id: string) => {
+        confirmDialog({
+            message: '确定要删除这个训练计划模板吗？此操作无法撤销。',
+            header: '确认删除',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: '确认',
+            rejectLabel: '取消',
+            acceptClassName: 'p-button-danger',
+            accept: async () => {
+                try {
+                    await planLibService.deleteTemplate({ id });
+                    showToast({ severity: 'success', summary: '删除成功', detail: '训练计划模板已删除' });
+                    // 重新加载列表
+                    if (searchTerm) {
+                        handleSearch();
+                    } else {
+                        loadTemplates();
+                    }
+                } catch (error) {
+                    console.error('删除训练计划模板失败:', error);
+                    showToast({ severity: 'error', summary: '删除失败', detail: '无法删除训练计划模板' });
+                }
+            }
+        });
+    };
+
     const handleSearch = async () => {
         if (!coach?.id) return;
 
@@ -116,7 +159,9 @@ const PlanLib = () => {
         return (
             <TemplateCard 
                 template={template} 
-                onEdit={(id) => router.push(`/dashboard/plan-lib/edit/${id}`)} 
+                onEdit={(id) => router.push(`/dashboard/plan-lib/edit/${id}`)}
+                onCopy={handleCopyTemplate}
+                onDelete={handleDeleteTemplate}
             />
         );
     };
@@ -146,6 +191,7 @@ const PlanLib = () => {
 
     return (
         <div className="mx-auto">
+            <ConfirmDialog />
             <Card className="shadow-sm">
                 {/* 顶部区域 - 始终显示搜索框 */}
                 <div className="border-b border-surface-200 p-4 md:p-6">

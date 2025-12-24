@@ -109,9 +109,9 @@ export async function POST(req: Request) {
         }
     }
 
-    // 为学员端加载动作详情
+    // 加载动作详情（教练和学员都需要）
     let actionsMap: Record<string, any> = {};
-    if (!session.user.is_coach && instance.training_days) {
+    if (instance.training_days) {
         const trainingDays = instance.training_days as any[];
         const actionIds = new Set<string>();
 

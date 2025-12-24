@@ -23,21 +23,44 @@ export async function POST(req: NextRequest) {
         }
 
         const userId = session.user.id;
+        const isCoach = session.user.is_coach;
         const {
             subscriptionId,
         } = await req.json() as GetWithExecutionsDto;
 
-        // 1. Get user's active subscription if not provided
+        // 1. Get subscription - 支持教练和学员两种查询方式
         let activeSub: any = null;
         if (subscriptionId) {
-            const { data: sub } = await supabase
-                .from("coach_subscriptions")
-                .select("id, coach_id, status")
-                .eq("id", subscriptionId)
-                .eq("student_id", userId)
-                .single();
-            activeSub = sub;
+            // 指定了 subscriptionId，验证权限
+            if (isCoach) {
+                // 教练：验证这个订阅属于该教练
+                const { data: coach } = await supabase
+                    .from("coaches")
+                    .select("id")
+                    .eq("user_id", userId)
+                    .single();
+
+                if (coach) {
+                    const { data: sub } = await supabase
+                        .from("coach_subscriptions")
+                        .select("id, coach_id, status")
+                        .eq("id", subscriptionId)
+                        .eq("coach_id", coach.id)
+                        .single();
+                    activeSub = sub;
+                }
+            } else {
+                // 学员：验证这个订阅属于该学员
+                const { data: sub } = await supabase
+                    .from("coach_subscriptions")
+                    .select("id, coach_id, status")
+                    .eq("id", subscriptionId)
+                    .eq("student_id", userId)
+                    .single();
+                activeSub = sub;
+            }
         } else {
+            // 没有指定 subscriptionId，查找学员的活跃订阅
             const { data: subs } = await supabase
                 .from("coach_subscriptions")
                 .select("id, coach_id, status")

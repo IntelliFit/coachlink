@@ -9,6 +9,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { CoachActionRow, CoachSubscriptionRow } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
 import ActionSetForm from './ActionSetForm';
+import ExecutionDetails from './ExecutionDetails';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { TrainingItem, TrainingOptionQuestion } from '@/types/questionnaires';
 
@@ -98,6 +99,7 @@ interface PlanDayCardProps {
     studentData?: any | null; // 添加studentData属性
     questions?: TrainingItem[];
     subscription?: CoachSubscriptionRow | null;
+    execution?: any; // 添加执行数据属性
 }
 
 
@@ -117,7 +119,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     existingTrainingDays,
     studentData,
     questions,
-    subscription
+    subscription,
+    execution
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
@@ -247,13 +250,6 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         />
                     </div>
                 </div>
-
-                <Button
-                    icon="pi pi-trash"
-                    className="p-button-rounded p-button-text p-button-danger p-button-sm"
-                    onClick={() => onRemoveDay(dayIndex)}
-                    disabled={totalDays <= 1 || saving}
-                />
             </div>
 
             {/* 动作组标题 */}
@@ -404,6 +400,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                             disabled={saving}
                         />
                     </div>
+
+                    {/* 学员执行情况 */}
+                    <ExecutionDetails execution={execution} />
 
                     {/* 条件筛选对话框 */}
                     {shouldShowFilterButton && (
