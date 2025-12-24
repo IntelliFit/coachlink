@@ -26,8 +26,7 @@ export const authOptions: AuthOptions = {
                     }
 
                     // 开发模式下接受模拟验证码 123456
-                    const useMockSms = process.env.NODE_ENV === "development" ||
-                        process.env.NEXT_PUBLIC_USE_MOCK_SMS === "true";
+                    const useMockSms = process.env.NODE_ENV === "development";
                     const isMockCode = useMockSms &&
                         credentials.verifyCode.trim() === "123456";
 

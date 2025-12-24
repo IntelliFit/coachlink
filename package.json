@@ -54,7 +54,7 @@
         "@types/lodash": "^4.17.21",
         "@types/react-beautiful-dnd": "^13.1.8",
         "@types/uuid": "^10.0.0",
-        "baseline-browser-mapping": "^2.9.5",
+        "baseline-browser-mapping": "^2.9.11",
         "supabase": "^2.67.2"
     }
 }

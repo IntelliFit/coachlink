@@ -14,4 +14,5 @@ export interface CoachSubscriptionGetResponseDto {
 
 export interface QueryCoachSubscription extends CoachSubscriptionRow {
     coach: CoachesRow | null;
+    subscribed_weeks?: number | null;
 }

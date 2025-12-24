@@ -185,6 +185,26 @@ export default function StudentsPage() {
         }
     }
 
+    /** 获取产品名称 */
+    const getProductName = (tier: number) => {
+        switch (tier) {
+            case 1: return '特惠版';
+            case 2: return '专业指导版';
+            case 3: return '全能指导版';
+            default: return `套餐${tier}`;
+        }
+    };
+
+    /** 获取产品颜色 */
+    const getProductColor = (tier: number) => {
+        switch (tier) {
+            case 3: return 'bg-amber-100 text-amber-700'; // 全能指导版 - 金色
+            case 2: return 'bg-blue-100 text-blue-700';   // 专业指导版 - 蓝色
+            case 1: return 'bg-green-100 text-green-700'; // 特惠版 - 绿色
+            default: return 'bg-surface-100 text-surface-700';
+        }
+    };
+
     /** 学员列 */
     const studentTemplate = (student: StudentWithPlan) => (
         <div
@@ -209,25 +229,57 @@ export default function StudentsPage() {
             />
             <div>
                 <div className="font-medium">{student.profile?.nickname}</div>
-                {pricingMap[student.tier]?.is_ai_plan && (
-                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">AI 计划</span>
-                )}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getProductColor(Number(student.tier))}`}>
+                    {getProductName(Number(student.tier))}
+                </span>
             </div>
         </div>
     );
 
-    const subscribeTemplate = (student: StudentWithPlan) => (
-        <div className="flex flex-col gap-1 text-sm">
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface-100 text-surface-700 w-fit">
-                <i className="pi pi-wallet text-xs" /> 套餐{student.tier} ¥{student.monthly_price}/月
-            </span>
-            {/* <Button
-                label='测试AI计划生成'
-                size='small'
-                onClick={() => makeAiInstance(student)}
-            ></Button> */}
-        </div>
-    )
+    const subscribeTemplate = (student: StudentWithPlan) => {
+        // 显示预计完成日期
+        const getCompletionInfo = () => {
+            if (!student.end_date) return null;
+            const endDate = new Date(student.end_date);
+            const now = new Date();
+            const isCompleted = student.status === 'completed';
+            const isPast = endDate < now;
+            
+            if (isCompleted) {
+                return { text: '已完成', color: 'text-green-600' };
+            }
+            if (isPast) {
+                return { text: '已完成', color: 'text-green-600' };
+            }
+            
+            // 显示预计完成日期
+            const dateStr = endDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+            return { text: `预计 ${dateStr} 完成`, color: 'text-surface-500' };
+        };
+        
+        const completionInfo = getCompletionInfo();
+        
+        return (
+            <div className="flex flex-col gap-1 text-sm">
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${getProductColor(Number(student.tier))} w-fit`}>
+                    <i className="pi pi-wallet text-xs" /> {getProductName(Number(student.tier))}
+                </span>
+                {student.subscribed_weeks && (
+                    <span className="text-xs text-surface-500">
+                        订阅时长: {student.subscribed_weeks}周
+                    </span>
+                )}
+                {completionInfo && (
+                    <span className={`text-xs ${completionInfo.color}`}>
+                        {completionInfo.text}
+                    </span>
+                )}
+                <span className="text-xs text-surface-400">
+                    ¥{student.monthly_price}
+                </span>
+            </div>
+        );
+    };
 
     /** 注册时间列 */
     const startDateTemplate = (student: StudentWithPlan) => (

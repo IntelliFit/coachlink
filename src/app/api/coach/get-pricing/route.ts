@@ -1,22 +1,27 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from '../../auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
-import type { GetPricingDto, GetPricingResponseDto, Pricing } from './entity';
+import { NextResponse } from "next/server";
+import { getServerSession } from "../../auth/[...nextauth]/auth";
+import supabase from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
+import type {
+    GetPricingDto,
+    GetPricingResponseDto,
+    Pricing,
+    Product,
+} from "./entity";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({
             success: false,
-            message: '用户未登录',
-            data: null
+            message: "用户未登录",
+            data: null,
         }, { status: 401 });
     }
 
     let {
-        coachId = '',
-        userId = ''
+        coachId = "",
+        userId = "",
     } = await req.json() as GetPricingDto;
 
     if (userId && !coachId) {
@@ -29,65 +34,71 @@ export async function POST(req: Request) {
         if (error) {
             return NextResponse.json({
                 success: false,
-                message: error.message
+                message: error.message,
             });
         }
 
         coachId = coach.id;
     }
 
-
     // 获取定价信息
     const { data, error } = await supabase
-        .from('coach_pricing')
-        .select('*')
-        .eq('coach_id', coachId)
+        .from("coach_pricing")
+        .select("*")
+        .eq("coach_id", coachId)
         .maybeSingle();
 
     if (error) {
         return NextResponse.json<ApiData<GetPricingResponseDto>>({
             success: false,
-            message: '获取定价信息失败',
-            data: null
+            message: "获取定价信息失败",
+            data: null,
         });
     }
 
     // 如果是教练本人则返回缺省，否则返回空
-    let defaultVal = [] as Pricing[];
+    let defaultPricings = [] as Pricing[];
+    let defaultProducts = [] as Product[];
+
     if (session.user.is_coach) {
         const { data: coach, error: coachError } = await supabase
-            .from('coaches')
-            .select('user_id')
-            .eq('id', coachId)
+            .from("coaches")
+            .select("user_id")
+            .eq("id", coachId)
             .single();
 
         if (session.user.id === coach.user_id) {
-            defaultVal = [
+            defaultPricings = [
                 {
-                    title: session.profile.nickname + '的基础订阅计划',
+                    title: session.profile.nickname + "的基础订阅计划",
                     price: 100,
                     features: [
-                        '服务1',
-                        '服务2',
+                        "服务1",
+                        "服务2",
                     ],
                     is_recommend: false,
-                    is_ai_plan: false
-                }
+                    is_ai_plan: false,
+                },
             ];
 
+            // 默认产品为空，让教练自己设置
+            defaultProducts = [];
         }
     }
 
-
     const pricingData = data ?? {
-        pricings: defaultVal
+        pricings: defaultPricings,
+        products: defaultProducts,
     };
 
     return NextResponse.json<ApiData<GetPricingResponseDto>>({
         success: true,
-        message: '获取定价信息成功',
+        message: "获取定价信息成功",
         data: {
-            pricings: pricingData.pricings as Pricing[],
-        }
+            // 新版数据结构
+            products: (pricingData.products as Product[]) || [],
+            // 向后兼容旧版
+            pricings: (pricingData.pricings as Pricing[]) || [],
+        },
     });
 }
