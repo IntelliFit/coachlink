@@ -1,16 +1,56 @@
 import { BaseService } from "@/lib/baseService";
-import type { GetTrainingPlansDto, GetTrainingPlansResponseDto } from "../api/subscription/get-training-plans/entity";
-import type { GetVideoStatsDto, GetVideoStatsResponseDto } from "../api/subscription/get-video-stats/entity";
-import type { CoachMessagesDto, CoachMessagesResponseDto } from "../api/subscription/coach-messages/entity";
-import type { CoachSubscriptionGetDto, CoachSubscriptionGetResponseDto } from "../api/subscription/coach-subscriptions/entity";
-import type { CreateSubscriptionDto, CreateSubscriptionResponseDto } from "../api/subscription/create-subscription/entity";
-import type { UpdateSubscriptionDto, UpdateSubscriptionResponseDto } from "../api/subscription/update-subscription/entity";
-import type { GetCoachReviewsDto, GetCoachReviewsResponseDto } from "../api/subscription/get-coach-reviews/entity";
-import type { CreateCoachReviewsDto, CreateCoachReviewsResponseDto } from "../api/subscription/create-coach-reviews/entity";
-import type { UpdateCoachReviewsDto, UpdateCoachReviewsResponseDto } from "../api/subscription/update-coach-reviews/entity";
-import type { DeleteCoachReviewsDto, DeleteCoachReviewsResponseDto } from "../api/subscription/delete-coach-reviews/entity";
-import type { GetSubscriptionDto, GetSubscriptionResponseDto } from "../api/subscription/get-subscription/entity";
-import type { ListSubscriptionGetDto, ListSubscriptionGetResponseDto } from "../api/subscription/list-subscriptions/entity";
+import type {
+    GetTrainingPlansDto,
+    GetTrainingPlansResponseDto,
+} from "../api/subscription/get-training-plans/entity";
+import type {
+    GetVideoStatsDto,
+    GetVideoStatsResponseDto,
+} from "../api/subscription/get-video-stats/entity";
+import type {
+    CoachMessagesDto,
+    CoachMessagesResponseDto,
+} from "../api/subscription/coach-messages/entity";
+import type {
+    CoachSubscriptionGetDto,
+    CoachSubscriptionGetResponseDto,
+} from "../api/subscription/coach-subscriptions/entity";
+import type {
+    CreateSubscriptionDto,
+    CreateSubscriptionResponseDto,
+} from "../api/subscription/create-subscription/entity";
+import type {
+    UpdateSubscriptionDto,
+    UpdateSubscriptionResponseDto,
+} from "../api/subscription/update-subscription/entity";
+import type {
+    GetCoachReviewsDto,
+    GetCoachReviewsResponseDto,
+} from "../api/subscription/get-coach-reviews/entity";
+import type {
+    CreateCoachReviewsDto,
+    CreateCoachReviewsResponseDto,
+} from "../api/subscription/create-coach-reviews/entity";
+import type {
+    UpdateCoachReviewsDto,
+    UpdateCoachReviewsResponseDto,
+} from "../api/subscription/update-coach-reviews/entity";
+import type {
+    DeleteCoachReviewsDto,
+    DeleteCoachReviewsResponseDto,
+} from "../api/subscription/delete-coach-reviews/entity";
+import type {
+    GetSubscriptionDto,
+    GetSubscriptionResponseDto,
+} from "../api/subscription/get-subscription/entity";
+import type {
+    ListSubscriptionGetDto,
+    ListSubscriptionGetResponseDto,
+} from "../api/subscription/list-subscriptions/entity";
+import type {
+    RenewSubscriptionDto,
+    RenewSubscriptionResponseDto,
+} from "../api/subscription/renew-subscription/entity";
 
 interface SubscriptionStats {
     aiPlans: number;
@@ -30,9 +70,11 @@ interface GetUserStatsResponse {
 }
 
 class SubscriptionService extends BaseService {
-
     async getTrainingPlans(reqData?: GetTrainingPlansDto) {
-        const res = await this.post<GetTrainingPlansResponseDto>('get-training-plans', reqData || {});
+        const res = await this.post<GetTrainingPlansResponseDto>(
+            "get-training-plans",
+            reqData || {},
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -40,7 +82,10 @@ class SubscriptionService extends BaseService {
     }
 
     async getVideoStats(reqData?: GetVideoStatsDto) {
-        const res = await this.post<GetVideoStatsResponseDto>('get-video-stats', reqData || {});
+        const res = await this.post<GetVideoStatsResponseDto>(
+            "get-video-stats",
+            reqData || {},
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -48,7 +93,10 @@ class SubscriptionService extends BaseService {
     }
 
     async coachMessages(reqData?: CoachMessagesDto) {
-        const res = await this.post<CoachMessagesResponseDto>('coach-messages', reqData || {});
+        const res = await this.post<CoachMessagesResponseDto>(
+            "coach-messages",
+            reqData || {},
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -56,7 +104,10 @@ class SubscriptionService extends BaseService {
     }
 
     async getCoachSubscriptions(reqData: CoachSubscriptionGetDto) {
-        const res = await this.post<CoachSubscriptionGetResponseDto>('coach-subscriptions', reqData);
+        const res = await this.post<CoachSubscriptionGetResponseDto>(
+            "coach-subscriptions",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -64,7 +115,10 @@ class SubscriptionService extends BaseService {
     }
 
     async createSubscription(reqData: CreateSubscriptionDto) {
-        const res = await this.post<CreateSubscriptionResponseDto>('create-subscription', reqData);
+        const res = await this.post<CreateSubscriptionResponseDto>(
+            "create-subscription",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -72,41 +126,56 @@ class SubscriptionService extends BaseService {
     }
 
     async updateSubscription(reqData: UpdateSubscriptionDto) {
-        const res = await this.post<UpdateSubscriptionResponseDto>('update-subscription', reqData);
+        const res = await this.post<UpdateSubscriptionResponseDto>(
+            "update-subscription",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
         return null;
     }
-    
+
     // 教练评价相关接口
-    
+
     async getCoachReviews(reqData: GetCoachReviewsDto) {
-        const res = await this.post<GetCoachReviewsResponseDto>('get-coach-reviews', reqData);
+        const res = await this.post<GetCoachReviewsResponseDto>(
+            "get-coach-reviews",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
         return null;
     }
-    
+
     async createCoachReview(reqData: CreateCoachReviewsDto) {
-        const res = await this.post<CreateCoachReviewsResponseDto>('create-coach-reviews', reqData);
+        const res = await this.post<CreateCoachReviewsResponseDto>(
+            "create-coach-reviews",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
         return null;
     }
-    
+
     async updateCoachReview(reqData: UpdateCoachReviewsDto) {
-        const res = await this.post<UpdateCoachReviewsResponseDto>('update-coach-reviews', reqData);
+        const res = await this.post<UpdateCoachReviewsResponseDto>(
+            "update-coach-reviews",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
         return null;
     }
-    
+
     async deleteCoachReview(reqData: DeleteCoachReviewsDto) {
-        const res = await this.post<DeleteCoachReviewsResponseDto>('delete-coach-reviews', reqData);
+        const res = await this.post<DeleteCoachReviewsResponseDto>(
+            "delete-coach-reviews",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -114,15 +183,32 @@ class SubscriptionService extends BaseService {
     }
 
     async getSubscription(reqData: GetSubscriptionDto) {
-        const res = await this.post<GetSubscriptionResponseDto>('get-subscription', reqData);
+        const res = await this.post<GetSubscriptionResponseDto>(
+            "get-subscription",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
         return null;
     }
-    
+
     async listSubscriptions(reqData: ListSubscriptionGetDto) {
-        const res = await this.post<ListSubscriptionGetResponseDto>('list-subscriptions', reqData);
+        const res = await this.post<ListSubscriptionGetResponseDto>(
+            "list-subscriptions",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
+    async renewSubscription(reqData: RenewSubscriptionDto) {
+        const res = await this.post<RenewSubscriptionResponseDto>(
+            "renew-subscription",
+            reqData,
+        );
         if (res.data && res.data.success) {
             return res.data.data;
         }
@@ -130,4 +216,4 @@ class SubscriptionService extends BaseService {
     }
 }
 
-export const subscriptionService = new SubscriptionService('/api/subscription');
+export const subscriptionService = new SubscriptionService("/api/subscription");

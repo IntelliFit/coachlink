@@ -54,8 +54,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         return () => clearTimeout(timer);
     }, [countdown]);
 
-    // 是否使用模拟验证码（开发模式或设置了环境变量）
-    const useMockSms = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
+    // 开发模式使用模拟验证码
+    const useMockSms = process.env.NODE_ENV === 'development';
 
     // 发送验证码
     const sendVerificationCode = async () => {

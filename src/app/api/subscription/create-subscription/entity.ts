@@ -20,10 +20,22 @@ export interface CreateSubscriptionDto {
 
     // subscribeData
     subscribeData?: TrainingItem[];
-}
 
+    // === 新增产品字段 ===
+    // 产品唯一标识
+    productId?: string;
+
+    // 产品显示名称
+    productName?: string;
+
+    // 产品层级 ('basic' | 'standard' | 'vip')
+    productTier?: string;
+
+    // 订阅周数
+    subscribedWeeks?: number;
+}
 
 // 返回参数的接口类型
 export interface CreateSubscriptionResponseDto {
-    subscription: CoachSubscriptionRow
+    subscription: CoachSubscriptionRow;
 }
