@@ -28,12 +28,21 @@ export async function POST(req: NextRequest) {
             subscriptionId,
         } = await req.json() as GetWithExecutionsDto;
 
-        // 1. Get subscription - 支持教练和学员两种查询方式
+        // 1. Get subscription - 支持教练和学员两种角色，用户可能同时拥有两种身份
         let activeSub: any = null;
         if (subscriptionId) {
-            // 指定了 subscriptionId，验证权限
-            if (isCoach) {
-                // 教练：验证这个订阅属于该教练
+            // 指定了 subscriptionId，先检查作为学员的订阅
+            const { data: studentSub } = await supabase
+                .from("coach_subscriptions")
+                .select("id, coach_id, status")
+                .eq("id", subscriptionId)
+                .eq("student_id", userId)
+                .single();
+
+            if (studentSub) {
+                activeSub = studentSub;
+            } else if (isCoach) {
+                // 如果不是学员的订阅，且用户是教练，检查是否是教练的订阅
                 const { data: coach } = await supabase
                     .from("coaches")
                     .select("id")
@@ -41,23 +50,14 @@ export async function POST(req: NextRequest) {
                     .single();
 
                 if (coach) {
-                    const { data: sub } = await supabase
+                    const { data: coachSub } = await supabase
                         .from("coach_subscriptions")
                         .select("id, coach_id, status")
                         .eq("id", subscriptionId)
                         .eq("coach_id", coach.id)
                         .single();
-                    activeSub = sub;
+                    activeSub = coachSub;
                 }
-            } else {
-                // 学员：验证这个订阅属于该学员
-                const { data: sub } = await supabase
-                    .from("coach_subscriptions")
-                    .select("id, coach_id, status")
-                    .eq("id", subscriptionId)
-                    .eq("student_id", userId)
-                    .single();
-                activeSub = sub;
             }
         } else {
             // 没有指定 subscriptionId，查找学员的活跃订阅

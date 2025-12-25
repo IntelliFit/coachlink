@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabase from '@/lib/supabaseClient';
+import supabase from "@/lib/supabaseClient";
 import { ListTemplatesDto, ListTemplatesResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
         page = 1,
         limit = 12,
         search,
-        type
+        type,
     } = await req.json() as ListTemplatesDto;
 
     // Check if user is logged in and has coach role
@@ -19,14 +19,14 @@ export async function POST(req: Request) {
     if (!userId) {
         return NextResponse.json({
             success: false,
-            message: "Unauthorized"
+            message: "Unauthorized",
         }, { status: 401 });
     }
 
     const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('is_coach')
-        .eq('id', userId)
+        .from("users")
+        .select("is_coach")
+        .eq("id", userId)
         .single();
 
     if (userError || !user.is_coach) {
@@ -39,17 +39,22 @@ export async function POST(req: Request) {
     // Build query
     let query = supabase
         .from("coach_plan_templates")
-        .select('id,name,description,type,tags,suitable_for,rest_days_count,training_days_count,contained_options,week_days', { count: "exact" })
+        .select(
+            "id,name,description,type,tags,suitable_for,rest_days_count,training_days_count,contained_options,week_days,global_answers",
+            { count: "exact" },
+        )
         .eq("coach_id", userId)
         .order("created_at", { ascending: false }); // 默认按创建时间倒序排序
 
     // Apply search filter if provided
     if (search) {
-        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+        query = query.or(
+            `name.ilike.%${search}%,description.ilike.%${search}%`,
+        );
     }
 
     // Apply type filter if provided
-    if (type && type !== 'all') {
+    if (type && type !== "all") {
         query = query.eq("type", type);
     }
 
@@ -64,7 +69,7 @@ export async function POST(req: Request) {
         console.error("Error fetching templates:", error);
         return NextResponse.json({
             success: false,
-            message: "Failed to fetch templates"
+            message: "Failed to fetch templates",
         }, { status: 500 });
     }
 
@@ -72,7 +77,7 @@ export async function POST(req: Request) {
         success: true,
         message: "获取训练计划模板列表成功",
         data: {
-            templates: templates.map(template => ({
+            templates: templates.map((template) => ({
                 id: template.id,
                 name: template.name,
                 description: template.description,
@@ -82,10 +87,12 @@ export async function POST(req: Request) {
                 trainingDaysCount: template.training_days_count || 0,
                 containedOptions: template.contained_options || [],
                 weekDays: template.week_days || [],
+                globalAnswers:
+                    (template.global_answers as Record<string, number>) || null,
             })),
             totalCount: count || 0,
             page,
-            limit
-        }
+            limit,
+        },
     });
 }

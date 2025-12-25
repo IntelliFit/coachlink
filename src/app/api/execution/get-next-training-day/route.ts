@@ -7,13 +7,16 @@ interface GetNextTrainingDayResponse {
     nextDayIndex: number;
     completedDays: number[];
     totalTrainingDays: number;
+    startExecutionDay?: number;
 }
 
 /**
  * GET /api/execution/get-next-training-day
  *
  * 获取学员下一个待执行的训练日
- * 逻辑：找到第一个未完成的训练日（跳过休息日）
+ * 逻辑：
+ * 1. 如果计划有 start_execution_day，则该天之前的训练日视为已完成
+ * 2. 找到第一个未完成的训练日（跳过休息日）
  */
 export async function GET(req: NextRequest) {
     try {
@@ -35,10 +38,10 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // 1. 获取计划实例
+        // 1. 获取计划实例（包含 start_execution_day）
         const { data: instance, error: instanceError } = await supabase
             .from("coach_plan_instances")
-            .select("id, training_days")
+            .select("id, training_days, start_execution_day")
             .eq("id", instanceId)
             .single();
 
@@ -59,14 +62,17 @@ export async function GET(req: NextRequest) {
         // 提取已完成的 dayIndex 列表
         const completedDays = (executions || []).map((e) => e.day_index);
 
-        // 3. 解析训练日
+        // 3. 获取起始执行天数（默认为1）
+        const startExecutionDay = (instance as any).start_execution_day || 1;
+
+        // 4. 解析训练日
         const trainingDays = (instance.training_days as any[] || [])
             .sort((a, b) => a.dayIndex - b.dayIndex);
 
-        // 4. 找到第一个未完成的训练日（跳过休息日）
-        let nextDayIndex = 1;
+        // 5. 找到第一个未完成的训练日（跳过休息日和 start_execution_day 之前的天）
+        let nextDayIndex = startExecutionDay; // 从起始执行天开始
         const trainingOnlyDays = trainingDays.filter((d) =>
-            d.type === "training"
+            d.type === "training" && d.dayIndex >= startExecutionDay
         );
 
         for (const day of trainingOnlyDays) {
@@ -76,12 +82,17 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // 如果所有训练日都完成了，返回第一个训练日（循环）
+        // 如果所有有效训练日都完成了，返回第一个有效训练日（循环）
         if (
             trainingOnlyDays.length > 0 &&
             trainingOnlyDays.every((d) => completedDays.includes(d.dayIndex))
         ) {
             nextDayIndex = trainingOnlyDays[0].dayIndex;
+        }
+
+        // 如果没有任何有效训练日，回退到起始执行天
+        if (trainingOnlyDays.length === 0) {
+            nextDayIndex = startExecutionDay;
         }
 
         return NextResponse.json<ApiData<GetNextTrainingDayResponse>>({
@@ -91,6 +102,9 @@ export async function GET(req: NextRequest) {
                 nextDayIndex,
                 completedDays,
                 totalTrainingDays: trainingOnlyDays.length,
+                startExecutionDay: startExecutionDay > 1
+                    ? startExecutionDay
+                    : undefined,
             },
         });
     } catch (error) {

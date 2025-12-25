@@ -11,7 +11,8 @@ export interface UpdateTemplateDto {
     description?: string | null;
     tags?: string[];
     suitableFor?: string;
-    weekDays?: number[]; // 新增
+    weekDays?: number[];
+    globalAnswers?: Record<string, number>; // 新增：全局问题答案
     trainingDays?: CoachPlanTrainingDay[];
 }
 
