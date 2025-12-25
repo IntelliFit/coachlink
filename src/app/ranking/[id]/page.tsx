@@ -31,7 +31,12 @@ export default function RankingPage() {
             setLoading(true);
             const [lbData, entriesData] = await Promise.all([
                 rankingService.getLeaderboard({ id: templateId }),
-                rankingService.listEntries({ template_id: templateId })
+                rankingService.listEntries({
+                    template_id: templateId,
+                    status: 'approved',
+                    limit: 100,
+                    sort_by: 'score'
+                })
             ]);
 
             setLeaderboard(lbData.leaderboard);
