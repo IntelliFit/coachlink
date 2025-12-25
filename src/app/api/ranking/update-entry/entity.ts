@@ -6,6 +6,7 @@ export interface UpdateEntryDto {
   score?: number | null;
   evidence_url?: string | null;
   status?: string;
+  note?: string | null;
 }
 
 export interface UpdateEntryResponseDto {

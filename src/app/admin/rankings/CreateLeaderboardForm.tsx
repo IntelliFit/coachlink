@@ -12,6 +12,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardRule, LeaderboardFormInput } from '@/types/leaderboard';
 import { Tag } from 'primereact/tag';
+import { Checkbox } from 'primereact/checkbox';
 
 // 配置中文语言包
 addLocale('zh-CN', {
@@ -410,6 +411,17 @@ export default function CreateLeaderboardForm({ onSuccess, visible, onHide }: Cr
                                                     updateFormInput(index, 'type', e.value)
                                                 }
                                             />
+                                        </div>
+
+                                        <div className="col-12 field flex align-items-center gap-2">
+                                            <Checkbox
+                                                inputId={`required-${index}`}
+                                                checked={!!input.required}
+                                                onChange={(e) => updateFormInput(index, 'required', e.checked)}
+                                            />
+                                            <label htmlFor={`required-${index}`} className="text-sm cursor-pointer select-none">
+                                                设为必填项 (Required)
+                                            </label>
                                         </div>
                                     </div>
 

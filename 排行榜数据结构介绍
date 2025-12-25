@@ -1,0 +1,80 @@
+在你的数据库中，与 leaderboard 相关的表有三类：
+
+pullup_leaderboard（早期/专项的引体向上榜单数据）
+leaderboard_templates（通用“榜单模板/活动”定义）
+leaderboard_entries（通用“榜单参赛记录/成绩”）
+下面分别解释它们的结构、用途以及它们之间的关系。
+
+1) pullup_leaderboard
+用于“引体向上”专项的榜单投稿与审核，属于早期/专项实现，字段包含业务审核与领奖信息。
+
+id: uuid，主键
+user_id: uuid，可空。关联 auth.users，标识对应平台用户（如果是抖音昵称投稿可能为空）
+weight_kg: numeric，必须大于0。该投稿的重量或成绩值（此处语义是“负重引体向上重量”）
+video_url: text，证明视频链接
+created_at: timestamptz，创建时间，默认 now()
+created_by: uuid，可空。关联 auth.users，创建者（与 user_id 可不同，用于管理员代录）
+douyin_nickname: text，可空。抖音昵称（支持非平台注册用户参与）
+claim_code: text，唯一。领奖/认领码（用于匹配用户或兑奖）
+is_claimed: boolean，是否已被认领/兑奖，默认 false
+gender: text，可空。性别
+notes: text，可空。备注
+submission_status: text，默认 'approved'，枚举 ['pending','approved','rejected']。投稿审核状态
+submitted_by: uuid，可空。关联 public.users，投稿发起人（平台用户）
+submitted_at: timestamptz，可空。投稿时间
+reviewed_by: uuid，可空。关联 public.users，审核人
+reviewed_at: timestamptz，可空。审核时间
+admin_feedback: text，可空。审核意见
+is_user_submission: boolean，默认 false。是否用户自助提交（相对管理员代录）
+适用场景：
+
+针对“引体向上负重”的专项活动，直接用该表管理投稿、审核、兑奖。
+字段已内置审核流、兑奖码逻辑，方便运营。
+注意：
+
+与通用模板体系分离，更多是“单一项目的专用表”。
+2) leaderboard_templates
+用于定义“通用榜单/活动模板”，例如“深蹲挑战赛”“卧推最大单次”等，一个模板对应一场活动或一类榜单。
+
+id: uuid，主键
+title: text，榜单/活动标题
+type: text，可空。类型标识（自定义，比如 strength、endurance、pullup 等）
+start_at: timestamptz，可空。活动开始时间
+end_at: timestamptz，可空。活动结束时间
+creator_id: uuid，可空。关联 public.users，模板创建者
+description: text，可空。活动描述
+rules: jsonb，默认 []。活动规则（自由结构，如评分方式、限制条件）
+form_schema: jsonb，默认 []。参赛提交表单的字段定义（前端可据此动态渲染）
+rank_by_field: text。用于排名的字段名（通常对应 entries.form_data 或 entries.score 中的某个指标，比如 "weight_kg" 或直接用 score）
+sort_order: text，默认 'desc'，枚举 ['asc','desc']。排名顺序
+remarks: text，可空。备注
+created_at: timestamptz，默认 now()
+initiator: text，可空。发起方描述（如品牌/教练）
+适用场景：
+
+用于搭建多种赛事/活动，只需新增模板，无需新建表。
+自定义表单和排名规则非常灵活。
+3) leaderboard_entries
+用于记录某个模板下的参赛成绩（用户的具体提交）。
+
+id: uuid，主键
+template_id: uuid，可空。关联 leaderboard_templates.id，指明属于哪个活动
+user_id: uuid，可空。关联 public.users，参赛用户
+form_data: jsonb。实际提交的数据载体（结构由 template.form_schema 决定，比如 { reps: 10, weight_kg: 40 }）
+score: numeric，可空。可选的预计算得分（也可只用 form_data 中的字段参与排名）
+status: text，默认 'pending'，枚举 ['pending','approved','rejected']。成绩审核状态
+evidence_url: text，可空。证明材料链接（视频/图片）
+created_at: timestamptz，默认 now()
+extra_data: jsonb，可空。扩展信息（非排名字段）
+note: text，可空。备注
+适用场景：
+
+搭配 leaderboard_templates 构建通用的排行榜系统。
+支持灵活表单与多维数据提交，后台可根据模板的 rank_by_field 和 sort_order 进行排名。
+三者关系与使用建议
+pullup_leaderboard 是“专项表”，适合引体向上负重活动的已上线/历史数据管理（带兑奖、审核人、认领码等运营属性）。
+leaderboard_templates + leaderboard_entries 是“通用框架”，适合新活动/多种项目的扩展与统一管理。
+如果你计划统一到模板化体系：
+可以为“引体向上负重”创建一个 leaderboard_templates 模板（type = 'pullup'，rank_by_field = 'weight_kg' 或使用 score）。
+新的投稿进入 leaderboard_entries，并在 form_data 中记录 weight_kg、gender、video_url 等；status 用于审核流。
+旧的 pullup_leaderboard 数据可选择迁移成 entries（可保留 claim_code 等到 extra_data），或保留为历史表继续展示。

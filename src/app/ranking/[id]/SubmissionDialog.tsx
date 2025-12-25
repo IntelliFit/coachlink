@@ -37,7 +37,7 @@ export default function SubmissionDialog({
     // 初始化表单数据
     useEffect(() => {
         if (visible) {
-            const initialData: any = { douyin_nickname: '', notes: '' };
+            const initialData: any = { douyin_nickname: '' };
             formSchema.forEach((field) => {
                 if (field.type === 'number') {
                     initialData[field.name] = null;
@@ -70,18 +70,39 @@ export default function SubmissionDialog({
                 };
             });
 
-            // 2. 提取分数值 (从 rankByField 指定的 name 中取)
+            // 2. 尝试从 formSchema 中提取 evidence_url (如果有字段被定义为存储视频/凭证)
+            // 策略：查找 explicit field (例如 name='evidence_url') 或者 implicit (name contains 'video'/'link')
+            // 但是现在我们更依赖于 schema 中的配置。如果用户配置了某个字段，并且它是必填的，那么它本身就会被上面的 HTML form 必填校验拦截
+            // 这里我们主要为了 payload 中的 evidence_url 赋值。
+            
+            // 查找可能的视频字段
+            const videoField = formSchema.find(f => 
+                f.name === 'evidence_url' ||
+                f.name.includes('视频') || 
+                f.name.toLowerCase().includes('video') || 
+                f.name.toLowerCase().includes('link') ||
+                f.name.includes('链接')
+            );
+            
+            // 如果找到了字段，取其值作为 evidence_url
+            // 如果没找到，或该字段非必填且为空，则 payload.evidence_url 可能为空，这是允许的（如果 required=false）
+            const videoUrl = videoField ? formData[videoField.name] : (formData.video_url || '');
+
+             // 注意：这里的额外校验仅针对 evidence_url 的业务逻辑
+             // 如果字段本身在 schema 中标记为 required=true，上面的 <Input... required={!!field.required} /> 已经阻止了提交
+             // 所以这里我们可以移除之前的硬性拦截，除非我们需要确保 evidence_url 字段必须存在于 schema 中
+            
+            // 3. 提取分数值 (从 rankByField 指定的 name 中取)
             const scoreValue = parseFloat(formData[rankByField]) || 0;
 
-            // 3. 准备提交 payload
+            // 4. 准备提交 payload
             const payload = {
                 template_id: templateId,
                 form_data: formattedFormData,
                 score: scoreValue,
-                evidence_url: formData.video_url || '', // 如果 schema 里有视频链接 name 则取对应值
+                evidence_url: videoUrl, 
                 extra_data: {
-                    douyin_nickname: formData.douyin_nickname,
-                    notes: formData.notes
+                    douyin_nickname: formData.douyin_nickname
                 },
                 status: 'pending' // 初始状态为待审核
             };
@@ -116,6 +137,7 @@ export default function SubmissionDialog({
                     <div key={field.name} className="flex flex-col gap-2">
                         <label className="text-sm font-semibold ml-1">
                             {field.name}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
                         {field.type === 'number' ? (
                             <InputNumber
@@ -124,7 +146,7 @@ export default function SubmissionDialog({
                                 onValueChange={(e) => handleFieldChange(field.name, e.value)}
                                 minFractionDigits={0}
                                 maxFractionDigits={2}
-                                required
+                                required={!!field.required}
                             />
                         ) : field.type === 'option' ? (
                             <Dropdown
@@ -132,30 +154,20 @@ export default function SubmissionDialog({
                                 placeholder={`请选择${field.name}`}
                                 value={formData[field.name]}
                                 onChange={(e) => handleFieldChange(field.name, e.value)}
-                                required
+                                required={!!field.required}
                             />
                         ) : (
                             <InputText
                                 placeholder={`请输入${field.name}`}
                                 value={formData[field.name] || ''}
                                 onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                                required
+                                required={!!field.required}
                             />
                         )}
                     </div>
                 ))}
 
-                {/* 固定字段：备注 */}
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold ml-1">备注说明</label>
-                    <InputTextarea
-                        placeholder="有什么想对裁判说的？"
-                        value={formData.notes || ''}
-                        onChange={(e) => handleFieldChange('notes', e.target.value)}
-                        rows={2}
-                        autoResize
-                    />
-                </div>
+
 
                 <div className="flex flex-col gap-3 mt-4">
                     <Button
