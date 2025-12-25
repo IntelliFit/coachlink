@@ -4,17 +4,17 @@ import React from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Video, User } from 'lucide-react';
-import { LeaderboardEntriesRow } from '@/types';
 import { LeaderboardFormInput } from '@/types/leaderboard';
+import { LeaderboardEntryWithProfile } from '@/app/api/ranking/list-entries/entity';
 
 interface RankingsTableProps {
-    entries: LeaderboardEntriesRow[];
+    entries: LeaderboardEntryWithProfile[];
     formSchema: LeaderboardFormInput[];
 }
 
 const RankingsTable = ({ entries, formSchema }: RankingsTableProps) => {
     // 1. 排名模板
-    const rankBodyTemplate = (rowData: LeaderboardEntriesRow, { rowIndex }: any) => {
+    const rankBodyTemplate = (rowData: LeaderboardEntryWithProfile, { rowIndex }: any) => {
         const rank = rowIndex + 1;
         const getRankClass = () => {
             if (rank === 1) return 'text-yellow-500 bg-yellow-50';
@@ -31,12 +31,12 @@ const RankingsTable = ({ entries, formSchema }: RankingsTableProps) => {
     };
 
     // 2. 挑战者信息模板 (从 extra_data 读取)
-    const challengerTemplate = (rowData: LeaderboardEntriesRow) => {
+    const challengerTemplate = (rowData: LeaderboardEntryWithProfile) => {
         return (
             <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-400" />
                 <span className="font-medium text-gray-700 dark:text-gray-200">
-                    {(rowData.extra_data as any)?.douyin_nickname || '匿名挑战者'}
+                    {rowData.userProfile?.name || (rowData.extra_data as any)?.douyin_nickname || '匿名挑战者'}
                 </span>
             </div>
         );
@@ -49,7 +49,7 @@ const RankingsTable = ({ entries, formSchema }: RankingsTableProps) => {
             <Column
                 key={field.name + index}
                 header={field.name}
-                body={(rowData: LeaderboardEntriesRow) => {
+                body={(rowData: LeaderboardEntryWithProfile) => {
                     const targetField = (rowData.form_data as unknown as LeaderboardFormInput[])?.find(item => item.name === field.name);
                     const val = targetField?.userInput;
 
@@ -74,7 +74,7 @@ const RankingsTable = ({ entries, formSchema }: RankingsTableProps) => {
     });
 
     // 4. 备注列模板
-    const notesTemplate = (rowData: LeaderboardEntriesRow) => {
+    const notesTemplate = (rowData: LeaderboardEntryWithProfile) => {
         return (
             <span className="text-sm text-gray-500 truncate max-w-[150px] inline-block">
                 {rowData.note || '-'}
@@ -94,7 +94,6 @@ const RankingsTable = ({ entries, formSchema }: RankingsTableProps) => {
 
             <DataTable
                 value={entries}
-                responsiveLayout="stack"
                 breakpoint="960px"
                 stripedRows
                 rows={20}

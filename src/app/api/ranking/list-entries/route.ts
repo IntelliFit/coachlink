@@ -26,8 +26,15 @@ export async function POST(req: Request) {
     let query = supabase
         .from('leaderboard_entries')
         .select('*', { count: 'exact' })
-        .range(offset, offset + limit - 1)
-        .order('created_at', { ascending: false }); // 按创建时间降序排列，最新的在前
+        .range(offset, offset + limit - 1);
+
+    if (body.sort_by === 'score') {
+        query = query.order('score', { ascending: false });
+    }
+
+    if (body.sort_by === 'created_at') {
+        query = query.order('created_at', { ascending: false });
+    }
 
     // 根据参数添加过滤条件
     if (body.template_id) {

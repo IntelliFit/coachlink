@@ -45,6 +45,7 @@ const ReviewPage = () => {
                 status: 'pending',  // 添加状态过滤参数
                 page,
                 limit,
+                sort_by: 'created_at'
             });
 
             if (response) {

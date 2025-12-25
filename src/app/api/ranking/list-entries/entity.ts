@@ -6,6 +6,7 @@ export interface ListEntriesDto {
     status?: string;
     page?: number;
     limit?: number;
+    sort_by?: string;
 }
 
 export interface LeaderboardEntryWithProfile extends LeaderboardEntriesRow {
