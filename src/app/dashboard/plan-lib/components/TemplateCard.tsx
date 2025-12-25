@@ -26,14 +26,6 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                             ({template.weekDays.join(',')})
                         </span>
 
-                        {/* 显示适用人群 */}
-                        {template.suitableFor && (
-                            <div className="flex flex-wrap gap-1">
-                                <span className="text-xs px-2 py-1 bg-surface-100 text-surface-700 rounded-full">
-                                    {template.suitableFor}
-                                </span>
-                            </div>
-                        )}
                         {/* 显示标签 */}
                         {template.tags && template.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1">
@@ -51,6 +43,17 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                                 {template.containedOptions.map((tag, index) => (
                                     <span key={index} className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded-full">
                                         {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {/* 显示全局问题答案 */}
+                        {template.globalAnswers && Object.keys(template.globalAnswers).length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                                {Object.keys(template.globalAnswers).map((question, index) => (
+                                    <span key={index} className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
+                                        {question}
                                     </span>
                                 ))}
                             </div>

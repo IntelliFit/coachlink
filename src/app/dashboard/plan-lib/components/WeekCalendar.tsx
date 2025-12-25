@@ -15,6 +15,8 @@ interface WeekCalendarProps {
     onAddWeekFromExisting: (sourceWeekIndex: number) => void;
     onDeleteWeek: (weekStartIndex: number) => void;
     saving: boolean;
+    /** 起始执行天数（可选，用于显示"开始"标记） */
+    startExecutionDay?: number;
 }
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -24,7 +26,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     onAddWeek,
     onAddWeekFromExisting,
     onDeleteWeek,
-    saving
+    saving,
+    startExecutionDay
 }) => {
     const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
     const [pendingDeleteWeekIndex, setPendingDeleteWeekIndex] = useState<number | null>(null);
@@ -205,15 +208,37 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                                     ${isSelected
                                                         ? 'ring-2 ring-primary-300 border-primary-400 shadow-md'
                                                         : 'hover:bg-surface-50'}
+                                                    ${startExecutionDay && day.dayIndex === startExecutionDay
+                                                        ? 'ring-2 ring-green-400 border-green-400'
+                                                        : ''}
+                                                    ${startExecutionDay && day.dayIndex < startExecutionDay
+                                                        ? 'opacity-50'
+                                                        : ''}
                                                 `}
                                             >
                                                 {/* 顶部状态条 */}
                                                 <div
                                                     className={`
                                                         absolute top-0 left-0 right-0 h-1 rounded-t-xl
-                                                        ${isSelected ? '' : isTraining ? 'bg-primary-400' : 'bg-surface-300'}
+                                                        ${startExecutionDay && day.dayIndex === startExecutionDay
+                                                            ? 'bg-green-500'
+                                                            : isSelected ? '' : isTraining ? 'bg-primary-400' : 'bg-surface-300'}
                                                     `}
                                                 />
+
+                                                {/* 起始执行标记 */}
+                                                {startExecutionDay && day.dayIndex === startExecutionDay && (
+                                                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-sm">
+                                                        开始
+                                                    </div>
+                                                )}
+
+                                                {/* 已完成标记 */}
+                                                {startExecutionDay && day.dayIndex < startExecutionDay && (
+                                                    <div className="absolute -top-2 -right-2 bg-surface-400 text-white text-[10px] px-1 py-0.5 rounded-full">
+                                                        <i className="pi pi-check text-[8px]" />
+                                                    </div>
+                                                )}
 
                                                 <span className="text-xs text-500 mt-1">
                                                     第 {day.dayIndex} 天
