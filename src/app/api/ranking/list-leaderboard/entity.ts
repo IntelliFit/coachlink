@@ -22,4 +22,5 @@ export interface ListLeaderboardResponseDto {
     total: number;
     page: number;
     limit: number;
+    unreviewedCount: number;
 }

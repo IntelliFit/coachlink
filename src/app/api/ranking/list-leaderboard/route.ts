@@ -36,6 +36,22 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    // 查询未审核条目的数量
+    // TODO
+    const { count: unreviewedCount, error: unreviewedError } = await supabase
+        .from('leaderboard_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+    if (unreviewedError) {
+        console.error('获取未审核条目数量失败:', unreviewedError);
+        return NextResponse.json({
+            success: false,
+            message: unreviewedError.message || '获取未审核条目数量失败',
+            data: null
+        }, { status: 500 });
+    }
+
     // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<ListLeaderboardResponseDto>>({
         success: true,
@@ -57,7 +73,8 @@ export async function POST(req: Request) {
             })),
             total: count || 0,
             page,
-            limit
+            limit,
+            unreviewedCount: unreviewedCount || 0
         }
     });
 }

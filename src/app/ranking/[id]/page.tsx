@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { rankingService } from '@/app/service/rankingService';
+import { LeaderboardFormInput } from '@/types/leaderboard';
 
 import ActivityInfo from './ActivityInfo';
 import ActivityNotice from './ActivityNotice';
@@ -75,6 +76,8 @@ export default function RankingPage() {
                 ownerName={leaderboard.initiator}
                 startAt={leaderboard.start_at}
                 endAt={leaderboard.end_at}
+                templateId={templateId}
+                formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
             />
 
             <div className="">
@@ -88,7 +91,7 @@ export default function RankingPage() {
             <div className="lg:col-span-8">
                 <RankingsTable
                     entries={entries}
-                    formSchema={leaderboard.form_schema}
+                    formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
                 />
             </div>
 
@@ -101,7 +104,7 @@ export default function RankingPage() {
                 visible={showDialog}
                 onHide={() => setShowDialog(false)}
                 templateId={templateId}
-                formSchema={leaderboard.form_schema}
+                formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
                 onSuccess={() => {
                     setShowDialog(false);
                     loadData(); // 提交成功后自动刷新数据
