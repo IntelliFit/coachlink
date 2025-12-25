@@ -1,165 +1,164 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { OverlayPanel } from 'primereact/overlaypanel';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
-import { LeaderboardTemplateRow } from '@/types';
 import { rankingService } from '@/app/service/rankingService';
 import EditLeaderboardForm from './EditLeaderboardForm';
+import { ListLeaderboardItem } from '@/app/api/ranking/list-leaderboard/entity';
 
 interface LeaderboardCardProps {
-    ranking: LeaderboardTemplateRow;
+    ranking: ListLeaderboardItem;
     onRefresh: () => void;
 }
 
 const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh }) => {
     const { showToast } = useToastContext();
-    const [overlayVisible, setOverlayVisible] = useState(false);
     const [editDialogVisible, setEditDialogVisible] = useState(false);
-    const overlayRef = React.useRef<OverlayPanel>(null);
+
+    /* ================= Utils ================= */
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return '未设置';
         return new Date(dateString).toLocaleDateString('zh-CN');
     };
 
-    const statusTemplate = (rowData: LeaderboardTemplateRow) => {
+    const renderStatus = (row: ListLeaderboardItem) => {
         const now = new Date();
-        const startAt = rowData.start_at ? new Date(rowData.start_at) : null;
-        const endAt = rowData.end_at ? new Date(rowData.end_at) : null;
+        const startAt = row.start_at ? new Date(row.start_at) : null;
+        const endAt = row.end_at ? new Date(row.end_at) : null;
 
-        let status = '未开始';
-        let severity: 'success' | 'warning' | 'info' | 'danger' = 'info';
+        let text = '未开始';
+        let cls = 'bg-blue-100 text-blue-700';
 
         if (startAt && now >= startAt) {
             if (endAt && now > endAt) {
-                status = '已结束';
-                severity = 'danger';
+                text = '已结束';
+                cls = 'bg-red-100 text-red-700';
             } else {
-                status = '进行中';
-                severity = 'success';
+                text = '进行中';
+                cls = 'bg-green-100 text-green-700';
             }
         }
 
         return (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium 
-        ${severity === 'success' ? 'bg-green-100 text-green-800' :
-                    severity === 'danger' ? 'bg-red-100 text-red-800' :
-                        'bg-blue-100 text-blue-800'}`}>
-                {status}
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${cls}`}>
+                {text}
             </span>
         );
     };
 
+    /* ================= Actions ================= */
+
     const handleDelete = async () => {
         try {
-            const result = await rankingService.deleteLeaderboard({ id: ranking.id });
-
-            if (result?.success) {
-                showToast({
-                    severity: 'success',
-                    summary: '成功',
-                    detail: '排行榜删除成功'
-                });
+            const res = await rankingService.deleteLeaderboard({ id: ranking.id });
+            if (res?.success) {
+                showToast({ severity: 'success', summary: '成功', detail: '排行榜已删除' });
                 onRefresh();
             } else {
-                showToast({
-                    severity: 'error',
-                    summary: '失败',
-                    detail: '排行榜删除失败'
-                });
+                throw new Error();
             }
-        } catch (error) {
-            console.error('删除排行榜失败:', error);
-            showToast({
-                severity: 'error',
-                summary: '失败',
-                detail: '排行榜删除失败'
-            });
+        } catch {
+            showToast({ severity: 'error', summary: '失败', detail: '删除失败' });
         }
     };
 
     const confirmDelete = () => {
         confirmDialog({
-            message: '确定要删除这个排行榜吗？此操作不可撤销。',
             header: '确认删除',
+            message: '确定要删除这个排行榜吗？此操作不可撤销。',
             icon: 'pi pi-exclamation-triangle',
-            acceptLabel: '是',
-            rejectLabel: '否',
-            accept: handleDelete,
-            reject: () => { }
+            acceptLabel: '删除',
+            rejectLabel: '取消',
+            acceptClassName: 'p-button-danger',
+            accept: handleDelete
         });
     };
 
-    const toggleMenu = (event: React.MouseEvent) => {
-        if (overlayRef.current) {
-            overlayRef.current.toggle(event);
-            setOverlayVisible(!overlayVisible);
-        }
-    };
+    /* ================= Render ================= */
 
     return (
-        <Card className="border border-surface-200 shadow-none flex flex-col h-full">
-            <div>
+        <>
+            <Card className="h-full flex flex-col border border-surface-200 rounded-xl shadow-sm hover:shadow-md transition-shadow p-0">
+                {/* Header */}
                 <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-surface-800">{ranking.title}</h3>
-                    {statusTemplate(ranking)}
+                    <h3 className="text-lg font-semibold text-surface-800 leading-tight">
+                        {ranking.title}
+                    </h3>
+                    {renderStatus(ranking)}
                 </div>
 
-                <p className="text-surface-600 text-sm mb-3 line-clamp-2">
+                {/* Description */}
+                <p className="text-sm text-surface-600 mb-4 line-clamp-2">
                     {ranking.description || '暂无描述'}
                 </p>
 
-                <div className="text-xs text-surface-500 mb-3">
-                    <div>排名字段: <span className="font-medium">{ranking.rank_by_field}</span></div>
-                    <div>类型: <span className="font-medium">{ranking.type || '未设置'}</span></div>
-                    <div>开始时间: <span className="font-medium">{formatDate(ranking.start_at)}</span></div>
-                    <div>结束时间: <span className="font-medium">{formatDate(ranking.end_at)}</span></div>
+                {/* Meta Info */}
+                <div className="grid grid-cols-2 gap-y-2 text-xs text-surface-500 mb-4">
+                    <div className="flex items-center gap-2">
+                        <i className="pi pi-sort-amount-down text-surface-400" />
+                        <span>排名字段：</span>
+                        <span className="font-medium text-surface-700">
+                            {ranking.rank_by_field}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <i className="pi pi-tag text-surface-400" />
+                        <span>类型：</span>
+                        <span className="font-medium text-surface-700">
+                            {ranking.type || '未设置'}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <i className="pi pi-calendar text-surface-400" />
+                        <span>开始：</span>
+                        <span className="font-medium text-surface-700">
+                            {formatDate(ranking.start_at)}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <i className="pi pi-calendar-times text-surface-400" />
+                        <span>结束：</span>
+                        <span className="font-medium text-surface-700">
+                            {formatDate(ranking.end_at)}
+                        </span>
+                    </div>
                 </div>
 
+                {/* Remarks */}
                 {ranking.remarks && (
-                    <div className="text-xs text-surface-500 mb-3">
-                        备注: {ranking.remarks}
+                    <div className="text-xs text-surface-500 mb-4 italic">
+                        备注：{ranking.remarks}
                     </div>
                 )}
-            </div>
 
-            <div className="mt-auto pt-4 flex justify-between">
-                <div></div> {/* 用于对齐 */}
-                <div className="flex flex-row gap-4">
+                {/* Footer */}
+                <div className="mt-auto pt-3 flex justify-end gap-2 border-t border-surface-100">
                     <Button
-                        label="编辑"
                         icon="pi pi-pencil"
-                        className="p-2 text-left mb-1"
+                        label="编辑"
                         text
-                        onClick={() => {
-                            setEditDialogVisible(true);
-                            if (overlayRef.current) {
-                                overlayRef.current.hide();
-                            }
-                        }}
+                        size="small"
+                        onClick={() => setEditDialogVisible(true)}
                     />
                     <Button
-                        label="删除"
                         icon="pi pi-trash"
-                        className="p-2 text-left"
+                        label="删除"
                         severity="danger"
                         text
-                        onClick={() => {
-                            confirmDelete();
-                            if (overlayRef.current) {
-                                overlayRef.current.hide();
-                            }
-                        }}
+                        size="small"
+                        onClick={confirmDelete}
                     />
                 </div>
-            </div>
+            </Card>
 
-
-
+            {/* Edit Dialog */}
             <EditLeaderboardForm
-                leaderboardId={ranking?.id}
+                leaderboardId={ranking.id}
                 visible={editDialogVisible}
                 onHide={() => setEditDialogVisible(false)}
                 onSuccess={() => {
@@ -167,7 +166,7 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh })
                     onRefresh();
                 }}
             />
-        </Card>
+        </>
     );
 };
 
