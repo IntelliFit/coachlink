@@ -1,22 +1,22 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
-import type { ApiData } from '@/types/api';
+import type { ApiData } from "@/types/api";
 import type {
     UpdateCoachApplicationDto,
-    UpdateCoachApplicationResponseDto
-} from './entity';
-import { sendSystemMessage } from '@/lib/chat';
+    UpdateCoachApplicationResponseDto,
+} from "./entity";
+import { sendSystemMessage } from "@/lib/chat";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({
             success: false,
-            message: '用户未登录',
-            data: null
+            message: "用户未登录",
+            data: null,
         }, { status: 401 });
     }
 
@@ -26,24 +26,24 @@ export async function POST(req: Request) {
 
     // 首先获取申请记录以检查权限
     const { data: existingApplication, error: selectError } = await supabase
-        .from('coach_applications')
-        .select('*')
-        .eq('id', body.id)
+        .from("coach_applications")
+        .select("*")
+        .eq("id", body.id)
         .maybeSingle();
 
     if (selectError) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: '查询教练申请失败: ' + selectError.message,
-            data: null
+            message: "查询教练申请失败: " + selectError.message,
+            data: null,
         }, { status: 500 });
     }
 
     if (!existingApplication) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: '未找到指定的教练申请',
-            data: null
+            message: "未找到指定的教练申请",
+            data: null,
         }, { status: 404 });
     }
 
@@ -56,8 +56,8 @@ export async function POST(req: Request) {
     if (!isAdmin && !isOwner) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: '无权限更新该申请',
-            data: null
+            message: "无权限更新该申请",
+            data: null,
         }, { status: 403 });
     }
 
@@ -68,74 +68,101 @@ export async function POST(req: Request) {
     if (body.name !== undefined) updateData.name = body.name;
     if (body.title !== undefined) updateData.title = body.title;
     if (body.avatarUrl !== undefined) updateData.avatar_url = body.avatarUrl;
-    if (body.specialties !== undefined) updateData.specialties = body.specialties;
+    if (body.specialties !== undefined) {
+        updateData.specialties = body.specialties;
+    }
     if (body.bio !== undefined) updateData.bio = body.bio;
-    if (body.yearsExperience !== undefined) updateData.years_experience = body.yearsExperience;
-    if (body.achievements !== undefined) updateData.achievements = body.achievements;
-    if (body.teachingPhilosophy !== undefined) updateData.teaching_philosophy = body.teachingPhilosophy;
-    if (body.credentials !== undefined) updateData.credentials = body.credentials;
-    if (body.caseStudies !== undefined) updateData.case_studies = body.caseStudies;
-    if (body.contactEmail !== undefined) updateData.contact_email = body.contactEmail;
-    if (body.contactPhone !== undefined) updateData.contact_phone = body.contactPhone;
+    if (body.yearsExperience !== undefined) {
+        updateData.years_experience = body.yearsExperience;
+    }
+    if (body.achievements !== undefined) {
+        updateData.achievements = body.achievements;
+    }
+    if (body.teachingPhilosophy !== undefined) {
+        updateData.teaching_philosophy = body.teachingPhilosophy;
+    }
+    if (body.credentials !== undefined) {
+        updateData.credentials = body.credentials;
+    }
+    if (body.caseStudies !== undefined) {
+        updateData.case_studies = body.caseStudies;
+    }
+    if (body.contactEmail !== undefined) {
+        updateData.contact_email = body.contactEmail;
+    }
+    if (body.contactPhone !== undefined) {
+        updateData.contact_phone = body.contactPhone;
+    }
     if (body.resumeUrl !== undefined) updateData.resume_url = body.resumeUrl;
-    if (body.portfolioUrl !== undefined) updateData.portfolio_url = body.portfolioUrl;
-    if (body.socialLinks !== undefined) updateData.social_links = body.socialLinks;
+    if (body.portfolioUrl !== undefined) {
+        updateData.portfolio_url = body.portfolioUrl;
+    }
+    if (body.socialLinks !== undefined) {
+        updateData.social_links = body.socialLinks;
+    }
 
     // 只有管理员才能更新的字段
     if (isAdmin) {
         if (body.status !== undefined) updateData.status = body.status;
-        if (body.reviewNotes !== undefined) updateData.review_notes = body.reviewNotes;
-        if (body.reviewedAt !== undefined) updateData.reviewed_at = body.reviewedAt;
-        if (body.reviewedBy !== undefined) updateData.reviewed_by = body.reviewedBy;
+        if (body.reviewNotes !== undefined) {
+            updateData.review_notes = body.reviewNotes;
+        }
+        if (body.reviewedAt !== undefined) {
+            updateData.reviewed_at = body.reviewedAt;
+        }
+        if (body.reviewedBy !== undefined) {
+            updateData.reviewed_by = body.reviewedBy;
+        }
 
         // 如果设置了审核状态且还没有设置审核人，则自动设置当前用户为审核人
-        if (body.status !== undefined && !existingApplication.reviewed_by &&
-            ['approved', 'rejected', 'needs_info'].includes(body.status)) {
+        if (
+            body.status !== undefined && !existingApplication.reviewed_by &&
+            ["approved", "rejected", "needs_info"].includes(body.status)
+        ) {
             updateData.reviewed_by = userId;
             updateData.reviewed_at = new Date().toISOString();
         }
     } else {
-        updateData.status = 'pending';
+        updateData.status = "pending";
     }
 
     // 更新申请记录
     const { data, error } = await supabase
-        .from('coach_applications')
+        .from("coach_applications")
         .update(updateData)
-        .eq('id', body.id)
+        .eq("id", body.id)
         .select()
         .single();
 
     if (error) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: '更新教练申请失败: ' + error.message,
-            data: null
+            message: "更新教练申请失败: " + error.message,
+            data: null,
         }, { status: 500 });
     }
 
-
     if (isAdmin) {
         // 根据选择的值进行后续处理
-        if (body.status === 'approved') {
+        if (body.status === "approved") {
             // 如果不存在教练账号则创建
             const { data: existCoach, error: existCoachError } = await supabase
-                .from('coaches')
-                .select('*')
-                .eq('user_id', existingApplication.user_id)
+                .from("coaches")
+                .select("*")
+                .eq("user_id", existingApplication.user_id)
                 .maybeSingle();
-            
+
             if (existCoachError) {
                 return NextResponse.json<ApiData<null>>({
                     success: false,
-                    message: '查询教练失败: ' + existCoachError.message,
-                    data: null
+                    message: "查询教练失败: " + existCoachError.message,
+                    data: null,
                 }, { status: 500 });
             }
 
             if (!existCoach) {
                 const { error: createCoachError } = await supabase
-                    .from('coaches')
+                    .from("coaches")
                     .insert({
                         user_id: existingApplication.user_id,
                         name: existingApplication.name,
@@ -143,24 +170,40 @@ export async function POST(req: Request) {
                         avatar_url: existingApplication.avatar_url,
                         specialties: existingApplication.specialties,
                         bio: existingApplication.bio,
+                        status: "approved", // 设置为已通过状态，这样才能在教练列表中显示
                     });
 
                 if (createCoachError) {
                     return NextResponse.json<ApiData<null>>({
                         success: false,
-                        message: '创建教练失败: ' + createCoachError.message,
-                        data: null
+                        message: "创建教练失败: " + createCoachError.message,
+                        data: null,
                     }, { status: 500 });
                 }
             }
 
-            await sendSystemMessage(existingApplication.user_id, {
-                content: '您提交的教练申请已经通过🎉，恭喜您成为了一名教链平台的教练。在正式开始您的招生生意前，您需要先完成 [订阅设置](/dashboard/pricing) 和 [学员问卷](/dashboard/questionnaire) 这两部分的编辑，这样，才能最大限度利用教链平台提供的功能为您服务。'
-            });
-        } else if (body.status === 'rejected') {
+            // 更新用户的 is_coach 标识，这样用户才能切换到教练端
+            // 注意：coach_status 保持为 'approved'（数据库约束不允许 'coach'）
+            // 前端通过 is_coach=true 来判断是否已完成教练身份认证
+            const { error: updateProfileError } = await supabase
+                .from("users")
+                .update({ is_coach: true })
+                .eq("id", existingApplication.user_id);
+
+            if (updateProfileError) {
+                console.error("更新用户教练标识失败:", updateProfileError);
+                // 不返回错误，因为教练记录已创建成功
+            }
 
             await sendSystemMessage(existingApplication.user_id, {
-                content: `您提交的教练申请未通过，原因： ${body.reviewNotes || '无'}。\n您可以在 [申请成为教练](/coach/application) 查看原因并加以修改。`
+                content:
+                    "您提交的教练申请已经通过🎉，恭喜您成为了一名教链平台的教练。在正式开始您的招生生意前，您需要先完成 [订阅设置](/dashboard/pricing) 和 [学员问卷](/dashboard/questionnaire) 这两部分的编辑，这样，才能最大限度利用教链平台提供的功能为您服务。",
+            });
+        } else if (body.status === "rejected") {
+            await sendSystemMessage(existingApplication.user_id, {
+                content: `您提交的教练申请未通过，原因： ${
+                    body.reviewNotes || "无"
+                }。\n您可以在 [申请成为教练](/coach/application) 查看原因并加以修改。`,
             });
         }
     }
@@ -168,10 +211,10 @@ export async function POST(req: Request) {
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<UpdateCoachApplicationResponseDto>>({
         success: true,
-        message: '教练申请更新成功',
+        message: "教练申请更新成功",
         // UpdateCoachApplicationResponseDto 反映的是这里的 data 数据结构
         data: {
-            application: data
-        }
+            application: data,
+        },
     });
 }

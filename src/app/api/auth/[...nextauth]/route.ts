@@ -105,6 +105,21 @@ export const authOptions: AuthOptions = {
             (user as any).password_hash = undefined;
             session.user = token.user;
 
+            // 从数据库刷新关键的用户状态字段（is_coach, is_admin, coach_status, primary_role）
+            // 这样在管理员批准教练申请后，用户无需重新登录即可看到教练端
+            const { data: currentUser, error: userError } = await supabase
+                .from("users")
+                .select("is_coach, is_admin, coach_status, primary_role")
+                .eq("id", user.id)
+                .single();
+
+            if (!userError && currentUser) {
+                session.user.is_coach = currentUser.is_coach;
+                session.user.is_admin = currentUser.is_admin;
+                session.user.coach_status = currentUser.coach_status;
+                session.user.primary_role = currentUser.primary_role;
+            }
+
             const { data: profile, error } = await supabase
                 .from("user_profiles")
                 .select("*")

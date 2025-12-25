@@ -38,7 +38,11 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         totalTrainingTime: 2880 // 48 * 60
                     },
                     subscriptionLevel: (session.user.subscription_level as any) || 'basic',
-                    coachApplicationStatus: (session.user.coach_status as any) || 'none',
+                    // 如果 is_coach=true，状态应该是 'coach'（已完成教练身份认证）
+                    // 否则使用数据库中的 coach_status 值
+                    coachApplicationStatus: session.user.is_coach 
+                        ? 'coach' 
+                        : ((session.user.coach_status as any) || 'none'),
                     progressData: {
                         dates: ['1月', '2月', '3月', '4月', '5月', '6月'],
                         weight: [75, 74.5, 74, 73.5, 73, 72.5],
