@@ -11,15 +11,15 @@ import { Skeleton } from 'primereact/skeleton';
 import { useToastContext } from '@/context/ToastContext';
 import CreateLeaderboardForm from './CreateLeaderboardForm';
 import LeaderboardCard from './LeaderboardCard';
-import { LeaderboardTemplateRow } from '@/types';
 import { rankingService } from '@/app/service/rankingService';
+import { ListLeaderboardItem } from '@/app/api/ranking/list-leaderboard/entity';
 
 export default function AdminRankingsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const { showToast } = useToastContext();
 
-    const [rankings, setRankings] = useState<LeaderboardTemplateRow[]>([]);
+    const [rankings, setRankings] = useState<ListLeaderboardItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -43,7 +43,9 @@ export default function AdminRankingsPage() {
             setLoading(true);
             const result = await rankingService.listLeaderboard();
             if (result) {
-                setRankings(result.leaderboards || []);
+                const boards = result.leaderboards || [];
+                boards.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                setRankings(boards);
             }
         } catch (error) {
             console.error('加载排行榜失败:', error);
@@ -125,21 +127,11 @@ export default function AdminRankingsPage() {
                 )}
             </div>
 
-            {/* 创建对话框 */}
-            <Dialog
-                header="创建新排行榜"
+            <CreateLeaderboardForm
                 visible={showCreateDialog}
                 onHide={() => setShowCreateDialog(false)}
-                style={{ width: '800px', maxWidth: '95vw' }}
-                breakpoints={{ '768px': '95vw' }}
-                modal
-            >
-                <CreateLeaderboardForm
-                    visible={showCreateDialog}
-                    onHide={() => setShowCreateDialog(false)}
-                    onSuccess={handleCreateSuccess}
-                />
-            </Dialog>
+                onSuccess={handleCreateSuccess}
+            />
 
             <ConfirmDialog />
         </div>

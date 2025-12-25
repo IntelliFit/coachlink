@@ -8,7 +8,9 @@ const PUBLIC_PATHS = new Set([
     '/register',
     '/api/auth',
     '/api/sms/send-verification-code',
-    '/api/coach/get-all-coaches'
+    '/api/coach/get-all-coaches',
+    '/docs/agreement',
+    '/docs/disclaimer'
 ]);
 
 // 需要仅匹配前缀的路径（如 /api/auth/...）

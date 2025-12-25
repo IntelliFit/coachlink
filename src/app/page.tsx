@@ -102,18 +102,11 @@ export default function Home() {
                         </p>
                     </div>
                 </div>
-            </section>
 
-             {/* 底部协议链接 */}
-             <footer className="relative z-10 mt-20 pb-8 text-center text-sm text-gray-400">
-                <div className="flex justify-center gap-6 mb-4">
-                    <a href="/docs/agreement" className="hover:text-primary transition-colors">用户协议</a>
-                    <span className="text-gray-300">|</span>
-                    <a href="/docs/disclaimer" className="hover:text-primary transition-colors">免责声明</a>
+                <div className="mb-20">
+
                 </div>
-                <p>© 2025 CoachLink. All rights reserved.</p>
-            </footer>
-
+            </section>
         </main>
     );
 }

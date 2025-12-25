@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from 'primereact/card';
+import { addLocale, locale } from 'primereact/api';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
-import { addLocale } from 'primereact/api';
+import { Dialog } from 'primereact/dialog';
 import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardRule, LeaderboardFormInput } from '@/types/leaderboard';
+import { Tag } from 'primereact/tag';
 
 // 配置中文语言包
 addLocale('zh-CN', {
@@ -19,16 +20,18 @@ addLocale('zh-CN', {
     dayNamesShort: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
     dayNamesMin: ['日', '一', '二', '三', '四', '五', '六'],
     monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
-    monthNamesShort: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+    monthNamesShort: ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'],
     today: '今天',
     clear: '清除'
 });
 
 interface CreateLeaderboardFormProps {
     onSuccess: () => void;
+    visible: boolean;
+    onHide: () => void;
 }
 
-export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFormProps) {
+export default function CreateLeaderboardForm({ onSuccess, visible, onHide }: CreateLeaderboardFormProps) {
     const { showToast } = useToastContext();
     const [submitting, setSubmitting] = useState(false);
 
@@ -46,9 +49,15 @@ export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFo
     };
 
     const [formData, setFormData] = useState(initialFormState);
+    // 控制添加字段的下拉类型
+    const [selectedNewType, setSelectedNewType] = useState<any>('text');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.title || !formData.rank_by_field) {
+            showToast({ severity: 'warn', summary: '提示', detail: '请填写必填项' });
+            return;
+        }
         setSubmitting(true);
         try {
             const reqData = {
@@ -60,6 +69,7 @@ export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFo
             if (result) {
                 showToast({ severity: 'success', summary: '成功', detail: '排行榜创建成功' });
                 onSuccess();
+                onHide();
             }
         } catch (error) {
             showToast({ severity: 'error', summary: '错误', detail: '创建失败，请检查输入' });
@@ -101,12 +111,14 @@ export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFo
     };
 
     // 处理form_schema的添加
-    const addFormInput = () => {
-        const newInput: LeaderboardFormInput = {
-            type: 'text',
-            name: '',
-            options: []
-        };
+    const addFormInput = (type: 'text' | 'number' | 'option') => {
+        let newInput: LeaderboardFormInput;
+        if (type === 'option') {
+            newInput = { type: 'option', name: '', options: ['默认选项'] };
+        } else {
+            newInput = { type, name: '' } as LeaderboardFormInput;
+        }
+
         setFormData(prev => ({
             ...prev,
             form_schema: [...prev.form_schema, newInput]
@@ -116,7 +128,7 @@ export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFo
     // 更新form_input
     const updateFormInput = (index: number, field: keyof LeaderboardFormInput, value: any) => {
         const newFormSchema = [...formData.form_schema];
-        
+
         if (field === 'type' && value !== 'option') {
             // 如果类型不是option，移除options属性
             const updatedInput = { ...newFormSchema[index], [field]: value } as LeaderboardFormInput;
@@ -127,7 +139,7 @@ export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFo
         } else {
             newFormSchema[index] = { ...newFormSchema[index], [field]: value };
         }
-        
+
         setFormData(prev => ({ ...prev, form_schema: newFormSchema }));
     };
 
@@ -173,220 +185,321 @@ export default function CreateLeaderboardForm({ onSuccess }: CreateLeaderboardFo
         setFormData(prev => ({ ...prev, form_schema: newFormSchema }));
     };
 
-    // 定义 Card 的底部按钮区
-    const footer = (
-        <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
-            <Button 
-                type="button" 
-                label="重置" 
-                icon="pi pi-refresh" 
-                className="p-button-text p-button-secondary" 
-                onClick={() => setFormData(initialFormState)} 
-            />
-            <Button 
-                type="submit" 
-                form="leaderboard-form" // 关联表单 ID
-                label="确认创建" 
-                icon="pi pi-check" 
-                loading={submitting} 
-            />
+    const typeOptions = [
+        { label: '文本输入', value: 'text', icon: 'pi pi-align-left', color: 'blue' },
+        { label: '数字数值', value: 'number', icon: 'pi pi-percentage', color: 'green' },
+        { label: '单项选择', value: 'option', icon: 'pi pi-list', color: 'orange' }
+    ];
+
+    const getTypeTag = (type: string) => {
+        const config = typeOptions.find(t => t.value === type);
+        return <Tag severity={type === 'option' ? 'warning' : type === 'number' ? 'success' : 'info'}
+            value={config?.label} icon={config?.icon} />;
+    };
+
+    const rankFieldOptions = formData.form_schema
+        .filter(i => i.name)
+        .map(i => ({
+            label: `${i.name}（${i.type}）`,
+            value: i.name
+        }));
+
+    const ruleStatusOptions = [
+        { label: 'CORRECT', value: 'success', icon: 'pi pi-check-circle' },
+        { label: 'BAD', value: 'warning', icon: 'pi pi-exclamation-triangle' },
+        { label: 'WARNING', value: 'error', icon: 'pi pi-times-circle' }
+    ];
+
+    const ruleStatusTemplate = (option) => {
+        const colorClass = option.value === 'success' ? 'text-green-500' : option.value === 'warning' ? 'text-orange-500' : 'text-red-500';
+        return (
+            <div className="flex items-center gap-2">
+                <i className={`${option.icon} ${colorClass}`}></i>
+                <span className={colorClass}>{option.label}</span>
+            </div>
+        );
+    }
+
+    const renderFooter = () => (
+        <div className="flex justify-end gap-2">
+            <Button label="取消" icon="pi pi-times" onClick={onHide} className="p-button-text p-button-secondary" />
+            <Button label="创建排行榜" icon="pi pi-check" loading={submitting} onClick={handleSubmit} autoFocus />
         </div>
     );
 
     return (
-        <Card footer={footer} className="shadow-none border border-gray-200 rounded-lg">
-            <form id="leaderboard-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
-                
-                {/* 第一行：标题与字段 */}
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 flex flex-col gap-2">
-                        <label htmlFor="title" className="text-sm font-bold text-gray-700">标题 <span className="text-red-500">*</span></label>
-                        <InputText id="title" name="title" value={formData.title} onChange={handleChange} placeholder="请输入排行榜名称" className="w-full" required />
+        <Dialog
+            header="创建排行榜"
+            visible={visible}
+            onHide={onHide}
+            footer={renderFooter()}
+            style={{ width: '800px' }}
+            breakpoints={{ '960px': '75vw', '641px': '100vw' }}
+            modal
+            className="p-fluid"
+        >
+            <div className="pt-2 text-surface-500">
+                <div className="grid p-5">
+                    {/* 第一行：标题与字段 */}
+                    <div className="col-12 md:col-6 field mb-4">
+                        <label className="font-bold block mb-2">标题 *</label>
+                        <InputText name="title" value={formData.title} onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))} />
                     </div>
-                    <div className="flex-1 flex flex-col gap-2">
-                        <label htmlFor="rank_by_field" className="text-sm font-bold text-gray-700">排名字段 <span className="text-red-500">*</span></label>
-                        <InputText id="rank_by_field" name="rank_by_field" value={formData.rank_by_field} onChange={handleChange} placeholder="例如: score" className="w-full" required />
-                    </div>
-                </div>
 
-                {/* 第二行：描述 */}
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="description" className="text-sm font-bold text-gray-700">描述</label>
-                    <InputTextarea id="description" name="description" value={formData.description} onChange={handleChange} rows={2} className="w-full" placeholder="排行榜用途说明" />
-                </div>
-
-                {/* 第三行：时间范围 */}
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 flex flex-col gap-2">
-                        <label htmlFor="start_at" className="text-sm font-bold text-gray-700">开始时间</label>
-                        <Calendar 
-                            id="start_at" name="start_at" value={formData.start_at} onChange={handleChange} 
-                            showTime hourFormat="24" locale="zh-CN" showIcon showButtonBar
-                            placeholder="选择起始日期" className="w-full" 
+                    <div className="col-12 md:col-6 field mb-4">
+                        <label className="font-bold block mb-2">排名字段 *</label>
+                        <Dropdown
+                            value={formData.rank_by_field}
+                            options={rankFieldOptions}
+                            onChange={(e) =>
+                                setFormData(p => ({ ...p, rank_by_field: e.value }))
+                            }
+                            placeholder={
+                                rankFieldOptions.length
+                                    ? '请选择一个表单字段'
+                                    : '请先添加表单字段'
+                            }
+                            disabled={rankFieldOptions.length === 0}
                         />
                     </div>
-                    <div className="flex-1 flex flex-col gap-2">
-                        <label htmlFor="end_at" className="text-sm font-bold text-gray-700">结束时间</label>
-                        <Calendar 
-                            id="end_at" name="end_at" value={formData.end_at} onChange={handleChange} 
-                            showTime hourFormat="24" locale="zh-CN" showIcon showButtonBar
-                            placeholder="选择截止日期" className="w-full" 
-                        />
-                    </div>
-                </div>
 
-                {/* 第四行：配置项 */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-bold text-gray-700">排序</label>
-                        <Dropdown name="sort_order" value={formData.sort_order} options={[{label:'降序', value:'desc'}, {label:'升序', value:'asc'}]} onChange={handleChange} className="w-full" />
+                    <div className="grid grid-cols-2 gap-4 col-12 md:col-6 field mb-4">
+                        <div>
+                            <label htmlFor="start_at" className="font-bold block mb-2">开始时间</label>
+                            <Calendar
+                                id="start_at"
+                                value={formData.start_at}
+                                onChange={(e) => setFormData(p => ({ ...p, start_at: e.value as Date }))}
+                                locale="zh-CN"
+                                dateFormat="yy-mm-dd"
+                                placeholder="选择开始时间"
+                            />
+                        </div>
+                        <div className="">
+                            <label htmlFor="end_at" className="font-bold block mb-2">结束时间</label>
+                            <Calendar
+                                id="end_at"
+                                value={formData.end_at}
+                                onChange={(e) => setFormData(p => ({ ...p, end_at: e.value as Date }))}
+                                locale="zh-CN"
+                                dateFormat="yy-mm-dd"
+                                placeholder="选择结束时间"
+                            />
+                        </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-bold text-gray-700">类型</label>
-                        <Dropdown name="type" value={formData.type} options={[{label:'分数', value:'score'}, {label:'用时', value:'time'}]} onChange={handleChange} className="w-full" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-bold text-gray-700">备注</label>
-                        <InputText name="remarks" value={formData.remarks} onChange={handleChange} placeholder="选填" className="w-full" />
-                    </div>
-                </div>
 
-                {/* Rules 部分 */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                        <label className="text-sm font-bold text-gray-700">规则</label>
-                        <Button 
-                            type="button" 
-                            label="添加规则" 
-                            icon="pi pi-plus" 
-                            size="small" 
-                            severity="secondary" 
-                            onClick={addRule}
-                        />
+                    {/* 其他下拉框和备注... */}
+                    <div className="col-12 field mb-4">
+                        <label className="font-bold block mb-2">描述</label>
+                        <InputTextarea value={formData.description} onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))} rows={2} />
                     </div>
-                    
-                    {formData.rules.map((rule, index) => (
-                        <div key={index} className="flex flex-col border border-gray-200 rounded p-3 gap-2">
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <InputTextarea 
-                                        value={rule.detail} 
-                                        onChange={(e) => updateRule(index, 'detail', e.target.value)} 
-                                        placeholder="规则描述" 
-                                        rows={2}
-                                    />
-                                </div>
-                                <div className="w-40">
+
+                    {/* Rules 部分 */}
+                    <div className="col-12 field mb-5 pt-6">
+                        <div className="flex justify-between items-center mb-3">
+                            <div>
+                                <label className="font-bold text-lg block">规则说明</label>
+                                <small className="text-600">定义用户参与时需要遵守的规则</small>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            {formData.rules.map((rule, index) => (
+                                <div key={index} className="p-inputgroup flex-1 shadow-sm">
+                                    <span className="p-inputgroup-addon bg-surface-50 text-xs font-bold">{index + 1}</span>
                                     <Dropdown
                                         value={rule.status}
-                                        options={[
-                                            { label: '成功', value: 'success' },
-                                            { label: '警告', value: 'warning' },
-                                            { label: '错误', value: 'error' }
-                                        ]}
+                                        options={ruleStatusOptions}
                                         onChange={(e) => updateRule(index, 'status', e.value)}
-                                        placeholder="状态"
+                                        valueTemplate={ruleStatusTemplate}
+                                        itemTemplate={ruleStatusTemplate}
                                     />
-                                </div>
-                                <div>
-                                    <Button 
-                                        type="button" 
-                                        label="" 
-                                        icon="pi pi-trash" 
-                                        severity="danger" 
-                                        size="small" 
+                                    <InputText
+                                        value={rule.detail}
+                                        onChange={(e) => updateRule(index, 'detail', e.target.value)}
+                                        placeholder="请输入规则明细内容..."
+                                    />
+                                    <Button
+                                        icon="pi pi-trash"
+                                        severity="danger"
+                                        outlined
                                         onClick={() => removeRule(index)}
                                     />
                                 </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Form Schema 部分 */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                        <label className="text-sm font-bold text-gray-700">提交表单结构</label>
-                        <Button 
-                            type="button" 
-                            label="添加字段" 
-                            icon="pi pi-plus" 
-                            size="small" 
-                            severity="secondary" 
-                            onClick={addFormInput}
-                        />
-                    </div>
-                    
-                    {formData.form_schema.map((input, index) => (
-                        <div key={index} className="flex flex-col border border-gray-200 rounded p-3 gap-2">
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <InputText 
-                                        value={input.name} 
-                                        onChange={(e) => updateFormInput(index, 'name', e.target.value)} 
-                                        placeholder="字段名称" 
-                                    />
-                                </div>
-                                <div className="w-40">
-                                    <Dropdown
-                                        value={input.type}
-                                        options={[
-                                            { label: '数字', value: 'number' },
-                                            { label: '文本', value: 'text' },
-                                            { label: '选项', value: 'option' }
-                                        ]}
-                                        onChange={(e) => updateFormInput(index, 'type', e.value)}
-                                        placeholder="类型"
-                                    />
-                                </div>
-                                <div>
-                                    <Button 
-                                        type="button" 
-                                        label="" 
-                                        icon="pi pi-trash" 
-                                        severity="danger" 
-                                        size="small" 
-                                        onClick={() => removeFormInput(index)}
-                                    />
-                                </div>
-                            </div>
-                            
-                            {input.type === 'option' && (
-                                <div className="mt-2">
-                                    <label className="text-sm font-bold text-gray-700 block mb-1">选项</label>
-                                    {(input as any).options?.map((option: string, optionIndex: number) => (
-                                        <div key={optionIndex} className="flex gap-2 mb-1">
-                                            <InputText
-                                                value={option}
-                                                onChange={(e) => updateOption(index, optionIndex, e.target.value)}
-                                                placeholder="选项值"
-                                                className="flex-1"
-                                            />
-                                            <Button
-                                                type="button"
-                                                label=""
-                                                icon="pi pi-trash"
-                                                severity="danger"
-                                                size="small"
-                                                onClick={() => removeOption(index, optionIndex)}
-                                            />
-                                        </div>
-                                    ))}
-                                    <Button
-                                        type="button"
-                                        label="添加选项"
-                                        icon="pi pi-plus"
-                                        size="small"
-                                        severity="secondary"
-                                        onClick={() => addOption(index)}
-                                        className="mt-1"
-                                    />
+                            ))}
+                            {formData.rules.length === 0 && (
+                                <div className="text-center p-4 border-round border-1 border-dashed border-300 text-500 text-sm">
+                                    暂无规则，点击上方按钮添加
                                 </div>
                             )}
+                            
+                            {/* 在列表底部添加加号按钮 */}
+                            <div className="flex justify-center pt-2">
+                                <Button
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    size="small"
+                                    outlined
+                                    onClick={addRule}
+                                    label="添加规则"
+                                />
+                            </div>
                         </div>
-                    ))}
+                    </div>
+
+                    {/* Form Schema 部分 */}
+                    <div className="col-12 field mb-5 pt-6">
+                        {/* Header：完全对齐 Rules */}
+                        <div className="flex justify-between items-center mb-3">
+                            <div>
+                                <label className="font-bold text-lg block">提交表单结构</label>
+                                <small className="text-600">定义用户参与时需要填写的字段</small>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            {formData.form_schema.map((input, index) => (
+                                <div
+                                    key={index}
+                                    className="border-1 border-200 border-round p-3 hover:border-primary transition-colors border border-surface-200 rounded-lg"
+                                >
+                                    {/* 顶部信息栏（类似 Rule inputgroup 的左侧编号） */}
+                                    <div className="flex justify-between items-center mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-primary-500 p-2 rounded-lg text-white text-xs font-bold">
+                                                INPUT {index + 1}
+                                            </span>
+
+                                        </div>
+
+                                        <Button
+                                            icon="pi pi-trash"
+                                            severity="danger"
+                                            text
+                                            onClick={() => removeFormInput(index)}
+                                        />
+                                    </div>
+
+                                    {/* 基础配置区 */}
+                                    <div className="grid mb-3">
+                                        <div className="col-12 md:col-6 field">
+                                            <label className="text-xs font-bold block mb-1 text-500 uppercase">
+                                                字段名称
+                                            </label>
+                                            <InputText
+                                                value={input.name}
+                                                onChange={(e) =>
+                                                    updateFormInput(index, 'name', e.target.value)
+                                                }
+                                                placeholder="如：真实姓名 / 联系电话"
+                                            />
+                                        </div>
+
+                                        <div className="col-12 md:col-6 field">
+                                            <label className="text-xs font-bold block mb-1 text-500 uppercase">
+                                                数据类型
+                                            </label>
+                                            <Dropdown
+                                                value={input.type}
+                                                options={[
+                                                    { label: '数字', value: 'number' },
+                                                    { label: '文本', value: 'text' },
+                                                    { label: '选项', value: 'option' }
+                                                ]}
+                                                onChange={(e) =>
+                                                    updateFormInput(index, 'type', e.value)
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Option 专属配置 */}
+                                    {input.type === 'option' && (
+                                        <div className="border-top-1 border-200 pt-3">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="text-sm font-bold">
+                                                    选项配置
+                                                </label>
+                                                <Button
+                                                    icon="pi pi-plus"
+                                                    label="添加选项"
+                                                    size="small"
+                                                    className='w-[fit-content]'
+                                                    outlined
+                                                    onClick={() => addOption(index)}
+                                                />
+                                            </div>
+
+                                            <div className="grid">
+                                                {(input as any).options?.map(
+                                                    (option: string, optionIndex: number) => (
+                                                        <div
+                                                            key={optionIndex}
+                                                            className="col-12 md:col-6 py-1"
+                                                        >
+                                                            <div className="p-inputgroup">
+                                                                <InputText
+                                                                    value={option}
+                                                                    onChange={(e) =>
+                                                                        updateOption(
+                                                                            index,
+                                                                            optionIndex,
+                                                                            e.target.value
+                                                                        )
+                                                                    }
+                                                                    placeholder={`选项 ${optionIndex + 1
+                                                                        }`}
+                                                                    className="p-inputtext-sm"
+                                                                />
+                                                                <Button
+                                                                    icon="pi pi-times"
+                                                                    severity="danger"
+                                                                    text
+                                                                    onClick={() =>
+                                                                        removeOption(
+                                                                            index,
+                                                                            optionIndex
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {/* 空状态 */}
+                            {formData.form_schema.length === 0 && (
+                                <div className="text-center p-4 border-round border-1 border-dashed border-300 text-500 text-sm">
+                                    暂无表单字段，点击右上角添加
+                                </div>
+                            )}
+                            
+                            {/* 在列表底部添加加号按钮 */}
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    size="small"
+                                    outlined
+                                    onClick={() => addFormInput(selectedNewType || 'text')}
+                                    label="添加字段"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 其他下拉框和备注... */}
+                    <div className="col-12 field mb-4">
+                        <label className="font-bold block mb-2">备注</label>
+                        <InputTextarea value={formData.remarks} onChange={(e) => setFormData(p => ({ ...p, remarks: e.target.value }))} rows={2} />
+                    </div>
                 </div>
-            </form>
-        </Card>
+            </div>
+        </Dialog>
     );
 }

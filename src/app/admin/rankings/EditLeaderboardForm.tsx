@@ -335,15 +335,6 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                                 <label className="font-bold text-lg block">规则说明</label>
                                 <small className="text-600">定义用户参与时需要遵守的规则</small>
                             </div>
-                            <Button
-                                type="button"
-                                label="添加规则"
-                                icon="pi pi-plus"
-                                size="small"
-                                outlined
-                                className="w-[fit-content]"
-                                onClick={addRule}
-                            />
                         </div>
 
                         <div className="flex flex-col gap-2">
@@ -375,6 +366,18 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                                     暂无规则，点击上方按钮添加
                                 </div>
                             )}
+                            
+                            {/* 在列表底部添加加号按钮 */}
+                            <div className="flex justify-center pt-2">
+                                <Button
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    size="small"
+                                    outlined
+                                    onClick={addRule}
+                                    label="添加规则"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -385,26 +388,6 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                             <div>
                                 <label className="font-bold text-lg block">提交表单结构</label>
                                 <small className="text-600">定义用户参与时需要填写的字段</small>
-                            </div>
-                            <div className="flex gap-2">
-                                <Dropdown
-                                    value={selectedNewType || 'text'}
-                                    options={[
-                                        { label: '文本输入', value: 'text' },
-                                        { label: '数字数值', value: 'number' },
-                                        { label: '单项选择', value: 'option' }
-                                    ]}
-                                    onChange={(e) => setSelectedNewType(e.value)}
-                                    className="w-10rem p-inputtext-sm"
-                                />
-                                <Button
-                                    type="button"
-                                    label="新增字段"
-                                    icon="pi pi-plus"
-                                    size="small"
-                                    outlined
-                                    onClick={() => addFormInput(selectedNewType || 'text')}
-                                />
                             </div>
                         </div>
 
@@ -418,8 +401,8 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                                     {/* 顶部信息栏（类似 Rule inputgroup 的左侧编号） */}
                                     <div className="flex justify-between items-center mb-3">
                                         <div className="flex items-center gap-2">
-                                            <span className="bg-primary-600 p-2 rounded-lg text-white text-xs font-bold">
-                                                {index + 1}
+                                            <span className="bg-primary-500 p-2 rounded-lg text-white text-xs font-bold">
+                                                INPUT {index + 1}
                                             </span>
 
                                         </div>
@@ -527,14 +510,26 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                             {/* 空状态 */}
                             {formData.form_schema.length === 0 && (
                                 <div className="text-center p-4 border-round border-1 border-dashed border-300 text-500 text-sm">
-                                    暂无表单字段，点击右上角添加
+                                    暂无表单字段，点击下方按钮添加
                                 </div>
                             )}
+                            
+                            {/* 在列表底部添加加号按钮 */}
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    size="small"
+                                    outlined
+                                    onClick={() => addFormInput(selectedNewType || 'text')}
+                                    label="添加字段"
+                                />
+                            </div>
                         </div>
                     </div>
 
                     {/* 其他下拉框和备注... */}
-                    <div className="col-12 field mb-4">
+                    <div className="col-12 field mb-4 mt-5">
                         <label className="font-bold block mb-2">备注</label>
                         <InputTextarea value={formData.remarks} onChange={(e) => setFormData(p => ({ ...p, remarks: e.target.value }))} rows={2} />
                     </div>
