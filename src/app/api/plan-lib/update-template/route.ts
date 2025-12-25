@@ -20,7 +20,8 @@ export async function POST(req: Request) {
         description,
         tags,
         suitableFor,
-        weekDays, // 新增
+        weekDays,
+        globalAnswers, // 新增
         trainingDays,
     } = await req.json() as UpdateTemplateDto;
 
@@ -64,6 +65,11 @@ export async function POST(req: Request) {
 
     if (suitableFor !== undefined) {
         updateData.suitable_for = suitableFor;
+    }
+
+    // 保存全局问题答案
+    if (globalAnswers !== undefined) {
+        updateData.global_answers = globalAnswers;
     }
 
     // 将计划日数据存储在training_days字段中

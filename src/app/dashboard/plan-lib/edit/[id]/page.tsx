@@ -83,8 +83,11 @@ const EditPlanPage = () => {
                 setDescription(templateRes.template.description || '');
                 setTags(templateRes.template.tags || []);
                 setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
-                setWeekDays(templateRes.template.week_days || []);  // 新增加载
-                // TODO: 加载 globalAnswers 从 contained_options
+                setWeekDays(templateRes.template.week_days || []);
+                // 加载全局问题答案
+                if (templateRes.template.global_answers) {
+                    setGlobalAnswers(templateRes.template.global_answers as Record<string, number>);
+                }
 
                 // Convert days data to local format
                 const convertedDays: FormPlanTrainingDay[] = templateRes.days.map((day: any) => ({
@@ -349,7 +352,8 @@ const EditPlanPage = () => {
                 description: description || null,
                 tags: tags,
                 suitableFor: suitableFor,
-                weekDays: weekDays,  // 新增
+                weekDays: weekDays,
+                globalAnswers: globalAnswers,  // 新增
                 trainingDays: daysData
             });
 

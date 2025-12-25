@@ -52,7 +52,7 @@ export interface ReviewInfo {
 
 const CoachApplicationPage = () => {
     const router = useRouter();
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
 
     const { showToast } = useToastContext();
 
@@ -83,6 +83,24 @@ const CoachApplicationPage = () => {
     // UI状态
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // 检查登录状态
+    useEffect(() => {
+        if (status === 'unauthenticated') {
+            showToast({
+                severity: 'info',
+                summary: '请先登录',
+                detail: '申请成为教练需要先登录账号',
+                life: 3000
+            });
+            router.push('/login');
+        } else if (status === 'authenticated' && !session?.user?.id) {
+             // Edge case: authenticated but no user id? weird.
+             setLoading(false);
+        }
+    }, [status, router, showToast, session]);
+
+
 
     // 社交媒体平台选项
     const socialMediaOptions: SocialMediaOption[] = [
@@ -207,10 +225,13 @@ const CoachApplicationPage = () => {
             }
         };
 
-        if (session?.user?.id) {
+        if (status === 'authenticated' && session?.user?.id) {
             fetchExistingApplication();
+        } else if (status === 'authenticated' && !session?.user?.id) {
+            // Should not happen normally if authenticated
+             setLoading(false);
         }
-    }, [session?.user?.id, session?.user?.name]);
+    }, [session?.user?.id, session?.user?.name, status]);
 
     // 处理输入变化
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

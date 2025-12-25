@@ -4,8 +4,21 @@
 export const dynamic = 'force-dynamic';
 
 import { Button } from "primereact/button";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
+    const router = useRouter();
+    const { data: session } = useSession();
+
+    const handleStartTraining = () => {
+        if (session?.user) {
+            router.push('/today-training');
+        } else {
+            router.push('/login');
+        }
+    };
+
     return (
         <main className="relative flex flex-col items-center justify-center min-h-screen px-6 py-20 overflow-hidden">
 
@@ -45,11 +58,20 @@ export default function Home() {
 
                 {/* CTA 按钮组 */}
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
-                    <Button size="large" className="font-bold px-8 shadow-lg shadow-orange-500/20">
+                    <Button 
+                        size="large" 
+                        className="font-bold px-8 shadow-lg shadow-orange-500/20"
+                        onClick={handleStartTraining}
+                    >
                         立即开始训练
                     </Button>
 
-                    <Button size="large" outlined className="font-bold px-8">
+                    <Button 
+                        size="large" 
+                        outlined 
+                        className="font-bold px-8"
+                        onClick={() => router.push('/coach/application')}
+                    >
                         入驻成为教练
                     </Button>
                 </div>

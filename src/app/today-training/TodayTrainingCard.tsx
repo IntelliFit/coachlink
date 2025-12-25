@@ -122,11 +122,26 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                             <span className="text-gray-600">
                                                 <strong>{actionSet.params?.['组数'] || actionSet.sets}组</strong> × <strong>{actionSet.params?.['次数'] || actionSet.reps}次</strong>
                                             </span>
-                                            {(actionSet.params?.['强度'] || actionSet.intensity) && (
-                                                <span className="text-gray-600">
-                                                    💪 {actionSet.params?.['强度'] || actionSet.intensity}
-                                                </span>
-                                            )}
+                                            {/* 优先显示计算后的重量，否则显示RM强度 */}
+                                            {(() => {
+                                                const load = actionSet.params?.load;
+                                                const intensity = actionSet.params?.['强度'] || actionSet.intensity;
+                                                
+                                                if (load && load > 0) {
+                                                    return (
+                                                        <span className="text-green-600 font-medium">
+                                                            💪 {load}kg
+                                                        </span>
+                                                    );
+                                                } else if (intensity) {
+                                                    return (
+                                                        <span className="text-gray-600">
+                                                            💪 {intensity}
+                                                        </span>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                             {(actionSet.params?.['休息时间'] || actionSet.rest_seconds) && (
                                                 <span className="text-gray-600">
                                                     ⏱️ 休息{((actionSet.params?.['休息时间'] || actionSet.rest_seconds) / 60).toFixed(1)}分钟

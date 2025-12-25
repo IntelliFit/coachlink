@@ -13,6 +13,7 @@ import { Column } from 'primereact/column';
 import { StudentDetailDialog } from './StudentDetailDialog';
 import { CoachReviewDialog } from './CoachReviewDialog';
 import { PaymentConfirmationDialog } from './PaymentConfirmationDialog';
+import { AiInstanceConfigDialog, type AiInstanceConfig } from './AiInstanceConfigDialog';
 import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
@@ -37,6 +38,8 @@ export default function StudentsPage() {
     const [dialogVisible, setDialogVisible] = useState(false);
     const [reviewDialogVisible, setReviewDialogVisible] = useState(false);
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
+    const [aiConfigDialogVisible, setAiConfigDialogVisible] = useState(false);
+    const [aiGenerating, setAiGenerating] = useState(false);
     const [pricingMap, setPricingMap] = useState<Record<number, { is_ai_plan: boolean }>>({});
 
     const router = useRouter();
@@ -154,34 +157,51 @@ export default function StudentsPage() {
         loadStudents(event.page, event.rows);
     };
 
-    const makeAiInstance = async (student: StudentWithPlan) => {
-        showToast({ severity: 'info', summary: 'AI 生成中', detail: '正在根据学员问卷自动创建训练计划' });
-        const res = await planLibService.createAiInstance({
-            subscriptionId: student.id
-        });
+    /** 打开AI生成配置对话框 */
+    const openAiConfigDialog = (student: StudentWithPlan) => {
+        setSelectedStudent(student);
+        setAiConfigDialogVisible(true);
+    };
 
-        if (res) {
-            if (res.template) {
-                showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
-                // 当res.template非空时，更新当前表单
-                setStudents(prev =>
-                    prev.map(s =>
-                        s.id === student.id
-                            ? {
-                                ...s,
-                                plan: {
-                                    name: res.template.name || 'AI 生成计划',
-                                    description: res.template.description || '暂无描述'
+    /** 执行AI生成（带配置参数） */
+    const makeAiInstance = async (student: StudentWithPlan, config: AiInstanceConfig) => {
+        setAiGenerating(true);
+        showToast({ severity: 'info', summary: 'AI 生成中', detail: '正在根据学员问卷自动创建训练计划' });
+        
+        try {
+            const res = await planLibService.createAiInstance({
+                subscriptionId: student.id,
+                startWeek: config.startWeek,
+                startDay: config.startDay,
+                keepOriginalIndex: config.keepOriginalIndex,
+            });
+
+            if (res) {
+                if (res.template) {
+                    showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
+                    setAiConfigDialogVisible(false);
+                    // 当res.template非空时，更新当前表单
+                    setStudents(prev =>
+                        prev.map(s =>
+                            s.id === student.id
+                                ? {
+                                    ...s,
+                                    plan: {
+                                        name: res.template.name || 'AI 生成计划',
+                                        description: res.template.description || '暂无描述'
+                                    }
                                 }
-                            }
-                            : s
-                    )
-                );
+                                : s
+                        )
+                    );
+                } else {
+                    showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项目' });
+                }
             } else {
-                showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项目' });
+                showToast({ severity: 'error', summary: '创建失败', detail: '无法创建AI实例' });
             }
-        } else {
-            showToast({ severity: 'error', summary: '创建失败', detail: '无法创建AI实例' });
+        } finally {
+            setAiGenerating(false);
         }
     }
 
@@ -320,7 +340,7 @@ export default function StudentsPage() {
                 /
                 <div
                     className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-2 hover:bg-surface-100 rounded"
-                    onClick={() => makeAiInstance(student)}
+                    onClick={() => openAiConfigDialog(student)}
                 >
                     <i className="pi pi-plus-circle mr-2"></i>
                     AI 生成
@@ -474,6 +494,19 @@ export default function StudentsPage() {
                     loadWaitingStudents();
                     // 重新加载学生列表以更新状态
                     loadStudents(0, rows);
+                }}
+            />
+
+            <AiInstanceConfigDialog
+                visible={aiConfigDialogVisible}
+                studentName={selectedStudent?.profile?.nickname}
+                totalWeeks={12}
+                loading={aiGenerating}
+                onHide={() => setAiConfigDialogVisible(false)}
+                onConfirm={(config) => {
+                    if (selectedStudent) {
+                        makeAiInstance(selectedStudent, config);
+                    }
                 }}
             />
         </div>

@@ -61,52 +61,49 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 检查用户权限（教练或学员都可以查看）
+    // 检查用户权限（用户可能同时是教练和学员，需要检查两种身份）
+    let hasPermission = false;
 
-    if (session.user.is_coach) {
-        const { data: coach, error: coachError } = await supabase
+    // 1. 检查是否作为教练有权限（如果用户是教练且该计划属于他创建的）
+    if (session.user.is_coach && instance.coach_id) {
+        const { data: coach } = await supabase
             .from("coaches")
             .select("user_id")
             .eq("id", instance.coach_id)
             .single();
 
-        if (coach.user_id !== userId) {
-            return NextResponse.json({
-                success: false,
-                message: "无权限查看该教练",
-            }, { status: 403 });
+        if (coach && coach.user_id === userId) {
+            hasPermission = true;
         }
-    } else {
+    }
+
+    // 2. 如果教练权限不通过，检查是否作为学员有权限
+    if (!hasPermission) {
         // 学员权限检查：优先检查 student_id，如果没有则通过 subscription 验证
         if (instance.student_id) {
-            if (instance.student_id !== userId) {
-                return NextResponse.json({
-                    success: false,
-                    message: "权限不足",
-                }, { status: 403 });
+            if (instance.student_id === userId) {
+                hasPermission = true;
             }
         } else if (instance.coach_subscription_id) {
             // 通过 subscription 验证学员权限
-            const { data: subscription, error: subError } = await supabase
+            const { data: subscription } = await supabase
                 .from("coach_subscriptions")
                 .select("student_id")
                 .eq("id", instance.coach_subscription_id)
                 .single();
 
-            if (
-                subError || !subscription || subscription.student_id !== userId
-            ) {
-                return NextResponse.json({
-                    success: false,
-                    message: "权限不足",
-                }, { status: 403 });
+            if (subscription && subscription.student_id === userId) {
+                hasPermission = true;
             }
-        } else {
-            return NextResponse.json({
-                success: false,
-                message: "权限不足",
-            }, { status: 403 });
         }
+    }
+
+    // 如果两种身份都没有权限，返回403
+    if (!hasPermission) {
+        return NextResponse.json({
+            success: false,
+            message: "权限不足",
+        }, { status: 403 });
     }
 
     // 加载动作详情（教练和学员都需要）

@@ -68,6 +68,9 @@ const StudentPlanPage = () => {
     // Execution data
     const [executions, setExecutions] = useState<Record<number, any>>({});
 
+    // 起始执行天数（用于显示"开始"标记）
+    const [startExecutionDay, setStartExecutionDay] = useState<number | undefined>(undefined);
+
     // Load instance data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
@@ -122,6 +125,11 @@ const StudentPlanPage = () => {
                         setDays(convertedDays);
                         setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
                         setInstanceExists(true);
+                        
+                        // 设置起始执行天数
+                        if (instanceRes.instance.start_execution_day && instanceRes.instance.start_execution_day > 1) {
+                            setStartExecutionDay(instanceRes.instance.start_execution_day);
+                        }
                     }
                     // Load execution data for this subscription
                     try {
@@ -312,7 +320,7 @@ const StudentPlanPage = () => {
                 actionSet[field] = value as string;
                 break;
             case 'params':
-                actionSet.params = { ...actionSet.params, ...(value as any) };
+                actionSet.params = { ...(actionSet.params || {}), ...(value as any) };
                 break;
             case 'all':
                 newDays[actualDayIndex].actionSets[setIndex] = value as any;
@@ -584,6 +592,7 @@ const StudentPlanPage = () => {
                                 onAddWeekFromExisting={handleAddWeekFromExisting}
                                 onDeleteWeek={handleDeleteWeek}
                                 saving={saving}
+                                startExecutionDay={startExecutionDay}
                             />
                         </div>
 
