@@ -52,35 +52,40 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    let coachId = userId;
-    if (session.user.is_coach) {
-        const { data: coach, error: coachError } = await supabase
-            .from("coaches")
-            .select("id")
-            .eq("user_id", coachId)
-            .single();
-
-        if (coachError) {
-            return NextResponse.json({
-                success: false,
-                message: coachError.message,
-            });
-        }
-
-        coachId = coach.id;
-    }
-
     // 验证用户权限（必须是学生、教练或管理员）
     const isAdmin = session.user.is_admin === true;
-    if (
-        !isAdmin && subscription.student_id !== userId &&
-        subscription.coach_id !== coachId
-    ) {
-        return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
-            success: false,
-            message: "无权修改此订阅",
-            data: null,
-        }, { status: 403 });
+
+    // 管理员可以直接操作任何订阅，跳过后续权限检查
+    if (!isAdmin) {
+        let coachId = userId;
+
+        // 只有非管理员的教练才需要查找 coach 记录
+        if (session.user.is_coach) {
+            const { data: coach, error: coachError } = await supabase
+                .from("coaches")
+                .select("id")
+                .eq("user_id", userId)
+                .single();
+
+            if (coachError || !coach) {
+                // 如果用户标记为教练但没有教练记录，只能作为学员操作
+                coachId = userId;
+            } else {
+                coachId = coach.id;
+            }
+        }
+
+        // 非管理员必须是学生或教练才能修改此订阅
+        if (
+            subscription.student_id !== userId &&
+            subscription.coach_id !== coachId
+        ) {
+            return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
+                success: false,
+                message: "无权修改此订阅",
+                data: null,
+            }, { status: 403 });
+        }
     }
 
     // 更新订阅记录

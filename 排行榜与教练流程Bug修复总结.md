@@ -149,7 +149,105 @@ command: (async () => {
 
 ---
 
-## 三、核心架构说明
+### Bug 9: 教练修改昵称后"发现教练"页不更新
+
+**问题描述**：教练在个人中心修改昵称后，"发现教练"列表及教练详情页显示的仍是旧名字。
+
+**根本原因**：数据冗余设计。`coaches` 表独立存储了 `name` 字段，而
+`update-profile` 接口此前仅更新了 `user_profiles` 表的 `nickname`，未同步更新
+`coaches` 表。
+
+**解决方案**：在 `update-profile`
+接口中增加同步逻辑：如果当前用户是教练，则在更新个人档案时同步更新
+`coaches.name`。
+
+**修改文件**：`src/app/api/user/update-profile/route.ts`
+
+---
+
+### Bug 10: 管理员确认支付无效
+
+**问题描述**：管理员在支付管理页面点击"确认支付"后，订阅状态没有变为
+`active`，且无错误提示。
+
+**根本原因**：权限检查逻辑漏洞。管理员如果标记了 `is_coach=true` 但数据库
+`coaches` 表中没有对应记录（尚未完成教练入驻），API 在查询 `coach_id`
+时会报错并中断执行。
+
+**解决方案**：重构 `update-subscription` 权限检查逻辑。管理员身份直接绕过
+`coach_id` 查询和归属权验证，允许操作任意订阅。
+
+**修改文件**：`src/app/api/subscription/update-subscription/route.ts`
+
+---
+
+### Bug 11: 模板全局问题选项不保存
+
+**问题描述**：教练在模板编辑页面勾选全局问题选项（如"什么水平"）后保存，重新打开发现勾选状态消失。
+
+**根本原因**：前端有 `globalAnswers` 状态存储用户选择，但保存时没有发送给
+API，API 也没有存储到数据库。数据库缺少 `global_answers` 字段。
+
+**解决方案**：
+
+1. 数据库添加 `global_answers` (JSONB) 字段
+2. API 接收并保存 `globalAnswers`
+3. 前端加载和保存 `globalAnswers`
+4. 移除模板卡片中已废弃的 `suitableFor` 显示
+
+**修改文件**：
+
+- `sql/20251226_add_global_answers_to_templates.sql`
+- `src/types/database.types.ts`
+- `src/app/api/plan-lib/update-template/entity.ts`
+- `src/app/api/plan-lib/update-template/route.ts`
+- `src/app/api/plan-lib/list-templates/entity.ts`
+- `src/app/api/plan-lib/list-templates/route.ts`
+- `src/app/dashboard/plan-lib/edit/[id]/page.tsx`
+- `src/app/dashboard/plan-lib/components/TemplateCard.tsx`
+
+---
+
+### Bug 7: 教练身份冲突导致无法访问学员计划
+
+**问题描述**： 用户在申请/成为教练后，自己作为学员订阅的训练计划无法访问，API
+报错 403 (Forbidden)。
+
+**根本原因**： API 权限检查逻辑使用了排他性的
+`if (is_coach) { ... } else { ... }`
+判断。当用户拥有教练身份时，系统只验证其作为教练的权限（即该计划是否为其创建），而忽略了该用户可能同时也是学员。
+
+**解决方案**：
+将权限检查修改为包容性逻辑：优先验证教练权限，如果不匹配，再继续验证学员权限。
+
+**修改文件**：
+
+- `src/app/api/plan-lib/get-instance/route.ts`
+- `src/app/api/plan-lib/get-with-executions/route.ts`
+
+---
+
+## 三、首页与 UX 优化
+
+### Bug 8: 首页按钮点击无效
+
+**问题描述**： 首页的"立即开始训练"和"入驻成为教练"按钮没有点击事件。
+
+**解决方案**：
+
+1. **立即开始训练**：增加智能跳转逻辑，已登录跳转至
+   `/today-training`，未登录跳转至 `/login`。
+2. **入驻成为教练**：跳转至 `/coach/application`。
+3. **入驻流程引导**：在教练申请页增加登录拦截，未登录用户自动重定向至登录页并显示提示信息。
+
+**修改文件**：
+
+- `src/app/page.tsx`
+- `src/app/coach/application/page.tsx`
+
+---
+
+## 四、核心架构说明
 
 ### 导航切换机制
 
@@ -187,14 +285,28 @@ if (session?.user?.is_admin) {
 
 ## 四、修改文件清单
 
-| 文件                                                      | 修改类型 | 说明                                |
-| --------------------------------------------------------- | -------- | ----------------------------------- |
-| `src/app/api/ranking/create-entry/route.ts`               | 修改     | 修复 maybeSingle 和 updated_at 问题 |
-| `src/app/ranking/[id]/SubmissionDialog.tsx`               | 修改     | 添加必填字段红色星号                |
-| `src/app/api/coach/update-coach-application/route.ts`     | 修改     | 修复审批时更新 is_coach             |
-| `src/app/api/user/switch-role/route.ts`                   | 新建     | 角色切换 API                        |
-| `src/components/NavigationCoach.tsx`                      | 修改     | 切换按钮调用 API                    |
-| `src/components/NavigationStudent.tsx`                    | 修改     | 切换按钮调用 API + 标签修复         |
-| `src/components/student/profile/CoachApplicationCard.tsx` | 修改     | 进入教练端调用 API                  |
-| `src/components/student/StudentProfilePage.tsx`           | 修改     | 状态判断逻辑修复                    |
-| `src/app/api/auth/[...nextauth]/route.ts`                 | 修改     | Session 刷新增加 primary_role       |
+| 文件                                                      | 修改类型 | 说明                                 |
+| --------------------------------------------------------- | -------- | ------------------------------------ |
+| `src/app/api/ranking/create-entry/route.ts`               | 修改     | 修复 maybeSingle 和 updated_at 问题  |
+| `src/app/ranking/[id]/SubmissionDialog.tsx`               | 修改     | 添加必填字段红色星号                 |
+| `src/app/api/coach/update-coach-application/route.ts`     | 修改     | 修复审批时更新 is_coach              |
+| `src/app/api/user/switch-role/route.ts`                   | 新建     | 角色切换 API                         |
+| `src/components/NavigationCoach.tsx`                      | 修改     | 切换按钮调用 API                     |
+| `src/components/NavigationStudent.tsx`                    | 修改     | 切换按钮调用 API + 标签修复          |
+| `src/components/student/profile/CoachApplicationCard.tsx` | 修改     | 进入教练端调用 API                   |
+| `src/components/student/StudentProfilePage.tsx`           | 修改     | 状态判断逻辑修复                     |
+| `src/app/api/auth/[...nextauth]/route.ts`                 | 修改     | Session 刷新增加 primary_role        |
+| `src/app/api/plan-lib/get-instance/route.ts`              | 修改     | 修复双重身份权限检查逻辑             |
+| `src/app/api/plan-lib/get-with-executions/route.ts`       | 修改     | 修复双重身份订阅查询逻辑             |
+| `src/app/page.tsx`                                        | 修改     | 首页按钮跳转与智能状态判断           |
+| `src/app/coach/application/page.tsx`                      | 修改     | 增加申请页登录重定向                 |
+| `src/app/api/user/update-profile/route.ts`                | 修改     | 增加教练名称同步逻辑                 |
+| `src/app/api/subscription/update-subscription/route.ts`   | 修改     | 修复管理员确认支付时的权限检查错误   |
+| `sql/20251226_add_global_answers_to_templates.sql`        | 新建     | 添加 global_answers 字段迁移         |
+| `src/types/database.types.ts`                             | 修改     | 添加 global_answers 类型             |
+| `src/app/api/plan-lib/update-template/entity.ts`          | 修改     | 添加 globalAnswers 参数              |
+| `src/app/api/plan-lib/update-template/route.ts`           | 修改     | 保存 globalAnswers 到数据库          |
+| `src/app/api/plan-lib/list-templates/entity.ts`           | 修改     | 返回 globalAnswers 字段              |
+| `src/app/api/plan-lib/list-templates/route.ts`            | 修改     | 查询并返回 global_answers            |
+| `src/app/dashboard/plan-lib/edit/[id]/page.tsx`           | 修改     | 加载和保存 globalAnswers             |
+| `src/app/dashboard/plan-lib/components/TemplateCard.tsx`  | 修改     | 显示全局问题，移除废弃的 suitableFor |

@@ -29,6 +29,8 @@ const TrainingPlansHome: React.FC = () => {
     const [executions, setExecutions] = useState<Record<number, any>>({});
     const [videoModalVisible, setVideoModalVisible] = useState(false);
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
+    // 当前执行天数（用于计算日期）
+    const [currentDayIndex, setCurrentDayIndex] = useState<number>(1);
 
     // 加载订阅信息
     useEffect(() => {
@@ -87,6 +89,19 @@ const TrainingPlansHome: React.FC = () => {
                     if (exeRes) {
                         setExecutions(exeRes.executions);
                     }
+                    
+                    // 获取当前执行天数（用于计算日期）
+                    try {
+                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
+                        const nextDayData = await nextDayRes.json();
+                        if (nextDayData.success && nextDayData.data) {
+                            setCurrentDayIndex(nextDayData.data.nextDayIndex);
+                        }
+                    } catch (e) {
+                        // 默认使用起始执行天 或 day 1
+                        const startDay = (res.instance as any).start_execution_day || 1;
+                        setCurrentDayIndex(startDay);
+                    }
                 }
 
             } catch (error) {
@@ -117,11 +132,14 @@ const TrainingPlansHome: React.FC = () => {
         return days[dayIndex] || `第${dayIndex}天`;
     };
 
-    // 计算训练日期（从今天开始）
+    // 计算训练日期（以当前执行天 = 今天为基准）
     const getTrainingDate = (dayIndex: number) => {
         const today = new Date();
+        // 当前执行天 (currentDayIndex) 应该是今天
+        // 其他天根据相对偏移计算
+        const offset = dayIndex - currentDayIndex;
         const trainingDate = new Date(today);
-        trainingDate.setDate(today.getDate() + (dayIndex - 1));
+        trainingDate.setDate(today.getDate() + offset);
         return trainingDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
     };
 

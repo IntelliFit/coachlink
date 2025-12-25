@@ -9,6 +9,9 @@ import { fillTemplate, matchPlan } from "./match";
 export async function POST(req: Request) {
     const {
         subscriptionId,
+        startWeek = 1,
+        startDay = 1,
+        keepOriginalIndex = true,
     } = await req.json() as CreateAiInstanceDto;
 
     // Check if user is logged in
@@ -74,8 +77,8 @@ export async function POST(req: Request) {
 
         // 调试：检查计算后的数据
         console.log("计算后的训练计划数据:");
-        const trainingDays = selectTemplate.training_days as any[];
-        trainingDays?.forEach((day: any, dayIdx: number) => {
+        const debugDays = selectTemplate.training_days as any[];
+        debugDays?.forEach((day: any, dayIdx: number) => {
             day.actionSets?.forEach((action: any, actionIdx: number) => {
                 console.log(
                     `Day${dayIdx + 1} Action${
@@ -87,16 +90,47 @@ export async function POST(req: Request) {
             });
         });
 
+        // 起始执行位置逻辑：以周为单位保留完整结构
+        // 计算起始执行天数索引（1-based）
+        const startExecutionDay = (startWeek - 1) * 7 + startDay;
+        const trainingDays = selectTemplate.training_days as any[];
+
+        console.log(
+            `起始执行位置: 第${startWeek}周第${startDay}天, 起始天数=${startExecutionDay}, 总天数=${trainingDays.length}`,
+        );
+
+        if (startExecutionDay > trainingDays.length) {
+            // 起始位置超出范围
+            return NextResponse.json({
+                success: false,
+                message:
+                    `起始位置(第${startWeek}周第${startDay}天)超出模板总天数(${trainingDays.length}天)`,
+            }, { status: 400 });
+        }
+
         // 调试：打印保存前的完整数据结构
         console.log("=== 保存前完整数据 ===");
-        console.log(JSON.stringify(selectTemplate.training_days, null, 2));
+        console.log(
+            `保留完整训练计划，共${trainingDays.length}天，从第${startExecutionDay}天开始执行`,
+        );
 
-        // 更新数据库
+        // 计算计划名称，标注起始位置
+        const planName = startExecutionDay > 1
+            ? `AI 生成计划 (从第${startWeek}周${
+                startDay > 1 ? `第${startDay}天` : ""
+            }开始)`
+            : "AI 生成计划";
+
+        // 更新数据库 - 保留完整结构，通过 start_execution_day 标记起始位置
         const { data: template, error: updateError } = await supabase
             .from("coach_plan_instances")
             .insert({
-                name: "AI 生成计划",
-                description: "暂无描述",
+                name: planName,
+                description: startExecutionDay > 1
+                    ? `从第${startWeek}周第${startDay}天开始执行，前面${
+                        startExecutionDay - 1
+                    }天视为已完成`
+                    : "暂无描述",
                 coach_subscription_id: subscriptionId,
                 coach_id: subscription.coach_id || null,
                 student_id: subscription.student_id || null,
@@ -107,7 +141,8 @@ export async function POST(req: Request) {
                 type: selectTemplate.type,
                 suitable_for: selectTemplate.suitable_for,
                 status: "active",
-                training_days: selectTemplate.training_days,
+                training_days: trainingDays, // 保留完整结构
+                start_execution_day: startExecutionDay, // 新字段：起始执行天数
             })
             .select("*")
             .single();

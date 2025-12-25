@@ -92,6 +92,22 @@ export async function POST(request: Request) {
         result = data;
     }
 
+    // 如果用户是教练且修改了昵称，同步更新 coaches 表的 name 字段
+    if (body.nickname && session.user.is_coach) {
+        const { error: coachUpdateError } = await supabase
+            .from("coaches")
+            .update({
+                name: body.nickname,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", userId);
+
+        if (coachUpdateError) {
+            console.error("同步教练名称失败:", coachUpdateError);
+            // 不阻断流程，只记录错误
+        }
+    }
+
     return NextResponse.json({
         success: true,
         message: "用户档案更新成功",

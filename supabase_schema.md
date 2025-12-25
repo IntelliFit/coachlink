@@ -1,14 +1,14 @@
 # Supabase 数据库结构文档（public schema）
 
 - **生成时间**：2025-01-27
-- **最后更新**：2025-12-05（反映最新数据库变更）
+- **最后更新**：2025-12-26（通过 MCP 从 Supabase 云端数据库实时获取）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
 > ⚠️ **重要变更说明**：
 > - 根据数据库分析报告（2025-12-04），已删除6个冗余表
-> - **最新更新**（2025-12-05）：新增3个表（`coach_plan_instances`, `coach_reviews`, `student_comments`）
-> - 当前保留 **32个表 + 3个视图 = 35个数据库对象**
+> - **最新更新**（2025-12-26）：新增多个表，包括聊天系统重构、训练执行系统优化、排行榜系统等
+> - 当前保留 **38个表 + 3个视图 = 41个数据库对象**
 
 ## 目录
 
@@ -32,47 +32,55 @@
 - `admin_users` - 系统管理员账号表
 - `shipping_info` - 快递信息表
 
-### 教练相关表（13个）
+### 教练相关表（12个）
 
 - `coaches` - 教练基本信息表
 - `coach_subscriptions` - 教练订阅关系表
 - `coach_contents` - 教练内容库（文章、视频）表
-- `coach_messages` - 教练与学员私信表
 - `coach_rulepacks` - 规则包（AI 生成计划）表 ⚠️ **暂保留**
 - `coach_actions` - 教练行为日志表
 - `coach_plan_templates` - **核心模板库**（教练设计的可复用训练计划模板）
-- `coach_plan_template_tags` - 模板标签表
 - `coach_questionnaires` - 教练专属问卷表
 - `coach_pricing` - 教练收费套餐表
-- `coach_plan_instances` - **教练计划实例表** ⭐ **新增**（从模板生成给学员的计划）
-- `coach_reviews` - 教练评价表 ⭐ **新增**
-- `student_comments` - 学员评论表 ⭐ **新增**
+- `coach_plan_instances` - **教练计划实例表**（从模板生成给学员的计划）
+- `coach_reviews` - 教练评价表
+- `coach_applications` - 教练申请表 ⭐ **新增**
+- `student_comments` - 学员评论表
 
-### 训练相关表（7个）
+### 训练相关表（11个）
 
 - `training_plans` - **学员训练计划**表
 - `training_plan_details` - **核心计划明细**表（存储每日/每周动作 JSONB）
 - `training_sessions` - 训练会话表（计划中的一天）
 - `training_records` - 训练执行记录表（每次训练）
 - `training_videos` - 训练视频表（完整训练）
-- `set_videos` - 训练组视频表（每组）
+- `set_videos` - 训练组视频表（每组）⚠️ **逐步被替代**
+- `plan_instance_executions` - 计划实例执行记录表 ⭐ **新增**（替代 training_records 用于新计划系统）
+- `execution_set_videos` - 执行组视频表 ⭐ **新增**（替代 set_videos 用于新计划系统）
 - `personal_records` - 个人记录表 ❌ **已废弃**（仅存最大记录，缺历史）
+- `personal_records_history` - 个人记录历史表 ⭐ **新增**（替代 personal_records，包含完整历史记录）
+- `training_items` - 训练项目表 ⭐ **新增**（训练动作/项目库）
 
-### 内容互动表（2个）
+### 内容互动表（4个）
 
 - `content_interactions` - 内容交互表（点赞、收藏）
-- `conversations` - 课堂/群聊会话表
+- `chat_rooms` - 聊天室表 ⭐ **重构**（原 conversations 表重构）
+- `chat_messages` - 聊天消息表 ⭐ **重构**（原 coach_messages 表重构）
+- `chat_room_unreads` - 聊天室未读消息表 ⭐ **新增**
 
-### 其他表（6个）
+### 其他表（7个）
 
 - `onboarding_questionnaires` - 新用户入职问卷表
 - `lifestyle_logs` - 学员生活日志表
 - `alipay_orders` - 支付订单记录表
 - `pullup_leaderboard` - 当前活跃的引体向上排行榜表
-- `rankingboard_pullup_2025_9_10` - **历史归档**表（2025年9-10月，仅作历史快照）
+- `leaderboard_templates` - 排行榜模板表 ⭐ **新增**（通用排行榜系统）
+- `leaderboard_entries` - 排行榜条目表 ⭐ **新增**（通用排行榜系统）
 - `specialties` - 教练专业领域表
 
-**总计：32个表**（用户4 + 教练13 + 训练7 + 内容互动2 + 其他6 = 32）
+**总计：38个表**（用户4 + 教练12 + 训练11 + 内容互动4 + 其他7 = 38）
+
+> **注意**：统计中包含已废弃的表（`personal_records`），实际活跃表为37个
 
 ---
 
@@ -106,26 +114,71 @@
 
 ---
 
-## 新增表（最新）
+## 新增表（最新更新 2025-12-26）
 
-根据最新数据库更新（2025-12-05），新增以下表：
+根据最新数据库更新，新增以下表：
 
-### 新增表（3个）
+### 聊天系统重构（3个表）
 
-1. ⭐ **`coach_plan_instances`** - 教练计划实例表
-   - 用途：从模板生成给学员的个性化训练计划实例
-   - 关联：`coach_plan_templates`（模板）和 `coach_subscriptions`（订阅）
+1. ⭐ **`chat_rooms`** - 聊天室表（重构自 `conversations`）
+   - 用途：学员-教练会话表，支持多成员聊天室
+   - 关联：`coach_subscriptions`, `users`
+   - 状态：活跃使用中
+   - 新特性：支持 `members` 数组、`unread_members` 数组、`type` 字段
+
+2. ⭐ **`chat_messages`** - 聊天消息表（重构自 `coach_messages`）
+   - 用途：聊天消息存储，支持多种消息类型
+   - 关联：`chat_rooms`, `users`
+   - 状态：活跃使用中
+   - 新特性：支持 `message_type`（text/image/video/voice/file）、媒体文件支持
+
+3. ⭐ **`chat_room_unreads`** - 聊天室未读消息表
+   - 用途：记录每个用户在聊天室的未读消息数
+   - 关联：`chat_rooms`, `users`
    - 状态：活跃使用中
 
-2. ⭐ **`coach_reviews`** - 教练评价表
-   - 用途：学员对教练的评价和反馈
-   - 关联：`coach_subscriptions`, `users`, `coaches`
+### 训练执行系统优化（3个表）
+
+4. ⭐ **`plan_instance_executions`** - 计划实例执行记录表
+   - 用途：替代 `training_records`，记录新计划系统的训练执行
+   - 关联：`coach_plan_instances`, `users`
+   - 状态：活跃使用中
+   - 新特性：支持 `action_executions` JSONB、进度百分比计算
+
+5. ⭐ **`execution_set_videos`** - 执行组视频表
+   - 用途：替代 `set_videos`，记录新计划系统的组视频
+   - 关联：`plan_instance_executions`
+   - 状态：活跃使用中
+   - 新特性：支持 `storage_path`、`storage_bucket`（Supabase Storage 集成）
+
+6. ⭐ **`personal_records_history`** - 个人记录历史表
+   - 用途：替代 `personal_records`，包含完整的 PR 历史记录
+   - 关联：`plan_instance_executions`, `users`
+   - 状态：活跃使用中
+   - 新特性：支持 `execution_id` 关联、`load_formula`、`video_url`、`is_verified`
+
+7. ⭐ **`training_items`** - 训练项目表
+   - 用途：训练动作/项目库
    - 状态：活跃使用中
 
-3. ⭐ **`student_comments`** - 学员评论表
-   - 用途：学员的评论功能
-   - 关联：`users`, `coaches`
+### 其他新增表（3个表）
+
+8. ⭐ **`coach_applications`** - 教练申请表
+   - 用途：教练申请入驻功能
+   - 关联：`users`
    - 状态：活跃使用中
+   - 新特性：支持审核流程、简历、作品集等
+
+9. ⭐ **`leaderboard_templates`** - 排行榜模板表
+   - 用途：通用排行榜系统模板
+   - 关联：`users`（创建者）
+   - 状态：活跃使用中
+   - 新特性：支持自定义排名规则、表单结构
+
+10. ⭐ **`leaderboard_entries`** - 排行榜条目表
+    - 用途：通用排行榜系统条目
+    - 关联：`leaderboard_templates`, `users`
+    - 状态：活跃使用中
 
 ---
 
@@ -241,7 +294,7 @@
 
 **基本信息**
 
-- 行数：~2
+- 行数：~3
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -264,6 +317,8 @@
 | is_featured      | boolean     | YES  | false             |                                                 |
 | status           | text        | YES  | 'pending'         | ∈ {'pending','approved','rejected','suspended'} |
 | search_vector    | tsvector    | YES  |                   | 全文搜索向量                                    |
+| profile          | jsonb       | YES  |                   | ⭐ **新增**：教练扩展信息（JSON格式）            |
+| payment_qr_code  | text        | YES  |                   | ⭐ **新增**：收款二维码                          |
 | created_at       | timestamptz | YES  | now()             |                                                 |
 | updated_at       | timestamptz | YES  | now()             |                                                 |
 
@@ -690,7 +745,7 @@
 
 **基本信息**
 
-- 行数：~5
+- 行数：~11
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -698,21 +753,27 @@
 
 **字段说明**
 
-| 列名           | 类型        | 可空 | 默认值            | 约束/备注                                   |
-| -------------- | ----------- | ---- | ----------------- | ------------------------------------------- |
-| id             | uuid        | NO   | gen_random_uuid() | 主键                                        |
-| student_id     | uuid        | NO   |                   | 外键 → users.id                             |
-| coach_id       | uuid        | NO   |                   | 外键 → coaches.id                           |
-| tier           | integer     | NO   |                   | ∈ {1, 2, 3}                                 |
-| status         | text        | YES  | 'active'          | ∈ {'active','paused','cancelled','expired'} |
-| start_date     | timestamptz | YES  | now()             |                                             |
-| end_date       | timestamptz | YES  |                   |                                             |
-| auto_renew     | boolean     | YES  | true              |                                             |
-| monthly_price  | numeric     | NO   |                   |                                             |
-| order_id       | uuid        | YES  |                   | 订单编号                                    |
-| subscribe_data | jsonb       | YES  |                   | 订阅附带的一些基础信息                      |
-| created_at     | timestamptz | YES  | now()             |                                             |
-| updated_at     | timestamptz | YES  | now()             |                                             |
+| 列名            | 类型        | 可空 | 默认值            | 约束/备注                                   |
+| --------------- | ----------- | ---- | ----------------- | ------------------------------------------- |
+| id              | uuid        | NO   | gen_random_uuid() | 主键                                        |
+| student_id      | uuid        | NO   |                   | 外键 → users.id                             |
+| coach_id        | uuid        | NO   |                   | 外键 → coaches.id                           |
+| tier            | integer     | NO   |                   | ∈ {1, 2, 3}                                 |
+| status          | text        | YES  | 'active'          | ∈ {'active','inactive','waiting'}           |
+| start_date      | timestamptz | YES  | now()             |                                             |
+| end_date        | timestamptz | YES  |                   |                                             |
+| auto_renew      | boolean     | YES  | true              |                                             |
+| monthly_price   | numeric     | NO   |                   |                                             |
+| order_id        | uuid        | YES  |                   | 订单编号                                    |
+| subscribe_data  | jsonb       | YES  |                   | 订阅附带的一些基础信息                      |
+| has_remind_coach| boolean     | YES  | false             | ⭐ **新增**：是否已提醒教练                 |
+| remind_coach_note| text       | YES  |                   | ⭐ **新增**：提醒教练的备注信息             |
+| product_id      | text        | YES  |                   | ⭐ **新增**：订阅的具体产品ID               |
+| product_name    | text        | YES  |                   | ⭐ **新增**：订阅时的产品名称快照           |
+| product_tier    | text        | YES  |                   | ⭐ **新增**：订阅时的产品层级(basic/standard/vip) |
+| subscribed_weeks| integer     | YES  | 4                 | ⭐ **新增**：订阅包含的总周数               |
+| created_at      | timestamptz | YES  | now()             |                                             |
+| updated_at      | timestamptz | YES  | now()             |                                             |
 
 **外键**
 
@@ -784,7 +845,7 @@
 
 **基本信息**
 
-- 行数：~1
+- 行数：~5
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -792,20 +853,22 @@
 
 **字段说明**
 
-| 列名                | 类型        | 可空 | 默认值            | 约束/备注 |
-| ------------------- | ----------- | ---- | ----------------- | --------- |
-| id                  | uuid        | NO   | gen_random_uuid() | 主键      |
-| coach_id            | uuid        | NO   |                   |           |
-| name                | text        | NO   |                   |           |
-| description         | text        | YES  |                   |           |
-| type                | text        | NO   |                   |           |
-| rest_days_count     | smallint    | YES  |                   |           |
-| tags                | text[]      | YES  |                   |           |
-| suitable_for        | text        | YES  |                   |           |
-| training_days       | jsonb[]     | YES  |                   |           |
-| training_days_count | smallint    | YES  |                   |           |
-| created_at          | timestamptz | YES  | now()             |           |
-| updated_at          | timestamptz | YES  | now()             |           |
+| 列名                | 类型        | 可空 | 默认值            | 约束/备注                               |
+| ------------------- | ----------- | ---- | ----------------- | --------------------------------------- |
+| id                  | uuid        | NO   | gen_random_uuid() | 主键                                    |
+| coach_id            | uuid        | NO   |                   |                                         |
+| name                | text        | NO   |                   |                                         |
+| description         | text        | YES  |                   |                                         |
+| type                | text        | NO   |                   |                                         |
+| rest_days_count     | smallint    | YES  |                   |                                         |
+| tags                | text[]      | YES  |                   |                                         |
+| suitable_for        | text        | YES  |                   |                                         |
+| training_days       | jsonb[]     | YES  |                   |                                         |
+| training_days_count | smallint    | YES  |                   |                                         |
+| week_days           | int2[]      | YES  |                   | ⭐ **新增**：训练周几数组                |
+| contained_options   | text[]      | YES  |                   | ⭐ **新增**：包含的选项数组              |
+| created_at          | timestamptz | YES  | now()             |                                         |
+| updated_at          | timestamptz | YES  | now()             |                                         |
 
 **索引**
 
@@ -1015,15 +1078,7 @@
 - 说明：用于统计教练活跃度
 - 优化建议：`coach_id` 建议添加外键约束到 `coaches.id`
 
-#### 23. coach_plan_template_tags（模板标签表）
-
-- 行数：~0
-- 状态：✅ 正常使用
-- 主键：`id` (integer)
-- 说明：便于分类检索
-- 唯一索引：`name`
-
-#### 24. coach_questionnaires（教练专属问卷表）
+#### 23. coach_questionnaires（教练专属问卷表）
 
 - 行数：~1
 - 状态：✅ 正常使用
@@ -1131,9 +1186,9 @@
 - `coach_reviews_student_id_fkey` (student_id → users.id)
 - `coach_reviews_coach_id_fkey` (coach_id → coaches.id)
 
-#### 32. student_comments（学员评论表）⭐ 新增
+#### 32. student_comments（学员评论表）
 
-- 行数：~0
+- 行数：~1
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`student_id → users.id`, `coach_id → coaches.id`
@@ -1148,12 +1203,339 @@
 | coach_id   | uuid        | NO   |                   | 外键 → coaches.id   |
 | comment    | text        | NO   |                   | 评论内容            |
 | media      | jsonb       | YES  |                   | 媒体信息（JSON格式）|
+| rating     | smallint    | YES  |                   | ⭐ **新增**：评分   |
 | created_at | timestamptz | YES  | now()             |                     |
 | updated_at | timestamptz | YES  | now()             |                     |
 
 **外键**
 - `student_comments_student_id_fkey` (student_id → users.id)
 - `student_comments_coach_id_fkey` (coach_id → coaches.id)
+
+---
+
+#### 33. chat_rooms（聊天室表）⭐ 新增
+
+- 行数：~5
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`subscription_id → coach_subscriptions.id`
+- 说明：学员-教练会话表，重构自 `conversations` 表
+
+**字段说明**
+
+| 列名           | 类型        | 可空 | 默认值            | 约束/备注                                |
+| -------------- | ----------- | ---- | ----------------- | ---------------------------------------- |
+| id             | uuid        | NO   | gen_random_uuid() | 主键                                     |
+| subscription_id| uuid        | YES  |                   | 外键 → coach_subscriptions.id            |
+| last_message   | text        | YES  |                   | 最后一条消息预览（前100字符）            |
+| last_message_at| timestamptz | YES  |                   | 最后消息时间                             |
+| is_archived    | boolean     | NO   | false             |                                          |
+| members        | uuid[]      | YES  |                   | ⭐ **新增**：聊天室成员ID数组            |
+| unread_members | uuid[]      | YES  |                   | ⭐ **新增**：未读消息的用户ID数组        |
+| type           | text        | YES  |                   | ⭐ **新增**：聊天室类型                   |
+| created_at     | timestamptz | NO   | now()             |                                          |
+| updated_at     | timestamptz | NO   | now()             |                                          |
+
+**索引**
+- `conversations_pkey` (id) - 主键索引
+- `conversations_members_gin` (members) - GIN 索引
+- `idx_conversations_updated` (updated_at DESC) - 普通索引
+
+---
+
+#### 34. chat_messages（聊天消息表）⭐ 新增
+
+- 行数：~26
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`room_id → chat_rooms.id`, `sender_id → users.id`
+- 说明：聊天消息表，重构自 `coach_messages` 表
+
+**字段说明**
+
+| 列名        | 类型        | 可空 | 默认值            | 约束/备注                                    |
+| ----------- | ----------- | ---- | ----------------- | -------------------------------------------- |
+| id          | uuid        | NO   | gen_random_uuid() | 主键                                         |
+| room_id     | uuid        | NO   |                   | 外键 → chat_rooms.id                         |
+| sender_id   | uuid        | NO   |                   | 外键 → users.id                              |
+| message_type| text        | NO   |                   | ∈ {'text','image','video','voice','file'}    |
+| content     | text        | NO   |                   | 消息内容                                     |
+| media_url   | text        | YES  |                   | ⭐ **新增**：媒体文件URL                     |
+| file_name   | text        | YES  |                   | ⭐ **新增**：文件名                          |
+| file_size   | bigint      | YES  |                   | ⭐ **新增**：文件大小（字节）                |
+| duration    | integer     | YES  |                   | ⭐ **新增**：音频/视频时长（秒）             |
+| is_read     | boolean     | YES  | false             | 是否已读                                     |
+| created_at  | timestamptz | YES  | now()             |                                              |
+
+**索引**
+- `coach_messages_pkey` (id) - 主键索引
+- `chat_messages_room_id_idx` (room_id) - 普通索引
+- `idx_coach_messages_conversation` (room_id) - 普通索引
+- `idx_coach_messages_sender` (sender_id) - 普通索引
+- `idx_coach_messages_time` (created_at DESC) - 普通索引
+- `chat_messages_is_read_idx` (is_read) - 普通索引
+
+---
+
+#### 35. chat_room_unreads（聊天室未读消息表）⭐ 新增
+
+- 行数：~10
+- 状态：✅ 正常使用
+- 主键：`(room_id, user_id)`
+- 外键：`room_id → chat_rooms.id`
+- 说明：记录每个用户在聊天室的未读消息数
+
+**字段说明**
+
+| 列名         | 类型        | 可空 | 默认值 | 约束/备注                |
+| ------------ | ----------- | ---- | ------ | ------------------------ |
+| room_id      | uuid        | NO   |        | 外键 → chat_rooms.id     |
+| user_id      | uuid        | NO   |        | 用户ID                   |
+| unread_count | integer     | NO   | 0      | 未读消息数               |
+| last_read_at | timestamptz | YES  |        | 最后阅读时间             |
+
+**索引**
+- `chat_room_unreads_pkey` (room_id, user_id) - 主键索引
+
+---
+
+#### 36. coach_applications（教练申请表）⭐ 新增
+
+- 行数：~1
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`, `reviewed_by → users.id`
+- 说明：教练申请入驻功能
+
+**字段说明**
+
+| 列名               | 类型        | 可空 | 默认值            | 约束/备注                                          |
+| ------------------ | ----------- | ---- | ----------------- | -------------------------------------------------- |
+| id                 | uuid        | NO   | gen_random_uuid() | 主键                                               |
+| user_id            | uuid        | NO   |                   | 外键 → users.id                                    |
+| applied_at         | timestamptz | NO   | now()             |                                                    |
+| status             | text        | NO   | 'pending'         | ∈ {'pending','reviewing','approved','rejected','needs_info'} |
+| name               | text        | NO   |                   |                                                    |
+| title              | text        | YES  |                   |                                                    |
+| avatar_url         | text        | YES  |                   |                                                    |
+| specialties        | text[]      | YES  | '{}'              |                                                    |
+| bio                | text        | YES  |                   |                                                    |
+| years_experience   | integer     | YES  | 0                 |                                                    |
+| achievements       | text[]      | YES  | '{}'              |                                                    |
+| teaching_philosophy| text        | YES  |                   | 教学理念                                           |
+| credentials        | jsonb[]     | YES  | '{}'              | 资质证明                                           |
+| case_studies       | text[]      | YES  | '{}'              | 案例研究                                           |
+| contact_email      | text        | YES  |                   | 邮箱（需符合邮箱格式）                             |
+| contact_phone      | text        | YES  |                   | 联系电话                                           |
+| resume_url         | text        | YES  |                   | 简历URL                                            |
+| portfolio_url      | text        | YES  |                   | 作品集URL                                          |
+| social_links       | jsonb       | YES  | '{}'              | 社交媒体链接                                       |
+| reviewed_by        | uuid        | YES  |                   | 外键 → users.id（审核人）                          |
+| reviewed_at        | timestamptz | YES  |                   | 审核时间                                           |
+| review_notes       | text        | YES  |                   | 审核备注                                           |
+| created_at         | timestamptz | NO   | now()             |                                                    |
+| updated_at         | timestamptz | NO   | now()             |                                                    |
+
+**索引**
+- `coach_applications_pkey` (id) - 主键索引
+- `coach_applications_user_id_idx` (user_id) - 普通索引
+- `coach_applications_status_idx` (status) - 普通索引
+- `coach_applications_applied_at_idx` (applied_at DESC) - 普通索引
+- `coach_applications_reviewed_by_idx` (reviewed_by) - 普通索引
+
+---
+
+#### 37. plan_instance_executions（计划实例执行记录表）⭐ 新增
+
+- 行数：~8
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`instance_id → coach_plan_instances.id`, `student_id → users.id`
+- 说明：替代 `training_records`，记录新计划系统的训练执行
+
+**字段说明**
+
+| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                      |
+| ----------------- | ----------- | ---- | ----------------- | ---------------------------------------------- |
+| id                | uuid        | NO   | gen_random_uuid() | 主键                                           |
+| instance_id       | uuid        | NO   |                   | 外键 → coach_plan_instances.id                 |
+| student_id        | uuid        | NO   |                   | 外键 → users.id                                |
+| day_index         | integer     | NO   |                   | 训练日索引（≥ 1）                              |
+| started_at        | timestamptz | NO   | now()             |                                                |
+| completed_at      | timestamptz | YES  |                   |                                                |
+| status            | text        | NO   | 'in_progress'     | ∈ {'in_progress','completed','abandoned','paused'} |
+| action_executions | jsonb       | NO   | '[]'              | JSONB结构存储所有动作和组的执行数据            |
+| total_sets        | integer     | NO   | 0                 | 总组数                                         |
+| completed_sets    | integer     | NO   | 0                 | 完成组数                                       |
+| progress_percent  | numeric     | YES  |                   | 进度百分比（计算列）                           |
+| session_notes     | text        | YES  |                   | 整体训练备注                                   |
+| last_saved_at     | timestamptz | YES  | now()             | 最后保存时间                                   |
+| created_at        | timestamptz | NO   | now()             |                                                |
+| updated_at        | timestamptz | NO   | now()             |                                                |
+
+**索引**
+- `plan_instance_executions_pkey` (id) - 主键索引
+- `idx_exec_student` (student_id) - 普通索引
+- `idx_exec_instance_day` (instance_id, day_index) - 复合索引
+- `idx_exec_date` (started_at DESC) - 普通索引
+- `idx_exec_lookup` (student_id, instance_id, day_index, started_at DESC) - 复合索引
+- `idx_exec_status` (status) WHERE status <> 'completed' - 部分索引
+
+---
+
+#### 38. execution_set_videos（执行组视频表）⭐ 新增
+
+- 行数：~5
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`execution_id → plan_instance_executions.id`, `reviewed_by → users.id`
+- 说明：替代 `set_videos`，记录新计划系统的组视频
+
+**字段说明**
+
+| 列名           | 类型        | 可空 | 默认值            | 约束/备注                                    |
+| -------------- | ----------- | ---- | ----------------- | -------------------------------------------- |
+| id             | uuid        | NO   | gen_random_uuid() | 主键                                         |
+| execution_id   | uuid        | NO   |                   | 外键 → plan_instance_executions.id           |
+| action_id      | uuid        | NO   |                   | 动作ID                                       |
+| set_number     | integer     | NO   |                   | 组号（≥ 1）                                  |
+| video_url      | text        | NO   |                   | 视频URL                                      |
+| thumbnail_url  | text        | YES  |                   | 缩略图URL                                    |
+| duration_seconds| integer    | YES  |                   | 时长（秒）                                   |
+| file_size_bytes| bigint      | YES  |                   | 文件大小（字节）                             |
+| storage_path   | text        | NO   |                   | ⭐ **新增**：Supabase Storage 中的文件路径   |
+| storage_bucket | text        | YES  | 'videos'          | ⭐ **新增**：存储桶名称                       |
+| upload_status  | text        | YES  | 'uploaded'        | ∈ {'uploading','uploaded','failed'}          |
+| coach_feedback | text        | YES  |                   | 教练反馈                                     |
+| coach_rating   | integer     | YES  |                   | 教练评分（1-5）                              |
+| reviewed_at    | timestamptz | YES  |                   | 审核时间                                     |
+| reviewed_by    | uuid        | YES  |                   | 外键 → users.id（审核人）                    |
+| created_at     | timestamptz | NO   | now()             |                                              |
+
+**索引**
+- `execution_set_videos_pkey` (id) - 主键索引
+- `idx_set_videos_execution` (execution_id) - 普通索引
+- `idx_set_videos_action` (action_id) - 普通索引
+- `idx_set_videos_created` (created_at DESC) - 普通索引
+- `execution_set_videos_execution_id_action_id_set_number_key` (execution_id, action_id, set_number) - 唯一索引
+
+---
+
+#### 39. personal_records_history（个人记录历史表）⭐ 新增
+
+- 行数：~5
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`, `execution_id → plan_instance_executions.id`
+- 说明：替代 `personal_records`，包含完整的 PR 历史记录
+
+**字段说明**
+
+| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                    |
+| ----------------- | ----------- | ---- | ----------------- | -------------------------------------------- |
+| id                | uuid        | NO   | gen_random_uuid() | 主键                                         |
+| user_id           | uuid        | NO   |                   | 外键 → users.id                              |
+| action_id         | uuid        | YES  |                   | 动作ID                                       |
+| exercise_name     | varchar     | NO   |                   | 动作名称                                     |
+| max_weight        | numeric     | YES  |                   | 最大重量                                     |
+| max_reps          | integer     | YES  |                   | 最大次数                                     |
+| load_formula      | varchar     | YES  |                   | ⭐ **新增**：计算公式，如 "60kg × 10次 @ RPE 8" |
+| execution_id      | uuid        | YES  |                   | ⭐ **新增**：外键 → plan_instance_executions.id |
+| execution_set_number| integer   | YES  |                   | ⭐ **新增**：执行组号                         |
+| date_achieved     | date        | NO   |                   | 达成日期                                     |
+| notes             | text        | YES  |                   | 备注                                         |
+| video_url         | text        | YES  |                   | ⭐ **新增**：视频URL                          |
+| is_verified       | boolean     | YES  | false             | ⭐ **新增**：是否已验证                       |
+| created_at        | timestamptz | YES  | now()             |                                              |
+
+**索引**
+- `personal_records_history_pkey` (id) - 主键索引
+- `idx_pr_user_date` (user_id, date_achieved DESC) - 复合索引
+- `idx_pr_user_exercise` (user_id, exercise_name) - 复合索引
+- `idx_pr_exercise` (exercise_name) - 普通索引
+- `idx_pr_execution` (execution_id) WHERE execution_id IS NOT NULL - 部分索引
+
+---
+
+#### 40. training_items（训练项目表）⭐ 新增
+
+- 行数：~19
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 说明：训练动作/项目库
+
+**字段说明**
+
+| 列名        | 类型 | 可空 | 默认值            | 约束/备注      |
+| ----------- | ---- | ---- | ----------------- | -------------- |
+| id          | uuid | NO   | gen_random_uuid() | 主键           |
+| name        | text | NO   |                   | 唯一索引       |
+| description | text | YES  |                   | 描述           |
+
+**索引**
+- `training_items_pkey` (id) - 主键索引
+- `training_items_name_key` (name) - 唯一索引
+
+---
+
+#### 41. leaderboard_templates（排行榜模板表）⭐ 新增
+
+- 行数：~2
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`creator_id → users.id`
+- 说明：通用排行榜系统模板
+
+**字段说明**
+
+| 列名        | 类型        | 可空 | 默认值            | 约束/备注                                    |
+| ----------- | ----------- | ---- | ----------------- | -------------------------------------------- |
+| id          | uuid        | NO   | gen_random_uuid() | 主键                                         |
+| title       | text        | NO   |                   | 排行榜标题                                   |
+| type        | text        | YES  |                   | 排行榜类型                                   |
+| start_at    | timestamptz | YES  |                   | 开始时间                                     |
+| end_at      | timestamptz | YES  |                   | 结束时间                                     |
+| creator_id  | uuid        | YES  |                   | 外键 → users.id（创建者）                    |
+| description | text        | YES  |                   | 描述                                         |
+| rules       | jsonb       | YES  | '[]'              | 规则（JSON格式）                             |
+| form_schema | jsonb       | YES  | '[]'              | 表单结构（JSON格式）                         |
+| rank_by_field| text       | NO   |                   | 排名字段                                     |
+| sort_order  | text        | YES  | 'desc'            | ∈ {'asc','desc'} 排序方式                    |
+| remarks     | text        | YES  |                   | 备注                                         |
+| initiator   | text        | YES  |                   | 发起者                                       |
+| created_at  | timestamptz | YES  | now()             |                                              |
+
+**索引**
+- `leaderboard_templates_pkey` (id) - 主键索引
+
+---
+
+#### 42. leaderboard_entries（排行榜条目表）⭐ 新增
+
+- 行数：~70
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`template_id → leaderboard_templates.id`, `user_id → users.id`
+- 说明：通用排行榜系统条目
+
+**字段说明**
+
+| 列名         | 类型        | 可空 | 默认值            | 约束/备注                                    |
+| ------------ | ----------- | ---- | ----------------- | -------------------------------------------- |
+| id           | uuid        | NO   | gen_random_uuid() | 主键                                         |
+| template_id  | uuid        | YES  |                   | 外键 → leaderboard_templates.id              |
+| user_id      | uuid        | YES  |                   | 外键 → users.id                              |
+| form_data    | jsonb       | NO   |                   | 表单数据（JSON格式）                         |
+| score        | numeric     | YES  |                   | 分数                                         |
+| status       | text        | YES  | 'pending'         | ∈ {'pending','approved','rejected'}          |
+| evidence_url | text        | YES  |                   | 证据URL（视频/图片）                         |
+| extra_data   | jsonb       | YES  |                   | 扩展数据（JSON格式）                         |
+| note         | text        | YES  |                   | 备注                                         |
+| created_at   | timestamptz | YES  | now()             |                                              |
+
+**索引**
+- `leaderboard_entries_pkey` (id) - 主键索引
+- `idx_leaderboard_score` (template_id, score DESC) - 复合索引
 
 ---
 
@@ -1400,12 +1782,14 @@ GROUP BY user_id, plan_id;
 
 本文档包含了 Supabase 数据库中 `public` schema 的完整结构信息，包括：
 
-- ✅ **32个表**的详细说明（已删除6个冗余表，新增3个表）
+- ✅ **38个表**的详细说明（已删除6个冗余表，新增多个表，重构聊天系统）
 - ✅ **3个视图**的定义
-- ✅ 所有索引信息
+- ✅ 所有索引信息（159个索引）
 - ✅ 外键关系
 - ✅ 冗余分析和优化建议
 - ✅ 数据库变更历史
+
+> **文档更新方式**：本文档通过 MCP（Model Context Protocol）从 Supabase 云端数据库实时获取最新结构信息，确保文档与数据库保持同步。
 
 **主要变更（2025-12-04）：**
 
@@ -1429,14 +1813,47 @@ GROUP BY user_id, plan_id;
    - `onboarding_completed` (boolean) - 初始问卷是否已完成
    - `age` (integer) - 年龄
 
-3. 📊 **数据库对象统计**：32个表 + 3个视图 = 35个数据库对象
+**最新变更（2025-12-26）：**
+
+1. ⭐ **聊天系统重构（3个表）**：
+   - `chat_rooms` - 聊天室表（重构自 `conversations`），支持多成员聊天室
+   - `chat_messages` - 聊天消息表（重构自 `coach_messages`），支持多种消息类型
+   - `chat_room_unreads` - 聊天室未读消息表，优化未读消息管理
+
+2. ⭐ **训练执行系统优化（4个表）**：
+   - `plan_instance_executions` - 计划实例执行记录表，替代 `training_records`
+   - `execution_set_videos` - 执行组视频表，替代 `set_videos`，支持 Supabase Storage
+   - `personal_records_history` - 个人记录历史表，替代 `personal_records`，包含完整历史
+   - `training_items` - 训练项目表，训练动作/项目库
+
+3. ⭐ **其他新增表（3个表）**：
+   - `coach_applications` - 教练申请表，支持教练申请入驻功能
+   - `leaderboard_templates` - 排行榜模板表，通用排行榜系统
+   - `leaderboard_entries` - 排行榜条目表，通用排行榜系统
+
+4. 📝 **字段变更**：
+   - `coaches.profile` (jsonb) - 教练扩展信息
+   - `coaches.payment_qr_code` (text) - 收款二维码
+   - `coach_subscriptions.has_remind_coach` (boolean) - 是否已提醒教练
+   - `coach_subscriptions.remind_coach_note` (text) - 提醒教练的备注信息
+   - `coach_subscriptions.product_id` (text) - 订阅的具体产品ID
+   - `coach_subscriptions.product_name` (text) - 订阅时的产品名称快照
+   - `coach_subscriptions.product_tier` (text) - 订阅时的产品层级
+   - `coach_subscriptions.subscribed_weeks` (integer) - 订阅包含的总周数
+   - `coach_subscriptions.status` - 约束值更新为 {'active','inactive','waiting'}
+   - `student_comments.rating` (smallint) - 评分字段
+   - `coach_plan_templates.week_days` (int2[]) - 训练周几数组
+   - `coach_plan_templates.contained_options` (text[]) - 包含的选项数组
+
+5. 📊 **数据库对象统计**：38个表 + 3个视图 = 41个数据库对象
 
 **下一步建议：**
 
-1. 为新增表添加索引（`coach_plan_instances`, `coach_reviews`, `student_comments`）
-2. 为新增表添加缺失的外键约束
-3. 清理冗余索引
+1. ✅ 已为新增表添加必要的索引（大部分已完成）
+2. ✅ 已为新增表添加外键约束（大部分已完成）
+3. 清理冗余索引（部分表仍存在重复索引）
 4. 统一外键引用（`auth.users` vs `public.users`）
-5. 创建新的快照表结构（`student_training_plans` 等）
-6. 创建 `user_1rm_history` 表替代 `personal_records`
-7. 清理 `training_videos.workout_log_id` 等已废弃字段
+5. 考虑清理 `training_videos.workout_log_id` 等已废弃字段
+6. 考虑清理 `personal_records` 表（已被 `personal_records_history` 替代）
+7. 考虑清理 `set_videos` 表（逐步被 `execution_set_videos` 替代）
+8. 统一 `coach_subscriptions.status` 字段的值域定义
