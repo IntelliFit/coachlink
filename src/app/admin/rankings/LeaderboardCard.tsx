@@ -10,10 +10,9 @@ import { ListLeaderboardItem } from '@/app/api/ranking/list-leaderboard/entity';
 interface LeaderboardCardProps {
     ranking: ListLeaderboardItem;
     onRefresh: () => void;
-    unreviewedCount?: number; // 未审核数量
 }
 
-const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh, unreviewedCount = 0 }) => {
+const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh }) => {
     const { showToast } = useToastContext();
     const [editDialogVisible, setEditDialogVisible] = useState(false);
 
@@ -139,17 +138,13 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh, u
 
                 {/* Footer */}
                 <div className="mt-auto pt-3 flex justify-end gap-2 border-t border-surface-100">
-                    {unreviewedCount > 0 && (
-                        <Button
-                            icon="pi pi-eye"
-                            label="审核"
-                            size="small"
-                            severity="warning"
-                            badge={unreviewedCount.toString()}
-                            badgeClassName="p-badge-danger"
-                            onClick={() => window.location.href = `/admin/rankings/review/${ranking.id}`}
-                        />
-                    )}
+                    <Button
+                        icon="pi pi-eye"
+                        label="审核"
+                        size="small"
+                        badge={ranking.unreviewedCount.toString()}
+                        onClick={() => window.location.href = `/admin/rankings/review/${ranking.id}`}
+                    />
                     <Button
                         icon="pi pi-pencil"
                         label="编辑"

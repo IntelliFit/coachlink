@@ -14,7 +14,6 @@ import LeaderboardCard from './LeaderboardCard';
 import { rankingService } from '@/app/service/rankingService';
 import { ListLeaderboardItem } from '@/app/api/ranking/list-leaderboard/entity';
 
-
 export default function AdminRankingsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -45,7 +44,6 @@ export default function AdminRankingsPage() {
             const result = await rankingService.listLeaderboard();
             if (result) {
                 const boards = result.leaderboards || [];
-                
                 boards.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                 setRankings(boards);
             }
@@ -117,7 +115,6 @@ export default function AdminRankingsPage() {
                                 <LeaderboardCard
                                     ranking={ranking}
                                     onRefresh={() => setRefreshTrigger(prev => prev + 1)}
-                                    unreviewedCount={ranking.unreviewedCount}
                                 />
                             </div>
                         ))}
