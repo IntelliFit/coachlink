@@ -9,13 +9,14 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { rankingService } from '@/app/service/rankingService';
 import { useToastContext } from '@/context/ToastContext';
+import { LeaderboardFormInput } from '@/types/leaderboard';
 
 interface SubmissionDialogProps {
     visible: boolean;
     onHide: () => void;
     onSuccess?: () => void; // 提交成功后的回调
     templateId: string;
-    formSchema: any[];
+    formSchema: LeaderboardFormInput[];
     rankByField?: string; // 排序指标字段
     className?: string;
 }
@@ -37,17 +38,21 @@ export default function SubmissionDialog({
     useEffect(() => {
         if (visible) {
             const initialData: any = { douyin_nickname: '', notes: '' };
-            formSchema.forEach((field: any) => {
-                initialData[field.key] = field.type === 'number' ? null : '';
+            formSchema.forEach((field) => {
+                if (field.type === 'number') {
+                    initialData[field.name] = null;
+                } else {
+                    initialData[field.name] = '';
+                }
             });
             setFormData(initialData);
         }
     }, [visible, formSchema]);
 
-    const handleFieldChange = (key: string, value: any) => {
+    const handleFieldChange = (name: string, value: any) => {
         setFormData((prev: any) => ({
             ...prev,
-            [key]: value
+            [name]: value
         }));
     };
 
@@ -57,12 +62,15 @@ export default function SubmissionDialog({
 
         try {
             // 1. 构建符合设计要求的 form_data 数组结构
-            const formattedFormData = formSchema.map(field => ({
-                ...field,
-                userInput: formData[field.key]
-            }));
+            const formattedFormData = formSchema.map(field => {
+                // 保留原始字段信息并添加用户输入
+                return {
+                    ...field,
+                    userInput: formData[field.name]
+                };
+            });
 
-            // 2. 提取分数值 (从 rankByField 指定的 key 中取)
+            // 2. 提取分数值 (从 rankByField 指定的 name 中取)
             const scoreValue = parseFloat(formData[rankByField]) || 0;
 
             // 3. 准备提交 payload
@@ -70,7 +78,7 @@ export default function SubmissionDialog({
                 template_id: templateId,
                 form_data: formattedFormData,
                 score: scoreValue,
-                evidence_url: formData.video_url || '', // 如果 schema 里有视频链接 key 则取对应值
+                evidence_url: formData.video_url || '', // 如果 schema 里有视频链接 name 则取对应值
                 extra_data: {
                     douyin_nickname: formData.douyin_nickname,
                     notes: formData.notes
@@ -81,8 +89,10 @@ export default function SubmissionDialog({
             const result = await rankingService.createEntry(payload);
 
             if (result) {
-                showToast({ severity: 'success', summary: '提交成功', detail: '您的记录已进入审核队列' });
+                showToast({ severity: 'success', summary: '提交成功', detail: '您的记录已进入审核队列，我们会在三个工作日之内为您审核。' });
                 onSuccess?.(); // 触发父组件刷新数据
+            } else {
+                showToast({ severity: 'error', summary: '提交失败', detail: '请检查您的输入并重试' });
             }
         } catch (error) {
             showToast({ severity: 'error', summary: '提交失败', detail: '请检查网络或表单内容' });
@@ -101,43 +111,34 @@ export default function SubmissionDialog({
             breakpoints={{ '960px': '75vw', '641px': '100vw' }}
         >
             <form onSubmit={onSubmit} className="flex flex-col gap-5 mt-4">
-                {/* 固定字段：抖音昵称 */}
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold ml-1">抖音昵称</label>
-                    <InputText
-                        placeholder="请输入您的抖音名"
-                        value={formData.douyin_nickname || ''}
-                        onChange={(e) => handleFieldChange('douyin_nickname', e.target.value)}
-                        required
-                    />
-                </div>
-
                 {/* 动态渲染来自 formSchema 的字段 */}
-                {formSchema.map((field: any) => (
-                    <div key={field.key} className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold ml-1">{field.label}</label>
+                {formSchema.map((field) => (
+                    <div key={field.name} className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold ml-1">
+                            {field.name}
+                        </label>
                         {field.type === 'number' ? (
                             <InputNumber
-                                placeholder={field.placeholder || '请输入数字'}
-                                value={formData[field.key]}
-                                onValueChange={(e) => handleFieldChange(field.key, e.value)}
+                                placeholder={`请输入${field.name}数值`}
+                                value={formData[field.name]}
+                                onValueChange={(e) => handleFieldChange(field.name, e.value)}
                                 minFractionDigits={0}
                                 maxFractionDigits={2}
                                 required
                             />
-                        ) : field.type === 'select' || field.type === 'option' ? (
+                        ) : field.type === 'option' ? (
                             <Dropdown
                                 options={field.options?.map((opt: string) => ({ label: opt, value: opt }))}
-                                placeholder={field.placeholder || '请选择'}
-                                value={formData[field.key]}
-                                onChange={(e) => handleFieldChange(field.key, e.value)}
+                                placeholder={`请选择${field.name}`}
+                                value={formData[field.name]}
+                                onChange={(e) => handleFieldChange(field.name, e.value)}
                                 required
                             />
                         ) : (
                             <InputText
-                                placeholder={field.placeholder || '请输入内容'}
-                                value={formData[field.key] || ''}
-                                onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                placeholder={`请输入${field.name}`}
+                                value={formData[field.name] || ''}
+                                onChange={(e) => handleFieldChange(field.name, e.target.value)}
                                 required
                             />
                         )}

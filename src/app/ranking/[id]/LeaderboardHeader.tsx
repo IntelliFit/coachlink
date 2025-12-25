@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trophy, Calendar, Users, User } from 'lucide-react';
 import { Button } from 'primereact/button';
+import SubmissionDialog from './SubmissionDialog';
 
 interface LeaderboardHeaderProps {
     title: string;
@@ -9,9 +10,11 @@ interface LeaderboardHeaderProps {
     endAt?: string | null;
     recordCount?: number;
     ownerName?: string;
+    formSchema?: any[];
+    templateId?: string;
 }
 
-export default function LeaderboardHeader({ title, description, startAt, endAt, recordCount = 0, ownerName = '系统' }: LeaderboardHeaderProps) {
+export default function LeaderboardHeader({ title, description, startAt, endAt, recordCount = 0, ownerName = '系统', formSchema, templateId }: LeaderboardHeaderProps) {
     // 格式化时间
     const formatTimeRange = () => {
         if (!startAt && !endAt) {
@@ -23,6 +26,8 @@ export default function LeaderboardHeader({ title, description, startAt, endAt, 
         
         return `${start} - ${end}`;
     };
+
+    const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);
 
     return (
         <div
@@ -44,9 +49,12 @@ export default function LeaderboardHeader({ title, description, startAt, endAt, 
                         </p>
                     </div>
 
-                    <Button>
-                        
-                    </Button>
+                    <Button
+                        label="提交我的记录"
+                        icon="pi pi-upload"
+                        onClick={() => setShowSubmissionDialog(true)}
+                        className="py-3 px-6 rounded-xl font-bold shadow-lg transition-colors"
+                    />
                 </div>
 
                 {/* 信息子卡片区域 */}
@@ -87,6 +95,17 @@ export default function LeaderboardHeader({ title, description, startAt, endAt, 
                     ))}
                 </div>
             </div>
+            
+            {/* 提交记录对话框 */}
+            {templateId && formSchema && (
+                <SubmissionDialog
+                    visible={showSubmissionDialog}
+                    onHide={() => setShowSubmissionDialog(false)}
+                    templateId={templateId}
+                    formSchema={formSchema}
+                    onSuccess={() => setShowSubmissionDialog(false)}
+                />
+            )}
         </div>
     );
 }

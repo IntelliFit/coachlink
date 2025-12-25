@@ -29,72 +29,13 @@ import type {
     UpdateLeaderboardDto,
     UpdateLeaderboardResponseDto
 } from '@/app/api/ranking/update-leaderboard/entity';
+import { ListEntriesDto, ListEntriesResponseDto } from "../api/ranking/list-entries/entity";
+import { GetEntryDto, GetEntryResponseDto } from "../api/ranking/get-entry/entity";
+import { CreateEntryDto, CreateEntryResponseDto } from "../api/ranking/create-entry/entity";
+import { UpdateEntryDto, UpdateEntryResponseDto } from "../api/ranking/update-entry/entity";
+import { DeleteEntryDto, DeleteEntryResponseDto } from "../api/ranking/delete-entry/entity";
 
-export interface ListEntriesDto {
-    template_id?: string;
-    user_id?: string;
-    page?: number;
-    limit?: number;
-}
 
-export interface ListEntriesResponseDto {
-    entries: LeaderboardEntriesRow[];
-    total: number;
-    page: number;
-    limit: number;
-}
-
-export interface GetEntryDto {
-    id: string;
-}
-
-export interface GetEntryResponseDto {
-    entry: LeaderboardEntriesRow;
-}
-
-export interface CreateEntryDto {
-    template_id: string;
-    form_data: any;
-    score?: number | null;
-    evidence_url?: string | null;
-    status?: string;
-    user_id?: string;
-}
-
-export interface CreateEntryResponseDto {
-    entry: LeaderboardEntriesRow;
-}
-
-export interface UpdateEntryDto {
-    id: string;
-    form_data?: any;
-    score?: number | null;
-    evidence_url?: string | null;
-    status?: string;
-}
-
-export interface UpdateEntryResponseDto {
-    entry: LeaderboardEntriesRow;
-}
-
-export interface DeleteEntryDto {
-    id: string;
-}
-
-export interface DeleteEntryResponseDto {
-    entry: LeaderboardEntriesRow;
-}
-
-export interface LeaderboardEntriesRow {
-    created_at: string | null;
-    evidence_url: string | null;
-    form_data: any;
-    id: string;
-    score: number | null;
-    status: string | null;
-    template_id: string | null;
-    user_id: string | null;
-}
 
 export class RankingService extends BaseService {
     async createLeaderboard(reqData: CreateLeaderboardDto) {
