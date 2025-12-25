@@ -1,14 +1,29 @@
 import React from 'react';
-import { Trophy, Calendar, Users } from 'lucide-react';
+import { Trophy, Calendar, Users, User } from 'lucide-react';
 import { Button } from 'primereact/button';
 
 interface LeaderboardHeaderProps {
-    recordCount: number;
-    onShowSubmissionDialog: () => void;
-    onRefreshLeaderboard: () => void;
+    title: string;
+    description: string;
+    startAt?: string | null;
+    endAt?: string | null;
+    recordCount?: number;
+    ownerName?: string;
 }
 
-export default function LeaderboardHeader({ recordCount, onShowSubmissionDialog, onRefreshLeaderboard }: LeaderboardHeaderProps) {
+export default function LeaderboardHeader({ title, description, startAt, endAt, recordCount = 0, ownerName = '系统' }: LeaderboardHeaderProps) {
+    // 格式化时间
+    const formatTimeRange = () => {
+        if (!startAt && !endAt) {
+            return '永久有效';
+        }
+        
+        const start = startAt ? new Date(startAt).toLocaleDateString() : '无限制';
+        const end = endAt ? new Date(endAt).toLocaleDateString() : '无限制';
+        
+        return `${start} - ${end}`;
+    };
+
     return (
         <div
             className="relative w-full max-w-6xl mx-auto rounded-3xl overflow-hidden bg-gradient-to-r from-primary to-primary-900
@@ -22,37 +37,38 @@ export default function LeaderboardHeader({ recordCount, onShowSubmissionDialog,
                     <div className="flex flex-col items-center md:items-start space-y-2">
                         <h1 className="text-4xl md:text-6xl font-extrabold flex items-center gap-3 drop-shadow-sm">
                             <Trophy className="w-12 h-12 md:w-16 md:h-16 text-yellow-300 drop-shadow" />
-                            负重引体之王
+                            {title}
                         </h1>
                         <p className="text-base md:text-lg text-surface/90 tracking-wide">
-                            月度排行榜挑战赛
+                            {description}
                         </p>
                     </div>
 
-                    {/* 右侧操作按钮区 */}
-                    <div className="flex flex-wrap justify-center md:justify-end gap-3 sm:gap-4">
-                        <Button
-                            label="提交我的记录"
-                            icon="pi pi-upload"
-                            onClick={onShowSubmissionDialog}
-                        />
-                        <Button
-                            label="刷新排行榜"
-                            icon="pi pi-refresh"
-                            onClick={onRefreshLeaderboard}
-                        />
-                    </div>
+                    <Button>
+                        
+                    </Button>
                 </div>
-
 
                 {/* 信息子卡片区域 */}
                 <div
                     className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mt-8 w-full max-w-4xl"
                 >
                     {[
-                        { icon: <Calendar className="w-6 h-6" />, title: '活动时间', value: '永久有效' },
-                        { icon: <Users className="w-6 h-6" />, title: '参与人数', value: `${recordCount} 位挑战者` },
-                        { icon: <Trophy className="w-6 h-6" />, title: '发起人', value: '刘三乐（17项吉尼斯纪录保持者）' },
+                        { 
+                            icon: <Calendar className="w-6 h-6" />, 
+                            title: '活动时间', 
+                            value: formatTimeRange() 
+                        },
+                        { 
+                            icon: <Users className="w-6 h-6" />, 
+                            title: '参与人数', 
+                            value: `${recordCount} 位挑战者` 
+                        },
+                        { 
+                            icon: <User className="w-6 h-6" />, 
+                            title: '发起人', 
+                            value: ownerName 
+                        },
                     ].map((item, idx) => (
                         <div
                             key={idx}

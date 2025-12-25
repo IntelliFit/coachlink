@@ -19,5 +19,6 @@ export interface GetLeaderboardResponseDto {
         remarks: string | null;
         created_at: string | null;
         creator_id: string | null;
+        initiator: string | null;
     } | null;
 }
