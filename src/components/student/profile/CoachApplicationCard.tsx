@@ -21,7 +21,20 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     hint: '恭喜！您已获得教练权限，点击按钮即可进入教练端。',
                     actionLabel: '进入教练端',
                     actionIcon: <Repeat size={16} />,
-                    action: () => router.push('/coach/dashboard'),
+                    action: async () => {
+                        try {
+                            const res = await fetch('/api/user/switch-role', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ role: 'coach' })
+                            });
+                            if (res.ok) {
+                                window.location.href = '/dashboard';
+                            }
+                        } catch (e) {
+                            console.error('切换角色失败', e);
+                        }
+                    },
                     btnSeverity: 'success' as const
                 };
             case 'approved':
@@ -31,7 +44,20 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     hint: '系统正在为您开通教练端功能，请点击进入完成初始化。',
                     actionLabel: '进入教练端',
                     actionIcon: <Repeat size={16} />,
-                    action: () => router.push('/coach/onboarding'),
+                    action: async () => {
+                        try {
+                            const res = await fetch('/api/user/switch-role', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ role: 'coach' })
+                            });
+                            if (res.ok) {
+                                window.location.href = '/dashboard';
+                            }
+                        } catch (e) {
+                            console.error('切换角色失败', e);
+                        }
+                    },
                     btnSeverity: 'success' as const
                 };
             case 'pending':

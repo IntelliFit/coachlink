@@ -84,9 +84,28 @@ export default function NavigationStudent() {
             },
             { separator: true },
             {
-                label: '申请成为教练',
-                icon: 'pi pi-user-plus',
-                command: () => router.push('/coach/application'),
+                label: (session?.user as any)?.is_coach ? '切换到教练端' : '申请成为教练',
+                icon: (session?.user as any)?.is_coach ? 'pi pi-briefcase' : 'pi pi-user-plus',
+                command: async () => {
+                    if ((session?.user as any)?.is_coach) {
+                        // 调用 API 切换角色到教练
+                        try {
+                            const res = await fetch('/api/user/switch-role', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ role: 'coach' })
+                            });
+                            if (res.ok) {
+                                // 刷新页面以获取新的 session
+                                window.location.href = '/dashboard';
+                            }
+                        } catch (e) {
+                            console.error('切换角色失败', e);
+                        }
+                    } else {
+                        router.push('/coach/application');
+                    }
+                },
             },
             { separator: true },
             {
@@ -182,8 +201,8 @@ export default function NavigationStudent() {
                                 {session.profile?.nickname || session.user.phone}
                             </span>
                             <div className="flex gap-1">
-                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary-100 text-primary-600">
-                                    学员
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${(session.user as any)?.primary_role === 'coach' ? 'bg-purple-100 text-purple-600' : 'bg-primary-100 text-primary-600'}`}>
+                                    {(session.user as any)?.primary_role === 'coach' ? '教练' : '学员'}
                                 </span>
                             </div>
                         </div>

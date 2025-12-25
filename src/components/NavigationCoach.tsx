@@ -62,7 +62,22 @@ export default function NavigationCoach() {
             { label: '订阅设置', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') },
             { label: '学员问卷', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/questionnaire') },
             { separator: true },
-            { label: '切换至学员端', icon: 'pi pi-user', command: () => router.push('/') },
+            { label: '切换至学员端', icon: 'pi pi-user', command: async () => {
+                // 调用 API 切换角色
+                try {
+                    const res = await fetch('/api/user/switch-role', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'student' })
+                    });
+                    if (res.ok) {
+                        // 刷新页面以获取新的 session
+                        window.location.href = '/';
+                    }
+                } catch (e) {
+                    console.error('切换角色失败', e);
+                }
+            } },
             { separator: true },
             {
                 label: '个人设置',
