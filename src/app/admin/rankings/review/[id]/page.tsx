@@ -9,6 +9,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Dialog } from 'primereact/dialog';
 import { Badge } from 'primereact/badge';
 import { Avatar } from 'primereact/avatar';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardEntriesRow } from '@/types';
@@ -33,6 +34,7 @@ const ReviewPage = () => {
     const [rows, setRows] = useState(10);
     const [selectedEntry, setSelectedEntry] = useState<LeaderboardEntryWithProfile | null>(null);
     const [showDetailDialog, setShowDetailDialog] = useState(false);
+    const [adminNote, setAdminNote] = useState('');
 
     // 加载数据
     const loadData = async (page: number = 1, limit: number = 10) => {
@@ -65,11 +67,12 @@ const ReviewPage = () => {
     };
 
     // 更新条目状态
-    const updateEntryStatus = async (entryId: string, newStatus: string) => {
+    const updateEntryStatus = async (entryId: string, newStatus: string, note?: string) => {
         try {
             const result = await rankingService.updateEntry({
                 id: entryId,
-                status: newStatus
+                status: newStatus,
+                ...(note && { note })
             });
 
             if (result) {
@@ -99,18 +102,19 @@ const ReviewPage = () => {
     };
 
     // 审核通过
-    const approveEntry = (entry: LeaderboardEntryWithProfile) => {
-        updateEntryStatus(entry.id, 'approved');
+    const approveEntry = (entry: LeaderboardEntryWithProfile, note?: string) => {
+        updateEntryStatus(entry.id, 'approved', note);
     };
 
     // 拒绝审核
-    const rejectEntry = (entry: LeaderboardEntryWithProfile) => {
-        updateEntryStatus(entry.id, 'rejected');
+    const rejectEntry = (entry: LeaderboardEntryWithProfile, note?: string) => {
+        updateEntryStatus(entry.id, 'rejected', note);
     };
 
     // 显示详情
     const showEntryDetail = (entry: LeaderboardEntryWithProfile) => {
         setSelectedEntry(entry);
+        setAdminNote(entry.note || '');
         setShowDetailDialog(true);
     };
 
@@ -348,14 +352,28 @@ const ReviewPage = () => {
                             </div>
                         </div>
 
+                        <div className="mb-4">
+                            <h3 className="text-lg font-semibold">管理员备注</h3>
+                            <div className="mt-2">
+                                <InputTextarea
+                                    value={adminNote}
+                                    onChange={(e) => setAdminNote(e.target.value)}
+                                    rows={3}
+                                    className="w-full"
+                                    placeholder="可选：添加备注信息（如达标、破纪录等）"
+                                />
+                            </div>
+                        </div>
+
                         <div className="flex gap-3 mt-6">
                             <Button
                                 label="通过"
                                 icon="pi pi-check"
                                 className="p-button-success"
                                 onClick={() => {
-                                    approveEntry(selectedEntry);
+                                    approveEntry(selectedEntry, adminNote);
                                     setShowDetailDialog(false);
+                                    setAdminNote('');
                                 }}
                             />
                             <Button
@@ -363,15 +381,19 @@ const ReviewPage = () => {
                                 icon="pi pi-times"
                                 className="p-button-danger"
                                 onClick={() => {
-                                    rejectEntry(selectedEntry);
+                                    rejectEntry(selectedEntry, adminNote);
                                     setShowDetailDialog(false);
+                                    setAdminNote('');
                                 }}
                             />
                             <Button
                                 label="关闭"
                                 icon="pi pi-times"
                                 className="p-button-secondary"
-                                onClick={() => setShowDetailDialog(false)}
+                                onClick={() => {
+                                    setShowDetailDialog(false);
+                                    setAdminNote('');
+                                }}
                             />
                         </div>
                     </div>

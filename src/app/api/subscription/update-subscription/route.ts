@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
 
         const ok = await sendSystemMessage(coach.user_id, {
             content:
-                `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 查看`,
+                `新的学员订阅来了！请前往 [我的学员](/dashboard/students) 查看，后台正在帮你确认支付情况`,
         });
 
         if (!ok) {
