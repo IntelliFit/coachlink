@@ -30,6 +30,72 @@ import type {
     UpdateLeaderboardResponseDto
 } from '@/app/api/ranking/update-leaderboard/entity';
 
+export interface ListEntriesDto {
+    template_id?: string;
+    user_id?: string;
+    page?: number;
+    limit?: number;
+}
+
+export interface ListEntriesResponseDto {
+    entries: LeaderboardEntriesRow[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+export interface GetEntryDto {
+    id: string;
+}
+
+export interface GetEntryResponseDto {
+    entry: LeaderboardEntriesRow;
+}
+
+export interface CreateEntryDto {
+    template_id: string;
+    form_data: any;
+    score?: number | null;
+    evidence_url?: string | null;
+    status?: string;
+    user_id?: string;
+}
+
+export interface CreateEntryResponseDto {
+    entry: LeaderboardEntriesRow;
+}
+
+export interface UpdateEntryDto {
+    id: string;
+    form_data?: any;
+    score?: number | null;
+    evidence_url?: string | null;
+    status?: string;
+}
+
+export interface UpdateEntryResponseDto {
+    entry: LeaderboardEntriesRow;
+}
+
+export interface DeleteEntryDto {
+    id: string;
+}
+
+export interface DeleteEntryResponseDto {
+    entry: LeaderboardEntriesRow;
+}
+
+export interface LeaderboardEntriesRow {
+    created_at: string | null;
+    evidence_url: string | null;
+    form_data: any;
+    id: string;
+    score: number | null;
+    status: string | null;
+    template_id: string | null;
+    user_id: string | null;
+}
+
 export class RankingService extends BaseService {
     async createLeaderboard(reqData: CreateLeaderboardDto) {
         const res = await this.post<CreateLeaderboardResponseDto>('ranking/create-leaderboard', reqData);
@@ -68,6 +134,46 @@ export class RankingService extends BaseService {
 
     async updateLeaderboard(reqData: UpdateLeaderboardDto) {
         const res = await this.post<UpdateLeaderboardResponseDto>('ranking/update-leaderboard', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async listEntries(reqData: ListEntriesDto) {
+        const res = await this.post<ListEntriesResponseDto>('ranking/list-entries', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async getEntry(reqData: GetEntryDto) {
+        const res = await this.post<GetEntryResponseDto>('ranking/get-entry', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async createEntry(reqData: CreateEntryDto) {
+        const res = await this.post<CreateEntryResponseDto>('ranking/create-entry', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async updateEntry(reqData: UpdateEntryDto) {
+        const res = await this.post<UpdateEntryResponseDto>('ranking/update-entry', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async deleteEntry(reqData: DeleteEntryDto) {
+        const res = await this.post<DeleteEntryResponseDto>('ranking/delete-entry', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

@@ -52,6 +52,7 @@ export async function POST(req: Request) {
                 rules: data.rules as any,
                 form_schema: data.form_schema as any,
                 remarks: data.remarks,
+                initiator: data.initiator,
                 created_at: data.created_at,
                 creator_id: data.creator_id
             } : null
