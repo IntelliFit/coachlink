@@ -4,6 +4,7 @@ import supabase from '@/lib/supabaseClient';
 
 import type { ApiData } from '@/types/api';
 import type { UpdateEntryDto, UpdateEntryResponseDto } from './entity';
+import { sendSystemMessage } from '@/lib/chat';
 
 export async function POST(req: Request) {
 	const session = await getServerSession();
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
 		}, { status: 401 });
 	}
 
-	const body: UpdateEntryDto = await req.json();
+	const body: UpdateEntryDto = await req.json();    
 	
 	if (!body.id) {
 		return NextResponse.json<ApiData<UpdateEntryResponseDto>>({
@@ -25,6 +26,14 @@ export async function POST(req: Request) {
 		});
 	}
 
+    if (!session.user.is_admin) {
+        return NextResponse.json<ApiData<UpdateEntryResponseDto>>({
+            success: false,
+            message: '用户无权限',
+            data: null
+        }, { status: 403 });
+    }
+
 	// 获取要更新的条目
 	const { data: entry, error: fetchError } = await supabase
 		.from('leaderboard_entries')
@@ -32,20 +41,18 @@ export async function POST(req: Request) {
 		.eq('id', body.id)
 		.single();
 
+    // 获取对应模板
+    const { data: template } = await supabase
+        .from('leaderboard_templates')
+        .select('*')
+        .eq('id', entry.template_id)
+        .single();
+
 	if (fetchError || !entry) {
 		console.error('获取排行榜条目失败:', fetchError);
 		return NextResponse.json<ApiData<UpdateEntryResponseDto>>({
 			success: false,
 			message: '找不到指定的排行榜条目',
-			data: null
-		});
-	}
-
-	// 验证用户权限 - 只能更新自己的条目
-	if (entry.user_id !== session.user.id) {
-		return NextResponse.json<ApiData<UpdateEntryResponseDto>>({
-			success: false,
-			message: '无权限更新此条目',
 			data: null
 		});
 	}
@@ -62,7 +69,7 @@ export async function POST(req: Request) {
 		.update(updateData)
 		.eq('id', body.id)
 		.select()
-		.single();
+		.single();    
 
 	if (error) {
 		console.error('更新排行榜条目失败:', error);
@@ -72,6 +79,12 @@ export async function POST(req: Request) {
 			data: null
 		});
 	}
+
+    if (data.user_id) {
+        await sendSystemMessage(data.user_id, {
+            content: `你的排行榜条目已被更新，请前往 [我的排行榜](/ranking/${template.id}) 查看`
+        });
+    }
 
 	return NextResponse.json<ApiData<UpdateEntryResponseDto>>({
 		success: true,

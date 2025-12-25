@@ -3,12 +3,20 @@ import { LeaderboardEntriesRow } from "@/types";
 export interface ListEntriesDto {
     template_id?: string;
     user_id?: string;
+    status?: string;
     page?: number;
     limit?: number;
 }
 
+export interface LeaderboardEntryWithProfile extends LeaderboardEntriesRow {
+    userProfile: {
+        name: string;
+        avatar: string;
+    };
+}
+
 export interface ListEntriesResponseDto {
-    entries: LeaderboardEntriesRow[];
+    entries: LeaderboardEntryWithProfile[];
     total: number;
     page: number;
     limit: number;

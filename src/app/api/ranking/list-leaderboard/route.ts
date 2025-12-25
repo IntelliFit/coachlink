@@ -36,29 +36,21 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 查询未审核条目的数量
-    // TODO
-    const { count: unreviewedCount, error: unreviewedError } = await supabase
-        .from('leaderboard_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+    // 为每个排行榜获取未审核条目的数量
+    const leaderboardsWithCount = await Promise.all(
+        data.map(async (item) => {
+            // 查询此排行榜模板的未审核条目数量
+            const { count: unreviewedCount, error: unreviewedError } = await supabase
+                .from('leaderboard_entries')
+                .select('*', { count: 'exact', head: true })
+                .eq('template_id', item.id)
+                .eq('status', 'pending');
 
-    if (unreviewedError) {
-        console.error('获取未审核条目数量失败:', unreviewedError);
-        return NextResponse.json({
-            success: false,
-            message: unreviewedError.message || '获取未审核条目数量失败',
-            data: null
-        }, { status: 500 });
-    }
+            if (unreviewedError) {
+                console.error(`获取排行榜 ${item.id} 的未审核条目数量失败:`, unreviewedError);
+            }
 
-    // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
-    return NextResponse.json<ApiData<ListLeaderboardResponseDto>>({
-        success: true,
-        message: '获取排行榜列表成功',
-        // ListLeaderboardResponseDto 反应的就是这个地方 data 的数据结构
-        data: {
-            leaderboards: data.map(item => ({
+            return {
                 id: item.id,
                 title: item.title,
                 description: item.description,
@@ -69,12 +61,22 @@ export async function POST(req: Request) {
                 type: item.type,
                 remarks: item.remarks,
                 created_at: item.created_at,
-                creator_id: item.creator_id
-            })),
+                creator_id: item.creator_id,
+                unreviewedCount: unreviewedCount || 0
+            };
+        })
+    );
+
+    // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
+    return NextResponse.json<ApiData<ListLeaderboardResponseDto>>({
+        success: true,
+        message: '获取排行榜列表成功',
+        // ListLeaderboardResponseDto 反应的就是这个地方 data 的数据结构
+        data: {
+            leaderboards: leaderboardsWithCount,
             total: count || 0,
             page,
-            limit,
-            unreviewedCount: unreviewedCount || 0
+            limit
         }
     });
 }

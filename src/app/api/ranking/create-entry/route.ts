@@ -5,6 +5,7 @@ import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { CreateEntryDto, CreateEntryResponseDto } from './entity';
 import { randomUUID } from 'crypto';
+import { LeaderboardFormInput } from '@/types/leaderboard';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -29,6 +30,20 @@ export async function POST(req: Request) {
         .eq('template_id', body.template_id)
         .eq('status', 'pending')
         .maybeSingle();
+
+    // 找到所属模板
+    const { data: template } = await supabase
+        .from('leaderboard_templates')
+        .select('*')
+        .eq('id', body.template_id)
+        .maybeSingle();
+
+    if (!template && !body.score) {
+        const targetItem = (body.form_data as LeaderboardFormInput[]).find(item => item.name === template.rank_by_field);
+        if (targetItem) {
+            body.score = targetItem.userInput as number;
+        }
+    }
 
     let result;
 
