@@ -89,7 +89,7 @@ const TrainingPlansHome: React.FC = () => {
                     if (exeRes) {
                         setExecutions(exeRes.executions);
                     }
-                    
+
                     // 获取当前执行天数（用于计算日期）
                     try {
                         const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
@@ -193,6 +193,27 @@ const TrainingPlansHome: React.FC = () => {
         </div>
     );
 
+    const PlanDetailSkeleton = () => (
+        <div className="space-y-8 animate-pulse">
+            <div className="flex justify-between items-start">
+                <div className="space-y-3 flex-1">
+                    <Skeleton width="40%" height="2rem" borderRadius="10px" />
+                    <Skeleton width="90%" height="1.2rem" />
+                </div>
+                <Skeleton width="6rem" height="2rem" borderRadius="20px" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Skeleton height="80px" borderRadius="16px" />
+                <Skeleton height="80px" borderRadius="16px" />
+                <Skeleton height="80px" borderRadius="16px" />
+            </div>
+            <div className="space-y-4 pt-6 border-t border-surface-200">
+                <Skeleton width="150px" height="1.5rem" className="mb-4" />
+                {[1, 2].map(i => <Skeleton key={i} height="120px" borderRadius="16px" />)}
+            </div>
+        </div>
+    );
+
     // 无计划状态
     const NoPlanState = () => {
         const activeCoach = subscriptions.find(s => s.id === activeSubscriptionId)?.coach;
@@ -241,7 +262,7 @@ const TrainingPlansHome: React.FC = () => {
                         const params = (actionSet as any).params || {};
                         const load = params.load;
                         const intensity = params['强度'] || actionSet.intensity;
-                        
+
                         if (load && load > 0) {
                             // 显示自动计算的具体重量
                             return (
@@ -464,111 +485,69 @@ const TrainingPlansHome: React.FC = () => {
             .sort((a, b) => a.dayIndex - b.dayIndex);
 
         return (
-            <div className="space-y-6">
-                {/* 计划标题和状态 */}
-                <div className="flex items-start justify-between">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <h2 className="text-2xl font-bold text-surface-900">
-                                {instance.name || '训练计划'}
-                            </h2>
-                            <Badge
-                                value={statusConfig.label}
-                                severity={statusConfig.color as any}
-                                className="rounded-full px-3 py-1"
-                            />
+            <div className="space-y-8">
+                {/* 标题区域：增加渐变装饰 */}
+                <div className="relative group">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-3xl font-extrabold text-surface-900 tracking-tight">
+                                    {instance.name || '定制训练计划'}
+                                </h2>
+                                <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${instance.status === 'active'
+                                        ? 'bg-green-50 text-green-700 ring-green-600/20'
+                                        : 'bg-surface-100 text-surface-600 ring-surface-500/10'
+                                    }`}>
+                                    <span className={`w-2 h-2 rounded-full ${instance.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-surface-400'}`} />
+                                    {statusConfig.label}
+                                </span>
+                            </div>
+                            <p className="text-surface-500 text-lg max-w-2xl leading-relaxed">
+                                {instance.description || '这是教练为您量身打造的阶段性训练目标。'}
+                            </p>
                         </div>
-                        <p className="text-surface-600 text-lg leading-relaxed">
-                            {instance.description || '暂无描述'}
-                        </p>
                     </div>
                 </div>
 
-                {/* 计划统计 */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="bg-surface-50 border-0">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                                <i className="pi pi-calendar text-xl text-primary" />
+                {/* 统计卡片：增加毛玻璃与悬浮效果 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[
+                        { label: '创建时间', value: new Date(instance.created_at!).toLocaleDateString(), icon: 'pi-calendar', color: 'text-blue-500', bg: 'bg-blue-50' },
+                        { label: '训练频率', value: `${trainingDays.filter(d => d.type === 'training').length}天/周期`, icon: 'pi-bolt', color: 'text-amber-500', bg: 'bg-amber-50' },
+                        { label: '动作总数', value: `${trainingDays.reduce((sum, day) => sum + (day.actionSets?.length || 0), 0)}项`, icon: 'pi-list', color: 'text-purple-500', bg: 'bg-purple-50' }
+                    ].map((stat, i) => (
+                        <div key={i} className="flex items-center p-4 rounded-2xl border border-surface-100 bg-surface-0/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                            <div className={`w-12 h-12 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mr-4 text-xl`}>
+                                <i className={`pi ${stat.icon}`} />
                             </div>
                             <div>
-                                <p className="text-sm text-surface-500 mb-1">创建时间</p>
-                                <p className="font-semibold">
-                                    {instance.created_at ? new Date(instance.created_at).toLocaleDateString() : '--'}
-                                </p>
+                                <p className="text-xs font-bold text-surface-400 uppercase tracking-wider">{stat.label}</p>
+                                <p className="text-lg font-bold text-surface-900">{stat.value}</p>
                             </div>
                         </div>
-                    </Card>
-
-                    <Card className="bg-surface-50 border-0">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                                <i className="pi pi-chart-line text-xl text-success" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-surface-500 mb-1">训练天数</p>
-                                <p className="font-semibold">
-                                    {trainingDays.filter(d => d.type === 'training').length} 天
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    <Card className="bg-surface-50 border-0">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-info/10 rounded-lg flex items-center justify-center">
-                                <i className="pi pi-list text-xl text-info" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-surface-500 mb-1">总动作数</p>
-                                <p className="font-semibold">
-                                    {trainingDays.reduce((sum, day) => sum + (day.actionSets?.length || 0), 0)} 个
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
+                    ))}
                 </div>
 
-                {/* 快速操作 */}
-                <div className="flex flex-wrap gap-3 pt-4 border-t border-surface-200">
-                    <Button
-                        label="开始训练"
-                        icon="pi pi-play"
-                        className="rounded-full"
-                        disabled={instance.status !== 'active'}
-                    />
-                    <Button
-                        label="查看进度"
-                        icon="pi pi-chart-bar"
-                        className="rounded-full"
-                        outlined
-                    />
-                    <Button
-                        label="分享计划"
-                        icon="pi pi-share-alt"
-                        className="rounded-full"
-                        outlined
-                    />
+                <div className="flex gap-3">
+                    <Button label="开始今日训练" icon="pi pi-play" className="p-button-raised p-button-rounded px-6 py-3 font-bold transition-transform active:scale-95" disabled={instance.status !== 'active'} />
+                    <Button label="趋势分析" icon="pi pi-chart-line" className="p-button-text p-button-rounded font-semibold" />
                 </div>
 
-                <Divider />
+                <Divider className="my-8" />
 
-                {/* 训练日列表 */}
+                {/* 训练安排：更现代的列表样式 */}
                 <div>
-                    <h3 className="text-lg font-semibold text-surface-900 mb-4 flex items-center gap-2">
-                        <i className="pi pi-calendar-plus text-primary" />
-                        训练安排
-                    </h3>
-                    <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-surface-800 flex items-center gap-2">
+                            <i className="pi pi-calendar-clock text-primary text-2xl" />
+                            训练安排
+                        </h3>
+                        <span className="text-sm text-surface-400 font-medium">共 {trainingDays.length} 天计划</span>
+                    </div>
+                    <div className="grid gap-6">
                         {trainingDays.map((day, idx) => (
                             <TrainingDayCard key={idx} day={day} />
                         ))}
-                        {trainingDays.length === 0 && (
-                            <div className="text-center py-8 text-surface-500">
-                                <i className="pi pi-inbox text-4xl mb-3" />
-                                <p>暂无训练安排</p>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -629,16 +608,7 @@ const TrainingPlansHome: React.FC = () => {
                             {activeSubscriptionId && (
                                 <>
                                     {instanceLoading[activeSubscriptionId] ? (
-                                        <div className="flex justify-center items-center h-64">
-                                            <div className="text-center">
-                                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                    <i className="pi pi-spin pi-spinner text-2xl text-primary" />
-                                                </div>
-                                                <p className="text-surface-600 dark:text-surface-400">
-                                                    加载计划信息中...
-                                                </p>
-                                            </div>
-                                        </div>
+                                        <PlanDetailSkeleton />
                                     ) : instances[activeSubscriptionId] ? (
                                         <PlanDetailCard instance={instances[activeSubscriptionId]!} />
                                     ) : (

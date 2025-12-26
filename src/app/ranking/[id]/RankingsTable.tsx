@@ -57,9 +57,9 @@ const RankingsTable = ({ entries, formSchema }: RankingsTableProps) => {
                         return <span className="text-gray-300">-</span>;
                     }
 
-                    if (typeof val === 'string' && val.startsWith('https://')) {
+                    if (typeof val === 'string' && val.trim().startsWith('https://')) {
                         return (
-                            <a href={val} target="_blank" rel="noopener noreferrer" 
+                            <a href={val.trim()} target="_blank" rel="noopener noreferrer" 
                                className="text-primary-500 hover:text-primary-700 flex items-center gap-1">
                                 <Video className="w-4 h-4" /> 查看
                             </a>
