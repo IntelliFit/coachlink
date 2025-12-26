@@ -6,8 +6,11 @@
 - **Schema**：public
 
 > ⚠️ **重要变更说明**：
+>
 > - 根据数据库分析报告（2025-12-04），已删除6个冗余表
 > - **最新更新**（2025-12-26）：新增多个表，包括聊天系统重构、训练执行系统优化、排行榜系统等
+> - **字段更新**（2025-12-26）：`coach_plan_instances` 表新增
+>   `start_execution_day` 字段，支持老学员中途迁入平台
 > - 当前保留 **38个表 + 3个视图 = 41个数据库对象**
 
 ## 目录
@@ -55,10 +58,13 @@
 - `training_records` - 训练执行记录表（每次训练）
 - `training_videos` - 训练视频表（完整训练）
 - `set_videos` - 训练组视频表（每组）⚠️ **逐步被替代**
-- `plan_instance_executions` - 计划实例执行记录表 ⭐ **新增**（替代 training_records 用于新计划系统）
-- `execution_set_videos` - 执行组视频表 ⭐ **新增**（替代 set_videos 用于新计划系统）
+- `plan_instance_executions` - 计划实例执行记录表 ⭐ **新增**（替代
+  training_records 用于新计划系统）
+- `execution_set_videos` - 执行组视频表 ⭐ **新增**（替代 set_videos
+  用于新计划系统）
 - `personal_records` - 个人记录表 ❌ **已废弃**（仅存最大记录，缺历史）
-- `personal_records_history` - 个人记录历史表 ⭐ **新增**（替代 personal_records，包含完整历史记录）
+- `personal_records_history` - 个人记录历史表 ⭐ **新增**（替代
+  personal_records，包含完整历史记录）
 - `training_items` - 训练项目表 ⭐ **新增**（训练动作/项目库）
 
 ### 内容互动表（4个）
@@ -155,7 +161,8 @@
    - 用途：替代 `personal_records`，包含完整的 PR 历史记录
    - 关联：`plan_instance_executions`, `users`
    - 状态：活跃使用中
-   - 新特性：支持 `execution_id` 关联、`load_formula`、`video_url`、`is_verified`
+   - 新特性：支持 `execution_id`
+     关联、`load_formula`、`video_url`、`is_verified`
 
 7. ⭐ **`training_items`** - 训练项目表
    - 用途：训练动作/项目库
@@ -248,28 +255,28 @@
 
 **字段说明**
 
-| 列名                  | 类型        | 可空 | 默认值            | 约束/备注                                                |
-| --------------------- | ----------- | ---- | ----------------- | -------------------------------------------------------- |
-| id                    | uuid        | NO   | gen_random_uuid() | 主键                                                     |
-| user_id               | uuid        | YES  |                   | 外键 → users.id，唯一                                    |
-| full_name             | text        | YES  |                   |                                                          |
-| nickname              | text        | YES  |                   |                                                          |
-| avatar_url            | text        | YES  |                   |                                                          |
-| gender                | text        | YES  |                   | ∈ {'male','female','other'}                              |
-| birth_date            | date        | YES  |                   |                                                          |
-| height                | integer     | YES  |                   | 单位：厘米                                               |
-| weight                | integer     | YES  |                   | 单位：千克                                               |
-| fitness_goal          | text        | YES  |                   |                                                          |
-| fitness_level         | text        | YES  |                   | ∈ {'beginner','intermediate','advanced'}                 |
-| bio                   | text        | YES  |                   |                                                          |
-| phone                 | text        | YES  |                   | **冗余：与 users.phone 重复**                            |
-| address               | text        | YES  |                   |                                                          |
-| sport_cards           | jsonb       | YES  | '{}'              | ⭐ **新增**：运动数据卡片，包含 activeCards 数组         |
-| lifestyle             | text        | YES  |                   | ⭐ **新增**：生活作息描述，如"朝九晚五，久坐办公"        |
-| onboarding_completed  | boolean     | YES  | false             | ⭐ **新增**：初始问卷是否已完成                          |
-| age                   | integer     | YES  |                   | ⭐ **新增**：年龄                                        |
-| created_at            | timestamptz | YES  | now()             |                                                          |
-| updated_at            | timestamptz | YES  | now()             |                                                          |
+| 列名                 | 类型        | 可空 | 默认值            | 约束/备注                                         |
+| -------------------- | ----------- | ---- | ----------------- | ------------------------------------------------- |
+| id                   | uuid        | NO   | gen_random_uuid() | 主键                                              |
+| user_id              | uuid        | YES  |                   | 外键 → users.id，唯一                             |
+| full_name            | text        | YES  |                   |                                                   |
+| nickname             | text        | YES  |                   |                                                   |
+| avatar_url           | text        | YES  |                   |                                                   |
+| gender               | text        | YES  |                   | ∈ {'male','female','other'}                       |
+| birth_date           | date        | YES  |                   |                                                   |
+| height               | integer     | YES  |                   | 单位：厘米                                        |
+| weight               | integer     | YES  |                   | 单位：千克                                        |
+| fitness_goal         | text        | YES  |                   |                                                   |
+| fitness_level        | text        | YES  |                   | ∈ {'beginner','intermediate','advanced'}          |
+| bio                  | text        | YES  |                   |                                                   |
+| phone                | text        | YES  |                   | **冗余：与 users.phone 重复**                     |
+| address              | text        | YES  |                   |                                                   |
+| sport_cards          | jsonb       | YES  | '{}'              | ⭐ **新增**：运动数据卡片，包含 activeCards 数组  |
+| lifestyle            | text        | YES  |                   | ⭐ **新增**：生活作息描述，如"朝九晚五，久坐办公" |
+| onboarding_completed | boolean     | YES  | false             | ⭐ **新增**：初始问卷是否已完成                   |
+| age                  | integer     | YES  |                   | ⭐ **新增**：年龄                                 |
+| created_at           | timestamptz | YES  | now()             |                                                   |
+| updated_at           | timestamptz | YES  | now()             |                                                   |
 
 **外键**
 
@@ -317,8 +324,8 @@
 | is_featured      | boolean     | YES  | false             |                                                 |
 | status           | text        | YES  | 'pending'         | ∈ {'pending','approved','rejected','suspended'} |
 | search_vector    | tsvector    | YES  |                   | 全文搜索向量                                    |
-| profile          | jsonb       | YES  |                   | ⭐ **新增**：教练扩展信息（JSON格式）            |
-| payment_qr_code  | text        | YES  |                   | ⭐ **新增**：收款二维码                          |
+| profile          | jsonb       | YES  |                   | ⭐ **新增**：教练扩展信息（JSON格式）           |
+| payment_qr_code  | text        | YES  |                   | ⭐ **新增**：收款二维码                         |
 | created_at       | timestamptz | YES  | now()             |                                                 |
 | updated_at       | timestamptz | YES  | now()             |                                                 |
 
@@ -753,27 +760,27 @@
 
 **字段说明**
 
-| 列名            | 类型        | 可空 | 默认值            | 约束/备注                                   |
-| --------------- | ----------- | ---- | ----------------- | ------------------------------------------- |
-| id              | uuid        | NO   | gen_random_uuid() | 主键                                        |
-| student_id      | uuid        | NO   |                   | 外键 → users.id                             |
-| coach_id        | uuid        | NO   |                   | 外键 → coaches.id                           |
-| tier            | integer     | NO   |                   | ∈ {1, 2, 3}                                 |
-| status          | text        | YES  | 'active'          | ∈ {'active','inactive','waiting'}           |
-| start_date      | timestamptz | YES  | now()             |                                             |
-| end_date        | timestamptz | YES  |                   |                                             |
-| auto_renew      | boolean     | YES  | true              |                                             |
-| monthly_price   | numeric     | NO   |                   |                                             |
-| order_id        | uuid        | YES  |                   | 订单编号                                    |
-| subscribe_data  | jsonb       | YES  |                   | 订阅附带的一些基础信息                      |
-| has_remind_coach| boolean     | YES  | false             | ⭐ **新增**：是否已提醒教练                 |
-| remind_coach_note| text       | YES  |                   | ⭐ **新增**：提醒教练的备注信息             |
-| product_id      | text        | YES  |                   | ⭐ **新增**：订阅的具体产品ID               |
-| product_name    | text        | YES  |                   | ⭐ **新增**：订阅时的产品名称快照           |
-| product_tier    | text        | YES  |                   | ⭐ **新增**：订阅时的产品层级(basic/standard/vip) |
-| subscribed_weeks| integer     | YES  | 4                 | ⭐ **新增**：订阅包含的总周数               |
-| created_at      | timestamptz | YES  | now()             |                                             |
-| updated_at      | timestamptz | YES  | now()             |                                             |
+| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                         |
+| ----------------- | ----------- | ---- | ----------------- | ------------------------------------------------- |
+| id                | uuid        | NO   | gen_random_uuid() | 主键                                              |
+| student_id        | uuid        | NO   |                   | 外键 → users.id                                   |
+| coach_id          | uuid        | NO   |                   | 外键 → coaches.id                                 |
+| tier              | integer     | NO   |                   | ∈ {1, 2, 3}                                       |
+| status            | text        | YES  | 'active'          | ∈ {'active','inactive','waiting'}                 |
+| start_date        | timestamptz | YES  | now()             |                                                   |
+| end_date          | timestamptz | YES  |                   |                                                   |
+| auto_renew        | boolean     | YES  | true              |                                                   |
+| monthly_price     | numeric     | NO   |                   |                                                   |
+| order_id          | uuid        | YES  |                   | 订单编号                                          |
+| subscribe_data    | jsonb       | YES  |                   | 订阅附带的一些基础信息                            |
+| has_remind_coach  | boolean     | YES  | false             | ⭐ **新增**：是否已提醒教练                       |
+| remind_coach_note | text        | YES  |                   | ⭐ **新增**：提醒教练的备注信息                   |
+| product_id        | text        | YES  |                   | ⭐ **新增**：订阅的具体产品ID                     |
+| product_name      | text        | YES  |                   | ⭐ **新增**：订阅时的产品名称快照                 |
+| product_tier      | text        | YES  |                   | ⭐ **新增**：订阅时的产品层级(basic/standard/vip) |
+| subscribed_weeks  | integer     | YES  | 4                 | ⭐ **新增**：订阅包含的总周数                     |
+| created_at        | timestamptz | YES  | now()             |                                                   |
+| updated_at        | timestamptz | YES  | now()             |                                                   |
 
 **外键**
 
@@ -853,22 +860,22 @@
 
 **字段说明**
 
-| 列名                | 类型        | 可空 | 默认值            | 约束/备注                               |
-| ------------------- | ----------- | ---- | ----------------- | --------------------------------------- |
-| id                  | uuid        | NO   | gen_random_uuid() | 主键                                    |
-| coach_id            | uuid        | NO   |                   |                                         |
-| name                | text        | NO   |                   |                                         |
-| description         | text        | YES  |                   |                                         |
-| type                | text        | NO   |                   |                                         |
-| rest_days_count     | smallint    | YES  |                   |                                         |
-| tags                | text[]      | YES  |                   |                                         |
-| suitable_for        | text        | YES  |                   |                                         |
-| training_days       | jsonb[]     | YES  |                   |                                         |
-| training_days_count | smallint    | YES  |                   |                                         |
-| week_days           | int2[]      | YES  |                   | ⭐ **新增**：训练周几数组                |
-| contained_options   | text[]      | YES  |                   | ⭐ **新增**：包含的选项数组              |
-| created_at          | timestamptz | YES  | now()             |                                         |
-| updated_at          | timestamptz | YES  | now()             |                                         |
+| 列名                | 类型        | 可空 | 默认值            | 约束/备注                   |
+| ------------------- | ----------- | ---- | ----------------- | --------------------------- |
+| id                  | uuid        | NO   | gen_random_uuid() | 主键                        |
+| coach_id            | uuid        | NO   |                   |                             |
+| name                | text        | NO   |                   |                             |
+| description         | text        | YES  |                   |                             |
+| type                | text        | NO   |                   |                             |
+| rest_days_count     | smallint    | YES  |                   |                             |
+| tags                | text[]      | YES  |                   |                             |
+| suitable_for        | text        | YES  |                   |                             |
+| training_days       | jsonb[]     | YES  |                   |                             |
+| training_days_count | smallint    | YES  |                   |                             |
+| week_days           | int2[]      | YES  |                   | ⭐ **新增**：训练周几数组   |
+| contained_options   | text[]      | YES  |                   | ⭐ **新增**：包含的选项数组 |
+| created_at          | timestamptz | YES  | now()             |                             |
+| updated_at          | timestamptz | YES  | now()             |                             |
 
 **索引**
 
@@ -1132,56 +1139,62 @@
 - 行数：~1
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
-- 外键：`coach_plan_template_id → coach_plan_templates.id`, `coach_subscription_id → coach_subscriptions.id`
+- 外键：`coach_plan_template_id → coach_plan_templates.id`,
+  `coach_subscription_id → coach_subscriptions.id`
 - 说明：从模板生成给学员的计划实例
 
 **字段说明**
 
-| 列名                     | 类型        | 可空 | 默认值                        | 约束/备注                                                                          |
-| ------------------------ | ----------- | ---- | ----------------------------- | ---------------------------------------------------------------------------------- |
-| id                       | uuid        | NO   | extensions.uuid_generate_v4() | 主键                                                                               |
-| coach_plan_template_id   | uuid        | YES  |                               | 外键 → coach_plan_templates.id                                                     |
-| student_id               | uuid        | YES  |                               | 学员ID                                                                             |
-| coach_id                 | uuid        | YES  |                               | 教练ID                                                                             |
-| coach_subscription_id    | uuid        | YES  |                               | 外键 → coach_subscriptions.id                                                      |
-| name                     | varchar     | NO   |                               | 计划名称                                                                           |
-| description              | text        | YES  |                               | 计划描述                                                                           |
-| training_days            | jsonb       | NO   |                               | 训练天数详情（JSON格式）                                                           |
-| status                   | varchar     | YES  | 'active'                      | ∈ {'draft','active','paused','completed','archived'}                               |
-| start_date               | date        | YES  |                               | 开始日期                                                                           |
-| end_date                 | date        | YES  |                               | 结束日期                                                                           |
-| type                     | text        | YES  |                               | 计划类型                                                                           |
-| tags                     | text[]      | YES  |                               | 标签                                                                               |
-| suitable_for             | text        | YES  |                               | 适合人群                                                                           |
-| created_at               | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                                    |
-| updated_at               | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                                    |
+| 列名                   | 类型        | 可空 | 默认值                        | 约束/备注                                                             |
+| ---------------------- | ----------- | ---- | ----------------------------- | --------------------------------------------------------------------- |
+| id                     | uuid        | NO   | extensions.uuid_generate_v4() | 主键                                                                  |
+| coach_plan_template_id | uuid        | YES  |                               | 外键 → coach_plan_templates.id                                        |
+| student_id             | uuid        | YES  |                               | 学员ID                                                                |
+| coach_id               | uuid        | YES  |                               | 教练ID                                                                |
+| coach_subscription_id  | uuid        | YES  |                               | 外键 → coach_subscriptions.id                                         |
+| name                   | varchar     | NO   |                               | 计划名称                                                              |
+| description            | text        | YES  |                               | 计划描述                                                              |
+| training_days          | jsonb       | NO   |                               | 训练天数详情（JSON格式）                                              |
+| status                 | varchar     | YES  | 'active'                      | ∈ {'draft','active','paused','completed','archived'}                  |
+| start_date             | date        | YES  |                               | 开始日期                                                              |
+| end_date               | date        | YES  |                               | 结束日期                                                              |
+| start_execution_day    | integer     | YES  | 1                             | 起始执行天数（1-based），用于老学员中途迁入平台 ⭐ **2025-12-26新增** |
+| type                   | text        | YES  |                               | 计划类型                                                              |
+| tags                   | text[]      | YES  |                               | 标签                                                                  |
+| suitable_for           | text        | YES  |                               | 适合人群                                                              |
+| created_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                       |
+| updated_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                       |
 
 **外键**
+
 - `fk_plan_template` (coach_plan_template_id → coach_plan_templates.id)
-- `coach_plan_instances_coach_subscription_id_fkey` (coach_subscription_id → coach_subscriptions.id)
+- `coach_plan_instances_coach_subscription_id_fkey` (coach_subscription_id →
+  coach_subscriptions.id)
 
 #### 31. coach_reviews（教练评价表）⭐ 新增
 
 - 行数：~2
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
-- 外键：`coach_subscription_id → coach_subscriptions.id`, `student_id → users.id`, `coach_id → coaches.id`
+- 外键：`coach_subscription_id → coach_subscriptions.id`,
+  `student_id → users.id`, `coach_id → coaches.id`
 - 说明：学员对教练的评价和反馈
 
 **字段说明**
 
-| 列名                   | 类型        | 可空 | 默认值                        | 约束/备注                         |
-| ---------------------- | ----------- | ---- | ----------------------------- | --------------------------------- |
-| id                     | uuid        | NO   | extensions.uuid_generate_v4() | 主键                              |
-| coach_subscription_id  | uuid        | NO   |                               | 外键 → coach_subscriptions.id     |
-| student_id             | uuid        | YES  |                               | 外键 → users.id                   |
-| coach_id               | uuid        | YES  |                               | 外键 → coaches.id                 |
-| review_text            | text        | YES  |                               | 评价文本                          |
-| media_urls             | text[]      | YES  |                               | 媒体 URL 列表                     |
-| created_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                   |
-| updated_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                   |
+| 列名                  | 类型        | 可空 | 默认值                        | 约束/备注                     |
+| --------------------- | ----------- | ---- | ----------------------------- | ----------------------------- |
+| id                    | uuid        | NO   | extensions.uuid_generate_v4() | 主键                          |
+| coach_subscription_id | uuid        | NO   |                               | 外键 → coach_subscriptions.id |
+| student_id            | uuid        | YES  |                               | 外键 → users.id               |
+| coach_id              | uuid        | YES  |                               | 外键 → coaches.id             |
+| review_text           | text        | YES  |                               | 评价文本                      |
+| media_urls            | text[]      | YES  |                               | 媒体 URL 列表                 |
+| created_at            | timestamptz | YES  | CURRENT_TIMESTAMP             |                               |
+| updated_at            | timestamptz | YES  | CURRENT_TIMESTAMP             |                               |
 
 **外键**
+
 - `fk_coach_subscription` (coach_subscription_id → coach_subscriptions.id)
 - `coach_reviews_student_id_fkey` (student_id → users.id)
 - `coach_reviews_coach_id_fkey` (coach_id → coaches.id)
@@ -1196,18 +1209,19 @@
 
 **字段说明**
 
-| 列名       | 类型        | 可空 | 默认值            | 约束/备注           |
-| ---------- | ----------- | ---- | ----------------- | ------------------- |
-| id         | uuid        | NO   | gen_random_uuid() | 主键                |
-| student_id | uuid        | NO   |                   | 外键 → users.id     |
-| coach_id   | uuid        | NO   |                   | 外键 → coaches.id   |
-| comment    | text        | NO   |                   | 评论内容            |
-| media      | jsonb       | YES  |                   | 媒体信息（JSON格式）|
-| rating     | smallint    | YES  |                   | ⭐ **新增**：评分   |
-| created_at | timestamptz | YES  | now()             |                     |
-| updated_at | timestamptz | YES  | now()             |                     |
+| 列名       | 类型        | 可空 | 默认值            | 约束/备注            |
+| ---------- | ----------- | ---- | ----------------- | -------------------- |
+| id         | uuid        | NO   | gen_random_uuid() | 主键                 |
+| student_id | uuid        | NO   |                   | 外键 → users.id      |
+| coach_id   | uuid        | NO   |                   | 外键 → coaches.id    |
+| comment    | text        | NO   |                   | 评论内容             |
+| media      | jsonb       | YES  |                   | 媒体信息（JSON格式） |
+| rating     | smallint    | YES  |                   | ⭐ **新增**：评分    |
+| created_at | timestamptz | YES  | now()             |                      |
+| updated_at | timestamptz | YES  | now()             |                      |
 
 **外键**
+
 - `student_comments_student_id_fkey` (student_id → users.id)
 - `student_comments_coach_id_fkey` (coach_id → coaches.id)
 
@@ -1223,20 +1237,21 @@
 
 **字段说明**
 
-| 列名           | 类型        | 可空 | 默认值            | 约束/备注                                |
-| -------------- | ----------- | ---- | ----------------- | ---------------------------------------- |
-| id             | uuid        | NO   | gen_random_uuid() | 主键                                     |
-| subscription_id| uuid        | YES  |                   | 外键 → coach_subscriptions.id            |
-| last_message   | text        | YES  |                   | 最后一条消息预览（前100字符）            |
-| last_message_at| timestamptz | YES  |                   | 最后消息时间                             |
-| is_archived    | boolean     | NO   | false             |                                          |
-| members        | uuid[]      | YES  |                   | ⭐ **新增**：聊天室成员ID数组            |
-| unread_members | uuid[]      | YES  |                   | ⭐ **新增**：未读消息的用户ID数组        |
-| type           | text        | YES  |                   | ⭐ **新增**：聊天室类型                   |
-| created_at     | timestamptz | NO   | now()             |                                          |
-| updated_at     | timestamptz | NO   | now()             |                                          |
+| 列名            | 类型        | 可空 | 默认值            | 约束/备注                         |
+| --------------- | ----------- | ---- | ----------------- | --------------------------------- |
+| id              | uuid        | NO   | gen_random_uuid() | 主键                              |
+| subscription_id | uuid        | YES  |                   | 外键 → coach_subscriptions.id     |
+| last_message    | text        | YES  |                   | 最后一条消息预览（前100字符）     |
+| last_message_at | timestamptz | YES  |                   | 最后消息时间                      |
+| is_archived     | boolean     | NO   | false             |                                   |
+| members         | uuid[]      | YES  |                   | ⭐ **新增**：聊天室成员ID数组     |
+| unread_members  | uuid[]      | YES  |                   | ⭐ **新增**：未读消息的用户ID数组 |
+| type            | text        | YES  |                   | ⭐ **新增**：聊天室类型           |
+| created_at      | timestamptz | NO   | now()             |                                   |
+| updated_at      | timestamptz | NO   | now()             |                                   |
 
 **索引**
+
 - `conversations_pkey` (id) - 主键索引
 - `conversations_members_gin` (members) - GIN 索引
 - `idx_conversations_updated` (updated_at DESC) - 普通索引
@@ -1253,21 +1268,22 @@
 
 **字段说明**
 
-| 列名        | 类型        | 可空 | 默认值            | 约束/备注                                    |
-| ----------- | ----------- | ---- | ----------------- | -------------------------------------------- |
-| id          | uuid        | NO   | gen_random_uuid() | 主键                                         |
-| room_id     | uuid        | NO   |                   | 外键 → chat_rooms.id                         |
-| sender_id   | uuid        | NO   |                   | 外键 → users.id                              |
-| message_type| text        | NO   |                   | ∈ {'text','image','video','voice','file'}    |
-| content     | text        | NO   |                   | 消息内容                                     |
-| media_url   | text        | YES  |                   | ⭐ **新增**：媒体文件URL                     |
-| file_name   | text        | YES  |                   | ⭐ **新增**：文件名                          |
-| file_size   | bigint      | YES  |                   | ⭐ **新增**：文件大小（字节）                |
-| duration    | integer     | YES  |                   | ⭐ **新增**：音频/视频时长（秒）             |
-| is_read     | boolean     | YES  | false             | 是否已读                                     |
-| created_at  | timestamptz | YES  | now()             |                                              |
+| 列名         | 类型        | 可空 | 默认值            | 约束/备注                                 |
+| ------------ | ----------- | ---- | ----------------- | ----------------------------------------- |
+| id           | uuid        | NO   | gen_random_uuid() | 主键                                      |
+| room_id      | uuid        | NO   |                   | 外键 → chat_rooms.id                      |
+| sender_id    | uuid        | NO   |                   | 外键 → users.id                           |
+| message_type | text        | NO   |                   | ∈ {'text','image','video','voice','file'} |
+| content      | text        | NO   |                   | 消息内容                                  |
+| media_url    | text        | YES  |                   | ⭐ **新增**：媒体文件URL                  |
+| file_name    | text        | YES  |                   | ⭐ **新增**：文件名                       |
+| file_size    | bigint      | YES  |                   | ⭐ **新增**：文件大小（字节）             |
+| duration     | integer     | YES  |                   | ⭐ **新增**：音频/视频时长（秒）          |
+| is_read      | boolean     | YES  | false             | 是否已读                                  |
+| created_at   | timestamptz | YES  | now()             |                                           |
 
 **索引**
+
 - `coach_messages_pkey` (id) - 主键索引
 - `chat_messages_room_id_idx` (room_id) - 普通索引
 - `idx_coach_messages_conversation` (room_id) - 普通索引
@@ -1287,14 +1303,15 @@
 
 **字段说明**
 
-| 列名         | 类型        | 可空 | 默认值 | 约束/备注                |
-| ------------ | ----------- | ---- | ------ | ------------------------ |
-| room_id      | uuid        | NO   |        | 外键 → chat_rooms.id     |
-| user_id      | uuid        | NO   |        | 用户ID                   |
-| unread_count | integer     | NO   | 0      | 未读消息数               |
-| last_read_at | timestamptz | YES  |        | 最后阅读时间             |
+| 列名         | 类型        | 可空 | 默认值 | 约束/备注            |
+| ------------ | ----------- | ---- | ------ | -------------------- |
+| room_id      | uuid        | NO   |        | 外键 → chat_rooms.id |
+| user_id      | uuid        | NO   |        | 用户ID               |
+| unread_count | integer     | NO   | 0      | 未读消息数           |
+| last_read_at | timestamptz | YES  |        | 最后阅读时间         |
 
 **索引**
+
 - `chat_room_unreads_pkey` (room_id, user_id) - 主键索引
 
 ---
@@ -1309,34 +1326,35 @@
 
 **字段说明**
 
-| 列名               | 类型        | 可空 | 默认值            | 约束/备注                                          |
-| ------------------ | ----------- | ---- | ----------------- | -------------------------------------------------- |
-| id                 | uuid        | NO   | gen_random_uuid() | 主键                                               |
-| user_id            | uuid        | NO   |                   | 外键 → users.id                                    |
-| applied_at         | timestamptz | NO   | now()             |                                                    |
-| status             | text        | NO   | 'pending'         | ∈ {'pending','reviewing','approved','rejected','needs_info'} |
-| name               | text        | NO   |                   |                                                    |
-| title              | text        | YES  |                   |                                                    |
-| avatar_url         | text        | YES  |                   |                                                    |
-| specialties        | text[]      | YES  | '{}'              |                                                    |
-| bio                | text        | YES  |                   |                                                    |
-| years_experience   | integer     | YES  | 0                 |                                                    |
-| achievements       | text[]      | YES  | '{}'              |                                                    |
-| teaching_philosophy| text        | YES  |                   | 教学理念                                           |
-| credentials        | jsonb[]     | YES  | '{}'              | 资质证明                                           |
-| case_studies       | text[]      | YES  | '{}'              | 案例研究                                           |
-| contact_email      | text        | YES  |                   | 邮箱（需符合邮箱格式）                             |
-| contact_phone      | text        | YES  |                   | 联系电话                                           |
-| resume_url         | text        | YES  |                   | 简历URL                                            |
-| portfolio_url      | text        | YES  |                   | 作品集URL                                          |
-| social_links       | jsonb       | YES  | '{}'              | 社交媒体链接                                       |
-| reviewed_by        | uuid        | YES  |                   | 外键 → users.id（审核人）                          |
-| reviewed_at        | timestamptz | YES  |                   | 审核时间                                           |
-| review_notes       | text        | YES  |                   | 审核备注                                           |
-| created_at         | timestamptz | NO   | now()             |                                                    |
-| updated_at         | timestamptz | NO   | now()             |                                                    |
+| 列名                | 类型        | 可空 | 默认值            | 约束/备注                                                    |
+| ------------------- | ----------- | ---- | ----------------- | ------------------------------------------------------------ |
+| id                  | uuid        | NO   | gen_random_uuid() | 主键                                                         |
+| user_id             | uuid        | NO   |                   | 外键 → users.id                                              |
+| applied_at          | timestamptz | NO   | now()             |                                                              |
+| status              | text        | NO   | 'pending'         | ∈ {'pending','reviewing','approved','rejected','needs_info'} |
+| name                | text        | NO   |                   |                                                              |
+| title               | text        | YES  |                   |                                                              |
+| avatar_url          | text        | YES  |                   |                                                              |
+| specialties         | text[]      | YES  | '{}'              |                                                              |
+| bio                 | text        | YES  |                   |                                                              |
+| years_experience    | integer     | YES  | 0                 |                                                              |
+| achievements        | text[]      | YES  | '{}'              |                                                              |
+| teaching_philosophy | text        | YES  |                   | 教学理念                                                     |
+| credentials         | jsonb[]     | YES  | '{}'              | 资质证明                                                     |
+| case_studies        | text[]      | YES  | '{}'              | 案例研究                                                     |
+| contact_email       | text        | YES  |                   | 邮箱（需符合邮箱格式）                                       |
+| contact_phone       | text        | YES  |                   | 联系电话                                                     |
+| resume_url          | text        | YES  |                   | 简历URL                                                      |
+| portfolio_url       | text        | YES  |                   | 作品集URL                                                    |
+| social_links        | jsonb       | YES  | '{}'              | 社交媒体链接                                                 |
+| reviewed_by         | uuid        | YES  |                   | 外键 → users.id（审核人）                                    |
+| reviewed_at         | timestamptz | YES  |                   | 审核时间                                                     |
+| review_notes        | text        | YES  |                   | 审核备注                                                     |
+| created_at          | timestamptz | NO   | now()             |                                                              |
+| updated_at          | timestamptz | NO   | now()             |                                                              |
 
 **索引**
+
 - `coach_applications_pkey` (id) - 主键索引
 - `coach_applications_user_id_idx` (user_id) - 普通索引
 - `coach_applications_status_idx` (status) - 普通索引
@@ -1355,30 +1373,32 @@
 
 **字段说明**
 
-| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                      |
-| ----------------- | ----------- | ---- | ----------------- | ---------------------------------------------- |
-| id                | uuid        | NO   | gen_random_uuid() | 主键                                           |
-| instance_id       | uuid        | NO   |                   | 外键 → coach_plan_instances.id                 |
-| student_id        | uuid        | NO   |                   | 外键 → users.id                                |
-| day_index         | integer     | NO   |                   | 训练日索引（≥ 1）                              |
-| started_at        | timestamptz | NO   | now()             |                                                |
-| completed_at      | timestamptz | YES  |                   |                                                |
+| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                          |
+| ----------------- | ----------- | ---- | ----------------- | -------------------------------------------------- |
+| id                | uuid        | NO   | gen_random_uuid() | 主键                                               |
+| instance_id       | uuid        | NO   |                   | 外键 → coach_plan_instances.id                     |
+| student_id        | uuid        | NO   |                   | 外键 → users.id                                    |
+| day_index         | integer     | NO   |                   | 训练日索引（≥ 1）                                  |
+| started_at        | timestamptz | NO   | now()             |                                                    |
+| completed_at      | timestamptz | YES  |                   |                                                    |
 | status            | text        | NO   | 'in_progress'     | ∈ {'in_progress','completed','abandoned','paused'} |
-| action_executions | jsonb       | NO   | '[]'              | JSONB结构存储所有动作和组的执行数据            |
-| total_sets        | integer     | NO   | 0                 | 总组数                                         |
-| completed_sets    | integer     | NO   | 0                 | 完成组数                                       |
-| progress_percent  | numeric     | YES  |                   | 进度百分比（计算列）                           |
-| session_notes     | text        | YES  |                   | 整体训练备注                                   |
-| last_saved_at     | timestamptz | YES  | now()             | 最后保存时间                                   |
-| created_at        | timestamptz | NO   | now()             |                                                |
-| updated_at        | timestamptz | NO   | now()             |                                                |
+| action_executions | jsonb       | NO   | '[]'              | JSONB结构存储所有动作和组的执行数据                |
+| total_sets        | integer     | NO   | 0                 | 总组数                                             |
+| completed_sets    | integer     | NO   | 0                 | 完成组数                                           |
+| progress_percent  | numeric     | YES  |                   | 进度百分比（计算列）                               |
+| session_notes     | text        | YES  |                   | 整体训练备注                                       |
+| last_saved_at     | timestamptz | YES  | now()             | 最后保存时间                                       |
+| created_at        | timestamptz | NO   | now()             |                                                    |
+| updated_at        | timestamptz | NO   | now()             |                                                    |
 
 **索引**
+
 - `plan_instance_executions_pkey` (id) - 主键索引
 - `idx_exec_student` (student_id) - 普通索引
 - `idx_exec_instance_day` (instance_id, day_index) - 复合索引
 - `idx_exec_date` (started_at DESC) - 普通索引
-- `idx_exec_lookup` (student_id, instance_id, day_index, started_at DESC) - 复合索引
+- `idx_exec_lookup` (student_id, instance_id, day_index, started_at DESC) -
+  复合索引
 - `idx_exec_status` (status) WHERE status <> 'completed' - 部分索引
 
 ---
@@ -1393,31 +1413,33 @@
 
 **字段说明**
 
-| 列名           | 类型        | 可空 | 默认值            | 约束/备注                                    |
-| -------------- | ----------- | ---- | ----------------- | -------------------------------------------- |
-| id             | uuid        | NO   | gen_random_uuid() | 主键                                         |
-| execution_id   | uuid        | NO   |                   | 外键 → plan_instance_executions.id           |
-| action_id      | uuid        | NO   |                   | 动作ID                                       |
-| set_number     | integer     | NO   |                   | 组号（≥ 1）                                  |
-| video_url      | text        | NO   |                   | 视频URL                                      |
-| thumbnail_url  | text        | YES  |                   | 缩略图URL                                    |
-| duration_seconds| integer    | YES  |                   | 时长（秒）                                   |
-| file_size_bytes| bigint      | YES  |                   | 文件大小（字节）                             |
-| storage_path   | text        | NO   |                   | ⭐ **新增**：Supabase Storage 中的文件路径   |
-| storage_bucket | text        | YES  | 'videos'          | ⭐ **新增**：存储桶名称                       |
-| upload_status  | text        | YES  | 'uploaded'        | ∈ {'uploading','uploaded','failed'}          |
-| coach_feedback | text        | YES  |                   | 教练反馈                                     |
-| coach_rating   | integer     | YES  |                   | 教练评分（1-5）                              |
-| reviewed_at    | timestamptz | YES  |                   | 审核时间                                     |
-| reviewed_by    | uuid        | YES  |                   | 外键 → users.id（审核人）                    |
-| created_at     | timestamptz | NO   | now()             |                                              |
+| 列名             | 类型        | 可空 | 默认值            | 约束/备注                                  |
+| ---------------- | ----------- | ---- | ----------------- | ------------------------------------------ |
+| id               | uuid        | NO   | gen_random_uuid() | 主键                                       |
+| execution_id     | uuid        | NO   |                   | 外键 → plan_instance_executions.id         |
+| action_id        | uuid        | NO   |                   | 动作ID                                     |
+| set_number       | integer     | NO   |                   | 组号（≥ 1）                                |
+| video_url        | text        | NO   |                   | 视频URL                                    |
+| thumbnail_url    | text        | YES  |                   | 缩略图URL                                  |
+| duration_seconds | integer     | YES  |                   | 时长（秒）                                 |
+| file_size_bytes  | bigint      | YES  |                   | 文件大小（字节）                           |
+| storage_path     | text        | NO   |                   | ⭐ **新增**：Supabase Storage 中的文件路径 |
+| storage_bucket   | text        | YES  | 'videos'          | ⭐ **新增**：存储桶名称                    |
+| upload_status    | text        | YES  | 'uploaded'        | ∈ {'uploading','uploaded','failed'}        |
+| coach_feedback   | text        | YES  |                   | 教练反馈                                   |
+| coach_rating     | integer     | YES  |                   | 教练评分（1-5）                            |
+| reviewed_at      | timestamptz | YES  |                   | 审核时间                                   |
+| reviewed_by      | uuid        | YES  |                   | 外键 → users.id（审核人）                  |
+| created_at       | timestamptz | NO   | now()             |                                            |
 
 **索引**
+
 - `execution_set_videos_pkey` (id) - 主键索引
 - `idx_set_videos_execution` (execution_id) - 普通索引
 - `idx_set_videos_action` (action_id) - 普通索引
 - `idx_set_videos_created` (created_at DESC) - 普通索引
-- `execution_set_videos_execution_id_action_id_set_number_key` (execution_id, action_id, set_number) - 唯一索引
+- `execution_set_videos_execution_id_action_id_set_number_key` (execution_id,
+  action_id, set_number) - 唯一索引
 
 ---
 
@@ -1431,24 +1453,25 @@
 
 **字段说明**
 
-| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                    |
-| ----------------- | ----------- | ---- | ----------------- | -------------------------------------------- |
-| id                | uuid        | NO   | gen_random_uuid() | 主键                                         |
-| user_id           | uuid        | NO   |                   | 外键 → users.id                              |
-| action_id         | uuid        | YES  |                   | 动作ID                                       |
-| exercise_name     | varchar     | NO   |                   | 动作名称                                     |
-| max_weight        | numeric     | YES  |                   | 最大重量                                     |
-| max_reps          | integer     | YES  |                   | 最大次数                                     |
-| load_formula      | varchar     | YES  |                   | ⭐ **新增**：计算公式，如 "60kg × 10次 @ RPE 8" |
-| execution_id      | uuid        | YES  |                   | ⭐ **新增**：外键 → plan_instance_executions.id |
-| execution_set_number| integer   | YES  |                   | ⭐ **新增**：执行组号                         |
-| date_achieved     | date        | NO   |                   | 达成日期                                     |
-| notes             | text        | YES  |                   | 备注                                         |
-| video_url         | text        | YES  |                   | ⭐ **新增**：视频URL                          |
-| is_verified       | boolean     | YES  | false             | ⭐ **新增**：是否已验证                       |
-| created_at        | timestamptz | YES  | now()             |                                              |
+| 列名                 | 类型        | 可空 | 默认值            | 约束/备注                                       |
+| -------------------- | ----------- | ---- | ----------------- | ----------------------------------------------- |
+| id                   | uuid        | NO   | gen_random_uuid() | 主键                                            |
+| user_id              | uuid        | NO   |                   | 外键 → users.id                                 |
+| action_id            | uuid        | YES  |                   | 动作ID                                          |
+| exercise_name        | varchar     | NO   |                   | 动作名称                                        |
+| max_weight           | numeric     | YES  |                   | 最大重量                                        |
+| max_reps             | integer     | YES  |                   | 最大次数                                        |
+| load_formula         | varchar     | YES  |                   | ⭐ **新增**：计算公式，如 "60kg × 10次 @ RPE 8" |
+| execution_id         | uuid        | YES  |                   | ⭐ **新增**：外键 → plan_instance_executions.id |
+| execution_set_number | integer     | YES  |                   | ⭐ **新增**：执行组号                           |
+| date_achieved        | date        | NO   |                   | 达成日期                                        |
+| notes                | text        | YES  |                   | 备注                                            |
+| video_url            | text        | YES  |                   | ⭐ **新增**：视频URL                            |
+| is_verified          | boolean     | YES  | false             | ⭐ **新增**：是否已验证                         |
+| created_at           | timestamptz | YES  | now()             |                                                 |
 
 **索引**
+
 - `personal_records_history_pkey` (id) - 主键索引
 - `idx_pr_user_date` (user_id, date_achieved DESC) - 复合索引
 - `idx_pr_user_exercise` (user_id, exercise_name) - 复合索引
@@ -1466,13 +1489,14 @@
 
 **字段说明**
 
-| 列名        | 类型 | 可空 | 默认值            | 约束/备注      |
-| ----------- | ---- | ---- | ----------------- | -------------- |
-| id          | uuid | NO   | gen_random_uuid() | 主键           |
-| name        | text | NO   |                   | 唯一索引       |
-| description | text | YES  |                   | 描述           |
+| 列名        | 类型 | 可空 | 默认值            | 约束/备注 |
+| ----------- | ---- | ---- | ----------------- | --------- |
+| id          | uuid | NO   | gen_random_uuid() | 主键      |
+| name        | text | NO   |                   | 唯一索引  |
+| description | text | YES  |                   | 描述      |
 
 **索引**
+
 - `training_items_pkey` (id) - 主键索引
 - `training_items_name_key` (name) - 唯一索引
 
@@ -1488,24 +1512,25 @@
 
 **字段说明**
 
-| 列名        | 类型        | 可空 | 默认值            | 约束/备注                                    |
-| ----------- | ----------- | ---- | ----------------- | -------------------------------------------- |
-| id          | uuid        | NO   | gen_random_uuid() | 主键                                         |
-| title       | text        | NO   |                   | 排行榜标题                                   |
-| type        | text        | YES  |                   | 排行榜类型                                   |
-| start_at    | timestamptz | YES  |                   | 开始时间                                     |
-| end_at      | timestamptz | YES  |                   | 结束时间                                     |
-| creator_id  | uuid        | YES  |                   | 外键 → users.id（创建者）                    |
-| description | text        | YES  |                   | 描述                                         |
-| rules       | jsonb       | YES  | '[]'              | 规则（JSON格式）                             |
-| form_schema | jsonb       | YES  | '[]'              | 表单结构（JSON格式）                         |
-| rank_by_field| text       | NO   |                   | 排名字段                                     |
-| sort_order  | text        | YES  | 'desc'            | ∈ {'asc','desc'} 排序方式                    |
-| remarks     | text        | YES  |                   | 备注                                         |
-| initiator   | text        | YES  |                   | 发起者                                       |
-| created_at  | timestamptz | YES  | now()             |                                              |
+| 列名          | 类型        | 可空 | 默认值            | 约束/备注                 |
+| ------------- | ----------- | ---- | ----------------- | ------------------------- |
+| id            | uuid        | NO   | gen_random_uuid() | 主键                      |
+| title         | text        | NO   |                   | 排行榜标题                |
+| type          | text        | YES  |                   | 排行榜类型                |
+| start_at      | timestamptz | YES  |                   | 开始时间                  |
+| end_at        | timestamptz | YES  |                   | 结束时间                  |
+| creator_id    | uuid        | YES  |                   | 外键 → users.id（创建者） |
+| description   | text        | YES  |                   | 描述                      |
+| rules         | jsonb       | YES  | '[]'              | 规则（JSON格式）          |
+| form_schema   | jsonb       | YES  | '[]'              | 表单结构（JSON格式）      |
+| rank_by_field | text        | NO   |                   | 排名字段                  |
+| sort_order    | text        | YES  | 'desc'            | ∈ {'asc','desc'} 排序方式 |
+| remarks       | text        | YES  |                   | 备注                      |
+| initiator     | text        | YES  |                   | 发起者                    |
+| created_at    | timestamptz | YES  | now()             |                           |
 
 **索引**
+
 - `leaderboard_templates_pkey` (id) - 主键索引
 
 ---
@@ -1520,20 +1545,21 @@
 
 **字段说明**
 
-| 列名         | 类型        | 可空 | 默认值            | 约束/备注                                    |
-| ------------ | ----------- | ---- | ----------------- | -------------------------------------------- |
-| id           | uuid        | NO   | gen_random_uuid() | 主键                                         |
-| template_id  | uuid        | YES  |                   | 外键 → leaderboard_templates.id              |
-| user_id      | uuid        | YES  |                   | 外键 → users.id                              |
-| form_data    | jsonb       | NO   |                   | 表单数据（JSON格式）                         |
-| score        | numeric     | YES  |                   | 分数                                         |
-| status       | text        | YES  | 'pending'         | ∈ {'pending','approved','rejected'}          |
-| evidence_url | text        | YES  |                   | 证据URL（视频/图片）                         |
-| extra_data   | jsonb       | YES  |                   | 扩展数据（JSON格式）                         |
-| note         | text        | YES  |                   | 备注                                         |
-| created_at   | timestamptz | YES  | now()             |                                              |
+| 列名         | 类型        | 可空 | 默认值            | 约束/备注                           |
+| ------------ | ----------- | ---- | ----------------- | ----------------------------------- |
+| id           | uuid        | NO   | gen_random_uuid() | 主键                                |
+| template_id  | uuid        | YES  |                   | 外键 → leaderboard_templates.id     |
+| user_id      | uuid        | YES  |                   | 外键 → users.id                     |
+| form_data    | jsonb       | NO   |                   | 表单数据（JSON格式）                |
+| score        | numeric     | YES  |                   | 分数                                |
+| status       | text        | YES  | 'pending'         | ∈ {'pending','approved','rejected'} |
+| evidence_url | text        | YES  |                   | 证据URL（视频/图片）                |
+| extra_data   | jsonb       | YES  |                   | 扩展数据（JSON格式）                |
+| note         | text        | YES  |                   | 备注                                |
+| created_at   | timestamptz | YES  | now()             |                                     |
 
 **索引**
+
 - `leaderboard_entries_pkey` (id) - 主键索引
 - `idx_leaderboard_score` (template_id, score DESC) - 复合索引
 
@@ -1761,7 +1787,8 @@ GROUP BY user_id, plan_id;
 
 **字段变更**
 
-- `coach_subscriptions.subscribe_data` (jsonb) - 新增字段：订阅附带的一些基础信息
+- `coach_subscriptions.subscribe_data` (jsonb) -
+  新增字段：订阅附带的一些基础信息
 - `user_profiles.sport_cards` (jsonb) - 新增字段：运动数据卡片 JSONB
 - `user_profiles.lifestyle` (text) - 新增字段：生活作息描述
 - `user_profiles.onboarding_completed` (boolean) - 新增字段：初始问卷是否已完成
@@ -1774,7 +1801,8 @@ GROUP BY user_id, plan_id;
   表
 - 创建 `user_1rm_history` 表替代 `personal_records`
 - 统一外键引用（`auth.users` → `public.users`）
-- 为新增表（`coach_plan_instances`, `coach_reviews`, `student_comments`）添加必要的索引和外键约束
+- 为新增表（`coach_plan_instances`, `coach_reviews`,
+  `student_comments`）添加必要的索引和外键约束
 
 ---
 
@@ -1789,7 +1817,8 @@ GROUP BY user_id, plan_id;
 - ✅ 冗余分析和优化建议
 - ✅ 数据库变更历史
 
-> **文档更新方式**：本文档通过 MCP（Model Context Protocol）从 Supabase 云端数据库实时获取最新结构信息，确保文档与数据库保持同步。
+> **文档更新方式**：本文档通过 MCP（Model Context Protocol）从 Supabase
+> 云端数据库实时获取最新结构信息，确保文档与数据库保持同步。
 
 **主要变更（2025-12-04）：**
 
@@ -1822,8 +1851,10 @@ GROUP BY user_id, plan_id;
 
 2. ⭐ **训练执行系统优化（4个表）**：
    - `plan_instance_executions` - 计划实例执行记录表，替代 `training_records`
-   - `execution_set_videos` - 执行组视频表，替代 `set_videos`，支持 Supabase Storage
-   - `personal_records_history` - 个人记录历史表，替代 `personal_records`，包含完整历史
+   - `execution_set_videos` - 执行组视频表，替代 `set_videos`，支持 Supabase
+     Storage
+   - `personal_records_history` - 个人记录历史表，替代
+     `personal_records`，包含完整历史
    - `training_items` - 训练项目表，训练动作/项目库
 
 3. ⭐ **其他新增表（3个表）**：
