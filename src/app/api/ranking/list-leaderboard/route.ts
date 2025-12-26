@@ -16,7 +16,11 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const { page = 1, limit = 10 } = await req.json() as ListLeaderboardDto;
+    const {
+        page = 1,
+        limit = 10,
+        countStatus = 'pending'
+    } = await req.json() as ListLeaderboardDto;
 
     // 计算偏移量
     const offset = (page - 1) * limit;
@@ -40,11 +44,11 @@ export async function POST(req: Request) {
     const leaderboardsWithCount = await Promise.all(
         data.map(async (item) => {
             // 查询此排行榜模板的未审核条目数量
-            const { count: unreviewedCount, error: unreviewedError } = await supabase
+            const { count, error: unreviewedError } = await supabase
                 .from('leaderboard_entries')
                 .select('*', { count: 'exact', head: true })
                 .eq('template_id', item.id)
-                .eq('status', 'pending');
+                .eq('status', countStatus);
 
             if (unreviewedError) {
                 console.error(`获取排行榜 ${item.id} 的未审核条目数量失败:`, unreviewedError);
@@ -62,7 +66,7 @@ export async function POST(req: Request) {
                 remarks: item.remarks,
                 created_at: item.created_at,
                 creator_id: item.creator_id,
-                unreviewedCount: unreviewedCount || 0
+                statusCount: count || 0
             };
         })
     );

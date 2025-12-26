@@ -9,10 +9,12 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Dialog } from 'primereact/dialog';
 import { Badge } from 'primereact/badge';
 import { Avatar } from 'primereact/avatar';
+import { Tag } from 'primereact/tag';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardEntriesRow } from '@/types';
+import { GetLeaderboardResponseDto } from '@/app/api/ranking/get-leaderboard/entity';
 
 interface LeaderboardEntryWithProfile extends LeaderboardEntriesRow {
     userProfile: {
@@ -26,47 +28,49 @@ const ReviewPage = () => {
     const templateId = params.id as string;
     const { showToast } = useToastContext();
 
-    // 状态管理
     const [entries, setEntries] = useState<LeaderboardEntryWithProfile[]>([]);
     const [totalRecords, setTotalRecords] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [leaderboard, setLeaderboard] = useState<GetLeaderboardResponseDto['leaderboard']>(null);
     const [first, setFirst] = useState(0);
     const [rows, setRows] = useState(10);
     const [selectedEntry, setSelectedEntry] = useState<LeaderboardEntryWithProfile | null>(null);
     const [showDetailDialog, setShowDetailDialog] = useState(false);
     const [adminNote, setAdminNote] = useState('');
 
-    // 加载数据
     const loadData = async (page: number = 1, limit: number = 10) => {
         try {
             setLoading(true);
-
-            // 获取待审核的条目，通过status参数过滤
             const response = await rankingService.listEntries({
                 template_id: templateId,
-                status: 'pending',  // 添加状态过滤参数
+                status: 'pending',
                 page,
                 limit,
                 sort_by: 'created_at'
             });
-
             if (response) {
                 setEntries(response.entries);
                 setTotalRecords(response.total);
             }
         } catch (error) {
-            console.error('加载条目失败:', error);
-            showToast({
-                severity: 'error',
-                summary: '加载失败',
-                detail: '获取待审核条目失败，请稍后重试'
-            });
+            showToast({ severity: 'error', summary: '加载失败', detail: '无法获取审核列表' });
         } finally {
             setLoading(false);
         }
     };
 
-    // 更新条目状态
+    const loadTemplate = async () => { 
+        const res = await rankingService.getLeaderboard({ id: templateId });
+        if (res) setLeaderboard(res.leaderboard);
+    };
+
+    useEffect(() => {
+        if (templateId) {
+            loadData();
+            loadTemplate();
+        }
+    }, [templateId]);
+
     const updateEntryStatus = async (entryId: string, newStatus: string, note?: string) => {
         try {
             const result = await rankingService.updateEntry({
@@ -76,325 +80,126 @@ const ReviewPage = () => {
             });
 
             if (result) {
-                // 更新本地状态
-                setEntries(prevEntries =>
-                    prevEntries.map(entry =>
-                        entry.id === entryId ? { ...entry, status: newStatus } : entry
-                    )
-                );
-
+                // 审核后直接从列表中移除该项（因为当前是“待审核”视图）
+                setEntries(prev => prev.filter(entry => entry.id !== entryId));
+                setTotalRecords(prev => prev - 1);
                 showToast({
                     severity: 'success',
-                    summary: '操作成功',
-                    detail: `条目状态已更新为${newStatus === 'approved' ? '已通过' : '已拒绝'}`
+                    summary: '处理完成',
+                    detail: `已${newStatus === 'approved' ? '通过' : '拒绝'}该申请`
                 });
-            } else {
-                throw new Error('更新失败');
             }
         } catch (error) {
-            console.error('更新条目状态失败:', error);
-            showToast({
-                severity: 'error',
-                summary: '更新失败',
-                detail: '更新条目状态失败，请稍后重试'
-            });
+            showToast({ severity: 'error', summary: '操作失败', detail: '系统错误' });
         }
     };
 
-    // 审核通过
-    const approveEntry = (entry: LeaderboardEntryWithProfile, note?: string) => {
-        updateEntryStatus(entry.id, 'approved', note);
-    };
+    // --- 模板部分 ---
 
-    // 拒绝审核
-    const rejectEntry = (entry: LeaderboardEntryWithProfile, note?: string) => {
-        updateEntryStatus(entry.id, 'rejected', note);
-    };
-
-    // 显示详情
-    const showEntryDetail = (entry: LeaderboardEntryWithProfile) => {
-        setSelectedEntry(entry);
-        setAdminNote(entry.note || '');
-        setShowDetailDialog(true);
-    };
-
-    // 分页处理
-    const onPageChange = (event: { first: number; rows: number }) => {
-        setFirst(event.first);
-        setRows(event.rows);
-        const page = Math.floor(event.first / event.rows) + 1;
-        loadData(page, event.rows);
-    };
-
-    // 初始化加载
-    useEffect(() => {
-        if (templateId) {
-            loadData();
-        }
-    }, [templateId]);
-
-    // 状态徽章模板
-    const statusBodyTemplate = (rowData: LeaderboardEntryWithProfile) => {
-        let badgeSeverity: 'success' | 'warn' | 'danger' | 'info' | 'secondary' = 'secondary';
-        let statusText = '未知';
-
-        switch (rowData.status) {
-            case 'pending':
-                badgeSeverity = 'warn';
-                statusText = '待审核';
-                break;
-            case 'approved':
-                badgeSeverity = 'success';
-                statusText = '已通过';
-                break;
-            case 'rejected':
-                badgeSeverity = 'danger';
-                statusText = '已拒绝';
-                break;
-            default:
-                badgeSeverity = 'secondary';
-                statusText = rowData.status || '未知';
-        }
-
-        return <Badge value={statusText} />;
-    };
-
-    // 用户信息模板
-    const userInfoBodyTemplate = (rowData: LeaderboardEntryWithProfile) => {
-        let { name, avatar } = rowData.userProfile;
-
-        if (!name) {
-            name = rowData.extra_data['douyin_nickname'] || '';
-        }
-        
-        return (
-            <div className="flex items-center gap-3">
-                <Avatar 
-                    image={avatar} 
-                    className="bg-primary-200"
-                    size="large" 
-                    shape="circle" 
-                    pt={{ label: { className: "text-sm" } }}
-                >
-                    {!avatar && (name?.charAt(0).toUpperCase() || '?')}
-                </Avatar>
-                <div>
-                    <div className="font-medium">{name}</div>
-                </div>
+    const userInfoTemplate = (rowData: LeaderboardEntryWithProfile) => (
+        <div className="flex items-center gap-3">
+            <Avatar image={rowData.userProfile.avatar} shape="circle" size="normal" 
+                    icon={!rowData.userProfile.avatar ? "pi pi-user" : undefined} />
+            <div className="flex flex-col">
+                <span className="font-bold text-gray-800">{rowData.userProfile.name || '匿名用户'}</span>
+                <small className="text-gray-400">Score: {rowData.score}</small>
             </div>
-        );
-    };
+        </div>
+    );
 
-    // 操作按钮模板
-    const actionBodyTemplate = (rowData: LeaderboardEntryWithProfile) => {
-        return (
-            <div className="flex gap-2">
-                <Button
-                    label="查看详情"
-                    icon="pi pi-eye"
-                    className="p-button-sm p-button-outlined"
-                    onClick={() => showEntryDetail(rowData)}
-                />
-                <Button
-                    label="通过"
-                    icon="pi pi-check"
-                    className="p-button-sm p-button-success"
-                    onClick={() => approveEntry(rowData)}
-                />
-                <Button
-                    label="拒绝"
-                    icon="pi pi-times"
-                    className="p-button-sm p-button-danger"
-                    onClick={() => rejectEntry(rowData)}
-                />
-            </div>
-        );
-    };
-
-    // 表单数据模板
-    const formDataBodyTemplate = (rowData: LeaderboardEntryWithProfile) => {
-        try {
-            // 假设 form_data 是一个数组，包含用户输入的字段
-            const formData = Array.isArray(rowData.form_data) ? rowData.form_data : [];
-            if (formData.length === 0) return <span>无数据</span>;
-
-            // 取前三个字段显示，更多用省略号表示
-            const displayFields = formData.slice(0, 3).map((field: any, idx: number) => {
-                const value = field.userInput || field.default || '无';
-                return `${field.name || field.label || `字段${idx + 1}`}: ${value}`;
-            }).join(', ');
-
-            const moreCount = formData.length > 3 ? `...等${formData.length}项` : '';
-
-            return (
-                <span>
-                    {displayFields}
-                    {moreCount}
-                </span>
-            );
-        } catch (error) {
-            return <span>数据格式错误</span>;
-        }
-    };
+    const actionTemplate = (rowData: LeaderboardEntryWithProfile) => (
+        <div className="flex gap-2">
+            <Button icon="pi pi-search" tooltip="查看详情" className="p-button-text p-button-rounded" 
+                    onClick={() => { setSelectedEntry(rowData); setAdminNote(rowData.note || ''); setShowDetailDialog(true); }} />
+            <Button icon="pi pi-check" tooltip="快速通过" className="p-button-text p-button-success p-button-rounded" 
+                    onClick={() => updateEntryStatus(rowData.id, 'approved')} />
+            <Button icon="pi pi-times" tooltip="直接拒绝" className="p-button-text p-button-danger p-button-rounded" 
+                    onClick={() => updateEntryStatus(rowData.id, 'rejected')} />
+        </div>
+    );
 
     if (loading && entries.length === 0) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <ProgressSpinner />
-            </div>
-        );
+        return <div className="flex justify-center items-center h-screen"><ProgressSpinner strokeWidth="3" /></div>;
     }
 
     return (
-        <div className="card p-6">
-            <h2 className="text-2xl font-bold mb-6">审核排行榜提交 - ID: {templateId}</h2>
+        <div className="p-4 max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-800">{leaderboard?.title || '条目审核'}</h1>
+                    <p className="text-gray-500 text-sm">当前共有 {totalRecords} 个待处理申请</p>
+                </div>
+            </div>
 
             <DataTable
                 value={entries}
                 paginator
-                first={first}
                 rows={rows}
                 totalRecords={totalRecords}
-                onPage={onPageChange}
-                loading={loading}
-                tableStyle={{ minWidth: '50rem' }}
-                emptyMessage="暂无待审核条目"
+                lazy
+                first={first}
+                onPage={(e) => { setFirst(e.first); setRows(e.rows); loadData(Math.floor(e.first/e.rows)+1, e.rows); }}
+                className="shadow-sm border-round-xl overflow-hidden"
+                responsiveLayout="stack"
+                emptyMessage={<div className="p-8 text-center text-gray-400">所有申请已处理完毕 ✨</div>}
             >
-                <Column header="用户信息" body={userInfoBodyTemplate} />
-                <Column field="score" header="分数" />
-                <Column field="status" header="状态" body={statusBodyTemplate} />
-                <Column field="created_at" header="提交时间" body={(rowData) => new Date(rowData.created_at || '').toLocaleString()} />
-                <Column header="操作" body={actionBodyTemplate} />
+                <Column header="申请人" body={userInfoTemplate} />
+                <Column field="score" header={leaderboard?.rank_by_field || '数值'} sortable />
+                <Column header="提交时间" body={(d) => <span className="text-sm text-gray-600">{new Date(d.created_at).toLocaleString()}</span>} />
+                <Column header="操作" body={actionTemplate} />
             </DataTable>
 
-            {/* 详情对话框 */}
+            {/* 详情对话框 - 优化布局 */}
             <Dialog
-                header="提交详情"
+                header="申请审核详情"
                 visible={showDetailDialog}
                 onHide={() => setShowDetailDialog(false)}
-                style={{ width: '90%', maxWidth: '800px' }}
-                breakpoints={{ '960px': '75vw', '641px': '100vw' }}
+                style={{ width: '500px' }}
+                closable
+                draggable={false}
+                modal
             >
                 {selectedEntry && (
-                    <div className="p-4">
-                        <div className="mb-4">
-                            <h3 className="text-lg font-semibold">基本信息</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                <div>
-                                    <p><strong>用户ID:</strong> {selectedEntry.user_id}</p>
-                                    <p><strong>模板ID:</strong> {selectedEntry.template_id}</p>
-                                    <p><strong>分数:</strong> {selectedEntry.score}</p>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-4 p-3 bg-gray-50 border-round-lg">
+                            <Avatar image={selectedEntry.userProfile.avatar} size="large" shape="circle" />
+                            <div>
+                                <div className="text-xl font-bold">{selectedEntry.userProfile.name}</div>
+                                <div className="text-primary font-medium text-lg">{leaderboard?.rank_by_field}: {selectedEntry.score}</div>
+                            </div>
+                        </div>
+
+                        <section>
+                            <label className="block text-sm font-semibold text-gray-500 mb-2">提交证据</label>
+                            {selectedEntry.evidence_url ? (
+                                <div className="border-round overflow-hidden border-1 border-gray-200">
+                                    {selectedEntry.evidence_url.match(/\.(jpeg|jpg|gif|png)$/) ? (
+                                        <img src={selectedEntry.evidence_url} alt="Evidence" className="w-full h-auto" />
+                                    ) : (
+                                        <a href={selectedEntry.evidence_url} target="_blank" className="p-3 block text-blue-600 underline">
+                                            查看外部证据链接 <i className="pi pi-external-link ml-1" />
+                                        </a>
+                                    )}
                                 </div>
-                                <div>
-                                    <p><strong>状态:</strong> {statusBodyTemplate(selectedEntry)}</p>
-                                    <p><strong>提交时间:</strong> {new Date(selectedEntry.created_at || '').toLocaleString()}</p>
-                                    <p><strong>证据链接:</strong> {selectedEntry.evidence_url || '无'}</p>
-                                </div>
-                            </div>
-                            
-                            {/* 用户信息区域 */}
-                            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                <h4 className="font-semibold mb-2">用户信息</h4>
-                                <div className="flex items-center gap-3">
-                                    <Avatar 
-                                        image={selectedEntry.userProfile.avatar} 
-                                        className="bg-gray-200"
-                                        size="large" 
-                                        shape="circle" 
-                                        pt={{ label: { className: "text-sm" } }}
-                                    >
-                                        {!selectedEntry.userProfile.avatar && (
-                                            selectedEntry.userProfile.name?.charAt(0).toUpperCase() || '?'
-                                        )}
-                                    </Avatar>
-                                    <div>
-                                        <div className="font-medium">
-                                            {selectedEntry.userProfile.name}
-                                        </div>
-                                        <div className="text-sm text-gray-500">ID: {selectedEntry.user_id}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                            ) : <span className="text-gray-400 italic">未提供证据</span>}
+                        </section>
 
-                        <div className="mb-4">
-                            <h3 className="text-lg font-semibold">提交内容</h3>
-                            <div className="mt-2">
-                                {Array.isArray(selectedEntry.form_data) && selectedEntry.form_data.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {selectedEntry.form_data.map((field: any, index: number) => (
-                                            <div key={index} className="p-3 bg-gray-50 rounded border">
-                                                <p><strong>字段名:</strong> {field.name || field.label || `字段${index + 1}`}</p>
-                                                <p><strong>类型:</strong> {field.type}</p>
-                                                <p><strong>值:</strong> {field.userInput || field.default || '未填写'}</p>
-                                                {field.options && (
-                                                    <p><strong>选项:</strong> {Array.isArray(field.options) ? field.options.join(', ') : JSON.stringify(field.options)}</p>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p>无提交内容</p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="mb-4">
-                            <h3 className="text-lg font-semibold">附加信息</h3>
-                            <div className="mt-2">
-                                {selectedEntry.extra_data ? (
-                                    <pre className="p-3 bg-gray-50 rounded overflow-auto">
-                                        {JSON.stringify(selectedEntry.extra_data, null, 2)}
-                                    </pre>
-                                ) : (
-                                    <p>无附加信息</p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="mb-4">
-                            <h3 className="text-lg font-semibold">管理员备注</h3>
-                            <div className="mt-2">
-                                <InputTextarea
-                                    value={adminNote}
-                                    onChange={(e) => setAdminNote(e.target.value)}
-                                    rows={3}
-                                    className="w-full"
-                                    placeholder="可选：添加备注信息（如达标、破纪录等）"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                            <Button
-                                label="通过"
-                                icon="pi pi-check"
-                                className="p-button-success"
-                                onClick={() => {
-                                    approveEntry(selectedEntry, adminNote);
-                                    setShowDetailDialog(false);
-                                    setAdminNote('');
-                                }}
+                        <section>
+                            <label className="block text-sm font-semibold text-gray-500 mb-2">审核备注</label>
+                            <InputTextarea
+                                value={adminNote}
+                                onChange={(e) => setAdminNote(e.target.value)}
+                                rows={3}
+                                className="w-full"
+                                placeholder="输入拒绝原因或审核批注..."
                             />
-                            <Button
-                                label="拒绝"
-                                icon="pi pi-times"
-                                className="p-button-danger"
-                                onClick={() => {
-                                    rejectEntry(selectedEntry, adminNote);
-                                    setShowDetailDialog(false);
-                                    setAdminNote('');
-                                }}
-                            />
-                            <Button
-                                label="关闭"
-                                icon="pi pi-times"
-                                className="p-button-secondary"
-                                onClick={() => {
-                                    setShowDetailDialog(false);
-                                    setAdminNote('');
-                                }}
-                            />
+                        </section>
+
+                        <div className="flex gap-2 mt-4">
+                            <Button label="拒绝" icon="pi pi-times" className="p-button-danger flex-1"
+                                    onClick={() => { updateEntryStatus(selectedEntry.id, 'rejected', adminNote); setShowDetailDialog(false); }} />
+                            <Button label="通过审核" icon="pi pi-check" className="p-button-success flex-1"
+                                    onClick={() => { updateEntryStatus(selectedEntry.id, 'approved', adminNote); setShowDetailDialog(false); }} />
                         </div>
                     </div>
                 )}
