@@ -1,6 +1,7 @@
 export interface ListLeaderboardDto {
     page?: number;
     limit?: number;
+    countStatus?: string;
 }
 
 export interface ListLeaderboardItem {
@@ -15,7 +16,7 @@ export interface ListLeaderboardItem {
     remarks: string | null;
     created_at: string | null;
     creator_id: string | null;
-    unreviewedCount: number;
+    statusCount?: number;
 }
 
 export interface ListLeaderboardResponseDto {

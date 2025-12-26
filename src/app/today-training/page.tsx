@@ -104,14 +104,36 @@ const TodayTrainingPage: React.FC = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <Skeleton height="100px" className="mb-6" />
-                <Skeleton height="400px" />
+if (loading) {
+    return (
+        <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
+            {/* 教练卡片骨架 */}
+            <div className="h-24 bg-gray-200 rounded-2xl mb-8"></div>
+            
+            {/* 今日训练标题骨架 */}
+            <div className="flex justify-between items-center mb-6">
+                <div className="h-8 bg-gray-200 w-48 rounded-lg"></div>
+                <div className="h-6 bg-gray-200 w-24 rounded-lg"></div>
             </div>
-        );
-    }
+
+            {/* 主卡片骨架 */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div className="flex gap-4 mb-6">
+                    <div className="w-20 h-20 bg-gray-100 rounded-2xl"></div>
+                    <div className="flex-1 space-y-3">
+                        <div className="h-6 bg-gray-100 w-1/3 rounded"></div>
+                        <div className="h-4 bg-gray-100 w-1/2 rounded"></div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="h-20 bg-gray-50 rounded-xl"></div>
+                    <div className="h-20 bg-gray-50 rounded-xl"></div>
+                    <div className="h-20 bg-gray-50 rounded-xl"></div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
     if (!subscription) {
         return (
@@ -159,56 +181,119 @@ const TodayTrainingPage: React.FC = () => {
     const trainingDays = (instance.training_days || []) as any[];
     const todayTraining = trainingDays.find(d => d.dayIndex === todayDayIndex);
 
-    return (
+return (
+    <div className="min-h-screen bg-[#F8FAFC] pb-12">
         <div className="max-w-6xl mx-auto px-4 py-8">
-            {/* 教练信息卡片 */}
+            {/* --- 顶部教练信息卡片 --- */}
             {subscription?.coach && (
-                <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-4 mb-6 text-white shadow-lg">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                            <span className="text-lg font-bold">
-                                {subscription.coach.name?.charAt(0) || '教'}
-                            </span>
-                        </div>
-                        <div>
-                            <div className="text-sm opacity-90">当前教练</div>
-                            <div className="text-lg font-bold">
-                                {subscription.coach.name || '未知教练'}
-                            </div>
-                            {subscription.coach.title && (
-                                <div className="text-xs opacity-80">
-                                    {subscription.coach.title}
+                <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
+                    {/* 背景装饰图形 */}
+                    <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-blue-500/10 rounded-full blur-2xl"></div>
+
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center space-x-5">
+                            <div className="relative">
+                                <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
+                                    <span className="text-2xl font-black italic">
+                                        {subscription.coach.name?.charAt(0) || 'C'}
+                                    </span>
                                 </div>
-                            )}
+                                {/* 在线状态点 */}
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-slate-900 rounded-full"></div>
+                            </div>
+                            
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 bg-primary-500/20 text-primary-300 text-[10px] font-bold uppercase tracking-wider rounded">PRO COACH</span>
+                                    <span className="text-slate-400 text-xs font-medium italic">Assigning your path</span>
+                                </div>
+                                <h2 className="text-2xl font-bold tracking-tight">
+                                    {subscription.coach.name || '未知教练'}
+                                </h2>
+                                <p className="text-slate-400 text-sm font-medium">
+                                    {subscription.coach.title || '资深健身专家'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="hidden md:block text-right border-l border-white/10 pl-8">
+                            <div className="text-slate-400 text-xs uppercase mb-1">训练累计</div>
+                            <div className="text-xl font-mono font-bold">128 <span className="text-sm font-normal text-slate-500">Days</span></div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 今日训练 */}
-            {todayTraining && todayTraining.type === 'training' ? (
-                <TodayTrainingCard
-                    day={todayTraining}
-                    actions={actions}
-                    instanceId={instance.id}
-                    dayIndex={todayDayIndex}
-                    executionStatus={executionStatus}
-                    completedSets={completedSets}
-                    totalSets={totalSets}
-                />
-            ) : (
-                <RestDayCard dayIndex={todayDayIndex} />
-            )}
+            {/* --- 核心内容区域 --- */}
+            <div className="space-y-10">
+                {/* 今日模块标题层 */}
+                <section>
+                    <div className="flex items-end justify-between mb-6 px-2">
+                        <div>
+                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                                TODAY'S MISSION
+                            </h3>
+                            <p className="text-slate-500 text-sm">
+                                训练日 {todayDayIndex} · {executionStatus === 'completed' ? '已完成' : '进行中'}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-primary-600 font-bold text-sm bg-primary-50 px-3 py-1 rounded-full">
+                            <i className="pi pi-clock animate-spin-slow" />
+                            Keep Pushing
+                        </div>
+                    </div>
 
-            {/* 浏览其他训练日 */}
-            <BrowseSection
-                instance={instance}
-                actions={actions}
-                currentDayIndex={todayDayIndex}
-                todayExecutionStatus={executionStatus}
-            />
+                    {/* 卡片渲染 */}
+                    <div className="transform transition-all hover:translate-y-[-4px]">
+                        {todayTraining && todayTraining.type === 'training' ? (
+                            <TodayTrainingCard
+                                day={todayTraining}
+                                actions={actions}
+                                instanceId={instance.id}
+                                dayIndex={todayDayIndex}
+                                executionStatus={executionStatus}
+                                completedSets={completedSets}
+                                totalSets={totalSets}
+                            />
+                        ) : (
+                            <RestDayCard dayIndex={todayDayIndex} />
+                        )}
+                    </div>
+                </section>
+
+                {/* --- 浏览区域 --- */}
+                <section className="pt-4">
+                    <div className="flex items-center gap-3 mb-6 px-2">
+                        <div className="h-px flex-1 bg-slate-200"></div>
+                        <h4 className="text-slate-400 text-xs font-bold uppercase tracking-widest">
+                            Explore Schedule
+                        </h4>
+                        <div className="h-px flex-1 bg-slate-200"></div>
+                    </div>
+                    
+                    <BrowseSection
+                        instance={instance}
+                        actions={actions}
+                        currentDayIndex={todayDayIndex}
+                        todayExecutionStatus={executionStatus}
+                    />
+                </section>
+            </div>
         </div>
-    );
+        
+        {/* 适配 Tailwind 配置的额外样式 */}
+        <style jsx global>{`
+            .animate-spin-slow {
+                animation: spin 3s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `}</style>
+    </div>
+);
 };
 
 export default TodayTrainingPage;
