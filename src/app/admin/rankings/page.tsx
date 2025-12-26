@@ -41,7 +41,7 @@ export default function AdminRankingsPage() {
     const loadRankings = async () => {
         try {
             setLoading(true);
-            const result = await rankingService.listLeaderboard();
+            const result = await rankingService.listLeaderboard({ countStatus: 'pending' });
             if (result) {
                 const boards = result.leaderboards || [];
                 boards.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

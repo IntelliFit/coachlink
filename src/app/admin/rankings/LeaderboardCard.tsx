@@ -142,7 +142,7 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh })
                         icon="pi pi-eye"
                         label="审核"
                         size="small"
-                        badge={ranking.unreviewedCount.toString()}
+                        badge={ranking.statusCount.toString()}
                         onClick={() => window.location.href = `/admin/rankings/review/${ranking.id}`}
                     />
                     <Button

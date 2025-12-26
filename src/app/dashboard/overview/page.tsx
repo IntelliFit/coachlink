@@ -23,7 +23,7 @@ const Overview = () => {
             setLoadingStudents(true);
             try {
                 const items = await coachService.listStudents();
-                
+
                 const mapped: Student[] = (items || [] as CoachStudentItem[]).map((it) => ({
                     id: it.student?.id || it.student_id,
                     name: it.profile?.nickname || it.student?.phone || '学员',
@@ -45,7 +45,7 @@ const Overview = () => {
                 setLoadingStudents(false);
             }
         };
-        
+
         if (coach?.id) {
             loadStudents();
         }
@@ -56,13 +56,9 @@ const Overview = () => {
     const [loadingVideos, setLoadingVideos] = useState<boolean>(true);
 
     useEffect(() => {
-        // 模拟加载数据
-        const timer = setTimeout(() => {
-            setPendingVideosCount(3);
-            setLoadingVideos(false);
-        }, 800);
-        
-        return () => clearTimeout(timer);
+        setPendingVideosCount(3);
+        setLoadingVideos(false);
+
     }, []);
 
     // 加载教练评分数据
@@ -75,7 +71,7 @@ const Overview = () => {
                 setCoachRating(coach.rating);
                 setLoadingRating(false);
             }, 600);
-            
+
             return () => clearTimeout(timer);
         }
     }, [coach?.rating]);
