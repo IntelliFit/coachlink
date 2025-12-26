@@ -11,7 +11,6 @@ interface DashboardCardProps {
     icon: React.ReactNode;
     iconBg: string;
     iconColor: string;
-    loading: boolean;
     href?: string;
 }
 
@@ -22,7 +21,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     icon,
     iconBg,
     iconColor,
-    loading,
     href
 }) => {
     const router = useRouter();
@@ -44,11 +42,11 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
             <div className="relative flex justify-between items-start mb-6">
                 <div className={`p-2.5 rounded-xl ${iconBg} ${iconColor} transition-all duration-300 group-hover:scale-110 group-hover:shadow-sm`}>
                     {/* 克隆图标以确保大小一致 */}
-                    {React.isValidElement(icon) 
-                        ? React.cloneElement(icon as React.ReactElement<any>, { className: 'w-5 h-5' }) 
+                    {React.isValidElement(icon)
+                        ? React.cloneElement(icon as React.ReactElement<any>, { className: 'w-5 h-5' })
                         : icon}
                 </div>
-                
+
                 {href && (
                     <div className="p-1 text-surface-300 group-hover:text-primary-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300">
                         <ArrowUpRight className="w-4 h-4" />
@@ -61,20 +59,16 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
                 <h3 className="text-sm font-medium text-surface-500 transition-colors group-hover:text-surface-700">
                     {title}
                 </h3>
-                
-                {loading ? (
-                    <div className="h-8 w-2/3 bg-surface-50 animate-pulse rounded-md" />
-                ) : (
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold text-surface-900 tracking-tight">
-                            {value}
-                        </span>
-                        {/* 如果是已激活/开启状态，可以加一个小圆点反馈 */}
-                        {(value === "已激活" || value === "已开启") && (
-                            <span className="flex h-2 w-2 rounded-full bg-emerald-500 mb-2" />
-                        )}
-                    </div>
-                )}
+
+                <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-surface-900 tracking-tight">
+                        {value}
+                    </span>
+                    {/* 如果是已激活/开启状态，可以加一个小圆点反馈 */}
+                    {(value === "已激活" || value === "已开启") && (
+                        <span className="flex h-2 w-2 rounded-full bg-emerald-500 mb-2" />
+                    )}
+                </div>
             </div>
 
             {/* 4. 描述文字 - 放在底部并固定高度 */}
