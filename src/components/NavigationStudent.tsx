@@ -55,7 +55,7 @@ export default function NavigationStudent() {
             <div 
                 onClick={item.command}
                 className={`
-                    flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all duration-300 group
+                    flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-all duration-300 group
                     ${isActive 
                         ? 'bg-primary-50 text-primary-600' 
                         : 'hover:bg-surface-50 text-surface-600 hover:text-primary-600'}
