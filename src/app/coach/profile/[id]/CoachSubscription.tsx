@@ -1,51 +1,32 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Inbox, CheckCircle, Clock, Package } from 'lucide-react';
+import { Inbox, CheckCircle, Package, Bolt, Star, Shield, ArrowRight } from 'lucide-react';
 import { Button } from 'primereact/button';
-import { Dialog } from 'primereact/dialog';
+import { Skeleton } from 'primereact/skeleton';
+import { Tag } from 'primereact/tag';
+import { Divider } from 'primereact/divider';
 import { useToastContext } from '@/context/ToastContext';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
-import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useRouter } from 'next/navigation';
-import { Pricing, Product, PricingTier, DurationOption } from '@/app/api/coach/get-pricing/entity';
+import { useSession } from 'next-auth/react';
+
+// 类型定义
+import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import type { Product, PricingTier, DurationOption } from '@/app/api/coach/get-pricing/entity';
+import type { CoachesRow, CoachSubscriptionRow } from '@/types';
+import type { TrainingItem } from '@/types/questionnaires';
+
+// 组件引用
 import QuestionnaireForm from './QuestionnaireForm';
 import PaymentDialog from '@/components/payment/paymentDialog';
-import type { CreateAlipayOrderDto } from '@/app/api/payment/alipay/create/entity';
-import { CoachesRow, CoachSubscriptionRow } from '@/types';
-import { useSession } from 'next-auth/react';
-import { TrainingItem } from '@/types/questionnaires';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
     mySubscriptions: QueryCoachSubscription[];
     onSubscribeSuccess: (tier: number) => void;
 }
-
-const tierLabels: Record<PricingTier, string> = {
-    basic: '特惠基础版',
-    standard: '专业指导版',
-    vip: '全能指导版'
-};
-
-const tierDescriptions: Record<PricingTier, string> = {
-    basic: '低价体验，适合自主训练',
-    standard: '包含教练指导与沟通',
-    vip: '不限项目，全方位托管服务'
-};
-
-const tierColors: Record<PricingTier, string> = {
-    basic: 'border-green-500 bg-green-50 dark:bg-green-900',
-    standard: 'border-primary-500 bg-primary-50 dark:bg-primary-900',
-    vip: 'border-purple-500 bg-purple-50 dark:bg-purple-900'
-};
-
-const tierBadgeColors: Record<PricingTier, string> = {
-    basic: 'bg-green-500',
-    standard: 'bg-primary-500',
-    vip: 'bg-purple-500'
-};
 
 const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     coach,
@@ -54,509 +35,240 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 }) => {
     const { showToast } = useToastContext();
     const router = useRouter();
-    
-    // 新版：产品列表
-    const [products, setProducts] = useState<Product[]>([]);
-    // 旧版：兼容
-    const [subscriptionTiers, setSubscriptionTiers] = useState<Pricing[]>([]);
-    
-    const [loading, setLoading] = useState(true);
-    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
-    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
-
     const { data: session } = useSession();
 
-    // 时长选择对话框
-    const [durationDialogVisible, setDurationDialogVisible] = useState(false);
+    // 状态管理
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [subscribing, setSubscribing] = useState(false);
+    
+    // 弹窗状态
+    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
+    const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
+    
+    // 选择逻辑
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
-    
-    // 订阅状态
-    const [subscribing, setSubscribing] = useState(false);
-    const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
     const [coachSubscription, setCoachSubscription] = useState<CoachSubscriptionRow | null>(null);
+
+    // 风格配置 (对应 PricingSettings)
+    const tierConfig = {
+        basic: { label: '特惠基础版', desc: '低价体验，适合自主训练', color: 'blue', icon: <Bolt className="w-5 h-5" /> },
+        standard: { label: '专业指导版', desc: '包含教练指导与沟通', color: 'green', icon: <Star className="w-5 h-5" /> },
+        vip: { label: '全能指导版', desc: '不限项目，全方位托管服务', color: 'purple', icon: <Shield className="w-5 h-5" /> }
+    };
 
     useEffect(() => {
         const fetchPricing = async () => {
             try {
                 setLoading(true);
-                const res = await coachService.getPricing({
-                    coachId: coach.id
-                });
-
-                if (res) {
-                    // 优先使用新版 products
-                    if (res.products && res.products.length > 0) {
-                        setProducts(res.products);
-                    }
-                    // 兼容旧版 pricings
-                    if (res.pricings) {
-                        setSubscriptionTiers(res.pricings);
-                    }
-                } else {
-                    showToast({ severity: 'error', summary: '获取定价信息失败' });
-                }
-
+                const res = await coachService.getPricing({ coachId: coach.id });
+                if (res?.products) setProducts(res.products);
             } catch (error) {
-                console.error('加载定价信息失败:', error);
+                console.error('加载定价失败', error);
             } finally {
                 setLoading(false);
             }
         };
-
-        if (coach?.id) {
-            fetchPricing();
-        }
+        if (coach?.id) fetchPricing();
     }, [coach?.id]);
 
-    const getProductsByTier = (tier: PricingTier) => {
-        return products.filter(p => p.tier === tier);
-    };
-
-    const getMinPrice = (product: Product) => {
-        if (!product.duration_options || product.duration_options.length === 0) return 0;
-        return Math.min(...product.duration_options.map(opt => opt.price));
-    };
-
-    const handleSelectProduct = (product: Product) => {
-        setSelectedProduct(product);
-        // 如果只有一个时长选项，直接进入订阅流程
-        if (product.duration_options.length === 1) {
-            setSelectedDuration(product.duration_options[0]);
-            handleProceedToSubscribe(product, product.duration_options[0]);
-        } else {
-            setDurationDialogVisible(true);
-        }
-    };
-
-    const handleSelectDuration = (duration: DurationOption) => {
-        setSelectedDuration(duration);
-    };
-
-    const handleConfirmDuration = () => {
-        if (selectedProduct && selectedDuration) {
-            setDurationDialogVisible(false);
-            handleProceedToSubscribe(selectedProduct, selectedDuration);
-        }
-    };
-
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-    const isRenew = searchParams.get('renew') === 'true';
-    const isExtend = searchParams.get('extend') === 'true'; // extend=true也视为续费
-    
-    // ...
+    const isRenew = searchParams.get('renew') === 'true' || searchParams.get('extend') === 'true';
 
-    const handleProceedToSubscribe = async (product: Product, duration: DurationOption) => {
+    // 订阅流程处理
+    const handleSelectProduct = async (product: Product, duration: DurationOption) => {
+        setSelectedProduct(product);
+        setSelectedDuration(duration);
+        
         try {
             setSubscribing(true);
+            const activeSub = mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active');
 
-            // 检查是否已有活跃订阅
-            const activeSub = mySubscriptions.find(
-                sub => sub.coach_id === coach?.id && sub.status === 'active'
-            );
-
-            // 如果不是续费模式且有活跃订阅，提示并阻止
-            if (activeSub && !isRenew && !isExtend) {
-                showToast({ severity: 'info', summary: '您已订阅该教练', detail: '如需续费，请从"我的教练"页点击续费按钮' });
+            if (activeSub && !isRenew) {
+                showToast({ severity: 'info', summary: '您已订阅该教练', detail: '如需续费，请从"我的教练"页发起' });
                 return;
             }
 
-            if (mySubscriptions.find(
-                sub => sub.coach_id === coach?.id && sub.status === 'waiting'
-            )) {
-                showToast({ severity: 'info', summary: '您已订阅该教练，请等待激活' });
-                return;
-            }
-
-            // 如果是续费模式，直接进入支付（不需要填问卷）
-            if (isRenew || (isExtend && activeSub)) {
+            if (isRenew || activeSub) {
                 setPaymentDialogVisible(true);
                 return;
             }
 
-            // 获取问卷
-            const qRes = await coachService.getQuestionnaires({
-                coachId: coach.id
-            });
-
-            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+            const qRes = await coachService.getQuestionnaires({ coachId: coach.id });
+            if (qRes?.questionnaires?.length > 0) {
                 setQuestionnaireQuestions(qRes.questionnaires);
                 setQuestionnaireVisible(true);
             } else {
-                // 直接进入支付
                 setPaymentDialogVisible(true);
             }
         } catch (error) {
-            console.error('订阅过程中出现错误:', error);
-            showToast({ severity: 'error', summary: '订阅过程中出现错误' });
+            showToast({ severity: 'error', summary: '启动订阅流程失败' });
         } finally {
             setSubscribing(false);
         }
     };
 
     const handlePaymentSuccess = async (note?: string) => {
-        if (selectedProduct && selectedDuration) {
-            
-            // 续费逻辑
-            if (isRenew || isExtend) {
-                const activeSub = mySubscriptions.find(
-                    sub => sub.coach_id === coach?.id && sub.status === 'active'
-                );
-                
-                if (activeSub) {
-                    const weeks = selectedDuration.months * 4;
-                    const res = await subscriptionService.renewSubscription({
-                        subscriptionId: activeSub.id,
-                        renewType: 'extend',
-                        additionalWeeks: weeks,
-                        amount: selectedDuration.price
-                    });
-                    
-                    if (res) {
-                        onSubscribeSuccess(Number(activeSub.tier)); // 保持原有tier显示
-                        showToast({ severity: 'success', summary: '续费成功' });
-                        // 续费成功后刷新页面或跳转回首页
-                        setTimeout(() => router.push('/dashboard/student/profile'), 1500);
-                    } else {
-                         showToast({ severity: 'error', summary: '续费失败' });
-                    }
-                    setPaymentDialogVisible(false);
-                    return;
-                }
-            }
-
-            // 新购逻辑
-            // 这里需要根据产品tier映射到旧的tier number，暂时用1
-            const tierNumber = selectedProduct.tier === 'basic' ? 1 : selectedProduct.tier === 'standard' ? 2 : 3;
-            
-            const res = await subscriptionService.updateSubscription({
-                id: coachSubscription?.id,
-                status: 'waiting',
-                has_remind_coach: true,
-                remind_coach_note: note || ''
-            });
-
-            if (res?.subscription) {
-                onSubscribeSuccess(tierNumber);
-                setCoachSubscription(res.subscription);
-            } else {
-                showToast({ severity: 'error', summary: '订阅失败' });
-            }
-        }
-        setPaymentDialogVisible(false);
-        setSelectedProduct(null);
-        setSelectedDuration(null);
-    };
-    
-    const handlePaymentCancel = () => {
-        setPaymentDialogVisible(false);
-        setSelectedProduct(null);
-        setSelectedDuration(null);
-    };
-
-    const handleQuestionnaireSubmit = async (answers: TrainingItem[]) => {
         if (!selectedProduct || !selectedDuration) return;
         
-        const tierNumber = selectedProduct.tier === 'basic' ? 1 : selectedProduct.tier === 'standard' ? 2 : 3;
+        if (isRenew) {
+            const activeSub = mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active');
+            if (activeSub) {
+                await subscriptionService.renewSubscription({
+                    subscriptionId: activeSub.id,
+                    renewType: 'extend',
+                    additionalWeeks: selectedDuration.months * 4,
+                    amount: selectedDuration.price
+                });
+                showToast({ severity: 'success', summary: '续费成功' });
+                setTimeout(() => router.push('/dashboard/student/profile'), 1500);
+                return;
+            }
+        }
 
-        const weeks = selectedDuration.months * 4; // 估算周数
-
-        const res = await subscriptionService.createSubscription({
-            coachId: coach.id,
-            tier: tierNumber,
-            monthlyPrice: selectedDuration.price,
-            status: 'inactive',
-            subscribeData: answers,
-            // 新增产品字段
-            productId: selectedProduct.id,
-            productName: selectedProduct.name,
-            productTier: selectedProduct.tier,
-            subscribedWeeks: weeks
+        const res = await subscriptionService.updateSubscription({
+            id: coachSubscription?.id,
+            status: 'waiting',
+            has_remind_coach: true,
+            remind_coach_note: note || ''
         });
 
         if (res) {
-            setCoachSubscription(res.subscription);
-            setQuestionnaireVisible(false);
-            setPaymentDialogVisible(true);
-        } else {
-            showToast({ severity: 'error', summary: '保存订阅问卷失败', detail: '请刷新页面重试' });
+            onSubscribeSuccess(selectedProduct.tier === 'basic' ? 1 : selectedProduct.tier === 'standard' ? 2 : 3);
+            setPaymentDialogVisible(false);
         }
     };
 
-    const handleEditPricing = () => {
-        router.push('/dashboard/pricing');
-    };
-
-    // 渲染产品卡片
-    const renderProductCard = (product: Product) => {
-        const minPrice = getMinPrice(product);
-        const isCombo = product.type === 'combo';
-        
-        return (
-            <div
-                key={product.id}
-                className="p-4 border-2 border-surface-200 rounded-xl bg-surface hover:shadow-md transition-all duration-200"
-            >
-                <div className="mb-3">
-                    {isCombo && (
-                        <span className="inline-flex items-center text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full mb-2">
-                            <Package className="w-3 h-3 mr-1" />
-                            组合套餐
-                        </span>
-                    )}
-                    <h4 className="font-bold text-lg text-surface-900">{product.name}</h4>
-                    {product.description && (
-                        <p className="text-sm text-surface-600 mt-1">{product.description}</p>
-                    )}
-                    {isCombo && product.included_products && (
-                        <p className="text-xs text-surface-500 mt-1">
-                            包含: {product.included_products.join(' + ')}
-                        </p>
-                    )}
+    // 渲染产品卡片 (与 PricingSettings 镜像)
+    const renderProductCard = (product: Product) => (
+        <div key={product.id} className="bg-white border border-surface-200 rounded-2xl p-6 hover:border-primary-400 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+            <div>
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-xl text-surface-900">{product.name}</h4>
+                        {product.type === 'combo' && <Tag value="套餐" rounded className="text-[10px]" />}
+                    </div>
                 </div>
                 
-                <div className="flex items-baseline mb-4">
-                    <span className="text-2xl font-bold text-surface-900">¥{minPrice}</span>
-                    <span className="text-surface-500 ml-1 text-sm">
-                        /{product.duration_options[0]?.months || 1}个月起
-                    </span>
-                </div>
+                <p className="text-sm text-surface-500 mb-6 leading-relaxed">
+                    {product.description || '暂无详细描述'}
+                </p>
 
-                <Button
-                    label="选择"
-                    onClick={() => handleSelectProduct(product)}
-                    loading={subscribing && selectedProduct?.id === product.id}
-                    className="w-full p-button-primary"
-                />
+                {product.type === 'combo' && product.included_products && (
+                    <div className="mb-6 flex flex-wrap gap-2">
+                        {product.included_products.map((item, i) => (
+                            <span key={i} className="flex items-center text-[11px] text-surface-400 bg-surface-50 px-2 py-1 rounded-md">
+                                <Package className="w-3 h-3 mr-1" /> {item}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
-        );
-    };
 
-    // 渲染层级分组
+            <div className="space-y-3">
+                <p className="text-xs font-bold text-surface-400 uppercase tracking-widest ml-1">选择计划梯度</p>
+                <div className="grid grid-cols-1 gap-2">
+                    {product.duration_options.map((opt, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSelectProduct(product, opt)}
+                            disabled={subscribing}
+                            className="w-full flex justify-between items-center p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 transition-all group"
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-surface-700">{opt.months}个月</span>
+                                {opt.months >= 3 && <Tag value="推荐" className="text-[9px] px-1 h-4" />}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-lg font-black text-primary">¥{opt.price}</span>
+                                <ArrowRight className="w-4 h-4 text-surface-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+
     const renderTierSection = (tier: PricingTier) => {
-        const tierProducts = getProductsByTier(tier);
+        const config = tierConfig[tier];
+        const tierProducts = products.filter(p => p.tier === tier);
         if (tierProducts.length === 0) return null;
 
         return (
-            <div key={tier} className="mb-8">
-                <div className={`rounded-xl p-4 mb-4 ${tierColors[tier]}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-white text-xs px-2 py-0.5 rounded-full ${tierBadgeColors[tier]}`}>
-                            {tierLabels[tier]}
-                        </span>
+            <div className="mb-10">
+                <div className="flex items-center gap-4 mb-6 px-1">
+                    <div className={`w-12 h-12 rounded-2xl bg-${config.color}-50 flex items-center justify-center text-${config.color}-500 shadow-sm`}>
+                        {config.icon}
                     </div>
-                    <p className="text-sm text-surface-600 dark:text-surface-300">{tierDescriptions[tier]}</p>
+                    <div>
+                        <h3 className="text-xl font-black text-surface-900 tracking-tight">{config.label}</h3>
+                        <p className="text-sm text-surface-400 font-medium">{config.desc}</p>
+                    </div>
                 </div>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tierProducts.map(renderProductCard)}
                 </div>
             </div>
         );
     };
 
-    if (loading) {
-        return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="text-center mb-8">
-                    <div className="h-8 bg-surface-200 rounded w-1/4 mx-auto mb-4 animate-pulse"></div>
-                    <div className="h-4 bg-surface-200 rounded w-1/3 mx-auto animate-pulse"></div>
-                </div>
-                <div className="grid md:grid-cols-3 gap-6">
-                    {[1, 2, 3].map((item) => (
-                        <div key={item} className="border-2 border-surface-200 rounded-xl p-6 animate-pulse">
-                            <div className="h-6 bg-surface-200 rounded w-3/4 mb-6"></div>
-                            <div className="h-10 bg-surface-200 rounded w-1/2 mb-8"></div>
-                            <div className="h-10 bg-surface-200 rounded w-full"></div>
-                        </div>
-                    ))}
-                </div>
+    if (loading) return (
+        <div className="max-w-7xl mx-auto p-8 space-y-8">
+            <Skeleton width="30%" height="2rem" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Skeleton height="300px" borderRadius="1.5rem" />
+                <Skeleton height="300px" borderRadius="1.5rem" />
+                <Skeleton height="300px" borderRadius="1.5rem" />
             </div>
-        );
-    }
-
-    // 如果没有新版products，也没有旧版pricings，显示空状态
-    const hasProducts = products.length > 0;
-    const hasPricings = subscriptionTiers.length > 0;
-
-    if (!loading && !hasProducts && !hasPricings) {
-        return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-surface-900 mb-2" id='choose-pricing'>选择您的订阅计划</h2>
-                    <p className="text-surface-500">选择最适合您需求的服务层级</p>
-                    {(session?.user?.id === coach.user_id) && (
-                        <div className="mt-4">
-                            <Button
-                                label="编辑定价策略"
-                                icon="pi pi-pencil"
-                                onClick={handleEditPricing}
-                                className="p-button-outlined"
-                            />
-                        </div>
-                    )}
-                </div>
-                
-                <div className="flex flex-col items-center justify-center py-12">
-                    <div className="bg-surface-100 dark:bg-surface-800 rounded-full p-4 mb-6">
-                        <Inbox className="h-12 w-12 text-surface-500 dark:text-surface-0" />
-                    </div>
-                    <h3 className="text-xl font-medium text-surface-900 mb-2">暂无订阅计划</h3>
-                    <p className="text-surface-500 dark:text-surface-400 mb-6 text-center max-w-md">
-                        {session?.user?.id === coach.user_id 
-                            ? "您还没有设置任何订阅计划，请先创建定价策略" 
-                            : "该教练尚未设置订阅计划"}
-                    </p>
-                    {session?.user?.id === coach.user_id && (
-                        <Button 
-                            label="创建定价策略" 
-                            icon="pi pi-plus" 
-                            onClick={handleEditPricing}
-                            className="p-button-primary"
-                        />
-                    )}
-                </div>
-            </div>
-        );
-    }
+        </div>
+    );
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-            <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-surface-900 mb-2" id='choose-pricing'>选择您的订阅计划</h2>
-                <p className="text-surface-500">选择最适合您需求的服务层级</p>
-                {(session?.user?.id === coach.user_id) && (
-                    <div className="mt-4">
-                        <Button
-                            label="编辑定价策略"
-                            icon="pi pi-pencil"
-                            onClick={handleEditPricing}
-                            className="p-button-outlined"
-                        />
-                    </div>
-                )}
-            </div>
-
-            {/* 新版：按层级展示产品 */}
-            {hasProducts && (
+        <div className="max-w-7xl mx-auto px-4 py-12">
+            {products.length === 0 ? (
+                <div className="py-20 text-center bg-surface-50 rounded-3xl border-2 border-dashed border-surface-200">
+                    <Inbox className="w-16 h-16 text-surface-200 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-surface-900">暂无可用方案</h3>
+                    <p className="text-surface-400">该教练尚未配置任何订阅产品</p>
+                </div>
+            ) : (
                 <>
                     {renderTierSection('basic')}
+                    <Divider className="my-12" />
                     {renderTierSection('standard')}
+                    <Divider className="my-12" />
                     {renderTierSection('vip')}
                 </>
             )}
 
-            {/* 旧版兼容：如果没有新版数据，显示旧版 */}
-            {!hasProducts && hasPricings && (
-                <div className="grid md:grid-cols-3 gap-6">
-                    {subscriptionTiers.map((tier, index) => (
-                        <div
-                            key={index}
-                            className={`relative p-6 rounded-xl border-2 flex flex-col justify-between
-                                ${(tier.is_recommend)
-                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900 shadow-lg'
-                                    : 'border-surface-200 bg-surface hover:shadow-md'
-                                } transition-all duration-200`}
-                        >
-                            {tier.is_recommend && (
-                                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                    <span className="bg-primary-500 text-surface px-3 py-1 rounded-full text-sm font-medium">
-                                        推荐
-                                    </span>
-                                </div>
-                            )}
-
-                            <div className="text-center mb-6">
-                                <h3 className="text-xl font-bold text-surface-900 mb-2">{tier.title}</h3>
-                                <div className="flex items-baseline justify-center">
-                                    <span className="text-3xl font-bold text-surface-900">¥{tier.price}</span>
-                                    <span className="text-surface-500 ml-1">/月</span>
-                                </div>
-                            </div>
-
-                            <ul className="space-y-3 mb-8">
-                                {tier.features.map((feature, featureIndex) => (
-                                    <li key={featureIndex} className="flex items-start">
-                                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                                        <span className="text-surface-700 text-sm">{feature}</span>
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <Button
-                                label='立即订阅'
-                                onClick={() => {
-                                    // 转换为Product格式
-                                    const mockProduct: Product = {
-                                        id: `legacy_${index}`,
-                                        tier: 'standard',
-                                        type: 'single',
-                                        name: tier.title,
-                                        duration_options: [{ months: 1, price: tier.price }]
-                                    };
-                                    handleSelectProduct(mockProduct);
-                                }}
-                                className="w-full p-button-primary"
-                            />
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* 时长选择对话框 */}
-            <Dialog
-                header="选择订阅时长"
-                visible={durationDialogVisible}
-                style={{ width: '450px' }}
-                onHide={() => {
-                    setDurationDialogVisible(false);
-                    setSelectedProduct(null);
-                    setSelectedDuration(null);
-                }}
-            >
-                {selectedProduct && (
-                    <div>
-                        <p className="mb-4 text-surface-600">
-                            您选择了: <strong>{selectedProduct.name}</strong>
-                        </p>
-                        <div className="grid grid-cols-1 gap-3 mb-4">
-                            {selectedProduct.duration_options.map((opt, idx) => (
-                                <div
-                                    key={idx}
-                                    onClick={() => handleSelectDuration(opt)}
-                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all
-                                        ${selectedDuration === opt 
-                                            ? 'border-primary-500 bg-primary-50' 
-                                            : 'border-surface-200 hover:border-surface-400'}`}
-                                >
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <Clock className="w-4 h-4 text-surface-500" />
-                                            <span className="font-medium">{opt.months}个月</span>
-                                            {opt.is_recommend && (
-                                                <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">推荐</span>
-                                            )}
-                                        </div>
-                                        <span className="text-xl font-bold">¥{opt.price}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <Button
-                            label="确认选择"
-                            onClick={handleConfirmDuration}
-                            disabled={!selectedDuration}
-                            className="w-full"
-                        />
-                    </div>
-                )}
-            </Dialog>
-
+            {/* 逻辑组件 */}
             <QuestionnaireForm
                 visible={questionnaireVisible}
                 onHide={() => setQuestionnaireVisible(false)}
                 questions={questionnaireQuestions}
                 coach={coach}
-                onSubmit={handleQuestionnaireSubmit}
+                onSubmit={async (answers) => {
+                    const res = await subscriptionService.createSubscription({
+                        coachId: coach.id,
+                        tier: selectedProduct?.tier === 'basic' ? 1 : selectedProduct?.tier === 'standard' ? 2 : 3,
+                        monthlyPrice: selectedDuration?.price || 0,
+                        status: 'inactive',
+                        subscribeData: answers,
+                        productId: selectedProduct?.id,
+                        productName: selectedProduct?.name,
+                        productTier: selectedProduct?.tier,
+                        subscribedWeeks: (selectedDuration?.months || 1) * 4
+                    });
+                    if (res) {
+                        setCoachSubscription(res.subscription);
+                        setQuestionnaireVisible(false);
+                        setPaymentDialogVisible(true);
+                    }
+                }}
                 loading={subscribing}
             />
 
@@ -566,7 +278,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 amount={selectedDuration?.price || 0}
                 coachId={coach.id}
                 onSuccess={handlePaymentSuccess}
-                onCancel={handlePaymentCancel}
+                onCancel={() => setPaymentDialogVisible(false)}
             />
         </div>
     );

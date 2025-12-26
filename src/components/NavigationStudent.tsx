@@ -13,6 +13,17 @@ import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
+import { 
+    PlayCircle, 
+    Search, 
+    ClipboardList, 
+    TrendingUp, 
+    Bell, 
+    Moon, 
+    Sun, 
+    ChevronDown,
+    LogIn
+} from 'lucide-react';
 
 export default function NavigationStudent() {
     const pathname = usePathname();
@@ -30,211 +41,142 @@ export default function NavigationStudent() {
 
     useEffect(() => {
         if (status === 'loading') return;
-
-        // 如果用户已登录
         if (session?.user) {
             const profile = session.profile as any;
-
-            // 检查 onboarding_completed 状态
-            // 注意：如果 profile 不存在，也视为未完成（需要创建档案）
-            const isCompleted = profile?.onboarding_completed === true;
-
-            if (!isCompleted) {
-                // 打开问卷模态框而不是重定向
+            if (profile?.onboarding_completed !== true) {
                 openOnboardingModal();
             }
         }
     }, [session, status, openOnboardingModal]);
 
+    const itemRenderer = (item: any) => {
+        const isActive = pathname === item.url;
+        return (
+            <div 
+                onClick={item.command}
+                className={`
+                    flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all duration-300 group
+                    ${isActive 
+                        ? 'bg-primary-50 text-primary-600' 
+                        : 'hover:bg-surface-50 text-surface-600 hover:text-primary-600'}
+                `}
+            >
+                <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? '' : 'group-hover:scale-110 transition-transform'} />
+                <span className={`text-sm ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
+            </div>
+        );
+    };
+
     const studentMenuItems = useMemo(() => [
-        {
-            label: '今日训练',
-            icon: 'pi pi-play',
-            command: () => router.push('/today-training'),
-        },
-        {
-            label: '发现教练',
-            icon: 'pi pi-search',
-            command: () => router.push('/coach/discovery'),
-        },
-        {
-            label: '训练计划',
-            icon: 'pi pi-clipboard',
-            command: () => router.push('/coach/plans'),
-        },
-        {
-            label: '我的档案',
-            icon: 'pi pi-id-card',
-            command: () => router.push('/me/profile'),
-        },
-        {
-            label: '排行榜',
-            icon: 'pi pi-chart-line',
-            command: () => router.push('/ranking'),
-        },
-    ], [router]);
+        { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), template: itemRenderer },
+        { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), template: itemRenderer },
+        { label: '训练计划', icon: ClipboardList, url: '/coach/plans', command: () => router.push('/coach/plans'), template: itemRenderer },
+        { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
+    ], [router, pathname]);
 
-    // ✅ User Menu Items (Avatar Dropdown)
-    const userMenuItems = useMemo(() => {
-        const items = [
-            {
-                label: '我的订阅',
-                icon: 'pi pi-book',
-                command: () => router.push('/coach/subscription'),
+    const userMenuItems = useMemo(() => [
+        { label: '我的订阅', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
+        { separator: true },
+        {
+            label: (session?.user as any)?.is_coach ? '切换到教练端' : '申请成为教练',
+            icon: (session?.user as any)?.is_coach ? 'pi pi-sync' : 'pi pi-sparkles',
+            command: async () => {
+                if ((session?.user as any)?.is_coach) {
+                    try {
+                        const res = await fetch('/api/user/switch-role', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ role: 'coach' })
+                        });
+                        if (res.ok) window.location.href = '/dashboard';
+                    } catch (e) { console.error(e); }
+                } else { router.push('/coach/application'); }
             },
-            { separator: true },
-            {
-                label: (session?.user as any)?.is_coach ? '切换到教练端' : '申请成为教练',
-                icon: (session?.user as any)?.is_coach ? 'pi pi-briefcase' : 'pi pi-user-plus',
-                command: async () => {
-                    if ((session?.user as any)?.is_coach) {
-                        // 调用 API 切换角色到教练
-                        try {
-                            const res = await fetch('/api/user/switch-role', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ role: 'coach' })
-                            });
-                            if (res.ok) {
-                                // 刷新页面以获取新的 session
-                                window.location.href = '/dashboard';
-                            }
-                        } catch (e) {
-                            console.error('切换角色失败', e);
-                        }
-                    } else {
-                        router.push('/coach/application');
-                    }
-                },
-            },
-            { separator: true },
-            {
-                label: '个人设置',
-                icon: 'pi pi-cog',
-                command: () => openProfileSetupModal(session?.profile, session?.user?.id),
-            },
-            {
-                label: '退出登录',
-                icon: 'pi pi-sign-out',
-                command: () => signOut({ callbackUrl: '/' }),
-            }
-        ];
-
-        return items;
-    }, [session, openProfileSetupModal, router]);
-
-    const handleUserMenuToggle = useCallback((event: React.MouseEvent) => {
-        menuRef.current?.toggle(event);
-    }, []);
+        },
+        { separator: true },
+        { label: '个人设置', icon: 'pi pi-cog', command: () => openProfileSetupModal(session?.profile, session?.user?.id) },
+        { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
+    ], [session, openProfileSetupModal, router]);
 
     const start = (
-        <Link href="/" className="flex items-center space-x-3 mr-4">
-            <img src="/favicon.jpg" alt="logo" className="h-10 rounded-md" />
-            <span className="text-2xl font-extrabold">
-                教<span className="text-primary">链</span>
-            </span>
+        <Link href="/" className="flex items-center gap-3 mr-8 group transition-transform active:scale-95">
+            <div className="relative">
+                {/* 保持原比例的图标展示 */}
+                <img src="/favicon.jpg" alt="logo" className="h-9 w-auto rounded-xl shadow-sm group-hover:shadow-primary-100 transition-all object-contain" />
+                <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-emerald-500 border-2 border-surface rounded-full"></div>
+            </div>
+            <div className="flex flex-col leading-none">
+                <span className="text-lg font-black tracking-tighter text-surface-900">
+                    教<span className="text-primary-500">链</span>
+                </span>
+                <span className="text-[10px] font-bold text-primary-500/80 uppercase mt-0.5">Student</span>
+            </div>
         </Link>
     );
 
     const end = (
-        <div className="flex items-center gap-3 h-full">
+        <div className="flex items-center gap-1">
             {status === 'loading' ? (
-                <div className="flex items-center gap-3">
-                    <Skeleton shape="circle" size="2rem" />
-                    <div className="flex flex-col gap-1">
-                        <Skeleton width="6rem" height="1rem" />
-                        <div className="flex gap-1">
-                            <Skeleton width="3rem" height="0.8rem" borderRadius="9999px" />
-                            <Skeleton width="3rem" height="0.8rem" borderRadius="9999px" />
-                        </div>
-                    </div>
-                </div>
+                <Skeleton shape="circle" size="2.5rem" className="bg-surface-100" />
             ) : session?.user ? (
                 <>
-                    {/* Message Button */}
-                    <div className="relative">
-                        <Button
-                            onClick={() => router.push('/messages')}
-                            text
-                            className="text-surface-500 message-button shrink-0 flex flex-col items-center justify-center px-2 py-1"
-                            data-pr-tooltip="消息"
-                        >
-                            <i className="pi pi-comment text-lg mb-0.5" />
-                            <span className="text-xs mt-0.5">消息</span>
-                        </Button>
-                        <MessageBadge className="absolute -top-1 -right-1" />
+                    <div className="flex items-center gap-0.5 bg-surface-50 p-1 rounded-2xl mr-2">
+                        <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all">
+                            <Bell size={20} />
+                            <MessageBadge className="absolute top-1.5 right-1.5 border-2 border-surface-50" />
+                        </button>
+                        <button onClick={toggleTheme} className="p-2 rounded-xl text-surface-500 hover:bg-surface transition-all">
+                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
                     </div>
 
-                    <div>
-                        <Button
-                            onClick={toggleTheme}
-                            text
-                            className="theme-toggle shrink-0 flex flex-col items-center justify-center px-2 py-1"
-                            data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-                        >
-                            <i className={`${theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'} text-lg mb-0.5`} />
-                            <span className="text-xs mt-0.5">{theme === 'light' ? '日间' : '夜间'}</span>
-                        </Button>
-                    </div>
-
-                    {/* User Avatar & Info */}
                     <div
-                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg transition-colors"
-                        onClick={handleUserMenuToggle}
-                        aria-label="用户菜单"
+                        className="flex items-center gap-2 pl-1 pr-3 py-1 bg-surface border border-surface-100 rounded-2xl cursor-pointer hover:border-primary-200 hover:shadow-sm transition-all active:scale-[0.97]"
+                        onClick={(e) => menuRef.current?.toggle(e)}
                     >
                         <Avatar
                             image={session.profile?.avatar_url || undefined}
-                            label={
-                                session.profile?.avatar_url
-                                    ? undefined
-                                    : session.profile?.nickname?.charAt(0) ||
-                                    session.user.phone?.slice(0, 1) ||
-                                    'U'
-                            }
+                            label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'U')}
                             shape="circle"
-                            className="bg-primary text-white font-bold flex-shrink-0"
-                            size="normal"
+                            className="bg-primary-500 text-surface text-xs font-bold"
                         />
-                        <div className="flex flex-col">
-                            <span className="font-medium text-sm">
-                                {session.profile?.nickname || session.user.phone}
+                        <div className="hidden md:flex flex-col items-start leading-tight">
+                            <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">
+                                {session.profile?.nickname || '学员'}
                             </span>
-                            <div className="flex gap-1">
-                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${(session.user as any)?.primary_role === 'coach' ? 'bg-purple-100 text-purple-600' : 'bg-primary-100 text-primary-600'}`}>
-                                    {(session.user as any)?.primary_role === 'coach' ? '教练' : '学员'}
-                                </span>
-                            </div>
+                            <span className="text-[10px] text-surface-400 font-medium">Ready</span>
                         </div>
+                        <ChevronDown size={14} className="ml-1 text-surface-300" />
                     </div>
                 </>
             ) : (
-                <Button
-                    label="登录"
-                    icon="pi pi-sign-in"
-                    size="small"
+                <button 
                     onClick={() => router.push('/login')}
-                    className="p-button-outlined"
-                />
+                    className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-primary-500 text-surface font-bold text-sm shadow-md shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all active:scale-95"
+                >
+                    <LogIn size={18} />
+                    <span>登录</span>
+                </button>
             )}
         </div>
     );
 
     return (
         <>
-            <Menubar
-                model={studentMenuItems}
-                start={start}
-                end={end}
-                className="sticky top-0 z-50 border-b shadow-sm px-4"
-            />
+            <div className="sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
+                <Menubar
+                    model={studentMenuItems}
+                    start={start}
+                    end={end}
+                    className="max-w-7xl mx-auto pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-6 py-2"
+                />
+            </div>
 
             <Menu
                 model={userMenuItems}
                 popup
                 ref={menuRef}
-                id="user_menu"
-                className="min-w-40"
+                className="mt-2 border-none shadow-xl rounded-2xl p-2 min-w-48 text-sm"
             />
         </>
     );
