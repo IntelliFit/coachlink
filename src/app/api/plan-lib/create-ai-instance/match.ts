@@ -9,7 +9,11 @@ import {
     CoachPlanAction,
     CoachPlanTrainingDay,
 } from "../create-template/entity";
-import { calcRecommendedLoad } from "@/lib/rmCaculator";
+import {
+    calcIntensityDisplay,
+    calcRecommendedLoad,
+    normalizeIntensityConfig,
+} from "@/lib/rmCaculator";
 
 // 自动计算动作的配置类型
 interface AutoComputeAction {
@@ -92,7 +96,7 @@ export async function matchPlan(questionare: TrainingItem[]) {
 
 /**
  * 计算动作的具体负重
- * 将RM次数转换为具体重量(kg)
+ * 支持新的 intensityConfig 格式，同时向后兼容旧的 params.强度 字段
  */
 function computeActionWeight(
     action: CoachPlanAction,
@@ -115,44 +119,64 @@ function computeActionWeight(
 
     // 获取学员该动作的1RM
     const oneRM = userRmInputs[action.actionId];
-    if (!oneRM || oneRM <= 0) {
-        console.log(`动作 ${action.actionId}: 学员未填写1RM数据，跳过计算`);
+
+    // 提取强度配置（支持新旧格式）
+    const intensityConfig = normalizeIntensityConfig(action.params);
+    const legacyRm = action.params?.["强度"];
+
+    // 调试日志：检查 intensityConfig 是否正确传入
+    console.log(`🔍 动作 ${actionConfig.name} (${action.actionId}):`, {
+        "params.intensityConfig": action.params?.intensityConfig,
+        "intensityConfig (normalized)": intensityConfig,
+        "legacyRm (params.强度)": legacyRm,
+        "oneRM": oneRM,
+        "bodyWeight": bodyWeight,
+    });
+
+    // 如果没有任何强度配置，跳过
+    if (!intensityConfig && !legacyRm) {
+        console.log(`动作 ${action.actionId}: 未设置强度，跳过计算`);
         return;
     }
 
-    // 获取强度（RM次数）
-    const rmValue = action.params?.["强度"];
-    if (!rmValue || rmValue <= 0) {
-        console.log(`动作 ${action.actionId}: 模板未设置强度(RM)，跳过计算`);
-        return;
-    }
-
-    // 根据动作的 includesBodyWeight 属性决定 alpha 值
-    // true = 负重动作（引体/臂屈伸），需要减去体重 -> alpha=1
-    // false/null = 普通动作（深蹲/卧推/硬拉）-> alpha=0
-    const alpha = actionConfig.includesBodyWeight ? 1 : 0;
+    // 根据动作的 includesBodyWeight 属性决定计算方式
+    const includesBodyWeight = actionConfig.includesBodyWeight ?? false;
 
     try {
-        // 计算具体负重
-        const calculatedWeight = calcRecommendedLoad(
+        // 使用新的计算函数
+        const result = calcIntensityDisplay({
+            intensityConfig,
+            legacyRm,
             oneRM,
             bodyWeight,
-            rmValue,
-            alpha,
-            "average",
-        );
+            includesBodyWeight,
+        });
 
-        // 将计算结果存入 params.load
-        action.params = {
-            ...action.params,
-            load: calculatedWeight,
-            loadUnit: "kg",
-            loadCalculated: true, // 标记为已自动计算
-        };
+        // 将计算结果存入 params
+        if (result.source !== "none") {
+            action.params = {
+                ...action.params,
+                load: result.displayWeight,
+                loadUnit: result.displayUnit || "kg",
+                loadSource: result.source,
+                loadDisplayText: result.displayText,
+                loadCalculated: result.source === "calculated",
+            };
 
-        console.log(
-            `✅ 自动计算负重: 动作=${actionConfig.name}, 1RM=${oneRM}kg, 体重=${bodyWeight}kg, ${rmValue}RM, alpha=${alpha} -> ${calculatedWeight}kg`,
-        );
+            const sourceLabel = result.source === "calculated"
+                ? "自动计算"
+                : result.source === "recommended"
+                ? "推荐数值"
+                : "相对强度";
+
+            console.log(
+                `✅ ${sourceLabel}: 动作=${actionConfig.name}, ` +
+                    `1RM=${oneRM || "无"}kg, 体重=${bodyWeight}kg, ` +
+                    `结果=${result.displayWeight ?? result.displayText}${
+                        result.displayUnit || ""
+                    }`,
+            );
+        }
     } catch (error) {
         console.error(`计算负重失败: 动作=${action.actionId}`, error);
     }
