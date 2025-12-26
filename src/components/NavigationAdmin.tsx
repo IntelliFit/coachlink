@@ -12,10 +12,9 @@ import { useTheme } from '@/context/ThemeContext';
 import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
-import { Badge } from 'primereact/badge';
-import { AdminNavDataResponseDto } from '@/app/api/admin/admin-nav-data/entity';
 import { adminService } from '@/app/service/adminService';
 import { useToastContext } from '@/context/ToastContext';
+import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn } from 'lucide-react';
 
 export default function NavigationAdmin() {
     const pathname = usePathname();
@@ -26,17 +25,16 @@ export default function NavigationAdmin() {
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const { showToast } = useToastContext();
-
-    const [navData, setNavData] = useState<AdminNavDataResponseDto>(null);
+    const [navData, setNavData] = useState<any>(null);
 
     const loadNavData = async () => {
-        const res = await adminService.adminNavData({});
-        if (res) {
-            setNavData(res);
-        } else {
-            showToast({ severity: 'error', summary: '获取导航数据失败' });
+        try {
+            const res = await adminService.adminNavData({});
+            if (res) setNavData(res);
+        } catch (e) {
+            console.error("Nav data error", e);
         }
-    }
+    };
 
     useEffect(() => {
         setIsClient(true);
@@ -44,171 +42,151 @@ export default function NavigationAdmin() {
     }, []);
 
     const itemRenderer = (item: any) => (
-        <a className="flex align-items-center p-menuitem-link">
-            <span className={item.icon} />
-            <span className="mx-2">{item.label}</span>
-            {(item.badge > 0) && <Badge className="ml-auto bg-red-500" value={item.badge} />}
-            {item.shortcut && <span className="ml-auto border-1 surface-border border-round surface-100 text-xs p-1">{item.shortcut}</span>}
-        </a>
+        <div 
+            onClick={item.command}
+            className={`
+                flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all duration-200
+                ${pathname === item.url ? 'bg-primary-50 text-primary-600' : 'hover:bg-surface-50 text-surface-600'}
+            `}
+        >
+            <item.icon size={18} strokeWidth={2.5} />
+            <span className="text-sm font-semibold">{item.label}</span>
+            {item.badge > 0 && (
+                <span className="ml-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-500 px-1.5 text-[10px] font-bold text-surface ring-2 ring-surface">
+                    {item.badge}
+                </span>
+            )}
+        </div>
     );
 
     const adminMenuItems = useMemo(() => [
         {
             label: '支付管理',
-            icon: 'pi pi-users',
-            command: () => {
-                router.push('/admin/payments');
-            },
+            icon: CreditCard,
+            url: '/admin/payments',
+            command: () => router.push('/admin/payments'),
             badge: navData?.paymentUnreviewed || 0,
+            template: itemRenderer
         },
         {
             label: '教练申请',
-            icon: 'pi pi-file-edit',
-            command: () => {
-                router.push('/admin/coach-applications');
-            },
+            icon: UserPlus,
+            url: '/admin/coach-applications',
+            command: () => router.push('/admin/coach-applications'),
             badge: navData?.coachApplicationUnreviewed || 0,
             template: itemRenderer
         },
         {
-            label: '排行榜管理',
-            icon: 'pi pi-wallet',
-            command: () => {
-                router.push('/admin/rankings');
-            },
+            label: '排行榜',
+            icon: Trophy,
+            url: '/admin/rankings',
+            command: () => router.push('/admin/rankings'),
+            template: itemRenderer
         }
-    ], [router, navData, itemRenderer]);
+    ], [router, navData, pathname]);
 
-    const userMenuItems = useMemo(() => {
-        const items = [
-            {
-                label: '个人设置',
-                icon: 'pi pi-cog',
-                command: () => openProfileSetupModal(session?.profile, session?.user?.id),
-            },
-            {
-                label: '退出登录',
-                icon: 'pi pi-sign-out',
-                command: () => signOut({ callbackUrl: '/' }),
-            }
-        ];
-
-        return items;
-    }, [session, openProfileSetupModal, router]);
-
-    const handleUserMenuToggle = useCallback((event: React.MouseEvent) => {
-        menuRef.current?.toggle(event);
-    }, []);
+    const userMenuItems = useMemo(() => [
+        {
+            label: '个人设置',
+            icon: 'pi pi-cog',
+            command: () => openProfileSetupModal(session?.profile, session?.user?.id),
+        },
+        { separator: true },
+        {
+            label: '退出登录',
+            icon: 'pi pi-sign-out',
+            className: 'text-rose-500',
+            command: () => signOut({ callbackUrl: '/' }),
+        }
+    ], [session, openProfileSetupModal]);
 
     const start = (
-        <Link href="/" className="flex items-center space-x-3 mr-4">
-            <img src="/favicon.jpg" alt="logo" className="h-10 rounded-md" />
-            <span className="text-2xl font-extrabold">
-                教<span className="text-primary">链</span>
-                <span className="ml-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded-full align-middle">后台管理</span>
-            </span>
+        <Link href="/" className="flex items-center gap-3 mr-8 group transition-transform active:scale-95">
+            <div className="relative">
+                {/* 统一保持原比例：使用 h-9 w-auto 和 object-contain */}
+                <img src="/favicon.jpg" alt="logo" className="h-9 w-auto rounded-xl shadow-sm group-hover:shadow-primary-100 transition-all object-contain" />
+                <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-emerald-500 border-2 border-surface rounded-full"></div>
+            </div>
+            <div className="flex flex-col leading-none">
+                <span className="text-lg font-black tracking-tighter text-surface-900">
+                    教<span className="text-primary-500">链</span>
+                </span>
+                <span className="text-[10px] font-bold text-primary-500/80 uppercase mt-0.5">Admin</span>
+            </div>
         </Link>
     );
 
     const end = (
-        <div className="flex items-center gap-3 h-full">
+        <div className="flex items-center gap-1 h-10"> {/* 强制 h-10 与 Student 端保持一致高度 */}
             {status === 'loading' ? (
-                <div className="flex items-center gap-3">
-                    <Skeleton shape="circle" size="2rem" />
-                    <div className="flex flex-col gap-1">
-                        <Skeleton width="6rem" height="1rem" />
-                        <div className="flex gap-1">
-                            <Skeleton width="3rem" height="0.8rem" borderRadius="9999px" />
-                            <Skeleton width="3rem" height="0.8rem" borderRadius="9999px" />
-                        </div>
-                    </div>
-                </div>
+                <Skeleton shape="circle" size="2.5rem" className="bg-surface-100" />
             ) : session?.user ? (
                 <>
-                    {/* Message Button */}
-                    <div className="relative">
-                        <Button
+                    <div className="flex items-center gap-0.5 bg-surface-50 p-1 rounded-2xl mr-2">
+                        <button 
                             onClick={() => router.push('/messages')}
-                            text
-                            className="text-surface-500 message-button shrink-0 flex flex-col items-center justify-center px-2 py-1"
-                            data-pr-tooltip="消息"
+                            className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all"
                         >
-                            <i className="pi pi-comment text-lg mb-0.5" />
-                            <span className="text-xs mt-0.5">消息</span>
-                        </Button>
-                        <MessageBadge className="absolute -top-1 -right-1" />
-                    </div>
-
-                    <div>
-                        <Button
+                            <Bell size={20} />
+                            <MessageBadge className="absolute top-1.5 right-1.5 border-2 border-surface-50" />
+                        </button>
+                        <button 
                             onClick={toggleTheme}
-                            text
-                            className="theme-toggle shrink-0 flex flex-col items-center justify-center px-2 py-1"
-                            data-pr-tooltip={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
+                            className="p-2 rounded-xl text-surface-500 hover:bg-surface transition-all"
                         >
-                            <i className={`${theme === 'light' ? 'pi pi-moon' : 'pi pi-sun'} text-lg mb-0.5`} />
-                            <span className="text-xs mt-0.5">{theme === 'light' ? '日间' : '夜间'}</span>
-                        </Button>
+                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
                     </div>
 
-                    {/* User Avatar & Info */}
                     <div
-                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-lg transition-colors"
-                        onClick={handleUserMenuToggle}
-                        aria-label="用户菜单"
+                        className="flex items-center h-full gap-2 pl-1 pr-3 py-1 bg-surface border border-surface-100 rounded-2xl cursor-pointer hover:border-primary-200 transition-all active:scale-[0.97]"
+                        onClick={(e) => menuRef.current?.toggle(e)}
                     >
                         <Avatar
                             image={session.profile?.avatar_url || undefined}
-                            label={
-                                session.profile?.avatar_url
-                                    ? undefined
-                                    : session.profile?.nickname?.charAt(0) ||
-                                    session.user.phone?.slice(0, 1) ||
-                                    'U'
-                            }
+                            label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'A')}
                             shape="circle"
-                            className="bg-primary text-white font-bold flex-shrink-0"
-                            size="normal"
+                            className="bg-primary-500 text-surface text-xs font-bold"
                         />
-                        <div className="flex flex-col">
-                            <span className="font-medium text-sm">
-                                {session.profile?.nickname || session.user.phone}
+                        <div className="hidden md:flex flex-col items-start leading-tight">
+                            <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">
+                                {session.profile?.nickname || '管理员'}
                             </span>
-                            <div className="flex gap-1">
-                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-                                    管理员
-                                </span>
-                            </div>
+                            <span className="text-[10px] text-primary-500 font-medium px-1.5 py-0 bg-primary-50 rounded-full">
+                                Root
+                            </span>
                         </div>
                     </div>
                 </>
             ) : (
-                <Button
-                    label="登录"
-                    icon="pi pi-sign-in"
-                    size="small"
+                <Button 
                     onClick={() => router.push('/login')}
-                    className="p-button-outlined"
-                />
+                    rounded
+                    className="bg-primary-500 border-none px-5 py-2 hover:bg-primary-600 transition-all shadow-md shadow-primary-100"
+                >
+                    <LogIn size={18} className="mr-2" />
+                    <span className="font-bold text-sm">登录</span>
+                </Button>
             )}
         </div>
     );
 
     return (
         <>
-            <Menubar
-                model={adminMenuItems}
-                start={start}
-                end={end}
-                className="sticky top-0 z-50 border-b shadow-sm px-4"
-            />
+            <div className="sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
+                <Menubar
+                    model={adminMenuItems}
+                    start={start}
+                    end={end}
+                    className="max-w-7xl mx-auto pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-6 py-2 transition-all"
+                />
+            </div>
 
             <Menu
                 model={userMenuItems}
                 popup
                 ref={menuRef}
-                id="user_menu"
-                className="min-w-40"
+                className="mt-2 border-none shadow-xl rounded-2xl p-2 min-w-48 text-sm font-medium"
             />
         </>
     );
