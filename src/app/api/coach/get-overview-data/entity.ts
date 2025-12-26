@@ -6,5 +6,9 @@ export interface GetOverviewDataResponseDto {
     pendingReviewCount: number;
     averageRating: number;
     monthlyRevenue: number;
-    recentActivity: string;
+    contentCount: number;
+    actionCount: number;
+    planTemplateCount: number;
+    questionReady: boolean;
+    pricingReady: boolean;
 }
