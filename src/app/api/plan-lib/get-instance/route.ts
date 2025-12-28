@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
@@ -19,9 +19,28 @@ export async function POST(req: Request) {
     const {
         id,
         subscriptionId,
+        fetchSelf,
     } = await req.json() as GetInstanceDto;
 
-    if (!id && !subscriptionId) {
+    // --- DEBUGGING START ---
+    try {
+        const { data: debugPlans } = await supabase
+            .from("coach_plan_instances")
+            .select("id, status, source, updated_at, name")
+            .eq("student_id", userId)
+            .order("updated_at", { ascending: false })
+            .limit(5);
+
+        console.log(
+            `[get-instance DEBUG] Plans for user ${userId}:`,
+            JSON.stringify(debugPlans, null, 2),
+        );
+    } catch (e) {
+        console.error("[get-instance DEBUG] Error listing plans:", e);
+    }
+    // --- DEBUGGING END ---
+
+    if (!id && !subscriptionId && !fetchSelf) {
         return NextResponse.json({
             success: false,
             message: "Invalid parameters",
@@ -34,14 +53,30 @@ export async function POST(req: Request) {
 
     if (id) {
         query = query.eq("id", id);
-    }
-
-    if (subscriptionId) {
+    } else if (subscriptionId) {
         query = query.eq("coach_subscription_id", subscriptionId);
+    } else if (fetchSelf) {
+        // 仅获取学员自建的计划 (source='self')
+        console.log(
+            `[get-instance] Fetching self-created plan for user: ${userId}`,
+        );
+        query = query
+            .eq("student_id", userId)
+            .eq("source", "self") // 必须筛选 source='self'，否则会返回教练计划
+            .eq("status", "active")
+            .order("updated_at", { ascending: false })
+            .limit(1);
     }
 
     // 获取计划实例
     const { data: instance, error } = await query.maybeSingle();
+
+    console.log(`[get-instance] Query Result:`, {
+        found: !!instance,
+        id: instance?.id,
+        source: instance?.source,
+        error: error?.message,
+    });
 
     if (!instance) {
         return NextResponse.json({
@@ -125,15 +160,39 @@ export async function POST(req: Request) {
 
         // 批量获取动作详情
         if (actionIds.size > 0) {
-            const { data: actions } = await supabase
+            const idsList = Array.from(actionIds);
+
+            // 1. 查教练动作库
+            const { data: coachActions } = await supabase
                 .from("coach_actions")
                 .select("*")
-                .in("id", Array.from(actionIds));
+                .in("id", idsList);
 
-            if (actions) {
-                actions.forEach((action) => {
+            if (coachActions) {
+                coachActions.forEach((action) => {
                     actionsMap[action.id] = action;
                 });
+            }
+
+            // 2. 查学员动作库 (如果不全都在教练库里)
+            const remainingIds = idsList.filter((id) => !actionsMap[id]);
+
+            if (remainingIds.length > 0) {
+                const { data: studentActions } = await supabase
+                    .from("student_actions")
+                    .select("*")
+                    .in("id", remainingIds);
+
+                if (studentActions) {
+                    studentActions.forEach((action) => {
+                        // 适配字段: student_actions 使用 url，coach_actions 使用 video_url
+                        actionsMap[action.id] = {
+                            ...action,
+                            video_url: action.url, // 适配字段
+                            is_student_action: true,
+                        };
+                    });
+                }
             }
         }
     }

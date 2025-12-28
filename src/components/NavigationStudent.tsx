@@ -22,7 +22,8 @@ import {
     Moon, 
     Sun, 
     ChevronDown,
-    LogIn
+    LogIn,
+    User
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -72,10 +73,14 @@ export default function NavigationStudent() {
         { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), template: itemRenderer },
         { label: '训练计划', icon: ClipboardList, url: '/coach/plans', command: () => router.push('/coach/plans'), template: itemRenderer },
         { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
+        { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), template: itemRenderer },
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [
         { label: '我的订阅', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
+        { separator: true },
+        { label: '我的动作库', icon: 'pi pi-list', command: () => router.push('/me/action-lib') },
+        { label: '常用计划', icon: 'pi pi-bookmark', command: () => router.push('/me/plan-lib') },
         { separator: true },
         {
             label: (session?.user as any)?.is_coach ? '切换到教练端' : '申请成为教练',

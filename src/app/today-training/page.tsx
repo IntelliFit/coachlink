@@ -21,14 +21,29 @@ const TodayTrainingPage: React.FC = () => {
     const router = useRouter();
     const { showToast } = useToastContext();
 
-    const [instance, setInstance] = useState<any>(null);
-    const [actions, setActions] = useState<Record<string, any>>({});
-    const [todayDayIndex, setTodayDayIndex] = useState(1);
+    // 教练分配的计划
+    const [coachInstance, setCoachInstance] = useState<any>(null);
+    const [coachActions, setCoachActions] = useState<Record<string, any>>({});
+    const [coachDayIndex, setCoachDayIndex] = useState(1);
+    
+    // 自建计划
+    const [selfInstance, setSelfInstance] = useState<any>(null);
+    const [selfActions, setSelfActions] = useState<Record<string, any>>({});
+    const [selfDayIndex, setSelfDayIndex] = useState(1);
+    
+    // 当前显示模式: 'coach' | 'self'
+    const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach');
+    
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState<any>(null);
     const [executionStatus, setExecutionStatus] = useState<'none' | 'in_progress' | 'completed'>('none');
     const [completedSets, setCompletedSets] = useState(0);
     const [totalSets, setTotalSets] = useState(0);
+
+    // 当前激活的计划（根据 planMode 动态选择）
+    const instance = planMode === 'coach' ? coachInstance : selfInstance;
+    const actions = planMode === 'coach' ? coachActions : selfActions;
+    const todayDayIndex = planMode === 'coach' ? coachDayIndex : selfDayIndex;
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -45,51 +60,58 @@ const TodayTrainingPage: React.FC = () => {
                 studentId: session?.user?.id || '',
             });
 
-            if (!subsResponse?.subscriptions || subsResponse.subscriptions.length === 0) {
-                setLoading(false);
-                return;
-            }
-
-            const activeSub = subsResponse.subscriptions[0];
+            const activeSub = subsResponse?.subscriptions?.[0] || null;
             setSubscription(activeSub);
 
-            // 2. 获取计划实例（包含actions）
-            const res = await planLibService.getInstance({
-                subscriptionId: activeSub.id
-            });
+            // 2. 并行加载教练计划和自建计划
+            const [coachRes, selfRes] = await Promise.all([
+                activeSub 
+                    ? planLibService.getInstance({ subscriptionId: activeSub.id })
+                    : Promise.resolve(null),
+                planLibService.getInstance({ fetchSelf: true })
+            ]);
 
-            if (!res?.instance) {
-                showToast({
-                    severity: 'warn',
-                    summary: '未找到训练计划',
-                    detail: '该教练暂未为您分配训练计划',
-                });
-                setLoading(false);
-                return;
+            // 处理教练计划
+            if (coachRes?.instance) {
+                setCoachInstance(coachRes.instance);
+                setCoachActions(coachRes.actions || {});
+                
+                // 获取教练计划的执行天数
+                try {
+                    const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
+                    const nextDayData = await nextDayRes.json();
+                    if (nextDayData.success && nextDayData.data) {
+                        setCoachDayIndex(nextDayData.data.nextDayIndex);
+                    }
+                } catch (e) {
+                    const startDay = (coachRes.instance as any).start_execution_day || 1;
+                    setCoachDayIndex(startDay);
+                }
             }
 
-            setInstance(res.instance);
-            setActions(res.actions || {});
-
-            // 3. 获取下一个待执行的训练日（自动顺延逻辑）
-            try {
-                const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
-                const nextDayData = await nextDayRes.json();
-                if (nextDayData.success && nextDayData.data) {
-                    setTodayDayIndex(nextDayData.data.nextDayIndex);
-                    
-                    // 检查该天的执行状态
-                    const execRes = await fetch(`/api/execution/check-today?instanceId=${res.instance.id}&dayIndex=${nextDayData.data.nextDayIndex}`);
-                    const execData = await execRes.json();
-                    if (execData.success && execData.data) {
-                        setExecutionStatus(execData.data.status);
-                        setCompletedSets(execData.data.completed_sets || 0);
-                        setTotalSets(execData.data.total_sets || 0);
+            // 处理自建计划
+            if (selfRes?.instance) {
+                setSelfInstance(selfRes.instance);
+                setSelfActions(selfRes.actions || {});
+                
+                // 获取自建计划的执行天数
+                try {
+                    const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
+                    const nextDayData = await nextDayRes.json();
+                    if (nextDayData.success && nextDayData.data) {
+                        setSelfDayIndex(nextDayData.data.nextDayIndex);
                     }
+                } catch (e) {
+                    const startDay = (selfRes.instance as any).start_execution_day || 1;
+                    setSelfDayIndex(startDay);
                 }
-            } catch (e) {
-                console.log('Failed to get next training day, using default');
-                setTodayDayIndex(1);
+            }
+
+            // 设置默认显示模式：优先教练计划，没有则显示自建计划
+            if (coachRes?.instance) {
+                setPlanMode('coach');
+            } else if (selfRes?.instance) {
+                setPlanMode('self');
             }
 
         } catch (error) {
@@ -135,42 +157,33 @@ if (loading) {
     );
 }
 
-    if (!subscription) {
-        return (
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <Card>
-                    <div className="text-center py-12">
-                        <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">还没有订阅任何教练</h3>
-                        <p className="text-gray-600 mb-6">
-                            订阅教练后，这里将显示您的每日训练计划
-                        </p>
-                        <Button
-                            label="浏览教练"
-                            icon="pi pi-search"
-                            onClick={() => router.push('/coach/discovery')}
-                        />
-                    </div>
-                </Card>
-            </div>
-        );
-    }
+    // 判断是否有任何计划
+    const hasAnyPlan = coachInstance || selfInstance;
+    const hasBothPlans = coachInstance && selfInstance;
 
-    if (!instance) {
+    if (!hasAnyPlan) {
         return (
             <div className="max-w-6xl mx-auto px-4 py-8">
                 <Card>
                     <div className="text-center py-12">
                         <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">暂无训练计划</h3>
+                        <h3 className="text-xl font-semibold mb-2">还没有训练计划</h3>
                         <p className="text-gray-600 mb-6">
-                            您的教练还没有为您分配训练计划
+                            您可以订阅教练获取专业计划，或者创建自己的训练计划
                         </p>
-                        <Button
-                            label="查看训练计划"
-                            icon="pi pi-clipboard"
-                            onClick={() => router.push('/coach/plans')}
-                        />
+                        <div className="flex justify-center gap-4">
+                            <Button
+                                label="浏览教练"
+                                icon="pi pi-search"
+                                onClick={() => router.push('/coach/discovery')}
+                            />
+                            <Button
+                                label="我的计划库"
+                                icon="pi pi-list"
+                                className="p-button-outlined"
+                                onClick={() => router.push('/me/plan-lib')}
+                            />
+                        </div>
                     </div>
                 </Card>
             </div>
@@ -184,8 +197,35 @@ if (loading) {
 return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12">
         <div className="max-w-6xl mx-auto px-4 py-8">
-            {/* --- 顶部教练信息卡片 --- */}
-            {subscription?.coach && (
+            {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
+            {hasBothPlans && (
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
+                    <button
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            planMode === 'coach'
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                        onClick={() => setPlanMode('coach')}
+                    >
+                        <i className="pi pi-user mr-2" />
+                        教练计划
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            planMode === 'self'
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                        onClick={() => setPlanMode('self')}
+                    >
+                        <i className="pi pi-star mr-2" />
+                        我的计划
+                    </button>
+                </div>
+            )}
+            {/* --- 顶部教练信息卡片 (仅当有订阅且当前计划不是自建时显示，或者即使是自建也可以不显示教练卡片) --- */}
+            {subscription?.coach && instance?.source !== 'self' && (
                 <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
                     {/* 背景装饰图形 */}
                     <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
@@ -220,6 +260,40 @@ return (
                         <div className="hidden md:block text-right border-l border-white/10 pl-8">
                             <div className="text-slate-400 text-xs uppercase mb-1">训练累计</div>
                             <div className="text-xl font-mono font-bold">128 <span className="text-sm font-normal text-slate-500">Days</span></div>
+                        </div>
+                    </div>
+                </div>
+
+            )}
+
+            {/* 自建计划顶部卡片 */}
+            {instance?.source === 'self' && (
+                <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
+                    <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-purple-500/20 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-pink-500/10 rounded-full blur-2xl"></div>
+
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center space-x-5">
+                            <div className="relative">
+                                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
+                                    <span className="text-2xl font-black italic">
+                                        ME
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-wider rounded">SELF PLAN</span>
+                                    <span className="text-slate-400 text-xs font-medium italic">Your personal journey</span>
+                                </div>
+                                <h2 className="text-2xl font-bold tracking-tight">
+                                    {instance.name || '我的自建计划'}
+                                </h2>
+                                <p className="text-slate-400 text-sm font-medium">
+                                    自我驱动，超越极限
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

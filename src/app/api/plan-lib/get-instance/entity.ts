@@ -4,6 +4,7 @@ import { CoachPlanInstanceRow } from "@/types";
 export interface GetInstanceDto {
     id?: string;
     subscriptionId?: string;
+    fetchSelf?: boolean;
 }
 
 export interface GetInstanceResponseDto {
