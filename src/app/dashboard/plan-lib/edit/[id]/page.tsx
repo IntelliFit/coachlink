@@ -22,6 +22,7 @@ import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
 import { checkTrainingDays } from '@/utils/template';
+import SmartImportDialog from '@/app/dashboard/plan-lib/components/SmartImportDialog';
 
 
 const EditPlanPage = () => {
@@ -51,6 +52,9 @@ const EditPlanPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [questions, setQuestions] = useState<TrainingItem[]>([]);
+    
+    // Smart import dialog
+    const [showImportDialog, setShowImportDialog] = useState(false);
 
     // Load template data
     useEffect(() => {
@@ -321,6 +325,17 @@ const EditPlanPage = () => {
         setDays(newDays);
     }
 
+    // 智能导入完成处理
+    const handleImportComplete = (importedDays: FormPlanTrainingDay[]) => {
+        setDays(importedDays);
+        if (importedDays.length > 0) {
+            setSelectedDayIndex(importedDays[0].dayIndex);
+        }
+        showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划` });
+        // 重新加载动作库以包含新创建的动作
+        loadTemplate();
+    };
+
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
 
@@ -435,6 +450,29 @@ const EditPlanPage = () => {
                 />
             </div>
 
+            {/* 智能导入按钮 - 编辑页面会覆盖现有内容 */}
+            <div className="mb-4">
+                <Button
+                    label="智能导入（覆盖）"
+                    icon="pi pi-bolt"
+                    severity="warning"
+                    outlined
+                    onClick={() => {
+                        if (days.some(d => d.actionSets && d.actionSets.length > 0)) {
+                            // 如果有现有内容，显示确认
+                            if (window.confirm('智能导入将覆盖当前模板的所有训练日内容，确定要继续吗？')) {
+                                setShowImportDialog(true);
+                            }
+                        } else {
+                            setShowImportDialog(true);
+                        }
+                    }}
+                    disabled={saving}
+                    tooltip="使用 AI 从文本导入，将覆盖现有训练内容"
+                    tooltipOptions={{ position: 'right' }}
+                />
+            </div>
+
             <BasicInfoForm
                 name={name}
                 description={description}
@@ -517,6 +555,14 @@ const EditPlanPage = () => {
                     />
                 </div>
             </Card>
+
+            {/* 智能导入对话框 */}
+            <SmartImportDialog
+                visible={showImportDialog}
+                onHide={() => setShowImportDialog(false)}
+                existingActions={actions}
+                onImportComplete={handleImportComplete}
+            />
         </div>
     );
 };

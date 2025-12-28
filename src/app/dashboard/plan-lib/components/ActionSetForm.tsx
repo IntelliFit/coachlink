@@ -286,7 +286,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             </div>
 
             {/* 基于attrs动态渲染字段（排除"强度"，改为使用新UI） */}
-            {currentAction?.attrs
+            {(currentAction?.attrs || [])
                 .filter(attr => attr !== '强度') // 排除强度，使用新UI
                 .map(attr => (
                     <div key={attr}>
