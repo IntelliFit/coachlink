@@ -65,6 +65,12 @@ import type {
     GetAggregatedInfoResponseDto
 } from '@/app/api/coach/get-aggregated-info/entity';
 
+// 概览数据相关接口
+import type {
+    GetOverviewDataDto,
+    GetOverviewDataResponseDto
+} from '@/app/api/coach/get-overview-data/entity';
+
 // 教练资料更新相关接口
 import type {
     UpdateCoachProfileDto,
@@ -216,6 +222,15 @@ class CoachService extends BaseService {
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
+    }
+
+    async getOverviewData(reqData?: GetOverviewDataDto) {
+        const res = await this.post<GetOverviewDataResponseDto>('get-overview-data', reqData || {});
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+
+        return null;
     }
 
     async getPaymentWaitingStudents(reqData: GetPaymentWaitingStudentsDto) {
