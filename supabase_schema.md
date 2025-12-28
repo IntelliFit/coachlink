@@ -1,7 +1,7 @@
 # Supabase 数据库结构文档（public schema）
 
 - **生成时间**：2025-01-27
-- **最后更新**：2025-12-26（通过 MCP 从 Supabase 云端数据库实时获取）
+- **最后更新**：2025-01-27（通过 MCP 从 Supabase 云端数据库实时获取）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
@@ -11,6 +11,7 @@
 > - **最新更新**（2025-12-26）：新增多个表，包括聊天系统重构、训练执行系统优化、排行榜系统等
 > - **字段更新**（2025-12-26）：`coach_plan_instances` 表新增
 >   `start_execution_day` 字段，支持老学员中途迁入平台
+> - **最新更新**（2025-01-27）：新增多个字段，包括 `coach_pricing.products`、`coach_plan_templates.global_answers`、`execution_set_videos` 表新增审核相关字段等
 > - 当前保留 **38个表 + 3个视图 = 41个数据库对象**
 
 ## 目录
@@ -195,7 +196,7 @@
 
 **基本信息**
 
-- 行数：~99
+- 行数：~111
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -247,7 +248,7 @@
 
 **基本信息**
 
-- 行数：~95
+- 行数：~108
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -752,7 +753,7 @@
 
 **基本信息**
 
-- 行数：~11
+- 行数：~14
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -852,7 +853,7 @@
 
 **基本信息**
 
-- 行数：~5
+- 行数：~6
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -874,6 +875,7 @@
 | training_days_count | smallint    | YES  |                   |                             |
 | week_days           | int2[]      | YES  |                   | ⭐ **新增**：训练周几数组   |
 | contained_options   | text[]      | YES  |                   | ⭐ **新增**：包含的选项数组 |
+| global_answers      | jsonb       | YES  | '{}'              | ⭐ **新增**：全局选项问题的答案，格式: {"问题名": 选项索引}，用于AI计划匹配 |
 | created_at          | timestamptz | YES  | now()             |                             |
 | updated_at          | timestamptz | YES  | now()             |                             |
 
@@ -906,6 +908,7 @@
 | id         | uuid        | NO   | gen_random_uuid() | 主键                    |
 | coach_id   | uuid        | NO   |                   | 外键 → coaches.id，唯一 |
 | pricings   | jsonb       | NO   | '[]'              | 定价信息（JSON格式）    |
+| products   | jsonb       | YES  | '[]'              | ⭐ **新增**：产品信息（JSON格式） |
 | created_at | timestamptz | NO   | now()             |                         |
 | updated_at | timestamptz | NO   | now()             |                         |
 
@@ -1060,6 +1063,14 @@
 - 外键：`user_id → users.id`
 - 注释：快递信息表，存储中奖用户的快递地址等信息
 
+**索引**
+
+- `shipping_info_pkey` (id) - 主键索引
+- `idx_shipping_info_user_id` (user_id) - 普通索引
+- `idx_shipping_info_status` (status) - 普通索引
+- `idx_shipping_info_created_at` (created_at) - 普通索引
+- `idx_shipping_info_user_prize` (user_id, prize_id) - 唯一索引
+
 #### 20. coach_contents（教练内容库表）
 
 - 行数：~6
@@ -1136,7 +1147,7 @@
 
 #### 30. coach_plan_instances（教练计划实例表）⭐ 新增
 
-- 行数：~1
+- 行数：~8
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`coach_plan_template_id → coach_plan_templates.id`,
@@ -1170,6 +1181,16 @@
 - `fk_plan_template` (coach_plan_template_id → coach_plan_templates.id)
 - `coach_plan_instances_coach_subscription_id_fkey` (coach_subscription_id →
   coach_subscriptions.id)
+- `coach_plan_instances_student_id_fkey` (student_id → users.id)
+- `coach_plan_instances_coach_id_fkey` (coach_id → coaches.id)
+
+**索引**
+
+- `coach_plan_instances_pkey` (id) - 主键索引
+- `idx_plan_instances_template` (coach_plan_template_id) - 普通索引
+- `idx_plan_instances_student` (student_id) - 普通索引
+- `idx_plan_instances_coach` (coach_id) - 普通索引
+- `idx_coach_plan_instances_start_execution_day` (start_execution_day) - 普通索引
 
 #### 31. coach_reviews（教练评价表）⭐ 新增
 
@@ -1295,7 +1316,7 @@
 
 #### 35. chat_room_unreads（聊天室未读消息表）⭐ 新增
 
-- 行数：~10
+- 行数：~12
 - 状态：✅ 正常使用
 - 主键：`(room_id, user_id)`
 - 外键：`room_id → chat_rooms.id`
@@ -1365,7 +1386,7 @@
 
 #### 37. plan_instance_executions（计划实例执行记录表）⭐ 新增
 
-- 行数：~8
+- 行数：~9
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`instance_id → coach_plan_instances.id`, `student_id → users.id`
@@ -1405,7 +1426,7 @@
 
 #### 38. execution_set_videos（执行组视频表）⭐ 新增
 
-- 行数：~5
+- 行数：~7
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`execution_id → plan_instance_executions.id`, `reviewed_by → users.id`
@@ -1430,6 +1451,10 @@
 | coach_rating     | integer     | YES  |                   | 教练评分（1-5）                            |
 | reviewed_at      | timestamptz | YES  |                   | 审核时间                                   |
 | reviewed_by      | uuid        | YES  |                   | 外键 → users.id（审核人）                  |
+| user_notes       | text        | YES  |                   | ⭐ **新增**：用户备注                       |
+| review_status    | text        | YES  | 'pending'         | ⭐ **新增**：审核状态 ∈ {'pending','reviewed','not_required'} |
+| requires_review   | boolean     | YES  | true              | ⭐ **新增**：是否需要审核                   |
+| exercise_name    | text        | YES  |                   | ⭐ **新增**：动作名称                       |
 | created_at       | timestamptz | NO   | now()             |                                            |
 
 **索引**
@@ -1438,6 +1463,7 @@
 - `idx_set_videos_execution` (execution_id) - 普通索引
 - `idx_set_videos_action` (action_id) - 普通索引
 - `idx_set_videos_created` (created_at DESC) - 普通索引
+- `idx_execution_set_videos_review_status` (review_status) WHERE requires_review = true AND review_status = 'pending' - 部分索引
 - `execution_set_videos_execution_id_action_id_set_number_key` (execution_id,
   action_id, set_number) - 唯一索引
 
@@ -1537,7 +1563,7 @@
 
 #### 42. leaderboard_entries（排行榜条目表）⭐ 新增
 
-- 行数：~70
+- 行数：~72
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`template_id → leaderboard_templates.id`, `user_id → users.id`
@@ -1877,6 +1903,34 @@ GROUP BY user_id, plan_id;
    - `coach_plan_templates.contained_options` (text[]) - 包含的选项数组
 
 5. 📊 **数据库对象统计**：38个表 + 3个视图 = 41个数据库对象
+
+**最新变更（2025-01-27）：**
+
+1. 📝 **字段新增**：
+   - `coach_pricing.products` (jsonb) - 产品信息（JSON格式），用于存储教练的产品配置
+   - `coach_plan_templates.global_answers` (jsonb) - 全局选项问题的答案，格式: {"问题名": 选项索引}，用于AI计划匹配
+   - `execution_set_videos.user_notes` (text) - 用户备注
+   - `execution_set_videos.review_status` (text) - 审核状态，∈ {'pending','reviewed','not_required'}
+   - `execution_set_videos.requires_review` (boolean) - 是否需要审核
+   - `execution_set_videos.exercise_name` (text) - 动作名称
+
+2. 🔍 **索引新增**：
+   - `coach_plan_instances` 表新增 `idx_coach_plan_instances_start_execution_day` 索引
+   - `execution_set_videos` 表新增 `idx_execution_set_videos_review_status` 部分索引（用于优化待审核视频查询）
+   - `shipping_info` 表新增多个索引（`idx_shipping_info_created_at`, `idx_shipping_info_status`, `idx_shipping_info_user_id`, `idx_shipping_info_user_prize`）
+
+3. 📊 **数据统计更新**：
+   - `user_profiles`: 95 → 108 行
+   - `users`: 99 → 111 行
+   - `coach_subscriptions`: 11 → 14 行
+   - `chat_messages`: 26 → 31 行
+   - `chat_rooms`: 5 → 6 行
+   - `chat_room_unreads`: 10 → 12 行
+   - `coach_plan_instances`: 1 → 8 行
+   - `plan_instance_executions`: 8 → 9 行
+   - `execution_set_videos`: 5 → 7 行
+   - `coach_plan_templates`: 5 → 6 行
+   - `leaderboard_entries`: 70 → 72 行
 
 **下一步建议：**
 

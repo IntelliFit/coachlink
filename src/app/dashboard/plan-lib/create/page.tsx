@@ -18,6 +18,7 @@ import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { checkTrainingDays } from '@/utils/template';
 import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
+import SmartImportDialog from '../components/SmartImportDialog';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -52,6 +53,9 @@ const CreatePlanPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [questions, setQuestions] = useState<TrainingItem[]>([]);
+    
+    // Smart import dialog
+    const [showImportDialog, setShowImportDialog] = useState(false);
 
 
     // Load actions from library
@@ -246,10 +250,22 @@ const CreatePlanPage = () => {
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
 
         if (actualDayIndex === -1) {
+            console.warn(`Day not found: dayIndex=${dayIndex}, looking for ${dayIndex + 1}`);
             return;
         }
 
+        // 确保 actionSets 存在
+        if (!newDays[actualDayIndex].actionSets) {
+            newDays[actualDayIndex].actionSets = [];
+        }
+
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
+
+        // 如果 actionSet 不存在，跳过
+        if (!actionSet) {
+            console.warn(`ActionSet not found: actualDayIndex=${actualDayIndex}, setIndex=${setIndex}`);
+            return;
+        }
 
         switch (field) {
             case 'actionId':
@@ -257,7 +273,8 @@ const CreatePlanPage = () => {
                 actionSet[field] = value as string;
                 break;
             case 'params':
-                actionSet.params = { ...actionSet.params, ...(value as any) };
+                // 确保 params 存在
+                actionSet.params = { ...(actionSet.params || {}), ...(value as any) };
                 break;
             case 'all':
                 newDays[actualDayIndex].actionSets[setIndex] = value as any;
@@ -293,6 +310,17 @@ const CreatePlanPage = () => {
 
         setDays(newDays);
         showToast({ severity: 'success', summary: '复制成功', detail: `已从第${sourceDayIndex}天复制内容到第${targetDayIndex}天` });
+    };
+
+    // 智能导入完成处理
+    const handleImportComplete = (importedDays: FormPlanTrainingDay[]) => {
+        setDays(importedDays);
+        if (importedDays.length > 0) {
+            setSelectedDayIndex(importedDays[0].dayIndex);
+        }
+        showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划` });
+        // 重新加载动作库以包含新创建的动作
+        loadActions();
     };
 
     const handleSave = async () => {
@@ -354,6 +382,20 @@ const CreatePlanPage = () => {
 
     return (
         <div className="mx-auto">
+            {/* 智能导入按钮 - 放在顶部显眠位置 */}
+            <div className="mb-4 flex items-center gap-4">
+                <h1 className="text-2xl font-bold text-900">新建训练计划模板</h1>
+                <Button
+                    label="智能导入"
+                    icon="pi pi-bolt"
+                    severity="help"
+                    onClick={() => setShowImportDialog(true)}
+                    disabled={saving || loading}
+                    tooltip="使用 AI 从文本快速导入训练计划"
+                    tooltipOptions={{ position: 'right' }}
+                />
+            </div>
+
             <BasicInfoForm
                 name={name}
                 description={description}
@@ -436,6 +478,14 @@ const CreatePlanPage = () => {
                     />
                 </div>
             </Card>
+
+            {/* 智能导入对话框 */}
+            <SmartImportDialog
+                visible={showImportDialog}
+                onHide={() => setShowImportDialog(false)}
+                existingActions={actions}
+                onImportComplete={handleImportComplete}
+            />
         </div>
     );
 };
