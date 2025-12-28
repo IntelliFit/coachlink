@@ -31,6 +31,12 @@ const TrainingPlansHome: React.FC = () => {
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
     // 当前执行天数（用于计算日期）
     const [currentDayIndex, setCurrentDayIndex] = useState<number>(1);
+    // 自建计划支持
+    const [selfPlan, setSelfPlan] = useState<CoachPlanInstanceRow | null>(null);
+    const [selfPlanLoading, setSelfPlanLoading] = useState(false);
+    const [selfPlanActions, setSelfPlanActions] = useState<Record<string, CoachActionRow>>({});
+    // 计划显示模式: 'coach' | 'self'
+    const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach');
 
     // 加载订阅信息
     useEffect(() => {
@@ -63,6 +69,42 @@ const TrainingPlansHome: React.FC = () => {
 
         load();
     }, [session?.user?.id]);
+
+    // 加载自建计划（总是加载，不仅仅在没有订阅时）
+    useEffect(() => {
+        if (loading) return;
+        if (!session?.user?.id) return;
+
+        const loadSelfPlan = async () => {
+            setSelfPlanLoading(true);
+            try {
+                const res = await planLibService.getInstance({ fetchSelf: true });
+                if (res?.instance) {
+                    setSelfPlan(res.instance);
+                    if (res.actions) {
+                        setSelfPlanActions(res.actions);
+                    }
+                    // 获取当前执行天数
+                    try {
+                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
+                        const nextDayData = await nextDayRes.json();
+                        if (nextDayData.success && nextDayData.data) {
+                            setCurrentDayIndex(nextDayData.data.nextDayIndex);
+                        }
+                    } catch (e) {
+                        const startDay = (res.instance as any).start_execution_day || 1;
+                        setCurrentDayIndex(startDay);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load self plan:', e);
+            } finally {
+                setSelfPlanLoading(false);
+            }
+        };
+
+        loadSelfPlan();
+    }, [loading, session?.user?.id]);
 
     // 加载计划实例和动作详情
     useEffect(() => {
@@ -556,68 +598,126 @@ const TrainingPlansHome: React.FC = () => {
 
     return (
         <div className="min-h-screen transition-colors duration-200">
-            {loading ? (
+            {loading || selfPlanLoading ? (
                 <SkeletonTabs />
-            ) : subscriptions.length === 0 ? (
+            ) : subscriptions.length === 0 && !selfPlan ? (
                 <EmptyState />
             ) : (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* 教练选择区域 */}
-                    <Card className="mb-8 border-0 shadow-sm">
-                        <div className="mb-4 flex items-center gap-2">
-                            <i className="pi pi-users text-primary" />
-                            <span className="font-semibold text-surface-700">
-                                已订阅教练 ({subscriptions.length})
-                            </span>
+                    {/* 计划类型切换器 (当同时有教练计划和自建计划时显示) */}
+                    {subscriptions.length > 0 && selfPlan && (
+                        <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
+                            <button
+                                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                                    planMode === 'coach'
+                                        ? 'bg-white text-slate-900 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                                onClick={() => setPlanMode('coach')}
+                            >
+                                <i className="pi pi-user" />
+                                教练计划
+                            </button>
+                            <button
+                                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                                    planMode === 'self'
+                                        ? 'bg-white text-slate-900 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                                onClick={() => setPlanMode('self')}
+                            >
+                                <i className="pi pi-star" />
+                                我的计划
+                            </button>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                            {subscriptions.map((subscription) => {
-                                const isActive = activeSubscriptionId === subscription.id;
-                                return (
-                                    <button
-                                        key={subscription.id}
-                                        className={`group relative px-5 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
-                                            ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
-                                            : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
-                                            }`}
-                                        onClick={() => setActiveSubscriptionId(subscription.id)}
-                                    >
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive
-                                            ? 'bg-surface/20'
-                                            : 'bg-surface-100'
-                                            }`}>
-                                            <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="font-medium">
-                                                {subscription.coach?.name || `教练${subscription.id.substring(0, 8)}`}
-                                            </div>
-                                            <div className={`text-xs ${isActive ? 'text-surface/80' : 'text-surface-500'}`}>
-                                                {subscription.coach?.specialization || '专业健身教练'}
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </Card>
+                    )}
 
-                    {/* 计划详情区域 */}
-                    <Card className='shadow-sm mb-6'>
-                        <div className="p-6">
-                            {activeSubscriptionId && (
-                                <>
-                                    {instanceLoading[activeSubscriptionId] ? (
-                                        <PlanDetailSkeleton />
-                                    ) : instances[activeSubscriptionId] ? (
-                                        <PlanDetailCard instance={instances[activeSubscriptionId]!} />
-                                    ) : (
-                                        <NoPlanState />
+                    {/* 教练计划模式 */}
+                    {planMode === 'coach' && subscriptions.length > 0 && (
+                        <>
+                            {/* 如果有订阅，显示教练选择区域 */}
+                            <Card className="mb-8 border-0 shadow-sm">
+                                <div className="mb-4 flex items-center gap-2">
+                                    <i className="pi pi-users text-primary" />
+                                    <span className="font-semibold text-surface-700">
+                                        已订阅教练 ({subscriptions.length})
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    {subscriptions.map((subscription) => {
+                                        const isActive = activeSubscriptionId === subscription.id;
+                                        return (
+                                            <button
+                                                key={subscription.id}
+                                                className={`group relative px-5 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
+                                                    ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
+                                                    : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
+                                                    }`}
+                                                onClick={() => setActiveSubscriptionId(subscription.id)}
+                                            >
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive
+                                                    ? 'bg-surface/20'
+                                                    : 'bg-surface-100'
+                                                    }`}>
+                                                    <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-medium">
+                                                        {subscription.coach?.name || `教练${subscription.id.substring(0, 8)}`}
+                                                    </div>
+                                                    <div className={`text-xs ${isActive ? 'text-surface/80' : 'text-surface-500'}`}>
+                                                        {(subscription.coach as any)?.specialization || '专业健身教练'}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+
+                            {/* 计划详情区域 */}
+                            <Card className='shadow-sm mb-6'>
+                                <div className="p-6">
+                                    {activeSubscriptionId && (
+                                        <>
+                                            {instanceLoading[activeSubscriptionId] ? (
+                                                <PlanDetailSkeleton />
+                                            ) : instances[activeSubscriptionId] ? (
+                                                <PlanDetailCard instance={instances[activeSubscriptionId]!} />
+                                            ) : (
+                                                <NoPlanState />
+                                            )}
+                                        </>
                                     )}
-                                </>
-                            )}
-                        </div>
-                    </Card>
+                                </div>
+                            </Card>
+                        </>
+                    )}
+
+                    {/* 自建计划模式 */}
+                    {((planMode === 'self' && selfPlan) || (subscriptions.length === 0 && selfPlan)) && (
+                        <>
+                            {/* 自建计划头部 */}
+                            <Card className="mb-8 border-0 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                                        <i className="pi pi-star text-white text-xl" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-surface-900">我的自建计划</h2>
+                                        <p className="text-sm text-surface-500">自我驱动，超越极限</p>
+                                    </div>
+                                </div>
+                            </Card>
+
+                            {/* 自建计划详情 */}
+                            <Card className='shadow-sm mb-6'>
+                                <div className="p-6">
+                                    <PlanDetailCard instance={selfPlan} />
+                                </div>
+                            </Card>
+                        </>
+                    )}
                 </div>
             )}
 

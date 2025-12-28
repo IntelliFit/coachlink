@@ -246,11 +246,11 @@ SELECT * FROM plan_instance_executions WHERE instance_id = 'instance_id';
 ### 🚫 陷阱 2: 不验证工具执行结果
 
 ```bash
-# ❌ 危险 - 假设修改成功
+// ❌ 危险 - 假设修改成功
 multi_replace_file_content(...)
-# 继续后续工作
+// 继续后续工作
 
-# ✅ 安全 - 立即验证
+// ✅ 安全 - 立即验证
 multi_replace_file_content(...)
 grep -n "新添加的代码" target_file.tsx
 ```
@@ -320,6 +320,70 @@ grep -r "api/endpoint-name" src/
 
 ---
 
+## 复用复杂组件时的索引陷阱 (2025-12-29)
+
+### 问题描述
+
+在复用教练端的 `PlanDayCard`
+组件到学员端计划编辑器时，出现了“第1天添加动作跑到第2天”的 Bug，并且UI显示异常。
+
+### 根本原因
+
+组件内部对索引的使用不一致（Inconsistent Indexing）：
+
+1. **Inconsistent Callback Arguments**: `PlanDayCard`
+   组件内部对于不同的回调使用了不同的索引基准：
+   - `onAddActionSet(day.dayIndex)`：传递的是 **1-based** 的业务属性 `dayIndex`
+     (如 1, 2, 3...)。
+   - `onRemoveDay(dayIndex)`、`onDayTypeChange(dayIndex)`：传递的是 **0-based**
+     的数组下标 (props 中传入的 `dayIndex`)。
+2. **Assumption Error**: 在父组件实现 `handleAddActionSet`
+   时，错误地假设传入参数是数组下标，直接使用 `days[index]` 访问。
+3. **Result**: 当点击第1天 (dayIndex=1) 的添加按钮时，访问了
+   `days[1]`，即数组的第2个元素，导致动作被加到了第二天。
+
+### 解决方案
+
+在处理此类回调时，**永远不要假设 ID 或 Index
+可以直接作为数组下标**，除非非常确定。
+
+**改进后的代码模式**：
+
+```typescript
+// ❌ 错误做法：直接当做下标
+const handleAddActionSet = (index: number) => {
+   // 如果 index 是 1-based，访问 days[1] 实际上是第二个元素
+   const day = days[index];
+   // ...
+};
+
+// ✅ 正确做法：根据特征查找（Find by Property）
+const handleAddActionSet = (dayIndexVal: number) => {
+   // 无论传入的是下标还是业务ID，都通过属性匹配来查找
+   const arrayIndex = days.findIndex((d) => d.dayIndex === dayIndexVal);
+
+   // 如果找不到，作为 fallback 再尝试作为下标（视情况而定）
+   if (arrayIndex === -1) {
+      console.error("Day not found");
+      return;
+   }
+
+   const day = days[arrayIndex];
+   // ...
+};
+```
+
+### 预防措施
+
+1. **组件契约审查 (Component Contract Review)**：在复用现有组件前，不仅要看
+   Props 类型，还要看源码中回调函数是如何被调用的。不要想当然。
+2. **防御性编程 (Defensive Programming)**：在处理数组元素时，优先使用 `find` /
+   `findIndex` 配合唯一标识符，而不是直接索引操作。
+3. **明确变量命名 (Explicit Naming)**：在变量名中区分 `index` (数组下标) 和 `id`
+   / `order` (业务属性)。例如使用 `dayIndexVal` 而不是 `dayIndex`。
+
+---
+
 ## 总结
 
 本次任务的核心教训：
@@ -329,5 +393,236 @@ grep -r "api/endpoint-name" src/
 3. **逐步验证** - 每一步修改都要确认生效
 4. **清理技术债** - 发现mock数据要及时清理
 5. **完整的测试数据** - 确保测试环境有真实可用的数据
+6. **组件复用需谨慎** - 仔细检查回调参数的含义（索引 vs ID）
 
 记住：**多花5分钟确认，能节省1小时的调试时间**。
+
+---
+
+## 学员自建计划功能调试经验 (2025-12-29)
+
+### 背景
+
+实现学员自建训练计划功能，允许用户创建自己的训练计划（不依赖教练订阅），并在"今日训练"页面执行。本次调试耗时约1小时，经历了多次错误诊断。
+
+---
+
+### 错误 1: 插入不存在的数据库字段 ❌
+
+**错误信息**：`PGRST204: Could not find the 'current_day_index' column`
+
+**错误代码**：
+
+```typescript
+// ❌ 凭记忆添加字段
+.insert({
+    student_id: userId,
+    current_day_index: 1,  // 这个字段根本不存在！
+    // ...
+})
+```
+
+**错误原因**：
+
+- 凭印象认为"自动顺延功能"需要 `current_day_index` 字段
+- 没有查看数据库 schema 就直接写代码
+
+**正确做法**：
+
+```bash
+# ✅ 修改前先查看 schema
+cat supabase_schema.md | grep -A 30 "coach_plan_instances"
+# 或查看 SQL 迁移文件
+cat sql/20251229_student_self_plan.sql
+```
+
+---
+
+### 错误 2: 字段名拼写错误 ❌
+
+**错误信息**：`PGRST204: Could not find the 'plan_data' column`
+
+**错误代码**：
+
+```typescript
+// ❌ 错误的字段名
+.insert({
+    plan_data: { execution: [...] },  // 字段不存在
+})
+
+// ✅ 正确的字段名
+.insert({
+    training_days: [...],  // 这才是正确的
+})
+```
+
+**错误原因**：
+
+- 混淆了不同表的字段名
+- 项目里可能有多种命名风格
+
+**正确做法**：
+
+```bash
+# ✅ 在相关 API 中搜索正确用法
+grep -r "training_days" src/app/api/
+grep -r "coach_plan_instances" src/app/api/
+```
+
+---
+
+### 错误 3: 过早 return 导致逻辑短路 ❌
+
+**最严重的错误**：应用计划成功（API 200），但页面依然空白。
+
+**错误代码**：
+
+```typescript
+const loadData = async () => {
+   const subsResponse = await subscriptionService.getCoachSubscriptions();
+
+   // ❌ 这里直接 return 了！
+   if (!subsResponse?.subscriptions?.length) {
+      setLoading(false);
+      return; // 没有订阅就退出，fetchSelf 根本不会执行
+   }
+
+   // ... 后面的 fetchSelf 逻辑永远不会被执行
+   if (!res?.instance) {
+      res = await planLibService.getInstance({ fetchSelf: true });
+   }
+};
+```
+
+**诊断过程**：
+
+1. ⚠️ 怀疑是 RLS 问题 → 换用 serviceRoleSupabase → 没效果
+2. ⚠️ 怀疑是 `source` 字段值问题 → 移除 filter → 没效果
+3. ⚠️ 添加后端日志 → 发现日志**根本没打印**
+4. ✅ 检查前端代码 → 发现 early return
+
+**正确代码**：
+
+```typescript
+const loadData = async () => {
+   const subsResponse = await subscriptionService.getCoachSubscriptions();
+
+   // ✅ 不要 return，继续执行
+   const activeSub = subsResponse?.subscriptions?.[0] || null;
+   setSubscription(activeSub);
+
+   // 即使没有订阅，也会执行到这里
+   if (!res?.instance) {
+      res = await planLibService.getInstance({ fetchSelf: true });
+   }
+};
+```
+
+**教训**：
+
+- **后端日志没打印 = API 没被调用**，问题在前端
+- 不要只盯着后端，要**全链路思考**
+- 调试日志要加在**正确的位置**（前端 + 后端）
+
+---
+
+### 错误 4: 凭猜测诊断问题 ❌
+
+**错误诊断链**：
+
+```
+页面空白 → 猜测是 RLS → 修改后端 → 没效果
+         → 猜测是字段值 → 修改后端 → 没效果
+         → 猜测是 ... → 修改后端 → 没效果
+```
+
+**正确诊断链**：
+
+```
+页面空白 → 添加日志 → 发现 API 没被调用 → 检查前端 → 找到 early return
+```
+
+**教训**：
+
+- **不要凭猜测修改代码**，先用日志确认问题点
+- 日志是最可靠的调试工具
+- 系统性排查比碰运气更高效
+
+---
+
+### 数据库约束问题
+
+**问题**：`coach_plan_instances` 表的 `coach_subscription_id` 原本是 NOT NULL
+
+**解决**：运行 SQL 迁移
+
+```sql
+-- 允许自建计划（无订阅）
+ALTER TABLE coach_plan_instances 
+    ALTER COLUMN coach_subscription_id DROP NOT NULL;
+ALTER TABLE coach_plan_instances 
+    ALTER COLUMN coach_id DROP NOT NULL;
+
+-- 添加来源标识
+ALTER TABLE coach_plan_instances 
+    ADD COLUMN IF NOT EXISTS source text DEFAULT 'coach';
+```
+
+**教训**：复用现有表结构时，要检查约束是否兼容新场景。
+
+---
+
+### 调试检查清单
+
+当遇到"API 成功但页面不显示"的问题时：
+
+1. **后端检查**
+   - [ ] 添加日志确认 API 被调用
+   - [ ] 打印查询条件和结果
+   - [ ] 检查数据库是否有数据
+
+2. **前端检查**
+   - [ ] 是否有 early return 阻止了 API 调用？
+   - [ ] 条件判断是否正确？
+   - [ ] State 是否正确更新？
+
+3. **全链路检查**
+   - [ ] 打开浏览器 DevTools → Network 看请求是否发出
+   - [ ] Console 是否有错误？
+   - [ ] 后端终端是否有日志？
+
+---
+
+### 关键命令备忘
+
+```bash
+# 查看数据库 schema
+cat supabase_schema.md | grep -A 50 "表名"
+
+# 搜索字段用法
+grep -rn "字段名" src/app/api/
+
+# 搜索组件中的条件判断
+grep -n "return" src/app/today-training/page.tsx
+
+# 检查 API 调用
+grep -rn "getInstance" src/
+```
+
+---
+
+### 本次调试总结
+
+| 错误类型     | 浪费时间 | 根本原因     |
+| ------------ | -------- | ------------ |
+| 不存在的字段 | 10分钟   | 未查 schema  |
+| 字段名错误   | 10分钟   | 未查 schema  |
+| 凭猜测修改   | 30分钟   | 未用日志定位 |
+| early return | 10分钟   | 未检查前端   |
+
+**核心教训**：
+
+1. **先查 Schema，再写代码** - 不要凭记忆
+2. **先加日志，再改代码** - 不要凭猜测
+3. **前后端都要检查** - 不要只盯着一端
+4. **日志没打印 = 代码没执行** - 这是最重要的信号
