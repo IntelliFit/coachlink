@@ -1,43 +1,33 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-    Play,
-    MessageSquare,
-    Star,
-    Clock,
-    User,
-    Filter,
-} from 'lucide-react';
+import { Play, Clock, User, Search, MessageSquarePlus, FileVideo, TrendingUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { TrainingVideoRow } from '@/types';
 import { ReviewStatus } from '@/types/coach';
 import { coachVideoService } from '../../service/coachVideoService';
+import type { ExecutionSetVideoWithDetails } from '@/app/api/coach/video/execution-videos-pending/entity';
 
-// PrimeReact imports
+// PrimeReact
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
-import { Card } from 'primereact/card';
 import { Dialog } from 'primereact/dialog';
 import { Rating } from 'primereact/rating';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Skeleton } from 'primereact/skeleton';
-import { IconField } from 'primereact/iconfield';
-import { InputIcon } from 'primereact/inputicon';
 
 const Videos: React.FC = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
 
-    const [videos, setVideos] = useState<TrainingVideoRow[]>([]);
+    const [videos, setVideos] = useState<ExecutionSetVideoWithDetails[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedVideo, setSelectedVideo] = useState<TrainingVideoRow | null>(null);
+    const [selectedVideo, setSelectedVideo] = useState<ExecutionSetVideoWithDetails | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [filter, setFilter] = useState<{ review_status?: ReviewStatus }>({ review_status: 'pending' });
     const [searchTerm, setSearchTerm] = useState('');
-    const [previewVideo, setPreviewVideo] = useState<TrainingVideoRow | null>(null);
+    const [previewVideo, setPreviewVideo] = useState<ExecutionSetVideoWithDetails | null>(null);
     const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
 
     useEffect(() => {
@@ -47,279 +37,363 @@ const Videos: React.FC = () => {
     const loadPendingReviews = async () => {
         try {
             setLoading(true);
-            const res = await coachVideoService.getCoachPendingReviews({
+            const res = await coachVideoService.getExecutionSetVideos({
                 pagination: { page: 1, limit: 100 },
                 reviewStatus: filter.review_status,
             });
-            if (res) setVideos(res.videos);
-        } catch (error) {
-            console.error('加载待点评视频失败:', error);
-        } finally {
-            setLoading(false);
-        }
+            if (res) {
+                setVideos(res.videos);
+            }
+        } finally { setLoading(false); }
     };
 
     const handleReview = async () => {
         if (!selectedVideo || !coach?.id) return;
         try {
-            const updatedVideo = await coachVideoService.reviewVideo(selectedVideo.id, {
+            const updatedVideo = await coachVideoService.reviewExecutionVideo(selectedVideo.id, {
                 rating: reviewForm.rating,
                 comment: reviewForm.comment,
                 tips: [],
             });
             if (updatedVideo) {
-                setVideos(videos.map(v => v.id === updatedVideo.id ? updatedVideo : v));
+                setVideos(videos.map(v => v.id === updatedVideo.id ? { ...v, ...updatedVideo } : v));
             }
             setShowReviewModal(false);
             setSelectedVideo(null);
             setReviewForm({ rating: 0, comment: '' });
         } catch (error) {
-            alert('点评失败: ' + (error as Error).message);
+            console.error(error);
         }
     };
-
-    const getExerciseLabel = (name: string | null) => name || '未指定动作';
-    const getStatusLabel = (status: ReviewStatus | null) => {
-        switch (status) {
-            case 'pending': return '待点评';
-            case 'reviewed': return '已点评';
-            default: return '未知';
-        }
-    };
-    const getStatusColor = (status: ReviewStatus | null) => {
-        switch (status) {
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'reviewed': return 'bg-green-100 text-green-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    };
-    const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('zh-CN');
-
-    const filteredVideos = videos.filter(video => {
-        const matchesSearch = searchTerm === '' ||
-            video.exercise_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            video.user_notes?.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesSearch;
-    });
 
     const statusOptions = [
-        { label: '所有状态', value: '' },
-        { label: '待点评', value: 'pending' },
+        { label: '全部状态', value: '' },
+        { label: '等待审阅', value: 'pending' },
         { label: '已点评', value: 'reviewed' },
     ];
 
-    const reviewDialogFooter = (
-        <div className="flex justify-end gap-2">
-            <Button label="取消" icon="pi pi-times" className="p-button-text"
-                onClick={() => { setShowReviewModal(false); setSelectedVideo(null); }} />
-            <Button label="提交点评" icon="pi pi-check"
-                onClick={handleReview}
-                disabled={!reviewForm.comment.trim()} />
-        </div>
-    );
-
-    const previewDialogFooter = (
-        <div className="flex justify-end">
-            <Button label="关闭" icon="pi pi-times" onClick={() => setPreviewVideo(null)} />
-        </div>
-    );
-
     return (
-        <div className="space-y-6">
-            {/* 顶部标题 */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-900">学员视频点评</h1>
-                <div className="text-sm text-600">
-                    待点评: {videos.filter(v => v.review_status === 'pending').length}
-                </div>
-            </div>
+        <div className="min-h-screen bg-surface-50/50 py-8 px-4">
+            <div className="max-w-7xl mx-auto space-y-8">
 
-            {/* 过滤器 */}
-            <Card className="shadow-sm">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                        <IconField iconPosition="left" className='w-full'>
-                            <InputIcon className="pi pi-search"> </InputIcon>
+                {/* 顶部标题与筛选 */}
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h1 className="text-2xl font-black text-surface-900 tracking-tight">学员视频点评</h1>
+                        <p className="text-surface-500 text-sm mt-1 font-medium">查看并分析学员的动作录像</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 bg-surface-0 p-1.5 rounded-lg shadow-sm border border-surface-100">
+                        <div className="relative flex items-center">
+                            <Search className="absolute left-3 text-surface-400" size={16} />
                             <InputText
                                 placeholder="搜索学员或动作..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full"
+                                className="pl-9 border-none shadow-none bg-transparent w-full sm:w-60 text-sm"
                             />
-                        </IconField>
+                        </div>
+                        <Dropdown
+                            value={filter.review_status || ''}
+                            options={statusOptions}
+                            onChange={(e) => setFilter({ review_status: e.value || undefined })}
+                            className="w-full sm:w-36 border-none bg-surface-50 rounded text-sm font-bold"
+                        />
                     </div>
-                    <Dropdown
-                        value={filter.review_status || ''}
-                        options={statusOptions}
-                        onChange={(e) => setFilter({ review_status: e.value || undefined })}
-                        placeholder="选择状态"
-                        className="min-w-40"
-                    />
-                </div>
-            </Card>
+                </header>
 
-            {/* 视频列表或骨架屏 */}
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {[1, 2, 3, 4, 5, 6].map(i => (
-                        <Card key={i} className="shadow-sm">
-                            <Skeleton width="100%" height="12rem" className="mb-4" />
-                            <Skeleton width="80%" height="1rem" className="mb-2" />
-                            <Skeleton width="60%" height="0.75rem" className="mb-3" />
-                            <div className="flex justify-between">
-                                <Skeleton width="4rem" height="1.5rem" />
-                                <Skeleton width="4rem" height="1.5rem" />
+                {/* 视频列表网格 */}
+                {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="bg-surface-0 rounded-lg p-4 border border-surface-100">
+                                <Skeleton height="180px" className="rounded-lg mb-4" />
+                                <Skeleton width="60%" height="1.2rem" className="mb-2" />
+                                <Skeleton width="100%" height="3rem" />
                             </div>
-                        </Card>
-                    ))}
-                </div>
-            ) : filteredVideos.length === 0 ? (
-                <div className="text-center py-12">
-                    <Filter className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">{searchTerm ? '没有找到匹配的视频' : '暂无待点评视频'}</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredVideos.map(video => (
-                        <Card key={video.id} className="shadow-sm hover:shadow-md transition-shadow">
-                            <div className="relative">
-                                <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden cursor-pointer">
-                                    {video.thumbnail_url ? (
-                                        <img src={video.thumbnail_url} alt="视频封面"
-                                            className="w-full h-full object-cover" />
-                                    ) : (
-                                        <video
-                                            src={video.video_url}
-                                            className="w-full h-full object-cover"
-                                            preload="metadata"
-                                            muted
-                                            playsInline
-                                            onLoadedMetadata={(e) => {
-                                                try { e.currentTarget.currentTime = 0.1; } catch { }
-                                            }}
-                                        />
-                                    )}
-                                    <div
-                                        className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                                        onClick={() => {
-                                            if (video.video_url?.startsWith('http')) {
-                                                window.open(video.video_url, '_blank');
-                                            } else {
-                                                setPreviewVideo(video);
-                                            }
-                                        }}
-                                    >
-                                        <Play className="w-16 h-16 text-white" />
+                        ))}
+                    </div>
+                ) : videos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-24 bg-surface-0 rounded-lg border border-surface-100">
+                        <FileVideo size={48} className="text-surface-200 mb-4" />
+                        <p className="text-surface-400 font-bold">暂无待审阅的视频</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {videos.filter(v =>
+                            searchTerm === '' ||
+                            v.exercise_name?.includes(searchTerm) ||
+                            v.metadata?.student_name?.includes(searchTerm)
+                        ).map(video => (
+                            <div key={video.id} className="flex flex-col bg-surface-0 rounded-lg overflow-hidden border border-surface-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+
+                                {/* 视频封面区域 */}
+                                <div className="relative aspect-video bg-surface-900 group">
+                                    <video
+                                        src={video.video_url}
+                                        className="absolute inset-0 w-full h-full object-cover opacity-90"
+                                        onMouseEnter={(e) => e.currentTarget.play()}
+                                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                                        muted
+                                        loop
+                                    />
+                                    {/* 状态显示 - 右上角中文 */}
+                                    <div className="absolute top-3 right-3">
+                                        <span className={`px-2 py-1 text-[10px] font-bold rounded shadow-sm ${video.review_status === 'pending' ? 'bg-amber-400 text-white' : 'bg-emerald-500 text-white'
+                                            }`}>
+                                            {video.review_status === 'pending' ? '等待审阅' : '已点评'}
+                                        </span>
+                                    </div>
+
+                                    {/* 播放按钮叠加层 */}
+                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setPreviewVideo(video)}>
+                                        <div className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform">
+                                            <Play size={20} fill="currentColor" />
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="absolute top-2 left-2">
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                                        {getExerciseLabel(video.exercise_name)}
-                                    </span>
-                                </div>
+                                {/* 信息区域 - 使用 flex-1 和 flex flex-col 实现按钮探底 */}
+                                <div className="flex flex-col flex-1 p-5">
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-bold text-primary-600 uppercase tracking-wider">
+                                                {video.exercise_name || '未指定动作'}
+                                            </span>
+                                            <div className="flex items-center gap-1 text-surface-400 text-[10px] font-medium">
+                                                <Clock size={12} />
+                                                {new Date(video.created_at).toLocaleDateString() + ' ' + new Date(video.execution_details.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-6 h-6 rounded-full bg-surface-100 flex items-center justify-center">
+                                                <User size={12} className="text-surface-500" />
+                                            </div>
+                                            <span className="font-bold text-surface-800 text-sm">
+                                                {video.metadata?.student_name || '匿名学员'}
+                                            </span>
+                                        </div>
 
-                                <div className="absolute top-2 right-2">
-                                    <span className={`px-2 py-1 text-xs rounded ${getStatusColor(video.review_status as any)}`}>
-                                        {getStatusLabel(video.review_status as any)}
-                                    </span>
-                                </div>
-                            </div>
+                                        {/* 执行详情 - 显示训练数据 */}
+                                        {video.execution_details ? (
+                                            <div className="mb-3 p-2.5 bg-gradient-to-br from-primary-50 to-surface-50 rounded-lg border border-primary-100">
+                                                <div className="flex items-center gap-1.5 mb-2">
+                                                    <TrendingUp size={12} className="text-primary-600" />
+                                                    <span className="text-[10px] font-bold text-primary-700 uppercase tracking-wide">第 {video.set_number} 组</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    {video.execution_details.actual_reps !== undefined && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-surface-500 text-[10px] font-medium">完成次数</span>
+                                                            <span className="font-bold text-surface-900">
+                                                                {video.execution_details.actual_reps}
+                                                                {video.execution_details.planned_reps ? ` / ${video.execution_details.planned_reps}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {video.execution_details.actual_weight !== undefined && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-surface-500 text-[10px] font-medium">重量</span>
+                                                            <span className="font-bold text-surface-900">
+                                                                {video.execution_details.actual_weight}kg
+                                                                {video.execution_details.planned_weight ? ` / ${video.execution_details.planned_weight}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {video.execution_details.rpe !== undefined && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-surface-500 text-[10px] font-medium">RPE</span>
+                                                            <span className="font-bold text-amber-600">{video.execution_details.rpe}/10</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mb-3 p-2 bg-amber-50 rounded border border-amber-200">
+                                                <p className="text-xs text-amber-700">
+                                                    ⚠️ 执行详情未找到（调试模式）
+                                                    <br />
+                                                    video.execution_details: {JSON.stringify(video.execution_details)}
+                                                    <br />
+                                                    action_id: {video.action_id}, set_number: {video.set_number}
+                                                </p>
+                                            </div>
+                                        )}
 
-                            <div className="p-4 space-y-3">
-                                <div className="flex items-center space-x-2">
-                                    <User className="w-4 h-4 text-gray-400" />
-                                    <span className="text-sm text-gray-600">
-                                        {(video as any).metadata?.student_name || '匿名学员'}
-                                    </span>
-                                </div>
-
-                                {video.user_notes && (
-                                    <p className="text-sm text-gray-600 line-clamp-2">
-                                        {video.user_notes}
-                                    </p>
-                                )}
-
-                                <div className="flex items-center justify-between text-xs text-gray-500">
-                                    <div className="flex items-center space-x-1">
-                                        <Clock className="w-3 h-3" />
-                                        <span>{formatDate(video.created_at as any)}</span>
+                                        {video.user_notes && (
+                                            <p className="text-xs text-surface-500 line-clamp-2 leading-relaxed bg-surface-50 p-2 rounded border border-surface-100 italic">
+                                                "{video.user_notes}"
+                                            </p>
+                                        )}
                                     </div>
-                                    {video.review_status === 'pending' && (
-                                        <Button
-                                            label="点评"
-                                            onClick={() => {
-                                                setSelectedVideo(video);
-                                                setShowReviewModal(true);
-                                            }}
-                                            className="p-button-sm"
-                                        />
-                                    )}
+
+                                    {/* 按钮区域 - 永远处于卡片底部 */}
+                                    <div className="mt-auto pt-4 border-t border-surface-50">
+                                        {video.review_status === 'pending' ? (
+                                            <Button
+                                                label="开始点评"
+                                                icon={<MessageSquarePlus size={16} className="mr-2" />}
+                                                onClick={() => { setSelectedVideo(video); setShowReviewModal(true); }}
+                                                className="w-full bg-primary-500 border-none rounded-lg font-bold py-2.5 text-sm shadow-sm hover:bg-primary-600"
+                                            />
+                                        ) : (
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
+                                                    <Rating value={video.coach_rating || 5} readOnly stars={5} cancel={false} className="scale-75 origin-left" />
+                                                </div>
+                                                <Button label="查看结果" className="p-button-text p-button-sm font-bold text-primary-500 text-xs" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </Card>
-                    ))}
-                </div>
-            )}
-
-            {/* 预览对话框 */}
-            <Dialog
-                visible={!!previewVideo}
-                onHide={() => setPreviewVideo(null)}
-                header="视频预览"
-                footer={previewDialogFooter}
-                maximizable
-                className="w-full max-w-4xl"
-            >
-                <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                    <video
-                        controls
-                        src={previewVideo?.video_url || ''}
-                        poster={previewVideo?.thumbnail_url || undefined}
-                        className="w-full h-full"
-                    />
-                </div>
-            </Dialog>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* 点评对话框 */}
             <Dialog
                 visible={showReviewModal && !!selectedVideo}
-                onHide={() => {
-                    setShowReviewModal(false);
-                    setSelectedVideo(null);
+                onHide={() => { setShowReviewModal(false); setSelectedVideo(null); }}
+                header={
+                    <div className="space-y-1">
+                        <div className="font-bold text-lg">专业视频审阅</div>
+                        {selectedVideo && (
+                            <div className="flex items-center gap-3 text-sm text-surface-500">
+                                <span className="flex items-center gap-1">
+                                    <User size={14} />
+                                    {selectedVideo.metadata?.student_name || '匿名学员'}
+                                </span>
+                                <span>•</span>
+                                <span className="font-medium text-primary-600">
+                                    {selectedVideo.exercise_name || '未指定动作'}
+                                </span>
+                                <span>•</span>
+                                <span>第 {selectedVideo.set_number} 组</span>
+                            </div>
+                        )}
+                    </div>
+                }
+                className="w-[95vw] max-w-3xl"
+                pt={{
+                    root: { className: 'rounded-lg border-none shadow-xl bg-surface-0' },
+                    header: { className: 'px-6 pt-6 border-none' },
+                    content: { className: 'px-6 pb-6' }
                 }}
-                header="视频点评"
-                footer={reviewDialogFooter}
-                className="w-full max-w-2xl"
+                footer={
+                    <div className="flex justify-end gap-2 px-6 pb-6">
+                        <Button label="取消" onClick={() => setShowReviewModal(false)} className="p-button-text font-bold text-surface-400" />
+                        <Button label="提交指导意见" onClick={handleReview} className="bg-primary-500 border-none font-bold px-6 rounded-lg text-white" disabled={!reviewForm.comment.trim()} />
+                    </div>
+                }
             >
-                <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">{getExerciseLabel(selectedVideo?.exercise_name || null)}</h3>
-                    <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                        <video
-                            controls
-                            src={selectedVideo?.video_url || ''}
-                            poster={selectedVideo?.thumbnail_url || undefined}
-                            className="w-full h-full"
-                        />
+                <div className="space-y-5">
+                    {/* 视频播放器 */}
+                    <div className="aspect-video rounded-lg overflow-hidden bg-surface-900 shadow-inner">
+                        <video controls src={selectedVideo?.video_url} className="w-full h-full" />
                     </div>
-                    <div className="space-y-3">
-                        <label className="block text-sm font-medium">评分</label>
-                        <Rating
-                            value={reviewForm.rating}
-                            onChange={(e) => setReviewForm({ ...reviewForm, rating: e.value || 0 })}
-                            stars={5}
-                            cancel={false}
-                        />
-                    </div>
-                    <div className="space-y-3">
-                        <label className="block text-sm font-medium">点评内容</label>
-                        <InputTextarea
-                            value={reviewForm.comment}
-                            onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
-                            rows={4}
-                            className="w-full"
-                            placeholder="请输入您的点评..."
-                        />
+
+                    {/* 执行详情卡片 */}
+                    {selectedVideo?.execution_details && (
+                        <div className="bg-gradient-to-br from-primary-50 to-surface-50 rounded-lg border border-primary-100 p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <TrendingUp size={16} className="text-primary-600" />
+                                <h3 className="text-sm font-bold text-primary-700 uppercase tracking-wide">训练执行数据</h3>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {selectedVideo.execution_details.actual_reps !== undefined && (
+                                    <div className="bg-surface-0 rounded-lg p-3 border border-surface-100">
+                                        <div className="text-[10px] font-medium text-surface-500 mb-1 uppercase">完成次数</div>
+                                        <div className="text-lg font-bold text-surface-900">
+                                            {selectedVideo.execution_details.actual_reps}
+                                            {selectedVideo.execution_details.planned_reps && (
+                                                <span className="text-sm text-surface-500 font-normal"> / {selectedVideo.execution_details.planned_reps}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedVideo.execution_details.actual_weight !== undefined && (
+                                    <div className="bg-surface-0 rounded-lg p-3 border border-surface-100">
+                                        <div className="text-[10px] font-medium text-surface-500 mb-1 uppercase">重量</div>
+                                        <div className="text-lg font-bold text-surface-900">
+                                            {selectedVideo.execution_details.actual_weight}
+                                            <span className="text-sm font-normal">kg</span>
+                                            {selectedVideo.execution_details.planned_weight && (
+                                                <span className="text-sm text-surface-500 font-normal"> / {selectedVideo.execution_details.planned_weight}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedVideo.execution_details.rpe !== undefined && (
+                                    <div className="bg-surface-0 rounded-lg p-3 border border-surface-100">
+                                        <div className="text-[10px] font-medium text-surface-500 mb-1 uppercase">主观疲劳度</div>
+                                        <div className="text-lg font-bold text-amber-600">
+                                            {selectedVideo.execution_details.rpe}
+                                            <span className="text-sm font-normal text-surface-500">/10</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* 显示计划完成度 */}
+                            {selectedVideo.execution_details.planned_reps && selectedVideo.execution_details.actual_reps && (
+                                <div className="mt-3 pt-3 border-t border-primary-100">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-surface-600 font-medium">完成度</span>
+                                        <span className={`font-bold ${
+                                            selectedVideo.execution_details.actual_reps >= selectedVideo.execution_details.planned_reps 
+                                                ? 'text-emerald-600' 
+                                                : 'text-amber-600'
+                                        }`}>
+                                            {Math.round((selectedVideo.execution_details.actual_reps / selectedVideo.execution_details.planned_reps) * 100)}%
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 h-2 bg-surface-200 rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full transition-all ${
+                                                selectedVideo.execution_details.actual_reps >= selectedVideo.execution_details.planned_reps 
+                                                    ? 'bg-emerald-500' 
+                                                    : 'bg-amber-500'
+                                            }`}
+                                            style={{ 
+                                                width: `${Math.min((selectedVideo.execution_details.actual_reps / selectedVideo.execution_details.planned_reps) * 100, 100)}%` 
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 学员备注 */}
+                    {selectedVideo?.user_notes && (
+                        <div className="bg-surface-50 rounded-lg p-4 border border-surface-100">
+                            <div className="text-xs font-bold text-surface-400 uppercase mb-2">学员备注</div>
+                            <p className="text-sm text-surface-700 italic">"{selectedVideo.user_notes}"</p>
+                        </div>
+                    )}
+
+                    {/* 点评表单 */}
+                    <div className="grid grid-cols-1 gap-5">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-surface-400 uppercase">动作评分</label>
+                            <Rating
+                                value={reviewForm.rating}
+                                onChange={(e) => setReviewForm({ ...reviewForm, rating: e.value || 0 })}
+                                stars={5} cancel={false}
+                                pt={{ item: { className: 'text-amber-400' } }}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-surface-400 uppercase">点评反馈</label>
+                            <InputTextarea
+                                value={reviewForm.comment}
+                                onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                                rows={5} className="w-full border-surface-200 rounded-lg focus:border-primary-500 text-sm p-3"
+                                placeholder="请输入针对该动作的指导意见...&#10;&#10;参考要点：&#10;• 动作规范性评价&#10;• 技术要点提示&#10;• 改进建议&#10;• 训练强度建议"
+                            />
+                        </div>
                     </div>
                 </div>
             </Dialog>

@@ -1,6 +1,7 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
-import { ProgressSpinner } from 'primereact/progressspinner';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
@@ -13,16 +14,17 @@ import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
 import { userService } from '@/app/service/userService';
 import { CoachLinkTable } from '@/types';
+import { Send, Paperclip, MessageSquareOff, Loader2 } from 'lucide-react';
 
 interface ChatDialogProps {
     visible: boolean;
     onHide: () => void;
-    chatroom: ChatroomDetail;
+    chatroom: ChatroomDetail | null;
     onMarkSuccess?: (roomId: string) => void;
 }
 
 const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMarkSuccess }) => {
-    const { data: session } = useSession();
+    const { data: session } = useSession() as any;
     const { showToast } = useToastContext();
     const [loading, setLoading] = useState(false);
     const [messages, setMessages] = useState<MessageItemType[]>([]);
@@ -31,266 +33,116 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     const [chatPartner, setChatPartner] = useState<{ name: string; avatar: string | null } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
+    const userMap = useRef<Record<string, { name: string; avatar: string | null }>>({});
 
-    const userMap: Record<string, { name: string; avatar: string | null }> = {};
-
+    // 1. 加载用户 Profile
     useEffect(() => {
-        if (!chatroom) return;
-        // 根据 chatroom.members 获取成员信息
+        if (!visible || !chatroom || !session?.user?.id) return;
         const loadUserProfiles = async () => {
             for (const id of chatroom.members) {
                 if (id === session.user.id) {
-                    userMap[id] = {
-                        name: session.profile.nickname,
-                        avatar: session.profile.avatar_url
-                    };
-                } else {
+                    userMap.current[id] = { name: session.profile?.nickname || '我', avatar: session.profile?.avatar_url };
+                } else if (!userMap.current[id]) {
                     const res = await userService.getProfile({ userId: id });
                     if (res) {
-                        userMap[id] = {
-                            name: res.profile.nickname,
-                            avatar: res.profile.avatar_url
-                        };
+                        userMap.current[id] = { name: res.profile.nickname, avatar: res.profile.avatar_url };
+                        setChatPartner({ name: res.profile.nickname, avatar: res.profile.avatar_url });
                     }
                 }
             }
-        }
-
+        };
         loadUserProfiles();
+    }, [visible, chatroom, session]);
 
-    }, [visible, chatroom?.id, session?.user?.id]);
-
-
-    // 加载会话和消息
+    // 2. 加载历史消息
     useEffect(() => {
-        if (!visible || !chatroom || !session?.user?.id) {
-            setMessages([]);
-            setChatPartner(null);
-            return;
-        }
-        let active = true;
-
+        if (!visible || !chatroom?.id) return;
         const fetchChat = async () => {
-            if (!chatroom) {
-                return;
-            }
-
             setLoading(true);
-            // 获取消息
-            const messagesRes = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
-            if (active && messagesRes) {
-                setMessages(messagesRes.messages);
-            }
-
-            setLoading(false);
-
-            // 标记为已读
-            const markRes = await chatService.markAsRead({ roomId: chatroom.id });
-            if (markRes && onMarkSuccess) {
-                onMarkSuccess(chatroom.id);
+            try {
+                const messagesRes = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
+                if (messagesRes) setMessages(messagesRes.messages);
+                const markRes = await chatService.markAsRead({ roomId: chatroom.id });
+                if (markRes && onMarkSuccess) onMarkSuccess(chatroom.id);
+            } finally {
+                setTimeout(() => setLoading(false), 300);
             }
         };
+        fetchChat();
+    }, [visible, chatroom?.id]);
 
-        const fetchChatPartner = async () => {
-            const userId = session?.user?.id;
-            console.log(chatroom.members);
-            console.log(userId);
-
-
-            const partner = chatroom.members.find(m => m != userId);
-            if (!partner) {
-                return;
-            }
-
-            console.log(partner);
-
-            const res = await userService.getProfile({ userId: partner });
-            console.log(res);
-
-            if (res) {
-                setChatPartner({
-                    name: res.profile.nickname,
-                    avatar: res.profile.avatar_url
-                });
-            }
-        }
-
-        if (visible && (chatroom.id || session?.user?.id)) {
-            fetchChat();
-            fetchChatPartner();
-        }
-        return () => { active = false; };
-    }, [visible, session?.user?.id, chatroom]);
-
-    // 滚动到底部
+    // 3. SSE 实时监听
     useEffect(() => {
-        if (visible && messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [messages, visible]);
-
-    useEffect(() => {
-        if (!visible || !chatroom?.id || !session?.user?.id) {
-            return;
-        }
-
-        // 防止重复订阅
-        if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-        }
-
-        const es = new EventSource(
-            `/api/chat/receive-stream?roomId=${chatroom.id}`
-        );
+        if (!visible || !chatroom?.id || !session?.user?.id) return;
+        if (eventSourceRef.current) eventSourceRef.current.close();
+        const es = new EventSource(`/api/chat/receive-stream?roomId=${chatroom.id}`);
         eventSourceRef.current = es;
-
         es.onmessage = (event) => {
             try {
-                const newMessage = JSON.parse(event.data) as CoachLinkTable['chat_messages']['Insert'];
-
-                // 如果是自己刚发的消息（已 optimistic），跳过
-                if (newMessage.sender_id === session.user.id) {
-                    return;
-                }
-
-                const userProfile = userMap[newMessage.sender_id];
-
-                console.log(userMap);
-                console.log(newMessage);
-
-
-
+                const newMessage = JSON.parse(event.data);
+                if (newMessage.sender_id === session.user.id) return;
+                const profile = userMap.current[newMessage.sender_id] || { name: 'User', avatar: null };
                 const incoming: MessageItemType = {
                     id: newMessage.id,
                     chatUserId: newMessage.sender_id,
-                    chatUserProfile: {
-                        name: userProfile.name,
-                        avatar: userProfile.avatar,
-                    },
+                    chatUserProfile: { name: profile.name, avatar: profile.avatar },
                     messageType: newMessage.message_type,
                     content: newMessage.content,
-                    mediaUrl: newMessage.media_url,
-                    fileName: newMessage.file_name,
-                    fileSize: newMessage.file_size,
-                    isRead: true,
-                    createdAt: newMessage.created_at,
                     isMine: false,
-                    duration: null,
+                    createdAt: newMessage.created_at,
+                    isRead: true,
+                    mediaUrl: newMessage.media_url, fileName: null, fileSize: null, duration: null
                 };
-
                 setMessages(prev => [...prev, incoming]);
-            } catch (e) {
-                console.error('SSE message parse error', e);
-            }
+            } catch (e) { console.error(e); }
         };
-
-        es.onerror = (err) => {
-            console.error('SSE error', err);
-            es.close();
-            eventSourceRef.current = null;
-        };
-
-        return () => {
-            es.close();
-            eventSourceRef.current = null;
-        };
+        return () => { es.close(); eventSourceRef.current = null; };
     }, [visible, chatroom?.id, session?.user?.id]);
 
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, loading]);
 
-    // 发送消息
     const sendMessage = async () => {
-        if (sending) {
-            return;
-        }
-
-        if (!messageText.trim() || !chatroom) {
-            return;
-        }
-
-        if (!session?.user?.id) {
-            return;
-        }
-
-        setSending(true);
-
+        if (sending || !messageText.trim() || !chatroom) return;
         const content = messageText.trim();
-
+        setSending(true);
         setMessageText('');
-        // 更新消息
-        const newMessages = [...messages];
-        newMessages.push({
-            id: 'new' + newMessages.length,
+
+        const optimisticMsg: MessageItemType = {
+            id: Date.now().toString(),
             chatUserId: session.user.id,
-            chatUserProfile: {
-                name: session.profile.nickname,
-                avatar: session.profile.avatar_url
-            },
+            chatUserProfile: { name: session.profile?.nickname, avatar: session.profile?.avatar_url },
             messageType: 'text',
             content,
-            mediaUrl: null,
-            fileName: null,
-            fileSize: null,
-            isRead: false,
-            createdAt: null,
             isMine: true,
-            duration: null
-        });
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            mediaUrl: null, fileName: null, fileSize: null, duration: null
+        };
+        setMessages(prev => [...prev, optimisticMsg]);
 
-        setMessages(newMessages);
-
-        const res = await chatService.sendMessage({
-            roomId: chatroom.id,
-            messageType: 'text',
-            content
-        });
-
-        if (res) {
-            setMessages(prev => {
-                if (prev.length === 0) return prev;
-
-                return prev.map((msg, index) =>
-                    index === prev.length - 1
-                        ? {
-                            ...msg,
-                            id: res.messageId,
-                            createdAt: res.createdAt,
-                        }
-                        : msg
-                );
-            });
-
-        } else {
-            showToast({ severity: 'error', summary: '错误', detail: '消息发送失败' });
-            // 复原输入和信息
+        const res = await chatService.sendMessage({ roomId: chatroom.id, messageType: 'text', content });
+        if (!res) {
+            showToast({ severity: 'error', summary: '发送失败' });
+            setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
             setMessageText(content);
-            const newMessages = [...messages];
-            newMessages.pop();
-            setMessages(newMessages);
         }
-
         setSending(false);
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    };
-
     const renderHeader = () => {
-        if (loading || !chatPartner) {
-            return (
-                <div className="flex items-center gap-3 p-4 border-b border-surface-200">
-                    <Skeleton width="8rem" height="1.5rem" />
-                </div>
-            );
-        }
+        if (!chatPartner) return <div className="flex gap-3 items-center px-2"><Skeleton shape="circle" size="2.5rem"/><Skeleton width="6rem" height="1.2rem"/></div>;
         return (
-            <div className="flex items-center gap-3 p-4 border-b border-surface-200">
-                <h2 className="text-xl font-semibold text-surface-500">
-                    {chatPartner.name}
-                </h2>
+            <div className="flex items-center gap-3 px-2">
+                <Avatar image={chatPartner.avatar || undefined} label={chatPartner.avatar ? undefined : chatPartner.name?.charAt(0)} shape="circle" className="bg-primary-500 text-white font-bold" />
+                <div className="flex flex-col">
+                    <span className="text-base font-black text-surface-900 tracking-tight leading-tight">{chatPartner.name}</span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                        <span className="text-[10px] font-black text-emerald-500 tracking-[0.1em]">ONLINE</span>
+                    </div>
+                </div>
             </div>
         );
     };
@@ -299,66 +151,78 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         <Dialog
             header={renderHeader()}
             visible={visible}
-            style={{ width: '100%', maxWidth: 800, minHeight: 600 }}
             onHide={onHide}
             modal
-            contentClassName="flex flex-col h-[70vh] md:h-[600px]"
+            draggable={false}
+            resizable={false}
+            style={{ width: '95vw', maxWidth: '750px' }}
+            className="chat-dialog-container border-none shadow-2xl rounded-3xl overflow-hidden"
+            contentClassName="p-0 flex flex-col bg-surface-0"
+            pt={{
+                header: { className: 'py-4 px-6 border-b border-surface-100 bg-surface-0/80 backdrop-blur-md' },
+                closeButton: { className: 'hover:bg-surface-100 rounded-full transition-all' },
+                content: { className: 'flex flex-col' }
+            }}
         >
-            {loading ? (
-                <div className="flex justify-center items-center h-[70vh]">
-                    <ProgressSpinner />
-                </div>
-            ) : (
-                <>
-                    <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8 rounded-t-lg" style={{ minHeight: 320 }}>
-                        {messages.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-surface-500">
-                                <i className="pi pi-comment text-5xl mb-4" />
-                                <p className="text-lg">开始对话吧</p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-4">
-                                {messages.map((message) => (
-                                    <MessageItem key={message.id} message={message} />
-                                ))}
-                                <div ref={messagesEndRef} />
-                            </div>
-                        )}
-                    </div>
-                    <div className="border-t border-surface-300 px-4 py-4 rounded-b-lg">
-                        <div className="flex gap-3 items-end max-w-2xl mx-auto">
-                            <Button
-                                icon="pi pi-paperclip"
-                                rounded
-                                text
-                                className="flex-shrink-0"
-                                tooltip="发送文件"
-                                tooltipOptions={{ position: 'top' }}
-                                disabled
-                            />
-                            <InputTextarea
-                                value={messageText}
-                                onChange={(e) => setMessageText(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="输入消息... (Enter发送, Shift+Enter换行)"
-                                rows={1}
-                                autoResize
-                                className="flex-1 min-h-[44px] max-h-32 px-3 py-3 rounded-lg text-surface-700 shadow-sm"
-                                disabled={sending}
-                                style={{ resize: 'none' }}
-                            />
-                            <Button
-                                icon="pi pi-send"
-                                onClick={sendMessage}
-                                loading={sending}
-                                disabled={!messageText.trim()}
-                                className="flex-shrink-0 p-button-primary"
-                                rounded
-                            />
+            {/* 消息区域 - 维持 500px 固定高度 */}
+            <div className="relative flex-1 bg-surface-50/30 px-4 py-6 md:px-8 overflow-y-auto min-h-[500px] max-h-[500px] h-[500px]">
+                {loading ? (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-surface-0/60 backdrop-blur-sm transition-all duration-300">
+                        <div className="relative">
+                            <Loader2 className="w-10 h-10 text-primary-500 animate-spin" strokeWidth={3} />
+                            <div className="absolute inset-0 w-10 h-10 border-4 border-primary-100 rounded-full"></div>
                         </div>
+                        <p className="mt-4 text-[10px] font-black text-surface-400 uppercase tracking-[0.2em] animate-pulse">
+                            Loading Messages
+                        </p>
                     </div>
-                </>
-            )}
+                ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-surface-400 opacity-60">
+                        <div className="w-16 h-16 bg-surface-100 rounded-full flex items-center justify-center mb-4">
+                            <MessageSquareOff size={32} strokeWidth={1.5} className="text-surface-300" />
+                        </div>
+                        <p className="text-sm font-bold tracking-tight">没有对话内容</p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-4">
+                        {messages.map((message) => (
+                            <MessageItem key={message.id} message={message} />
+                        ))}
+                        <div ref={messagesEndRef} />
+                    </div>
+                )}
+            </div>
+
+            {/* 输入区域 */}
+            <div className="p-4 md:p-6 bg-surface-0 border-t border-surface-100">
+                <div className="flex items-end gap-2 bg-surface-50 p-2 rounded-[1.5rem] border border-surface-100 focus-within:border-primary-300 focus-within:ring-4 focus-within:ring-primary-500/5 transition-all">
+                    <button className="p-2.5 text-surface-400 hover:text-primary-500 transition-colors" disabled>
+                        <Paperclip size={20} />
+                    </button>
+                    
+                    <InputTextarea
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        placeholder="输入消息..."
+                        rows={1}
+                        autoResize
+                        className="flex-1 border-none shadow-none bg-transparent text-surface-700 py-2 px-1 focus:shadow-none min-h-[40px] max-h-24"
+                        style={{ resize: 'none' }}
+                        disabled={sending}
+                    />
+
+                    <Button
+                        onClick={sendMessage}
+                        disabled={!messageText.trim() || sending}
+                        className={`w-10 h-10 rounded-full border-none flex-shrink-0 transition-all ${
+                            messageText.trim() ? 'bg-primary-500 text-white shadow-lg' : 'bg-surface-200 text-surface-400'
+                        }`}
+                    >
+                        {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={2.5} />}
+                    </Button>
+                </div>
+            </div>
         </Dialog>
     );
 };

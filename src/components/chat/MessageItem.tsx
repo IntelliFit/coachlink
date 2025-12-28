@@ -29,8 +29,8 @@ export function MessageItem({ message }: MessageItemProps) {
                     <div
                         className={`px-4 py-2 rounded-lg max-w-md break-words markdown-message-content ${
                             message.isMine
-                                ? 'bg-primary-500 text-white'
-                                : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
+                                ? 'bg-primary-500 text-surface'
+                                : 'bg-surface-100 text-surface-900'
                         }`}
                         dangerouslySetInnerHTML={{
                             __html: DOMPurify?.sanitize(md.render(message.content || '')),
@@ -51,8 +51,8 @@ export function MessageItem({ message }: MessageItemProps) {
                         {message.content && message.content !== message.mediaUrl && (
                             <div className={`mt-2 px-4 py-2 rounded-lg ${
                                 message.isMine
-                                    ? 'bg-primary-500 text-white'
-                                    : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
+                                    ? 'bg-primary-500 text-surface'
+                                    : 'bg-surface-100 text-surface-900'
                             }`}>
                                 {message.content}
                             </div>
@@ -72,8 +72,8 @@ export function MessageItem({ message }: MessageItemProps) {
                         {message.content && message.content !== message.mediaUrl && (
                             <div className={`mt-2 px-4 py-2 rounded-lg ${
                                 message.isMine
-                                    ? 'bg-primary-500 text-white'
-                                    : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
+                                    ? 'bg-primary-500 text-surface'
+                                    : 'bg-surface-100 text-surface-900'
                             }`}>
                                 {message.content}
                             </div>
@@ -85,8 +85,8 @@ export function MessageItem({ message }: MessageItemProps) {
                 return (
                     <div className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
                         message.isMine
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
+                            ? 'bg-primary-500 text-surface'
+                            : 'bg-surface-100 text-surface-900'
                     }`}>
                         <audio src={message.mediaUrl || ''} controls className="max-w-xs" />
                         {message.duration && <span className="text-sm">{message.duration}s</span>}
@@ -101,7 +101,7 @@ export function MessageItem({ message }: MessageItemProps) {
                         rel="noopener noreferrer"
                         className={`px-4 py-3 rounded-lg flex items-center gap-3 max-w-md ${
                             message.isMine
-                                ? 'bg-primary-500 text-white hover:bg-primary-600'
+                                ? 'bg-primary-500 text-surface hover:bg-primary-600'
                                 : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0 hover:bg-surface-200 dark:hover:bg-surface-600'
                         } transition-colors`}
                     >
@@ -122,7 +122,7 @@ export function MessageItem({ message }: MessageItemProps) {
                 return (
                     <div className={`px-4 py-2 rounded-lg ${
                         message.isMine
-                            ? 'bg-primary-500 text-white'
+                            ? 'bg-primary-500 text-surface'
                             : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
                     }`}>
                         {message.content}
@@ -137,7 +137,7 @@ export function MessageItem({ message }: MessageItemProps) {
                 image={message.chatUserProfile?.avatar || undefined}
                 label={!message.chatUserProfile?.avatar && message.chatUserProfile?.name ? message.chatUserProfile.name.charAt(0) : undefined}
                 shape="circle"
-                className="bg-primary-500 text-white flex-shrink-0"
+                className="bg-primary-500 text-surface flex-shrink-0"
             />
             <div className={`flex flex-col gap-1 ${message.isMine ? 'items-end' : 'items-start'}`}>
                 <span className="text-xs text-surface-500 px-2">{message.chatUserProfile?.name}</span>
