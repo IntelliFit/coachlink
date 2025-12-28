@@ -3,102 +3,56 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import {
-    Eye, ThumbsUp, MessageCircle, Clock,
-} from 'lucide-react';
-import { Card } from 'primereact/card';
+import { Eye, ThumbsUp, MessageCircle, Clock, Plus, ArrowLeft, Search, Pencil, Trash2 } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
-import ContentEditor from '@/app/dashboard/components/ContentEditor';
-import { coachService } from '@/app/service/coachService';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
-import { CoachContentRow } from '@/types';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
+import ContentEditor from '@/app/dashboard/components/ContentEditor';
+import { coachService } from '@/app/service/coachService';
+import { CoachContentRow } from '@/types';
 
 const Content = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
+    const { showToast } = useToastContext();
 
     const [contents, setContents] = useState<CoachContentRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searching, setSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTier, setFilterTier] = useState<number | 'all'>('all');
     const [editingContent, setEditingContent] = useState<CoachContentRow | null>(null);
 
-    const { showToast } = useToastContext();
-
-    // 加载内容
     useEffect(() => {
-        if (!coach?.id) return;
-        loadContents();
+        if (coach?.id) loadContents();
     }, [coach?.id]);
 
     const loadContents = async () => {
         setLoading(true);
         setError(null);
-
-        const res = await coachService.getContents({
-            coachId: coach.id,
-            limit: 50,
-            offset: 0,
-        });
-
-        if (res) {
-            setContents(res.contents || []);
-        } else {
+        try {
+            const res = await coachService.getContents({ coachId: coach.id, limit: 50, offset: 0 });
+            if (res) setContents(res.contents || []);
+        } catch (err) {
             setError('加载内容失败，请重试');
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     };
 
-    const handlePublishContent = async (contentData: any) => {
-        if (editingContent) {
-            // 更新现有内容
-            await coachService.updateContent({
-                id: editingContent.id,
-                ...contentData,
-                isDraft: false,
-            });
-        } else {
-            // 发布新内容
-            await coachService.publishContent({
-                coachId: coach.id,
-                ...contentData,
-                isDraft: false,
-            });
-        }
-        setCurrentView('list');
-        setEditingContent(null);
-        loadContents();
-    };
-
-    const handleSaveDraft = async (contentData: any) => {
-        if (editingContent) {
-            // 更新现有内容草稿
-            await coachService.updateContent({
-                id: editingContent.id,
-                ...contentData,
-                isDraft: true,
-            });
-        } else {
-            // 保存新内容草稿
-            await coachService.publishContent({
-                coachId: coach.id,
-                ...contentData,
-                isDraft: true,
-            });
-        }
-        setCurrentView('list');
-        setEditingContent(null);
-        loadContents();
+    const handleSearch = async () => {
+        setSearching(true);
+        // 此处通常调用后端搜索 API，当前通过逻辑过滤模拟
+        await new Promise(resolve => setTimeout(resolve, 400)); 
+        setSearching(false);
     };
 
     const handleEditContent = (content: CoachContentRow) => {
@@ -106,37 +60,69 @@ const Content = () => {
         setCurrentView('editor');
     };
 
+    const handlePublishContent = async (contentData: any) => {
+        try {
+            if (editingContent) {
+                await coachService.updateContent({ ...contentData, id: editingContent.id, isDraft: false });
+                showToast({ severity: 'success', summary: '更新成功' });
+            } else {
+                await coachService.publishContent({ ...contentData, coachId: coach.id, isDraft: false });
+                showToast({ severity: 'success', summary: '发布成功' });
+            }
+            closeEditor();
+        } catch (err) {
+            showToast({ severity: 'error', summary: '操作失败' });
+        }
+    };
+
+    const handleSaveDraft = async (contentData: any) => {
+        try {
+            if (editingContent) {
+                await coachService.updateContent({ ...contentData, id: editingContent.id, isDraft: true });
+            } else {
+                await coachService.publishContent({ ...contentData, coachId: coach.id, isDraft: true });
+            }
+            showToast({ severity: 'info', summary: '草稿已保存' });
+            closeEditor();
+        } catch (err) {
+            showToast({ severity: 'error', summary: '保存草稿失败' });
+        }
+    };
+
+    const closeEditor = () => {
+        setCurrentView('list');
+        setEditingContent(null);
+        loadContents();
+    };
+
     const handleDeleteContent = (content: CoachContentRow) => {
         confirmDialog({
             message: `确定要删除内容"${content.title}"吗？此操作无法撤销。`,
             header: '删除确认',
-            icon: 'pi pi-exclamation-triangle',
-            accept: () => deleteContent(content.id),
-            reject: () => {}
+            acceptClassName: 'p-button-danger border-none rounded-xl',
+            rejectClassName: 'p-button-text text-surface-500 rounded-xl',
+            accept: async () => {
+                try {
+                    await coachService.deleteContent(content.id);
+                    loadContents();
+                    showToast({ severity: 'success', summary: '删除成功' });
+                } catch (err) {
+                    showToast({ severity: 'error', summary: '删除失败' });
+                }
+            }
         });
-    };
-
-    const deleteContent = async (contentId: string) => {
-        try {
-            await coachService.deleteContent(contentId);
-            loadContents();
-            showToast({ severity: 'success', summary: '删除成功' });
-        } catch (err) {
-            console.error('删除内容失败:', err);
-            showToast({ severity: 'error', summary: '删除内容失败' });
-        }
     };
 
     const getTierBadge = (tier: number) => {
         const configs = {
-            0: { label: '免费', color: 'bg-green-100 text-green-800' },
-            1: { label: '基础', color: 'bg-blue-100 text-blue-800' },
-            2: { label: '高级', color: 'bg-purple-100 text-purple-800' },
-            3: { label: 'VIP', color: 'bg-amber-100 text-amber-800' },
+            0: { label: '免费', class: 'bg-green-50 text-green-600' },
+            1: { label: '基础', class: 'bg-primary-50 text-primary-600' },
+            2: { label: '高级', class: 'bg-purple-50 text-purple-600' },
+            3: { label: 'VIP', class: 'bg-amber-50 text-amber-600' },
         };
         const config = configs[tier as keyof typeof configs] || configs[0];
         return (
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
+            <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md ${config.class}`}>
                 {config.label}
             </span>
         );
@@ -144,168 +130,156 @@ const Content = () => {
 
     const formatRelativeTime = (dateString: string) => {
         const date = new Date(dateString);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const mins = Math.floor(diff / 60000);
-        const hours = Math.floor(mins / 60);
-        const days = Math.floor(hours / 24);
-        if (mins < 1) return '刚刚';
-        if (hours < 1) return `${mins}分钟前`;
-        if (hours < 24) return `${hours}小时前`;
-        if (days < 30) return `${days}天前`;
-        return date.toLocaleDateString('zh-CN');
+        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
     };
 
     const filteredContents = contents.filter(content => {
-        const matchesSearch =
-            content.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            content.content.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = content.title.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesTier = filterTier === 'all' || content.required_tier === filterTier;
         return matchesSearch && matchesTier;
     });
 
     if (currentView === 'editor') {
         return (
-            <div className="max-w-6xl mx-auto p-4 md:p-6">
+            <div className="max-w-5xl mx-auto px-4 py-8 animate-in fade-in duration-500">
                 <Button
-                    icon="pi pi-arrow-left"
-                    label={editingContent ? "取消编辑" : "返回内容管理"}
-                    className="p-button-text mb-4"
-                    onClick={() => {
-                        setCurrentView('list');
-                        setEditingContent(null);
-                    }}
+                    icon={<ArrowLeft size={18} className="mr-2" />}
+                    label={editingContent ? "取消编辑" : "返回列表"}
+                    className="p-button-text text-surface-500 hover:text-primary mb-6 rounded-xl active:scale-95"
+                    onClick={() => { setCurrentView('list'); setEditingContent(null); }}
                 />
-                <ContentEditor
-                    coachId={coach.id}
-                    onPublish={handlePublishContent}
-                    onSaveDraft={handleSaveDraft}
-                    initialContent={editingContent}
-                />
+                <div className="bg-white rounded-[32px] border border-surface-100 overflow-hidden">
+                    <ContentEditor
+                        coachId={coach.id}
+                        onPublish={handlePublishContent}
+                        onSaveDraft={handleSaveDraft}
+                        initialContent={editingContent}
+                    />
+                </div>
             </div>
         );
     }
 
-    const tierOptions = [
-        { label: '所有权限', value: 'all' },
-        { label: '免费内容', value: 0 },
-        { label: '基础订阅', value: 1 },
-        { label: '高级订阅', value: 2 },
-        { label: 'VIP专属', value: 3 },
-    ];
-
     return (
-        <div className="mx-auto">
+        <div className="max-w-5xl mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <ConfirmDialog />
-            <Card className="shadow-sm">
-                {/* 顶部区域 */}
-                <div className="border-b border-surface-200 p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-900">内容管理</h1>
-                            <p className="text-600 mt-1">管理您发布的所有内容</p>
-                        </div>
-                        <Button
-                            label="发布新内容"
-                            icon="pi pi-plus"
-                            onClick={() => setCurrentView('editor')}
-                        />
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-4 mt-6">
-                        <IconField iconPosition="left" className='w-full'>
-                            <InputIcon className="pi pi-search"> </InputIcon>
-                            <InputText
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="搜索内容..."
-                                className="w-full"
-                            />
-                        </IconField>
-                        <Dropdown
-                            value={filterTier}
-                            options={tierOptions}
-                            onChange={(e) => setFilterTier(e.value)}
-                            className="min-w-40"
-                        />
+            
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 px-2">
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-black tracking-tighter text-surface-900">内容管理</h1>
+                    <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary-50 px-2 py-0.5 rounded">
+                            {filteredContents.length} items
+                        </span>
+                        <p className="text-surface-500 text-sm font-medium opacity-70">记录与读者的每一次互动</p>
                     </div>
                 </div>
+                <Button
+                    label="发布新内容"
+                    icon={<Plus size={18} className="mr-1" />}
+                    onClick={() => { setEditingContent(null); setCurrentView('editor'); }}
+                    className="p-button-primary shadow-lg shadow-primary-100 transition-transform active:scale-95 rounded-2xl px-6 py-3"
+                />
+            </header>
 
-                {/* 内容区域 */}
-                <div className="p-4 md:p-6">
-                    {loading ? (
-                        <div className="grid grid-cols-1 gap-6">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="border rounded-lg p-4">
-                                    <Skeleton width="100%" height="2rem" className="mb-4" />
-                                    <Skeleton width="80%" height="1.25rem" className="mb-2" />
-                                    <div className="flex justify-between mt-4">
-                                        <Skeleton width="4rem" height="1rem" />
-                                        <Skeleton width="4rem" height="1rem" />
+            {/* 同步 PlanLib 样式的搜索区域 */}
+            <section className="flex gap-3 mb-10 px-2">
+                <IconField iconPosition="left" className="flex-1 group">
+                    <InputIcon><Search size={18} className="text-surface-400 group-focus-within:text-primary transition-colors" /></InputIcon>
+                    <InputText
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            if (!e.target.value) loadContents();
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        placeholder="搜索内容标题或关键词..."
+                        className="w-full border-surface-200 bg-surface-50/50 focus:bg-white focus:border-primary rounded-2xl py-3 transition-all"
+                    />
+                </IconField>
+                <Dropdown
+                    value={filterTier}
+                    options={[
+                        { label: '所有权限', value: 'all' },
+                        { label: '免费内容', value: 0 },
+                        { label: '基础订阅', value: 1 },
+                        { label: '高级订阅', value: 2 },
+                        { label: 'VIP专属', value: 3 },
+                    ]}
+                    onChange={(e) => setFilterTier(e.value)}
+                    className="w-40 border-surface-200 bg-surface-50/50 focus:bg-surface-100 focus:border-primary rounded-2xl flex items-center px-2"
+                />
+                <Button
+                    icon="pi pi-search"
+                    onClick={handleSearch}
+                    loading={searching}
+                    className="p-button-primary p-button-outlined rounded-2xl px-6 active:scale-95 transition-transform"
+                />
+            </section>
+
+            <main className="min-h-[400px]">
+                {loading || searching ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="flex items-center gap-6 p-8 bg-surface-100 border border-surface-50 rounded-[24px]">
+                                <Skeleton shape="circle" size="3rem" />
+                                <div className="flex-1"><Skeleton width="40%" className="mb-3" /><Skeleton width="70%" /></div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filteredContents.length === 0 ? (
+                    <div className="text-center py-32 bg-surface-50/30 border-2 border-dashed border-surface-100 rounded-[40px]">
+                        <h3 className="text-lg font-bold text-surface-900 tracking-tight">未找到匹配的内容</h3>
+                        <p className="text-surface-400 text-sm mt-1">尝试调整搜索词或过滤器</p>
+                    </div>
+                ) : (
+                    <DataView
+                        value={filteredContents}
+                        itemTemplate={(content: CoachContentRow) => (
+                            <div className="group flex flex-col md:flex-row items-center gap-6 p-6 mb-4 bg-surface-0 dark:bg-surface-50 border border-surface-100 rounded-[24px] transition-all duration-300 hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.02)] active:scale-[0.995]">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        {getTierBadge(content.required_tier)}
+                                        <h3 className="text-lg font-bold tracking-tight text-surface-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                            {content.title}
+                                        </h3>
+                                    </div>
+                                    <p className="text-sm text-surface-500 line-clamp-1 mb-4 font-medium opacity-80">
+                                        {content.content.replace(/<[^>]*>/g, '')}
+                                    </p>
+                                    <div className="flex items-center gap-6 text-surface-400">
+                                        <div className="flex items-center gap-1.5"><Eye size={14} /><span className="text-xs font-bold tracking-tighter">{content.views_count}</span></div>
+                                        <div className="flex items-center gap-1.5"><ThumbsUp size={14} /><span className="text-xs font-bold tracking-tighter">{content.likes_count}</span></div>
+                                        <div className="flex items-center gap-1.5"><Clock size={14} /><span className="text-xs font-medium">{formatRelativeTime(content.created_at)}</span></div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    ) : error ? (
-                        <div className="text-center py-12">
-                            <p className="text-red-500 mb-4">{error}</p>
-                            <Button label="重新加载" className="p-button-text" onClick={loadContents} />
-                        </div>
-                    ) : filteredContents.length === 0 ? (
-                        <div className="text-center py-12">
-                            <p className="text-600 mb-4">暂无内容</p>
-                            <Button
-                                label="发布第一个内容"
-                                className="p-button-text"
-                                onClick={() => setCurrentView('editor')}
-                            />
-                        </div>
-                    ) : (
-                        <DataView
-                            value={filteredContents}
-                            itemTemplate={(content) => (
-                                <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 mb-2">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center space-x-3 mb-2">
-                                                <h3 className="text-lg font-semibold">{content.title}</h3>
-                                                {getTierBadge(content.required_tier)}
-                                            </div>
-                                            <p className="text-600 mb-3 line-clamp-2">
-                                                {content.content.length > 100
-                                                    ? content.content.slice(0, 100) + '...'
-                                                    : content.content}
-                                            </p>
-                                            <div className="flex items-center space-x-6 text-sm text-surface-500">
-                                                <div className="flex items-center space-x-1"><Eye className="w-4 h-4" /><span>{content.views_count}</span></div>
-                                                <div className="flex items-center space-x-1"><ThumbsUp className="w-4 h-4" /><span>{content.likes_count}</span></div>
-                                                <div className="flex items-center space-x-1"><MessageCircle className="w-4 h-4" /><span>{content.comments_count}</span></div>
-                                                <div className="flex items-center space-x-1"><Clock className="w-4 h-4" /><span>{formatRelativeTime(content.created_at)}</span></div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2 ml-4">
-                                            <Button 
-                                                icon="pi pi-pencil" 
-                                                className="p-button-rounded p-button-text" 
-                                                tooltip="编辑" 
-                                                onClick={() => handleEditContent(content)}
-                                            />
-                                            <Button 
-                                                icon="pi pi-trash" 
-                                                className="p-button-rounded p-button-text p-button-danger" 
-                                                tooltip="删除" 
-                                                onClick={() => handleDeleteContent(content)}
-                                            />
-                                        </div>
-                                    </div>
+                                <div className="flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                    <Button 
+                                        icon={<Pencil size={18} />} 
+                                        className="p-button-text p-button-rounded text-surface-400 hover:text-primary hover:bg-primary-50 w-11 h-11"
+                                        onClick={() => handleEditContent(content)}
+                                    />
+                                    <Button 
+                                        icon={<Trash2 size={18} />} 
+                                        className="p-button-text p-button-rounded text-surface-400 hover:text-red-500 hover:bg-red-50 w-11 h-11"
+                                        onClick={() => handleDeleteContent(content)}
+                                    />
                                 </div>
-                            )}
-                            paginator
-                            rows={9}
-                        />
-                    )}
-                </div>
-            </Card>
+                            </div>
+                        )}
+                        paginator
+                        rows={8}
+                        pt={{
+                            content: { className: 'bg-transparent border-none' },
+                            paginator: {
+                                pageButton: ({ context }: any) => ({
+                                    className: context.active ? 'bg-primary text-white rounded-xl shadow-md' : 'text-surface-500 rounded-xl hover:bg-surface-100'
+                                })
+                            }
+                        }}
+                    />
+                )}
+            </main>
         </div>
     );
 };
