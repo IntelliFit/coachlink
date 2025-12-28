@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, Clock, User, Search, MessageSquarePlus, Maximize2, FileVideo } from 'lucide-react';
+import { Play, Clock, User, Search, MessageSquarePlus, FileVideo, TrendingUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { TrainingVideoRow } from '@/types';
 import { ReviewStatus } from '@/types/coach';
 import { coachVideoService } from '../../service/coachVideoService';
+import type { ExecutionSetVideoWithDetails } from '@/app/api/coach/video/execution-videos-pending/entity';
 
 // PrimeReact
 import { Button } from 'primereact/button';
@@ -21,13 +21,13 @@ const Videos: React.FC = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
 
-    const [videos, setVideos] = useState<TrainingVideoRow[]>([]);
+    const [videos, setVideos] = useState<ExecutionSetVideoWithDetails[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedVideo, setSelectedVideo] = useState<TrainingVideoRow | null>(null);
+    const [selectedVideo, setSelectedVideo] = useState<ExecutionSetVideoWithDetails | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [filter, setFilter] = useState<{ review_status?: ReviewStatus }>({ review_status: 'pending' });
     const [searchTerm, setSearchTerm] = useState('');
-    const [previewVideo, setPreviewVideo] = useState<TrainingVideoRow | null>(null);
+    const [previewVideo, setPreviewVideo] = useState<ExecutionSetVideoWithDetails | null>(null);
     const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
 
     useEffect(() => {
@@ -37,24 +37,26 @@ const Videos: React.FC = () => {
     const loadPendingReviews = async () => {
         try {
             setLoading(true);
-            const res = await coachVideoService.getCoachPendingReviews({
+            const res = await coachVideoService.getExecutionSetVideos({
                 pagination: { page: 1, limit: 100 },
                 reviewStatus: filter.review_status,
             });
-            if (res) setVideos(res.videos);
+            if (res) {
+                setVideos(res.videos);
+            }
         } finally { setLoading(false); }
     };
 
     const handleReview = async () => {
         if (!selectedVideo || !coach?.id) return;
         try {
-            const updatedVideo = await coachVideoService.reviewVideo(selectedVideo.id, {
+            const updatedVideo = await coachVideoService.reviewExecutionVideo(selectedVideo.id, {
                 rating: reviewForm.rating,
                 comment: reviewForm.comment,
                 tips: [],
             });
             if (updatedVideo) {
-                setVideos(videos.map(v => v.id === updatedVideo.id ? updatedVideo : v));
+                setVideos(videos.map(v => v.id === updatedVideo.id ? { ...v, ...updatedVideo } : v));
             }
             setShowReviewModal(false);
             setSelectedVideo(null);
@@ -96,7 +98,6 @@ const Videos: React.FC = () => {
                             options={statusOptions}
                             onChange={(e) => setFilter({ review_status: e.value || undefined })}
                             className="w-full sm:w-36 border-none bg-surface-50 rounded text-sm font-bold"
-                            pt={{ label: { className: 'py-2 px-3' } }}
                         />
                     </div>
                 </header>
@@ -122,7 +123,7 @@ const Videos: React.FC = () => {
                         {videos.filter(v =>
                             searchTerm === '' ||
                             v.exercise_name?.includes(searchTerm) ||
-                            (v as any).metadata?.student_name?.includes(searchTerm)
+                            v.metadata?.student_name?.includes(searchTerm)
                         ).map(video => (
                             <div key={video.id} className="flex flex-col bg-surface-0 rounded-lg overflow-hidden border border-surface-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
 
@@ -161,7 +162,7 @@ const Videos: React.FC = () => {
                                             </span>
                                             <div className="flex items-center gap-1 text-surface-400 text-[10px] font-medium">
                                                 <Clock size={12} />
-                                                {new Date(video.created_at).toLocaleDateString()}
+                                                {new Date(video.created_at).toLocaleDateString() + ' ' + new Date(video.execution_details.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 mb-3">
@@ -169,12 +170,59 @@ const Videos: React.FC = () => {
                                                 <User size={12} className="text-surface-500" />
                                             </div>
                                             <span className="font-bold text-surface-800 text-sm">
-                                                {(video as any).metadata?.student_name || '匿名学员'}
+                                                {video.metadata?.student_name || '匿名学员'}
                                             </span>
                                         </div>
+
+                                        {/* 执行详情 - 显示训练数据 */}
+                                        {video.execution_details ? (
+                                            <div className="mb-3 p-2.5 bg-gradient-to-br from-primary-50 to-surface-50 rounded-lg border border-primary-100">
+                                                <div className="flex items-center gap-1.5 mb-2">
+                                                    <TrendingUp size={12} className="text-primary-600" />
+                                                    <span className="text-[10px] font-bold text-primary-700 uppercase tracking-wide">第 {video.set_number} 组</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    {video.execution_details.actual_reps !== undefined && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-surface-500 text-[10px] font-medium">完成次数</span>
+                                                            <span className="font-bold text-surface-900">
+                                                                {video.execution_details.actual_reps}
+                                                                {video.execution_details.planned_reps ? ` / ${video.execution_details.planned_reps}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {video.execution_details.actual_weight !== undefined && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-surface-500 text-[10px] font-medium">重量</span>
+                                                            <span className="font-bold text-surface-900">
+                                                                {video.execution_details.actual_weight}kg
+                                                                {video.execution_details.planned_weight ? ` / ${video.execution_details.planned_weight}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {video.execution_details.rpe !== undefined && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-surface-500 text-[10px] font-medium">RPE</span>
+                                                            <span className="font-bold text-amber-600">{video.execution_details.rpe}/10</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mb-3 p-2 bg-amber-50 rounded border border-amber-200">
+                                                <p className="text-xs text-amber-700">
+                                                    ⚠️ 执行详情未找到（调试模式）
+                                                    <br />
+                                                    video.execution_details: {JSON.stringify(video.execution_details)}
+                                                    <br />
+                                                    action_id: {video.action_id}, set_number: {video.set_number}
+                                                </p>
+                                            </div>
+                                        )}
+
                                         {video.user_notes && (
                                             <p className="text-xs text-surface-500 line-clamp-2 leading-relaxed bg-surface-50 p-2 rounded border border-surface-100 italic">
-                                                “{video.user_notes}”
+                                                "{video.user_notes}"
                                             </p>
                                         )}
                                     </div>
@@ -191,7 +239,7 @@ const Videos: React.FC = () => {
                                         ) : (
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
-                                                    <Rating value={(video as any).review_rating || 5} readOnly stars={5} cancel={false} className="scale-75 origin-left" />
+                                                    <Rating value={video.coach_rating || 5} readOnly stars={5} cancel={false} className="scale-75 origin-left" />
                                                 </div>
                                                 <Button label="查看结果" className="p-button-text p-button-sm font-bold text-primary-500 text-xs" />
                                             </div>
@@ -208,8 +256,26 @@ const Videos: React.FC = () => {
             <Dialog
                 visible={showReviewModal && !!selectedVideo}
                 onHide={() => { setShowReviewModal(false); setSelectedVideo(null); }}
-                header={<div className="font-bold text-lg">专业视频审阅</div>}
-                className="w-[95vw] max-w-2xl"
+                header={
+                    <div className="space-y-1">
+                        <div className="font-bold text-lg">专业视频审阅</div>
+                        {selectedVideo && (
+                            <div className="flex items-center gap-3 text-sm text-surface-500">
+                                <span className="flex items-center gap-1">
+                                    <User size={14} />
+                                    {selectedVideo.metadata?.student_name || '匿名学员'}
+                                </span>
+                                <span>•</span>
+                                <span className="font-medium text-primary-600">
+                                    {selectedVideo.exercise_name || '未指定动作'}
+                                </span>
+                                <span>•</span>
+                                <span>第 {selectedVideo.set_number} 组</span>
+                            </div>
+                        )}
+                    </div>
+                }
+                className="w-[95vw] max-w-3xl"
                 pt={{
                     root: { className: 'rounded-lg border-none shadow-xl bg-surface-0' },
                     header: { className: 'px-6 pt-6 border-none' },
@@ -223,9 +289,92 @@ const Videos: React.FC = () => {
                 }
             >
                 <div className="space-y-5">
+                    {/* 视频播放器 */}
                     <div className="aspect-video rounded-lg overflow-hidden bg-surface-900 shadow-inner">
                         <video controls src={selectedVideo?.video_url} className="w-full h-full" />
                     </div>
+
+                    {/* 执行详情卡片 */}
+                    {selectedVideo?.execution_details && (
+                        <div className="bg-gradient-to-br from-primary-50 to-surface-50 rounded-lg border border-primary-100 p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <TrendingUp size={16} className="text-primary-600" />
+                                <h3 className="text-sm font-bold text-primary-700 uppercase tracking-wide">训练执行数据</h3>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {selectedVideo.execution_details.actual_reps !== undefined && (
+                                    <div className="bg-surface-0 rounded-lg p-3 border border-surface-100">
+                                        <div className="text-[10px] font-medium text-surface-500 mb-1 uppercase">完成次数</div>
+                                        <div className="text-lg font-bold text-surface-900">
+                                            {selectedVideo.execution_details.actual_reps}
+                                            {selectedVideo.execution_details.planned_reps && (
+                                                <span className="text-sm text-surface-500 font-normal"> / {selectedVideo.execution_details.planned_reps}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedVideo.execution_details.actual_weight !== undefined && (
+                                    <div className="bg-surface-0 rounded-lg p-3 border border-surface-100">
+                                        <div className="text-[10px] font-medium text-surface-500 mb-1 uppercase">重量</div>
+                                        <div className="text-lg font-bold text-surface-900">
+                                            {selectedVideo.execution_details.actual_weight}
+                                            <span className="text-sm font-normal">kg</span>
+                                            {selectedVideo.execution_details.planned_weight && (
+                                                <span className="text-sm text-surface-500 font-normal"> / {selectedVideo.execution_details.planned_weight}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedVideo.execution_details.rpe !== undefined && (
+                                    <div className="bg-surface-0 rounded-lg p-3 border border-surface-100">
+                                        <div className="text-[10px] font-medium text-surface-500 mb-1 uppercase">主观疲劳度</div>
+                                        <div className="text-lg font-bold text-amber-600">
+                                            {selectedVideo.execution_details.rpe}
+                                            <span className="text-sm font-normal text-surface-500">/10</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* 显示计划完成度 */}
+                            {selectedVideo.execution_details.planned_reps && selectedVideo.execution_details.actual_reps && (
+                                <div className="mt-3 pt-3 border-t border-primary-100">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-surface-600 font-medium">完成度</span>
+                                        <span className={`font-bold ${
+                                            selectedVideo.execution_details.actual_reps >= selectedVideo.execution_details.planned_reps 
+                                                ? 'text-emerald-600' 
+                                                : 'text-amber-600'
+                                        }`}>
+                                            {Math.round((selectedVideo.execution_details.actual_reps / selectedVideo.execution_details.planned_reps) * 100)}%
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 h-2 bg-surface-200 rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full transition-all ${
+                                                selectedVideo.execution_details.actual_reps >= selectedVideo.execution_details.planned_reps 
+                                                    ? 'bg-emerald-500' 
+                                                    : 'bg-amber-500'
+                                            }`}
+                                            style={{ 
+                                                width: `${Math.min((selectedVideo.execution_details.actual_reps / selectedVideo.execution_details.planned_reps) * 100, 100)}%` 
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 学员备注 */}
+                    {selectedVideo?.user_notes && (
+                        <div className="bg-surface-50 rounded-lg p-4 border border-surface-100">
+                            <div className="text-xs font-bold text-surface-400 uppercase mb-2">学员备注</div>
+                            <p className="text-sm text-surface-700 italic">"{selectedVideo.user_notes}"</p>
+                        </div>
+                    )}
+
+                    {/* 点评表单 */}
                     <div className="grid grid-cols-1 gap-5">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-surface-400 uppercase">动作评分</label>
@@ -241,8 +390,8 @@ const Videos: React.FC = () => {
                             <InputTextarea
                                 value={reviewForm.comment}
                                 onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
-                                rows={4} className="w-full border-surface-200 rounded-lg focus:border-primary-500 text-sm p-3"
-                                placeholder="请输入针对该动作的指导意见..."
+                                rows={5} className="w-full border-surface-200 rounded-lg focus:border-primary-500 text-sm p-3"
+                                placeholder="请输入针对该动作的指导意见...&#10;&#10;参考要点：&#10;• 动作规范性评价&#10;• 技术要点提示&#10;• 改进建议&#10;• 训练强度建议"
                             />
                         </div>
                     </div>
