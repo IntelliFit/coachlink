@@ -157,8 +157,8 @@ const PlanLib = () => {
 
     const renderTemplateCard = (template: CoachPlansPreview) => {
         return (
-            <TemplateCard 
-                template={template} 
+            <TemplateCard
+                template={template}
                 onEdit={(id) => router.push(`/dashboard/plan-lib/edit/${id}`)}
                 onCopy={handleCopyTemplate}
                 onDelete={handleDeleteTemplate}
@@ -190,105 +190,103 @@ const PlanLib = () => {
     };
 
     return (
-        <div className="mx-auto">
+        <div className="max-w-5xl mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-2 duration-1000">
             <ConfirmDialog />
-            <Card className="shadow-sm">
-                {/* 顶部区域 - 始终显示搜索框 */}
-                <div className="border-b border-surface-200 p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-900">训练计划模板库</h1>
-                            <p className="text-600 mt-1">管理您的训练计划模板</p>
-                        </div>
-                        <Button
-                            label="新建模板"
-                            icon="pi pi-plus"
-                            onClick={handleAddPlan}
-                        />
-                    </div>
 
-                    <div className="flex flex-col md:flex-row gap-4 mt-6">
-                        <div className="flex-1">
-                            <IconField iconPosition="left" className='w-full'>
-                                <InputIcon className="pi pi-search" />
-                                <InputText
-                                    value={searchTerm}
-                                    onChange={(e) => {
-                                        setSearchTerm(e.target.value);
-                                        // 如果搜索词为空，重新加载普通数据
-                                        if (!e.target.value) {
-                                            setCurrentPage(1);
-                                            loadTemplates();
-                                        }
-                                    }}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                    placeholder="搜索训练计划模板名称或描述..."
-                                    className="w-full"
-                                />
-                            </IconField>
-                        </div>
-                        <div className="flex gap-2">
-                            {/* <Dropdown
-                                value={templateType}
-                                options={templateTypes}
-                                onChange={(e) => setTemplateType(e.value)}
-                                placeholder="训练类型"
-                                className="w-full md:w-40"
-                            /> */}
-                            <Button
-                                label="搜索"
-                                icon="pi pi-search"
-                                onClick={handleSearch}
-                            />
-                        </div>
+            {/* Header: 强调数值中心化 */}
+            <header className="flex items-center justify-between mb-12 px-2">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tight text-surface-900">
+                        计划模板库
+                    </h1>
+                    <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary-50 px-2 py-0.5 rounded">
+                            {totalRecords} Total
+                        </span>
+                        <span className="text-sm text-surface-500 font-medium">沉淀高效训练体系</span>
                     </div>
                 </div>
 
-                {/* 训练计划模板列表区域 */}
-                <div className="p-4 md:p-6">
-                    {shouldShowSkeleton() ? (
-                        <div className="grid grid-cols-1 gap-4">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="border border-surface-300 rounded-lg p-4">
-                                    <Skeleton width="100%" height="1.5rem" className="mb-3" />
-                                    <Skeleton width="80%" height="1rem" className="mb-2" />
-                                    <Skeleton width="60%" height="1rem" className="mb-4" />
-                                    <div className="flex justify-between">
-                                        <Skeleton width="3rem" height="1.5rem" />
-                                        <div className="flex gap-1">
-                                            <Skeleton width="2rem" height="2rem" shape="circle" />
-                                            <Skeleton width="2rem" height="2rem" shape="circle" />
-                                        </div>
-                                    </div>
+                <Button
+                    label="新建模板"
+                    icon="pi pi-plus"
+                    onClick={handleAddPlan}
+                    className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                />
+            </header>
+
+            {/* Search: 呼吸感边框与 Primary 联动 */}
+            <section className="flex gap-3 mb-10 px-2">
+                <IconField iconPosition="left" className="flex-1">
+                    <InputIcon className="pi pi-search text-surface-400" />
+                    <InputText
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            if (!e.target.value) { setCurrentPage(1); loadTemplates(); }
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        placeholder="搜索模板名称或描述..."
+                        className="w-full border-surface-200 bg-surface-50/50 focus:bg-white focus:border-primary rounded-2xl py-3 transition-all"
+                    />
+                </IconField>
+                <Button
+                    icon="pi pi-search"
+                    onClick={handleSearch}
+                    loading={searching}
+                    className="p-button-primary p-button-outlined rounded-2xl px-6 active:scale-95 transition-transform"
+                />
+            </section>
+
+            {/* List Content: 极简层级代替沉重线条 */}
+            <main>
+                {shouldShowSkeleton() ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="flex items-center gap-6 p-6 bg-white border border-surface-100 rounded-[20px]">
+                                <Skeleton shape="circle" size="3rem" />
+                                <div className="flex-1">
+                                    <Skeleton width="30%" className="mb-2" />
+                                    <Skeleton width="60%" />
                                 </div>
-                            ))}
+                                <Skeleton width="8rem" height="2.5rem" borderRadius="12px" />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <DataView
+                        value={getCurrentData()}
+                        itemTemplate={renderTemplateCard}
+                        paginator
+                        rows={itemsPerPage}
+                        totalRecords={getCurrentTotalRecords()}
+                        first={searchTerm ? 0 : (currentPage - 1) * itemsPerPage}
+                        onPage={onPageChange}
+                        className="bg-transparent"
+                        pt={{
+                            // 强制列表模式，确保一行一个
+                            content: { className: 'bg-transparent border-none space-y-3' },
+                            paginator: {
+                                pageButton: ({ context }) => ({
+                                    className: context.active
+                                        ? 'bg-primary text-white rounded-xl shadow-md shadow-primary-100'
+                                        : 'text-surface-500 rounded-xl hover:bg-surface-100'
+                                })
+                            }
+                        }}
+                    />
+                )}
+
+                {!loading && getCurrentData().length === 0 && (
+                    <div className="text-center py-32 border-2 border-dashed border-surface-100 rounded-[32px]">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 text-primary mb-4">
+                            <i className="pi pi-folder-open text-2xl" />
                         </div>
-                    ) : getCurrentData().length === 0 && !searchTerm && !templateType ? (
-                        <div className="text-center py-12">
-                            <h3 className="text-lg font-semibold text-900 mb-2">暂无训练计划模板</h3>
-                            <p className="text-600 mb-6">开始创建您的第一个训练计划模板</p>
-                            <Button
-                                label="新建模板"
-                                icon="pi pi-plus"
-                                onClick={handleAddPlan}
-                            />
-                        </div>
-                    ) : (
-                        <>
-                            <DataView
-                                value={getCurrentData()}
-                                itemTemplate={renderTemplateCard}
-                                paginator
-                                rows={itemsPerPage}
-                                totalRecords={getCurrentTotalRecords()}
-                                first={searchTerm ? 0 : (currentPage - 1) * itemsPerPage}
-                                onPage={onPageChange}
-                                emptyMessage="未找到匹配的训练计划模板"
-                            />
-                        </>
-                    )}
-                </div>
-            </Card>
+                        <h3 className="text-lg font-bold text-surface-900 tracking-tight">未找到匹配项</h3>
+                        <p className="text-surface-500 text-sm mt-1">请尝试调整搜索词或过滤器</p>
+                    </div>
+                )}
+            </main>
         </div>
     );
 };

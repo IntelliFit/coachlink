@@ -12,7 +12,7 @@ interface TemplateCardProps {
 
 const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete }) => {
     return (
-        <div className="border border-surface-200 rounded-lg p-4 hover:bg-surface-50 transition-colors mb-4">
+        <div className="group flex flex-col md:flex-row items-center gap-6 p-6 mb-4 bg-surface-0 dark:bg-surface-50 border border-surface-100 rounded-[24px] transition-all duration-300 hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.02)] active:scale-[0.995]">
             <div className="flex items-start justify-between">
                 <div className="flex-1">
                     <h3 className="text-lg font-semibold text-900 mb-2">{template.name}</h3>
