@@ -157,9 +157,12 @@ export default function StudentsPage() {
         }
     }, [coach]);
 
-    const onPage = (event: any) => {
+    const onPage = (event: any) => {        
         setFirst(event.first);
         setRows(event.rows);
+        setLoading(true);
+        setStudents([]);
+        
         loadStudents(event.page, event.rows);
     };
 
@@ -201,7 +204,7 @@ export default function StudentsPage() {
                         )
                     );
                 } else {
-                    showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项目' });
+                    showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项���' });
                 }
             } else {
                 showToast({ severity: 'error', summary: '创建失败', detail: '无法创建AI实例' });
