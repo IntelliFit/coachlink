@@ -3,10 +3,11 @@
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
-import { 
-    Calendar, User, Target, Video, 
-    MessageCircle, FileText, Info, 
-    ChevronRight, Activity, Clock, X
+import {
+    Calendar, User, Target, Video,
+    MessageCircle, FileText, Info,
+    ChevronRight, Activity, Clock, X,
+    MessageSquare
 } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { Button } from 'primereact/button';
@@ -19,9 +20,11 @@ interface StudentDetailDialogProps {
     coach: CoachesRow;
     student: StudentSubscription | null;
     onHide: () => void;
+    onShowReviewDialog?: () => void;
+    onShowChatDialog?: () => void;
 }
 
-export const StudentDetailDialog = ({ visible, coach, student, onHide }: StudentDetailDialogProps) => {
+export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog }: StudentDetailDialogProps) => {
     const profile = student?.profile;
 
     if (!student) return null;
@@ -82,11 +85,33 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide }: Student
                                 </p>
                             </div>
                         </div>
-                        <Button 
-                            icon={<X size={20} />} 
-                            className="p-button-text p-button-secondary rounded-2xl w-10 h-10 hover:bg-surface-100 transition-all" 
-                            onClick={onHide} 
-                        />
+                        <div className="flex gap-2">
+                            <Button
+                                label="评价"
+                                icon={<MessageSquare size={16} className="mr-2" />}
+                                text
+                                className="text-xs uppercase rounded-xl hover:bg-primary-50 transition-all active:scale-95"
+                                onClick={() => {
+                                    onShowReviewDialog?.();
+                                    onHide();
+                                }}
+                            />
+                            <Button
+                                label="交流"
+                                icon={<MessageSquare size={16} className="mr-2" />}
+                                outlined
+                                className="text-xs uppercase rounded-xl hover:bg-primary-50 transition-all active:scale-95"
+                                onClick={() => {
+                                    onShowChatDialog?.();
+                                    onHide();
+                                }}
+                            />
+                            <Button
+                                icon={<X size={20} />}
+                                className="p-button-text p-button-secondary rounded-2xl w-10 h-10 hover:bg-surface-100 transition-all"
+                                onClick={onHide}
+                            />
+                        </div>
                     </div>
 
                     {/* Quick Stats Grid */}

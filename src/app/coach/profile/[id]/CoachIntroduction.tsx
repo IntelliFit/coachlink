@@ -55,7 +55,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
             const res = await chatService.getChatroom({ members: [session.user.id, coach.user_id] });
 
             if (res) {
-                setChatroom(null); // 先清空，确保 ChatDialog 组件能正确重置
+                setChatroom(null);
                 setTimeout(() => {
                     setChatroom(res.chatroom);
                     setChatDialogVisible(true);
