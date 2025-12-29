@@ -16,7 +16,7 @@ const Footer: React.FC<FooterProps> = ({
     companyName = "北京智健启能",
     links = [
         { label: "免责申明", href: "/disclaimer" },
-        { label: "服务协议", href: "/terms" },
+        { label: "用户服务协议", href: "/terms" },
         { label: "联系我们", href: "/contact" },
     ],
 }) => {
