@@ -18,6 +18,7 @@ import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
+import { Calendar, MessageSquare, Plus, Sparkles, Users, Video } from 'lucide-react';
 
 interface StudentWithPlan extends StudentSubscription {
     plan?: {
@@ -167,7 +168,7 @@ export default function StudentsPage() {
     const makeAiInstance = async (student: StudentWithPlan, config: AiInstanceConfig) => {
         setAiGenerating(true);
         showToast({ severity: 'info', summary: 'AI 生成中', detail: '正在根据学员问卷自动创建训练计划' });
-        
+
         try {
             const res = await planLibService.createAiInstance({
                 subscriptionId: student.id,
@@ -225,77 +226,134 @@ export default function StudentsPage() {
         }
     };
 
-    /** 学员列 */
+    /** 品牌化产品标签 */
+    const productTagTemplate = (tier: number) => {
+        const configs: Record<number, { label: string, color: string, icon: string }> = {
+            3: { label: '全能指导', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: 'pi pi-crown' },
+            2: { label: '专业指导', color: 'bg-primary-50 text-primary-600 border-primary-100', icon: 'pi pi-star' },
+            1: { label: '特惠版', color: 'bg-green-50 text-green-600 border-green-100', icon: 'pi pi-tag' },
+        };
+        const config = configs[tier] || { label: `套餐${tier}`, color: 'bg-surface-50 text-surface-600', icon: 'pi pi-box' };
+
+        return (
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-black uppercase tracking-wider ${config.color}`}>
+                <i className={`${config.icon} text-[10px]`} />
+                {config.label}
+            </div>
+        );
+    };
+
+    /** 学员基本信息列 */
     const studentTemplate = (student: StudentWithPlan) => (
         <div
-            className="flex items-center space-x-3 cursor-pointer hover:bg-surface-100 p-2 rounded"
-            onClick={() => {
-                setSelectedStudent(student);
-                setDialogVisible(true);
-            }}
+            className="group flex items-center gap-4 py-2 cursor-pointer"
+            onClick={() => { setSelectedStudent(student); setDialogVisible(true); }}
         >
-            <Avatar
-                image={student.profile?.avatar_url || undefined}
-                label={
-                    student.profile?.avatar_url
-                        ? undefined
-                        : student.profile?.nickname?.charAt(0) ||
-                        student.profile?.phone?.slice(0, 1) ||
-                        'U'
-                }
-                shape="circle"
-                className="bg-primary text-surface font-bold flex-shrink-0"
-                size="normal"
-            />
-            <div>
-                <div className="font-medium">{student.profile?.nickname}</div>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getProductColor(Number(student.tier))}`}>
-                    {getProductName(Number(student.tier))}
+            <div className="relative">
+                <Avatar
+                    image={student.profile?.avatar_url || undefined}
+                    label={!student.profile?.avatar_url ? student.profile?.nickname?.charAt(0) : undefined}
+                    shape="circle"
+                    size="large"
+                    className="shadow-sm border-2 border-surface bg-primary-100 text-primary-700 font-bold"
+                />
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-surface rounded-full" />
+            </div>
+            <div className="flex flex-col">
+                <span className="text-surface-900 font-bold tracking-tight group-hover:text-primary transition-colors">
+                    {student.profile?.nickname || '未知学员'}
+                </span>
+                <span className="text-xs text-surface-400 font-medium tracking-tighter uppercase">
+                    ID: {student.id.slice(0, 8)}
                 </span>
             </div>
         </div>
     );
 
-    const subscribeTemplate = (student: StudentWithPlan) => {
-        // 显示预计完成日期
-        const getCompletionInfo = () => {
-            if (!student.end_date) return null;
-            const endDate = new Date(student.end_date);
-            const now = new Date();
-            const isCompleted = student.status === 'completed';
-            const isPast = endDate < now;
-            
-            if (isCompleted) {
-                return { text: '已完成', color: 'text-green-600' };
-            }
-            if (isPast) {
-                return { text: '已完成', color: 'text-green-600' };
-            }
-            
-            // 显示预计完成日期
-            const dateStr = endDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-            return { text: `预计 ${dateStr} 完成`, color: 'text-surface-500' };
-        };
-        
-        const completionInfo = getCompletionInfo();
-        
-        return (
-            <div className="flex flex-col gap-1 text-sm">
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${getProductColor(Number(student.tier))} w-fit`}>
-                    <i className="pi pi-wallet text-xs" /> {getProductName(Number(student.tier))}
+    /** 订阅详情列 */
+    const subscribeTemplate = (student: StudentWithPlan) => (
+        <div className="flex flex-col gap-1.5 py-2">
+            {productTagTemplate(Number(student.tier))}
+            <div className="flex items-center gap-2 text-surface-500">
+                <Calendar size={12} />
+                <span className="text-xs font-bold tracking-tight">
+                    {student.subscribed_weeks}周计划
                 </span>
-                {student.subscribed_weeks && (
-                    <span className="text-xs text-surface-500">
-                        订阅时长: {student.subscribed_weeks}周
-                    </span>
+            </div>
+        </div>
+    );
+
+    /** 视频评价进度列 */
+    const videoStatsTemplate = (student: StudentWithPlan) => {
+        const unreviewed = student.uploaded - student.reviewed;
+        const hasUnreviewed = unreviewed > 0;
+
+        return (
+            <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                    {/* 已评价数值 */}
+                    <div className="flex items-baseline gap-1 bg-surface-50 px-2.5 py-1 rounded-lg border border-surface-100">
+                        <span className="text-xs font-black text-surface-900">{student.reviewed}</span>
+                        <span className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">Reviewed</span>
+                    </div>
+
+                    <span className="text-surface-200 text-xs font-light">/</span>
+
+                    {/* 总数数值 */}
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-xs font-bold text-surface-500">{student.uploaded}</span>
+                        <span className="text-[10px] font-medium text-surface-400">Total</span>
+                    </div>
+                </div>
+
+                {/* 待处理状态提醒 */}
+                {hasUnreviewed ? (
+                    <div className="flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-wider animate-pulse px-1">
+                        <div className="w-1 h-1 bg-primary rounded-full" />
+                        {unreviewed} 待评价
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-surface-300 uppercase tracking-wider px-1">
+                        <i className="pi pi-check-circle text-[9px]" />
+                        全部完成
+                    </div>
                 )}
-                {completionInfo && (
-                    <span className={`text-xs ${completionInfo.color}`}>
-                        {completionInfo.text}
-                    </span>
-                )}
-                <span className="text-xs text-surface-400">
-                    ¥{student.monthly_price}
+            </div>
+        );
+    };
+    /** 训练计划列 - 增加 AI 按钮的视觉吸引力 */
+    const trainingPlanTemplate = (student: StudentWithPlan) => {
+        if (student.plan === undefined) return <Skeleton width="120px" height="32px" borderRadius="12px" />;
+
+        if (student.plan === null) {
+            return (
+                <div className='flex items-center gap-2'>
+                    <button
+                        onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                        className="flex items-center gap-2 px-3 py-2 bg-surface-50 hover:bg-surface-100 text-surface-600 rounded-xl transition-all active:scale-95 border border-surface-100"
+                    >
+                        <Plus size={14} />
+                        <span className="text-xs font-bold uppercase tracking-tight">手动创建</span>
+                    </button>
+                    <button
+                        onClick={() => openAiConfigDialog(student)}
+                        className="flex items-center gap-2 px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl transition-all active:scale-95 border border-primary-100"
+                    >
+                        <Sparkles size={14} className="animate-pulse" />
+                        <span className="text-xs font-bold uppercase tracking-tight">AI 生成</span>
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div
+                className="group flex flex-col p-3 bg-surface-50/50 hover:bg-surface hover:shadow-lg hover:shadow-surface-200/50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-primary-100 max-w-[200px]"
+                onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+            >
+                <span className="text-sm font-bold text-surface-900 truncate tracking-tight">{student.plan.name}</span>
+                <span className="text-[10px] text-surface-400 line-clamp-1 italic font-medium">
+                    {student.plan.description || '无详细描述'}
                 </span>
             </div>
         );
@@ -307,67 +365,6 @@ export default function StudentsPage() {
             {new Date(student.start_date || '').toLocaleDateString()}
         </span>
     );
-
-    /** 视频数量列 */
-    const videoStatsTemplate = (student: StudentWithPlan) => {
-        const unreviewed = student.uploaded - student.reviewed;
-        return (
-            <div className="flex flex-col gap-1">
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary-50 text-primary-700 font-medium w-fit">
-                    <i className="pi pi-video text-xs" />
-                    {student.uploaded - unreviewed} / {student.uploaded}
-                </span>
-            </div>
-        );
-    };
-
-    /** 训练计划列 */
-    const trainingPlanTemplate = (student: StudentWithPlan) => {
-        if (student.plan === undefined) {
-            return <Skeleton width="100px" height="20px" />;
-        }
-
-        if (student.plan === null) {
-            return (
-                <div className='flex items-center gap-1'>
-                    <div
-                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-2 hover:bg-surface-100 rounded"
-                    onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
-                >
-                    <i className="pi pi-plus-circle mr-2"></i>
-                    创建计划
-                </div>
-                /
-                <div
-                    className="cursor-pointer hover:text-primary flex items-center text-surface-500 p-2 hover:bg-surface-100 rounded"
-                    onClick={() => openAiConfigDialog(student)}
-                >
-                    <i className="pi pi-plus-circle mr-2"></i>
-                    AI 生成
-                </div>
-                </div>
-            );
-        }
-
-        return (
-            <div
-                className="cursor-pointer hover:text-primary flex flex-col items-baseline text-surface-500 p-3 hover:bg-surface-100 rounded"
-                onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
-            >
-                <div className="font-medium">{student.plan.name}</div>
-                <div className="text-sm text-surface-400 truncate max-w-xs">
-                    {student.plan.description ? (
-                        <>
-                            {student.plan.description.substring(0, 10)}
-                            {student.plan.description.length > 10 ? '...' : ''}
-                        </>
-                    ) : (
-                        <span className="italic">暂无描述</span>
-                    )}
-                </div>
-            </div>
-        );
-    };
 
     /** 操作列 */
     const actionTemplate = (student: StudentWithPlan) => (
@@ -438,21 +435,34 @@ export default function StudentsPage() {
     }
 
     return (
-        <div className="min-h-screen p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-semibold">我的学员</h1>
-                {/* <Button
-                    label='待确认学员支付'
-                    onClick={() => setPaymentDialogVisible(true)}
-                    className="p-button-primary"
-                    badge={waitingStudents.length.toString()}
-                /> */}
+        <div className="min-h-screen p-4 md:p-8 max-w-[1400px] mx-auto animate-in fade-in duration-700">
+            {/* Header: 增强生产力氛围 */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 px-2">
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-black tracking-tighter text-surface-900">
+                        学员管理 <span className="text-primary">.</span>
+                    </h1>
+                    <div className="flex items-center gap-4 text-surface-400 text-sm font-medium">
+                        <div className="flex items-center gap-1.5">
+                            <Users size={16} /> <span>{totalRecords} 位学员</span>
+                        </div>
+                    </div>
+                </div>
+                {/* <div className="flex gap-3">
+                    <Button
+                        label="待支付确认"
+                        onClick={() => setPaymentDialogVisible(true)}
+                        className="p-button-outlined p-button-secondary rounded-2xl font-bold px-5"
+                        badge={waitingStudents.length > 0 ? waitingStudents.length.toString() : undefined}
+                        badgeClassName="p-badge-danger"
+                    />
+                </div> */}
             </div>
 
-            <div className="bg-surface border border-surface-200">
+            {/* Main Content: 去线条化的 DataView */}
+            <div className="bg-surface rounded-[32px] border border-surface-100 shadow-sm overflow-hidden">
                 <DataTable
                     value={students}
-                    className="rounded-xl"
                     paginator
                     rows={rows}
                     totalRecords={totalRecords}
@@ -460,55 +470,52 @@ export default function StudentsPage() {
                     onPage={onPage}
                     lazy
                     removableSort
+                    responsiveLayout="stack"
+                    breakpoint="960px"
+                    className="p-datatable-custom"
+                    rowClassName={() => 'hover:bg-primary-50/20 transition-colors border-b border-surface-50 last:border-0'}
+                    pt={{
+                        headerRow: { className: 'bg-surface-50/50' },
+                        column: {
+                            headerCell: { className: 'bg-transparent text-surface-400 text-[10px] font-black uppercase tracking-[0.2em] py-5 border-none' },
+                            bodyCell: { className: 'py-5 border-none' }
+                        }
+                    }}
                 >
-                    <Column field="student" header="学员" body={studentTemplate} sortable />
-                    <Column field="subscription" header="订阅" body={subscribeTemplate} />
-                    <Column field="trainingPlan" header="训练计划" body={trainingPlanTemplate} />
-                    <Column field="start_date" header="订阅时间" body={startDateTemplate} />
-                    <Column field="uploaded" header="已评价/视频总数" body={videoStatsTemplate} />
-                    <Column field="action" header="操作" body={actionTemplate} />
+                    <Column header="学员信息" body={studentTemplate} style={{ width: '25%' }} />
+                    <Column header="订阅状态" body={subscribeTemplate} style={{ width: '15%' }} />
+                    <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '25%' }} />
+                    <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '20%' }} />
+                    <Column
+                        header="操作"
+                        body={(s) => (
+                            <div className="flex gap-2">
+                                <Button
+                                    size="small"
+                                    icon={<MessageSquare size={16} className="mr-2" />}
+                                    label="评价"
+                                    className="p-button-text p-button-primary font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary-50 transition-all active:scale-95"
+                                    onClick={() => { setSelectedStudent(s); setReviewDialogVisible(true); }}
+                                />
+                                <Button
+                                    size="small"
+                                    icon={<MessageSquare size={16} className="mr-2" />}
+                                    label="交流"
+                                    className="p-button-text p-button-primary font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary-50 transition-all active:scale-95"
+                                    onClick={() => { setSelectedStudent(s); setReviewDialogVisible(true); }}
+                                />
+                            </div>
+                        )}
+                        style={{ width: '15%', textAlign: 'right' }}
+                    />
                 </DataTable>
             </div>
 
-            <StudentDetailDialog
-                visible={dialogVisible}
-                coach={coach}
-                student={selectedStudent}
-                onHide={() => setDialogVisible(false)}
-            />
-
-            <CoachReviewDialog
-                visible={reviewDialogVisible}
-                coach={coach}
-                student={selectedStudent}
-                onHide={() => setReviewDialogVisible(false)}
-                onSave={() => loadStudents()}
-            />
-
-            <PaymentConfirmationDialog
-                visible={paymentDialogVisible}
-                subscriptions={waitingStudents}
-                onHide={() => setPaymentDialogVisible(false)}
-                onConfirm={() => {
-                    // 重新加载等待支付的学生列表
-                    loadWaitingStudents();
-                    // 重新加载学生列表以更新状态
-                    loadStudents(0, rows);
-                }}
-            />
-
-            <AiInstanceConfigDialog
-                visible={aiConfigDialogVisible}
-                studentName={selectedStudent?.profile?.nickname}
-                totalWeeks={12}
-                loading={aiGenerating}
-                onHide={() => setAiConfigDialogVisible(false)}
-                onConfirm={(config) => {
-                    if (selectedStudent) {
-                        makeAiInstance(selectedStudent, config);
-                    }
-                }}
-            />
+            {/* Dialogs 保持不变 */}
+            <StudentDetailDialog visible={dialogVisible} coach={coach} student={selectedStudent} onHide={() => setDialogVisible(false)} />
+            <CoachReviewDialog visible={reviewDialogVisible} coach={coach} student={selectedStudent} onHide={() => setReviewDialogVisible(false)} onSave={() => loadStudents()} />
+            <PaymentConfirmationDialog visible={paymentDialogVisible} subscriptions={waitingStudents} onHide={() => setPaymentDialogVisible(false)} onConfirm={() => { loadWaitingStudents(); loadStudents(0, rows); }} />
+            <AiInstanceConfigDialog visible={aiConfigDialogVisible} studentName={selectedStudent?.profile?.nickname} totalWeeks={12} loading={aiGenerating} onHide={() => setAiConfigDialogVisible(false)} onConfirm={(config) => selectedStudent && makeAiInstance(selectedStudent, config)} />
         </div>
     );
 }
