@@ -1,9 +1,15 @@
+'use client';
+
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
-import { Tag } from 'primereact/tag';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
-import { Calendar, User, Target, Video, MessageCircle, FileText } from 'lucide-react';
+import { 
+    Calendar, User, Target, Video, 
+    MessageCircle, FileText, Info, 
+    ChevronRight, Activity, Clock, X
+} from 'lucide-react';
 import { CoachesRow } from '@/types';
+import { Button } from 'primereact/button';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
@@ -15,168 +21,183 @@ interface StudentDetailDialogProps {
     onHide: () => void;
 }
 
-export const StudentDetailDialog = ({
-    visible,
-    coach,
-    student,
-    onHide
-}: StudentDetailDialogProps) => {
+export const StudentDetailDialog = ({ visible, coach, student, onHide }: StudentDetailDialogProps) => {
     const profile = student?.profile;
 
-    const getHeader = () => {
-        if (!student) return "学员详情";
-        const displayName = profile?.nickname || profile?.phone || "未知用户";
-        return `学员详情 - ${displayName}`;
-    };
+    if (!student) return null;
 
-    const getAvatarLabel = () => {
-        if (profile?.avatar_url) return undefined;
-        return (
-            profile?.nickname?.charAt(0) ||
-            profile?.phone?.slice(0, 1) ||
-            'U'
-        );
-    };
-
-    const getPendingReviews = () => {
-        if (!student) return 0;
-        return student.uploaded - student.reviewed;
-    };
+    const getPendingReviews = () => student.uploaded - student.reviewed;
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('zh-CN', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
         });
     };
 
-    const getStatusSeverity = (status: string) => {
-        const statusMap: Record<string, any> = {
-            'active': 'success',
-            'expired': 'danger',
-            'pending': 'warning',
-            'canceled': 'secondary'
-        };
-        return statusMap[status] || 'info';
-    };
+    const tierConfig = {
+        3: { label: '全能指导版', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+        2: { label: '专业指导版', color: 'text-primary-600', bg: 'bg-primary-50', border: 'border-primary-100' },
+        1: { label: '特惠版', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
+    }[Number(student.tier)] || { label: '基础套餐', color: 'text-surface-600', bg: 'bg-surface-50', border: 'border-surface-100' };
 
     return (
         <Dialog
-            header={getHeader()}
             visible={visible}
-            style={{ width: '850px', maxWidth: '95vw' }}
-            className="student-detail-dialog"
+            onHide={onHide}
+            style={{ width: '880px' }}
             modal
             draggable={false}
-            onHide={onHide}
+            showHeader={false}
+            contentClassName="p-0 rounded-lg overflow-hidden bg-surface"
         >
-            {student && (
-                <div className="p-4 max-h-[80vh]">
-                    {/* 用户信息头部卡片 */}
-                    <div className="flex items-start mb-6 p-4 bg-surface-50 rounded-xl border border-surface-200">
-                        <Avatar
-                            image={profile?.avatar_url}
-                            label={getAvatarLabel()}
-                            size="xlarge"
-                            shape="circle"
-                            className="mr-4 bg-gradient-to-br from-primary to-primary-600 text-surface font-bold shadow-md"
-                        />
-
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <h2 className="flex flex-row gap-1 items-center text-2xl font-bold text-surface-900">
-                                    <User/> {profile?.nickname || '未设置昵称'}
-                                </h2>
-                                <Tag
-                                    value={student.status.toUpperCase()}
-                                    severity={getStatusSeverity(student.status)}
-                                    className="font-medium"
+            {/* 1. Header & Quick Info Profile */}
+            <div className="relative">
+                {/* 装饰背景 */}
+                <div className="absolute top-0 left-0 right-0 h-32" />
+                
+                <div className="relative pt-12 px-8 pb-6">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex gap-6 items-end">
+                            <div className="relative">
+                                <Avatar
+                                    image={profile?.avatar_url}
+                                    label={!profile?.avatar_url ? profile?.nickname?.charAt(0) : undefined}
+                                    className="w-24 h-24 rounded-[28px] shadow-xl shadow-surface-200/50 border-4 border-surface text-3xl font-black bg-primary text-surface"
                                 />
+                                <div className="absolute -bottom-2 -right-2 bg-green-500 w-6 h-6 rounded-full border-4 border-surface shadow-sm" />
                             </div>
+                            <div className="pb-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <h2 className="text-3xl font-black tracking-tighter text-surface-900">
+                                        {profile?.nickname || '未命名学员'}
+                                    </h2>
+                                    <div className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${tierConfig.bg} ${tierConfig.color} ${tierConfig.border}`}>
+                                        {tierConfig.label}
+                                    </div>
+                                </div>
+                                <p className="text-surface-400 text-sm font-medium flex items-center gap-2">
+                                    <Activity size={14} /> 订阅 ID: {student.id.split('-')[0].toUpperCase()}
+                                </p>
+                            </div>
+                        </div>
+                        <Button 
+                            icon={<X size={20} />} 
+                            className="p-button-text p-button-secondary rounded-2xl w-10 h-10 hover:bg-surface-100 transition-all" 
+                            onClick={onHide} 
+                        />
+                    </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                                    Number(student.tier) === 3 ? 'bg-amber-50 text-amber-700' :
-                                    Number(student.tier) === 2 ? 'bg-blue-50 text-blue-700' :
-                                    Number(student.tier) === 1 ? 'bg-green-50 text-green-700' :
-                                    'bg-primary-50 text-primary-700'
-                                }`}>
-                                    <Target size={14} />
-                                    {Number(student.tier) === 1 ? '特惠版' : Number(student.tier) === 2 ? '专业指导版' : Number(student.tier) === 3 ? '全能指导版' : `套餐 ${student.tier}`}
-                                </span>
-                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                                    <Calendar size={14} />
-                                    {formatDate(student.start_date)} 开始
-                                </span>
-                                {student.end_date && (
-                                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                                        new Date(student.end_date) < new Date() ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
-                                    }`}>
-                                        <Calendar size={14} />
-                                        {new Date(student.end_date) < new Date() ? '已到期' : `${formatDate(student.end_date)} 到期`}
-                                    </span>
-                                )}
-                                <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                                    <Video size={14} />
-                                    {student.uploaded} 视频
-                                </span>
-                                {getPendingReviews() > 0 && (
-                                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium">
-                                        <MessageCircle size={14} />
-                                        {getPendingReviews()} 待评阅
-                                    </span>
-                                )}
+                    {/* Quick Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-primary shadow-sm"><Calendar size={16} /></div>
+                            <div>
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">开始日期</p>
+                                <p className="text-xs font-black text-surface-700">{formatDate(student.start_date)}</p>
+                            </div>
+                        </div>
+                        <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-orange-500 shadow-sm"><Clock size={16} /></div>
+                            <div>
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">剩余时长</p>
+                                <p className="text-xs font-black text-surface-700">{student.end_date ? '12 周' : '长期'}</p>
+                            </div>
+                        </div>
+                        <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-blue-500 shadow-sm"><Video size={16} /></div>
+                            <div>
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">总上传视频</p>
+                                <p className="text-xs font-black text-surface-700">{student.uploaded} 个</p>
+                            </div>
+                        </div>
+                        <div className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${getPendingReviews() > 0 ? 'bg-amber-50 border-amber-100' : 'bg-surface-50/50 border-surface-100'}`}>
+                            <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-amber-600 shadow-sm"><MessageCircle size={16} /></div>
+                            <div>
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">待评阅</p>
+                                <p className={`text-xs font-black ${getPendingReviews() > 0 ? 'text-amber-700' : 'text-surface-700'}`}>
+                                    {getPendingReviews()} 份
+                                </p>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    {/* 个人档案区 - 复用用户端组件 */}
-                    <PersonalInfoDisplay profile={profile || null} phone={profile?.phone} />
+            <div className="p-8 space-y-12 max-h-[65vh] overflow-y-auto bg-surface custom-scrollbar">
+                {/* 2. Personal Profile Sections */}
+                <section className="space-y-6">
+                    <div className="flex items-center gap-3 px-1">
+                        <div className="w-1.5 h-6 bg-primary rounded-full" />
+                        <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">身体素质档案</h3>
+                    </div>
+                    <div className="">
+                        <PersonalInfoDisplay profile={profile || null} phone={profile?.phone} />
+                    </div>
+                </section>
 
-                    {/* 运动数据卡片 - 复用用户端组件 */}
+                {/* 3. Sport Cards */}
+                <section className="space-y-6">
+                    <div className="flex items-center gap-3 px-1">
+                        <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                        <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">专项运动表现</h3>
+                    </div>
                     <SportCardsDisplay sportCards={profile?.sport_cards as any} />
+                </section>
 
-                    {/* 进步足迹 - 显示学员的PR记录 */}
-                    <CoachViewProgressTimeline studentId={student.student_id} limit={10} />
+                {/* 4. Timeline */}
+                <section className="space-y-6">
+                    <div className="flex items-center gap-3 px-1">
+                        <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                        <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">近期进步足迹</h3>
+                    </div>
+                    <div className="bg-surface rounded-[32px] border border-surface-100 p-2">
+                        <CoachViewProgressTimeline studentId={student.student_id} limit={10} />
+                    </div>
+                </section>
 
-                    {/* 订阅问卷部分 */}
-                    {student.subscribe_data?.answers?.length > 0 && (
-                        <div className="mt-4">
-                            <div className="flex items-center gap-2 mb-4">
-                                <FileText className="text-primary" size={18} />
-                                <h3 className="text-md font-bold text-surface-900">需求问卷</h3>
-                                <span className="ml-2 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-semibold rounded">
-                                    {student.subscribe_data.answers.length} 项
-                                </span>
-                            </div>
+                {/* 5. Subscription Questionnaire - Chat-style UI */}
+                {student.subscribe_data?.answers?.length > 0 && (
+                    <section className="space-y-6">
+                        <div className="flex items-center gap-2 px-1">
+                            <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
+                            <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">入营需求问卷</h3>
+                        </div>
 
-                            <div className="space-y-3">
-                                {student.subscribe_data.answers.map((item, index) => (
-                                    <div
-                                        key={`question-${index}`}
-                                        className="p-3 bg-surface-50 rounded-lg border border-surface-200"
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-primary-100 text-primary-700 text-sm font-bold rounded-full">
-                                                {index + 1}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-sm font-semibold text-surface-700 mb-1.5">
-                                                    {item.question}
-                                                </div>
-                                                <div className="text-sm text-surface-900 bg-surface p-2 rounded border border-surface-100">
-                                                    {item.answer}
-                                                </div>
+                        <div className="space-y-4">
+                            {student.subscribe_data.answers.map((item, index) => (
+                                <div key={index} className="group relative flex flex-col gap-2 p-5 rounded-[24px] bg-surface-50/50 border border-surface-100 hover:border-primary-100 hover:bg-surface transition-all">
+                                    <div className="flex items-start gap-3">
+                                        <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-surface border border-surface-200 flex items-center justify-center text-[10px] font-black text-surface-400 group-hover:text-primary group-hover:border-primary-200 transition-colors">
+                                            {String(index + 1).padStart(2, '0')}
+                                        </span>
+                                        <div className="space-y-3 flex-1">
+                                            <p className="text-sm font-black text-surface-800 leading-tight">
+                                                {item.question}
+                                            </p>
+                                            <div className="relative pl-4 border-l-2 border-surface-200 group-hover:border-primary-200 transition-colors">
+                                                <p className="text-sm text-surface-600 font-medium italic">
+                                                    “ {item.answer} ”
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
-            )}
+                    </section>
+                )}
+            </div>
+
+            {/* Footer Action */}
+            <div className="p-6 border-t border-surface-50 flex justify-end bg-surface">
+                <Button 
+                    label="完成查阅" 
+                    onClick={onHide} 
+                    className="p-button-secondary p-button-text font-black text-sm uppercase tracking-widest px-8 rounded-2xl"
+                />
+            </div>
         </Dialog>
     );
 };
