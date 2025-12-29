@@ -1,0 +1,267 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+    Hash, Type, Users, Lock, Crown, Gem, Eye, Pencil, Send, Save, Star
+} from 'lucide-react';
+
+// PrimeReact imports
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { Chip } from 'primereact/chip';
+import { Checkbox } from 'primereact/checkbox';
+import { useToastContext } from '@/context/ToastContext';
+import { CoachContentRow } from '@/types';
+
+export enum ContentTier { FREE = 0, BASIC = 1, PREMIUM = 2, VIP = 3 }
+
+interface ContentForm {
+    title: string;
+    content: string;
+    content_type: 'text' | 'video' | 'image' | 'live' | 'plan';
+    required_tier: ContentTier;
+    is_featured: boolean;
+    tags: string[];
+    media_urls: string[];
+    thumbnail_url?: string;
+}
+
+interface ContentEditorProps {
+    coachId: string;
+    onPublish: (content: ContentForm) => Promise<void>;
+    onSaveDraft: (content: ContentForm) => Promise<void>;
+    initialContent?: CoachContentRow | null;
+}
+
+const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSaveDraft, initialContent = null }) => {
+    const [form, setForm] = useState<ContentForm>({
+        title: '', content: '', content_type: 'text', required_tier: ContentTier.FREE,
+        is_featured: false, tags: [], media_urls: []
+    });
+    const [currentTag, setCurrentTag] = useState('');
+    const [isPreview, setIsPreview] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const { showToast } = useToastContext();
+
+    const tierOptions = [
+        { value: ContentTier.FREE, label: '所有人', icon: Users, color: 'text-green-600', bgColor: 'bg-green-50' },
+        { value: ContentTier.BASIC, label: '仅订阅', icon: Lock, color: 'text-primary-600', bgColor: 'bg-primary-50' },
+    ];
+
+    useEffect(() => {
+        if (initialContent) {
+            setForm({
+                title: initialContent.title,
+                content: initialContent.content,
+                content_type: (initialContent.content_type as any) || 'text',
+                required_tier: initialContent.required_tier,
+                is_featured: initialContent.is_featured || false,
+                tags: initialContent.tags || [],
+                media_urls: initialContent.media_urls || []
+            });
+        }
+    }, [initialContent]);
+
+    const handleInputChange = (field: keyof ContentForm, value: any) => {
+        setForm(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const handleAddTag = () => {
+        if (currentTag.trim() && !form.tags.includes(currentTag.trim())) {
+            setForm(prev => ({ ...prev, tags: [...prev.tags, currentTag.trim()] }));
+            setCurrentTag('');
+        }
+    };
+
+    const handlePublish = async () => {
+        setIsPublishing(true);
+        try {
+            await onPublish(form);
+        } catch (error) {
+            showToast({ severity: 'error', summary: '发布失败' });
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
+        const handleSaveDraft = async () => {
+        try {
+            await onSaveDraft(form);
+            showToast({
+                severity: 'success',
+                summary: '草稿已保存'
+            })
+        } catch (error) {
+            console.error('保存草稿失败:', error);
+            showToast({
+                severity: 'error',
+                summary: '保存草稿失败，请重试'
+            })
+        }
+    };
+
+    const selectedTier = tierOptions.find(t => t.value === form.required_tier);
+    const TierIcon = selectedTier?.icon || Users;
+
+    return (
+        <div className="bg-transparent space-y-10 py-6">
+            {/* Header Area */}
+            <div className="flex items-center justify-between px-2">
+                <div>
+                    <h2 className="text-2xl font-black tracking-tight text-surface-900">创作中心</h2>
+                    <p className="text-sm text-surface-400 font-medium">编辑并分发您的专业健身见解</p>
+                </div>
+                <Button
+                    icon={isPreview ? <Pencil size={18} /> : <Eye size={18} />}
+                    label={isPreview ? '继续编辑' : '效果预览'}
+                    onClick={() => setIsPreview(!isPreview)}
+                    className="p-button-text p-button-secondary rounded-xl active:scale-95 transition-all font-bold text-sm"
+                />
+            </div>
+
+            {!isPreview ? (
+                <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                    {/* Title Input */}
+                    <div className="group space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                            <Type size={14} /> 标题内容
+                        </label>
+                        <InputText
+                            value={form.title}
+                            onChange={(e) => handleInputChange('title', e.target.value)}
+                            placeholder="输入标题..."
+                            className="w-full border-none bg-surface-50/50 focus:bg-white focus:ring-2 focus:ring-primary-100 rounded-2xl py-4 text-lg font-bold tracking-tight transition-all"
+                        />
+                    </div>
+
+                    {/* Content Editor Area */}
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                            正文叙述
+                        </label>
+                        <InputTextarea
+                            value={form.content}
+                            onChange={(e) => handleInputChange('content', e.target.value)}
+                            placeholder="在这里分享您的训练心得..."
+                            rows={10}
+                            className="w-full border-none bg-surface-50/50 focus:bg-white focus:ring-2 focus:ring-primary-100 rounded-[24px] p-5 transition-all resize-none leading-relaxed"
+                        />
+                    </div>
+
+                    {/* Tier Selection - Physical Button Logic */}
+                    <div className="space-y-4">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                            可见范围
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {tierOptions.map((tier) => {
+                                const Icon = tier.icon;
+                                const isSelected = form.required_tier === tier.value;
+                                return (
+                                    <button
+                                        key={tier.value}
+                                        onClick={() => handleInputChange('required_tier', tier.value)}
+                                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 active:scale-95 ${
+                                            isSelected 
+                                            ? `border-primary bg-primary-50/30 ring-4 ring-primary-50` 
+                                            : 'border-surface-100 bg-white hover:border-surface-200'
+                                        }`}
+                                    >
+                                        <Icon size={20} className={`mb-2 ${isSelected ? 'text-primary' : 'text-surface-300'}`} />
+                                        <span className={`text-xs font-bold tracking-tight ${isSelected ? 'text-primary' : 'text-surface-600'}`}>
+                                            {tier.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Tags & Settings */}
+                    <div className="grid md:grid-cols-2 gap-8 items-start">
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                                <Hash size={14} /> 标签索引
+                            </label>
+                            <div className="flex gap-2">
+                                <InputText
+                                    value={currentTag}
+                                    onChange={(e) => setCurrentTag(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                                    placeholder="输入后回车..."
+                                    className="flex-1 border-surface-100 bg-surface-50/30 rounded-xl"
+                                />
+                                <Button label="添加" onClick={handleAddTag} className="p-button-secondary p-button-outlined rounded-xl" />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {form.tags.map((tag, i) => (
+                                    <Chip key={i} label={`# ${tag}`} removable onRemove={() => {
+                                        handleInputChange('tags', form.tags.filter(t => t !== tag));
+                                        return true;
+                                    }} className="bg-primary-50 text-primary-600 font-bold border-none" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                /* Preview Mode - Aero Depth Style */
+                <div className="animate-in fade-in zoom-in-95 duration-500">
+                    <div className="bg-white border border-surface-100 rounded-[32px] p-8 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className={`px-3 py-1 rounded-full flex items-center gap-2 ${selectedTier?.bgColor}`}>
+                                <TierIcon size={14} className={selectedTier?.color} />
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${selectedTier?.color}`}>
+                                    {selectedTier?.label}
+                                </span>
+                            </div>
+                            {form.is_featured && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1"><Star size={12} fill="currentColor" /> 精选</span>}
+                        </div>
+                        <h1 className="text-3xl font-black tracking-tight text-surface-900 mb-6 leading-tight">
+                            {form.title || '标题预留位'}
+                        </h1>
+                        <div className="text-surface-600 leading-relaxed whitespace-pre-wrap text-lg opacity-90 mb-10">
+                            {form.content || '您还没有输入正文...'}
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-6 border-t border-surface-50">
+                            {form.tags.map((tag, i) => (
+                                <span key={i} className="text-primary font-bold text-sm">#{tag}</span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bottom Actions - Floating Visual Style */}
+            <footer className="flex items-center justify-between pt-8 border-t border-surface-100/60">
+                <div className="flex items-center gap-2 text-surface-400">
+
+                </div>
+
+                <div className="flex gap-4">
+                    <Button
+                        label="保存草稿"
+                        icon={<Save size={18} className="mr-2" />}
+                        onClick={handleSaveDraft}
+                        disabled={isPublishing}
+                        className="p-button-text p-button-secondary rounded-2xl px-6 active:scale-95 transition-all font-bold"
+                    />
+                    <Button
+                        label={initialContent ? "更新发布" : "立即发布"}
+                        icon={<Send size={18} className="mr-2" />}
+                        loading={isPublishing}
+                        onClick={handlePublish}
+                        disabled={isPublishing || !form.title.trim() || !form.content.trim()}
+                        className="p-button-primary rounded-2xl px-10 py-4 shadow-lg shadow-primary-100 active:scale-95 transition-all font-black uppercase tracking-wider"
+                    />
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+export default ContentEditor;
