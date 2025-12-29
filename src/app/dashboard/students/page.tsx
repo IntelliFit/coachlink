@@ -12,12 +12,15 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { StudentDetailDialog } from './StudentDetailDialog';
 import { CoachReviewDialog } from './CoachReviewDialog';
+import ChatDialog from '@/components/chat/ChatDialog';
 import { PaymentConfirmationDialog } from './PaymentConfirmationDialog';
 import { AiInstanceConfigDialog, type AiInstanceConfig } from './AiInstanceConfigDialog';
 import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
+import { chatService } from '@/app/service/chatService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
+import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import { Calendar, MessageSquare, Plus, Sparkles, Users, Video } from 'lucide-react';
 
 interface StudentWithPlan extends StudentSubscription {
@@ -42,6 +45,8 @@ export default function StudentsPage() {
     const [aiConfigDialogVisible, setAiConfigDialogVisible] = useState(false);
     const [aiGenerating, setAiGenerating] = useState(false);
     const [pricingMap, setPricingMap] = useState<Record<number, { is_ai_plan: boolean }>>({});
+    const [chatDialogVisible, setChatDialogVisible] = useState(false);
+    const [selectedChatroom, setSelectedChatroom] = useState<ChatroomDetail | null>(null);
 
     const router = useRouter();
     const { showToast } = useToastContext();
@@ -179,7 +184,7 @@ export default function StudentsPage() {
 
             if (res) {
                 if (res.template) {
-                    showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
+                    showToast({ severity: 'success', summary: '创建成功', detail: '已创建���练计划' });
                     setAiConfigDialogVisible(false);
                     // 当res.template非空时，更新当前表单
                     setStudents(prev =>
@@ -206,7 +211,7 @@ export default function StudentsPage() {
         }
     }
 
-    /** 获取产品名称 */
+    /** 获取产品��称 */
     const getProductName = (tier: number) => {
         switch (tier) {
             case 1: return '特惠版';
@@ -359,26 +364,31 @@ export default function StudentsPage() {
         );
     };
 
-    /** 注册时间列 */
-    const startDateTemplate = (student: StudentWithPlan) => (
-        <span className="text-surface-500">
-            {new Date(student.start_date || '').toLocaleDateString()}
-        </span>
-    );
+    const contactStudent = async () => {
+        if (!session?.user?.id) {
+            return;
+        }
 
-    /** 操作列 */
-    const actionTemplate = (student: StudentWithPlan) => (
-        <Button
-            size="small"
-            icon="pi pi-comment"
-            text
-            label="评价"
-            onClick={() => {
-                setSelectedStudent(student);
-                setReviewDialogVisible(true);
-            }}
-        />
-    );
+        console.log('enter');
+        
+        setLoading(true);
+
+        try {
+            const res = await chatService.getChatroom({ members: [session.user.id, selectedStudent.student_id] });
+
+            if (res) {
+                setSelectedChatroom(null);
+                setTimeout(() => {
+                    setSelectedChatroom(res.chatroom);
+                    setChatDialogVisible(true);
+                }, 0);
+            } else {
+                showToast({ severity: 'error', summary: '创建聊天室出错' });
+            }
+        } finally {
+            setLoading(false);
+        }
+    }
 
     if (loading && students.length === 0) {
         return (
@@ -470,7 +480,6 @@ export default function StudentsPage() {
                     onPage={onPage}
                     lazy
                     removableSort
-                    responsiveLayout="stack"
                     breakpoint="960px"
                     className="p-datatable-custom"
                     rowClassName={() => 'hover:bg-primary-50/20 transition-colors border-b border-surface-50 last:border-0'}
@@ -486,34 +495,26 @@ export default function StudentsPage() {
                     <Column header="订阅状态" body={subscribeTemplate} style={{ width: '15%' }} />
                     <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '25%' }} />
                     <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '20%' }} />
-                    <Column
-                        header="操作"
-                        body={(s) => (
-                            <div className="flex gap-2">
-                                <Button
-                                    size="small"
-                                    icon={<MessageSquare size={16} className="mr-2" />}
-                                    label="评价"
-                                    className="p-button-text p-button-primary font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary-50 transition-all active:scale-95"
-                                    onClick={() => { setSelectedStudent(s); setReviewDialogVisible(true); }}
-                                />
-                                <Button
-                                    size="small"
-                                    icon={<MessageSquare size={16} className="mr-2" />}
-                                    label="交流"
-                                    className="p-button-text p-button-primary font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary-50 transition-all active:scale-95"
-                                    onClick={() => { setSelectedStudent(s); setReviewDialogVisible(true); }}
-                                />
-                            </div>
-                        )}
-                        style={{ width: '15%', textAlign: 'right' }}
-                    />
                 </DataTable>
             </div>
 
             {/* Dialogs 保持不变 */}
-            <StudentDetailDialog visible={dialogVisible} coach={coach} student={selectedStudent} onHide={() => setDialogVisible(false)} />
+            <StudentDetailDialog
+                visible={dialogVisible}
+                coach={coach}
+                student={selectedStudent}
+                onHide={() => setDialogVisible(false)}
+                onShowReviewDialog={() => {
+                    setReviewDialogVisible(true);
+                }}
+                onShowChatDialog={contactStudent}
+            />
             <CoachReviewDialog visible={reviewDialogVisible} coach={coach} student={selectedStudent} onHide={() => setReviewDialogVisible(false)} onSave={() => loadStudents()} />
+            <ChatDialog
+                visible={chatDialogVisible}
+                onHide={() => setChatDialogVisible(false)}
+                chatroom={selectedChatroom}
+            />
             <PaymentConfirmationDialog visible={paymentDialogVisible} subscriptions={waitingStudents} onHide={() => setPaymentDialogVisible(false)} onConfirm={() => { loadWaitingStudents(); loadStudents(0, rows); }} />
             <AiInstanceConfigDialog visible={aiConfigDialogVisible} studentName={selectedStudent?.profile?.nickname} totalWeeks={12} loading={aiGenerating} onHide={() => setAiConfigDialogVisible(false)} onConfirm={(config) => selectedStudent && makeAiInstance(selectedStudent, config)} />
         </div>
