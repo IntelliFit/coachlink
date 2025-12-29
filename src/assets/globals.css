@@ -115,3 +115,90 @@ body {
 .markdown-message-content a:hover {
     color: var(--primary-700, #c7771a);
 }
+
+/* Markdown 内容排版优化 */
+.prose {
+    line-height: 1.75;
+    color: var(--surface-700);
+}
+
+/* 标题样式 */
+.prose h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--surface-900);
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--surface-200);
+    padding-bottom: 0.5rem;
+}
+
+.prose h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--surface-900);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* 列表样式 */
+.prose ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.prose ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.prose li {
+    margin-bottom: 0.5rem;
+}
+
+/* 引用样式 */
+.prose blockquote {
+    border-left: 4px solid var(--primary-color, #3B82F6);
+    background: var(--surface-50);
+    padding: 1rem;
+    margin: 1.5rem 0;
+    font-style: italic;
+    border-radius: 0 8px 8px 0;
+}
+
+/* 代码块样式 */
+.prose code {
+    background-color: var(--surface-100);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #d63384; /* 经典代码高亮色 */
+}
+
+.prose pre {
+    background-color: var(--surface-900);
+    color: var(--surface-0);
+    padding: 1rem;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+}
+
+.prose pre code {
+    background-color: transparent;
+    padding: 0;
+    color: inherit;
+}
+
+/* 链接样式 */
+.prose a {
+    color: var(--primary-color);
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.prose a:hover {
+    opacity: 0.8;
+}

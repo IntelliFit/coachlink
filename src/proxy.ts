@@ -10,7 +10,14 @@ const PUBLIC_PATHS = new Set([
     '/api/sms/send-verification-code',
     '/api/coach/get-all-coaches',
     '/docs/agreement',
-    '/docs/disclaimer'
+    '/docs/disclaimer',
+    '/disclaimer',
+    '/docs/disclaimer.md',
+    '/privacy',
+    '/terms',
+    '/docs/terms.md',
+    '/contact',
+    '/docs/contact.md',
 ]);
 
 // 需要仅匹配前缀的路径（如 /api/auth/...）
