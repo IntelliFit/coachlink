@@ -13,7 +13,7 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
-import ContentEditor from '@/app/dashboard/components/ContentEditor';
+import ContentEditor from '@/app/dashboard/content/ContentEditor';
 import { coachService } from '@/app/service/coachService';
 import { CoachContentRow } from '@/types';
 
@@ -148,7 +148,7 @@ const Content = () => {
                     className="p-button-text text-surface-500 hover:text-primary mb-6 rounded-xl active:scale-95"
                     onClick={() => { setCurrentView('list'); setEditingContent(null); }}
                 />
-                <div className="bg-white rounded-[32px] border border-surface-100 overflow-hidden">
+                <div className="p-5 bg-surface-0 rounded-[32px] border border-surface-100 overflow-hidden">
                     <ContentEditor
                         coachId={coach.id}
                         onPublish={handlePublishContent}
