@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabase from '@/lib/supabaseClient';
+import supabase from "@/lib/supabaseClient";
 import { ListActionsDto, ListActionsResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
@@ -8,7 +8,8 @@ export async function POST(req: Request) {
     const {
         page = 1,
         limit = 12,
-        search
+        search,
+        type,
     } = await req.json() as ListActionsDto;
 
     // Check if user is logged in and has coach role
@@ -18,17 +19,11 @@ export async function POST(req: Request) {
     if (!userId) {
         return NextResponse.json({
             success: false,
-            message: "Unauthorized"
+            message: "Unauthorized",
         }, { status: 401 });
     }
 
-    const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('is_coach')
-        .eq('id', userId)
-        .single();
-
-    if (userError || !user.is_coach) {
+    if (!session.user.is_coach) {
         return NextResponse.json({
             success: false,
             message: "Forbidden",
@@ -41,6 +36,11 @@ export async function POST(req: Request) {
         .select("*", { count: "exact" })
         .eq("coach_id", userId)
         .order("created_at", { ascending: false }); // 默认按创建时间倒序排序
+
+    // Apply type filter if provided
+    if (type) {
+        query = query.eq("type", type);
+    }
 
     // Apply search filter if provided
     if (search) {
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         console.error("Error fetching actions:", error);
         return NextResponse.json({
             success: false,
-            message: "Failed to fetch actions"
+            message: "Failed to fetch actions",
         }, { status: 500 });
     }
 
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
             actions: actions || [],
             totalCount: count || 0,
             page,
-            limit
-        }
+            limit,
+        },
     });
 }

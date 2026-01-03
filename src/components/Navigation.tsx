@@ -15,10 +15,10 @@ export default function Navigation() {
         return <NavigationStudent />;
     }
 
-    // 根据用户角色显示不同的导航
+    // 根据用户角色显示不同的导航（教练端需双条件，防止脏数据）
     if (session?.user?.is_admin) {
         return <NavigationAdmin />;
-    } else if (session?.user?.primary_role === 'coach') {
+    } else if (session?.user?.is_coach && session?.user?.primary_role === 'coach') {
         return <NavigationCoach />;
     } else {
         return <NavigationStudent />;

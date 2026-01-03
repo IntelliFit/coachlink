@@ -6,8 +6,9 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
-import { InputSwitch } from 'primereact/inputswitch'; // 新增导入
-import { CoachActionRow } from '@/types';
+import { Dropdown } from 'primereact/dropdown';
+import { InputSwitch } from 'primereact/inputswitch';
+import { CoachActionRow, ItemType } from '@/types';
 
 interface ActionEditDialogProps {
     visible: boolean;
@@ -26,10 +27,19 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [detail, setDetail] = useState('');
     const [url, setUrl] = useState('');
     const [positions, setPositions] = useState<string[]>([]);
-    const [attrs, setAttrs] = useState<string[]>([]); // 新增：动作属性状态
-    const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false); // 新增状态
-    const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false); // 新增：是否包含自重
+    const [attrs, setAttrs] = useState<string[]>([]);
+    const [itemType, setItemType] = useState<ItemType>('STRENGTH'); // 项目类型
+    const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
+    const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
     const [loading, setLoading] = useState(false);
+
+    // 项目类型选项
+    const itemTypeOptions = [
+        { label: '💪 力量训练', value: 'STRENGTH' },
+        { label: '🍎 饮食', value: 'DIET' },
+        { label: '🏃 有氧运动', value: 'CARDIO' },
+        { label: '✅ 习惯打卡', value: 'HABIT' }
+    ];
 
     const actionTypes = [
         { label: '胸部', value: '胸部' },
@@ -55,22 +65,21 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             setName(action.name);
             setDetail(action.detail || '');
             setUrl(action.url || '');
-            // 如果position是字符串，则转换为数组，否则直接使用
             setPositions(action.positions || []);
-            // 新增：设置动作属性
             setAttrs(action.attrs || []);
-            setEnableAutoWeightCompute(action.enableAutoWeightCompute || false); // 新增：设置自动计算负重状态
-            setIncludesBodyWeight(action.includesBodyWeight || false); // 新增：设置是否包含自重
+            setItemType((action.type as ItemType) || 'STRENGTH');
+            setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
+            setIncludesBodyWeight(action.includesBodyWeight || false);
         } else {
             // 重置表单
             setName('');
             setDetail('');
             setUrl('');
             setPositions([]);
-            // 修改：设置默认动作属性
             setAttrs(['组数', '次数', '强度', '休息时间']);
-            setEnableAutoWeightCompute(false); // 新增：默认值为false
-            setIncludesBodyWeight(false); // 新增：默认值为false
+            setItemType('STRENGTH');
+            setEnableAutoWeightCompute(false);
+            setIncludesBodyWeight(false);
         }
     }, [action, visible]);
 
@@ -81,13 +90,11 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 name,
                 detail,
                 url: url || undefined,
-                // 如果只选择了一个位置，保存为字符串以保持向后兼容
-                // 如果选择了多个位置，可以保存为数组
                 positions,
-                // 新增：保存动作属性
                 attrs,
-                enableAutoWeightCompute, // 新增：保存自动计算负重设置
-                includesBodyWeight: enableAutoWeightCompute ? includesBodyWeight : false // 只有启用自动计算时才保存
+                type: itemType,
+                enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
+                includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false
             };
 
             if (action) {
@@ -127,83 +134,106 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             footer={footerContent}
         >
             <div className="flex flex-col gap-4">
+                {/* 项目类型选择 */}
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="name" className="font-medium">动作名称 *</label>
+                    <label htmlFor="itemType" className="font-medium">项目类型 *</label>
+                    <Dropdown
+                        id="itemType"
+                        value={itemType}
+                        options={itemTypeOptions}
+                        onChange={(e) => setItemType(e.value)}
+                        className="w-full"
+                    />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="name" className="font-medium">
+                        {itemType === 'DIET' ? '饮食名称' : itemType === 'HABIT' ? '习惯名称' : '动作名称'} *
+                    </label>
                     <InputText
                         id="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        placeholder={itemType === 'DIET' ? '如：早餐、午餐、晚餐' : itemType === 'HABIT' ? '如：喝水、冥想' : ''}
                         required
                     />
                 </div>
 
-                {/* 新增：自动计算负重开关 */}
-                <div className="flex items-center gap-2">
-                    <InputSwitch 
-                        id="enableAutoWeightCompute"
-                        checked={enableAutoWeightCompute}
-                        onChange={(e) => setEnableAutoWeightCompute(e.value || false)}
-                    />
-                    <label htmlFor="enableAutoWeightCompute" className="font-medium">
-                        是否自动计算负重
-                    </label>
-                </div>
-
-                {/* 新增：是否包含自重开关（仅在启用自动计算时显示） */}
-                {enableAutoWeightCompute && (
-                    <div className="flex items-center gap-2 ml-6 p-3 bg-surface-100 rounded-lg">
-                        <InputSwitch 
-                            id="includesBodyWeight"
-                            checked={includesBodyWeight}
-                            onChange={(e) => setIncludesBodyWeight(e.value || false)}
-                        />
-                        <div className="flex flex-col">
-                            <label htmlFor="includesBodyWeight" className="font-medium">
-                                包含自重计算
+                {/* 以下字段只对力量训练类型显示 */}
+                {itemType === 'STRENGTH' && (
+                    <>
+                        {/* 自动计算负重开关 */}
+                        <div className="flex items-center gap-2">
+                            <InputSwitch 
+                                id="enableAutoWeightCompute"
+                                checked={enableAutoWeightCompute}
+                                onChange={(e) => setEnableAutoWeightCompute(e.value || false)}
+                            />
+                            <label htmlFor="enableAutoWeightCompute" className="font-medium">
+                                是否自动计算负重
                             </label>
-                            <span className="text-xs text-surface-500">
-                                {includesBodyWeight 
-                                    ? '适用于负重引体、负重臂屈伸等动作' 
-                                    : '适用于深蹲、卧推、硬拉等动作'}
-                            </span>
                         </div>
-                    </div>
+
+                        {/* 是否包含自重开关（仅在启用自动计算时显示） */}
+                        {enableAutoWeightCompute && (
+                            <div className="flex items-center gap-2 ml-6 p-3 bg-surface-100 rounded-lg">
+                                <InputSwitch 
+                                    id="includesBodyWeight"
+                                    checked={includesBodyWeight}
+                                    onChange={(e) => setIncludesBodyWeight(e.value || false)}
+                                />
+                                <div className="flex flex-col">
+                                    <label htmlFor="includesBodyWeight" className="font-medium">
+                                        包含自重计算
+                                    </label>
+                                    <span className="text-xs text-surface-500">
+                                        {includesBodyWeight 
+                                            ? '适用于负重引体、负重臂屈伸等动作' 
+                                            : '适用于深蹲、卧推、硬拉等动作'}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="positions" className="font-medium">动作类型</label>
+                            <MultiSelect
+                                id="positions"
+                                value={positions}
+                                options={actionTypes}
+                                onChange={(e) => setPositions(e.value)}
+                                placeholder="选择动作类型"
+                                className="w-full"
+                                display="chip"
+                            />
+                        </div>
+
+                        {/* 动作属性多选 */}
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="attrs" className="font-medium">动作属性</label>
+                            <MultiSelect
+                                id="attrs"
+                                value={attrs}
+                                options={actionAttrs}
+                                onChange={(e) => setAttrs(e.value)}
+                                placeholder="选择动作属性"
+                                className="w-full"
+                                display="chip"
+                            />
+                        </div>
+                    </>
                 )}
 
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="positions" className="font-medium">动作类型</label>
-                    <MultiSelect
-                        id="positions"
-                        value={positions}
-                        options={actionTypes}
-                        onChange={(e) => setPositions(e.value)}
-                        placeholder="选择动作类型"
-                        className="w-full"
-                        display="chip"
-                    />
-                </div>
-
-                {/* 新增：动作属性多选 */}
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="attrs" className="font-medium">动作属性</label>
-                    <MultiSelect
-                        id="attrs"
-                        value={attrs}
-                        options={actionAttrs}
-                        onChange={(e) => setAttrs(e.value)}
-                        placeholder="选择动作属性"
-                        className="w-full"
-                        display="chip"
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="detail" className="font-medium">动作描述 *</label>
+                    <label htmlFor="detail" className="font-medium">
+                        {itemType === 'DIET' ? '饮食内容' : itemType === 'HABIT' ? '习惯说明' : '动作描述'} *
+                    </label>
                     <InputTextarea
                         id="detail"
                         value={detail}
                         onChange={(e) => setDetail(e.target.value)}
                         rows={4}
+                        placeholder={itemType === 'DIET' ? '如：燕麦+鸡蛋+牛奶，蛋白质30g' : itemType === 'HABIT' ? '如：每天喝8杯水' : ''}
                         required
                     />
                 </div>
