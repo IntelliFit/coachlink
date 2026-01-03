@@ -190,7 +190,8 @@ const CoachApplicationPage = () => {
                                 'xiaohongshu': '小红书',
                                 'zhihu': '知乎',
                                 'bilibili': 'B站',
-                                'kuaishou': '快手'
+                                'kuaishou': '快手',
+                                'other': '其他网站',
                             };
                             const name = platformMap[key] || key;
                             return { name, url: value as string };
@@ -381,7 +382,8 @@ const CoachApplicationPage = () => {
                         '小红书': 'xiaohongshu',
                         '知乎': 'zhihu',
                         'B站': 'bilibili',
-                        '快手': 'kuaishou'
+                        '快手': 'kuaishou',
+                        '其他网站': 'other',
                     };
                     const key = keyMap[link.name];
                     if (key) {

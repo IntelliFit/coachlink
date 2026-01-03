@@ -10,6 +10,34 @@ import type {
 } from "./entity";
 import { sendSystemMessage } from "@/lib/chat";
 
+function buildCoachProfileFromApplication(application: any) {
+    const profile: Record<string, any> = {};
+
+    if (application?.teaching_philosophy !== undefined) {
+        profile.teachingPhilosophy = application.teaching_philosophy;
+    }
+    if (application?.achievements !== undefined) {
+        profile.achievements = application.achievements;
+    }
+    if (application?.case_studies !== undefined) {
+        profile.caseStudies = application.case_studies;
+    }
+    if (application?.credentials !== undefined) {
+        profile.credentials = application.credentials;
+    }
+    if (application?.contact_email !== undefined) {
+        profile.contactEmail = application.contact_email;
+    }
+    if (application?.contact_phone !== undefined) {
+        profile.contactPhone = application.contact_phone;
+    }
+    if (application?.social_links !== undefined) {
+        profile.socialLinks = application.social_links;
+    }
+
+    return profile;
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -145,6 +173,22 @@ export async function POST(req: Request) {
     if (isAdmin) {
         // 根据选择的值进行后续处理
         if (body.status === "approved") {
+            const latestApplication = data || existingApplication;
+            const coachProfile = buildCoachProfileFromApplication(latestApplication);
+            const coachUpsertData = {
+                user_id: existingApplication.user_id,
+                name: latestApplication.name || existingApplication.name,
+                title: latestApplication.title ?? null,
+                avatar_url: latestApplication.avatar_url ?? null,
+                specialties: latestApplication.specialties ?? null,
+                bio: latestApplication.bio ?? null,
+                years_experience: latestApplication.years_experience ?? null,
+                achievements: latestApplication.achievements ?? null,
+                profile: Object.keys(coachProfile).length ? coachProfile : null,
+                status: "approved",
+                updated_at: new Date().toISOString(),
+            };
+
             // 如果不存在教练账号则创建
             const { data: existCoach, error: existCoachError } = await supabase
                 .from("coaches")
@@ -164,19 +208,26 @@ export async function POST(req: Request) {
                 const { error: createCoachError } = await supabase
                     .from("coaches")
                     .insert({
-                        user_id: existingApplication.user_id,
-                        name: existingApplication.name,
-                        title: existingApplication.title,
-                        avatar_url: existingApplication.avatar_url,
-                        specialties: existingApplication.specialties,
-                        bio: existingApplication.bio,
-                        status: "approved", // 设置为已通过状态，这样才能在教练列表中显示
+                        ...coachUpsertData,
                     });
 
                 if (createCoachError) {
                     return NextResponse.json<ApiData<null>>({
                         success: false,
                         message: "创建教练失败: " + createCoachError.message,
+                        data: null,
+                    }, { status: 500 });
+                }
+            } else {
+                const { error: updateCoachError } = await supabase
+                    .from("coaches")
+                    .update(coachUpsertData)
+                    .eq("id", existCoach.id);
+
+                if (updateCoachError) {
+                    return NextResponse.json<ApiData<null>>({
+                        success: false,
+                        message: "更新教练信息失败: " + updateCoachError.message,
                         data: null,
                     }, { status: 500 });
                 }

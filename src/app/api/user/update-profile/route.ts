@@ -20,6 +20,7 @@ export async function POST(request: Request) {
         full_name: body.full_name,
         nickname: body.nickname,
         phone: body.phone,
+        avatar_url: body.avatar_url,
         address: body.address,
         gender: body.gender,
         birth_date: body.birth_date,
@@ -93,18 +94,23 @@ export async function POST(request: Request) {
     }
 
     // 如果用户是教练且修改了昵称，同步更新 coaches 表的 name 字段
-    if (body.nickname && session.user.is_coach) {
-        const { error: coachUpdateError } = await supabase
-            .from("coaches")
-            .update({
-                name: body.nickname,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", userId);
+    if (session.user.is_coach) {
+        const coachSync: Record<string, any> = {};
+        if (body.nickname !== undefined) coachSync.name = body.nickname;
+        if (body.avatar_url !== undefined) coachSync.avatar_url = body.avatar_url;
+        if (Object.keys(coachSync).length > 0) {
+            const { error: coachUpdateError } = await supabase
+                .from("coaches")
+                .update({
+                    ...coachSync,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("user_id", userId);
 
-        if (coachUpdateError) {
-            console.error("同步教练名称失败:", coachUpdateError);
-            // 不阻断流程，只记录错误
+            if (coachUpdateError) {
+                console.error("同步教练信息失败:", coachUpdateError);
+                // 不阻断流程，只记录错误
+            }
         }
     }
 

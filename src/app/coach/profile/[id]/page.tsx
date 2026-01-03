@@ -142,6 +142,7 @@ const CoachProfilePage: React.FC = () => {
 
     // 在教练信息加载完成前显示骨架屏
     if (coach && aggregatedInfo) {
+        const displayCoach = aggregatedInfo.coach || coach;
         const handleSubscribeSuccess = (tier?: number) => {
             // 如果传入了tier，说明是订阅操作，需要刷新订阅列表
             if (tier !== undefined) {
@@ -154,15 +155,15 @@ const CoachProfilePage: React.FC = () => {
             <div className="min-h-screen bg-surface-50">
                 {/* 教练介绍部分 */}
                 <CoachIntroduction
-                    coach={coach}
+                    coach={displayCoach}
                     userSubscription={userSubscription}
                     aggregatedInfo={aggregatedInfo}
                 />
 
                 {/* 教练内容部分（包含标签页） */}
                 <CoachContent
-                    coach={coach}
-                    coachId={coach.id}
+                    coach={displayCoach}
+                    coachId={displayCoach.id}
                     userSubscription={userSubscription}
                     mySubscriptions={mySubscriptions}
                     aggregatedInfo={aggregatedInfo}

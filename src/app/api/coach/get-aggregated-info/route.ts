@@ -5,6 +5,16 @@ import type { ApiData } from '@/types/api';
 import type { GetAggregatedInfoDto, GetAggregatedInfoResponseDto } from './entity';
 import redis from '@/lib/redisClient';
 
+function mergeProfile(base: any, incoming: Record<string, any>) {
+    const merged = { ...(base || {}) };
+    Object.entries(incoming || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            merged[key] = value;
+        }
+    });
+    return merged;
+}
+
 
 async function getUniqueTags(userId: string) {
     const { data, error } = await supabase
@@ -122,23 +132,66 @@ export async function POST(req: Request) {
         });
     }
 
+    // 合并教练申请中的字段，避免已审批教练丢失申请时填写的细节
+    let enrichedCoach = coach;
+    try {
+        const { data: latestApplication } = await supabase
+            .from('coach_applications')
+            .select('*')
+            .eq('user_id', coach.user_id)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestApplication) {
+            const profileFromApplication = {
+                teachingPhilosophy: latestApplication.teaching_philosophy,
+                achievements: latestApplication.achievements,
+                caseStudies: latestApplication.case_studies,
+                credentials: latestApplication.credentials,
+                contactEmail: latestApplication.contact_email,
+                contactPhone: latestApplication.contact_phone,
+                socialLinks: latestApplication.social_links,
+            };
+
+            enrichedCoach = {
+                ...coach,
+                name: coach.name || latestApplication.name,
+                title: coach.title ?? latestApplication.title,
+                avatar_url: coach.avatar_url ?? latestApplication.avatar_url,
+                specialties: coach.specialties ?? latestApplication.specialties,
+                bio: coach.bio ?? latestApplication.bio,
+                years_experience: coach.years_experience ?? latestApplication.years_experience,
+                achievements: coach.achievements ?? latestApplication.achievements,
+                profile: mergeProfile(coach.profile, profileFromApplication),
+            };
+        }
+    } catch (err) {
+        console.error('合并教练申请信息失败:', err);
+    }
+
     const [
         studentCount,
         contentCount,
-        specialties,
+        templateSpecialties,
         { reviewCount, averageRating }
     ] = await Promise.all([
-        getStudentCount(coach.id),
-        getContentCount(coach.id),
-        getUniqueTags(coach.user_id),
-        getReviewCount(coach.id),
+        getStudentCount(enrichedCoach.id),
+        getContentCount(enrichedCoach.id),
+        enrichedCoach.user_id ? getUniqueTags(enrichedCoach.user_id) : Promise.resolve([]),
+        getReviewCount(enrichedCoach.id),
     ]);
+
+    const specialties = Array.from(new Set([
+        ...(enrichedCoach.specialties || []),
+        ...(templateSpecialties || []),
+    ]));
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
         success: true,
         message: '获取成功',
         data: {
-            coach,
+            coach: enrichedCoach,
             contentCount,
             studentCount,
             reviewCount,

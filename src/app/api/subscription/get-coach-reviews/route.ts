@@ -67,9 +67,10 @@ export async function POST(req: Request) {
     const { data, error } = await query;
 
     if (error) {
+        console.error('获取教练评价失败:', error);
         return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
             success: false,
-            message: '获取教练评价失败',
+            message: error.message || '获取教练评价失败',
             data: null
         }, { status: 500 });
     }
