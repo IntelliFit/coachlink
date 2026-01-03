@@ -26,11 +26,29 @@ export async function POST(req: NextRequest) {
         const isCoach = session.user.is_coach;
         const {
             subscriptionId,
+            instanceId,
         } = await req.json() as GetWithExecutionsDto;
 
-        // 1. Get subscription - 支持教练和学员两种角色，用户可能同时拥有两种身份
-        let activeSub: any = null;
-        if (subscriptionId) {
+        let instance: any = null;
+
+        // 方式1: 直接通过 instanceId 获取（支持自建计划）
+        if (instanceId) {
+            const { data: directInstance } = await supabase
+                .from("coach_plan_instances")
+                .select("*")
+                .eq("id", instanceId)
+                .eq("student_id", userId) // 安全检查：确保是当前用户的计划
+                .single();
+
+            if (directInstance) {
+                instance = directInstance;
+            }
+        }
+
+        // 方式2: 通过 subscriptionId 获取
+        if (!instance && subscriptionId) {
+            // 1. Get subscription - 支持教练和学员两种角色，用户可能同时拥有两种身份
+            let activeSub: any = null;
             // 指定了 subscriptionId，先检查作为学员的订阅
             const { data: studentSub } = await supabase
                 .from("coach_subscriptions")
@@ -59,8 +77,23 @@ export async function POST(req: NextRequest) {
                     activeSub = coachSub;
                 }
             }
-        } else {
-            // 没有指定 subscriptionId，查找学员的活跃订阅
+
+            if (activeSub) {
+                // 2. Get plan instance for this subscription
+                const { data: subInstance } = await supabase
+                    .from("coach_plan_instances")
+                    .select("*")
+                    .eq("coach_subscription_id", activeSub.id)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .single();
+
+                instance = subInstance;
+            }
+        }
+
+        // 方式3: 没有指定任何参数，查找学员的活跃订阅
+        if (!instance && !subscriptionId && !instanceId) {
             const { data: subs } = await supabase
                 .from("coach_subscriptions")
                 .select("id, coach_id, status")
@@ -68,24 +101,20 @@ export async function POST(req: NextRequest) {
                 .eq("status", "active")
                 .order("created_at", { ascending: false })
                 .limit(1);
-            activeSub = subs?.[0];
-        }
 
-        if (!activeSub) {
-            return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
-                { success: false, message: "未找到有效订阅", data: null },
-                { status: 404 },
-            );
-        }
+            const activeSub = subs?.[0];
+            if (activeSub) {
+                const { data: defaultInstance } = await supabase
+                    .from("coach_plan_instances")
+                    .select("*")
+                    .eq("coach_subscription_id", activeSub.id)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .single();
 
-        // 2. Get plan instance for this subscription
-        const { data: instance } = await supabase
-            .from("coach_plan_instances")
-            .select("*")
-            .eq("coach_subscription_id", activeSub.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+                instance = defaultInstance;
+            }
+        }
 
         if (!instance) {
             return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(

@@ -11,13 +11,17 @@ interface BrowseSectionProps {
     actions: Record<string, any>;
     currentDayIndex: number;
     todayExecutionStatus?: 'none' | 'in_progress' | 'completed';
+    completionDates?: Record<number, string>;  // 每个训练日的完成日期
+    todayCompleted?: boolean;                  // 今天是否已完成训练
 }
 
 const BrowseSection: React.FC<BrowseSectionProps> = ({
     instance,
     actions,
     currentDayIndex,
-    todayExecutionStatus = 'none'
+    todayExecutionStatus = 'none',
+    completionDates = {},
+    todayCompleted = false
 }) => {
     const router = useRouter();
     const [selectedDayIndex, setSelectedDayIndex] = useState(currentDayIndex);
@@ -43,15 +47,15 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     
     const selectedDay = trainingDays.find(d => d.dayIndex === selectedDayIndex);
 
-    // Calculate dates for each day - 以当前执行天 = 今天为基准
-    const getDayDate = (dayIndex: number) => {
-        const today = new Date();
-        // 当前执行天 (currentDayIndex) 应该是今天
-        // 其他天根据相对偏移计算
-        const offset = dayIndex - currentDayIndex;
-        const dayDate = new Date(today);
-        dayDate.setDate(today.getDate() + offset);
-        return dayDate;
+    // 获取训练日的完成日期（如果已完成）或null
+    const getCompletedDate = (dayIndex: number): Date | null => {
+        const dateStr = completionDates[dayIndex];
+        return dateStr ? new Date(dateStr) : null;
+    };
+
+    // 检查训练日是否已完成
+    const isDayCompleted = (dayIndex: number): boolean => {
+        return !!completionDates[dayIndex];
     };
 
     const handlePrevWeek = () => {
@@ -92,13 +96,13 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 <div className="bg-white rounded-xl p-4 mb-6">
                     <div className="grid grid-cols-7 gap-2">
                         {weekDays.map((dayIndex) => {
-                            const dayDate = getDayDate(dayIndex);
                             const day = trainingDays.find(d => d.dayIndex === dayIndex);
                             const isTrainingDay = day && day.type === 'training';
                             const isRecommended = dayIndex === currentDayIndex; // 推荐的下一个训练日
                             const isSelected = selectedDayIndex === dayIndex;
                             const isBeforeStart = dayIndex < startExecutionDay; // 在起始执行天之前
                             const isStartDay = dayIndex === startExecutionDay && startExecutionDay > 1;
+                            const isCompleted = isDayCompleted(dayIndex); // 检查是否已完成
 
                             return (
                                 <button
@@ -110,10 +114,12 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                             ? 'bg-primary-500 text-white shadow-md scale-105' 
                                             : isBeforeStart
                                             ? 'bg-gray-100 opacity-50'
+                                            : isCompleted
+                                            ? 'bg-green-50 border border-green-200'
                                             : isTrainingDay
                                             ? 'bg-gray-50 hover:bg-gray-100'
                                             : 'bg-gray-50 opacity-60 hover:opacity-80'}
-                                        ${isRecommended && !isSelected ? 'ring-2 ring-primary-500' : ''}
+                                        ${isRecommended && !isSelected && !todayCompleted ? 'ring-2 ring-primary-500' : ''}
                                         ${isStartDay && !isSelected ? 'ring-2 ring-green-500' : ''}
                                     `}
                                 >
@@ -125,8 +131,8 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     )}
                                     
                                     {/* 已完成标记 */}
-                                    {isBeforeStart && (
-                                        <div className="absolute -top-1 -right-1 bg-gray-400 text-white text-[8px] p-0.5 rounded-full">
+                                    {(isBeforeStart || isCompleted) && (
+                                        <div className={`absolute -top-1 -right-1 ${isCompleted ? 'bg-green-500' : 'bg-gray-400'} text-white text-[8px] p-0.5 rounded-full`}>
                                             <Check className="w-2 h-2" />
                                         </div>
                                     )}
@@ -134,12 +140,12 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     <div className={`text-xs mb-1 ${isSelected ? 'text-white opacity-90' : 'text-gray-500'}`}>
                                         第{dayIndex}天
                                     </div>
-                                    <div className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                                    <div className={`text-lg font-bold ${isSelected ? 'text-white' : isCompleted ? 'text-green-700' : 'text-gray-900'}`}>
                                         {dayIndex}
                                     </div>
-                                    <div className={`text-xs mt-1 truncate max-w-full ${isSelected ? 'text-white opacity-90' : 'text-gray-600'}`}>
-                                        {isBeforeStart ? '已完成' : isTrainingDay ? '训练' : '休息'}
-                                        {isRecommended && !isSelected && ' 📍'}
+                                    <div className={`text-xs mt-1 truncate max-w-full ${isSelected ? 'text-white opacity-90' : isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
+                                        {isBeforeStart ? '已完成' : isCompleted ? '✓ 已完成' : isTrainingDay ? '训练' : '休息'}
+                                        {isRecommended && !isSelected && !todayCompleted && ' 📍'}
                                     </div>
                                 </button>
                             );
@@ -158,11 +164,15 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                         <div>
                             <div className="mb-4">
                                 <h4 className="font-semibold text-gray-900">
-                                    第 {selectedDayIndex} 天 - {getDayDate(selectedDayIndex).toLocaleDateString('zh-CN', {
-                                        month: 'long',
-                                        day: 'numeric',
-                                        weekday: 'long'
-                                    })}
+                                    第 {selectedDayIndex} 天
+                                    {isDayCompleted(selectedDayIndex) && (
+                                        <span className="ml-2 text-sm text-green-600">
+                                            ✓ {getCompletedDate(selectedDayIndex)?.toLocaleDateString('zh-CN', {
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })} 已完成
+                                        </span>
+                                    )}
                                     {selectedDayIndex < startExecutionDay && (
                                         <span className="ml-2 text-sm text-gray-400">(线下已完成)</span>
                                     )}

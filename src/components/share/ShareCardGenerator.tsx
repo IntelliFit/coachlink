@@ -39,11 +39,9 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
     const loadShareData = async () => {
         try {
             setLoading(true);
-            // 这里我们需要在 executionService 中添加 getShareInfo 方法
-            const res = await fetch(`/api/execution/share-info?id=${executionId}`);
-            const data = await res.json();
+            const data = await executionService.getShareInfo(executionId);
             
-            if (data.success) {
+            if (data?.success) {
                 setShareData(data.data);
             } else {
                 showToast({
@@ -59,16 +57,65 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
         }
     };
 
+    // 将 html2canvas 不支持的 color() / color-mix() 等值替换为安全值
+    const sanitizeColors = (root: HTMLElement) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+
+        const fallbackValue = (prop: string) => {
+            const p = prop.toLowerCase();
+            if (p.includes("background")) return "transparent";
+            if (p.includes("shadow") || p.includes("image") || p.includes("filter")) return "none";
+            if (p.includes("color")) return "#ffffff";
+            return "#ffffff";
+        };
+
+        while (walker.nextNode()) {
+            const el = walker.currentNode as HTMLElement;
+            const style = window.getComputedStyle(el);
+
+            // 覆盖所有包含 color() 的属性（含 CSS 变量）
+            for (let i = 0; i < style.length; i += 1) {
+                const prop = style.item(i);
+                const value = style.getPropertyValue(prop);
+                if (value && value.includes("color(")) {
+                    el.style.setProperty(prop, fallbackValue(prop), "important");
+                }
+            }
+
+            // 针对常见属性再兜底一次
+            const boxShadow = style.getPropertyValue("box-shadow");
+            if (boxShadow && boxShadow.includes("color(")) {
+                el.style.boxShadow = "none";
+            }
+
+            const bgImage = style.getPropertyValue("background-image");
+            if (bgImage && bgImage.includes("color(")) {
+                el.style.backgroundImage = "none";
+            }
+        }
+    };
+
     const handleShare = async () => {
         if (!cardRef.current) return;
         
         try {
             setGenerating(true);
-            const canvas = await html2canvas(cardRef.current, {
+            // 克隆节点，避免污染原始 DOM
+            const cloned = cardRef.current.cloneNode(true) as HTMLElement;
+            cloned.style.position = "fixed";
+            cloned.style.left = "-9999px";
+            cloned.style.top = "0";
+            document.body.appendChild(cloned);
+
+            sanitizeColors(cloned);
+
+            const canvas = await html2canvas(cloned, {
                 useCORS: true,
                 scale: 2,
                 backgroundColor: null,
-            });
+            } as any);
+
+            document.body.removeChild(cloned);
             
             const dataUrl = canvas.toDataURL('image/png');
             

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import supabase from "@/lib/supabaseClient";
 import type { PublicTrainingResponseDto } from "../../execution/entity";
-import { differenceInMinutes, format } from "date-fns";
+import { differenceInMinutes } from "date-fns";
+import {
+    fetchExecutionByToken,
+    getActionSummaries,
+    getProfile,
+} from "../../execution/share-helper";
 
 /**
  * GET /api/public/training?token={shareToken}
@@ -21,15 +25,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 1. 获取执行记录及其关联信息
-        const { data: execution, error } = await supabase
-            .from("plan_instance_executions")
-            .select(`
-                *,
-                user_profiles:student_id (nickname, avatar_url),
-                coach_plan_instances:instance_id (name)
-            `)
-            .eq("share_token", shareToken)
-            .single() as any;
+        const { data: execution, error } = await fetchExecutionByToken(shareToken);
 
         if (error || !execution) {
             return NextResponse.json<PublicTrainingResponseDto>(
@@ -42,39 +38,21 @@ export async function GET(request: NextRequest) {
         // if (execution.visibility === 'private') { ... }
 
         // 3. 计算指标
-        let totalVolume = 0;
-        const simplifiedActions = (execution.action_executions || []).map(
-            (action: any) => {
-                let actionSetsCount = 0;
-                let actionVolume = 0;
-
-                if (action.sets && Array.isArray(action.sets)) {
-                    action.sets.forEach((set: any) => {
-                        if (set.status === "completed" || set.completed_at) {
-                            actionSetsCount++;
-                            const weight = set.actual_weight || 0;
-                            const reps = set.actual_reps || 0;
-                            actionVolume += weight * reps;
-                            totalVolume += weight * reps;
-                        }
-                    });
-                }
-
-                return {
-                    actionName: action.action_name,
-                    setsCount: actionSetsCount,
-                    volume: actionVolume,
-                };
-            },
+        const { totalVolume, simplifiedActions } = getActionSummaries(
+            execution.action_executions || [],
         );
 
-        const startDate = new Date(execution.started_at);
+        const startDate = execution.started_at
+            ? new Date(execution.started_at)
+            : new Date();
         const completedDate = execution.completed_at
             ? new Date(execution.completed_at)
             : null;
         const durationMinutes = completedDate
             ? differenceInMinutes(completedDate, startDate)
             : 0;
+
+        const profile = await getProfile(execution.student_id);
 
         return NextResponse.json<PublicTrainingResponseDto>({
             success: true,
@@ -83,12 +61,18 @@ export async function GET(request: NextRequest) {
                 planName: execution.coach_plan_instances?.name || "未知计划",
                 completedAt: execution.completed_at,
                 totalVolume: totalVolume,
-                totalSets: execution.completed_sets,
+                totalSets:
+                    execution.total_sets ??
+                    execution.completed_sets ??
+                    simplifiedActions.reduce(
+                        (sum: number, item: any) => sum + item.setsCount,
+                        0,
+                    ),
                 durationMinutes: durationMinutes,
                 actionExecutions: simplifiedActions,
                 user: {
-                    nickname: execution.user_profiles?.nickname || "健身达人",
-                    avatarUrl: execution.user_profiles?.avatar_url || "",
+                    nickname: profile?.nickname || "健身达人",
+                    avatarUrl: profile?.avatar_url || "",
                 },
             },
         });
