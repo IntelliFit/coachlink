@@ -67,11 +67,13 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     const { user, profile } = data;
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const { showToast } = useToastContext();
 
     // Form state - 包含所有问卷字段
     const [formData, setFormData] = useState({
         nickname: '',
+        avatar_url: '',
         age: null as number | null,
         gender: '',
         height: null as number | null,
@@ -98,6 +100,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         
         setFormData({
             nickname: profile?.nickname || '',
+            avatar_url: profile?.avatar_url || '',
             age: profile?.age || null,
             gender: profile?.gender || '',
             height: profile?.height || null,
@@ -114,6 +117,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
             setLoading(true);
             await studentService.updateProfile({
                 nickname: formData.nickname,
+                avatar_url: formData.avatar_url || null,
                 age: formData.age,
                 gender: formData.gender,
                 height: formData.height,
@@ -138,6 +142,27 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUploadAvatar = async (file?: File) => {
+        if (!file) return;
+        setUploading(true);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+            const res = await fetch('/api/upload/avatar', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data?.success && data?.data?.url) {
+                setFormData({ ...formData, avatar_url: data.data.url });
+                showToast({ severity: 'success', summary: '上传成功', detail: '头像已更新' });
+            } else {
+                showToast({ severity: 'error', summary: '上传失败', detail: data?.message || '请稍后再试' });
+            }
+        } catch (err) {
+            showToast({ severity: 'error', summary: '上传失败', detail: '网络异常' });
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -239,6 +264,42 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                     value={formData.nickname} 
                                     onChange={(e) => setFormData({...formData, nickname: e.target.value})} 
                                 />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label htmlFor="avatar" className="text-sm font-medium">头像链接</label>
+                                <div className="flex items-center gap-3">
+                                    <InputText 
+                                        id="avatar"
+                                        value={formData.avatar_url}
+                                        onChange={(e) => setFormData({...formData, avatar_url: e.target.value})} 
+                                        placeholder="粘贴图片URL"
+                                    />
+                                    {formData.avatar_url ? (
+                                        <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-100 border">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={formData.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-full bg-surface-100 border flex items-center justify-center text-surface-400 text-xs">无</div>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <label className="px-3 py-2 border border-surface-200 rounded-lg text-sm cursor-pointer hover:bg-surface-50">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleUploadAvatar(file);
+                                            }}
+                                        />
+                                        选择本地图片
+                                    </label>
+                                    <Button label="清空" text size="small" onClick={() => setFormData({ ...formData, avatar_url: '' })} />
+                                    {uploading && <span className="text-xs text-surface-500">上传中...</span>}
+                                </div>
+                                <p className="text-xs text-surface-500">支持 PNG/JPG/WEBP，≤2MB。</p>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="age" className="text-sm font-medium">年龄</label>

@@ -27,6 +27,7 @@ export interface UpdateProileDto {
     full_name?: string | null;
     nickname?: string | null;
     phone?: string | null;
+    avatar_url?: string | null;
     address?: string | null;
     gender?: string | null;
     birth_date?: string | null;
