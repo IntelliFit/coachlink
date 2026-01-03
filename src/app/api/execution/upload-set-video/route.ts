@@ -94,7 +94,7 @@ export async function POST(req: Request) {
             ]);
 
             // 更新记录
-            const { data } = await supabase
+            const { data, error: updateError } = await supabase
                 .from("execution_set_videos")
                 .update({
                     video_url: publicUrl,
@@ -106,15 +106,23 @@ export async function POST(req: Request) {
                 .select()
                 .single();
 
+            if (updateError || !data) {
+                console.error("更新视频记录失败:", updateError);
+                return NextResponse.json<UploadSetVideoResponseDto>(
+                    { success: false, message: "更新失败" },
+                    { status: 500 },
+                );
+            }
+
             return NextResponse.json<UploadSetVideoResponseDto>({
                 success: true,
                 data: {
-                    id: data!.id,
-                    execution_id: data!.execution_id,
-                    action_id: data!.action_id,
-                    set_number: data!.set_number,
-                    video_url: data!.video_url,
-                    storage_path: data!.storage_path,
+                    id: data.id,
+                    execution_id: data.execution_id,
+                    action_id: data.action_id,
+                    set_number: data.set_number,
+                    video_url: data.video_url,
+                    storage_path: data.storage_path,
                 },
             });
         }

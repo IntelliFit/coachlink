@@ -14,6 +14,7 @@ import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upl
 import { executionService } from '@/app/service/executionService';
 import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
+import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 
 interface SetData {
     set_number: number;
@@ -70,6 +71,9 @@ function TrainingExecutionContent() {
     // Video modal state
     const [videoModalVisible, setVideoModalVisible] = useState(false);
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
+
+    // Share modal state
+    const [shareModalVisible, setShareModalVisible] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
@@ -319,7 +323,8 @@ function TrainingExecutionContent() {
                     summary: '训练完成',
                     detail: `完成 ${res.data?.completed_sets}/${res.data?.total_sets} 组`
                 });
-                router.push('/today-training');
+                // Instead of immediate redirect, show share card
+                setShareModalVisible(true);
             }
         } catch (error) {
             console.error('Finish training failed:', error);
@@ -671,34 +676,44 @@ function TrainingExecutionContent() {
                 />
             </div>
 
-            {/* Video Modal */}
-            <Dialog
-                visible={videoModalVisible}
-                onHide={() => {
-                    setVideoModalVisible(false);
-                    setCurrentVideoUrl(null);
-                }}
-                header="查看视频"
-                style={{ width: '90vw', maxWidth: '800px' }}
-                modal
-                dismissableMask
-            >
-                {currentVideoUrl && (
-                    <div className="flex justify-center">
-                        <video 
-                            src={currentVideoUrl}
-                            controls
-                            autoPlay
-                            className="w-full max-h-[70vh] rounded-lg"
-                            style={{ backgroundColor: '#000' }}
-                        >
-                            您的浏览器不支持视频播放
-                        </video>
-                    </div>
-                )}
-            </Dialog>
-        </div>
-    );
+        {/* Video Modal */}
+        <Dialog
+            visible={videoModalVisible}
+            onHide={() => {
+                setVideoModalVisible(false);
+                setCurrentVideoUrl(null);
+            }}
+            header="查看视频"
+            style={{ width: '90vw', maxWidth: '800px' }}
+            modal
+            dismissableMask
+        >
+            {currentVideoUrl && (
+                <div className="flex justify-center">
+                    <video 
+                        src={currentVideoUrl}
+                        controls
+                        autoPlay
+                        className="w-full max-h-[70vh] rounded-lg"
+                        style={{ backgroundColor: '#000' }}
+                    >
+                        您的浏览器不支持视频播放
+                    </video>
+                </div>
+            )}
+        </Dialog>
+
+        {/* Share Card Modal */}
+        <ShareCardGenerator 
+            visible={shareModalVisible}
+            onHide={() => {
+                setShareModalVisible(false);
+                router.push('/today-training');
+            }}
+            executionId={execution.id}
+        />
+    </div>
+);
 }
 
 export default function TrainingExecutionPage() {

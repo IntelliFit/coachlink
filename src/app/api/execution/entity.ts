@@ -123,3 +123,46 @@ export interface GetExecutionResponseDto {
     };
     message?: string;
 }
+// Get Share Info
+export interface ShareInfoResponseDto {
+    success: boolean;
+    data?: {
+        executionId: string;
+        shareToken: string;
+        dayIndex: number;
+        planName: string;
+        completedAt: string;
+        totalVolume: number;
+        totalSets: number;
+        durationMinutes: number;
+        prRecords: Array<{
+            exerciseName: string;
+            weight: number;
+            reps: number;
+        }>;
+        monthlyTrainingDays: string[];
+        user: {
+            nickname: string;
+            avatarUrl: string;
+        };
+    };
+    message?: string;
+}
+// Public Training Details
+export interface PublicTrainingResponseDto {
+    success: boolean;
+    data?: {
+        executionId: string;
+        planName: string;
+        completedAt: string;
+        totalVolume: number;
+        totalSets: number;
+        durationMinutes: number;
+        actionExecutions: any[]; // Summary of exercises
+        user: {
+            nickname: string;
+            avatarUrl: string;
+        };
+    };
+    message?: string;
+}
