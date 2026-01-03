@@ -1,5 +1,9 @@
 import type { NextConfig } from 'next';
 
+const SUPABASE_HOST =
+    (process.env.NEXT_SUPABASE_URL ? new URL(process.env.NEXT_SUPABASE_URL).hostname : undefined) ||
+    'supabase.co';
+
 const nextConfig: NextConfig = {
     output: 'standalone',
     reactStrictMode: false,
@@ -11,7 +15,7 @@ const nextConfig: NextConfig = {
         remotePatterns: [
             {
                 protocol: "https",
-                hostname: "*",
+                hostname: SUPABASE_HOST.startsWith('supabase.co') ? '**.supabase.co' : SUPABASE_HOST,
             },
         ],
     },
