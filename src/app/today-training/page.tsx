@@ -25,11 +25,15 @@ const TodayTrainingPage: React.FC = () => {
     const [coachInstance, setCoachInstance] = useState<any>(null);
     const [coachActions, setCoachActions] = useState<Record<string, any>>({});
     const [coachDayIndex, setCoachDayIndex] = useState(1);
+    const [coachTodayCompleted, setCoachTodayCompleted] = useState(false);
+    const [coachCompletionDates, setCoachCompletionDates] = useState<Record<number, string>>({});
     
     // 自建计划
     const [selfInstance, setSelfInstance] = useState<any>(null);
     const [selfActions, setSelfActions] = useState<Record<string, any>>({});
     const [selfDayIndex, setSelfDayIndex] = useState(1);
+    const [selfTodayCompleted, setSelfTodayCompleted] = useState(false);
+    const [selfCompletionDates, setSelfCompletionDates] = useState<Record<number, string>>({});
     
     // 当前显示模式: 'coach' | 'self'
     const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach');
@@ -44,6 +48,8 @@ const TodayTrainingPage: React.FC = () => {
     const instance = planMode === 'coach' ? coachInstance : selfInstance;
     const actions = planMode === 'coach' ? coachActions : selfActions;
     const todayDayIndex = planMode === 'coach' ? coachDayIndex : selfDayIndex;
+    const todayCompleted = planMode === 'coach' ? coachTodayCompleted : selfTodayCompleted;
+    const completionDates = planMode === 'coach' ? coachCompletionDates : selfCompletionDates;
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -76,12 +82,14 @@ const TodayTrainingPage: React.FC = () => {
                 setCoachInstance(coachRes.instance);
                 setCoachActions(coachRes.actions || {});
                 
-                // 获取教练计划的执行天数
+                // 获取教练计划的执行天数和今日完成状态
                 try {
                     const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
                     const nextDayData = await nextDayRes.json();
                     if (nextDayData.success && nextDayData.data) {
                         setCoachDayIndex(nextDayData.data.nextDayIndex);
+                        setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
+                        setCoachCompletionDates(nextDayData.data.completionDates || {});
                     }
                 } catch (e) {
                     const startDay = (coachRes.instance as any).start_execution_day || 1;
@@ -94,12 +102,14 @@ const TodayTrainingPage: React.FC = () => {
                 setSelfInstance(selfRes.instance);
                 setSelfActions(selfRes.actions || {});
                 
-                // 获取自建计划的执行天数
+                // 获取自建计划的执行天数和今日完成状态
                 try {
                     const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
                     const nextDayData = await nextDayRes.json();
                     if (nextDayData.success && nextDayData.data) {
                         setSelfDayIndex(nextDayData.data.nextDayIndex);
+                        setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
+                        setSelfCompletionDates(nextDayData.data.completionDates || {});
                     }
                 } catch (e) {
                     const startDay = (selfRes.instance as any).start_execution_day || 1;
@@ -309,18 +319,40 @@ return (
                                 TODAY'S MISSION
                             </h3>
                             <p className="text-slate-500 text-sm">
-                                训练日 {todayDayIndex} · {executionStatus === 'completed' ? '已完成' : '进行中'}
+                                {todayCompleted 
+                                    ? `✅ 今日训练已完成 · 下一个训练日: 第${todayDayIndex}天`
+                                    : `训练日 ${todayDayIndex} · ${executionStatus === 'completed' ? '已完成' : '进行中'}`
+                                }
                             </p>
                         </div>
-                        <div className="flex items-center gap-2 text-primary-600 font-bold text-sm bg-primary-50 px-3 py-1 rounded-full">
-                            <i className="pi pi-clock animate-spin-slow" />
-                            Keep Pushing
+                        <div className={`flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full ${
+                            todayCompleted 
+                                ? 'text-green-600 bg-green-50' 
+                                : 'text-primary-600 bg-primary-50'
+                        }`}>
+                            <i className={todayCompleted ? 'pi pi-check' : 'pi pi-clock animate-spin-slow'} />
+                            {todayCompleted ? 'Well Done!' : 'Keep Pushing'}
                         </div>
                     </div>
 
                     {/* 卡片渲染 */}
                     <div className="transform transition-all hover:translate-y-[-4px]">
-                        {todayTraining && todayTraining.type === 'training' ? (
+                        {todayCompleted ? (
+                            /* 今日已完成状态卡片 */
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 shadow-sm">
+                                <div className="text-center">
+                                    <div className="text-6xl mb-4">🎉</div>
+                                    <h3 className="text-2xl font-bold text-green-800 mb-2">今日训练已完成!</h3>
+                                    <p className="text-green-600 mb-4">
+                                        太棒了！你已经完成了今天的训练任务，好好休息，明天继续加油！
+                                    </p>
+                                    <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
+                                        <i className="pi pi-calendar" />
+                                        下一个训练日: 第 {todayDayIndex} 天
+                                    </div>
+                                </div>
+                            </div>
+                        ) : todayTraining && todayTraining.type === 'training' ? (
                             <TodayTrainingCard
                                 day={todayTraining}
                                 actions={actions}
@@ -351,6 +383,8 @@ return (
                         actions={actions}
                         currentDayIndex={todayDayIndex}
                         todayExecutionStatus={executionStatus}
+                        completionDates={completionDates}
+                        todayCompleted={todayCompleted}
                     />
                 </section>
             </div>

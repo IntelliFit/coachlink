@@ -142,10 +142,10 @@ export default function RegisterPage() {
                 {/* Logo & Header */}
                 <div className="mb-10">
                     <h1 className="text-4xl font-black tracking-tighter text-surface-900 mb-2">
-                        创建教练账号 <span className="text-primary">.</span>
+                        创建新账号 <span className="text-primary">.</span>
                     </h1>
                     <p className="text-surface-500 font-medium leading-relaxed">
-                        加入 CoachLink，开始建立您的专业品牌与学员社区。
+                        欢迎加入 CoachLink！无论你是想先作为学员体验训练，还是计划升级为教练建立个人品牌，都可以从这里开始。
                     </p>
                 </div>
 

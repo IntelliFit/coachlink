@@ -8,6 +8,7 @@ import type {
     FinishTrainingDto,
     FinishTrainingResponseDto,
     GetExecutionResponseDto,
+    ShareInfoResponseDto,
     StartExecutionDto,
     StartExecutionResponseDto,
 } from "../api/execution/entity";
@@ -92,6 +93,18 @@ class ExecutionService {
      */
     async getExecution(executionId: string): Promise<GetExecutionResponseDto> {
         const response = await fetch(`/api/execution/get?id=${executionId}`);
+        return response.json();
+    }
+
+    /**
+     * 获取分享卡片数据
+     */
+    async getShareInfo(
+        executionId: string,
+    ): Promise<ShareInfoResponseDto> {
+        const response = await fetch(
+            `/api/execution/share-info?id=${executionId}`,
+        );
         return response.json();
     }
 }

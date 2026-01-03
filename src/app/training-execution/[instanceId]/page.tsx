@@ -467,7 +467,7 @@ function TrainingExecutionContent() {
                                 <div className="mt-4 space-y-4">
                                     {actionExec.sets.map((setData: SetData, setIndex: number) => {
                                         const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
-                                        const isSetCompleted = setData.status === 'completed';
+                                        const isSetCompleted = setData.status === 'completed' || execution?.status === 'completed';
 
                                         return (
                                             <div 
@@ -659,21 +659,41 @@ function TrainingExecutionContent() {
             </div>
 
             {/* Finish Section */}
+            {/* Finish Section */}
             <div className="p-4 border-t border-surface-200 bg-white">
-                <InputTextarea 
-                    value={sessionNotes}
-                    onChange={(e) => setSessionNotes(e.target.value)}
-                    placeholder="训练备注（可选）"
-                    rows={2}
-                    className="w-full mb-4"
-                />
-                <Button 
-                    label="完成训练"
-                    onClick={handleFinishTraining}
-                    className="w-full"
-                    severity="success"
-                    size="large"
-                />
+                {execution?.status === 'completed' ? (
+                    <>
+                        <div className="text-center mb-4 text-green-600 font-medium flex items-center justify-center gap-2">
+                            <Check className="w-5 h-5" />
+                            <span>本训练日已完成</span>
+                        </div>
+                        <Button 
+                            label="分享训练成果"
+                            icon="pi pi-share-alt"
+                            onClick={() => setShareModalVisible(true)}
+                            className="w-full"
+                            severity="info"
+                            size="large"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <InputTextarea 
+                            value={sessionNotes}
+                            onChange={(e) => setSessionNotes(e.target.value)}
+                            placeholder="训练备注（可选）"
+                            rows={2}
+                            className="w-full mb-4"
+                        />
+                        <Button 
+                            label="完成训练"
+                            onClick={handleFinishTraining}
+                            className="w-full"
+                            severity="success"
+                            size="large"
+                        />
+                    </>
+                )}
             </div>
 
         {/* Video Modal */}

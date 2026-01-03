@@ -84,6 +84,17 @@ const TrainingPlansHome: React.FC = () => {
                     if (res.actions) {
                         setSelfPlanActions(res.actions);
                     }
+                    
+                    // 加载执行记录（使用 instanceId）
+                    try {
+                        const exeRes = await planLibService.getWithExecutions({ instanceId: res.instance.id });
+                        if (exeRes) {
+                            setExecutions(prev => ({ ...prev, ...exeRes.executions }));
+                        }
+                    } catch (e) {
+                        console.error('Failed to load self plan executions:', e);
+                    }
+                    
                     // 获取当前执行天数
                     try {
                         const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
@@ -174,11 +185,41 @@ const TrainingPlansHome: React.FC = () => {
         return days[dayIndex] || `第${dayIndex}天`;
     };
 
-    // 计算训练日期（以当前执行天 = 今天为基准）
+    // 计算训练日期
+    // 逻辑：已完成的天显示实际完成日期，未完成的天基于"最后完成日+1"顺延
     const getTrainingDate = (dayIndex: number) => {
+        // 1. 优先使用实际完成日期
+        const execution = executions[dayIndex];
+        if (execution && execution.status === 'completed' && execution.completed_at) {
+             const date = new Date(execution.completed_at);
+             return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
+        }
+
+        // 2. 找到最后一个已完成的训练日及其日期
+        let lastCompletedDayIndex = 0;
+        let lastCompletedDate: Date | null = null;
+        
+        for (const key of Object.keys(executions)) {
+            const exec = executions[parseInt(key)];
+            if (exec && exec.status === 'completed' && exec.completed_at) {
+                const execDayIndex = exec.day_index;
+                if (execDayIndex > lastCompletedDayIndex) {
+                    lastCompletedDayIndex = execDayIndex;
+                    lastCompletedDate = new Date(exec.completed_at);
+                }
+            }
+        }
+
+        // 3. 如果有已完成的日期，基于它计算未来日期
+        if (lastCompletedDate && dayIndex > lastCompletedDayIndex) {
+            const offset = dayIndex - lastCompletedDayIndex;
+            const futureDate = new Date(lastCompletedDate);
+            futureDate.setDate(lastCompletedDate.getDate() + offset);
+            return futureDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
+        }
+
+        // 4. 如果没有完成记录，基于今天和 currentDayIndex 计算
         const today = new Date();
-        // 当前执行天 (currentDayIndex) 应该是今天
-        // 其他天根据相对偏移计算
         const offset = dayIndex - currentDayIndex;
         const trainingDate = new Date(today);
         trainingDate.setDate(today.getDate() + offset);
@@ -284,7 +325,8 @@ const TrainingPlansHome: React.FC = () => {
 
     // 动作项显示组件
     const ActionItem = ({ actionSet, action }: { actionSet: CoachPlanAction; action?: any }) => {
-        const actionName = action?.name || actionSet.set_name || '未知动作';
+        // 支持多种字段名: actionName, set_name
+        const actionName = action?.name || (actionSet as any).actionName || actionSet.set_name || '未知动作';
         const hasVideo = !!action?.url; // url 是视频链接字段
         const actionDetail = action?.detail; // detail 是动作说明字段
 
@@ -523,7 +565,7 @@ const TrainingPlansHome: React.FC = () => {
     // 计划详情卡片
     const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
         const statusConfig = getStatusConfig(instance.status);
-        const trainingDays = (instance.training_days as unknown as TrainingDay[] || [])
+        const trainingDays = (instance.training_days as unknown as CoachPlanTrainingDay[] || [])
             .sort((a, b) => a.dayIndex - b.dayIndex);
 
         return (
@@ -571,7 +613,7 @@ const TrainingPlansHome: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3">
-                    <Button label="开始今日训练" icon="pi pi-play" className="p-button-raised p-button-rounded px-6 py-3 font-bold transition-transform active:scale-95" disabled={instance.status !== 'active'} />
+                    <Button label="开始今日训练" icon="pi pi-play" className="p-button-raised p-button-rounded px-6 py-3 font-bold transition-transform active:scale-95" disabled={instance.status !== 'active'} onClick={() => window.location.href = '/today-training'} />
                     <Button label="趋势分析" icon="pi pi-chart-line" className="p-button-text p-button-rounded font-semibold" />
                 </div>
 

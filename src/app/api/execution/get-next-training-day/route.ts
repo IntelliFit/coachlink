@@ -8,6 +8,9 @@ interface GetNextTrainingDayResponse {
     completedDays: number[];
     totalTrainingDays: number;
     startExecutionDay?: number;
+    todayCompleted: boolean; // 今天是否已有完成的训练
+    todayExecutionId?: string; // 今天完成的执行记录ID（如果有）
+    completionDates: Record<number, string>; // 每个训练日的完成日期 { dayIndex: ISO日期字符串 }
 }
 
 /**
@@ -52,24 +55,47 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // 2. 获取所有已完成的执行记录
+        // 2. 获取所有已完成的执行记录（包含完成日期）
         const { data: executions } = await supabase
             .from("plan_instance_executions")
-            .select("day_index, status")
+            .select("id, day_index, status, completed_at")
             .eq("instance_id", instanceId)
             .eq("status", "completed");
 
         // 提取已完成的 dayIndex 列表
         const completedDays = (executions || []).map((e) => e.day_index);
 
-        // 3. 获取起始执行天数（默认为1）
+        // 3. 构建完成日期历史 { dayIndex: ISO日期字符串 }
+        const completionDates: Record<number, string> = {};
+        for (const exec of executions || []) {
+            if (exec.completed_at) {
+                completionDates[exec.day_index] = exec.completed_at;
+            }
+        }
+
+        // 4. 检查今天是否已有完成的训练
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const todayExecution = (executions || []).find((e) => {
+            if (!e.completed_at) return false;
+            const completedDate = new Date(e.completed_at);
+            return completedDate >= today && completedDate < tomorrow;
+        });
+
+        const todayCompleted = !!todayExecution;
+        const todayExecutionId = todayExecution?.id;
+
+        // 5. 获取起始执行天数（默认为1）
         const startExecutionDay = (instance as any).start_execution_day || 1;
 
-        // 4. 解析训练日
+        // 6. 解析训练日
         const trainingDays = (instance.training_days as any[] || [])
             .sort((a, b) => a.dayIndex - b.dayIndex);
 
-        // 5. 找到第一个未完成的训练日（跳过休息日和 start_execution_day 之前的天）
+        // 7. 找到第一个未完成的训练日（跳过休息日和 start_execution_day 之前的天）
         let nextDayIndex = startExecutionDay; // 从起始执行天开始
         const trainingOnlyDays = trainingDays.filter((d) =>
             d.type === "training" && d.dayIndex >= startExecutionDay
@@ -105,6 +131,9 @@ export async function GET(req: NextRequest) {
                 startExecutionDay: startExecutionDay > 1
                     ? startExecutionDay
                     : undefined,
+                todayCompleted,
+                todayExecutionId,
+                completionDates,
             },
         });
     } catch (error) {

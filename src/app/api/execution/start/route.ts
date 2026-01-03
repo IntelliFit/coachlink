@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
             .eq("instance_id", instanceId)
             .eq("day_index", dayIndex)
             .eq("student_id", userId)
-            .gte("started_at", new Date().toISOString().split("T")[0]) // 今天开始的
+            // .gte("started_at", new Date().toISOString().split("T")[0]) // 移除此限制，以便可以查看过去的记录
             .neq("status", "abandoned")
             .order("started_at", { ascending: false })
             .limit(1)
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
             return {
                 action_id: actionId,
                 action_name: actionsMap[actionId]?.name ||
-                    actionSet.set_name || "未知动作",
+                    actionSet.actionName || actionSet.set_name || "未知动作",
                 action_order: idx + 1,
                 sets: Array.from({ length: sets }, (_, i) => ({
                     set_number: i + 1,
