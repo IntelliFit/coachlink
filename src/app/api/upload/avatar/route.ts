@@ -51,14 +51,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, message: error.message || "上传失败，请稍后重试" }, { status: 500 });
         }
 
-        // 生成签名 URL（即使 bucket 未公开也可访问）
-        const { data: signed, error: signError } = await serviceRoleSupabase.storage.from(BUCKET).createSignedUrl(fileName, 60 * 60 * 24 * 7); // 7 天
-        if (signError) {
-            console.error("createSignedUrl error", signError);
-            return NextResponse.json({ success: false, message: signError.message || "生成访问链接失败" }, { status: 500 });
+        // 优先尝试公共访问 URL（如果 bucket 已公开可直接用）
+        const { data: publicUrlData } = serviceRoleSupabase.storage.from(BUCKET).getPublicUrl(fileName);
+        const publicUrl = publicUrlData?.publicUrl;
+
+        // 若 bucket 未公开则生成长效签名 URL（10 年）
+        let signedUrl: string | undefined;
+        if (!publicUrl) {
+            const { data: signed, error: signError } = await serviceRoleSupabase.storage.from(BUCKET).createSignedUrl(fileName, 60 * 60 * 24 * 365 * 10);
+            if (signError) {
+                console.error("createSignedUrl error", signError);
+                return NextResponse.json({ success: false, message: signError.message || "生成访问链接失败" }, { status: 500 });
+            }
+            signedUrl = signed?.signedUrl;
         }
 
-        const url = signed?.signedUrl;
+        const url = publicUrl || signedUrl;
+        if (!url) {
+            return NextResponse.json({ success: false, message: "无法生成访问链接" }, { status: 500 });
+        }
 
         return NextResponse.json({
             success: true,
