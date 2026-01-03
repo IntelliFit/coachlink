@@ -105,8 +105,8 @@ export const authOptions: AuthOptions = {
             (user as any).password_hash = undefined;
             session.user = token.user;
 
-            // 统一以 coaches 表为教练资格真源；users 仅同步 is_admin
-            // 有一条 coaches.status='approved' 且 user_id 匹配，则视为教练
+            // 统一以 coaches 表为教练资格真源；users 仅同步 is_admin / primary_role
+            // 有一条 coaches.status='approved' 且 user_id 匹配，则视为具备教练资格
             const { data: coachRow } = await supabase
                 .from("coaches")
                 .select("id, status")
@@ -116,17 +116,20 @@ export const authOptions: AuthOptions = {
 
             const isCoach = !!coachRow;
 
-            // is_admin 仍从 users 读取，避免影响后台权限
+            // is_admin / primary_role 仍从 users 读取，避免影响后台权限与用户主动切换的角色偏好
             const { data: currentUser } = await supabase
                 .from("users")
-                .select("is_admin")
+                .select("is_admin, primary_role")
                 .eq("id", user.id)
                 .single();
 
             session.user.is_coach = isCoach;
             session.user.is_admin = currentUser?.is_admin ?? false;
             session.user.coach_status = isCoach ? "approved" : "none";
-            session.user.primary_role = isCoach ? "coach" : "student";
+            // 若用户已具备教练资格但主动切换到学员端，应尊重 users.primary_role
+            // 默认优先使用 users.primary_role；缺省时才根据 isCoach 兜底
+            session.user.primary_role = currentUser?.primary_role
+                ?? (isCoach ? "coach" : "student");
 
             const { data: profile, error } = await supabase
                 .from("user_profiles")
