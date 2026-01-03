@@ -1,14 +1,14 @@
-import { CoachActionRow, CoachLinkTable } from "@/types";
+import { CoachActionInsert, CoachActionRow } from "@/types";
 
-
-export type AddActionDto = Omit<CoachLinkTable['coach_actions']['Insert'], 'coach_id'>;
+// 使用自定义的 CoachActionInsert 类型，支持 type 字段
+export type AddActionDto = CoachActionInsert;
 
 export interface AddActionResponseDto {
-    action: CoachActionRow
+    action: CoachActionRow;
 }
 
 export interface ActionSetAttr {
     name: string;
-    type: 'string' | 'number';
+    type: "string" | "number";
     unit: string;
 }

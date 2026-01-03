@@ -1,7 +1,7 @@
 # Supabase 数据库结构文档（public schema）
 
-- **生成时间**：2025-01-27
-- **最后更新**：2025-01-27（通过 MCP 从 Supabase 云端数据库实时获取）
+- **生成时间**：2025-12-29
+- **最后更新**：2025-12-29（通过 MCP 从 Supabase 云端数据库实时获取）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
@@ -11,8 +11,9 @@
 > - **最新更新**（2025-12-26）：新增多个表，包括聊天系统重构、训练执行系统优化、排行榜系统等
 > - **字段更新**（2025-12-26）：`coach_plan_instances` 表新增
 >   `start_execution_day` 字段，支持老学员中途迁入平台
-> - **最新更新**（2025-01-27）：新增多个字段，包括 `coach_pricing.products`、`coach_plan_templates.global_answers`、`execution_set_videos` 表新增审核相关字段等
-> - 当前保留 **38个表 + 3个视图 = 41个数据库对象**
+> - **最新更新**（2025-12-29）：新增多个字段，包括 `coach_pricing.products`、`coach_plan_templates.global_answers`、`execution_set_videos` 表新增审核相关字段等
+> - **最新更新**（2025-12-29）：新增2个表 `student_actions`、`student_plan_favorites`，`coach_plan_instances` 表新增 `source` 字段
+> - 当前保留 **40个表 + 3个视图 = 43个数据库对象**
 
 ## 目录
 
@@ -51,7 +52,7 @@
 - `coach_applications` - 教练申请表 ⭐ **新增**
 - `student_comments` - 学员评论表
 
-### 训练相关表（11个）
+### 训练相关表（13个）
 
 - `training_plans` - **学员训练计划**表
 - `training_plan_details` - **核心计划明细**表（存储每日/每周动作 JSONB）
@@ -67,6 +68,8 @@
 - `personal_records_history` - 个人记录历史表 ⭐ **新增**（替代
   personal_records，包含完整历史记录）
 - `training_items` - 训练项目表 ⭐ **新增**（训练动作/项目库）
+- `student_actions` - 学员个人动作库表 ⭐ **新增**
+- `student_plan_favorites` - 学员常用计划表 ⭐ **新增**（学员可复用模板）
 
 ### 内容互动表（4个）
 
@@ -85,9 +88,9 @@
 - `leaderboard_entries` - 排行榜条目表 ⭐ **新增**（通用排行榜系统）
 - `specialties` - 教练专业领域表
 
-**总计：38个表**（用户4 + 教练12 + 训练11 + 内容互动4 + 其他7 = 38）
+**总计：40个表**（用户4 + 教练12 + 训练13 + 内容互动4 + 其他7 = 40）
 
-> **注意**：统计中包含已废弃的表（`personal_records`），实际活跃表为37个
+> **注意**：统计中包含已废弃的表（`personal_records`），实际活跃表为39个
 
 ---
 
@@ -1147,7 +1150,7 @@
 
 #### 30. coach_plan_instances（教练计划实例表）⭐ 新增
 
-- 行数：~8
+- 行数：~12
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`coach_plan_template_id → coach_plan_templates.id`,
@@ -1170,6 +1173,7 @@
 | start_date             | date        | YES  |                               | 开始日期                                                              |
 | end_date               | date        | YES  |                               | 结束日期                                                              |
 | start_execution_day    | integer     | YES  | 1                             | 起始执行天数（1-based），用于老学员中途迁入平台 ⭐ **2025-12-26新增** |
+| source                 | text        | YES  | 'coach'                       | ⭐ **新增**：计划来源，'coach'=教练分配，'self'=学员自建              |
 | type                   | text        | YES  |                               | 计划类型                                                              |
 | tags                   | text[]      | YES  |                               | 标签                                                                  |
 | suitable_for           | text        | YES  |                               | 适合人群                                                              |
@@ -1591,6 +1595,68 @@
 
 ---
 
+#### 43. student_actions（学员个人动作库表）⭐ 新增
+
+- 行数：~11
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：学员个人动作库，用于存储学员自定义的动作
+
+**字段说明**
+
+| 列名       | 类型        | 可空 | 默认值            | 约束/备注                                                      |
+| ---------- | ----------- | ---- | ----------------- | -------------------------------------------------------------- |
+| id         | uuid        | NO   | gen_random_uuid() | 主键                                                           |
+| user_id    | uuid        | NO   |                   | 外键 → users.id，所属用户ID                                    |
+| name       | text        | NO   |                   | 动作名称                                                       |
+| detail     | text        | YES  |                   | 动作详情说明                                                   |
+| positions  | text[]      | YES  |                   | 涉及部位                                                       |
+| attrs      | text[]      | YES  | ['组数','次数','强度','休息时间'] | 动作属性列表                                                   |
+| url        | text        | YES  |                   | 参考视频链接                                                   |
+| created_at | timestamptz | YES  | now()             |                                                                |
+| updated_at | timestamptz | YES  | now()             |                                                                |
+
+**外键**
+
+- `student_actions_user_id_fkey` (user_id → users.id)
+
+**索引**
+
+- `student_actions_pkey` (id) - 主键索引
+
+---
+
+#### 44. student_plan_favorites（学员常用计划表）⭐ 新增
+
+- 行数：~4
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：学员常用计划（可复用模板），用于存储学员保存的训练计划模板
+
+**字段说明**
+
+| 列名          | 类型        | 可空 | 默认值            | 约束/备注                    |
+| ------------- | ----------- | ---- | ----------------- | ---------------------------- |
+| id            | uuid        | NO   | gen_random_uuid() | 主键                         |
+| user_id       | uuid        | NO   |                   | 外键 → users.id，所属用户ID  |
+| name          | text        | NO   |                   | 计划名称                     |
+| description   | text        | YES  |                   | 计划描述                     |
+| training_days | jsonb       | NO   |                   | 训练日数据（JSON格式）       |
+| created_at    | timestamptz | YES  | now()             |                              |
+| updated_at    | timestamptz | YES  | now()             |                              |
+
+**外键**
+
+- `student_plan_favorites_user_id_fkey` (user_id → users.id)
+
+**索引**
+
+- `student_plan_favorites_pkey` (id) - 主键索引
+
+---
+
 ## 视图详细说明
 
 ### 1. user_video_timeline（学员视频时间线视图）
@@ -1836,7 +1902,7 @@ GROUP BY user_id, plan_id;
 
 本文档包含了 Supabase 数据库中 `public` schema 的完整结构信息，包括：
 
-- ✅ **38个表**的详细说明（已删除6个冗余表，新增多个表，重构聊天系统）
+- ✅ **40个表**的详细说明（已删除6个冗余表，新增多个表，重构聊天系统）
 - ✅ **3个视图**的定义
 - ✅ 所有索引信息（159个索引）
 - ✅ 外键关系
@@ -1902,9 +1968,9 @@ GROUP BY user_id, plan_id;
    - `coach_plan_templates.week_days` (int2[]) - 训练周几数组
    - `coach_plan_templates.contained_options` (text[]) - 包含的选项数组
 
-5. 📊 **数据库对象统计**：38个表 + 3个视图 = 41个数据库对象
+5. 📊 **数据库对象统计**：40个表 + 3个视图 = 43个数据库对象
 
-**最新变更（2025-01-27）：**
+**最新变更（2025-12-29）：**
 
 1. 📝 **字段新增**：
    - `coach_pricing.products` (jsonb) - 产品信息（JSON格式），用于存储教练的产品配置
@@ -1913,24 +1979,33 @@ GROUP BY user_id, plan_id;
    - `execution_set_videos.review_status` (text) - 审核状态，∈ {'pending','reviewed','not_required'}
    - `execution_set_videos.requires_review` (boolean) - 是否需要审核
    - `execution_set_videos.exercise_name` (text) - 动作名称
+   - `coach_plan_instances.source` (text) - 计划来源，'coach'=教练分配，'self'=学员自建
 
-2. 🔍 **索引新增**：
+2. ⭐ **新增表（2个）**：
+   - `student_actions` - 学员个人动作库表，用于存储学员自定义的动作
+   - `student_plan_favorites` - 学员常用计划表，用于存储学员保存的训练计划模板（可复用）
+
+3. 🔍 **索引新增**：
    - `coach_plan_instances` 表新增 `idx_coach_plan_instances_start_execution_day` 索引
    - `execution_set_videos` 表新增 `idx_execution_set_videos_review_status` 部分索引（用于优化待审核视频查询）
    - `shipping_info` 表新增多个索引（`idx_shipping_info_created_at`, `idx_shipping_info_status`, `idx_shipping_info_user_id`, `idx_shipping_info_user_prize`）
 
-3. 📊 **数据统计更新**：
+4. 📊 **数据统计更新**：
    - `user_profiles`: 95 → 108 行
    - `users`: 99 → 111 行
    - `coach_subscriptions`: 11 → 14 行
    - `chat_messages`: 26 → 31 行
    - `chat_rooms`: 5 → 6 行
    - `chat_room_unreads`: 10 → 12 行
-   - `coach_plan_instances`: 1 → 8 行
+   - `coach_plan_instances`: 1 → 8 → 12 行
    - `plan_instance_executions`: 8 → 9 行
    - `execution_set_videos`: 5 → 7 行
-   - `coach_plan_templates`: 5 → 6 行
+   - `coach_plan_templates`: 5 → 6 → 7 行
    - `leaderboard_entries`: 70 → 72 行
+   - `coach_actions`: 4 → 12 行
+   - `coach_contents`: 6 → 2 行
+   - `student_actions`: 11 行（新增）
+   - `student_plan_favorites`: 4 行（新增）
 
 **下一步建议：**
 

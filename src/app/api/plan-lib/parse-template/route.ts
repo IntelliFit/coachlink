@@ -27,13 +27,7 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("is_coach")
-        .eq("id", userId)
-        .single();
-
-    if (userError || !user.is_coach) {
+    if (!session.user.is_coach) {
         return NextResponse.json({
             success: false,
             message: "Forbidden",

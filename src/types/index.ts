@@ -5,8 +5,10 @@ export type CoachLinkTable = Database["public"]["Tables"];
 export type UsersRow = CoachLinkTable["users"]["Row"];
 export type UserProfilesRow = CoachLinkTable["user_profiles"]["Row"];
 export type TrainingVideoRow = CoachLinkTable["training_videos"]["Row"];
-export type ExecutionSetVideoRow = CoachLinkTable["execution_set_videos"]["Row"];
-export type PlanInstanceExecutionRow = CoachLinkTable["plan_instance_executions"]["Row"];
+export type ExecutionSetVideoRow =
+    CoachLinkTable["execution_set_videos"]["Row"];
+export type PlanInstanceExecutionRow =
+    CoachLinkTable["plan_instance_executions"]["Row"];
 export type CoachesRow = CoachLinkTable["coaches"]["Row"];
 export type SpecialtiesRow = CoachLinkTable["specialties"]["Row"];
 
@@ -14,7 +16,8 @@ export type TrainingPlanRow = CoachLinkTable["training_plans"]["Row"];
 export type TrainingDetailRow = CoachLinkTable["training_plan_details"]["Row"];
 export type CoachSubscriptionRow = CoachLinkTable["coach_subscriptions"]["Row"];
 export type CoachContentRow = CoachLinkTable["coach_contents"]["Row"];
-export type CoachActionRow = CoachLinkTable["coach_actions"]["Row"];
+// CoachActionRow 使用自定义类型以支持 type 字段（数据库迁移后会自动同步）
+export type { CoachActionInsert, CoachActionRow } from "./coach";
 
 export type CoachPlanTemplateRow =
     CoachLinkTable["coach_plan_templates"]["Row"];
@@ -34,3 +37,6 @@ export type LeaderboardEntriesRow =
 
 // 强度描述系统类型
 export * from "./intensity";
+
+// 项目类型（力量/饮食/有氧/习惯）
+export type { ItemType } from "./student";

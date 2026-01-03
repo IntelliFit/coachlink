@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabase from '@/lib/supabaseClient';
+import supabase from "@/lib/supabaseClient";
 import { AddActionDto, AddActionResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
@@ -20,20 +20,26 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (!addData.name || !addData.detail || !addData.positions?.length) {
+    // 基础字段验证
+    if (!addData.name || !addData.detail) {
         return NextResponse.json({
             success: false,
-            message: "缺少必要参数"
+            message: "缺少必要参数（name 和 detail 为必填项）",
         }, { status: 400 });
     }
 
-    const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('is_coach')
-        .eq('id', userId)
-        .single();
+    // 对于力量训练类型，positions 是必需的
+    const itemType = (addData as any).type;
+    // 只有明确是 STRENGTH 或未指定类型时才验证 positions
+    const needsPositions = !itemType || itemType === "STRENGTH";
+    if (needsPositions && !addData.positions?.length) {
+        return NextResponse.json({
+            success: false,
+            message: "力量训练类型必须选择动作部位",
+        }, { status: 400 });
+    }
 
-    if (userError || !user.is_coach) {
+    if (!session.user.is_coach) {
         return NextResponse.json({
             success: false,
             message: "Forbidden",
@@ -42,12 +48,12 @@ export async function POST(req: Request) {
 
     // Insert new action
     const { data: action, error } = await supabase
-        .from('coach_actions')
+        .from("coach_actions")
         .insert({
             coach_id: userId,
             ...addData,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -64,7 +70,7 @@ export async function POST(req: Request) {
         success: true,
         message: "添加动作成功",
         data: {
-            action
-        }
+            action,
+        },
     });
 }

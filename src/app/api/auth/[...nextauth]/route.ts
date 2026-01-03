@@ -105,20 +105,28 @@ export const authOptions: AuthOptions = {
             (user as any).password_hash = undefined;
             session.user = token.user;
 
-            // 从数据库刷新关键的用户状态字段（is_coach, is_admin, coach_status, primary_role）
-            // 这样在管理员批准教练申请后，用户无需重新登录即可看到教练端
-            const { data: currentUser, error: userError } = await supabase
+            // 统一以 coaches 表为教练资格真源；users 仅同步 is_admin
+            // 有一条 coaches.status='approved' 且 user_id 匹配，则视为教练
+            const { data: coachRow } = await supabase
+                .from("coaches")
+                .select("id, status")
+                .eq("user_id", user.id)
+                .eq("status", "approved")
+                .maybeSingle();
+
+            const isCoach = !!coachRow;
+
+            // is_admin 仍从 users 读取，避免影响后台权限
+            const { data: currentUser } = await supabase
                 .from("users")
-                .select("is_coach, is_admin, coach_status, primary_role")
+                .select("is_admin")
                 .eq("id", user.id)
                 .single();
 
-            if (!userError && currentUser) {
-                session.user.is_coach = currentUser.is_coach;
-                session.user.is_admin = currentUser.is_admin;
-                session.user.coach_status = currentUser.coach_status;
-                session.user.primary_role = currentUser.primary_role;
-            }
+            session.user.is_coach = isCoach;
+            session.user.is_admin = currentUser?.is_admin ?? false;
+            session.user.coach_status = isCoach ? "approved" : "none";
+            session.user.primary_role = isCoach ? "coach" : "student";
 
             const { data: profile, error } = await supabase
                 .from("user_profiles")

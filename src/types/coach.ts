@@ -1,6 +1,35 @@
-export type VideoType = 'baseline' | 'training' | 'completion';
-export type ReviewStatus = 'pending' | 'reviewed' | 'not_required';
-export type ProcessingStatus = 'uploading' | 'processing' | 'ready' | 'failed';
+import { ItemType } from "./student";
+
+export type VideoType = "baseline" | "training" | "completion";
+export type ReviewStatus = "pending" | "reviewed" | "not_required";
+export type ProcessingStatus = "uploading" | "processing" | "ready" | "failed";
+
+// 教练动作库类型
+export interface CoachActionRow {
+    id: string;
+    coach_id: string;
+    name: string;
+    detail: string | null;
+    positions: string[] | null;
+    attrs: string[] | null;
+    url: string | null;
+    type?: ItemType; // 项目类型，可选（迁移前默认为 STRENGTH）
+    enableAutoWeightCompute: boolean;
+    includesBodyWeight: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CoachActionInsert {
+    name: string;
+    detail?: string | null;
+    positions?: string[] | null;
+    attrs?: string[] | null;
+    url?: string | null;
+    type?: ItemType;
+    enableAutoWeightCompute?: boolean;
+    includesBodyWeight?: boolean;
+}
 
 export interface CoachStudentItem {
     id: string; // subscription id
@@ -82,5 +111,5 @@ export enum ContentTier {
     FREE = 0,
     BASIC = 1,
     PREMIUM = 2,
-    VIP = 3
+    VIP = 3,
 }

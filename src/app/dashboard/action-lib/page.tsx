@@ -125,7 +125,9 @@ const ActionLib = () => {
                     url: actionData.url || '',
                     positions: actionData.positions || [],
                     attrs: actionData.attrs || [],
+                    type: actionData.type,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute || false,
+                    includesBodyWeight: actionData.includesBodyWeight || false,
                 });
 
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });

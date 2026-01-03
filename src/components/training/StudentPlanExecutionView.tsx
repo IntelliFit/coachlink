@@ -160,11 +160,43 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({ sub
         );
     };
 
-    // 动作项显示组件
+    // 动作项显示组件 - 支持 STRENGTH 和 DIET 类型
     const ActionItem = ({ actionSet, action }: { actionSet: CoachPlanAction; action?: any }) => {
         const actionName = action?.name || actionSet.setName || '未知动作';
         const hasVideo = !!action?.url;
+        const itemType = action?.type || 'STRENGTH';
 
+        // Diet 类型渲染
+        if (itemType === 'DIET') {
+            const content = action?.detail || (actionSet as any).params?.['内容'] || '饮食建议';
+            const suggestedTime = (actionSet as any).params?.['建议时间'];
+            
+            return (
+                <div className="flex items-center justify-between py-3 px-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border border-green-200">
+                    <div className="flex items-center gap-3 flex-1">
+                        <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center">
+                            <i className="pi pi-apple text-green-700 text-sm" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium text-green-800">{actionName}</span>
+                                {suggestedTime && (
+                                    <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                                        {suggestedTime}
+                                    </span>
+                                )}
+                            </div>
+                            {content && (
+                                <p className="text-sm text-green-700 mt-1">{content}</p>
+                            )}
+                        </div>
+                    </div>
+                    <i className="pi pi-check-circle text-green-600 text-lg" />
+                </div>
+            );
+        }
+
+        // Strength 类型渲染（原有逻辑）
         return (
             <div className="flex items-center justify-between py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors">
                 <div className="flex items-center gap-3 flex-1">
