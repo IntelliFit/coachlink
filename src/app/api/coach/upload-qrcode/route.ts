@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { v4 as uuidv4 } from "uuid";
 import type { ApiData } from "@/types/api";
 
@@ -72,16 +72,16 @@ export async function POST(req: Request) {
             );
         }
 
-        // 上传到 Supabase Storage (使用 videos bucket，因为它已经存在)
+        // 上传到 Supabase Storage (使用 payment-qrcodes bucket)
         const ext = file.name.split(".").pop() || "png";
         const safeName = `${type}_${Date.now()}_${uuidv4()}.${ext}`;
-        const filePath = `payment-qrcodes/${userId}/${safeName}`;
+        const filePath = `${userId}/${safeName}`;
 
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        const { error: uploadError } = await supabase.storage
-            .from("videos")
+        const { error: uploadError } = await serviceRoleSupabase.storage
+            .from("payment-qrcodes")
             .upload(filePath, uint8Array, {
                 contentType: file.type,
                 upsert: true,
@@ -100,8 +100,8 @@ export async function POST(req: Request) {
         }
 
         // 获取公开URL
-        const { data: { publicUrl } } = supabase.storage
-            .from("videos")
+        const { data: { publicUrl } } = serviceRoleSupabase.storage
+            .from("payment-qrcodes")
             .getPublicUrl(filePath);
 
         return NextResponse.json<ApiData<UploadQrCodeResponseDto>>({
