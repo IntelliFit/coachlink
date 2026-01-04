@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
-import type { GetAggregatedInfoDto, GetAggregatedInfoResponseDto } from './entity';
-import redis from '@/lib/redisClient';
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import supabase from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
+import type {
+    GetAggregatedInfoDto,
+    GetAggregatedInfoResponseDto,
+} from "./entity";
+import redis from "@/lib/redisClient";
 
 function mergeProfile(base: any, incoming: Record<string, any>) {
     const merged = { ...(base || {}) };
@@ -15,19 +18,18 @@ function mergeProfile(base: any, incoming: Record<string, any>) {
     return merged;
 }
 
-
 async function getUniqueTags(userId: string) {
     const { data, error } = await supabase
-        .from('coach_plan_templates')
-        .select('tags')
-        .eq('coach_id', userId);
+        .from("coach_plan_templates")
+        .select("tags")
+        .eq("coach_id", userId);
 
     if (error) {
         return [];
     }
 
     // 提取并去重所有标签
-    const allTags = data.flatMap(template => template.tags || []);
+    const allTags = data.flatMap((template) => template.tags || []);
     const uniqueTags = Array.from(new Set(allTags));
 
     return uniqueTags;
@@ -35,9 +37,9 @@ async function getUniqueTags(userId: string) {
 
 async function getContentCount(coachId: string) {
     const { count, error } = await supabase
-        .from('coach_contents')
-        .select('*', { count: 'exact', head: true })
-        .eq('coach_id', coachId);
+        .from("coach_contents")
+        .select("*", { count: "exact", head: true })
+        .eq("coach_id", coachId);
 
     if (error) {
         console.error(error);
@@ -49,10 +51,10 @@ async function getContentCount(coachId: string) {
 
 async function getStudentCount(coachId: string) {
     const { count, error } = await supabase
-        .from('coach_subscriptions')
-        .select('*', { count: 'exact', head: true })
-        .eq('coach_id', coachId)
-        .eq('status', 'active');
+        .from("coach_subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("coach_id", coachId)
+        .eq("status", "active");
 
     if (error) {
         console.error(error);
@@ -64,7 +66,7 @@ async function getStudentCount(coachId: string) {
 
 async function getReviewCount(coachId: string) {
     const cacheKey = `coach:reviews:${coachId}`;
-    
+
     // 尝试从缓存中获取数据
     try {
         const cachedData = await redis.get(cacheKey);
@@ -72,14 +74,14 @@ async function getReviewCount(coachId: string) {
             return JSON.parse(cachedData as string);
         }
     } catch (err) {
-        console.error('Redis get error:', err);
+        console.error("Redis get error:", err);
     }
 
     // 获取评论数量和平均评分
     const { data: reviewsData, error: reviewsError } = await supabase
-        .from('student_comments')
-        .select('rating')
-        .eq('coach_id', coachId);
+        .from("student_comments")
+        .select("rating")
+        .eq("coach_id", coachId);
 
     let reviewCount = 0;
     let averageRating = 0;
@@ -87,7 +89,10 @@ async function getReviewCount(coachId: string) {
     if (!reviewsError && reviewsData) {
         reviewCount = reviewsData.length;
         if (reviewCount > 0) {
-            const totalRating = reviewsData.reduce((sum, review) => sum + review.rating, 0);
+            const totalRating = reviewsData.reduce(
+                (sum, review) => sum + review.rating,
+                0,
+            );
             averageRating = parseFloat((totalRating / reviewCount).toFixed(1));
         }
     }
@@ -97,7 +102,7 @@ async function getReviewCount(coachId: string) {
     try {
         await redis.setEx(cacheKey, 300, JSON.stringify(result));
     } catch (err) {
-        console.error('Redis set error:', err);
+        console.error("Redis set error:", err);
     }
 
     return result;
@@ -108,27 +113,27 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
         return NextResponse.json({
             success: false,
-            message: '用户未登录',
-            data: null
+            message: "用户未登录",
+            data: null,
         }, { status: 401 });
     }
 
     const {
-        coachId
+        coachId,
     } = await req.json() as GetAggregatedInfoDto;
 
     // 获取教练基本信息
     const { data: coach, error: coachError } = await supabase
-        .from('coaches')
-        .select('*')
-        .eq('id', coachId)
+        .from("coaches")
+        .select("*")
+        .eq("id", coachId)
         .single();
 
     if (coachError || !coach) {
         return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
             success: false,
-            message: '教练信息不存在',
-            data: null
+            message: "教练信息不存在",
+            data: null,
         });
     }
 
@@ -136,10 +141,10 @@ export async function POST(req: Request) {
     let enrichedCoach = coach;
     try {
         const { data: latestApplication } = await supabase
-            .from('coach_applications')
-            .select('*')
-            .eq('user_id', coach.user_id)
-            .order('updated_at', { ascending: false })
+            .from("coach_applications")
+            .select("*")
+            .eq("user_id", coach.user_id)
+            .order("updated_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
@@ -161,42 +166,68 @@ export async function POST(req: Request) {
                 avatar_url: coach.avatar_url ?? latestApplication.avatar_url,
                 specialties: coach.specialties ?? latestApplication.specialties,
                 bio: coach.bio ?? latestApplication.bio,
-                years_experience: coach.years_experience ?? latestApplication.years_experience,
-                achievements: coach.achievements ?? latestApplication.achievements,
+                years_experience: coach.years_experience ??
+                    latestApplication.years_experience,
+                achievements: coach.achievements ??
+                    latestApplication.achievements,
                 profile: mergeProfile(coach.profile, profileFromApplication),
             };
         }
     } catch (err) {
-        console.error('合并教练申请信息失败:', err);
+        console.error("合并教练申请信息失败:", err);
+    }
+
+    // 如果教练头像仍为空，尝试从 user_profiles 获取（与导航栏头像保持一致）
+    if (!enrichedCoach.avatar_url && coach.user_id) {
+        try {
+            const { data: userProfile } = await supabase
+                .from("user_profiles")
+                .select("avatar_url")
+                .eq("user_id", coach.user_id)
+                .maybeSingle();
+
+            if (userProfile?.avatar_url) {
+                enrichedCoach = {
+                    ...enrichedCoach,
+                    avatar_url: userProfile.avatar_url,
+                };
+            }
+        } catch (err) {
+            console.error("获取用户头像失败:", err);
+        }
     }
 
     const [
         studentCount,
         contentCount,
         templateSpecialties,
-        { reviewCount, averageRating }
+        { reviewCount, averageRating },
     ] = await Promise.all([
         getStudentCount(enrichedCoach.id),
         getContentCount(enrichedCoach.id),
-        enrichedCoach.user_id ? getUniqueTags(enrichedCoach.user_id) : Promise.resolve([]),
+        enrichedCoach.user_id
+            ? getUniqueTags(enrichedCoach.user_id)
+            : Promise.resolve([]),
         getReviewCount(enrichedCoach.id),
     ]);
 
-    const specialties = Array.from(new Set([
-        ...(enrichedCoach.specialties || []),
-        ...(templateSpecialties || []),
-    ]));
+    const specialties = Array.from(
+        new Set([
+            ...(enrichedCoach.specialties || []),
+            ...(templateSpecialties || []),
+        ]),
+    );
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
         success: true,
-        message: '获取成功',
+        message: "获取成功",
         data: {
             coach: enrichedCoach,
             contentCount,
             studentCount,
             reviewCount,
             averageRating,
-            specialties
-        }
+            specialties,
+        },
     });
 }

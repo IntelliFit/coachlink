@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
 import { useSession } from 'next-auth/react';
@@ -120,11 +119,9 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                         <div className="relative inline-block">
                             {coach.avatar_url ? (
                                 <div className="w-32 h-32 rounded-full overflow-hidden mx-auto">
-                                    <Image
+                                    <img
                                         src={coach.avatar_url}
                                         alt={coach.name}
-                                        width={128}
-                                        height={128}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>

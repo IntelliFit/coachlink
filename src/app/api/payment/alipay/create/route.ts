@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
-import type { CreateAlipayOrderDto, CreateAlipayOrderResponseDto } from './entity';
-import { AlipaySdk } from 'alipay-sdk';
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import supabase from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
+import type {
+    CreateAlipayOrderDto,
+    CreateAlipayOrderResponseDto,
+} from "./entity";
+import { AlipaySdk } from "alipay-sdk";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
@@ -12,8 +15,8 @@ export async function POST(req: Request) {
 
     if (!session?.user?.id) {
         return NextResponse.json(
-            { success: false, message: '用户未登录', data: null },
-            { status: 401 }
+            { success: false, message: "用户未登录", data: null },
+            { status: 401 },
         );
     }
 
@@ -25,13 +28,14 @@ export async function POST(req: Request) {
         totalAmount,
         orderType,
         orderData = {},
-        createMode = 'common'
+        createMode = "common",
+        isMobile = false,
     } = (await req.json()) as CreateAlipayOrderDto;
 
     if (!subject || !totalAmount) {
         return NextResponse.json(
-            { success: false, message: '缺少必要参数', data: null },
-            { status: 400 }
+            { success: false, message: "缺少必要参数", data: null },
+            { status: 400 },
         );
     }
 
@@ -40,13 +44,13 @@ export async function POST(req: Request) {
         ALIPAY_APP_ID,
         ALIPAY_PRIVATE_KEY,
         ALIPAY_PUBLIC_KEY,
-        ALIPAY_GATEWAY
+        ALIPAY_GATEWAY,
     } = process.env;
 
     if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
         return NextResponse.json(
-            { success: false, message: '支付宝配置不完整', data: null },
-            { status: 500 }
+            { success: false, message: "支付宝配置不完整", data: null },
+            { status: 500 },
         );
     }
 
@@ -60,15 +64,15 @@ export async function POST(req: Request) {
 
     // 写入订单到数据库
     const { data: order, error: orderError } = await supabase
-        .from('alipay_orders')
+        .from("alipay_orders")
         .insert({
             subject,
             total_amount: totalAmount,
             order_type: orderType,
             order_data: orderData,
             user_id: userId,
-            status: 'pending',
-            qr_code: '',
+            status: "pending",
+            qr_code: "",
         })
         .select()
         .single();
@@ -77,51 +81,64 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             message: orderError.message,
-            data: '创建支付订单失败'
+            data: "创建支付订单失败",
         });
     }
 
-    // 预下单
-    const result = alipaySdk.pageExec('alipay.trade.page.pay', {
-        bizContent: {
-            out_trade_no: order.id,
-            total_amount: totalAmount.toString(),
-            subject,
-            product_code: 'FAST_INSTANT_TRADE_PAY',
-            qr_pay_mode: '0',
-        },
-    });
+    // 根据设备类型选择支付方式
+    let result: string;
+    if (isMobile) {
+        // 移动端使用 wap.pay，可以唤起支付宝APP
+        result = alipaySdk.pageExec("alipay.trade.wap.pay", {
+            bizContent: {
+                out_trade_no: order.id,
+                total_amount: totalAmount.toString(),
+                subject,
+                product_code: "QUICK_WAP_WAY",
+            },
+        });
+    } else {
+        // PC端使用 page.pay，显示二维码
+        result = alipaySdk.pageExec("alipay.trade.page.pay", {
+            bizContent: {
+                out_trade_no: order.id,
+                total_amount: totalAmount.toString(),
+                subject,
+                product_code: "FAST_INSTANT_TRADE_PAY",
+                qr_pay_mode: "0",
+            },
+        });
+    }
 
     if (!result) {
         await supabase
-            .from('alipay_orders')
+            .from("alipay_orders")
             .delete()
-            .eq('id', order.id);
+            .eq("id", order.id);
 
         return NextResponse.json({
             success: false,
-            message: '无法创建订单',
-            data: result
+            message: "无法创建订单",
+            data: result,
         });
-    } else if (createMode === 'test') {
+    } else if (createMode === "test") {
         await supabase
-            .from('alipay_orders')
+            .from("alipay_orders")
             .delete()
-            .eq('id', order.id);
+            .eq("id", order.id);
     }
-
 
     if (orderError) {
         return NextResponse.json(
-            { success: false, message: '订单写入失败', data: null },
-            { status: 500 }
+            { success: false, message: "订单写入失败", data: null },
+            { status: 500 },
         );
     }
 
     // 返回响应
     return NextResponse.json<ApiData<CreateAlipayOrderResponseDto>>({
         success: true,
-        message: '订单创建成功',
+        message: "订单创建成功",
         data: {
             order: {
                 id: order.id.toString(),
@@ -133,7 +150,7 @@ export async function POST(req: Request) {
             },
             paymentInfo: {
                 formHtml: result,
-                description: '支付宝扫码支付',
+                description: "支付宝扫码支付",
             },
         },
     });

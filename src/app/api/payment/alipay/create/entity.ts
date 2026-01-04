@@ -5,6 +5,7 @@ export interface CreateAlipayOrderDto {
     orderType?: string;
     orderData?: any;
     createMode?: string;
+    isMobile?: boolean; // 是否移动端，决定使用 page.pay 还是 wap.pay
 }
 
 // 返回参数的接口类型
