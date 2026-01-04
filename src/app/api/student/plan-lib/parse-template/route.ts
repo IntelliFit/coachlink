@@ -49,6 +49,31 @@ function splitPlanByWeekSections(text: string): Array<{
 }
 
 /**
+ * 周内顺序重排：按出现顺序编号 dayOfWeek=1..n，并在该周内补齐到 7 天
+ */
+function normalizeWeekDays(days: any[], weekIndex: number) {
+    const sorted = [...days].sort((a, b) => (a._idx ?? 0) - (b._idx ?? 0));
+    const reassigned = sorted.map((d, idx) => ({
+        ...d,
+        weekIndex,
+        dayOfWeek: idx + 1,
+        _idx: undefined,
+    }));
+
+    const result = [...reassigned];
+    while (result.length < 7) {
+        result.push({
+            weekIndex,
+            dayOfWeek: result.length + 1,
+            type: "rest",
+            actions: [],
+            dayNote: "自动填充休息日",
+        });
+    }
+    return result;
+}
+
+/**
  * 学员版：解析模板
  * 将训练计划文本解析为结构化的周训练模板（无教练权限检查）
  */
@@ -86,8 +111,6 @@ export async function POST(req: Request) {
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 
-        let globalIdx = 0;
-
         const parsedSections = await Promise.all(sections.map(async (section) => {
             const prompt = buildParseTemplatePrompt(
                 section.text,
@@ -104,7 +127,7 @@ export async function POST(req: Request) {
             const sectionDaysRaw = (parsedResult.trainingDays || []).map(
                 (day, idx) => ({
                     ...day,
-                    _idx: globalIdx++,
+                    _idx: idx, // 仅用于周内排序
                     weekIndex: section.weekIndex,
                     actions: (day.actions || []).map((action) => ({
                         actionId: action.actionId,
@@ -122,62 +145,31 @@ export async function POST(req: Request) {
                 }),
             );
 
+            const sectionDays = normalizeWeekDays(
+                sectionDaysRaw,
+                section.weekIndex,
+            );
+
             return {
-                days: sectionDaysRaw,
+                days: sectionDays,
                 weeks: parsedResult.weeks || section.weekIndex,
+                weekIndex: section.weekIndex,
             };
         }));
 
+        // 按周顺序拼接，保持每周内部编号和长度
+        parsedSections.sort((a, b) => a.weekIndex - b.weekIndex);
         for (const chunk of parsedSections) {
             allTrainingDays.push(...chunk.days);
-            maxWeek = Math.max(maxWeek, chunk.weeks);
+            maxWeek = Math.max(maxWeek, chunk.weeks, chunk.weekIndex);
         }
-
-        // 全局按出现顺序重新编号 dayOfWeek，跨天累进；必要时补足到周末
-        allTrainingDays.sort((a, b) => (a._idx ?? 0) - (b._idx ?? 0));
-
-        const reassigned: any[] = [];
-        let dayCounter = 1;
-        for (const day of allTrainingDays) {
-            const weekIndex = Math.floor((dayCounter - 1) / 7) + 1;
-            const dayOfWeek = ((dayCounter - 1) % 7) + 1;
-            reassigned.push({
-                ...day,
-                weekIndex,
-                dayOfWeek,
-                _idx: undefined,
-            });
-            dayCounter += 1;
-        }
-
-        // 补齐到最近的周末
-        const remainder = (dayCounter - 1) % 7;
-        if (remainder !== 0) {
-            const pad = 7 - remainder;
-            const currentWeek = Math.floor((dayCounter - 1) / 7) + 1;
-            for (let i = 0; i < pad; i++) {
-                const dayOfWeek = remainder + i + 1;
-                reassigned.push({
-                    weekIndex: currentWeek,
-                    dayOfWeek,
-                    type: "rest",
-                    actions: [],
-                    dayNote: "自动填充休息日",
-                });
-            }
-        }
-
-        const totalWeeks = Math.max(
-            Math.ceil(reassigned.length / 7),
-            maxWeek,
-        );
 
         return NextResponse.json<ApiData<ParseStudentTemplateResponseDto>>({
             success: true,
             message: "解析模板成功",
             data: {
-                weeks: totalWeeks || 1,
-                trainingDays: reassigned,
+                weeks: maxWeek || 1,
+                trainingDays: allTrainingDays,
             },
         });
     } catch (error) {
