@@ -31,7 +31,7 @@ export default function Home() {
             </div>
 
             {/* Hero 主体 */}
-            <section className="relative z-10 text-center max-w-4xl mb-24 mt-10">
+            <section className="relative z-10 text-center max-w-4xl mb-24 mt-10 min-h-screen">
                 {/* 顶部小标：使用 surface-600 */}
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 border border-orange-100 text-orange-600 text-sm font-bold mb-10 shadow-sm">
                     <span className="relative flex h-2 w-2">

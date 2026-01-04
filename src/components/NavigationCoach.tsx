@@ -13,15 +13,15 @@ import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { coachService } from '@/app/service/coachService';
-import { 
-    LayoutDashboard, 
-    PlayCircle, 
-    Users, 
-    FileEdit, 
-    ClipboardList, 
-    Bell, 
-    Moon, 
-    Sun, 
+import {
+    LayoutDashboard,
+    PlayCircle,
+    Users,
+    FileEdit,
+    ClipboardList,
+    Bell,
+    Moon,
+    Sun,
     ChevronDown,
     LogIn
 } from 'lucide-react';
@@ -52,12 +52,12 @@ export default function NavigationCoach() {
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;
         return (
-            <div 
+            <div
                 onClick={item.command}
                 className={`
                     flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-all duration-300
-                    ${isActive 
-                        ? 'bg-primary-50 text-primary-600' 
+                    ${isActive
+                        ? 'bg-primary-50 text-primary-600'
                         : 'hover:bg-surface-50 text-surface-600 hover:text-primary-600'}
                 `}
             >
@@ -82,16 +82,18 @@ export default function NavigationCoach() {
         { label: '收款码设置', icon: 'pi pi-qrcode', command: () => router.push('/coach/settings/payment') },
         { label: '学员问卷', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/questionnaire') },
         { separator: true },
-        { label: '切换至学员端', icon: 'pi pi-user', command: async () => {
-            try {
-                const res = await fetch('/api/user/switch-role', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role: 'student' })
-                });
-                if (res.ok) window.location.href = '/';
-            } catch (e) { console.error(e); }
-        } },
+        {
+            label: '切换至学员端', icon: 'pi pi-user', command: async () => {
+                try {
+                    const res = await fetch('/api/user/switch-role', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'student' })
+                    });
+                    if (res.ok) window.location.href = '/';
+                } catch (e) { console.error(e); }
+            }
+        },
         { separator: true },
         { label: '个人设置', icon: 'pi pi-cog', command: () => openProfileSetupModal(session?.profile, session?.user?.id) },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
@@ -119,13 +121,20 @@ export default function NavigationCoach() {
             ) : session?.user ? (
                 <>
                     <div className="flex items-center gap-0.5 bg-surface-50 p-1 rounded-2xl mr-2">
-                        <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all">
-                            <Bell size={20} />
+                        <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all pi pi-bell p-overlay-badge">
                             <MessageBadge className="absolute top-1.5 right-1.5 border-2 border-surface-50" />
                         </button>
-                        <button onClick={toggleTheme} className="p-2 rounded-xl text-surface-500 hover:bg-surface transition-all">
-                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                        </button>
+                        <button
+                            onClick={toggleTheme}
+                            className={`
+                                p-2 rounded-xl transition-all pi 
+                                ${theme === 'light'
+                                                        ? 'pi-moon text-surface-500 hover:text-indigo-600' // 亮色时显月亮，悬浮变靛蓝
+                                                        : 'pi-sun text-yellow-500 hover:text-yellow-400'  // 暗色时显太阳，悬浮变浅黄
+                                                    } 
+                                hover:bg-surface
+                            `}
+                        />
                     </div>
 
                     <div
@@ -150,7 +159,7 @@ export default function NavigationCoach() {
                     </div>
                 </>
             ) : (
-                <Button 
+                <Button
                     onClick={() => router.push('/login')}
                     rounded
                     className="bg-primary-500 border-none px-5 py-2 hover:bg-primary-600 transition-all shadow-md shadow-primary-100"
