@@ -26,6 +26,7 @@ export interface StudentSubscription {
     monthly_price: number;
     subscribe_data: SubscribeData | null;
     subscribed_weeks: number | null;
+    prior_training_weeks: number | null; // 学员迁入平台前已跟随教练训练的周数
 }
 
 export interface ListStudentsDto {

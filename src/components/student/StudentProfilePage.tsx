@@ -9,6 +9,7 @@ import { SportCardsDisplay } from './profile/SportCardsDisplay';
 import { MyCoachesList } from './profile/MyCoachesList';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
+import { VideoCollectionSection } from './profile/VideoCollectionSection';
 
 interface StudentProfilePageProps {
     onBack?: () => void;
@@ -126,6 +127,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 <div className="lg:w-7/12 space-y-6">
                     <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
                     <ProgressTimeline data={data} />
+                    <VideoCollectionSection />
                     <CoachNotesSection data={data} userId={session?.user.id} />
                 </div>
                 

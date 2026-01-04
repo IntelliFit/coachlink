@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     const query = supabase
         .from("coach_subscriptions")
         .select(
-            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks",
+            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks",
             { count: "exact" },
         )
         .eq("coach_id", coachRow.id)

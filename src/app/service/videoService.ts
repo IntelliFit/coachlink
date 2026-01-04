@@ -9,6 +9,10 @@ import type { ReviewVideoDto, ReviewVideoResponseDto } from "../api/user/review-
 import type { DeleteVideoDto, DeleteVideoResponseDto } from "../api/user/delete-video/entity";
 import type { UpdateVideoDto, UpdateVideoResponseDto } from "../api/user/update-video/entity";
 import type { GetVideoByIdDto, GetVideoByIdResponseDto } from "../api/user/get-video-by-id/entity";
+import type { AddVideoToCollectionDto, AddVideoToCollectionResponseDto } from "../api/user/add-video-to-collection/entity";
+import type { ListVideoCollectionsDto, ListVideoCollectionsResponseDto } from "../api/user/list-video-collections/entity";
+import type { UpdateVideoCollectionDto, UpdateVideoCollectionResponseDto } from "../api/user/update-video-collection/entity";
+import type { DeleteVideoCollectionDto, DeleteVideoCollectionResponseDto } from "../api/user/delete-video-collection/entity";
 
 class VideoService extends BaseService {
 
@@ -119,6 +123,42 @@ class VideoService extends BaseService {
             return res.data.data;
         }
         
+        return null;
+    }
+
+    async addVideoToCollection(reqData: AddVideoToCollectionDto) {
+        const res = await this.post<AddVideoToCollectionResponseDto>('add-video-to-collection', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
+    }
+
+    async listVideoCollections(reqData: ListVideoCollectionsDto) {
+        const res = await this.post<ListVideoCollectionsResponseDto>('list-video-collections', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
+    }
+
+    async updateVideoCollection(reqData: UpdateVideoCollectionDto) {
+        const res = await this.post<UpdateVideoCollectionResponseDto>('update-video-collection', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        return null;
+    }
+
+    async deleteVideoCollection(reqData: DeleteVideoCollectionDto) {
+        const res = await this.post<DeleteVideoCollectionResponseDto>('delete-video-collection', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
         return null;
     }
 }

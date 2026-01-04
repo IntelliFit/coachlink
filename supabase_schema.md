@@ -11,8 +11,12 @@
 > - **最新更新**（2025-12-26）：新增多个表，包括聊天系统重构、训练执行系统优化、排行榜系统等
 > - **字段更新**（2025-12-26）：`coach_plan_instances` 表新增
 >   `start_execution_day` 字段，支持老学员中途迁入平台
-> - **最新更新**（2025-12-29）：新增多个字段，包括 `coach_pricing.products`、`coach_plan_templates.global_answers`、`execution_set_videos` 表新增审核相关字段等
-> - **最新更新**（2025-12-29）：新增2个表 `student_actions`、`student_plan_favorites`，`coach_plan_instances` 表新增 `source` 字段
+> - **最新更新**（2025-12-29）：新增多个字段，包括
+>   `coach_pricing.products`、`coach_plan_templates.global_answers`、`execution_set_videos`
+>   表新增审核相关字段等
+> - **最新更新**（2025-12-29）：新增2个表
+>   `student_actions`、`student_plan_favorites`，`coach_plan_instances` 表新增
+>   `source` 字段
 > - 当前保留 **40个表 + 3个视图 = 43个数据库对象**
 
 ## 目录
@@ -764,27 +768,28 @@
 
 **字段说明**
 
-| 列名              | 类型        | 可空 | 默认值            | 约束/备注                                         |
-| ----------------- | ----------- | ---- | ----------------- | ------------------------------------------------- |
-| id                | uuid        | NO   | gen_random_uuid() | 主键                                              |
-| student_id        | uuid        | NO   |                   | 外键 → users.id                                   |
-| coach_id          | uuid        | NO   |                   | 外键 → coaches.id                                 |
-| tier              | integer     | NO   |                   | ∈ {1, 2, 3}                                       |
-| status            | text        | YES  | 'active'          | ∈ {'active','inactive','waiting'}                 |
-| start_date        | timestamptz | YES  | now()             |                                                   |
-| end_date          | timestamptz | YES  |                   |                                                   |
-| auto_renew        | boolean     | YES  | true              |                                                   |
-| monthly_price     | numeric     | NO   |                   |                                                   |
-| order_id          | uuid        | YES  |                   | 订单编号                                          |
-| subscribe_data    | jsonb       | YES  |                   | 订阅附带的一些基础信息                            |
-| has_remind_coach  | boolean     | YES  | false             | ⭐ **新增**：是否已提醒教练                       |
-| remind_coach_note | text        | YES  |                   | ⭐ **新增**：提醒教练的备注信息                   |
-| product_id        | text        | YES  |                   | ⭐ **新增**：订阅的具体产品ID                     |
-| product_name      | text        | YES  |                   | ⭐ **新增**：订阅时的产品名称快照                 |
-| product_tier      | text        | YES  |                   | ⭐ **新增**：订阅时的产品层级(basic/standard/vip) |
-| subscribed_weeks  | integer     | YES  | 4                 | ⭐ **新增**：订阅包含的总周数                     |
-| created_at        | timestamptz | YES  | now()             |                                                   |
-| updated_at        | timestamptz | YES  | now()             |                                                   |
+| 列名                 | 类型        | 可空 | 默认值            | 约束/备注                                                       |
+| -------------------- | ----------- | ---- | ----------------- | --------------------------------------------------------------- |
+| id                   | uuid        | NO   | gen_random_uuid() | 主键                                                            |
+| student_id           | uuid        | NO   |                   | 外键 → users.id                                                 |
+| coach_id             | uuid        | NO   |                   | 外键 → coaches.id                                               |
+| tier                 | integer     | NO   |                   | ∈ {1, 2, 3}                                                     |
+| status               | text        | YES  | 'active'          | ∈ {'active','inactive','waiting'}                               |
+| start_date           | timestamptz | YES  | now()             |                                                                 |
+| end_date             | timestamptz | YES  |                   |                                                                 |
+| auto_renew           | boolean     | YES  | true              |                                                                 |
+| monthly_price        | numeric     | NO   |                   |                                                                 |
+| order_id             | uuid        | YES  |                   | 订单编号                                                        |
+| subscribe_data       | jsonb       | YES  |                   | 订阅附带的一些基础信息                                          |
+| has_remind_coach     | boolean     | YES  | false             | ⭐ **新增**：是否已提醒教练                                     |
+| remind_coach_note    | text        | YES  |                   | ⭐ **新增**：提醒教练的备注信息                                 |
+| product_id           | text        | YES  |                   | ⭐ **新增**：订阅的具体产品ID                                   |
+| product_name         | text        | YES  |                   | ⭐ **新增**：订阅时的产品名称快照                               |
+| product_tier         | text        | YES  |                   | ⭐ **新增**：订阅时的产品层级(basic/standard/vip)               |
+| subscribed_weeks     | integer     | YES  | 4                 | ⭐ **新增**：订阅包含的总周数                                   |
+| prior_training_weeks | integer     | YES  | 0                 | ⭐ **新增**：学员迁入平台前已跟随教练训练的周数，用于计算总时长 |
+| created_at           | timestamptz | YES  | now()             |                                                                 |
+| updated_at           | timestamptz | YES  | now()             |                                                                 |
 
 **外键**
 
@@ -864,23 +869,23 @@
 
 **字段说明**
 
-| 列名                | 类型        | 可空 | 默认值            | 约束/备注                   |
-| ------------------- | ----------- | ---- | ----------------- | --------------------------- |
-| id                  | uuid        | NO   | gen_random_uuid() | 主键                        |
-| coach_id            | uuid        | NO   |                   |                             |
-| name                | text        | NO   |                   |                             |
-| description         | text        | YES  |                   |                             |
-| type                | text        | NO   |                   |                             |
-| rest_days_count     | smallint    | YES  |                   |                             |
-| tags                | text[]      | YES  |                   |                             |
-| suitable_for        | text        | YES  |                   |                             |
-| training_days       | jsonb[]     | YES  |                   |                             |
-| training_days_count | smallint    | YES  |                   |                             |
-| week_days           | int2[]      | YES  |                   | ⭐ **新增**：训练周几数组   |
-| contained_options   | text[]      | YES  |                   | ⭐ **新增**：包含的选项数组 |
+| 列名                | 类型        | 可空 | 默认值            | 约束/备注                                                                   |
+| ------------------- | ----------- | ---- | ----------------- | --------------------------------------------------------------------------- |
+| id                  | uuid        | NO   | gen_random_uuid() | 主键                                                                        |
+| coach_id            | uuid        | NO   |                   |                                                                             |
+| name                | text        | NO   |                   |                                                                             |
+| description         | text        | YES  |                   |                                                                             |
+| type                | text        | NO   |                   |                                                                             |
+| rest_days_count     | smallint    | YES  |                   |                                                                             |
+| tags                | text[]      | YES  |                   |                                                                             |
+| suitable_for        | text        | YES  |                   |                                                                             |
+| training_days       | jsonb[]     | YES  |                   |                                                                             |
+| training_days_count | smallint    | YES  |                   |                                                                             |
+| week_days           | int2[]      | YES  |                   | ⭐ **新增**：训练周几数组                                                   |
+| contained_options   | text[]      | YES  |                   | ⭐ **新增**：包含的选项数组                                                 |
 | global_answers      | jsonb       | YES  | '{}'              | ⭐ **新增**：全局选项问题的答案，格式: {"问题名": 选项索引}，用于AI计划匹配 |
-| created_at          | timestamptz | YES  | now()             |                             |
-| updated_at          | timestamptz | YES  | now()             |                             |
+| created_at          | timestamptz | YES  | now()             |                                                                             |
+| updated_at          | timestamptz | YES  | now()             |                                                                             |
 
 **索引**
 
@@ -906,14 +911,14 @@
 
 **字段说明**
 
-| 列名       | 类型        | 可空 | 默认值            | 约束/备注               |
-| ---------- | ----------- | ---- | ----------------- | ----------------------- |
-| id         | uuid        | NO   | gen_random_uuid() | 主键                    |
-| coach_id   | uuid        | NO   |                   | 外键 → coaches.id，唯一 |
-| pricings   | jsonb       | NO   | '[]'              | 定价信息（JSON格式）    |
+| 列名       | 类型        | 可空 | 默认值            | 约束/备注                         |
+| ---------- | ----------- | ---- | ----------------- | --------------------------------- |
+| id         | uuid        | NO   | gen_random_uuid() | 主键                              |
+| coach_id   | uuid        | NO   |                   | 外键 → coaches.id，唯一           |
+| pricings   | jsonb       | NO   | '[]'              | 定价信息（JSON格式）              |
 | products   | jsonb       | YES  | '[]'              | ⭐ **新增**：产品信息（JSON格式） |
-| created_at | timestamptz | NO   | now()             |                         |
-| updated_at | timestamptz | NO   | now()             |                         |
+| created_at | timestamptz | NO   | now()             |                                   |
+| updated_at | timestamptz | NO   | now()             |                                   |
 
 **外键**
 
@@ -1194,7 +1199,8 @@
 - `idx_plan_instances_template` (coach_plan_template_id) - 普通索引
 - `idx_plan_instances_student` (student_id) - 普通索引
 - `idx_plan_instances_coach` (coach_id) - 普通索引
-- `idx_coach_plan_instances_start_execution_day` (start_execution_day) - 普通索引
+- `idx_coach_plan_instances_start_execution_day` (start_execution_day) -
+  普通索引
 
 #### 31. coach_reviews（教练评价表）⭐ 新增
 
@@ -1438,28 +1444,28 @@
 
 **字段说明**
 
-| 列名             | 类型        | 可空 | 默认值            | 约束/备注                                  |
-| ---------------- | ----------- | ---- | ----------------- | ------------------------------------------ |
-| id               | uuid        | NO   | gen_random_uuid() | 主键                                       |
-| execution_id     | uuid        | NO   |                   | 外键 → plan_instance_executions.id         |
-| action_id        | uuid        | NO   |                   | 动作ID                                     |
-| set_number       | integer     | NO   |                   | 组号（≥ 1）                                |
-| video_url        | text        | NO   |                   | 视频URL                                    |
-| thumbnail_url    | text        | YES  |                   | 缩略图URL                                  |
-| duration_seconds | integer     | YES  |                   | 时长（秒）                                 |
-| file_size_bytes  | bigint      | YES  |                   | 文件大小（字节）                           |
-| storage_path     | text        | NO   |                   | ⭐ **新增**：Supabase Storage 中的文件路径 |
-| storage_bucket   | text        | YES  | 'videos'          | ⭐ **新增**：存储桶名称                    |
-| upload_status    | text        | YES  | 'uploaded'        | ∈ {'uploading','uploaded','failed'}        |
-| coach_feedback   | text        | YES  |                   | 教练反馈                                   |
-| coach_rating     | integer     | YES  |                   | 教练评分（1-5）                            |
-| reviewed_at      | timestamptz | YES  |                   | 审核时间                                   |
-| reviewed_by      | uuid        | YES  |                   | 外键 → users.id（审核人）                  |
-| user_notes       | text        | YES  |                   | ⭐ **新增**：用户备注                       |
+| 列名             | 类型        | 可空 | 默认值            | 约束/备注                                                     |
+| ---------------- | ----------- | ---- | ----------------- | ------------------------------------------------------------- |
+| id               | uuid        | NO   | gen_random_uuid() | 主键                                                          |
+| execution_id     | uuid        | NO   |                   | 外键 → plan_instance_executions.id                            |
+| action_id        | uuid        | NO   |                   | 动作ID                                                        |
+| set_number       | integer     | NO   |                   | 组号（≥ 1）                                                   |
+| video_url        | text        | NO   |                   | 视频URL                                                       |
+| thumbnail_url    | text        | YES  |                   | 缩略图URL                                                     |
+| duration_seconds | integer     | YES  |                   | 时长（秒）                                                    |
+| file_size_bytes  | bigint      | YES  |                   | 文件大小（字节）                                              |
+| storage_path     | text        | NO   |                   | ⭐ **新增**：Supabase Storage 中的文件路径                    |
+| storage_bucket   | text        | YES  | 'videos'          | ⭐ **新增**：存储桶名称                                       |
+| upload_status    | text        | YES  | 'uploaded'        | ∈ {'uploading','uploaded','failed'}                           |
+| coach_feedback   | text        | YES  |                   | 教练反馈                                                      |
+| coach_rating     | integer     | YES  |                   | 教练评分（1-5）                                               |
+| reviewed_at      | timestamptz | YES  |                   | 审核时间                                                      |
+| reviewed_by      | uuid        | YES  |                   | 外键 → users.id（审核人）                                     |
+| user_notes       | text        | YES  |                   | ⭐ **新增**：用户备注                                         |
 | review_status    | text        | YES  | 'pending'         | ⭐ **新增**：审核状态 ∈ {'pending','reviewed','not_required'} |
-| requires_review   | boolean     | YES  | true              | ⭐ **新增**：是否需要审核                   |
-| exercise_name    | text        | YES  |                   | ⭐ **新增**：动作名称                       |
-| created_at       | timestamptz | NO   | now()             |                                            |
+| requires_review  | boolean     | YES  | true              | ⭐ **新增**：是否需要审核                                     |
+| exercise_name    | text        | YES  |                   | ⭐ **新增**：动作名称                                         |
+| created_at       | timestamptz | NO   | now()             |                                                               |
 
 **索引**
 
@@ -1467,7 +1473,8 @@
 - `idx_set_videos_execution` (execution_id) - 普通索引
 - `idx_set_videos_action` (action_id) - 普通索引
 - `idx_set_videos_created` (created_at DESC) - 普通索引
-- `idx_execution_set_videos_review_status` (review_status) WHERE requires_review = true AND review_status = 'pending' - 部分索引
+- `idx_execution_set_videos_review_status` (review_status) WHERE requires_review
+  = true AND review_status = 'pending' - 部分索引
 - `execution_set_videos_execution_id_action_id_set_number_key` (execution_id,
   action_id, set_number) - 唯一索引
 
@@ -1605,17 +1612,17 @@
 
 **字段说明**
 
-| 列名       | 类型        | 可空 | 默认值            | 约束/备注                                                      |
-| ---------- | ----------- | ---- | ----------------- | -------------------------------------------------------------- |
-| id         | uuid        | NO   | gen_random_uuid() | 主键                                                           |
-| user_id    | uuid        | NO   |                   | 外键 → users.id，所属用户ID                                    |
-| name       | text        | NO   |                   | 动作名称                                                       |
-| detail     | text        | YES  |                   | 动作详情说明                                                   |
-| positions  | text[]      | YES  |                   | 涉及部位                                                       |
-| attrs      | text[]      | YES  | ['组数','次数','强度','休息时间'] | 动作属性列表                                                   |
-| url        | text        | YES  |                   | 参考视频链接                                                   |
-| created_at | timestamptz | YES  | now()             |                                                                |
-| updated_at | timestamptz | YES  | now()             |                                                                |
+| 列名       | 类型        | 可空 | 默认值                            | 约束/备注                   |
+| ---------- | ----------- | ---- | --------------------------------- | --------------------------- |
+| id         | uuid        | NO   | gen_random_uuid()                 | 主键                        |
+| user_id    | uuid        | NO   |                                   | 外键 → users.id，所属用户ID |
+| name       | text        | NO   |                                   | 动作名称                    |
+| detail     | text        | YES  |                                   | 动作详情说明                |
+| positions  | text[]      | YES  |                                   | 涉及部位                    |
+| attrs      | text[]      | YES  | ['组数','次数','强度','休息时间'] | 动作属性列表                |
+| url        | text        | YES  |                                   | 参考视频链接                |
+| created_at | timestamptz | YES  | now()                             |                             |
+| updated_at | timestamptz | YES  | now()                             |                             |
 
 **外键**
 
@@ -1637,15 +1644,15 @@
 
 **字段说明**
 
-| 列名          | 类型        | 可空 | 默认值            | 约束/备注                    |
-| ------------- | ----------- | ---- | ----------------- | ---------------------------- |
-| id            | uuid        | NO   | gen_random_uuid() | 主键                         |
-| user_id       | uuid        | NO   |                   | 外键 → users.id，所属用户ID  |
-| name          | text        | NO   |                   | 计划名称                     |
-| description   | text        | YES  |                   | 计划描述                     |
-| training_days | jsonb       | NO   |                   | 训练日数据（JSON格式）       |
-| created_at    | timestamptz | YES  | now()             |                              |
-| updated_at    | timestamptz | YES  | now()             |                              |
+| 列名          | 类型        | 可空 | 默认值            | 约束/备注                   |
+| ------------- | ----------- | ---- | ----------------- | --------------------------- |
+| id            | uuid        | NO   | gen_random_uuid() | 主键                        |
+| user_id       | uuid        | NO   |                   | 外键 → users.id，所属用户ID |
+| name          | text        | NO   |                   | 计划名称                    |
+| description   | text        | YES  |                   | 计划描述                    |
+| training_days | jsonb       | NO   |                   | 训练日数据（JSON格式）      |
+| created_at    | timestamptz | YES  | now()             |                             |
+| updated_at    | timestamptz | YES  | now()             |                             |
 
 **外键**
 
@@ -1973,22 +1980,31 @@ GROUP BY user_id, plan_id;
 **最新变更（2025-12-29）：**
 
 1. 📝 **字段新增**：
-   - `coach_pricing.products` (jsonb) - 产品信息（JSON格式），用于存储教练的产品配置
-   - `coach_plan_templates.global_answers` (jsonb) - 全局选项问题的答案，格式: {"问题名": 选项索引}，用于AI计划匹配
+   - `coach_pricing.products` (jsonb) -
+     产品信息（JSON格式），用于存储教练的产品配置
+   - `coach_plan_templates.global_answers` (jsonb) - 全局选项问题的答案，格式:
+     {"问题名": 选项索引}，用于AI计划匹配
    - `execution_set_videos.user_notes` (text) - 用户备注
-   - `execution_set_videos.review_status` (text) - 审核状态，∈ {'pending','reviewed','not_required'}
+   - `execution_set_videos.review_status` (text) - 审核状态，∈
+     {'pending','reviewed','not_required'}
    - `execution_set_videos.requires_review` (boolean) - 是否需要审核
    - `execution_set_videos.exercise_name` (text) - 动作名称
-   - `coach_plan_instances.source` (text) - 计划来源，'coach'=教练分配，'self'=学员自建
+   - `coach_plan_instances.source` (text) -
+     计划来源，'coach'=教练分配，'self'=学员自建
 
 2. ⭐ **新增表（2个）**：
    - `student_actions` - 学员个人动作库表，用于存储学员自定义的动作
-   - `student_plan_favorites` - 学员常用计划表，用于存储学员保存的训练计划模板（可复用）
+   - `student_plan_favorites` -
+     学员常用计划表，用于存储学员保存的训练计划模板（可复用）
 
 3. 🔍 **索引新增**：
-   - `coach_plan_instances` 表新增 `idx_coach_plan_instances_start_execution_day` 索引
-   - `execution_set_videos` 表新增 `idx_execution_set_videos_review_status` 部分索引（用于优化待审核视频查询）
-   - `shipping_info` 表新增多个索引（`idx_shipping_info_created_at`, `idx_shipping_info_status`, `idx_shipping_info_user_id`, `idx_shipping_info_user_prize`）
+   - `coach_plan_instances` 表新增
+     `idx_coach_plan_instances_start_execution_day` 索引
+   - `execution_set_videos` 表新增 `idx_execution_set_videos_review_status`
+     部分索引（用于优化待审核视频查询）
+   - `shipping_info` 表新增多个索引（`idx_shipping_info_created_at`,
+     `idx_shipping_info_status`, `idx_shipping_info_user_id`,
+     `idx_shipping_info_user_prize`）
 
 4. 📊 **数据统计更新**：
    - `user_profiles`: 95 → 108 行

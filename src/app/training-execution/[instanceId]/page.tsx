@@ -201,10 +201,17 @@ function TrainingExecutionContent() {
                         actionExecution.action_id,
                         setIndex + 1
                     );
-                    if (uploadRes?.data?.video_url) {
+                    if (uploadRes?.success && uploadRes?.data?.video_url) {
                         uploadedVideoUrl = uploadRes.data.video_url;
                         uploadedVideoId = uploadRes.data.id;
                         hasVideo = true;
+                    } else {
+                        const msg = uploadRes?.message || '视频上传失败';
+                        showToast({
+                            severity: 'warn',
+                            summary: '视频上传失败',
+                            detail: msg,
+                        });
                     }
                 } catch (err) {
                     console.error('Video upload failed:', err);

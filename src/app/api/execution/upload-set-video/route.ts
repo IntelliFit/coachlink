@@ -5,6 +5,12 @@ import supabase from "@/lib/supabaseClient";
 import { v4 as uuidv4 } from "uuid";
 import type { UploadSetVideoResponseDto } from "../entity";
 
+// 运行在 Node.js，以避免 Edge 运行时的流式限制
+export const runtime = "nodejs";
+// 明确提升单请求体大小限制，默认仅 ~10MB
+export const maxDuration = 300;
+export const preferredRegion = "auto";
+
 /**
  * POST /api/execution/upload-set-video
  *
@@ -33,6 +39,15 @@ export async function POST(req: Request) {
             return NextResponse.json<UploadSetVideoResponseDto>(
                 { success: false, message: "缺少参数" },
                 { status: 400 },
+            );
+        }
+
+        // 防止超大文件导致请求体截断或锁定（Next 默认 10MB）
+        const maxSizeBytes = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSizeBytes) {
+            return NextResponse.json<UploadSetVideoResponseDto>(
+                { success: false, message: "视频过大，单个视频请小于 50MB" },
+                { status: 413 },
             );
         }
 

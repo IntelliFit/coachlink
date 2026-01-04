@@ -10,6 +10,7 @@ export type UpdateSubscriptionDto =
         product_name?: string | null;
         product_tier?: string | null;
         subscribed_weeks?: number | null;
+        prior_training_weeks?: number | null; // 学员迁入平台前已跟随教练训练的周数
     };
 
 // 返回参数的接口类型
