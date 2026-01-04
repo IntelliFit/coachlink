@@ -14,7 +14,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { adminService } from '@/app/service/adminService';
 import { useToastContext } from '@/context/ToastContext';
-import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn } from 'lucide-react';
+import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings } from 'lucide-react';
 
 export default function NavigationAdmin() {
     const pathname = usePathname();
@@ -81,6 +81,13 @@ export default function NavigationAdmin() {
             icon: Trophy,
             url: '/admin/rankings',
             command: () => router.push('/admin/rankings'),
+            template: itemRenderer
+        },
+        {
+            label: '平台设置',
+            icon: Settings,
+            url: '/admin/settings',
+            command: () => router.push('/admin/settings'),
             template: itemRenderer
         }
     ], [router, navData, pathname]);

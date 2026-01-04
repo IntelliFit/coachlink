@@ -23,7 +23,9 @@ import {
     Sun, 
     ChevronDown,
     LogIn,
-    User
+    User,
+    Activity,
+    Users
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -70,6 +72,7 @@ export default function NavigationStudent() {
 
     const studentMenuItems = useMemo(() => [
         { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), template: itemRenderer },
+        { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
         { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), template: itemRenderer },
         { label: '训练计划', icon: ClipboardList, url: '/coach/plans', command: () => router.push('/coach/plans'), template: itemRenderer },
         { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
@@ -79,6 +82,7 @@ export default function NavigationStudent() {
     const userMenuItems = useMemo(() => [
         { label: '我的订阅', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
         { separator: true },
+        { label: '我的好友', icon: 'pi pi-users', command: () => router.push('/friends') },
         { label: '我的动作库', icon: 'pi pi-list', command: () => router.push('/me/action-lib') },
         { label: '常用计划', icon: 'pi pi-bookmark', command: () => router.push('/me/plan-lib') },
         { separator: true },

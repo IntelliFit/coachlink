@@ -8,7 +8,7 @@ import {
 } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { callGemini, parseJsonResponse } from "@/lib/gemini";
+import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
 
 /**
  * 学员版：解析动作
@@ -54,19 +54,36 @@ export async function POST(req: Request) {
         // 构建 Prompt
         const prompt = buildParseActionsPrompt(text, existingActions || []);
 
-        // 调用 Gemini API
-        const response = await callGemini(prompt);
+        // 调用 DeepSeek API
+        const response = await callDeepSeek(prompt);
         const parsedResult = parseJsonResponse<
             { actions: GeminiParsedAction[] }
         >(response);
 
-        // 处理解析结果，标记是否为新动作
-        const actions: ParsedStudentActionInfo[] = parsedResult.actions.map(
-            (action) => ({
-                ...action,
-                isNew: !action.matchedExistingId,
-            }),
-        );
+        // 处理解析结果，标记是否为新动作，并将新动作排在前面
+        const seenExisting = new Set<string>();
+
+        const actions: ParsedStudentActionInfo[] = parsedResult.actions
+            .map((action, idx) => {
+                const isNew = !action.matchedExistingId;
+                const matchedExistingId = action.matchedExistingId || null;
+                return { ...action, matchedExistingId, isNew, _idx: idx } as any;
+            })
+            .map((action) => {
+                if (action.matchedExistingId) {
+                    if (seenExisting.has(action.matchedExistingId)) {
+                        return { ...action, matchedExistingId: null, isNew: true };
+                    }
+                    seenExisting.add(action.matchedExistingId);
+                }
+                return action;
+            })
+            // 新动作优先，其次保持原顺序
+            .sort((a, b) => {
+                if (a.isNew !== b.isNew) return a.isNew ? -1 : 1;
+                return (a._idx ?? 0) - (b._idx ?? 0);
+            })
+            .map(({ _idx, ...rest }) => rest);
 
         return NextResponse.json<ApiData<ParseStudentActionsResponseDto>>({
             success: true,
@@ -108,6 +125,11 @@ ${actionsListStr}
 3. 判断动作是否"包含自重"（如引体向上、臂屈伸、俯卧撑、悬挂等自重动作应为 true）
 4. 如果动作在已有动作库中存在（名称相似即可），记录匹配ID
 5. 确定动作的属性：通常包含 "组数", "次数", "强度", "休息时间"
+6. 对可能的同义/缩写进行合并：请对动作名进行清洗（去除括号内补充信息、前后空格、全角半角差异、大小写差异、常见缩写），如果判定为同一个动作请只输出一次，并匹配同一个 existingId；例如“锤式弯举”和“锤式”应视为同一动作
+7. 严格避免过度合并：凡是动作执行方式/握法/姿势/器械不同（如“引体向上” vs “反手引体” vs “窄握引体”）都视为不同动作；只有当核心动作本质一致且差异仅限于别称/简称时才合并。如果不确定，宁可输出为两个新动作。
+8. 输出顺序：请先输出所有未能匹配的“新动作”（matchedExistingId=null），再输出匹配到已有库的动作
+9. 匹配阈值：只有名称高度相似时才填 matchedExistingId；相似度不高时请留 null（优先新动作，宁可少匹配）
+10. 同一 existingId 只能匹配一次；如果你认为多个动作对应同一 existingId，只保留第一个匹配，其余保持 matchedExistingId=null
 
 训练计划文本：
 """
