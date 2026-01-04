@@ -1,8 +1,10 @@
+import type { VideoReferenceItem } from "../send-message/entity";
+
 export interface GetMessagesDto {
     roomId: string;
     page?: number;
     limit?: number;
-    beforeId?: string;  // 用于分页加载更多历史消息
+    beforeId?: string; // 用于分页加载更多历史消息
 }
 
 export interface MessageItem {
@@ -21,6 +23,9 @@ export interface MessageItem {
     isRead: boolean;
     createdAt: string;
     isMine: boolean;
+    contentMetadata?: {
+        video_references?: VideoReferenceItem[];
+    } | null;
 }
 
 export interface GetMessagesResponseDto {
@@ -28,4 +33,3 @@ export interface GetMessagesResponseDto {
     has_more: boolean;
     total: number;
 }
-

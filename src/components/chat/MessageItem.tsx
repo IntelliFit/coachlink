@@ -3,6 +3,7 @@
 import { Avatar } from 'primereact/avatar';
 import { Image } from 'primereact/image';
 import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
+import { VideoRefCard } from '@/components/chat/VideoRefCard';
 import MarkdownIt from 'markdown-it';
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
@@ -116,6 +117,23 @@ export function MessageItem({ message }: MessageItemProps) {
                         </div>
                         <i className="pi pi-download" />
                     </a>
+                );
+
+            case 'video_reference':
+                // 渲染视频引用卡片
+                const videoRefs = message.contentMetadata?.video_references;
+                if (videoRefs && videoRefs.length > 0) {
+                    return <VideoRefCard videos={videoRefs} isMine={message.isMine} />;
+                }
+                // 如果没有视频引用数据，fallback 到默认显示
+                return (
+                    <div className={`px-4 py-2 rounded-lg ${
+                        message.isMine
+                            ? 'bg-primary-500 text-surface'
+                            : 'bg-surface-100 text-surface-900'
+                    }`}>
+                        {message.content}
+                    </div>
                 );
 
             default:

@@ -73,7 +73,18 @@ class ExecutionService {
             method: "POST",
             body: formData,
         });
-        return response.json();
+
+        // 避免服务端返回 HTML 时前端 JSON.parse 报错
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            return {
+                success: false,
+                message: response.ok ? "视频上传返回异常" : `上传失败(${response.status})`,
+                raw: text,
+            };
+        }
     }
 
     /**

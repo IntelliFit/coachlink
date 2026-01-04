@@ -1,19 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
+import { InputNumber } from 'primereact/inputnumber';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
+import { subscriptionService } from '@/app/service/subscriptionService';
 import {
     Calendar, User, Target, Video,
     MessageCircle, FileText, Info,
     ChevronRight, Activity, Clock, X,
-    MessageSquare
+    MessageSquare, History, Edit2, Check
 } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { Button } from 'primereact/button';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
+
 
 interface StudentDetailDialogProps {
     visible: boolean;
@@ -22,10 +26,34 @@ interface StudentDetailDialogProps {
     onHide: () => void;
     onShowReviewDialog?: () => void;
     onShowChatDialog?: () => void;
+    onStudentUpdate?: (updatedStudent: Partial<StudentSubscription>) => void;
 }
 
-export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog }: StudentDetailDialogProps) => {
+export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog, onStudentUpdate }: StudentDetailDialogProps) => {
     const profile = student?.profile;
+    
+    // 编辑prior_training_weeks的状态
+    const [isEditingPriorWeeks, setIsEditingPriorWeeks] = useState(false);
+    const [priorWeeksValue, setPriorWeeksValue] = useState<number | null>(student?.prior_training_weeks ?? 0);
+    const [isSavingPriorWeeks, setIsSavingPriorWeeks] = useState(false);
+
+    // 保存prior_training_weeks
+    const savePriorTrainingWeeks = async () => {
+        if (!student) return;
+        setIsSavingPriorWeeks(true);
+        try {
+            await subscriptionService.updateSubscription({
+                id: student.id,
+                prior_training_weeks: priorWeeksValue,
+            });
+            onStudentUpdate?.({ ...student, prior_training_weeks: priorWeeksValue });
+            setIsEditingPriorWeeks(false);
+        } catch (error) {
+            console.error('保存失败:', error);
+        } finally {
+            setIsSavingPriorWeeks(false);
+        }
+    };
 
     if (!student) return null;
 
@@ -39,11 +67,21 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         });
     };
 
+    // 计算总训练周数
+    const getTotalTrainingWeeks = () => {
+        const priorWeeks = student.prior_training_weeks || 0;
+        const startDate = new Date(student.start_date);
+        const now = new Date();
+        const platformWeeks = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        return priorWeeks + Math.max(0, platformWeeks);
+    };
+
     const tierConfig = {
         3: { label: '全能指导版', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         2: { label: '专业指导版', color: 'text-primary-600', bg: 'bg-primary-50', border: 'border-primary-100' },
         1: { label: '特惠版', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
     }[Number(student.tier)] || { label: '基础套餐', color: 'text-surface-600', bg: 'bg-surface-50', border: 'border-surface-100' };
+
 
     return (
         <Dialog
@@ -144,6 +182,66 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                 <p className={`text-xs font-black ${getPendingReviews() > 0 ? 'text-amber-700' : 'text-surface-700'}`}>
                                     {getPendingReviews()} 份
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 训练时长统计栏 - 可编辑 */}
+                    <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center text-purple-600 shadow-sm">
+                                    <History size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-purple-600 uppercase tracking-tight">总跟随周数</p>
+                                    <p className="text-lg font-black text-surface-900">
+                                        {getTotalTrainingWeeks()} 周
+                                        <span className="text-xs font-medium text-surface-400 ml-2">
+                                            (平台前 {student.prior_training_weeks || 0} 周 + 平台内)
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* 编辑按钮或编辑表单 */}
+                            <div className="flex items-center gap-2">
+                                {isEditingPriorWeeks ? (
+                                    <>
+                                        <InputNumber
+                                            value={priorWeeksValue}
+                                            onValueChange={(e) => setPriorWeeksValue(e.value ?? 0)}
+                                            min={0}
+                                            max={520}
+                                            suffix=" 周"
+                                            inputClassName="w-20 text-center text-sm font-bold"
+                                            className="p-inputtext-sm"
+                                        />
+                                        <Button
+                                            icon={<Check size={16} />}
+                                            className="p-button-success p-button-sm rounded-xl"
+                                            onClick={savePriorTrainingWeeks}
+                                            loading={isSavingPriorWeeks}
+                                            tooltip="保存"
+                                        />
+                                        <Button
+                                            icon={<X size={16} />}
+                                            className="p-button-secondary p-button-text p-button-sm rounded-xl"
+                                            onClick={() => {
+                                                setIsEditingPriorWeeks(false);
+                                                setPriorWeeksValue(student.prior_training_weeks ?? 0);
+                                            }}
+                                            tooltip="取消"
+                                        />
+                                    </>
+                                ) : (
+                                    <Button
+                                        icon={<Edit2 size={14} />}
+                                        label="编辑迁入前周数"
+                                        className="p-button-text p-button-sm text-purple-600 hover:bg-purple-100 rounded-xl"
+                                        onClick={() => setIsEditingPriorWeeks(true)}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>
