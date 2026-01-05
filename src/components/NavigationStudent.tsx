@@ -130,13 +130,20 @@ export default function NavigationStudent() {
             ) : session?.user ? (
                 <>
                     <div className="flex items-center gap-0.5 bg-surface-50 p-1 rounded-2xl mr-2">
-                        <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all">
-                            <Bell size={20} />
+                        <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all pi pi-bell p-overlay-badge">
                             <MessageBadge className="absolute top-1.5 right-1.5 border-2 border-surface-50" />
                         </button>
-                        <button onClick={toggleTheme} className="p-2 rounded-xl text-surface-500 hover:bg-surface transition-all">
-                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                        </button>
+                        <button
+                            onClick={toggleTheme}
+                            className={`
+                                p-2 rounded-xl transition-all pi 
+                                ${theme === 'light'
+                                                        ? 'pi-moon text-surface-500 hover:text-indigo-600' // 亮色时显月亮，悬浮变靛蓝
+                                                        : 'pi-sun text-yellow-500 hover:text-yellow-400'  // 暗色时显太阳，悬浮变浅黄
+                                                    } 
+                                hover:bg-surface
+                            `}
+                        />
                     </div>
 
                     <div
