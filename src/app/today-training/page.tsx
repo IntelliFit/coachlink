@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Skeleton } from 'primereact/skeleton';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
@@ -15,6 +16,8 @@ import { useToastContext } from '@/context/ToastContext';
 import TodayTrainingCard from './TodayTrainingCard';
 import RestDayCard from './RestDayCard';
 import BrowseSection from './BrowseSection';
+
+import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -43,6 +46,10 @@ const TodayTrainingPage: React.FC = () => {
     const [executionStatus, setExecutionStatus] = useState<'none' | 'in_progress' | 'completed'>('none');
     const [completedSets, setCompletedSets] = useState(0);
     const [totalSets, setTotalSets] = useState(0);
+    
+    // 计划完成弹窗状态
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [completedPlanInfo, setCompletedPlanInfo] = useState<{name: string, rate: number} | null>(null);
 
     // 当前激活的计划（根据 planMode 动态选择）
     const instance = planMode === 'coach' ? coachInstance : selfInstance;
@@ -82,7 +89,6 @@ const TodayTrainingPage: React.FC = () => {
                 setCoachInstance(coachRes.instance);
                 setCoachActions(coachRes.actions || {});
                 
-                // 获取教练计划的执行天数和今日完成状态
                 try {
                     const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
                     const nextDayData = await nextDayRes.json();
@@ -90,6 +96,15 @@ const TodayTrainingPage: React.FC = () => {
                         setCoachDayIndex(nextDayData.data.nextDayIndex);
                         setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
                         setCoachCompletionDates(nextDayData.data.completionDates || {});
+                        
+                        // 检查是否完成所有计划
+                        const completedCount = nextDayData.data.completedDays.length;
+                        const totalCount = nextDayData.data.totalTrainingDays;
+                        
+                        if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
+                             // 自动标记为完成
+                             await handleCompletePlan(coachRes.instance);
+                        }
                     }
                 } catch (e) {
                     const startDay = (coachRes.instance as any).start_execution_day || 1;
@@ -102,7 +117,6 @@ const TodayTrainingPage: React.FC = () => {
                 setSelfInstance(selfRes.instance);
                 setSelfActions(selfRes.actions || {});
                 
-                // 获取自建计划的执行天数和今日完成状态
                 try {
                     const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
                     const nextDayData = await nextDayRes.json();
@@ -110,6 +124,15 @@ const TodayTrainingPage: React.FC = () => {
                         setSelfDayIndex(nextDayData.data.nextDayIndex);
                         setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
                         setSelfCompletionDates(nextDayData.data.completionDates || {});
+                         
+                        // 检查是否完成所有计划
+                        const completedCount = nextDayData.data.completedDays.length;
+                        const totalCount = nextDayData.data.totalTrainingDays;
+                        
+                        if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
+                             // 自动标记为完成
+                             await handleCompletePlan(selfRes.instance);
+                        }
                     }
                 } catch (e) {
                     const startDay = (selfRes.instance as any).start_execution_day || 1;
@@ -134,6 +157,92 @@ const TodayTrainingPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+    
+    // 处理计划完成
+    const handleCompletePlan = async (targetInstance: any) => {
+        try {
+             const res = await fetch('/api/plan-lib/complete-instance', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ instanceId: targetInstance.id })
+             });
+             
+             if (res.ok) {
+                 setCompletedPlanInfo({
+                     name: targetInstance.name,
+                     rate: 100
+                 });
+                 setShowCompletionModal(true);
+             }
+        } catch (error) {
+            console.error('完成计划失败', error);
+        }
+    };
+
+    // 移除自建计划
+    const handleRemoveSelfPlan = async () => {
+        if (!selfInstance) return;
+        
+        try {
+            await planLibService.deleteInstance({ id: selfInstance.id });
+            setSelfInstance(null);
+            
+            // 如果有教练计划，切换到教练计划
+            if (coachInstance) {
+                setPlanMode('coach');
+            }
+            
+            showToast({
+                severity: 'success',
+                summary: '已移除',
+                detail: '计划已从今日训练中移除',
+            });
+        } catch (error) {
+            console.error('移除计划失败:', error);
+            showToast({
+                severity: 'error',
+                summary: '移除失败',
+                detail: '无法移除计划，请稍后重试',
+            });
+        }
+    };
+
+    // 确认移除对话框
+    const confirmRemovePlan = () => {
+        confirmDialog({
+            message: '确定要移除这个计划吗？移除后将不会在今日训练中显示，但训练记录会保留。',
+            header: '确认移除计划',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger',
+            acceptLabel: '确认移除',
+            rejectLabel: '取消',
+            accept: handleRemoveSelfPlan,
+        });
+    };
+    
+    // 跳转到问卷更新页面（教练主页）
+    const handleUpdateProfile = () => {
+        // 导航到教练主页，并触发问卷填写对话框
+        if (subscription?.coach_id) {
+            router.push(`/coach/profile/${subscription.coach_id}?action=questionnaire`); 
+        } else {
+            // 没有教练订阅，回退到个人档案
+            router.push('/me/profile');
+        }
+    };
+
+    const handleGenerateNextPlan = () => {
+        // 跳转到 AI 生成页面或计划库页面
+        if (subscription?.id) {
+             router.push(`/me/plan-lib?subscriptionId=${subscription.id}`);
+        } else {
+             router.push('/me/plan-lib');
+        }
+    };
+    
+    const handleViewHistory = () => {
+        router.push('/me/plan-history');
     };
 
 if (loading) {
@@ -206,6 +315,22 @@ if (loading) {
 
 return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12">
+        {/* 确认对话框 */}
+        <ConfirmDialog />
+        
+        {/* 计划完成弹窗 */}
+        {completedPlanInfo && (
+            <PlanCompletionModal
+                visible={showCompletionModal}
+                onHide={() => setShowCompletionModal(false)}
+                planName={completedPlanInfo.name}
+                completionRate={completedPlanInfo.rate}
+                onUpdateProfile={handleUpdateProfile}
+                onGenerateNextPlan={handleGenerateNextPlan}
+                onViewHistory={handleViewHistory}
+            />
+        )}
+        
         <div className="max-w-6xl mx-auto px-4 py-8">
             {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
             {hasBothPlans && (
@@ -276,10 +401,11 @@ return (
 
             )}
 
-            {/* 自建计划顶部卡片 */}
+            {/* 自建计划顶部卡片 - 带移除按钮 */}
             {instance?.source === 'self' && (
                 <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
-                    <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-purple-500/20 rounded-full blur-3xl"></div>
+                    {/* 背景装饰图形 */}
+                    <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                     <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-pink-500/10 rounded-full blur-2xl"></div>
 
                     <div className="relative z-10 flex items-center justify-between">
@@ -304,6 +430,17 @@ return (
                                     自我驱动，超越极限
                                 </p>
                             </div>
+                        </div>
+
+                        {/* 移除计划按钮 */}
+                        <div className="flex items-center gap-2">
+                            <Button
+                                icon="pi pi-trash"
+                                className="p-button-text p-button-danger"
+                                tooltip="移除此计划"
+                                tooltipOptions={{ position: 'left' }}
+                                onClick={confirmRemovePlan}
+                            />
                         </div>
                     </div>
                 </div>

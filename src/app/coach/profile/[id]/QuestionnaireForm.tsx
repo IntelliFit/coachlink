@@ -24,6 +24,7 @@ interface QuestionnaireFormProps {
     questions: TrainingItem[];
     onSubmit: (answers: TrainingItem[]) => void;
     loading: boolean;
+    existingAnswers?: TrainingItem[]; // 学员的历史答案，用于预填
 }
 
 const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
@@ -32,7 +33,8 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     onHide,
     questions,
     onSubmit,
-    loading
+    loading,
+    existingAnswers
 }) => {
     const { showToast } = useToastContext();
     const [answers, setAnswers] = useState<TrainingItem[]>(questions);
@@ -46,9 +48,14 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     useEffect(() => {
         setAnswers(questions);
         if (visible && questions) {
-            loadSubscription();
+            // 如果传入了 existingAnswers，直接使用，否则从订阅加载
+            if (existingAnswers && existingAnswers.length > 0) {
+                mergeExistingAnswers(existingAnswers);
+            } else {
+                loadSubscription();
+            }
         }
-    }, [questions, visible]);
+    }, [questions, visible, existingAnswers]);
 
     useEffect(() => {
     }, [session?.user?.id, coach?.id]);
@@ -96,6 +103,41 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             fetchAutoComputeActions();
         }
     }, [visible, coach]);
+
+    // 合并历史答案到问卷
+    const mergeExistingAnswers = (subscribeData: TrainingItem[]) => {
+        const subscribeMap = new Map<string, any>();
+        const makeKey = (item: { type: string; question?: string }) => {
+            return item.question
+                ? `${item.type}::${item.question}`
+                : item.type;
+        };
+
+        subscribeData.forEach(item => {
+            subscribeMap.set(makeKey(item), item);
+        });
+
+        const newAnswers = questions.map(item => {
+            const key = makeKey(item);
+            const sItem = subscribeMap.get(key);
+            if (!sItem) return item;
+
+            switch (item.type) {
+                case 'tags':
+                    return { ...item, userSelections: sItem.userSelections };
+                case 'rm':
+                    return { ...item, userInputs: sItem.userInputs };
+                case 'times':
+                case 'option':
+                case 'text':
+                    return { ...item, userSelection: sItem.userSelection };
+                default:
+                    return item;
+            }
+        });
+
+        setAnswers(newAnswers);
+    };
 
     const loadSubscription = async () => {
         const res = await subscriptionService.getCoachSubscriptions({

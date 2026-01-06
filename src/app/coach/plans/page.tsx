@@ -400,8 +400,10 @@ const TrainingPlansHome: React.FC = () => {
         );
     };
 
-    // 执行详情组件
+    // 执行详情组件 - 可折叠版本
     const ExecutionDetailsSection = ({ execution }: { execution: any }) => {
+        const [collapsed, setCollapsed] = useState(true);
+        
         if (!execution || !execution.action_executions) return null;
 
         const completedSets = execution.action_executions.flatMap((ae: any) =>
@@ -415,64 +417,78 @@ const TrainingPlansHome: React.FC = () => {
 
         return (
             <div className="mt-4 border-t border-surface-200 pt-4">
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-3 border border-green-200">
-                    <span className="text-sm font-semibold text-green-700 flex items-center gap-2">
-                        <i className="pi pi-check-circle" />
-                        学员执行情况
-                    </span>
+                {/* 可折叠标题 */}
+                <div 
+                    className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 mb-3 border border-green-200 cursor-pointer select-none hover:bg-green-100 transition-colors"
+                    onClick={() => setCollapsed(!collapsed)}
+                >
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                            <i className="pi pi-check-circle" />
+                            学员执行情况
+                            <span className="ml-2 text-green-600 font-normal">
+                                ({completedSets.length} 组)
+                            </span>
+                        </span>
+                        <i className={`pi ${collapsed ? 'pi-chevron-down' : 'pi-chevron-up'} text-green-600 transition-transform`} />
+                    </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-surface-50 text-surface-600">
-                                <th className="px-3 py-2 text-left font-medium">动作</th>
-                                <th className="px-3 py-2 text-left font-medium">组数</th>
-                                <th className="px-3 py-2 text-left font-medium">重量</th>
-                                <th className="px-3 py-2 text-left font-medium">次数</th>
-                                <th className="px-3 py-2 text-left font-medium">RPE</th>
-                                <th className="px-3 py-2 text-left font-medium">备注</th>
-                                <th className="px-3 py-2 text-left font-medium">视频</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {completedSets.map((set: any, idx: number) => (
-                                <tr key={idx} className="border-t border-surface-100 hover:bg-surface-50">
-                                    <td className="px-3 py-2 font-medium text-surface-900">
-                                        {set.action_name}
-                                        {set.is_pr && <i className="pi pi-star-fill text-yellow-500 ml-2" />}
-                                    </td>
-                                    <td className="px-3 py-2">第 {set.set_number} 组</td>
-                                    <td className="px-3 py-2">{set.actual_weight ? `${set.actual_weight}kg` : '-'}</td>
-                                    <td className="px-3 py-2">{set.actual_reps ?? '-'}</td>
-                                    <td className="px-3 py-2">
-                                        {set.rpe ? (
-                                            <span className={set.rpe >= 9 ? 'text-red-600 font-medium' : ''}>
-                                                {set.rpe}
-                                            </span>
-                                        ) : '-'}
-                                    </td>
-                                    <td className="px-3 py-2 text-surface-600 max-w-[120px] truncate">
-                                        {set.notes || '-'}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {set.has_video && set.video_url ? (
-                                            <button
-                                                onClick={() => {
-                                                    setCurrentVideoUrl(set.video_url);
-                                                    setVideoModalVisible(true);
-                                                }}
-                                                className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                            >
-                                                <i className="pi pi-video text-sm" />
-                                                <span className="text-xs">查看</span>
-                                            </button>
-                                        ) : '-'}
-                                    </td>
+                
+                {/* 执行记录表格 - 折叠时隐藏 */}
+                {!collapsed && (
+                    <div className="overflow-x-auto animate-fadeIn">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-surface-50 text-surface-600">
+                                    <th className="px-3 py-2 text-left font-medium">动作</th>
+                                    <th className="px-3 py-2 text-left font-medium">组数</th>
+                                    <th className="px-3 py-2 text-left font-medium">重量</th>
+                                    <th className="px-3 py-2 text-left font-medium">次数</th>
+                                    <th className="px-3 py-2 text-left font-medium">RPE</th>
+                                    <th className="px-3 py-2 text-left font-medium">备注</th>
+                                    <th className="px-3 py-2 text-left font-medium">视频</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {completedSets.map((set: any, idx: number) => (
+                                    <tr key={idx} className="border-t border-surface-100 hover:bg-surface-50">
+                                        <td className="px-3 py-2 font-medium text-surface-900">
+                                            {set.action_name}
+                                            {set.is_pr && <i className="pi pi-star-fill text-yellow-500 ml-2" />}
+                                        </td>
+                                        <td className="px-3 py-2">第 {set.set_number} 组</td>
+                                        <td className="px-3 py-2">{set.actual_weight ? `${set.actual_weight}kg` : '-'}</td>
+                                        <td className="px-3 py-2">{set.actual_reps ?? '-'}</td>
+                                        <td className="px-3 py-2">
+                                            {set.rpe ? (
+                                                <span className={set.rpe >= 9 ? 'text-red-600 font-medium' : ''}>
+                                                    {set.rpe}
+                                                </span>
+                                            ) : '-'}
+                                        </td>
+                                        <td className="px-3 py-2 text-surface-600 max-w-[120px] truncate">
+                                            {set.notes || '-'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {set.has_video && set.video_url ? (
+                                                <button
+                                                    onClick={() => {
+                                                        setCurrentVideoUrl(set.video_url);
+                                                        setVideoModalVisible(true);
+                                                    }}
+                                                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                                >
+                                                    <i className="pi pi-video text-sm" />
+                                                    <span className="text-xs">查看</span>
+                                                </button>
+                                            ) : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         );
     };

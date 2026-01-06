@@ -27,6 +27,8 @@ import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import StudentPlanExecutionView from '@/components/training/StudentPlanExecutionView';
 import { Panel } from 'primereact/panel';
+import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
+import type { TrainingItem } from '@/types/questionnaires';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -71,6 +73,11 @@ const StudentPlanPage = () => {
     // 起始执行天数（用于显示"开始"标记）
     const [startExecutionDay, setStartExecutionDay] = useState<number | undefined>(undefined);
 
+    // 问卷编辑对话框
+    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
+    const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
+
     // Load instance data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
@@ -108,27 +115,36 @@ const StudentPlanPage = () => {
                     const instanceRes = await planLibService.getInstance(instanceReq);
 
                     if (instanceRes) {
-                        // Fill form with instance data
-                        setInstanceId(instanceRes.instance.id); // Save the instance ID
-                        setName(instanceRes.instance.name);
-                        setDescription(instanceRes.instance.description || '');
-
-                        // Convert days data to local format
-                        const convertedDays: FormPlanTrainingDay[] = (instanceRes.instance.training_days as any[] || []).map((day: any) => ({
-                            id: day.id,
-                            dayIndex: day.dayIndex,
-                            type: day.type as 'training' | 'rest',
-                            note: day.note || '',
-                            actionSets: day.actionSets || []
-                        })).sort((a, b) => a.dayIndex - b.dayIndex);
-
-                        setDays(convertedDays);
-                        setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
-                        setInstanceExists(true);
+                        const instance = instanceRes.instance;
                         
-                        // 设置起始执行天数
-                        if (instanceRes.instance.start_execution_day && instanceRes.instance.start_execution_day > 1) {
-                            setStartExecutionDay(instanceRes.instance.start_execution_day);
+                        // NOTE: 如果计划已完成，我们不填充表单，而是让教练创建新计划
+                        // 但是 StudentPlanExecutionView 仍然会显示旧计划的执行情况
+                        if (instance.status === 'active') {
+                            setInstanceExists(true);
+                            setInstanceId(instance.id);
+                            setName(instance.name);
+                            setDescription(instance.description || '');
+
+                            // Convert days data to local format
+                            const convertedDays: FormPlanTrainingDay[] = (instance.training_days as any[] || []).map((day: any) => ({
+                                id: day.id,
+                                dayIndex: day.dayIndex,
+                                type: day.type as 'training' | 'rest',
+                                note: day.note || '',
+                                actionSets: day.actionSets || []
+                            })).sort((a, b) => a.dayIndex - b.dayIndex);
+
+                            setDays(convertedDays);
+                            setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
+                            
+                            // 设置起始执行天数
+                            if (instance.start_execution_day && instance.start_execution_day > 1) {
+                                setStartExecutionDay(instance.start_execution_day);
+                            }
+                        } else if (instance.status === 'completed') {
+                            // 计划已完成，通知教练
+                            showToast({ severity: 'info', summary: '计划已完成', detail: '上一阶段计划已完成，请创建新计划' });
+                            setInstanceExists(false); // 这一步很重要，确保保存按钮是 "创建" 而不是 "更新"
                         }
                     }
                     // Load execution data for this subscription
@@ -470,6 +486,68 @@ const StudentPlanPage = () => {
             actionSets: day.actionSets
         }));    
 
+    // 打开问卷编辑对话框
+    const handleOpenQuestionnaire = async () => {
+        if (!subscription?.coach_id) {
+            showToast({ severity: 'error', summary: '无法获取教练信息' });
+            return;
+        }
+        
+        setQuestionnaireLoading(true);
+        try {
+            const qRes = await coachService.getQuestionnaires({
+                coachId: subscription.coach_id
+            });
+            
+            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+            } else {
+                showToast({ severity: 'info', summary: '该教练暂无问卷配置' });
+            }
+        } catch (error) {
+            console.error('获取问卷失败:', error);
+            showToast({ severity: 'error', summary: '获取问卷失败' });
+        } finally {
+            setQuestionnaireLoading(false);
+        }
+    };
+
+    // 保存问卷修改
+    const handleSaveQuestionnaire = async (answers: TrainingItem[]) => {
+        if (!subscription?.id) {
+            showToast({ severity: 'error', summary: '无法找到订阅信息' });
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/subscription/update-questionnaire', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subscriptionId: subscription.id,
+                    subscribeData: answers
+                })
+            });
+
+            if (res.ok) {
+                showToast({ severity: 'success', summary: '问卷更新成功' });
+                setQuestionnaireVisible(false);
+                
+                // 刷新学员数据
+                const studentRes = await coachService.getStudent({ subscriptionId: params.id.toString() });
+                if (studentRes) {
+                    setStudentData(studentRes.student);
+                }
+            } else {
+                showToast({ severity: 'error', summary: '问卷更新失败' });
+            }
+        } catch (error) {
+            console.error('保存问卷失败:', error);
+            showToast({ severity: 'error', summary: '保存问卷失败' });
+        }
+    };
+
     if (loading) {
         return (
             <div className="mx-auto">
@@ -563,22 +641,20 @@ const StudentPlanPage = () => {
                 />
 
                 {/* 学员执行情况展示 - 可折叠区域 */}
-                {instanceExists && (
-                    <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
-                        <Panel 
-                            header={
-                                <div className="flex items-center gap-2">
-                                    <i className="pi pi-chart-bar text-primary" />
-                                    <span className="font-semibold">学员执行情况</span>
-                                </div>
-                            }
-                            toggleable
-                            collapsed={true}
-                        >
-                            <StudentPlanExecutionView subscriptionId={params.id as string} />
-                        </Panel>
-                    </Card>
-                )}
+                <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
+                    <Panel 
+                        header={
+                            <div className="flex items-center gap-2">
+                                <i className="pi pi-chart-bar text-primary" />
+                                <span className="font-semibold">学员执行情况</span>
+                            </div>
+                        }
+                        toggleable
+                        collapsed={true}
+                    >
+                        <StudentPlanExecutionView subscriptionId={params.id as string} />
+                    </Panel>
+                </Card>
 
                 <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
@@ -646,6 +722,18 @@ const StudentPlanPage = () => {
                     </div>
                 </Card>
             </div>
+
+            {/* 问卷编辑对话框 */}
+            {subscription && coach && (
+                <QuestionnaireForm
+                    visible={questionnaireVisible}
+                    onHide={() => setQuestionnaireVisible(false)}
+                    questions={questionnaireQuestions}
+                    coach={coach as any}
+                    onSubmit={handleSaveQuestionnaire}
+                    loading={questionnaireLoading}
+                />
+            )}
         </div>
     );
 };

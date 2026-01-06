@@ -17,6 +17,11 @@ import { Button } from 'primereact/button';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
+import { StudentPlanHistory } from '@/components/coach/StudentPlanHistory';
+import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
+import { coachService } from '@/app/service/coachService';
+import type { TrainingItem } from '@/types/questionnaires';
+import { useToastContext } from '@/context/ToastContext';
 
 
 interface StudentDetailDialogProps {
@@ -37,6 +42,13 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [priorWeeksValue, setPriorWeeksValue] = useState<number | null>(student?.prior_training_weeks ?? 0);
     const [isSavingPriorWeeks, setIsSavingPriorWeeks] = useState(false);
 
+    // 问卷编辑状态
+    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
+    const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
+
+    const { showToast } = useToastContext();
+
     // 保存prior_training_weeks
     const savePriorTrainingWeeks = async () => {
         if (!student) return;
@@ -52,6 +64,44 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
             console.error('保存失败:', error);
         } finally {
             setIsSavingPriorWeeks(false);
+        }
+    };
+
+    // 打开问卷编辑
+    const handleOpenQuestionnaire = async () => {
+        setQuestionnaireLoading(true);
+        try {
+            const qRes = await coachService.getQuestionnaires({ coachId: coach.id });
+            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+            } else {
+                showToast({ severity: 'info', summary: '暂无问卷配置' });
+            }
+        } catch (error) {
+            showToast({ severity: 'error', summary: '获取问卷失败' });
+        } finally {
+            setQuestionnaireLoading(false);
+        }
+    };
+
+    // 保存问卷
+    const handleSaveQuestionnaire = async (answers: TrainingItem[]) => {
+        try {
+            const res = await fetch('/api/subscription/update-questionnaire', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subscriptionId: student.id, subscribeData: answers })
+            });
+            if (res.ok) {
+                showToast({ severity: 'success', summary: '问卷更新成功' });
+                setQuestionnaireVisible(false);
+                onStudentUpdate?.({ ...student, subscribe_data: { answers } as any });
+            } else {
+                showToast({ severity: 'error', summary: '问卷更新失败' });
+            }
+        } catch (error) {
+            showToast({ severity: 'error', summary: '保存失败' });
         }
     };
 
@@ -84,14 +134,15 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
 
 
     return (
+        <>
         <Dialog
             visible={visible}
             onHide={onHide}
-            style={{ width: '880px' }}
+            style={{ width: '880px', maxHeight: '90vh' }}
             modal
             draggable={false}
             showHeader={false}
-            contentClassName="p-0 rounded-lg overflow-hidden bg-surface"
+            contentClassName="p-0 rounded-lg overflow-y-auto bg-surface"
         >
             {/* 1. Header & Quick Info Profile */}
             <div className="relative">
@@ -248,7 +299,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                 </div>
             </div>
 
-            <div className="p-8 space-y-12 max-h-[65vh] overflow-y-auto bg-surface custom-scrollbar">
+            <div className="p-8 space-y-12 bg-surface custom-scrollbar">
                 {/* 2. Personal Profile Sections */}
                 <section className="space-y-6">
                     <div className="flex items-center gap-3 px-1">
@@ -280,14 +331,37 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                     </div>
                 </section>
 
-                {/* 5. Subscription Questionnaire - Chat-style UI */}
-                {student.subscribe_data?.answers?.length > 0 && (
-                    <section className="space-y-6">
-                        <div className="flex items-center gap-2 px-1">
+                {/* 5. Plan History - 计划历史 */}
+                <section className="space-y-6">
+                    <div className="flex items-center gap-3 px-1">
+                        <div className="w-1.5 h-6 bg-green-500 rounded-full" />
+                        <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">计划历史</h3>
+                    </div>
+                    <div className="bg-surface rounded-[32px] border border-surface-100 p-4">
+                        <StudentPlanHistory studentId={student.student_id} limit={5} />
+                    </div>
+                </section>
+
+                {/* 6. Subscription Questionnaire - Chat-style UI */}
+                <section className="space-y-6">
+                    <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
                             <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
                             <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">入营需求问卷</h3>
                         </div>
+                        <Button
+                            label="编辑问卷"
+                            icon={<Edit2 size={14} className="mr-1" />}
+                            size="small"
+                            text
+                            severity="warning"
+                            onClick={handleOpenQuestionnaire}
+                            loading={questionnaireLoading}
+                            className="text-xs"
+                        />
+                    </div>
 
+                    {student.subscribe_data?.answers?.length > 0 && (
                         <div className="space-y-4">
                             {student.subscribe_data.answers.map((item, index) => (
                                 <div key={index} className="group relative flex flex-col gap-2 p-5 rounded-[24px] bg-surface-50/50 border border-surface-100 hover:border-primary-100 hover:bg-surface transition-all">
@@ -301,7 +375,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                             </p>
                                             <div className="relative pl-4 border-l-2 border-surface-200 group-hover:border-primary-200 transition-colors">
                                                 <p className="text-sm text-surface-600 font-medium italic">
-                                                    “ {item.answer} ”
+                                                    " {item.answer} "
                                                 </p>
                                             </div>
                                         </div>
@@ -309,8 +383,8 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                 </div>
                             ))}
                         </div>
-                    </section>
-                )}
+                    )}
+                </section>
             </div>
 
             {/* Footer Action */}
@@ -322,5 +396,17 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                 />
             </div>
         </Dialog>
+
+        {/* 问卷编辑对话框 */}
+        <QuestionnaireForm
+            visible={questionnaireVisible}
+            onHide={() => setQuestionnaireVisible(false)}
+            questions={questionnaireQuestions}
+            coach={coach as any}
+            onSubmit={handleSaveQuestionnaire}
+            loading={questionnaireLoading}
+            existingAnswers={student.subscribe_data as any}
+        />
+        </>
     );
 };

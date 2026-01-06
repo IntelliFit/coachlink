@@ -233,6 +233,23 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                     <h3 className="text-xl font-semibold text-900 mr-2">第 {dayIndex + 1} 天 - W{Math.ceil((dayIndex + 1) / 7)}D{(dayIndex) % 7 + 1}</h3>
 
                     <div className="flex gap-2">
+                        {totalDays > 1 && (
+                            <Button
+                                icon="pi pi-trash"
+                                className="p-button-rounded p-button-danger p-button-text"
+                                onClick={() => {
+                                    confirmDialog({
+                                        message: '确定要删除这个训练日吗？后面的训练日将自动前移。',
+                                        header: '删除训练日',
+                                        icon: 'pi pi-exclamation-triangle',
+                                        accept: () => onRemoveDay(dayIndex),
+                                        reject: () => { }
+                                    });
+                                }}
+                                tooltip="删除此训练日"
+                                disabled={saving}
+                            />
+                        )}
                         <Button
                             label="训练日"
                             className={`p-button-sm ${day.type === 'training' ? '' : 'p-button-outlined'

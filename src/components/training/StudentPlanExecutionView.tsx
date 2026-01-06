@@ -347,7 +347,25 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({ sub
                         {instance.description || '暂无描述'}
                     </p>
                 </div>
+                {instance.status === 'completed' && (
+                    <Badge value="已完成" severity="success" size="large" />
+                )}
             </div>
+
+            {/* 计划完成 Banner */}
+            {instance.status === 'completed' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-4 animate-fade-in">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i className="pi pi-check text-green-600 text-xl font-bold" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="font-bold text-green-900 mb-1">本阶段训练已圆满完成！</h4>
+                        <p className="text-sm text-green-700">
+                            学员已完成本周期所有训练内容。您可以参考下方执行记录，在页面顶部创建下一阶段的训练计划。
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* 训练日列表 */}
             <div>

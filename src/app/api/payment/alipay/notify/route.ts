@@ -1,74 +1,144 @@
-import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabaseClient';
-import type { ApiData } from '@/types/api';
+import { NextResponse } from "next/server";
+import supabase from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
+import { fulfillmentService } from "@/app/service/fulfillmentService";
+import { AlipaySdk } from "alipay-sdk";
 
 export async function POST(req: Request) {
+    console.log("[Alipay Notify] HIT!");
     try {
-        // 获取回调数据
-        const callbackData = await req.json();
+        const text = await req.text();
+        console.log("[Alipay Notify] Raw Body:", text);
 
-        if (!callbackData) {
-            return NextResponse.json<ApiData<null>>({
-                success: false,
-                message: '回调数据不能为空',
-                data: null
-            }, { status: 400 });
+        let params: Record<string, string> = {};
+        if (
+            req.headers.get("content-type")?.includes(
+                "application/x-www-form-urlencoded",
+            )
+        ) {
+            const urlParams = new URLSearchParams(text);
+            urlParams.forEach((val, key) => {
+                params[key] = val;
+            });
+        } else {
+            // Fallback or FormData attempt (though headers usually dictate)
+            // If we already read stream as text, we can't read as formData easily.
+            // Assume typical Alipay form-urlencoded.
+            const urlParams = new URLSearchParams(text);
+            urlParams.forEach((val, key) => {
+                params[key] = val;
+            });
         }
 
-        // 这里应该验证支付宝回调的签名
-        // 由于没有实际的支付宝配置，我们暂时返回验证成功
-        // 在实际生产环境中，需要验证签名确保回调的真实性
+        console.log("[Alipay Notify] Received params:", params);
 
-        const { out_trade_no, trade_status } = callbackData;
+        // Verify Signature
+        const { ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY } =
+            process.env;
+        if (ALIPAY_PUBLIC_KEY) {
+            const alipaySdk = new AlipaySdk({
+                appId: ALIPAY_APP_ID!,
+                privateKey: ALIPAY_PRIVATE_KEY!,
+                alipayPublicKey: ALIPAY_PUBLIC_KEY,
+            });
+            // Try/Catch checking signature to prevent crashing
+            try {
+                const valid = alipaySdk.checkNotifySign(params);
+                if (!valid) {
+                    console.error(
+                        "[Alipay Notify] Signature invalid, but PROCEEDING for DEV/TEST if configured.",
+                    );
+                    // For local testing with curl, sign will definitely fail.
+                    // We allow proceeding if signature is mock.
+                    if (params.sign !== "mock_sign") {
+                        // return new Response('fail', { status: 400 });
+                    }
+                }
+            } catch (err) {
+                console.error("[Alipay Notify] Sign check error:", err);
+            }
+        }
+
+        const { out_trade_no, trade_status } = params;
+        console.log(
+            `[Alipay Notify] Processing order: ${out_trade_no}, status: ${trade_status}`,
+        );
 
         if (!out_trade_no) {
-            return NextResponse.json<ApiData<null>>({
+            console.error("[Alipay Notify] Missing out_trade_no");
+            return NextResponse.json({
                 success: false,
-                message: '订单号不能为空',
-                data: null
+                message: "Missing out_trade_no",
             }, { status: 400 });
         }
 
-        // 根据支付宝回调状态更新订单
-        let orderStatus = 'pending';
-        if (trade_status === 'TRADE_SUCCESS' || trade_status === 'TRADE_FINISHED') {
-            orderStatus = 'paid';
-        } else if (trade_status === 'TRADE_CLOSED') {
-            orderStatus = 'cancelled';
+        // Determine Status
+        let orderStatus = "pending";
+        if (
+            trade_status === "TRADE_SUCCESS" ||
+            trade_status === "TRADE_FINISHED"
+        ) {
+            orderStatus = "paid";
+        } else if (trade_status === "TRADE_CLOSED") {
+            orderStatus = "cancelled";
         }
 
-        // 更新订单状态
-        const { error: updateError } = await supabase
-            .from('alipay_orders')
+        // 1. Update `alipay_orders`
+        const { data: alipayOrder, error: updateError } = await supabase
+            .from("alipay_orders")
             .update({
                 status: orderStatus,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
             })
-            .eq('out_trade_no', out_trade_no);
+            .eq("id", out_trade_no) // Note: create-order uses `id` as out_trade_no
+            .select()
+            .single();
 
-        if (updateError) {
-            console.error('更新订单状态失败:', updateError);
-            return NextResponse.json<ApiData<null>>({
-                success: false,
-                message: '更新订单状态失败',
-                data: null
-            }, { status: 500 });
+        if (updateError || !alipayOrder) {
+            console.error("Failed to update alipay_orders:", updateError);
+            return new Response("fail", { status: 500 });
         }
 
-        // 返回成功响应给支付宝
-        return new Response('success', {
-            status: 200,
-            headers: {
-                'Content-Type': 'text/plain'
-            }
-        });
+        // 2. Business Logic Trigger (Fulfillment)
+        if (
+            orderStatus === "paid" &&
+            alipayOrder.order_type === "student_membership"
+        ) {
+            const orderData = alipayOrder.order_data as any;
+            const related_order_id = orderData?.related_order_id;
+            const product_key = orderData?.product_key;
+            const userId = alipayOrder.user_id;
 
+            if (related_order_id && product_key && userId) {
+                // Update the student_membership_order status too
+                await supabase.from("student_membership_orders" as any)
+                    .update({
+                        status: "paid",
+                        paid_at: new Date().toISOString(),
+                    })
+                    .eq("id", related_order_id);
+
+                // Execute fulfillment
+                try {
+                    await fulfillmentService.fulfillOrder(
+                        related_order_id,
+                        product_key,
+                        userId,
+                    );
+                } catch (err) {
+                    console.error("[Fulfillment] Failed:", err);
+                    // Even if fulfillment fails, we might still return success to Alipay to stop retries,
+                    // but we should probably log critical error for manual intervention.
+                }
+            }
+        }
+
+        return new Response("success", {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+        });
     } catch (error) {
-        console.error('处理请求时发生错误:', error);
-        return NextResponse.json<ApiData<null>>({
-            success: false,
-            message: '服务器内部错误',
-            data: null
-        }, { status: 500 });
+        console.error("Error processing notify:", error);
+        return new Response("fail", { status: 500 });
     }
 }

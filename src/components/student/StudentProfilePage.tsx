@@ -1,15 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { studentService } from '@/app/service/studentService';
+import { subscriptionService } from '@/app/service/subscriptionService';
+import { planLibService } from '@/app/service/planLibService';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { ProfileHeader } from './profile/ProfileHeader';
 import { PersonalInfoSection } from './profile/PersonalInfoSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
 import { CoachNotesSection } from './profile/CoachNotesSection';
 import { SportCardsDisplay } from './profile/SportCardsDisplay';
 import { MyCoachesList } from './profile/MyCoachesList';
+import { PlanPreferencesDisplay } from './profile/PlanPreferencesDisplay';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
 import { VideoCollectionSection } from './profile/VideoCollectionSection';
+import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
+import { coachService } from '@/app/service/coachService';
+import type { TrainingItem } from '@/types/questionnaires';
+import { useToastContext } from '@/context/ToastContext';
 
 interface StudentProfilePageProps {
     onBack?: () => void;
@@ -18,14 +26,44 @@ interface StudentProfilePageProps {
 const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<ProfileData | null>(null);
+    const [subscription, setSubscription] = useState<any>(null);
+    const [planStatus, setPlanStatus] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const { data: session } = useSession();
+    const router = useRouter();
+    const { showToast } = useToastContext();
+
+    // 问卷编辑状态
+    const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
+    const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
+    const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const profileRes = await studentService.getStudentProfile(session?.user.id);
+            
+            const [profileRes, subsRes] = await Promise.all([
+                studentService.getStudentProfile(session?.user.id),
+                subscriptionService.getCoachSubscriptions({ studentId: session?.user.id })
+            ]);
+            
+            let activeSub = null;
+            if (subsRes && subsRes.subscriptions && subsRes.subscriptions.length > 0) {
+                activeSub = subsRes.subscriptions[0];
+                setSubscription(activeSub);
+                
+                // 获取计划实例以检查状态
+                try {
+                    const instanceRes = await planLibService.getInstance({ subscriptionId: activeSub.id });
+                    if (instanceRes?.instance?.status) {
+                        setPlanStatus(instanceRes.instance.status);
+                    }
+                } catch (e) {
+                    // 没有计划实例，允许编辑
+                    setPlanStatus('completed');
+                }
+            }
             
             if (profileRes && session?.user) {
                 // Real data (no mock timeline data - ProgressTimeline fetches from API)
@@ -84,6 +122,49 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
         }
     };
 
+    // 打开问卷编辑对话框（不跳转）
+    const handleEditQuestionnaire = async () => {
+        if (!subscription?.coach_id) return;
+        
+        setQuestionnaireLoading(true);
+        try {
+            const qRes = await coachService.getQuestionnaires({ coachId: subscription.coach_id });
+            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+            } else {
+                showToast({ severity: 'info', summary: '暂无问卷配置' });
+            }
+        } catch (error) {
+            showToast({ severity: 'error', summary: '获取问卷失败' });
+        } finally {
+            setQuestionnaireLoading(false);
+        }
+    };
+
+    // 保存问卷
+    const handleSaveQuestionnaire = async (answers: TrainingItem[]) => {
+        if (!subscription?.id) return;
+        
+        try {
+            const res = await subscriptionService.updateSubscription({
+                id: subscription.id,
+                subscribe_data: answers as any
+            });
+            
+            if (res?.subscription) {
+                showToast({ severity: 'success', summary: '问卷更新成功' });
+                setQuestionnaireVisible(false);
+                // 刷新数据
+                fetchData();
+            } else {
+                showToast({ severity: 'error', summary: '问卷更新失败' });
+            }
+        } catch (error) {
+            showToast({ severity: 'error', summary: '保存失败' });
+        }
+    };
+
     useEffect(() => {
         if (session?.user.id) {
             fetchData();
@@ -112,6 +193,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     if (!data) return null;
 
     return (
+        <>
         <div className="p-6 max-w-6xl mx-auto space-y-6">
             {onBack && (
                 <button className="mb-4 text-surface-500 hover:text-surface-900 flex items-center gap-1" onClick={onBack}>
@@ -127,6 +209,17 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 <div className="lg:w-7/12 space-y-6">
                     <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
                     <ProgressTimeline data={data} />
+                    
+                    {/* 训练偏好/问卷展示 */}
+                    {subscription && subscription.subscribe_data && (
+                        <PlanPreferencesDisplay 
+                            subscribeData={subscription.subscribe_data} 
+                            coachId={subscription.coach_id}
+                            planStatus={planStatus}
+                            onEditQuestionnaire={handleEditQuestionnaire}
+                        />
+                    )}
+                    
                     <VideoCollectionSection />
                     <CoachNotesSection data={data} userId={session?.user.id} />
                 </div>
@@ -138,6 +231,20 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 </div>
             </div>
         </div>
+
+        {/* 问卷编辑对话框 */}
+        {subscription && (
+            <QuestionnaireForm
+                visible={questionnaireVisible}
+                onHide={() => setQuestionnaireVisible(false)}
+                questions={questionnaireQuestions}
+                coach={{ id: subscription.coach_id, name: '', rating: 0 } as any}
+                onSubmit={handleSaveQuestionnaire}
+                loading={questionnaireLoading}
+                existingAnswers={subscription.subscribe_data as any}
+            />
+        )}
+        </>
     );
 };
 
