@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
 import { useSession } from 'next-auth/react';
@@ -17,6 +17,7 @@ import QuestionnaireForm from './QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import { useSearchParams } from 'next/navigation';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
@@ -27,6 +28,7 @@ interface CoachIntroductionProps {
 const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo }) => {
     const { data: session } = useSession();
     const isOwnProfile = session?.user?.id === coach.user_id;
+    const searchParams = useSearchParams();
 
     const [editDialogVisible, setEditDialogVisible] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -38,6 +40,17 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
 
     const { showToast } = useToastContext();
+
+    // 检查URL参数，如果 action=questionnaire 则自动打开问卷
+    useEffect(() => {
+        const action = searchParams.get('action');
+        if (action === 'questionnaire' && userSubscription) {
+            // 延迟打开，确保组件完全渲染
+            setTimeout(() => {
+                openQuestionnaire();
+            }, 500);
+        }
+    }, [searchParams, userSubscription]);
 
     const specialtiesToShow = (aggregatedInfo?.specialties?.length
         ? aggregatedInfo.specialties

@@ -54,7 +54,10 @@ export async function POST(req: Request) {
     if (id) {
         query = query.eq("id", id);
     } else if (subscriptionId) {
-        query = query.eq("coach_subscription_id", subscriptionId);
+        query = query
+            .eq("coach_subscription_id", subscriptionId)
+            .order("created_at", { ascending: false })
+            .limit(1);
     } else if (fetchSelf) {
         // 仅获取学员自建的计划 (source='self')
         console.log(
@@ -197,6 +200,38 @@ export async function POST(req: Request) {
         }
     }
 
+    // 加载执行记录
+    let executionsList: any[] = [];
+    const { data: executions } = await supabase
+        .from("plan_instance_executions")
+        .select(`
+            *,
+            action_executions (
+                *,
+                sets:execution_sets (
+                    *,
+                    video:execution_set_videos (*)
+                )
+            )
+        `)
+        .eq("plan_instance_id", instance.id)
+        .order("day_index", { ascending: true });
+
+    if (executions) {
+        // 处理执行记录，格式化 sets 数据
+        executionsList = executions.map((exec: any) => ({
+            ...exec,
+            action_executions: exec.action_executions?.map((ae: any) => ({
+                ...ae,
+                sets: ae.sets?.map((s: any) => ({
+                    ...s,
+                    has_video: !!s.video?.length,
+                    video_url: s.video?.[0]?.video_url,
+                })),
+            })),
+        }));
+    }
+
     return NextResponse.json<ApiData<any>>({
         success: true,
         message: "获取训练计划实例成功",
@@ -205,6 +240,7 @@ export async function POST(req: Request) {
             actions: Object.keys(actionsMap).length > 0
                 ? actionsMap
                 : undefined,
+            executions: executionsList.length > 0 ? executionsList : undefined,
         },
     });
 }

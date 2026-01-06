@@ -49,6 +49,24 @@ export async function POST(req: Request) {
 
     const studentBodyWeight = profile?.weight || null;
 
+    // --- QUOTA CHECK START ---
+    // Check if user has sufficient AI quota (1 per generation)
+    // We import checkAndConsumeAiQuota from our shared lib
+    const { checkAndConsumeAiQuota } = await import("@/lib/membershipLimit");
+    const quotaResult = await checkAndConsumeAiQuota(
+        subscription.student_id,
+        1,
+    );
+
+    if (!quotaResult.success) {
+        return NextResponse.json({
+            success: false,
+            message: quotaResult.message ||
+                "AI 生成配额不足，请升级会员或购买加油包",
+        }, { status: 403 });
+    }
+    // --- QUOTA CHECK END ---
+
     // 获取支持自动计算的动作列表（包含 includesBodyWeight）
     const { data: autoComputeActions } = await supabase
         .from("coach_actions")

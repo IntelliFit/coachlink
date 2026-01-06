@@ -365,6 +365,8 @@ export const VideoCollectionSection: React.FC = () => {
                                         onUploadError={(e) => showToast({ severity: 'error', summary: '上传失败', detail: e?.message || '请稍后再试' })}
                                         showUrlInput
                                         maxFiles={1}
+                                        submitDisabled={!description.trim()}
+                                        submitDisabledMessage="请先填写视频描述"
                                     />
                                     <p className="text-xs text-gray-500">
                                         单次仅支持 1 个视频；上传完成后将使用上方描述与标签自动加入视频集。

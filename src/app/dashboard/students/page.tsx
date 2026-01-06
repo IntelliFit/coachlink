@@ -175,7 +175,7 @@ export default function StudentsPage() {
     /** 执行AI生成（带配置参数） */
     const makeAiInstance = async (student: StudentWithPlan, config: AiInstanceConfig) => {
         setAiGenerating(true);
-        showToast({ severity: 'info', summary: 'AI 生成中', detail: '正在根据学员问卷自动创建训练计划' });
+        showToast({ severity: 'info', summary: '快速生成中', detail: '正在根据学员问卷自动创建训练计划' });
 
         try {
             const res = await planLibService.createAiInstance({
@@ -196,8 +196,9 @@ export default function StudentsPage() {
                                 ? {
                                     ...s,
                                     plan: {
-                                        name: res.template.name || 'AI 生成计划',
-                                        description: res.template.description || '暂无描述'
+                                        name: res.template.name || '快速生成计划',
+                                        description: res.template.description || '暂无描述',
+                                        status: 'active'
                                     }
                                 }
                                 : s
@@ -333,6 +334,9 @@ export default function StudentsPage() {
     const trainingPlanTemplate = (student: StudentWithPlan) => {
         if (student.plan === undefined) return <Skeleton width="120px" height="32px" borderRadius="12px" />;
 
+        // 没有计划，或者计划已完成
+        const isCompleted = student.plan?.status === 'completed';
+        
         if (student.plan === null) {
             return (
                 <div className='flex items-center gap-2'>
@@ -348,21 +352,52 @@ export default function StudentsPage() {
                         className="flex items-center gap-2 px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl transition-all active:scale-95 border border-primary-100"
                     >
                         <Sparkles size={14} className="animate-pulse" />
-                        <span className="text-xs font-bold uppercase tracking-tight">AI 生成</span>
+                        <span className="text-xs font-bold uppercase tracking-tight">快速生成</span>
                     </button>
                 </div>
             );
         }
 
+        // 如果已完成，显示完成状态并允许创建新计划
+        // 布局：左侧显示已完成的计划卡片（作为历史参考），右侧或下方显示创建按钮
         return (
-            <div
-                className="group flex flex-col p-3 bg-surface-50/50 hover:bg-surface hover:shadow-lg hover:shadow-surface-200/50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-primary-100 max-w-[200px]"
-                onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
-            >
-                <span className="text-sm font-bold text-surface-900 truncate tracking-tight">{student.plan.name}</span>
-                <span className="text-[10px] text-surface-400 line-clamp-1 italic font-medium">
-                    {student.plan.description || '无详细描述'}
-                </span>
+            <div className="flex flex-col gap-3">
+                {/* 已完成的计划卡片 - 仅作为展示 */}
+                <div
+                    className="group flex flex-col p-3 rounded-2xl border max-w-[200px] bg-green-50 border-green-200 opacity-80 hover:opacity-100 transition-opacity"
+                    title="点击查看历史详情"
+                    onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                >
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold truncate tracking-tight text-green-800 line-through decoration-green-800/30">
+                            {student.plan.name}
+                        </span>
+                        <i className="pi pi-check-circle text-green-600 text-xs" />
+                    </div>
+                    <span className="text-[10px] line-clamp-1 italic font-medium text-green-600">
+                        已完成 · {student.plan.description || '无详细描述'}
+                    </span>
+                </div>
+
+                {/* 创建新计划的按钮组 */}
+                {isCompleted && (
+                    <div className='flex items-center gap-2'>
+                        <button
+                            onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-50 hover:bg-surface-100 text-surface-600 rounded-lg transition-all active:scale-95 border border-surface-100"
+                        >
+                            <Plus size={12} />
+                            <span className="text-[10px] font-bold uppercase tracking-tight">手动</span>
+                        </button>
+                        <button
+                            onClick={() => openAiConfigDialog(student)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg transition-all active:scale-95 border border-primary-100"
+                        >
+                            <Sparkles size={12} className="animate-pulse" />
+                            <span className="text-[10px] font-bold uppercase tracking-tight">快速生成</span>
+                        </button>
+                    </div>
+                )}
             </div>
         );
     };

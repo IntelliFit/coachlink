@@ -17,6 +17,8 @@ interface VideoUploaderProps {
     maxFiles?: number;
     acceptedFormats?: string[];
     showUrlInput?: boolean;
+    submitDisabled?: boolean; // External control to disable submit
+    submitDisabledMessage?: string;
 }
 
 const VideoUploader: React.FC<VideoUploaderProps> = ({
@@ -26,7 +28,9 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
     maxFileSize = 30,
     maxFiles = 5,
     acceptedFormats = ['video/mp4', 'video/mov', 'video/avi', 'video/webm'],
-    showUrlInput = true
+    showUrlInput = true,
+    submitDisabled = false,
+    submitDisabledMessage = ''
 }) => {
     const [files, setFiles] = useState<VideoFile[]>([]);
     const [url, setUrl] = useState('');
@@ -384,10 +388,18 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                     </div>
                 )}
 
+ 
+                {submitDisabled && (
+                    <div className="flex items-center text-amber-600 text-sm mb-2 justify-end">
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        {submitDisabledMessage || '暂无法提交'}
+                    </div>
+                )}
+
                 <div className="flex justify-end">
                     <button
                         onClick={handleUpload}
-                        disabled={uploading || (files.length === 0 && !url.trim())}
+                        disabled={uploading || (files.length === 0 && !url.trim()) || submitDisabled}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                     >
                         {uploading ? '上传中...' :

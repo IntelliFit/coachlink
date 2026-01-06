@@ -26,13 +26,6 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (tags.length === 0 || !suitableFor) {
-        return NextResponse.json({
-            success: false,
-            message: "缺少必要参数"
-        }, { status: 400 });
-    }
-
     const { data: user, error: userError } = await supabase
         .from('users')
         .select('is_coach')
@@ -65,7 +58,7 @@ export async function POST(req: Request) {
             tags: tags || [],
             week_days: makeWeekDays(trainingDays),
             contained_options: makeContainedOptions(trainingDays),
-            suitable_for: suitableFor,
+            suitable_for: suitableFor || null,
             training_days: trainingDays,
             training_days_count: trainingDays.filter(day => day.type === 'training').length,
             rest_days_count: trainingDays.filter(day => day.type === 'rest').length,

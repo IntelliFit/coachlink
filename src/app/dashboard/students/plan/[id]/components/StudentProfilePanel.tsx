@@ -19,11 +19,13 @@ interface StudentProfilePanelProps {
     studentData: GetStudentResponseDto['student'] | null;
     subscription: CoachSubscriptionRow | null;
     loading: boolean;
+    onEditQuestionnaire?: () => void; // 点击编辑问卷时的回调
 }
 
 export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
     studentData,
-    loading
+    loading,
+    onEditQuestionnaire
 }) => {
     const [expanded, setExpanded] = useState(false);
     const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
@@ -149,9 +151,22 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                             {/* 本期需求（订阅问卷） */}
                             {studentData?.subscribe_data && studentData.subscribe_data.length > 0 && (
                                 <div className="bg-surface-50 rounded-lg border border-surface-200 p-3">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <FileText size={16} />
-                                        <h4 className="font-bold text-sm">本期需求</h4>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <FileText size={16} />
+                                            <h4 className="font-bold text-sm">本期需求</h4>
+                                        </div>
+                                        {onEditQuestionnaire && (
+                                            <Button
+                                                label="编辑"
+                                                size="small"
+                                                icon="pi pi-pencil"
+                                                text
+                                                severity="secondary"
+                                                onClick={onEditQuestionnaire}
+                                                className="text-xs"
+                                            />
+                                        )}
                                     </div>
                                     <div className="space-y-4">
                                         {studentData.subscribe_data.map((item, index) => (

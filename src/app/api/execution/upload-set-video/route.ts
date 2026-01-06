@@ -51,6 +51,22 @@ export async function POST(req: Request) {
             );
         }
 
+        // --- STORAGE QUOTA CHECK ---
+        const { checkStorageAvailable, incrementStorageUsage } = await import(
+            "@/lib/membershipLimit"
+        );
+        const quotaCheck = await checkStorageAvailable(userId, file.size);
+        if (!quotaCheck.success) {
+            return NextResponse.json<UploadSetVideoResponseDto>(
+                {
+                    success: false,
+                    message: quotaCheck.message || "存储空间不足",
+                },
+                { status: 403 },
+            );
+        }
+        // --- STORAGE QUOTA CHECK END ---
+
         // 验证执行记录权限
         const { data: execution } = await supabase
             .from("plan_instance_executions")
@@ -87,6 +103,12 @@ export async function POST(req: Request) {
                 { status: 500 },
             );
         }
+
+        // --- UPDATE QUOTA ---
+        await incrementStorageUsage(userId, file.size).catch((e) =>
+            console.error("Failed to update storage usage", e)
+        );
+        // --------------------
 
         // 获取公开URL
         const { data: { publicUrl } } = supabase.storage

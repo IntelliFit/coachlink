@@ -77,8 +77,9 @@ export default function NavigationCoach() {
 
     const userMenuItems = useMemo(() => [
         { label: '我的主页', icon: 'pi pi-home', command: () => gotoCoachDisplayPage() },
+        { label: '我的钱包', icon: 'pi pi-wallet', command: () => router.push('/dashboard/wallet') }, // Added Wallet Entry
         { label: '动作库', icon: 'pi pi-database', command: () => router.push('/dashboard/action-lib') },
-        { label: '订阅设置', icon: 'pi pi-wallet', command: () => router.push('/dashboard/pricing') },
+        { label: '订阅设置', icon: 'pi pi-tags', command: () => router.push('/dashboard/pricing') }, // Changed icon to distinguish from wallet
         { label: '收款码设置', icon: 'pi pi-qrcode', command: () => router.push('/coach/settings/payment') },
         { label: '学员问卷', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/questionnaire') },
         { separator: true },

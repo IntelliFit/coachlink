@@ -37,11 +37,44 @@ export async function POST(req: NextRequest) {
                 .from("coach_plan_instances")
                 .select("*")
                 .eq("id", instanceId)
-                .eq("student_id", userId) // 安全检查：确保是当前用户的计划
                 .single();
 
             if (directInstance) {
-                instance = directInstance;
+                // 权限检查
+                const isOwner = directInstance.student_id === userId;
+                let isAuthorized = isOwner;
+
+                if (!isAuthorized && isCoach) {
+                    // 如果是教练，检查是否有权查看
+                    const { data: coachProfile } = await supabase
+                        .from("coaches")
+                        .select("id")
+                        .eq("user_id", userId)
+                        .single();
+
+                    if (coachProfile) {
+                        // 1. 检查是否是该计划的指派教练
+                        if (directInstance.coach_id === coachProfile.id) {
+                            isAuthorized = true;
+                        } else {
+                            // 2. 检查该学员是否是教练的订阅学员（即使是自建计划也允许查看）
+                            const { data: sub } = await supabase
+                                .from("coach_subscriptions")
+                                .select("id")
+                                .eq("coach_id", coachProfile.id)
+                                .eq("student_id", directInstance.student_id)
+                                .maybeSingle();
+
+                            if (sub) {
+                                isAuthorized = true;
+                            }
+                        }
+                    }
+                }
+
+                if (isAuthorized) {
+                    instance = directInstance;
+                }
             }
         }
 

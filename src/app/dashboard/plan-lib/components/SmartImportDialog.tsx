@@ -244,6 +244,21 @@ export default function SmartImportDialog({
         value: a.id,
     }));
 
+    // 为单个动作构造下拉选项，包含已有动作库与可能未在库中的匹配ID
+    const buildExistingOptions = (action: EditableAction) => {
+        const base = [...existingActionOptions];
+        if (
+            action.matchedExistingId &&
+            !base.find(o => o.value === action.matchedExistingId)
+        ) {
+            base.unshift({
+                label: action.name,
+                value: action.matchedExistingId,
+            });
+        }
+        return base;
+    };
+
     // 渲染步骤内容
     const renderStepContent = () => {
         if (isLoading) {
@@ -325,10 +340,10 @@ D2
                                             {action.useExisting ? (
                                                 // 使用现有动作：显示下拉选择
                                                 <Dropdown
-                                                    value={action.selectedExistingId}
-                                                    options={existingActionOptions}
+                                                    value={action.selectedExistingId ?? action.matchedExistingId ?? null}
+                                                    options={buildExistingOptions(action)}
                                                     onChange={(e) => selectExistingAction(index, e.value)}
-                                                    placeholder="选择已有动作"
+                                                    placeholder={action.matchedExistingId ? action.name : "选择已有动作"}
                                                     className="w-full max-w-xs"
                                                     filter
                                                     filterPlaceholder="搜索动作..."
@@ -533,18 +548,23 @@ function convertToTemplateDays(
                 dayIndex: dayIndex,
                 type: 'training',
                 note: parsedDay.dayNote || '',
-                actionSets: parsedDay.actions.map((action, idx) => ({
+                actionSets: (parsedDay.actions && parsedDay.actions.length > 0
+                    ? parsedDay.actions
+                    : [{ actionId: '', sets: null, reps: null, restSeconds: 180, intensityConfig: null, note: '自动解析未给出动作，请选择动作' }]
+                ).map((action, idx) => ({
                     type: 'no-filter',
-                    actionId: action.actionId,
+                    actionId: action.actionId || '',
                     setName: `动作${idx + 1}`,
                     params: {
                         // 使用中文字段名，与 action.attrs 对应
-                        '组数': action.sets,
-                        '次数': action.reps,
-                        '休息时间': action.restSeconds || 180,
+                        '组数': action.sets ?? '',
+                        '次数': action.reps ?? '',
+                        '休息时间': action.restSeconds ?? 180,
                         '强度': action.intensityConfig?.relativeIntensity?.type === 'rm' 
                             ? action.intensityConfig.relativeIntensity.value 
-                            : undefined,
+                            : action.intensityConfig?.relativeIntensity?.type === 'percentage'
+                                ? action.intensityConfig.relativeIntensity.value
+                                : action.intensityConfig?.fixedWeight ?? '',
                         intensityConfig: action.intensityConfig || null,
                         note: action.note || '',
                     },
