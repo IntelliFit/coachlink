@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
 import { Avatar } from 'primereact/avatar';
+import { OverlayPanel } from 'primereact/overlaypanel';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -21,24 +22,18 @@ import { planLibService } from '@/app/service/planLibService';
 import { chatService } from '@/app/service/chatService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
-import { Calendar, MessageSquare, Plus, Sparkles, Users, Video } from 'lucide-react';
-
-interface StudentWithPlan extends StudentSubscription {
-    plan?: {
-        name: string;
-        description: string;
-    } | null;
-}
+import { Calendar, CheckCircle2, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, Users, Video } from 'lucide-react';
+import { ProgressBar } from 'primereact/progressbar';
 
 export default function StudentsPage() {
-    const [students, setStudents] = useState<StudentWithPlan[]>([]);
+    const [students, setStudents] = useState<StudentSubscription[]>([]);
     const [waitingStudents, setWaitingStudents] = useState<GetPaymentWaitingStudentsResponseDto['subscriptions']>([]);
     const [coach, setCoach] = useState<CoachesRow | null>(null);
     const [loading, setLoading] = useState(true);
     const [first, setFirst] = useState(0);
     const [rows, setRows] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
-    const [selectedStudent, setSelectedStudent] = useState<StudentWithPlan | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<StudentSubscription | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [reviewDialogVisible, setReviewDialogVisible] = useState(false);
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
@@ -112,19 +107,8 @@ export default function StudentsPage() {
             });
 
             if (data) {
-                // 初次注入 plan 字段
-                const studentsWithPlan = (data.students || []).map(s => ({
-                    ...s,
-                    plan: undefined,
-                }));
-
-                setStudents(studentsWithPlan);
+                setStudents(data.students);
                 setTotalRecords(data.pagination.total);
-
-                // 异步加载每个训练计划
-                studentsWithPlan.forEach(student => {
-                    loadTrainingPlan(student.id);
-                });
             }
         } catch (error) {
             console.error('获取学生列表失败:', error);
@@ -157,23 +141,23 @@ export default function StudentsPage() {
         }
     }, [coach]);
 
-    const onPage = (event: any) => {        
+    const onPage = (event: any) => {
         setFirst(event.first);
         setRows(event.rows);
         setLoading(true);
         setStudents([]);
-        
+
         loadStudents(event.page, event.rows);
     };
 
     /** 打开AI生成配置对话框 */
-    const openAiConfigDialog = (student: StudentWithPlan) => {
+    const openAiConfigDialog = (student: StudentSubscription) => {
         setSelectedStudent(student);
         setAiConfigDialogVisible(true);
     };
 
     /** 执行AI生成（带配置参数） */
-    const makeAiInstance = async (student: StudentWithPlan, config: AiInstanceConfig) => {
+    const makeAiInstance = async (student: StudentSubscription, config: AiInstanceConfig) => {
         setAiGenerating(true);
         showToast({ severity: 'info', summary: '快速生成中', detail: '正在根据学员问卷自动创建训练计划' });
 
@@ -187,7 +171,7 @@ export default function StudentsPage() {
 
             if (res) {
                 if (res.template) {
-                    showToast({ severity: 'success', summary: '创建成功', detail: '已创建���练计划' });
+                    showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
                     setAiConfigDialogVisible(false);
                     // 当res.template非空时，更新当前表单
                     setStudents(prev =>
@@ -205,7 +189,7 @@ export default function StudentsPage() {
                         )
                     );
                 } else {
-                    showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项���' });
+                    showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项' });
                 }
             } else {
                 showToast({ severity: 'error', summary: '创建失败', detail: '无法创建AI实例' });
@@ -245,7 +229,7 @@ export default function StudentsPage() {
         const config = configs[tier] || { label: `套餐${tier}`, color: 'bg-surface-50 text-surface-600', icon: 'pi pi-box' };
 
         return (
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-black uppercase tracking-wider ${config.color}`}>
+            <div className={`inline-flex items-center w-[fit-content] gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-black uppercase tracking-wider ${config.color}`}>
                 <i className={`${config.icon} text-[10px]`} />
                 {config.label}
             </div>
@@ -253,7 +237,7 @@ export default function StudentsPage() {
     };
 
     /** 学员基本信息列 */
-    const studentTemplate = (student: StudentWithPlan) => (
+    const studentTemplate = (student: StudentSubscription) => (
         <div
             className="group flex items-center gap-4 py-2 cursor-pointer"
             onClick={() => { setSelectedStudent(student); setDialogVisible(true); }}
@@ -280,7 +264,7 @@ export default function StudentsPage() {
     );
 
     /** 订阅详情列 */
-    const subscribeTemplate = (student: StudentWithPlan) => (
+    const subscribeTemplate = (student: StudentSubscription) => (
         <div className="flex flex-col gap-1.5 py-2">
             {productTagTemplate(Number(student.tier))}
             <div className="flex items-center gap-2 text-surface-500">
@@ -293,7 +277,7 @@ export default function StudentsPage() {
     );
 
     /** 视频评价进度列 */
-    const videoStatsTemplate = (student: StudentWithPlan) => {
+    const videoStatsTemplate = (student: StudentSubscription) => {
         const unreviewed = student.uploaded - student.reviewed;
         const hasUnreviewed = unreviewed > 0;
 
@@ -303,7 +287,7 @@ export default function StudentsPage() {
                     {/* 已评价数值 */}
                     <div className="flex items-baseline gap-1 bg-surface-50 px-2.5 py-1 rounded-lg border border-surface-100">
                         <span className="text-xs font-black text-surface-900">{student.reviewed}</span>
-                        <span className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">Reviewed</span>
+                        <span className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">审阅</span>
                     </div>
 
                     <span className="text-surface-200 text-xs font-light">/</span>
@@ -311,7 +295,7 @@ export default function StudentsPage() {
                     {/* 总数数值 */}
                     <div className="flex items-baseline gap-1">
                         <span className="text-xs font-bold text-surface-500">{student.uploaded}</span>
-                        <span className="text-[10px] font-medium text-surface-400">Total</span>
+                        <span className="text-[10px] font-medium text-surface-400">总计</span>
                     </div>
                 </div>
 
@@ -330,85 +314,115 @@ export default function StudentsPage() {
             </div>
         );
     };
-    /** 训练计划列 - 增加 AI 按钮的视觉吸引力 */
-    const trainingPlanTemplate = (student: StudentWithPlan) => {
-        if (student.plan === undefined) return <Skeleton width="120px" height="32px" borderRadius="12px" />;
+    const trainingPlanTemplate = (student: StudentSubscription) => {
+        const op = useRef<OverlayPanel>(null);
+        const plan = student.plan;
+        const isCompleted = plan?.status === 'completed';
+        const isActive = plan && !isCompleted;
 
-        // 没有计划，或者计划已完成
-        const isCompleted = student.plan?.status === 'completed';
-        
-        if (student.plan === null) {
-            return (
-                <div className='flex items-center gap-2'>
-                    <button
-                        onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
-                        className="flex items-center gap-2 px-3 py-2 bg-surface-50 hover:bg-surface-100 text-surface-600 rounded-xl transition-all active:scale-95 border border-surface-100"
-                    >
-                        <Plus size={14} />
-                        <span className="text-xs font-bold uppercase tracking-tight">手动创建</span>
-                    </button>
-                    <button
-                        onClick={() => openAiConfigDialog(student)}
-                        className="flex items-center gap-2 px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl transition-all active:scale-95 border border-primary-100"
-                    >
-                        <Sparkles size={14} className="animate-pulse" />
-                        <span className="text-xs font-bold uppercase tracking-tight">快速生成</span>
-                    </button>
-                </div>
-            );
-        }
+        if (student.plan === undefined) return <Skeleton width="160px" height="48px" borderRadius="12px" />;
 
-        // 如果已完成，显示完成状态并允许创建新计划
-        // 布局：左侧显示已完成的计划卡片（作为历史参考），右侧或下方显示创建按钮
+        const handleAction = (e: React.MouseEvent, type: 'manual' | 'ai') => {
+            e.stopPropagation();
+            op.current?.hide();
+            type === 'manual' ? router.push(`/dashboard/students/plan/${student.id}`) : openAiConfigDialog(student);
+        };
+
         return (
-            <div className="flex flex-col gap-3">
-                {/* 已完成的计划卡片 - 仅作为展示 */}
+            <div className="inline-block">
+                {/* 优化后的呼吸感卡片 */}
                 <div
-                    className="group flex flex-col p-3 rounded-2xl border max-w-[200px] bg-green-50 border-green-200 opacity-80 hover:opacity-100 transition-opacity"
-                    title="点击查看历史详情"
-                    onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                    onClick={() => plan && router.push(`/dashboard/students/plan/${student.id}`)}
+                    className={`
+                    group flex items-center p-3 rounded-xl border transition-all duration-300 cursor-pointer
+                    ${!plan ? 'border-dashed border-surface-200 bg-surface-50/30' :
+                            isActive ? 'border-primary-100 bg-white shadow-sm shadow-primary-50/50' : 'border-surface-100 bg-surface-50/20 opacity-80'}
+                `}
+                    style={{ minWidth: '220px' }}
                 >
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold truncate tracking-tight text-green-800 line-through decoration-green-800/30">
-                            {student.plan.name}
-                        </span>
-                        <i className="pi pi-check-circle text-green-600 text-xs" />
+                    {/* 状态指示区 */}
+                    <div className="flex-shrink-0 mr-3">
+                        {isActive ? (
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-50 text-primary-600">
+                                <span className="relative flex h-2.5 w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-600"></span>
+                                </span>
+                            </div>
+                        ) : isCompleted ? (
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600">
+                                <CheckCircle2 size={18} />
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-surface-100 text-surface-400">
+                                <Plus size={18} />
+                            </div>
+                        )}
                     </div>
-                    <span className="text-[10px] line-clamp-1 italic font-medium text-green-600">
-                        已完成 · {student.plan.description || '无详细描述'}
-                    </span>
+
+                    {/* 内容区 */}
+                    <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                        <span className={`text-sm font-bold truncate ${isActive ? 'text-surface-900' : 'text-surface-600'}`}>
+                            {plan?.name || '未配置计划'}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[11px] font-semibold tracking-wide uppercase ${isActive ? 'text-primary-600' : 'text-surface-400'}`}>
+                                {isActive ? '进行中' : isCompleted ? '已完成' : '待处理'}
+                            </span>
+                            {plan?.description && (
+                                <>
+                                    <span className="text-surface-300 text-[10px]">|</span>
+                                    <span className="text-[11px] text-surface-400 truncate font-medium italic">
+                                        {plan.description}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 更多操作 */}
+                    <Button
+                        icon={<MoreHorizontal size={18} />}
+                        className="p-button-rounded p-button-text p-button-secondary ml-1"
+                        style={{ width: '2.5rem', height: '2.5rem' }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            op.current?.toggle(e);
+                        }}
+                    />
                 </div>
 
-                {/* 创建新计划的按钮组 */}
-                {isCompleted && (
-                    <div className='flex items-center gap-2'>
+                {/* Popover 菜单样式优化 */}
+                <OverlayPanel ref={op} className="p-0 shadow-2xl border border-surface-100 rounded-xl overflow-hidden">
+                    <div className="flex flex-col p-1.5 min-w-[150px] bg-white">
+                        <div className="px-3 py-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest border-b border-surface-50 mb-1">
+                            计划操作
+                        </div>
                         <button
-                            onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-50 hover:bg-surface-100 text-surface-600 rounded-lg transition-all active:scale-95 border border-surface-100"
+                            onClick={(e) => handleAction(e, 'ai')}
+                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-primary-50 text-primary-700 rounded-lg transition-all text-xs font-bold active:scale-95"
                         >
-                            <Plus size={12} />
-                            <span className="text-[10px] font-bold uppercase tracking-tight">手动</span>
+                            <Sparkles size={16} className="text-primary-500" />
+                            快速生成
                         </button>
                         <button
-                            onClick={() => openAiConfigDialog(student)}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg transition-all active:scale-95 border border-primary-100"
+                            onClick={(e) => handleAction(e, 'manual')}
+                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-50 text-surface-600 rounded-lg transition-all text-xs font-bold active:scale-95"
                         >
-                            <Sparkles size={12} className="animate-pulse" />
-                            <span className="text-[10px] font-bold uppercase tracking-tight">快速生成</span>
+                            <Plus size={16} className="text-surface-400" />
+                            手动创建
                         </button>
                     </div>
-                )}
+                </OverlayPanel>
             </div>
         );
-    };
-
-    const contactStudent = async () => {
+    }; const contactStudent = async () => {
         if (!session?.user?.id) {
             return;
         }
 
         console.log('enter');
-        
+
         setLoading(true);
 
         try {
@@ -427,6 +441,66 @@ export default function StudentsPage() {
             setLoading(false);
         }
     }
+
+    const trainingProgressTemplate = (student: StudentSubscription) => {
+        const plan = student.plan;
+
+        // 1. 加载中
+        if (student.plan === undefined) return <Skeleton width="100%" height="12px" borderRadius="10px" />;
+
+        // 2. 无计划状态
+        if (!plan) {
+            return (
+                <div className="flex flex-col gap-1 px-2">
+                    <div className="w-full h-1.5 bg-surface-100 rounded-full" />
+                    <span className="text-[10px] font-bold text-surface-300 uppercase tracking-tighter">未开始</span>
+                </div>
+            );
+        }
+
+        // 3. 计算数据 (实际使用请确保从后端获取相应字段)
+        const completedDays = student.progress.completed || 0;
+        const totalDays = student.progress.total || 0;
+        const percentage = totalDays === 0 ? 0 :
+            Math.min(Math.round((completedDays / totalDays) * 100), 100);
+
+        const isCompleted = plan.status === 'completed';
+
+        return (
+            <div className="flex flex-col gap-2 min-w-[180px] px-2">
+                {/* 顶部标签：百分比与天数 */}
+                <div className="flex justify-between items-center">
+                    <span className={`text-[11px] font-black uppercase tracking-widest ${isCompleted ? 'text-green-600' : 'text-primary'}`}>
+                        {isCompleted ? '完成' : '进行中'}
+                    </span>
+                    <span className="text-[10px] font-bold text-surface-400">
+                        {completedDays} / {totalDays} 训练日
+                    </span>
+                </div>
+
+                {/* PrimeReact ProgressBar 组件 */}
+                <ProgressBar
+                    value={isCompleted ? 100 : percentage}
+                    showValue={false} // 我们在上方自定义显示数值，所以这里设为 false
+                    style={{ height: '8px' }}
+                    className={`border-none bg-surface-100 rounded-full overflow-hidden`}
+                    // 使用 pt (Pass Through) 属性精准控制内部样式
+                    pt={{
+                        value: {
+                            className: `transition-all duration-1000 ease-in-out ${isCompleted ? 'bg-green-500' : 'bg-primary'}`
+                        }
+                    }}
+                />
+
+                {/* 底部详细数值提示 */}
+                <div className="flex items-center gap-1.5">
+                    <span className={`text-sm font-black italic ${isCompleted ? 'text-green-600' : 'text-surface-900'}`}>
+                        {isCompleted ? 100 : percentage}%
+                    </span>
+                </div>
+            </div>
+        );
+    };
 
     if (loading && students.length === 0) {
         return (
@@ -529,9 +603,10 @@ export default function StudentsPage() {
                         }
                     }}
                 >
-                    <Column header="学员信息" body={studentTemplate} style={{ width: '25%' }} />
-                    <Column header="订阅状态" body={subscribeTemplate} style={{ width: '15%' }} />
-                    <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '25%' }} />
+                    <Column header="学员信息" body={studentTemplate} style={{ width: '20%' }} />
+                    <Column header="订阅状态" body={subscribeTemplate} style={{ width: '12%' }} />
+                    <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '23%' }} />
+                    <Column header="训练进度" body={trainingProgressTemplate} style={{ width: '25%' }} />
                     <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '20%' }} />
                 </DataTable>
             </div>

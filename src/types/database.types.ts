@@ -475,6 +475,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string
+          rest_days_count: number | null
           source: string | null
           start_date: string | null
           start_execution_day: number | null
@@ -483,6 +484,7 @@ export type Database = {
           suitable_for: string | null
           tags: string[] | null
           training_days: Json
+          training_days_count: number | null
           type: string | null
           updated_at: string | null
         }
@@ -495,6 +497,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name: string
+          rest_days_count?: number | null
           source?: string | null
           start_date?: string | null
           start_execution_day?: number | null
@@ -503,6 +506,7 @@ export type Database = {
           suitable_for?: string | null
           tags?: string[] | null
           training_days: Json
+          training_days_count?: number | null
           type?: string | null
           updated_at?: string | null
         }
@@ -515,6 +519,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string
+          rest_days_count?: number | null
           source?: string | null
           start_date?: string | null
           start_execution_day?: number | null
@@ -523,6 +528,7 @@ export type Database = {
           suitable_for?: string | null
           tags?: string[] | null
           training_days?: Json
+          training_days_count?: number | null
           type?: string | null
           updated_at?: string | null
         }
