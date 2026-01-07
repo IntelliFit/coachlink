@@ -250,7 +250,6 @@ export default function StudentsPage() {
                     size="large"
                     className="shadow-sm border-2 border-surface bg-primary-100 text-primary-700 font-bold"
                 />
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-surface rounded-full" />
             </div>
             <div className="flex flex-col">
                 <span className="text-surface-900 font-bold tracking-tight group-hover:text-primary transition-colors">
@@ -336,7 +335,7 @@ export default function StudentsPage() {
                     className={`
                     group flex items-center p-3 rounded-xl border transition-all duration-300 cursor-pointer
                     ${!plan ? 'border-dashed border-surface-200 bg-surface-50/30' :
-                            isActive ? 'border-primary-100 bg-white shadow-sm shadow-primary-50/50' : 'border-surface-100 bg-surface-50/20 opacity-80'}
+                            isActive ? 'border-primary-100 dark:border-orange-800 bg-surface shadow-sm shadow-primary-50/50 dark:shadow-primary-800/50' : 'border-surface-100 bg-surface-50/20 opacity-80'}
                 `}
                     style={{ minWidth: '220px' }}
                 >
@@ -394,7 +393,7 @@ export default function StudentsPage() {
 
                 {/* Popover 菜单样式优化 */}
                 <OverlayPanel ref={op} className="p-0 shadow-2xl border border-surface-100 rounded-xl overflow-hidden">
-                    <div className="flex flex-col p-1.5 min-w-[150px] bg-white">
+                    <div className="flex flex-col p-1.5 min-w-[150px] bg-surface">
                         <div className="px-3 py-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest border-b border-surface-50 mb-1">
                             计划操作
                         </div>
