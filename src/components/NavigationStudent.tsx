@@ -81,10 +81,11 @@ export default function NavigationStudent() {
 
     const userMenuItems = useMemo(() => [
         { label: '我的订阅', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
-        { label: '我的会员', icon: 'pi pi-crown', command: () => router.push('/me/membership') }, // Added Membership Entry
+        { label: '我的会员', icon: 'pi pi-crown', command: () => router.push('/me/membership') },
         { separator: true },
         { label: '我的好友', icon: 'pi pi-users', command: () => router.push('/friends') },
         { label: '我的动作库', icon: 'pi pi-list', command: () => router.push('/me/action-lib') },
+        { label: '知识库', icon: 'pi pi-book', command: () => router.push('/dashboard/knowledge') },
         { label: '常用计划', icon: 'pi pi-bookmark', command: () => router.push('/me/plan-lib') },
         { label: '训练历史', icon: 'pi pi-history', command: () => router.push('/me/plan-history') },
         { separator: true },
