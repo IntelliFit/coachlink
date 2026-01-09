@@ -8,9 +8,11 @@ import { InputText } from 'primereact/inputtext';
 import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Paginator } from 'primereact/paginator';
 import { useToastContext } from '@/context/ToastContext';
 import { studentActionLibService } from '@/app/service/studentActionLibService';
 import StudentActionEditDialog from './StudentActionEditDialog';
+import CopyCoachActionDialog from './CopyCoachActionDialog';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { StudentActionRow } from '@/types/student';
@@ -31,6 +33,7 @@ const StudentActionLib = () => {
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
     const [editingAction, setEditingAction] = useState<StudentActionRow | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
+    const [copyDialogVisible, setCopyDialogVisible] = useState(false);
 
     const { showToast } = useToastContext();
     const itemsPerPage = 12;
@@ -116,6 +119,9 @@ const StudentActionLib = () => {
                     url: actionData.url,
                     positions: actionData.positions,
                     attrs: actionData.attrs,
+                    enableAutoWeightCompute: actionData.enableAutoWeightCompute,
+                    includesBodyWeight: actionData.includesBodyWeight,
+                    canonical_action_id: actionData.canonical_action_id
                 });
                 showToast({ severity: 'success', summary: '更新成功', detail: '动作已更新' });
             } else {
@@ -126,6 +132,9 @@ const StudentActionLib = () => {
                     url: actionData.url,
                     positions: actionData.positions,
                     attrs: actionData.attrs,
+                    enableAutoWeightCompute: actionData.enableAutoWeightCompute,
+                    includesBodyWeight: actionData.includesBodyWeight,
+                    canonical_action_id: actionData.canonical_action_id
                 });
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
@@ -218,6 +227,13 @@ const StudentActionLib = () => {
                                     属性: {action.attrs.length}
                                 </span>
                             )}
+
+                            {action.enableAutoWeightCompute && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">
+                                    <i className="pi pi-bolt text-xs mr-1" />
+                                    智能计算
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -271,6 +287,18 @@ const StudentActionLib = () => {
                 onSave={handleSaveAction}
                 onCancel={() => setDialogVisible(false)}
             />
+            <CopyCoachActionDialog
+                visible={copyDialogVisible}
+                onHide={() => setCopyDialogVisible(false)}
+                onSuccess={() => {
+                    // 重新加载动作列表
+                    if (searchTerm) {
+                        handleSearch();
+                    } else {
+                        loadActions();
+                    }
+                }}
+            />
 
             <Card className="shadow-sm">
                 {/* 顶部区域 */}
@@ -280,11 +308,19 @@ const StudentActionLib = () => {
                             <h1 className="text-2xl font-bold text-900">我的动作库</h1>
                             <p className="text-600 mt-1">管理您的训练动作</p>
                         </div>
-                        <Button
-                            label="添加动作"
-                            icon="pi pi-plus"
-                            onClick={handleAddAction}
-                        />
+                        <div className="flex gap-2">
+                            <Button
+                                label="从教练添加"
+                                icon="pi pi-download"
+                                className="p-button-outlined"
+                                onClick={() => setCopyDialogVisible(true)}
+                            />
+                            <Button
+                                label="自定义动作"
+                                icon="pi pi-plus"
+                                onClick={handleAddAction}
+                            />
+                        </div>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-4 mt-6">
@@ -350,13 +386,20 @@ const StudentActionLib = () => {
                             <DataView
                                 value={getCurrentData()}
                                 itemTemplate={renderActionCard}
-                                paginator
-                                rows={itemsPerPage}
-                                totalRecords={getCurrentTotalRecords()}
-                                first={searchTerm ? 0 : (currentPage - 1) * itemsPerPage}
-                                onPage={onPageChange}
                                 emptyMessage="未找到匹配的动作"
                             />
+                            <div className="mt-4">
+                                <Paginator
+                                    first={(currentPage - 1) * itemsPerPage}
+                                    rows={itemsPerPage}
+                                    totalRecords={getCurrentTotalRecords()}
+                                    onPageChange={(e) => {
+                                        console.log('Using Paginator onPageChange:', e);
+                                        const newPage = (e.first / e.rows) + 1;
+                                        setCurrentPage(newPage);
+                                    }}
+                                />
+                            </div>
                         </>
                     )}
                 </div>

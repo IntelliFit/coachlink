@@ -44,7 +44,11 @@ export async function POST(req: Request) {
 
     // Apply search filter if provided
     if (search) {
-        query = query.or(`name.ilike.%${search}%,detail.ilike.%${search}%`);
+        // 转义特殊字符，确保搜索安全
+        const escapedSearch = search.replace(/[%_]/g, "\\$&");
+        query = query.or(
+            `name.ilike.%${escapedSearch}%,detail.ilike.%${escapedSearch}%`,
+        );
     }
 
     // Apply pagination

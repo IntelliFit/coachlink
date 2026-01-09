@@ -229,7 +229,7 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                                                                         <div key={action.id} className="flex flex-col">
                                                                             <label className="block text-xs text-600 mb-1">{action.name}</label>
                                                                             <div className="p-2 bg-surface-50 border border-surface-200 rounded">
-                                                                                {rmValue ? `${rmValue} RM` : '未填写'}
+                                                                                {rmValue ? `${rmValue} kg` : '未填写'}
                                                                             </div>
                                                                         </div>
                                                                     );

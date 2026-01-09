@@ -67,7 +67,7 @@ const AITrainingGenerator: React.FC<AITrainingGeneratorProps> = ({ onGenerate, i
       return;
     }
 
-    setMessage({ type: 'info', text: 'AI正在为您生成个性化训练计划...' });
+    setMessage({ type: 'info', text: '正在为您生成个性化训练计划...' });
 
     try {
       // 调用真实的AI训练计划生成API
@@ -82,14 +82,14 @@ const AITrainingGenerator: React.FC<AITrainingGeneratorProps> = ({ onGenerate, i
       });
 
       if (plan) {
-        setMessage({ type: 'success', text: 'AI训练计划生成成功！' });
+        setMessage({ type: 'success', text: '智能训练计划生成成功！' });
         // 传递训练计划数据给父组件
         onGenerate(plan);
       } else {
-        setMessage({ type: 'error', text: 'AI训练计划生成失败，请稍后重试' });
+        setMessage({ type: 'error', text: '智能训练计划生成失败，请稍后重试' });
       }
     } catch (error) {
-      console.error('生成AI训练计划失败:', error);
+      console.error('生成智能训练计划失败:', error);
       setMessage({ type: 'error', text: '生成训练计划时发生错误，请稍后重试' });
     }
   };
@@ -123,8 +123,8 @@ const AITrainingGenerator: React.FC<AITrainingGeneratorProps> = ({ onGenerate, i
         <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
           <Brain className="w-8 h-8 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">AI智能训练计划生成</h2>
-        <p className="text-gray-600">告诉我们您的需求，AI将为您量身定制专属训练方案</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">智能训练计划生成</h2>
+        <p className="text-gray-600">告诉我们您的需求，系统将为您量身定制专属训练方案</p>
       </div>
 
       {/* 消息提示 */}
@@ -290,7 +290,7 @@ const AITrainingGenerator: React.FC<AITrainingGeneratorProps> = ({ onGenerate, i
             {isLoading ? (
               <div className="flex items-center space-x-3">
                 <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>AI生成中...</span>
+                <span>智能生成中...</span>
               </div>
             ) : (
               <div className="flex items-center space-x-2">

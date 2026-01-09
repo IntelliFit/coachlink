@@ -21,7 +21,7 @@ export default function WaitingPage() {
 		}
 		try {
 			setLoading(true);
-			setTip('AI正在为您快速生成计划...');
+			setTip('正在为您快速生成计划...');
 			const resp = await fetch('/api/user/generate-quick-plan', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@ export default function WaitingPage() {
 					/>
 
 					<Button
-						label={loading ? '生成中...' : 'AI快速生成'}
+						label={loading ? '生成中...' : '智能快速生成'}
 						className="p-button-outlined w-full"
 						disabled={loading}
 						onClick={handleQuickGenerate}

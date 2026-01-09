@@ -11,7 +11,7 @@ import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
-import { CoachActionRow } from '@/types';
+import { CoachActionRow, ItemType } from '@/types';
 import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
 import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
@@ -231,17 +231,64 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
-    const handleAddActionSet = (dayIndex: number) => {
+    const handleAddActionSet = (dayIndex: number, type: ItemType = 'STRENGTH') => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
 
-        newDays[actualDayIndex].actionSets.push({
+        let newItem: any = {
             type: 'no-filter',
             actionId: '',
             setName: '',
-            params: {}
-        });
+            params: {},
+            itemType: type
+        };
+
+        // Initialize default values based on type
+        switch (type) {
+            case 'DIET':
+                newItem.setName = 'Diet Item';
+                newItem.actionId = ''; // Allow user to select template
+                newItem.params = {
+                    suggested_time: '08:00',
+                    custom_data: {
+                        content: '',
+                        calories: 0
+                    }
+                };
+                break;
+            case 'CARDIO':
+                newItem.setName = 'Cardio Item';
+                newItem.actionId = ''; // Allow user to select template
+                newItem.params = {
+                    custom_data: {
+                        content: '',
+                        duration: 30 * 60, // 30 minutes in seconds
+                        distance: 0,
+                        pace: 0
+                    }
+                };
+                break;
+            case 'HABIT':
+                newItem.setName = 'Habit Item';
+                newItem.actionId = ''; // Allow user to select template
+                newItem.params = {
+                    custom_data: {
+                        habit_name: '',
+                        target_duration: 10
+                    }
+                };
+                break;
+            case 'STRENGTH':
+            default:
+                // Existing strength logic
+                newItem.actionId = '';
+                newItem.setName = '';
+                newItem.params = {};
+                break;
+        }
+
+        newDays[actualDayIndex].actionSets.push(newItem);
         setDays(newDays);
     };
 
@@ -468,7 +515,7 @@ const EditPlanPage = () => {
                         }
                     }}
                     disabled={saving}
-                    tooltip="使用 AI 从文本导入，将覆盖现有训练内容"
+                    tooltip="使用智能导入从文本导入，将覆盖现有训练内容"
                     tooltipOptions={{ position: 'right' }}
                 />
             </div>

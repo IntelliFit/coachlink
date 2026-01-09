@@ -53,6 +53,7 @@ export default function NavigationCoach() {
         const isActive = pathname === item.url;
         return (
             <div
+                id={item.guideId}
                 onClick={item.command}
                 className={`
                     flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-all duration-300
@@ -70,9 +71,9 @@ export default function NavigationCoach() {
     const coachMenuItems = useMemo(() => [
         { label: '概览', icon: LayoutDashboard, url: '/dashboard/overview', command: () => router.push('/dashboard/overview'), template: itemRenderer },
         { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
-        { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), template: itemRenderer },
+        { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), guideId: 'guide-students', template: itemRenderer },
         { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
-        { label: '计划模板', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
+        { label: '计划模板', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), guideId: 'guide-plan-library', template: itemRenderer },
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [

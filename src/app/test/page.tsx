@@ -6,10 +6,11 @@ import { Card } from 'primereact/card';
 import { Dropdown } from 'primereact/dropdown';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { planLibService } from '@/app/service/planLibService';
-import { toast } from 'react-hot-toast';
+import { useToastContext } from '@/context/ToastContext';
 
 export default function TestPage() {
     const [loading, setLoading] = useState(false);
+    const { showToast } = useToastContext();
     const [actions, setActions] = useState<any[]>([]);
     const [selectedAction, setSelectedAction] = useState<any>(null);
 
@@ -102,7 +103,7 @@ export default function TestPage() {
                      }
                 }
             } else {
-                 toast.error('未找到可用模板，无法生成有效计划。请先创建一个模板。');
+                 showToast({ severity: 'error', summary: '错误', detail: '未找到可用模板，无法生成有效计划。请先创建一个模板。' });
                  return;
             }
 
@@ -121,13 +122,13 @@ export default function TestPage() {
             const data = await res.json();
             
             if (data.success) {
-                toast.success('计划创建成功！');
+                showToast({ severity: 'success', summary: '成功', detail: '计划创建成功！' });
             } else {
-                toast.error('创建失败: ' + data.message);
+                showToast({ severity: 'error', summary: '失败', detail: '创建失败: ' + data.message });
             }
 
         } catch (error: any) {
-            toast.error('错误: ' + error.message);
+            showToast({ severity: 'error', summary: '错误', detail: '错误: ' + error.message });
         } finally {
             setLoading(false);
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { RadioButton } from 'primereact/radiobutton';
 import { CoachActionRow, CoachSubscriptionRow, IntensityConfig, WeightUnit } from '@/types';
@@ -10,6 +10,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { calcRecommendedLoad, LambdaModel, normalizeIntensityConfig } from '@/lib/rmCaculator';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { TrainingItem } from '@/types/questionnaires';
+
 
 interface ActionSetFormProps {
     set: CoachPlanAction | CoachPlanActionWithOneFilter;
@@ -25,7 +26,9 @@ interface ActionSetFormProps {
     ) => void;
     actions: CoachActionRow[];
     studentData?: GetStudentResponseDto['student'] | null;
+    planReference1RM?: number;
     subscription?: CoachSubscriptionRow | null;
+    isGlobalOneRMConfigEnabled?: boolean;
 }
 
 // 强度类型选项
@@ -41,9 +44,55 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     actions,
     studentData,
     subscription,
+    planReference1RM,
+    isGlobalOneRMConfigEnabled,
 }) => {
     const currentAction = actions.find(action => action.id === set.actionId);
-    const userInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};
+    
+    // 动态获取的聚合1RM数据 (来自 API: max(问卷, PR))
+    const [aggregated1RM, setAggregated1RM] = useState<Record<string, number>>({});
+    
+    // 从问卷获取初始值作为 fallback
+    const questionnaireInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};
+
+    // 获取聚合1RM数据（问卷+PR取最大值）
+    useEffect(() => {
+        if (!studentData?.student_id) return;
+        
+        const fetchAggregated1RM = async () => {
+            // console.log('[ActionSetForm] 🔄 Fetching aggregated 1RM for student:', studentData.student_id);
+            try {
+                const response = await fetch('/api/student/get-current-1rm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ targetUserId: studentData.student_id })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data?.records) {
+                        const rmMap: Record<string, number> = {};
+                        for (const record of result.data.records) {
+                            // 1. 存入 ID 映射
+                            if (record.actionId) {
+                                rmMap[record.actionId] = Math.max(rmMap[record.actionId] || 0, record.current1RM);
+                            }
+                            // 2. 存入 名称 映射 (解决 CoachActionID vs StudentActionID 不一致的问题)
+                            if (record.actionName) {
+                                rmMap[record.actionName] = Math.max(rmMap[record.actionName] || 0, record.current1RM);
+                            }
+                        }
+                        // console.log('[ActionSetForm] ✅ Aggregated 1RM loaded:', Object.keys(rmMap).length, 'keys', rmMap);
+                        setAggregated1RM(rmMap);
+                    }
+                }
+            } catch (error) {
+                console.error('获取聚合1RM失败:', error);
+            }
+        };
+        
+        fetchAggregated1RM();
+    }, [studentData?.student_id]);
 
     // 从 props 计算当前强度配置（无本地状态，完全受控）
     const existingConfig = useMemo(() => normalizeIntensityConfig(set.params), [set.params]);
@@ -89,12 +138,33 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         }
     }
 
+    // 获取用户1RM：优先级 PlanConfig > AggregatedAPI > Questionnaire
     const getUserOneRM = useCallback(() => {
         if (!currentAction) {
             return 1;
         }
-        return userInput[currentAction.id] || 1;
-    }, [currentAction, userInput]);
+
+        // 1. 优先使用计划层级的统一配置
+        if (planReference1RM && planReference1RM > 0) {
+            return planReference1RM;
+        }
+
+        // 2. 使用 API 返回的聚合值
+        // 优先尝试 ID 匹配
+        let aggregatedValue = aggregated1RM[currentAction.id];
+        
+        // 如果 ID 匹配失败或者值太小，尝试 Name 匹配 (fallback)
+        if ((!aggregatedValue || aggregatedValue <= 1) && currentAction.name) {
+            aggregatedValue = aggregated1RM[currentAction.name];
+        }
+
+        if (aggregatedValue && aggregatedValue > 0) {
+            return aggregatedValue;
+        }
+        
+        // 3. Fallback 到问卷数据
+        return questionnaireInput[currentAction.id] || 1;
+    }, [currentAction, aggregated1RM, questionnaireInput, planReference1RM]);
 
     const considerBodyWeightActions = ['深蹲', '引体向上', '俯卧撑', '平板支撑'];
 
@@ -195,17 +265,52 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         });
     }, [existingConfig, recommendedUnit, updateParams]);
 
+    // 本地状态：用户当前输入的参考1RM
+    // 如果有 planReference1RM，则不再独立维护本地 manual1RM，直接使用之
+    const [manual1RM, setManual1RM] = useState<number>(0);
+
+    // 当没有 planReference1RM 时，我们才使用本地 manual1RM 逻辑
+    // 如果有 planReference1RM，useEffect 会依赖它，不需要在这里 sync
+    useEffect(() => {
+        // 如果有计划层级的配置，优先不操作本地状态
+        if (planReference1RM && planReference1RM > 0) {
+             return;
+        }
+
+        const bgRm = getUserOneRM();
+        // 初始化或当背景值改变且当前值为0/默认值时更新
+        if (bgRm > 0 && (manual1RM === 0 || manual1RM === 1)) {
+            setManual1RM(bgRm);
+        } else if (manual1RM === 0) {
+            setManual1RM(1); // 默认至少为1
+        }
+    }, [getUserOneRM, manual1RM, planReference1RM]);
+
+    // 当动作ID改变时，重置 manual1RM，确保获取新动作的参考值
+    useEffect(() => {
+        setManual1RM(0); // 重置为0将触发上面的 Effect 重新获取 1RM
+    }, [set.actionId]);
+
+    // ... (existing helper functions)
+
     // 当参数或算法变化时，自动计算推荐负重（RM 和 百分比 两种模式都支持）
     useEffect(() => {
         if (!studentData || !currentAction?.enableAutoWeightCompute) {
             return;
         }
 
-        const oneRm = getUserOneRM();
+        // 如果是查看学员计划 (studentData存在) 或 全局配置 (planReference1RM存在)，
+        // 则强制使用系统/全局定义的 1RM，忽略 manual1RM (因为输入框已隐藏，manual1RM 可能过时)
+        let oneRm = manual1RM;
+        if (studentData) {
+            oneRm = getUserOneRM();
+        } else if (planReference1RM && planReference1RM > 0) {
+            oneRm = planReference1RM;
+        }
         const userBodyWeight = studentData?.profile?.weight;
 
         if (!oneRm || oneRm <= 0 || !userBodyWeight || userBodyWeight <= 0) {
-            console.log('缺少1RM或体重数据，无法计算');
+            // console.log('缺少1RM或体重数据，无法计算');
             return;
         }
 
@@ -235,24 +340,32 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 model
             );
         } else if (intensityType === 'percentage') {
-            // 百分比模式：直接 1RM × 百分比，不需要减去体重
+            // 百分比模式
             const pctValue = existingConfig?.relativeIntensity?.type === 'percentage' 
                 ? existingConfig.relativeIntensity.value 
                 : percentageValue;
             
             if (!pctValue || pctValue <= 0) return;
 
-            // 直接计算，不考虑体重
-            calculatedWeight = oneRm * (pctValue / 100);
+            const targetTotal = oneRm * (pctValue / 100);
+
+            if (includesBodyWeight) {
+                calculatedWeight = targetTotal - userBodyWeight;
+            } else {
+                calculatedWeight = targetTotal;
+            }
         }
 
         if (calculatedWeight !== null) {
             // 四舍五入到一位小数
             calculatedWeight = Math.round(calculatedWeight * 10) / 10;
             
+            // 如果计算结果 < 0 (例如自重超过目标重量)，则设为 0
+            if (calculatedWeight < 0) calculatedWeight = 0;
+
             // 只在计算结果有较大变化时才更新，避免无限循环
             if (Math.abs(calculatedWeight - (set.params?.load || 0)) > 0.1) {
-                console.log(`自动计算: ${intensityType}模式, 1RM=${oneRm}, 体重=${userBodyWeight}, 结果=${calculatedWeight}kg`);
+                // console.log(`[ActionSetForm] 🎯 Auto-calculated update...`);
                 updateParams({
                     load: calculatedWeight,
                     loadUnit: 'kg',
@@ -260,7 +373,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 });
             }
         }
-    }, [set.params?.['强度'], set.params?.algorithm, studentData, currentAction, intensityType, existingConfig, percentageValue, getUserOneRM, updateParams]);
+    }, [set.params?.['强度'], set.params?.algorithm, studentData, currentAction, intensityType, existingConfig, percentageValue, manual1RM, planReference1RM, updateParams]);
 
     // 检查当前动作是否有"强度"属性
     const hasIntensityAttr = currentAction?.attrs?.includes('强度');
@@ -314,6 +427,63 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 <div className="md:col-span-2 border-t border-surface-200 pt-3 mt-2">
                     <label className="block text-900 text-sm font-medium mb-2">强度设置</label>
                     
+                    {/* 1RM参考值输入 (仅当开启自动计算且未在计划层级统一配置且当前不是针对具体学员(已有数据)时显示) 
+                        如果有全局配置面板 (isGlobalOneRMConfigEnabled)，则完全隐藏此处的输入框，避免重复/混淆 
+                        如果有学员数据 (studentData)，则隐藏输入框，直接使用自动获取的数据
+                     */}
+                    {currentAction?.enableAutoWeightCompute && !isGlobalOneRMConfigEnabled && !studentData && (
+                        <div className={`mb-4 p-3 rounded-lg ${planReference1RM ? 'bg-green-50' : 'bg-primary-50'}`}>
+                            <div className="flex items-end gap-3">
+                                <div className="flex-1">
+                                    <label className="block text-700 text-xs mb-1">
+                                        参考极限重量 (1RM)
+                                        {studentData?.profile?.weight ? (
+                                             <span className="text-500 ml-2 font-normal">
+                                                (当前体重: {studentData.profile.weight}kg)
+                                             </span>
+                                        ) : (
+                                            <span className="text-orange-500 ml-2 font-normal">
+                                                (未设置体重，可能影响计算)
+                                            </span>
+                                        )}
+                                        {planReference1RM && (
+                                            <span className="text-green-600 ml-2 font-bold text-xs bg-green-100 px-2 py-0.5 rounded">
+                                                计划统一设定
+                                            </span>
+                                        )}
+                                    </label>
+                                    <InputNumber
+                                        value={planReference1RM || manual1RM}
+                                        onValueChange={(e) => !planReference1RM && setManual1RM(e.value || 0)}
+                                        suffix=" kg"
+                                        min={0}
+                                        max={500}
+                                        className={`w-full ${planReference1RM ? 'p-inputtext-sm opacity-90' : ''}`}
+                                        showButtons={!planReference1RM}
+                                        buttonLayout="horizontal"
+                                        step={2.5}
+                                        decrementButtonClassName="p-button-secondary"
+                                        incrementButtonClassName="p-button-secondary"
+                                        inputClassName="font-semibold text-primary"
+                                        disabled={saving || !!planReference1RM}
+                                    />
+                                    {planReference1RM && (
+                                        <p className="text-xs text-green-700 mt-1">
+                                            * 已在计划顶部统一配置，如需修改请滚动到顶部。
+                                        </p>
+                                    )}
+                                </div>
+                                {currentAction.includesBodyWeight && (
+                                    <div className="pb-3">
+                                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                            含自重
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* 相对强度类型选择 */}
                     <div className="flex flex-wrap gap-4 mb-3">
                         <div className="flex items-center">
@@ -429,6 +599,19 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 </div>
             )}
 
+            {/* 备注字段 */}
+            <div className="md:col-span-2">
+                <label className="block text-900 text-sm font-medium mb-2">备注</label>
+                <input
+                    type="text"
+                    value={set.params?.note || ''}
+                    onChange={e => onActionSetChange(dayIndex, setIndex, 'params', { note: e.target.value } as any)}
+                    placeholder="如 rpe9、热身组等"
+                    className="w-full p-2 border border-surface-200 rounded text-sm"
+                    disabled={saving}
+                />
+            </div>
+
             {/* 智能计算预览（仅当有学员数据且启用自动计算时） */}
             {currentAction?.enableAutoWeightCompute && studentData && (
                 <div className="md:col-span-2 border-t border-surface-200 pt-3 mt-2">
@@ -447,6 +630,12 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             )}
                             {intensityType === 'percentage' && (
                                 <span className="text-500 ml-2">({percentageValue}%)</span>
+                            )}
+                            {/* 显示使用的 1RM 基准 (仅当有学员数据时显示，因为此时输入框被隐藏了) */}
+                            {studentData && (planReference1RM || manual1RM) > 0 && (
+                                <span className="text-gray-400 text-xs ml-2">
+                                    [基准1RM: {studentData ? getUserOneRM() : (planReference1RM || manual1RM)}kg]
+                                </span>
                             )}
                         </div>
                     </div>

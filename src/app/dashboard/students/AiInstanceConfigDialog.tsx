@@ -93,7 +93,7 @@ export function AiInstanceConfigDialog({
             header={
                 <div className="flex items-center gap-2">
                     <i className="pi pi-cog text-primary" />
-                    <span>AI 生成配置</span>
+                    <span>智能生成配置</span>
                 </div>
             }
             footer={footer}

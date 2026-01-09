@@ -40,6 +40,8 @@ export async function POST(req: Request) {
             detail: `智能导入创建的动作: ${action.name}`,
             positions: ["全身"], // 默认位置
             attrs: ["组数", "次数", "强度", "休息时间"], // 默认属性
+            enableAutoWeightCompute: action.needsAutoCompute,
+            includesBodyWeight: action.includesBodyWeight,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         }));

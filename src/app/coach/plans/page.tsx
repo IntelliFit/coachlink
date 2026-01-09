@@ -329,73 +329,113 @@ const TrainingPlansHome: React.FC = () => {
         const actionName = action?.name || (actionSet as any).actionName || actionSet.set_name || '未知动作';
         const hasVideo = !!action?.url; // url 是视频链接字段
         const actionDetail = action?.detail; // detail 是动作说明字段
+        
+        // 获取动作类型
+        const itemType = (actionSet as any).itemType || action?.type || 'STRENGTH';
+        const params = (actionSet as any).params || {};
+        const customData = params.custom_data || {};
 
-        return (
-            <div className="flex items-center justify-between py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors">
-                <div className="flex items-center gap-3 flex-1">
-                    <div className="flex items-center gap-2 text-surface-500">
-                        <i className="pi pi-th-large text-sm" />
-                        <span className="text-sm">{(actionSet as any).params?.['组数'] || actionSet.sets}组×{(actionSet as any).params?.['次数'] || actionSet.reps}次</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <i className="pi pi-box text-sm text-surface-500" />
-                        <span className="font-medium text-surface-900">{actionName}</span>
-                    </div>
-                    {/* 强度显示：优先显示计算后的重量，否则显示RM */}
-                    {(() => {
-                        const params = (actionSet as any).params || {};
-                        const load = params.load;
-                        const intensity = params['强度'] || actionSet.intensity;
-
-                        if (load && load > 0) {
-                            // 显示自动计算的具体重量
-                            return (
+        // 根据类型渲染不同的摘要信息
+        const renderSummary = () => {
+            switch (itemType) {
+                case 'DIET':
+                    return (
+                        <div className="flex items-center gap-2 text-green-600">
+                            <span className="text-sm">🥗 {customData.content || action?.detail || '饮食建议'}</span>
+                            {params.suggested_time && <span className="text-xs">· {params.suggested_time}</span>}
+                        </div>
+                    );
+                case 'CARDIO':
+                    return (
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <span className="text-sm">
+                                🏃 {customData.duration ? `${(customData.duration / 60).toFixed(0)}分钟` : ''}
+                                {customData.distance ? ` · ${(customData.distance / 1000).toFixed(1)}km` : ''}
+                                {!customData.duration && !customData.distance && (action?.detail || '有氧运动')}
+                            </span>
+                        </div>
+                    );
+                case 'HABIT':
+                    return (
+                        <div className="flex items-center gap-2 text-purple-600">
+                            <span className="text-sm">✅ {customData.habit_name || action?.detail || '习惯打卡'}</span>
+                            {customData.target_duration && <span className="text-xs">· {customData.target_duration}分钟</span>}
+                        </div>
+                    );
+                case 'STRENGTH':
+                default:
+                    const load = params.load;
+                    const intensity = params['强度'] || actionSet.intensity;
+                    return (
+                        <>
+                            <div className="flex items-center gap-2 text-surface-500">
+                                <i className="pi pi-th-large text-sm" />
+                                <span className="text-sm">{params['组数'] || actionSet.sets || 1}组×{params['次数'] || actionSet.reps || 1}次</span>
+                            </div>
+                            {load && load > 0 ? (
                                 <div className="flex items-center gap-1 text-green-600">
                                     <span className="text-sm">💪 {load}kg</span>
                                 </div>
-                            );
-                        } else if (intensity) {
-                            // 显示RM强度
-                            return (
+                            ) : intensity ? (
                                 <div className="flex items-center gap-1 text-surface-600">
                                     <span className="text-sm">💪 {intensity}RM</span>
                                 </div>
-                            );
-                        }
-                        return null;
-                    })()}
-                    {((actionSet as any).params?.['休息时间'] || actionSet.rest_seconds) && (
-                        <div className="flex items-center gap-1 text-surface-500">
-                            <i className="pi pi-clock text-xs" />
-                            <span className="text-sm">休息{(((actionSet as any).params?.['休息时间'] || actionSet.rest_seconds) / 60).toFixed(1)}分钟</span>
+                            ) : null}
+                            {(params['休息时间'] || actionSet.rest_seconds) && (
+                                <div className="flex items-center gap-1 text-surface-500">
+                                    <i className="pi pi-clock text-xs" />
+                                    <span className="text-sm">休息{((params['休息时间'] || actionSet.rest_seconds) / 60).toFixed(1)}分钟</span>
+                                </div>
+                            )}
+                        </>
+                    );
+            }
+        };
+
+        const note = params.note;
+
+        return (
+            <div className="flex flex-col py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors gap-2">
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3 flex-1">
+                        {renderSummary()}
+                        <div className="flex items-center gap-2">
+                            <i className="pi pi-box text-sm text-surface-500" />
+                            <span className="font-medium text-surface-900">{actionName}</span>
                         </div>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {hasVideo && (
+                            <Button
+                                icon="pi pi-video"
+                                rounded
+                                text
+                                size="small"
+                                className="text-primary"
+                                tooltip="查看动作视频"
+                                tooltipOptions={{ position: 'left' }}
+                                onClick={() => window.open(action?.url, '_blank')}
+                            />
+                        )}
+                        {actionDetail && (
+                            <Button
+                                icon="pi pi-info-circle"
+                                rounded
+                                text
+                                size="small"
+                                className="text-info"
+                                tooltip={actionDetail}
+                                tooltipOptions={{ position: 'left' }}
+                            />
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {hasVideo && (
-                        <Button
-                            icon="pi pi-video"
-                            rounded
-                            text
-                            size="small"
-                            className="text-primary"
-                            tooltip="查看动作视频"
-                            tooltipOptions={{ position: 'left' }}
-                            onClick={() => window.open(action?.url, '_blank')}
-                        />
-                    )}
-                    {actionDetail && (
-                        <Button
-                            icon="pi pi-info-circle"
-                            rounded
-                            text
-                            size="small"
-                            className="text-info"
-                            tooltip={actionDetail}
-                            tooltipOptions={{ position: 'left' }}
-                        />
-                    )}
-                </div>
+                {note && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded border border-amber-100 w-full">
+                        <i className="pi pi-info-circle text-xs" />
+                        <span>{note}</span>
+                    </div>
+                )}
             </div>
         );
     };

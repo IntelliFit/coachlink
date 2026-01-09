@@ -54,12 +54,12 @@ const TrainingPlanCard: React.FC<TrainingPlanCardProps> = ({ plan, onStart, onVi
         </div>
       </div>
 
-      {/* AI/教练标识 */}
+      {/* 智能/教练标识 */}
       <div className="flex items-center space-x-2 mb-4">
         {plan.ai_generated && (
           <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 rounded-full">
             <Star className="w-3 h-3 text-blue-500" />
-            <span className="text-xs text-blue-700">AI生成</span>
+            <span className="text-xs text-blue-700">智能生成</span>
           </div>
         )}
         {plan.coach_reviewed && (

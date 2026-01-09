@@ -69,7 +69,7 @@ export default function SubscribePage() {
     return (
         <div className="container mx-auto p-4 max-w-4xl py-10">
             <h1 className="text-3xl font-bold text-center mb-2 text-surface-900">选择适合您的计划</h1>
-            <p className="text-surface-500 text-center mb-8">解锁 AI 潜能，让训练更科学、更高效</p>
+            <p className="text-surface-500 text-center mb-8">解锁智能潜能，让训练更科学、更高效</p>
 
             <TabView activeIndex={activeIndex} onTabChange={(e) => setActiveIndex(e.index)}>
                 <TabPanel header="会员订阅">
@@ -83,7 +83,7 @@ export default function SubscribePage() {
                             </div>
                             <ul className="space-y-3 text-sm flex-grow mb-6">
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />内建基础动作库</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />每月 2 次 AI 计划生成</li>
+                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />每月 2 次智能计划生成</li>
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />近 7 天数据分析</li>
                                 <li className="flex items-center text-surface-400"><Check className="mr-2 h-4 w-4" />仅 3 条视频存储</li>
                             </ul>
@@ -99,7 +99,7 @@ export default function SubscribePage() {
                             </div>
                             <ul className="space-y-3 text-sm flex-grow mb-6">
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />**全部** 基础+个人动作库</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />每月 **10 次** AI 计划生成</li>
+                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />每月 **10 次** 智能计划生成</li>
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />**无限** 历史数据查询</li>
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />30 条/月 视频存储</li>
                             </ul>
@@ -119,8 +119,8 @@ export default function SubscribePage() {
                                 <div className="text-3xl font-bold mt-2 text-purple-700">¥39.9<span className="text-sm font-normal text-surface-500"> /月</span></div>
                             </div>
                             <ul className="space-y-3 text-sm font-medium flex-grow mb-6">
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />**无限次** AI 计划生成</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />**AI 深度洞察报告**</li>
+                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />**无限次** 智能计划生成</li>
+                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />**智能深度洞察报告**</li>
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />优先使用新功能模板</li>
                                 <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />100 条/月 视频存储</li>
                                 <li className="flex items-center text-purple-800"><Check className="mr-2 h-4 w-4" />订阅真人教练享 **9折**</li>
@@ -139,11 +139,11 @@ export default function SubscribePage() {
                         <div className="border border-surface-200 rounded-xl p-6 bg-surface-0 shadow-sm flex flex-col">
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="p-2 bg-yellow-100 rounded-lg"><Sparkles className="w-6 h-6 text-yellow-600"/></div>
-                                <h3 className="text-xl font-bold text-surface-900">AI 导入加油包</h3>
+                                <h3 className="text-xl font-bold text-surface-900">智能导入加油包</h3>
                             </div>
                             <p className="text-sm text-surface-500 mb-4">单次购买，永不过期</p>
                             <div className="text-2xl font-bold mb-4 text-surface-900">¥2.0 <span className="text-base font-normal text-surface-500">/ 3次</span></div>
-                            <p className="text-sm text-surface-600 mb-6 flex-grow">当月度配额用完时，可购买加油包继续使用 AI 生成计划功能。</p>
+                            <p className="text-sm text-surface-600 mb-6 flex-grow">当月度配额用完时，可购买加油包继续使用智能生成计划功能。</p>
                             <Button label="购买" outlined severity="secondary" onClick={() => handlePurchase('ai_pack_basic')} loading={loading} className="w-full" />
                         </div>
 

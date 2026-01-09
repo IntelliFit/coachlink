@@ -195,7 +195,7 @@ const AITrainingPlanService: React.FC<AITrainingPlanServiceProps> = ({
     }
 
     setIsGenerating(true);
-    setMessage({ type: 'info', text: 'AI正在为您生成个性化训练计划...' });
+    setMessage({ type: 'info', text: '正在为您生成个性化训练计划...' });
 
     try {
       const userId = localStorage.getItem('current_user_id') || '';
@@ -252,7 +252,7 @@ const AITrainingPlanService: React.FC<AITrainingPlanServiceProps> = ({
         notes: ''
       };
       setTrainingPlans(prev => [newPlan, ...prev]);
-      setMessage({ type: 'success', text: 'AI训练计划生成成功！' });
+      setMessage({ type: 'success', text: '智能训练计划生成成功！' });
       setActiveTab('my_plans');
     } catch (e:any) {
       console.error(e);
@@ -446,7 +446,7 @@ const AITrainingPlanService: React.FC<AITrainingPlanServiceProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl shadow-sm p-8">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">AI训练计划生成</h1>
+            <h1 className="text-2xl font-bold text-gray-900">智能训练计划生成</h1>
             <button
               onClick={onBack}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
@@ -561,7 +561,7 @@ const AITrainingPlanService: React.FC<AITrainingPlanServiceProps> = ({
                           )}
                           {plan.ai_generated && (
                             <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                              AI生成
+                              智能生成
                             </span>
                           )}
                         </div>
@@ -609,10 +609,10 @@ const AITrainingPlanService: React.FC<AITrainingPlanServiceProps> = ({
               <div className="text-center mb-8">
                 <Brain className="w-16 h-16 text-blue-500 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  创建AI个性化训练计划
+                  创建个性化智能训练计划
                 </h2>
                 <p className="text-gray-600">
-                  基于您的健身目标和个人情况，AI将为您生成专属的训练计划
+                  基于您的健身目标和个人情况，系统将为您生成专属的训练计划
                 </p>
               </div>
 
@@ -796,7 +796,7 @@ const AITrainingPlanService: React.FC<AITrainingPlanServiceProps> = ({
                     {isGenerating ? (
                       <div className="flex items-center space-x-2">
                         <Activity className="w-5 h-5 animate-spin" />
-                        <span>AI生成中...</span>
+                        <span>智能生成中...</span>
                       </div>
                     ) : (
                       <div className="flex items-center space-x-2">

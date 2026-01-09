@@ -196,14 +196,49 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                 {idx + 1}. {action?.name || actionSet.set_name}
                                             </div>
                                             <div className="text-gray-600 flex flex-wrap gap-2">
-                                                <span>
-                                                    {actionSet.params?.['组数'] || actionSet.sets}组 × {actionSet.params?.['次数'] || actionSet.reps}次
-                                                </span>
-                                                {load && load > 0 ? (
-                                                    <span className="text-green-600 font-medium">💪 {load}kg</span>
-                                                ) : intensity ? (
-                                                    <span>· {intensity}</span>
-                                                ) : null}
+                                                {/* 根据动作类型显示不同的摘要信息 */}
+                                                {(() => {
+                                                    const itemType = actionSet.itemType || action?.type || 'STRENGTH';
+                                                    const params = actionSet.params || {};
+                                                    const customData = params.custom_data || {};
+                                                    
+                                                    switch (itemType) {
+                                                        case 'DIET':
+                                                            return (
+                                                                <span className="text-green-600">
+                                                                    🥗 {customData.content || action?.detail || '饮食建议'}
+                                                                </span>
+                                                            );
+                                                        case 'CARDIO':
+                                                            return (
+                                                                <span className="text-blue-600">
+                                                                    🏃 {customData.duration ? `${(customData.duration / 60).toFixed(0)}分钟` : ''}
+                                                                    {customData.distance ? ` · ${(customData.distance / 1000).toFixed(1)}km` : ''}
+                                                                    {!customData.duration && !customData.distance && (action?.detail || '有氧运动')}
+                                                                </span>
+                                                            );
+                                                        case 'HABIT':
+                                                            return (
+                                                                <span className="text-purple-600">
+                                                                    ✅ {customData.habit_name || action?.detail || '习惯打卡'}
+                                                                </span>
+                                                            );
+                                                        case 'STRENGTH':
+                                                        default:
+                                                            return (
+                                                                <>
+                                                                    <span>
+                                                                        {params['组数'] || actionSet.sets || 1}组 × {params['次数'] || actionSet.reps || 1}次
+                                                                    </span>
+                                                                    {load && load > 0 ? (
+                                                                        <span className="text-green-600 font-medium">💪 {load}kg</span>
+                                                                    ) : intensity ? (
+                                                                        <span>· {intensity}</span>
+                                                                    ) : null}
+                                                                </>
+                                                            );
+                                                    }
+                                                })()}
                                             </div>
                                         </div>
                                     );

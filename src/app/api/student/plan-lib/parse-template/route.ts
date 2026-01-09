@@ -198,7 +198,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             message: quotaResult.message ||
-                "AI 生成配额不足，请升级会员或购买加油包",
+                "智能生成配额不足，请升级会员或购买加油包",
         }, { status: 403 });
     }
     // --- QUOTA CHECK END ---
@@ -237,9 +237,8 @@ export async function POST(req: Request) {
                             restSeconds: action.restSeconds || 180,
                             intensityConfig: action.intensityConfig
                                 ? {
-                                    relativeIntensity:
-                                        action.intensityConfig
-                                            .relativeIntensity,
+                                    relativeIntensity: action.intensityConfig
+                                        .relativeIntensity,
                                     fixedWeight:
                                         action.intensityConfig.fixedWeight,
                                 }

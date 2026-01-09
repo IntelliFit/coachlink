@@ -104,7 +104,7 @@ export class StudentMembershipService extends BaseService {
     }
 
     /**
-     * Check if user has enough AI quota and optionally deduct
+     * Check if user has enough smart generation quota and optionally deduct
      * This calls the backend which implements "Lazy Reset" logic
      */
     async consumeAiQuota(count: number = 1) {

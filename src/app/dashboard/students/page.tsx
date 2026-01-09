@@ -166,13 +166,13 @@ export default function StudentsPage() {
         loadStudents(event.page, event.rows);
     };
 
-    /** 打开AI生成配置对话框 */
+    /** 打开智能生成配置对话框 */
     const openAiConfigDialog = (student: StudentWithPlan) => {
         setSelectedStudent(student);
         setAiConfigDialogVisible(true);
     };
 
-    /** 执行AI生成（带配置参数） */
+    /** 执行智能生成（带配置参数） */
     const makeAiInstance = async (student: StudentWithPlan, config: AiInstanceConfig) => {
         setAiGenerating(true);
         showToast({ severity: 'info', summary: '快速生成中', detail: '正在根据学员问卷自动创建训练计划' });
@@ -208,7 +208,7 @@ export default function StudentsPage() {
                     showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项���' });
                 }
             } else {
-                showToast({ severity: 'error', summary: '创建失败', detail: '无法创建AI实例' });
+                showToast({ severity: 'error', summary: '创建失败', detail: '无法创建智能实例' });
             }
         } finally {
             setAiGenerating(false);
@@ -330,7 +330,7 @@ export default function StudentsPage() {
             </div>
         );
     };
-    /** 训练计划列 - 增加 AI 按钮的视觉吸引力 */
+    /** 训练计划列 - 增加智能生成按钮的视觉吸引力 */
     const trainingPlanTemplate = (student: StudentWithPlan) => {
         if (student.plan === undefined) return <Skeleton width="120px" height="32px" borderRadius="12px" />;
 

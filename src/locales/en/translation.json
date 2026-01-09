@@ -21,7 +21,7 @@
   },
   "home": {
     "description": "Welcome to the intelligent fitness training platform! Please select the service you need:",
-    "ai_training": "AI Training Plans",
+    "ai_training": "Smart Training Plans",
     "ai_training_desc": "Personalized custom training programs",
     "coaching": "Coaching",
     "coaching_desc": "Professional coaching services",

@@ -66,8 +66,8 @@ const TrainingPlansHome: React.FC<TrainingPlansHomeProps> = ({ userId, coachId, 
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">AI智能训练计划</h1>
-              <p className="text-gray-600 text-sm">基于规则引擎 + AI增强的个性化方案</p>
+              <h1 className="text-2xl font-bold text-gray-900">智能训练计划</h1>
+              <p className="text-gray-600 text-sm">基于规则引擎的个性化智能方案</p>
             </div>
           </div>
           <button onClick={onCreateNew} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -101,7 +101,7 @@ const TrainingPlansHome: React.FC<TrainingPlansHomeProps> = ({ userId, coachId, 
                       <div className="flex items-center space-x-1"><Calendar className="w-4 h-4" /><span>{plan.duration_weeks}周</span></div>
                       <div className="flex items-center space-x-1"><Timer className="w-4 h-4" /><span>{getRelativeTime(plan.created_at)}</span></div>
                       {plan.ai_generated && (
-                        <span className="px-2 py-1 rounded bg-purple-100 text-purple-700 text-xs inline-flex items-center"><Zap className="w-3 h-3 mr-1"/>AI生成</span>
+                        <span className="px-2 py-1 rounded bg-purple-100 text-purple-700 text-xs inline-flex items-center"><Zap className="w-3 h-3 mr-1"/>智能生成</span>
                       )}
                     </div>
                   </div>

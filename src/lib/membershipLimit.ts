@@ -9,7 +9,7 @@ export interface QuotaCheckResult {
 }
 
 /**
- * Checks if a user has sufficient AI quota and deducts it.
+ * Checks if a user has sufficient smart generation quota and deducts it.
  * Implements "Lazy Reset" logic: if the quota hasn't been reset this month,
  * it resets it based on the user's current membership tier before checking/deducting.
  *

@@ -40,3 +40,6 @@ export * from "./intensity";
 
 // 项目类型（力量/饮食/有氧/习惯）
 export type { ItemType } from "./student";
+
+// 计划项目多态类型
+export * from "./plan-item";

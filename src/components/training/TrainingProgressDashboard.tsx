@@ -33,8 +33,9 @@ interface ProgressStats {
 interface PersonalRecord {
   id: string;
   exercise_name: string;
-  max_weight: number;
-  max_reps: number;
+  weight: number;       // Training weight
+  reps: number;         // Training reps
+  e1rm: number;         // Calculated e1RM
   date_achieved: string;
   notes?: string;
 }
@@ -150,15 +151,16 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
   };
 
   const loadPersonalRecords = async () => {
+    // Use personal_records_history with new column names
     const { data, error } = await supabase
-      .from('personal_records')
-      .select('*')
+      .from('personal_records_history' as any)
+      .select('id, exercise_name, weight, reps, e1rm, date_achieved, notes')
       .eq('user_id', userId)
       .order('date_achieved', { ascending: false })
       .limit(10);
 
     if (!error && data) {
-      setPersonalRecords(data);
+      setPersonalRecords(data as unknown as PersonalRecord[]);
     }
   };
 
@@ -339,7 +341,7 @@ const TrainingProgressDashboard: React.FC<TrainingProgressDashboardProps> = ({
                 <div>
                   <p className="font-medium text-gray-900">{record.exercise_name}</p>
                   <p className="text-sm text-gray-600">
-                    {record.max_weight}kg × {record.max_reps}次
+                    {record.weight}kg × {record.reps}次 → e1RM {record.e1rm}kg
                   </p>
                 </div>
                 <div className="text-right">

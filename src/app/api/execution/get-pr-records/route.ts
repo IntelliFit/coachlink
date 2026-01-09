@@ -6,14 +6,16 @@ import supabase from "@/lib/supabaseClient";
 interface PRRecord {
     id: string;
     exercise_name: string;
-    max_weight: number;
-    max_reps: number;
+    weight: number; // Training weight
+    reps: number; // Training reps
+    e1rm: number; // Calculated e1RM
     load_formula: string;
     date_achieved: string;
     notes?: string;
     video_url?: string;
     action_id?: string;
     execution_id?: string;
+    is_auto_calculated: boolean;
     created_at: string;
 }
 
@@ -87,8 +89,9 @@ export async function GET(request: NextRequest) {
             targetUserId = requestedUserId;
         }
 
-        // Get PR records from personal_records_history
-        const { data: records, error, count } = await supabase
+        // Get PR records using new column names
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: records, error, count } = await (supabase as any)
             .from("personal_records_history")
             .select("*", { count: "exact" })
             .eq("user_id", targetUserId)
@@ -103,17 +106,21 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const prRecords: PRRecord[] = (records || []).map((r) => ({
+        // Map to response format with new column names
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const prRecords: PRRecord[] = ((records || []) as any[]).map((r) => ({
             id: r.id,
             exercise_name: r.exercise_name,
-            max_weight: r.max_weight,
-            max_reps: r.max_reps,
+            weight: r.weight ?? r.max_weight, // Fallback for pre-migration
+            reps: r.reps ?? r.max_reps, // Fallback for pre-migration
+            e1rm: r.e1rm ?? r.max_weight, // Fallback: e1rm or max_weight
             load_formula: r.load_formula,
             date_achieved: r.date_achieved,
             notes: r.notes,
             video_url: r.video_url,
             action_id: r.action_id,
             execution_id: r.execution_id,
+            is_auto_calculated: r.is_auto_calculated || false,
             created_at: r.created_at,
         }));
 

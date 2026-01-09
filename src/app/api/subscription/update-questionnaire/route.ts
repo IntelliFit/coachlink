@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { createClient } from "@supabase/supabase-js";
+import supabase from "@/lib/supabaseClient";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { Database, Json } from "@/types/database.types";
-
-const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+import { Json } from "@/types/database.types";
 
 // Update student's questionnaire answers (subscribe_data)
 export async function POST(request: NextRequest) {

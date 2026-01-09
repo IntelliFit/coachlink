@@ -119,28 +119,65 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                         </div>
                                         
                                         <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                                            <span className="text-gray-600">
-                                                <strong>{actionSet.params?.['组数'] || actionSet.sets}组</strong> × <strong>{actionSet.params?.['次数'] || actionSet.reps}次</strong>
-                                            </span>
-                                            {/* 优先显示计算后的重量，否则显示RM强度 */}
+                                            {/* 根据动作类型显示不同的摘要信息 */}
                                             {(() => {
-                                                const load = actionSet.params?.load;
-                                                const intensity = actionSet.params?.['强度'] || actionSet.intensity;
+                                                const itemType = actionSet.itemType || action?.type || 'STRENGTH';
+                                                const params = actionSet.params || {};
+                                                const customData = params.custom_data || {};
                                                 
-                                                if (load && load > 0) {
-                                                    return (
-                                                        <span className="text-green-600 font-medium">
-                                                            💪 {load}kg
-                                                        </span>
-                                                    );
-                                                } else if (intensity) {
-                                                    return (
-                                                        <span className="text-gray-600">
-                                                            💪 {intensity}
-                                                        </span>
-                                                    );
+                                                switch (itemType) {
+                                                    case 'DIET':
+                                                        return (
+                                                            <span className="text-green-600">
+                                                                🥗 {customData.content || action?.detail || '饮食建议'}
+                                                                {params.suggested_time && ` · ${params.suggested_time}`}
+                                                            </span>
+                                                        );
+                                                    case 'CARDIO':
+                                                        return (
+                                                            <span className="text-blue-600">
+                                                                🏃 {customData.duration ? `${(customData.duration / 60).toFixed(0)}分钟` : ''}
+                                                                {customData.distance ? ` · ${(customData.distance / 1000).toFixed(1)}km` : ''}
+                                                                {!customData.duration && !customData.distance && (action?.detail || '有氧运动')}
+                                                            </span>
+                                                        );
+                                                    case 'HABIT':
+                                                        return (
+                                                            <span className="text-purple-600">
+                                                                ✅ {customData.habit_name || action?.detail || '习惯打卡'}
+                                                                {customData.target_duration && ` · ${customData.target_duration}分钟`}
+                                                            </span>
+                                                        );
+                                                    case 'STRENGTH':
+                                                    default:
+                                                        return (
+                                                            <>
+                                                                <span className="text-gray-600">
+                                                                    <strong>{params['组数'] || actionSet.sets || 1}组</strong> × <strong>{params['次数'] || actionSet.reps || 1}次</strong>
+                                                                </span>
+                                                                {/* 优先显示计算后的重量，否则显示RM强度 */}
+                                                                {(() => {
+                                                                    const load = params.load;
+                                                                    const intensity = params['强度'] || actionSet.intensity;
+                                                                    
+                                                                    if (load && load > 0) {
+                                                                        return (
+                                                                            <span className="text-green-600 font-medium">
+                                                                                💪 {load}kg
+                                                                            </span>
+                                                                        );
+                                                                    } else if (intensity) {
+                                                                        return (
+                                                                            <span className="text-gray-600">
+                                                                                💪 {intensity}
+                                                                            </span>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
+                                                            </>
+                                                        );
                                                 }
-                                                return null;
                                             })()}
                                             {(actionSet.params?.['休息时间'] || actionSet.rest_seconds) && (
                                                 <span className="text-gray-600">

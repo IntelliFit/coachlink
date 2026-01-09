@@ -128,6 +128,8 @@ const ActionLib = () => {
                     type: actionData.type,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute || false,
                     includesBodyWeight: actionData.includesBodyWeight || false,
+                    item_schema: actionData.item_schema,
+                    suggested_time: actionData.suggested_time,
                 });
 
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
@@ -199,6 +201,18 @@ const ActionLib = () => {
 
                         {/* 标签区域 */}
                         <div className="flex flex-wrap gap-2 mt-2">
+                            {/* Type Badge */}
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                action.type === 'DIET' ? 'bg-green-100 text-green-700' :
+                                action.type === 'CARDIO' ? 'bg-blue-100 text-blue-700' :
+                                action.type === 'HABIT' ? 'bg-purple-100 text-purple-700' :
+                                'bg-orange-100 text-orange-700'
+                            }`}>
+                                {action.type === 'DIET' ? '饮食' :
+                                 action.type === 'CARDIO' ? '有氧' :
+                                 action.type === 'HABIT' ? '习惯' : '力量'}
+                            </span>
+
                             {positions.map((pos, index) => (
                                 <span
                                     key={index}
@@ -211,8 +225,8 @@ const ActionLib = () => {
 
 
                             {action.url && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                                    包含演示
+                                <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600">
+                                    <i className="pi pi-video mr-1 text-xs"></i>演示
                                 </span>
                             )}
 
@@ -223,8 +237,14 @@ const ActionLib = () => {
                             )}
 
                             {action.enableAutoWeightCompute && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
-                                    自动重量计算
+                                <span className="text-xs px-2 py-1 rounded-full bg-orange-50 text-orange-600">
+                                    <i className="pi pi-bolt mr-1 text-xs"></i>智能重量
+                                </span>
+                            )}
+
+                            {action.canonical_action_id && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-teal-50 text-teal-600" title="已关联公共动作库">
+                                    <i className="pi pi-check-circle mr-1 text-xs"></i>已关联
                                 </span>
                             )}
                         </div>

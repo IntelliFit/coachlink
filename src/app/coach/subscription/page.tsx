@@ -9,8 +9,6 @@ import { useSession } from 'next-auth/react'
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity'
 import { useRouter } from 'next/navigation';
 import CoachList from '@/app/coach/subscription/CoachList';
-import TrainingSummary from '@/app/coach/subscription/TrainingSummary';
-import RecentActivity from '@/app/coach/subscription/RecentActivity';
 
 const SubscriptionDashboard = () => {
     const { data: session } = useSession();    
@@ -44,44 +42,65 @@ const SubscriptionDashboard = () => {
     // 骨架屏组件
     const LoadingSkeleton = () => (
         <div className="space-y-8">
-            {/* 订阅列表骨架屏 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3].map(item => (
-                    <div key={item} className="shadow-sm rounded-lg overflow-hidden">
-                        <Skeleton height="150px" className="mb-4" />
+            {/* 订阅列表骨架屏 - 更新为2列网格 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[1, 2].map(item => (
+                    <div key={item} className="rounded-lg overflow-hidden border border-surface-200">
+                        {/* 顶部状态栏 */}
+                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-3">
+                            <Skeleton width="120px" height="20px" className="bg-white/20" />
+                        </div>
+                        
+                        {/* 教练信息 */}
                         <div className="p-6">
-                            <Skeleton width="60%" height="24px" className="mb-4" />
-                            <Skeleton width="100%" height="40px" className="mb-2" />
-                            <Skeleton width="100%" height="40px" className="mb-2" />
-                            <Skeleton width="100%" height="40px" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* 训练统计骨架屏 */}
-            <div className="p-6 shadow-sm rounded-lg">
-                <Skeleton width="30%" height="24px" className="mb-6" />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    {[1, 2, 3, 4].map(item => (
-                        <div key={item} className="text-center">
-                            <Skeleton width="50px" height="50px" className="mx-auto mb-2" />
-                            <Skeleton width="80%" height="24px" className="mx-auto mb-1" />
-                            <Skeleton width="60%" height="20px" className="mx-auto" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* 最近活动骨架屏 */}
-            <div className="p-6 shadow-sm rounded-lg">
-                <Skeleton width="30%" height="24px" className="mb-6" />
-                {[1, 2, 3].map(item => (
-                    <div key={item} className="flex items-center space-x-4 p-4 mb-4" style={{ height: '80px' }}>
-                        <Skeleton width="40px" height="40px" className="rounded-full" />
-                        <div className="flex-1">
-                            <Skeleton width="80%" height="20px" className="mb-2" />
-                            <Skeleton width="60%" height="16px" />
+                            {/* 头像和基本信息 */}
+                            <div className="flex gap-6 mb-6">
+                                <Skeleton shape="circle" size="6rem" />
+                                <div className="flex-1">
+                                    <Skeleton width="60%" height="24px" className="mb-2" />
+                                    <Skeleton width="40%" height="16px" className="mb-3" />
+                                    <div className="flex gap-4">
+                                        <Skeleton width="60px" height="16px" />
+                                        <Skeleton width="60px" height="16px" />
+                                        <Skeleton width="60px" height="16px" />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* 专业领域 */}
+                            <div className="mb-4">
+                                <Skeleton width="80px" height="16px" className="mb-2" />
+                                <div className="flex gap-2">
+                                    <Skeleton width="70px" height="24px" borderRadius="1rem" />
+                                    <Skeleton width="80px" height="24px" borderRadius="1rem" />
+                                    <Skeleton width="60px" height="24px" borderRadius="1rem" />
+                                </div>
+                            </div>
+                            
+                            {/* 教学经验和案例 */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <Skeleton width="60%" height="16px" className="mb-1" />
+                                    <Skeleton width="80%" height="16px" />
+                                </div>
+                                <div>
+                                    <Skeleton width="60%" height="16px" className="mb-1" />
+                                    <Skeleton width="80%" height="16px" />
+                                </div>
+                            </div>
+                            
+                            {/* 简介 */}
+                            <div className="mb-4">
+                                <Skeleton width="60px" height="16px" className="mb-1" />
+                                <Skeleton width="100%" height="14px" className="mb-1" />
+                                <Skeleton width="90%" height="14px" />
+                            </div>
+                            
+                            {/* 按钮 */}
+                            <div className="flex gap-2 pt-4 border-t border-surface-200">
+                                <Skeleton width="50%" height="36px" />
+                                <Skeleton width="50%" height="36px" />
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -110,10 +129,8 @@ const SubscriptionDashboard = () => {
         )
 
     return (
-        <div className="space-y-8">
+        <div>
             <CoachList subscriptions={subscriptions}/>
-            <TrainingSummary />
-            <RecentActivity />
         </div>
     )
 }

@@ -332,7 +332,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                     </div>
                                 ))}
                             </div>
-                        ) : autoComputeActions && (
+                        ) : (autoComputeActions && autoComputeActions.length > 0) ? (
                             <div className="flex flex-col gap-4">
                                 {autoComputeActions.map((action, actionIndex) => (
                                     <div key={actionIndex} className="flex flex-col">
@@ -355,6 +355,10 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                         />
                                     </div>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="text-center p-4 bg-surface-50 rounded-lg border border-surface-200 text-surface-500 text-sm">
+                                教练暂未配置需要填写 RM 的动作
                             </div>
                         )}
                     </div>

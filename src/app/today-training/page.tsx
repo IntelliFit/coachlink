@@ -233,7 +233,7 @@ const TodayTrainingPage: React.FC = () => {
     };
 
     const handleGenerateNextPlan = () => {
-        // 跳转到 AI 生成页面或计划库页面
+        // 跳转到智能生成页面或计划库页面
         if (subscription?.id) {
              router.push(`/me/plan-lib?subscriptionId=${subscription.id}`);
         } else {

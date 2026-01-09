@@ -1,6 +1,7 @@
 // Service for training execution APIs
 
 import type {
+    CompleteItemDto,
     CompleteSetDto,
     CompleteSetResponseDto,
     CreatePRDto,
@@ -33,6 +34,18 @@ class ExecutionService {
      */
     async completeSet(dto: CompleteSetDto): Promise<CompleteSetResponseDto> {
         const response = await fetch("/api/execution/complete-set", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dto),
+        });
+        return response.json();
+    }
+
+    /**
+     * 完成非力量项目（饮食/有氧/习惯）
+     */
+    async completeItem(dto: CompleteItemDto): Promise<CompleteSetResponseDto> {
+        const response = await fetch("/api/execution/complete-item", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(dto),
@@ -81,7 +94,9 @@ class ExecutionService {
         } catch {
             return {
                 success: false,
-                message: response.ok ? "视频上传返回异常" : `上传失败(${response.status})`,
+                message: response.ok
+                    ? "视频上传返回异常"
+                    : `上传失败(${response.status})`,
                 raw: text,
             };
         }

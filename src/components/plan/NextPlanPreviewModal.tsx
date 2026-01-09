@@ -46,7 +46,7 @@ export const NextPlanPreviewModal: React.FC<NextPlanPreviewModalProps> = ({
                     <h3 className="text-xl font-bold text-surface-900 mb-1">
                         {planName}
                     </h3>
-                    <Tag severity="info" value="AI 生成" icon="pi pi-sparkles" />
+                    <Tag severity="info" value="智能生成" icon="pi pi-sparkles" />
                 </div>
 
                 {/* Statistics */}

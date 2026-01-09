@@ -1,23 +1,22 @@
 # Supabase 数据库结构文档（public schema）
 
-- **生成时间**：2025-12-29
-- **最后更新**：2025-12-29（通过 MCP 从 Supabase 云端数据库实时获取）
+- **生成时间**：2026-01-07
+- **最后更新**：2026-01-07（通过 MCP 从 Supabase 云端数据库实时获取）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
 > ⚠️ **重要变更说明**：
 >
+> - 2026-01-06：上线 **学员会员与权益体系**（student_memberships / quotas /
+>   coupons /
+>   membership_orders），新增教练钱包、流水、提现、拉新奖励、推广投稿等财务与增长表
+> - 2026-01-04：新增
+>   **student_video_collections**（学员视频收藏/重点视频库），聊天消息类型 支持
+>   `video_reference`
+> - 2025-12-29：执行集视频与计划实例等字段优化，新增学员自建动作与常用计划表
+> - 2025-12-26：聊天系统重构、训练执行系统优化、排行榜系统上线
 > - 根据数据库分析报告（2025-12-04），已删除6个冗余表
-> - **最新更新**（2025-12-26）：新增多个表，包括聊天系统重构、训练执行系统优化、排行榜系统等
-> - **字段更新**（2025-12-26）：`coach_plan_instances` 表新增
->   `start_execution_day` 字段，支持老学员中途迁入平台
-> - **最新更新**（2025-12-29）：新增多个字段，包括
->   `coach_pricing.products`、`coach_plan_templates.global_answers`、`execution_set_videos`
->   表新增审核相关字段等
-> - **最新更新**（2025-12-29）：新增2个表
->   `student_actions`、`student_plan_favorites`，`coach_plan_instances` 表新增
->   `source` 字段
-> - 当前保留 **40个表 + 3个视图 = 43个数据库对象**
+> - 当前保留 **53个表 + 3个视图 = 56个数据库对象**
 
 ## 目录
 
@@ -34,67 +33,82 @@
 
 ## 表清单
 
-### 用户相关表（4个）
+### 用户与平台（6个）
 
 - `users` - 统一用户表（auth）
 - `user_profiles` - 学员个人档案表
 - `admin_users` - 系统管理员账号表
 - `shipping_info` - 快递信息表
+- `social_friendships` ⭐ 新增 - 好友关系与请求
+- `platform_settings` ⭐ 新增 - 平台全局配置
 
-### 教练相关表（12个）
+### 教练与订阅/钱包（14个）
 
 - `coaches` - 教练基本信息表
 - `coach_subscriptions` - 教练订阅关系表
-- `coach_contents` - 教练内容库（文章、视频）表
-- `coach_rulepacks` - 规则包（AI 生成计划）表 ⚠️ **暂保留**
+- `coach_contents` - 教练内容库（文章、视频）
+- `coach_rulepacks` - 规则包（AI 生成计划，暂保留）
 - `coach_actions` - 教练行为日志表
-- `coach_plan_templates` - **核心模板库**（教练设计的可复用训练计划模板）
-- `coach_questionnaires` - 教练专属问卷表
-- `coach_pricing` - 教练收费套餐表
-- `coach_plan_instances` - **教练计划实例表**（从模板生成给学员的计划）
+- `coach_plan_templates` - 核心模板库（教练设计的训练计划模板）
+- `coach_plan_instances` - 教练计划实例表（从模板生成给学员）
 - `coach_reviews` - 教练评价表
-- `coach_applications` - 教练申请表 ⭐ **新增**
+- `coach_applications` - 教练申请表
+- `coach_pricing` - 教练收费套餐表
+- `coach_wallets` ⭐ 新增 - 教练钱包
+- `wallet_transactions` ⭐ 新增 - 教练钱包流水
+- `payout_requests` ⭐ 新增 - 教练提现申请
+- `coach_questionnaires` - 教练专属问卷表
+
+### 训练与执行（16个）
+
+- `training_plans` - 学员训练计划表
+- `training_plan_details` - 核心计划明细表（每日/每周动作 JSONB）
+- `training_sessions` - 训练会话表（计划中的一天）
+- `training_records` - 训练执行记录表（旧版）
+- `training_videos` - 训练视频表（完整训练）
+- `set_videos` - 训练组视频表（旧版，逐步被替代）
+- `plan_instance_executions` - 计划实例执行记录表（新版执行）
+- `execution_set_videos` - 执行组视频表（新版）
+- `personal_records` - 个人记录表（已废弃，保留历史）
+- `personal_records_history` - 个人记录历史表
+- `training_items` - 训练项目库
+- `student_actions` - 学员个人动作库
+- `student_plan_favorites` - 学员常用计划表
+- `student_video_collections` ⭐ 新增 - 学员视频收藏/重点视频库
+- `onboarding_questionnaires` - 新用户入职问卷表
+- `questionnaire_responses` ⭐ 新增 - 问卷回答历史快照
+
+### 会员 / 交易 / 增长（7个）
+
+- `alipay_orders` - 支付订单记录表
+- `student_memberships` ⭐ 新增 - 学员会员状态
+- `student_quotas` ⭐ 新增 - 学员配额（AI 导入、存储）
+- `student_coupons` ⭐ 新增 - 优惠券/礼品卡
+- `student_membership_orders` ⭐ 新增 - 会员/增值包订单
+- `referral_rewards` ⭐ 新增 - 拉新奖励记录
+- `promotion_submissions` ⭐ 新增 - 推广投稿记录
+
+### 内容互动与消息（5个）
+
+- `content_interactions` - 内容交互（点赞、收藏）
+- `chat_rooms` - 聊天室表（支持多成员）
+- `chat_messages` - 聊天消息表（支持多媒体与 video_reference）
+- `chat_room_unreads` - 聊天室未读消息表
 - `student_comments` - 学员评论表
 
-### 训练相关表（13个）
+### 排行榜与专题活动（3个）
 
-- `training_plans` - **学员训练计划**表
-- `training_plan_details` - **核心计划明细**表（存储每日/每周动作 JSONB）
-- `training_sessions` - 训练会话表（计划中的一天）
-- `training_records` - 训练执行记录表（每次训练）
-- `training_videos` - 训练视频表（完整训练）
-- `set_videos` - 训练组视频表（每组）⚠️ **逐步被替代**
-- `plan_instance_executions` - 计划实例执行记录表 ⭐ **新增**（替代
-  training_records 用于新计划系统）
-- `execution_set_videos` - 执行组视频表 ⭐ **新增**（替代 set_videos
-  用于新计划系统）
-- `personal_records` - 个人记录表 ❌ **已废弃**（仅存最大记录，缺历史）
-- `personal_records_history` - 个人记录历史表 ⭐ **新增**（替代
-  personal_records，包含完整历史记录）
-- `training_items` - 训练项目表 ⭐ **新增**（训练动作/项目库）
-- `student_actions` - 学员个人动作库表 ⭐ **新增**
-- `student_plan_favorites` - 学员常用计划表 ⭐ **新增**（学员可复用模板）
+- `leaderboard_templates` - 排行榜模板表（通用）
+- `leaderboard_entries` - 排行榜条目表（通用）
+- `pullup_leaderboard` - 引体向上排行榜表（当前活动）
 
-### 内容互动表（4个）
+### 其他（2个）
 
-- `content_interactions` - 内容交互表（点赞、收藏）
-- `chat_rooms` - 聊天室表 ⭐ **重构**（原 conversations 表重构）
-- `chat_messages` - 聊天消息表 ⭐ **重构**（原 coach_messages 表重构）
-- `chat_room_unreads` - 聊天室未读消息表 ⭐ **新增**
-
-### 其他表（7个）
-
-- `onboarding_questionnaires` - 新用户入职问卷表
-- `lifestyle_logs` - 学员生活日志表
-- `alipay_orders` - 支付订单记录表
-- `pullup_leaderboard` - 当前活跃的引体向上排行榜表
-- `leaderboard_templates` - 排行榜模板表 ⭐ **新增**（通用排行榜系统）
-- `leaderboard_entries` - 排行榜条目表 ⭐ **新增**（通用排行榜系统）
 - `specialties` - 教练专业领域表
+- `lifestyle_logs` - 学员生活日志表
 
-**总计：40个表**（用户4 + 教练12 + 训练13 + 内容互动4 + 其他7 = 40）
-
-> **注意**：统计中包含已废弃的表（`personal_records`），实际活跃表为39个
+**总计：53个表**（用户与平台6 + 教练14 + 训练16 + 会员交易7 + 内容互动5 +
+排行榜3 + 其他2 = 53）
 
 ---
 
@@ -772,7 +786,7 @@
 | -------------------- | ----------- | ---- | ----------------- | --------------------------------------------------------------- |
 | id                   | uuid        | NO   | gen_random_uuid() | 主键                                                            |
 | student_id           | uuid        | NO   |                   | 外键 → users.id                                                 |
-| coach_id             | uuid        | NO   |                   | 外键 → coaches.id                                               |
+| coach_id             | uuid        | NO   |                   | 外键 → coaches.id (⚠️ 注意：不是 users.id)                      |
 | tier                 | integer     | NO   |                   | ∈ {1, 2, 3}                                                     |
 | status               | text        | YES  | 'active'          | ∈ {'active','inactive','waiting'}                               |
 | start_date           | timestamptz | YES  | now()             |                                                                 |
@@ -1664,6 +1678,226 @@
 
 ---
 
+#### 45. student_video_collections（学员视频收藏/重点库）⭐ 新增
+
+- 行数：~9
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`, `training_video_id → training_videos.id`,
+  `execution_set_video_id → execution_set_videos.id`
+- 说明：集中管理学员重点视频，支持训练视频/执行组视频引用与外部链接
+
+**字段要点**
+
+- `source` (text, default 'manual')：来源类型（manual / progress_set /
+  plan_execution / external_url / training_video）
+- `description` (text)：视频描述（必填）
+- `is_featured` (boolean)：是否精选
+- `storage_path` / `storage_bucket`：存储路径与桶名（默认 videos）
+- `processing_status`：默认 ready
+- 软删除 `deleted_at`
+
+**索引**
+
+- `idx_student_video_collections_user_created_at` (user_id, created_at DESC)
+- `idx_student_video_collections_user_featured` (user_id) where 未删除且精选
+- `idx_student_video_collections_training_video`
+- `idx_student_video_collections_execution_video`
+
+---
+
+#### 46. social_friendships（好友关系表）⭐ 新增
+
+- 行数：~1
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`requester_id → users.id`, `addressee_id → users.id`
+- 说明：管理好友请求/关系
+
+**字段要点**
+
+- `status` ∈ {pending, accepted, rejected, blocked}（默认 pending）
+- `created_at` / `updated_at`
+
+---
+
+#### 47. platform_settings（平台配置表）⭐ 新增
+
+- 行数：~1
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 说明：全局配置项存储
+
+**字段要点**
+
+- `key` (varchar, 唯一)；`value` (jsonb)；`description`
+
+---
+
+#### 48. questionnaire_responses（问卷回答快照表）⭐ 新增
+
+- 行数：~3
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`student_id → users.id`, `coach_id → coaches.id` (可空),
+  `questionnaire_id → coach_questionnaires.id` (可空),
+  `plan_instance_id → coach_plan_instances.id` (可空)
+- 说明：记录所有问卷回答历史
+
+**字段要点**
+
+- `questionnaire_version`：填写时版本
+- `answers` (jsonb) 默认 {}
+- `context` ∈ {initial, cycle_end, manual_update, coach_request}
+- `created_at`
+
+---
+
+#### 49. student_memberships（学员会员状态表）⭐ 新增
+
+- 行数：~1
+- 状态：✅ 正常使用
+- 主键：`user_id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：平台会员状态，支持 free/basic/premium/trial
+
+**字段要点**
+
+- `tier`（枚举约束），`status` ∈ {active, expired}
+- `start_date` / `end_date`
+- `created_at` / `updated_at`
+
+---
+
+#### 50. student_quotas（学员配额表）⭐ 新增
+
+- 行数：~1
+- 状态：✅ 正常使用
+- 主键：`user_id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：存储 AI 导入余额、存储容量/使用量
+
+**字段要点**
+
+- `ai_import_balance` (int) 默认 0
+- `storage_total_mb` / `storage_used_mb`
+- `last_reset_date`：最近重置时间
+
+---
+
+#### 51. student_coupons（学员优惠券表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：优惠券/礼品卡，支持满减或时长赠送
+
+**字段要点**
+
+- `type` ∈ {discount_cash, duration_gift}
+- `value`，`condition_min_amount`
+- `status` ∈ {unused, used, expired}
+- `expires_at`，`used_at`
+
+---
+
+#### 52. student_membership_orders（会员订单表）⭐ 新增
+
+- 行数：~3
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`, `coupon_id → student_coupons.id`
+- 说明：会员/增值包订单
+
+**字段要点**
+
+- `product_key`，`amount`，`original_amount`
+- `payment_method` ∈ {alipay, wechat}
+- `status` ∈ {pending, paid, cancelled}
+- `paid_at`
+
+---
+
+#### 53. coach_wallets（教练钱包表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`coach_id` (uuid)
+- 外键：`coach_id → coaches.id`
+- 说明：教练收入与冻结金额
+
+**字段要点**
+
+- `balance`，`total_income`，`frozen_amount`
+- `created_at` / `updated_at`
+
+---
+
+#### 54. wallet_transactions（钱包流水表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`wallet_id → coach_wallets.coach_id`
+- 说明：钱包流水，记录收入/提现/退款
+
+**字段要点**
+
+- `type` ∈ {income, withdrawal, refund}
+- `amount`，`related_order_id`（泛型引用）
+- `created_at`
+
+---
+
+#### 55. payout_requests（教练提现申请表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`coach_id → coaches.id`
+- 说明：教练提现申请与支付状态
+
+**字段要点**
+
+- `amount`，`alipay_account`，`real_name`
+- `status` ∈ {pending, processing, paid, rejected}
+- `paid_at`，`transaction_no`，`admin_note`
+
+---
+
+#### 56. referral_rewards（拉新奖励表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`inviter_id → users.id`, `invitee_id → users.id`
+- 说明：邀请奖励及发放状态
+
+**字段要点**
+
+- `status` ∈ {pending, completed}
+- `reward_granted` (jsonb)
+- `created_at` / `updated_at`
+
+---
+
+#### 57. promotion_submissions（推广投稿表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：用户提交推广视频/内容，用于奖励
+
+**字段要点**
+
+- `platform`，`video_url`，`view_count`
+- `status` ∈ {pending, approved, rejected}
+- `admin_feedback`
+
+---
+
 ## 视图详细说明
 
 ### 1. user_video_timeline（学员视频时间线视图）
@@ -1863,6 +2097,28 @@ GROUP BY user_id, plan_id;
 
 ## 数据库变更历史
 
+**最新变更（2026-01-06）：**
+
+1. ⭐ **会员与权益体系新增 7 表**：`student_memberships`, `student_quotas`,
+   `student_coupons`, `student_membership_orders`, `referral_rewards`,
+   `promotion_submissions`，并引入社交邀请奖励、推广投稿。
+2. ⭐ **教练钱包与结算**：新增 `coach_wallets`, `wallet_transactions`,
+   `payout_requests` 支撑收入/提现流水。
+3. ⭐ **社交/配置**：新增 `social_friendships`（好友关系）、
+   `platform_settings`（全局配置）、`questionnaire_responses`（问卷回答历史）。
+4. 📝 **字段更新**：
+   - `chat_messages.message_type` 允许 `video_reference`，新增
+     `content_metadata` 字段。
+   - `user_profiles` 新增 `search_id` 唯一字段。
+   - `coaches` 新增 `payment_qr_codes`(jsonb
+     列表)、`payment_mode`、`allow_personal_qrcode` 用于多收款通道。
+   - `coach_actions` 新增 `enableAutoWeightCompute`、`includesBodyWeight`。
+
+**最新变更（2026-01-04）：**
+
+1. ⭐ **新增表**：`student_video_collections`（学员重点视频/收藏库）。
+2. 📝 **聊天类型扩展**：`chat_messages` 支持 `video_reference` 消息类型。
+
 ### 2025-12-04（根据数据库分析报告）
 
 **已删除的表（6个）**
@@ -1909,10 +2165,9 @@ GROUP BY user_id, plan_id;
 
 本文档包含了 Supabase 数据库中 `public` schema 的完整结构信息，包括：
 
-- ✅ **40个表**的详细说明（已删除6个冗余表，新增多个表，重构聊天系统）
+- ✅ **53个表**的详细说明（含会员体系、钱包与推广等新增表）
 - ✅ **3个视图**的定义
-- ✅ 所有索引信息（159个索引）
-- ✅ 外键关系
+- ✅ 主要索引与外键信息
 - ✅ 冗余分析和优化建议
 - ✅ 数据库变更历史
 

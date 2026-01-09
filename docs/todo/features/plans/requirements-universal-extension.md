@@ -1,134 +1,118 @@
-# 通用计划体系扩展需求分析 (Universal Plan System Expansion Requirements)
+# 通用计划体系扩展实现方案 (V2 - Polymorphic)
 
-> **状态**: V2 (基于用户反馈确认) **确认方向**: 模块化结构 + 混合记录模式 +
-> 统一模板体系
-
-## 1. 核心设计决策 (Design Decisions)
-
-基于沟通，我们确定了以下核心架构方向：
-
-### 1.1 架构模式：模块化清单 (Modular Checklist)
-
-一天的计划不再是单一的动作流，而是由多个**模块 (Modules)** 组成。
-
-- **模块示例**: "力量训练板块", "早餐建议", "晨间习惯"。
-- **时间管理**: 支持**可选的**时间安排。
-  - 对于严谨的学员: 可为每个项目设定具体执行时间（如 "08:00 早餐"）。
-  - 对于灵活的学员: 仅作为清单（To-Do List），当日内完成即可。
-
-### 1.2 业务边界：任务分发 + 记录追踪 (Hybrid Model)
-
-保持 CoachLink 现有的"基于计划的执行"逻辑：
-
-1. **Coach (分发)**: 教练预设今日任务（如：早餐吃燕麦，训练做深蹲）。
-2. **Student (执行)**: 学员看到任务 -> 执行任务 ->
-   记录实际数据（如：实际吃了面包，深蹲做了100kg）。
-3. **Result (归档)**: 形成一条包含"计划值"与"实际值"的完整记录。
-
-### 1.3 模板策略：统一模板 (Unified Templates)
-
-**饮食是计划的一部分**，而不是独立的订阅。
-
-- 一个“增肌模板”将同时包含：
-  - 训练安排（周一推胸...）
-  - 饮食安排（每日碳水目标/食谱...）
-  - 生活习惯（睡眠目标...）
+> **状态**: 已确认 **更新日期**: 2026-01-07 **决策**: 放弃嵌套 Modules
+> 结构，采用 **"扁平化多态列表 (Polymorphic Flat List)"**
+> 方案，以最小化改动成本并最大化灵活性。
 
 ---
 
-## 2. 详细功能需求
+## 一、核心变更设计
 
-### 2.1 数据模型扩展 (Data Model Expansion)
+### 1.1 从 "结构化分组" 到 "逻辑分组"
 
-#### A. 只有 "Item" (项目)，不再只是 "Action" (动作)
+我们不再引入物理的 `Module` 嵌套层级，而是保持 `training_days` 为一个扁平的 Item
+列表。 通过给 Item 增加 `group_title` 字段来实现视觉和逻辑上的分组。
 
-原有的与力量训练强绑定的 `Action` 需要升级为更通用的 `PlanItem`。
+**对比:**
 
-| Item 类型                   | 参数结构 (Schema)                                      | 示例                 |
-| :-------------------------- | :----------------------------------------------------- | :------------------- |
-| **STRENGTH** (力量)         | `sets` (组), `reps` (次), `weight` (重), `rpe`         | 深蹲, 卧推           |
-| **CARDIO** (有氧)           | `distance` (距离), `duration` (时长), `pace` (配速)    | 跑步 5km, 游泳 30min |
-| **DIET_MEAL** (饮食-具体)   | `food_items` (食物), `calories` (热量), `image` (照片) | 早餐: 燕麦+牛奶      |
-| **DIET_TARGET** (饮食-目标) | `target_type` (指标), `target_val` (目标值)            | 每日蛋白质 > 180g    |
-| **HABIT** (习惯)            | `boolean` (是否完成), `duration` (时长)                | 冥想 10min, 冷水浴   |
+- **Old**: `Top Level -> [Module A -> [Item 1, Item 2], Module B -> [Item 3]]`
+- **New**: `Top Level -> [Item 1 (Group=A), Item 2 (Group=A), Item 3 (Group=B)]`
 
-#### B. 每日计划结构 (Day Structure)
+### 1.2 支持多种类型 (Polymorphic Items)
 
-`training_days` JSON 需要重构以支持模块化：
+列表中的每一项 (Item) 现在可以是不同的类型：
 
-```json
-// 新结构示意
+- **STRENGTH** (默认): 传统的动作+组数+次数。
+- **DIET**: 饮食建议，包含内容描述、热量、图片。
+- **CARDIO**: 有氧训练，包含距离、时长、配速。
+- **HABIT**: 习惯打卡，简单的完成状态或时长。
+
+---
+
+## 二、数据库设计 (扩展)
+
+仅需在现有表上**新增列**，完全兼容旧数据。
+
+### 2.1 `coach_actions` / `student_actions`
+
+```sql
+-- 区分动作类型
+ALTER TABLE coach_actions ADD COLUMN type TEXT NOT NULL DEFAULT 'STRENGTH';
+
+-- 存储类型特定的默认配置 (Schema)
+-- e.g., DIET: { default_unit: 'kcal' }, CARDIO: { default_sport: 'running' }
+ALTER TABLE coach_actions ADD COLUMN item_schema JSONB;
+
+-- 建议执行时间 (e.g. '08:00', 'Morning')
+ALTER TABLE coach_actions ADD COLUMN suggested_time TEXT;
+```
+
+### 2.2 `coach_plan_templates` (JSON字段定义)
+
+`training_days` 内部的 `action_sets` (或称 `items`) 数组元素结构更新：
+
+```typescript
 {
-   "date": "2025-01-01",
-   "modules": [
-      {
-         "title": "晨间习惯",
-         "type": "HABIT",
-         "items": [
-            { "name": "喝水500ml", "scheduled_time": "08:00" } // 可选时间
-         ]
-      },
-      {
-         "title": "力量训练",
-         "type": "STRENGTH",
-         "items": [
-            { "name": "深蹲", "sets": 5, "reps": 5 } // 传统力量数据
-         ]
-      },
-      {
-         "title": "饮食指导",
-         "type": "DIET",
-         "items": [
-            {
-               "name": "午餐建议",
-               "content": "低碳水+高蛋白",
-               "scheduled_time": null
-            } // 无固定时间
-         ]
-      }
-   ]
+  // --- 通用字段 ---
+  "action_id": "uuid",       // 关联 coach_actions
+  "group_title": "热身环节",  // [NEW] 逻辑分组标题
+  "note": "注意动作标准",
+  
+  // --- 力量字段 (STRENGTH) ---
+  "sets": 3,
+  "reps": 10,
+  "weight": 50,
+  "intensity": "RPE 8",
+
+  // --- 饮食字段 (DIET) ---
+  // 当 type=DIET 时有效，且 sets/reps 为空或忽略
+  "custom_data": {
+    "content": "两片全麦面包 + 一个煎蛋",
+    "calories": 350,
+    "image_url": "..."
+  },
+
+  // --- 有氧字段 (CARDIO) ---
+  "custom_data": {
+    "distance": 5000, // meters
+    "duration": 1800  // seconds
+  }
 }
 ```
 
-### 2.2 用户体验升级 (UX Upgrade)
+---
 
-#### 教练端
+## 三、前端交互设计
 
-- **计划编辑器**: 需要支持拖拽添加"板块(Module)"，而不仅仅是添加动作。
-- **混合编排**:
-  在同一天里，教练可以先拖入一个"早餐"板块，再拖入一个"背部训练"板块。
+### 3.1 计划编辑器 (Coach Side)
 
-#### 学员端
+1. **Add Menu**:
+   - 点击添加按钮时，弹出下拉菜单选择类型: `Strength`, `Diet`, `Cardio`。
+2. **Group Divider**:
+   - 编辑器会自动检测列表中相邻 Item 的 `group_title`。
+   - 如果发现变化，在两行之间渲染一个“分割线/标题栏”。
+   - 支持直接在分割线上修改 `group_title`，这会批量更新该组下的所有 Item。
+3. **Dynamic Form**:
+   - 对于 `STRENGTH` 项，保留现有的“组/次/重”横排输入。
+   - 对于 `DIET` 项，显示较大的文本域 (Textarea)
+     用于输入食谱，以及图片上传控件。
 
-- **今日视图**: 变成一个垂直的时间轴/清单流。
-- **打卡交互**:
-  - **力量项目**: 保持现有的输入组数/重量。
-  - **有氧项目**: 输入距离/时间，或者同步手表数据（二期）。
-  - **饮食项目**: 支持上传照片、快速打勾、或者输入估算热量。
+### 3.2 学员执行页 (Student Side)
+
+1. **Section List**:
+   - 页面按 `group_title` 渲染为多个 Section (e.g., "早餐", "力量训练", "有氧").
+2. **Interaction**:
+   - `STRENGTH`: 维持现状，输入实际重量/次数。
+   - `DIET`: 显示食谱内容 -> 提供 Checkbox 打卡 -> 提供 "上传餐食照片" 按钮。
+   - `CARDIO`: 显示目标距离/时长 -> 提供实际数据的输入框。
 
 ---
 
-## 3. 技术改造路径 (Technical Roadmap)
+## 四、实施计划
 
-### 第一阶段：底层重构
+详见 `implementation_plan.md`。
 
-1. **数据库**: 改造 `coach_actions` 支持多态类型（Add `type` and
-   `schema_config`）。
-2. **数据迁移**: 现有的 Strength Action 标记为 `STRENGTH` 类型。
-
-### 第二阶段：编辑器升级
-
-1. **UI组件**: 开发通用的 `ModuleEditor` 和多态的 `ItemEditor`。
-2. **API**: 更新 `save-template` 接口以支持复杂的 JSON 结构。
-
-### 第三阶段：学员端展示
-
-1. **执行页面**: 重写 `TrainingExecution` 页面，使其能渲染非力量类型的模块。
-
-## 4. 待确认细节 (To Confirm)
-
-- **动作库管理**:
-  饮食项（例如“燕麦牛奶”）是否需要像训练动作一样存入“动作库”供检索，还是每次手写文本即可？
-  - _建议_: 初期支持手写文本+常用收藏，后期建立标准食物库。
-- **验证规则**: 是否有些计划必须强制时间？（目前看来由教练决定是否填写
-  `scheduled_time` 即可）。
+1. **Database**: 执行 SQL Migration 添加字段。
+2. **API**: 更新 `action-lib` 和 plan 保存逻辑，放宽校验。
+3. **Frontend**: 改造编辑器和执行视图，支持 `group_title` 分组渲染和多态 Item
+   渲染。

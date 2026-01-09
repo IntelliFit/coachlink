@@ -56,6 +56,7 @@ export default function NavigationStudent() {
         const isActive = pathname === item.url;
         return (
             <div 
+                id={item.guideId}
                 onClick={item.command}
                 className={`
                     flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-all duration-300 group
@@ -71,12 +72,12 @@ export default function NavigationStudent() {
     };
 
     const studentMenuItems = useMemo(() => [
-        { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), template: itemRenderer },
+        { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
         { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
-        { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), template: itemRenderer },
+        { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
         { label: '训练计划', icon: ClipboardList, url: '/coach/plans', command: () => router.push('/coach/plans'), template: itemRenderer },
         { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
-        { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), template: itemRenderer },
+        { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [

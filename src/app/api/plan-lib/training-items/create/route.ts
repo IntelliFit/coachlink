@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../@/app/api/auth/[...nextauth]/auth";
-import supabase from '@/lib/supabaseClient';
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
-import type { CreateTrainingItemDto, CreateTrainingItemResponseDto } from "./entity";
+import type {
+    CreateTrainingItemDto,
+    CreateTrainingItemResponseDto,
+} from "./entity";
 
 export async function POST(req: Request) {
     try {
@@ -11,7 +14,7 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<CreateTrainingItemResponseDto>>({
                 success: false,
                 message: "用户未登录",
-                data: null
+                data: null,
             }, { status: 401 });
         }
 
@@ -19,16 +22,16 @@ export async function POST(req: Request) {
 
         // 检查用户是否为教练
         const { data: user, error: userError } = await supabase
-            .from('users')
-            .select('is_coach')
-            .eq('id', userId)
+            .from("users")
+            .select("is_coach")
+            .eq("id", userId)
             .single();
 
         if (userError || !user) {
             return NextResponse.json<ApiData<CreateTrainingItemResponseDto>>({
                 success: false,
                 message: "用户信息获取失败",
-                data: null
+                data: null,
             }, { status: 400 });
         }
 
@@ -36,13 +39,13 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<CreateTrainingItemResponseDto>>({
                 success: false,
                 message: "权限不足，仅教练可执行此操作",
-                data: null
+                data: null,
             }, { status: 403 });
         }
 
         const {
             name,
-            description
+            description,
         } = await req.json() as CreateTrainingItemDto;
 
         // 参数校验
@@ -50,7 +53,7 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<CreateTrainingItemResponseDto>>({
                 success: false,
                 message: "训练项目名称不能为空",
-                data: null
+                data: null,
             }, { status: 400 });
         }
 
@@ -59,7 +62,7 @@ export async function POST(req: Request) {
             .from("training_items")
             .insert({
                 name,
-                description: description || null
+                description: description || null,
             })
             .select()
             .single();
@@ -69,7 +72,7 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<CreateTrainingItemResponseDto>>({
                 success: false,
                 message: "创建训练项目失败",
-                data: null
+                data: null,
             }, { status: 500 });
         }
 
@@ -77,15 +80,15 @@ export async function POST(req: Request) {
             success: true,
             message: "训练项目创建成功",
             data: {
-                trainingItem
-            }
+                trainingItem,
+            },
         });
     } catch (error) {
         console.error("创建训练项目异常:", error);
         return NextResponse.json<ApiData<CreateTrainingItemResponseDto>>({
             success: false,
             message: "服务器错误",
-            data: null
+            data: null,
         }, { status: 500 });
     }
 }

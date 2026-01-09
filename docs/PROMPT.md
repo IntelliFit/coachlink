@@ -123,9 +123,15 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    // session.user.id 为用户 ID
+    // session.user.id 为用户 ID (users表主键)
     // session.user.is_admin 为用户是否是管理员
     // session.user.is_coach 为用户是否是教练
+
+    // ⚠️ 重点注意：
+    // 如果你是教练，session.user.id 是 users 表的 ID，不是 coaches 表的 ID。
+    // 如果你需要查询 coach_subscriptions 等关联了 coaches 表的表，
+    // 你必须先用 session.user.id 去 coaches 表查询对应的 id：
+    // SELECT id FROM coaches WHERE user_id = session.user.id
 }
 ```
 

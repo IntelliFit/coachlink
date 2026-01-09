@@ -3,6 +3,178 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
 import type { CompleteSetDto, CompleteSetResponseDto } from "../entity";
+import {
+    calculateE1RM,
+    isNewPR,
+    requiresBodyWeightFallback,
+} from "@/lib/e1rmCalculator";
+
+/**
+ * Handle auto e1RM calculation and PR detection
+ */
+async function handleAutoE1RMCheck(params: {
+    userId: string;
+    actionId: string;
+    actionName: string;
+    weight: number;
+    reps: number;
+    executionId: string;
+    setNumber: number;
+}): Promise<{ isPR: boolean; e1rm: number; previousPR?: number } | null> {
+    const {
+        userId,
+        actionId,
+        actionName,
+        weight,
+        reps,
+        executionId,
+        setNumber,
+    } = params;
+
+    // Skip if weight or reps is invalid
+    if (!weight || weight <= 0 || !reps || reps <= 0) {
+        return null;
+    }
+
+    // 1. Determine if body weight is included
+    // Check DB first (by name, as actionId might be complex)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: actionConfig } = await (supabase as any)
+        .from("coach_actions")
+        .select('"includesBodyWeight"')
+        .eq("name", actionName)
+        .limit(1)
+        .maybeSingle();
+
+    let includeBodyWeight: boolean;
+    if (actionConfig && actionConfig.includesBodyWeight !== undefined) {
+        includeBodyWeight = actionConfig.includesBodyWeight;
+    } else {
+        includeBodyWeight = requiresBodyWeightFallback(actionName);
+    }
+
+    // 2. Get user's body weight if needed
+    let bodyWeight = 0;
+    if (includeBodyWeight) {
+        const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("weight")
+            .eq("user_id", userId)
+            .single();
+        bodyWeight = profile?.weight || 0;
+    }
+
+    // 3. Calculate e1RM using 3-formula average
+    const result = calculateE1RM({
+        weight,
+        reps,
+        bodyWeight,
+        includeBodyWeight,
+    });
+
+    const { e1rm, epley, brzycki, lombardi } = result;
+
+    // 4. Get current highest PR for this action (prefer action_id match)
+    // Use e1rm column (the calculated estimated 1RM)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: currentPR } = await (supabase as any)
+        .from("personal_records_history")
+        .select("id, e1rm")
+        .eq("user_id", userId)
+        .eq("action_id", actionId)
+        .order("e1rm", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    // 5. Check if this qualifies as a new PR (must exceed by >2kg)
+    if (!isNewPR(e1rm, currentPR?.e1rm)) {
+        return { isPR: false, e1rm };
+    }
+
+    // 6. Check if there's already a PR for this action TODAY
+    const today = new Date().toISOString().split("T")[0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const todayPRQuery: any = await (supabase as any)
+        .from("personal_records_history")
+        .select("id, e1rm")
+        .eq("user_id", userId)
+        .eq("action_id", actionId)
+        .eq("date_achieved", today)
+        .eq("is_auto_calculated", true)
+        .maybeSingle();
+    const todayPR = todayPRQuery.data as
+        | { id: string; e1rm: number }
+        | null;
+
+    const estimatedFrom = {
+        weight,
+        reps,
+        bodyWeight: includeBodyWeight ? bodyWeight : undefined,
+        epley,
+        brzycki,
+        lombardi,
+    };
+
+    if (todayPR) {
+        // 7a. Today already has a PR - only update if new e1RM is higher
+        if (e1rm > todayPR.e1rm) {
+            const { error } = await supabase
+                .from("personal_records_history")
+                .update({
+                    weight: weight, // Source training weight
+                    reps: reps, // Source training reps
+                    e1rm: e1rm, // Calculated e1RM
+                    estimated_from: estimatedFrom,
+                    execution_id: executionId,
+                    execution_set_number: setNumber,
+                    load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                })
+                .eq("id", todayPR.id);
+
+            if (error) {
+                console.error("[e1RM] Failed to update today's PR:", error);
+                return { isPR: false, e1rm };
+            }
+
+            console.log(
+                `[e1RM] Updated today's PR: ${todayPR.e1rm}kg → ${e1rm}kg`,
+            );
+            return { isPR: true, e1rm, previousPR: todayPR.e1rm };
+        }
+        // New e1RM is not higher than today's existing PR
+        return { isPR: false, e1rm };
+    } else {
+        // 7b. No PR today - insert new record
+        const { error } = await supabase.from("personal_records_history")
+            .insert({
+                user_id: userId,
+                action_id: actionId,
+                exercise_name: actionName,
+                weight: weight, // Source training weight
+                reps: reps, // Source training reps
+                e1rm: e1rm, // Calculated e1RM
+                load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                execution_id: executionId,
+                execution_set_number: setNumber,
+                date_achieved: today,
+                is_auto_calculated: true,
+                estimated_from: estimatedFrom,
+                is_verified: false,
+            });
+
+        if (error) {
+            console.error("[e1RM] Failed to insert new PR:", error);
+            return { isPR: false, e1rm };
+        }
+
+        console.log(
+            `[e1RM] New PR created: ${actionName} = ${e1rm}kg (prev: ${
+                currentPR?.e1rm || "none"
+            })`,
+        );
+        return { isPR: true, e1rm, previousPR: currentPR?.e1rm };
+    }
+}
 
 /**
  * POST /api/execution/complete-set
@@ -78,7 +250,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (has_video && actionId) {
-            const { data: videoRecord, error: videoError } = await supabase
+            const { data: videoRecord } = await supabase
                 .from("execution_set_videos")
                 .select("video_url")
                 .eq("execution_id", executionId)
@@ -86,24 +258,10 @@ export async function POST(request: NextRequest) {
                 .eq("set_number", setIndex + 1)
                 .maybeSingle();
 
-            console.log("[complete-set] Video query:", {
-                executionId,
-                actionId,
-                setNumber: setIndex + 1,
-                videoRecord,
-                videoError,
-            });
-
             if (videoRecord) {
                 video_url = videoRecord.video_url;
             }
         }
-
-        console.log("[complete-set] Will save:", {
-            is_pr,
-            has_video,
-            video_url,
-        });
 
         // 5. 更新 JSONB 数据
         const actionExecutions = execution.action_executions as any[];
@@ -118,7 +276,28 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 更新组数据 - 包含is_pr, has_video, video_url
+        // Get action name for e1RM calculation
+        const actionName = actionExecutions[actionIndex].action_name ||
+            actionExecutions[actionIndex].name ||
+            "未知动作";
+
+        // 5.5 Auto e1RM calculation and PR detection
+        let autoE1RMResult:
+            | { isPR: boolean; e1rm: number; previousPR?: number }
+            | null = null;
+        if (actualWeight && actualReps && actionId) {
+            autoE1RMResult = await handleAutoE1RMCheck({
+                userId,
+                actionId,
+                actionName,
+                weight: actualWeight,
+                reps: actualReps,
+                executionId,
+                setNumber: setIndex + 1,
+            });
+        }
+
+        // 更新组数据 - 包含is_pr, has_video, video_url, and e1RM info
         actionExecutions[actionIndex].sets[setIndex] = {
             ...actionExecutions[actionIndex].sets[setIndex],
             status: "completed",
@@ -130,6 +309,9 @@ export async function POST(request: NextRequest) {
             has_video: has_video || false,
             video_url: video_url,
             completed_at: new Date().toISOString(),
+            // Add e1RM info for reference
+            e1rm: autoE1RMResult?.e1rm,
+            is_auto_pr: autoE1RMResult?.isPR || false,
         };
 
         // 更新动作已完成组数
@@ -140,7 +322,7 @@ export async function POST(request: NextRequest) {
 
         // 计算总完成组数
         const totalCompletedSets = actionExecutions.reduce(
-            (sum, action) => sum + (action.completed_sets || 0),
+            (sum: number, action: any) => sum + (action.completed_sets || 0),
             0,
         );
 
@@ -168,6 +350,14 @@ export async function POST(request: NextRequest) {
                 executionId,
                 completedSets: totalCompletedSets,
                 totalSets: execution.total_sets,
+                // Include auto e1RM result for frontend celebration
+                autoE1RM: autoE1RMResult
+                    ? {
+                        e1rm: autoE1RMResult.e1rm,
+                        isPR: autoE1RMResult.isPR,
+                        previousPR: autoE1RMResult.previousPR,
+                    }
+                    : undefined,
             },
         });
     } catch (error) {

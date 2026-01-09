@@ -6,7 +6,10 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
+import { InputSwitch } from 'primereact/inputswitch';
+import { AutoComplete } from 'primereact/autocomplete';
 import { StudentActionRow } from '@/types/student';
+import { CanonicalAction } from '@/types/canonical';
 
 interface StudentActionEditDialogProps {
     visible: boolean;
@@ -28,6 +31,16 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     const [attrs, setAttrs] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // 新增状态：自动计算负重
+    const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
+    const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
+    
+    // 新增状态：公共动作库关联
+    const [canonicalActionId, setCanonicalActionId] = useState<string | null>(null);
+    const [canonicalActions, setCanonicalActions] = useState<CanonicalAction[]>([]);
+    const [filteredCanonicalActions, setFilteredCanonicalActions] = useState<CanonicalAction[]>([]);
+    const [selectedCanonical, setSelectedCanonical] = useState<CanonicalAction | null>(null);
+
     const actionTypes = [
         { label: '胸部', value: '胸部' },
         { label: '背部', value: '背部' },
@@ -46,6 +59,30 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
         { label: '休息时间', value: '休息时间' }
     ];
 
+    // 加载公共动作库
+    useEffect(() => {
+        const fetchCanonicalActions = async () => {
+            try {
+                const res = await fetch('/api/canonical-actions/list');
+                const data = await res.json();
+                if (data.success) {
+                    setCanonicalActions(data.data);
+                    // 如果当前动作已关联公共动作，找到对应项
+                    if (action?.canonical_action_id) {
+                        const linked = data.data.find((c: CanonicalAction) => c.id === action.canonical_action_id);
+                        setSelectedCanonical(linked || null);
+                        setCanonicalActionId(action.canonical_action_id);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch canonical actions:', error);
+            }
+        };
+        if (visible) {
+            fetchCanonicalActions();
+        }
+    }, [visible, action]);
+
     useEffect(() => {
         if (action) {
             setName(action.name);
@@ -53,6 +90,9 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setUrl(action.url || '');
             setPositions(action.positions || []);
             setAttrs(action.attrs || []);
+            setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
+            setIncludesBodyWeight(action.includesBodyWeight || false);
+            setCanonicalActionId(action.canonical_action_id || null);
         } else {
             // 重置表单
             setName('');
@@ -60,6 +100,10 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setUrl('');
             setPositions([]);
             setAttrs(['组数', '次数', '强度', '休息时间']);
+            setEnableAutoWeightCompute(false);
+            setIncludesBodyWeight(false);
+            setCanonicalActionId(null);
+            setSelectedCanonical(null);
         }
     }, [action, visible]);
 
@@ -72,6 +116,9 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                 url: url || undefined,
                 positions,
                 attrs,
+                enableAutoWeightCompute,
+                includesBodyWeight: enableAutoWeightCompute ? includesBodyWeight : false,
+                canonical_action_id: canonicalActionId
             };
 
             if (action) {
@@ -109,6 +156,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             style={{ width: '600px' }}
             onHide={onCancel}
             footer={footerContent}
+            className="p-fluid"
         >
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
@@ -119,6 +167,93 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                         onChange={(e) => setName(e.target.value)}
                         required
                     />
+                </div>
+
+                {/* 自动计算负重设置 */}
+                <div className="flex flex-col gap-2 p-3 bg-surface-50 rounded-lg border border-surface-200">
+                    <div className="flex items-center justify-between">
+                        <label htmlFor="enableAutoWeightCompute" className="font-medium flex items-center gap-2">
+                             <i className="pi pi-bolt text-orange-500"></i>
+                             智能重量计算
+                             <span className="text-xs text-surface-500 font-normal">
+                                 (在计划中自动根据 1RM 计算负重)
+                             </span>
+                        </label>
+                        <InputSwitch 
+                            id="enableAutoWeightCompute"
+                            checked={enableAutoWeightCompute}
+                            onChange={(e) => setEnableAutoWeightCompute(e.value || false)}
+                        />
+                    </div>
+
+                    {enableAutoWeightCompute && (
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-surface-200">
+                            <label htmlFor="includesBodyWeight" className="font-medium text-sm pl-6">
+                                包含自重
+                                <span className="text-xs text-surface-500 font-normal ml-2">
+                                    (适用于引体向上等动作)
+                                </span>
+                            </label>
+                            <InputSwitch 
+                                id="includesBodyWeight"
+                                checked={includesBodyWeight}
+                                onChange={(e) => setIncludesBodyWeight(e.value || false)}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* 公共动作库关联 */}
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="canonicalAction" className="font-medium">
+                        关联公共动作库 <span className="text-surface-500 text-sm">(可选)</span>
+                    </label>
+                    <AutoComplete
+                        id="canonicalAction"
+                        value={selectedCanonical}
+                        suggestions={filteredCanonicalActions}
+                        completeMethod={(e) => {
+                            const query = e.query.toLowerCase();
+                            const filtered = canonicalActions.filter(c => 
+                                c.name.toLowerCase().includes(query) ||
+                                c.aliases.some(a => a.toLowerCase().includes(query))
+                            );
+                            setFilteredCanonicalActions(filtered);
+                        }}
+                        field="name"
+                        onChange={(e) => {
+                            setSelectedCanonical(e.value);
+                            setCanonicalActionId(e.value?.id || null);
+                        }}
+                        dropdown
+                        placeholder="搜索公共动作..."
+                        className="w-full"
+                        itemTemplate={(item: CanonicalAction) => (
+                            <div className="flex flex-col">
+                                <span className="font-medium">{item.name}</span>
+                                {item.aliases.length > 0 && (
+                                    <span className="text-xs text-surface-500">
+                                        别名: {item.aliases.slice(0, 2).join(', ')}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    />
+                    {selectedCanonical && (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                            <i className="pi pi-link" />
+                            <span>已关联: {selectedCanonical.name}</span>
+                            <Button
+                                icon="pi pi-times"
+                                className="p-button-text p-button-sm p-button-danger"
+                                onClick={() => {
+                                    setSelectedCanonical(null);
+                                    setCanonicalActionId(null);
+                                }}
+                                tooltip="取消关联"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-2">

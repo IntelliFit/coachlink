@@ -1,9 +1,12 @@
-import React from 'react';
-import { Brain, MessageCircle, Star, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Brain, MessageCircle, Star, Clock, Award, Users, BookOpen } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
+import { Avatar } from 'primereact/avatar';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useRouter } from 'next/navigation';
+import { coachService } from '@/app/service/coachService';
+import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
 
 // 定义订阅状态的类型
 type SubscriptionStatus = {
@@ -19,6 +22,31 @@ interface CoachListProps {
 const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
 
     const router = useRouter();
+    const [aggregatedInfoMap, setAggregatedInfoMap] = useState<Record<string, GetAggregatedInfoResponseDto>>({});
+
+    // 批量获取教练聚合信息
+    useEffect(() => {
+        const fetchAggregatedInfo = async () => {
+            const infoMap: Record<string, GetAggregatedInfoResponseDto> = {};
+            
+            for (const sub of subscriptions) {
+                try {
+                    const res = await coachService.getAggregatedInfo({ coachId: sub.coach_id });
+                    if (res) {
+                        infoMap[sub.coach_id] = res;
+                    }
+                } catch (error) {
+                    console.error(`获取教练 ${sub.coach_id} 聚合信息失败:`, error);
+                }
+            }
+            
+            setAggregatedInfoMap(infoMap);
+        };
+
+        if (subscriptions.length > 0) {
+            fetchAggregatedInfo();
+        }
+    }, [subscriptions]);
 
     const getSubscriptionStatus = (subscription: QueryCoachSubscription): SubscriptionStatus => {
         if (!subscription.end_date) {
@@ -37,69 +65,165 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {subscriptions.map(subscription => {
                 const status = getSubscriptionStatus(subscription);
-                const hasChatService = subscription.tier >= 3;
+                const coach = subscription.coach;
+                const aggregatedInfo = aggregatedInfoMap[subscription.coach_id];
+                
+                // 获取专业领域
+                const specialties = aggregatedInfo?.specialties?.length 
+                    ? aggregatedInfo.specialties 
+                    : (coach?.specialties || []);
+
+                // 获取案例数量
+                const profile = (coach?.profile || {}) as Record<string, any>;
+                const caseStudyCount = Array.isArray(profile.caseStudies) ? profile.caseStudies.length : 0;
                 
                 return (
-                    <div key={subscription.id} className="rounded-lg overflow-hidden p-card shadow-sm">
-                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-surface">
-                            <div className="flex items-center space-x-4">
-                                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                                    <span className="text-xl font-bold">{subscription.coach?.name.charAt(0)}</span>
+                    <div key={subscription.id} className="rounded-lg overflow-hidden shadow-sm border border-surface-200 hover:shadow-md transition-shadow">
+                        {/* 顶部状态栏 */}
+                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-3 flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <span className="text-surface text-sm font-medium">订阅等级 Tier {subscription.tier}</span>
+                            </div>
+                            <Tag value={status.text} severity={status.color as any} className="text-xs font-medium" />
+                        </div>
+
+                        {/* 教练信息主体 */}
+                        <div className="p-6">
+                            <div className="flex gap-6 mb-6">
+                                {/* 左侧 - 头像 */}
+                                <div className="flex-shrink-0">
+                                    {coach?.avatar_url ? (
+                                        <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-surface-200">
+                                            <img
+                                                src={coach.avatar_url}
+                                                alt={coach.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <Avatar
+                                            label={coach?.name?.substring(0, 1).toUpperCase() || 'C'}
+                                            shape="circle"
+                                            size="xlarge"
+                                            className="text-3xl w-24 h-24 bg-gradient-to-r from-primary-500 to-red-600"
+                                        />
+                                    )}
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-semibold">{subscription.coach?.name}</h3>
-                                    <p className="text-primary-100 text-sm">{subscription.coach?.title}</p>
-                                    <div className="flex items-center space-x-1 mt-1">
-                                        <Star className="w-4 h-4 text-yellow-300 fill-current" />
-                                        <span className="text-sm">{subscription.coach?.rating}</span>
+
+                                {/* 右侧 - 基本信息 */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <h3 className="text-xl font-bold text-surface-900 truncate">{coach?.name}</h3>
+                                        {subscription.status === 'active' && (
+                                            <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                已订阅
+                                            </div>
+                                        )}
+                                    </div>
+                                    {coach?.title && (
+                                        <p className="text-sm text-surface-600 mb-3">{coach.title}</p>
+                                    )}
+
+                                    {/* 统计信息 */}
+                                    <div className="flex flex-wrap gap-4 text-sm">
+                                        <div className="flex items-center text-surface-600">
+                                            <BookOpen className="w-4 h-4 mr-1" />
+                                            <span className="font-medium text-surface-900">{aggregatedInfo?.contentCount || 0}</span>
+                                            <span className="ml-1">内容</span>
+                                        </div>
+                                        <div className="flex items-center text-surface-600">
+                                            <Users className="w-4 h-4 mr-1" />
+                                            <span className="font-medium text-surface-900">{aggregatedInfo?.studentCount || 0}</span>
+                                            <span className="ml-1">学员</span>
+                                        </div>
+                                        <div className="flex items-center text-surface-600">
+                                            <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                                            <span className="font-medium text-surface-900">{aggregatedInfo?.averageRating?.toFixed(1) || '0.0'}</span>
+                                            <span className="ml-1">评分</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-4 flex items-center justify-between">
-                                <div>
-                                    <div className="text-sm text-primary-100">订阅等级</div>
-                                    <div className="text-lg font-bold">Tier {subscription.tier}</div>
+
+                            {/* 专业领域 */}
+                            {specialties.length > 0 && (
+                                <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-surface-700 mb-2">专业领域</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {specialties.slice(0, 6).map((specialty, index) => (
+                                            <Tag key={index} value={specialty} rounded className="text-xs" />
+                                        ))}
+                                        {specialties.length > 6 && (
+                                            <Tag value={`+${specialties.length - 6}`} rounded className="text-xs" />
+                                        )}
+                                    </div>
                                 </div>
-                                <Tag value={status.text} severity={status.color as any} className="text-xs font-medium px-3 py-1" />
+                            )}
+
+                            {/* 教学经验和案例 */}
+                            <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                                <div>
+                                    <h4 className="text-sm font-medium text-surface-700 mb-1">教学经验</h4>
+                                    <p className="text-surface-600">
+                                        {coach?.years_experience ? `${coach.years_experience}年专业经验` : '暂无信息'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-medium text-surface-700 mb-1">代表案例</h4>
+                                    <p className="text-surface-600">
+                                        {caseStudyCount > 0 ? `${caseStudyCount} 个案例` : '暂无案例'}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">教练服务</h4>
-                                {/* 在线咨询按钮 */}
+
+                            {/* 教练简介 */}
+                            {coach?.bio && (
+                                <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-surface-700 mb-1">教练简介</h4>
+                                    <p className="text-surface-600 text-sm line-clamp-2">
+                                        {coach.bio}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* 操作按钮 */}
+                            <div className="flex gap-2 pt-4 border-t border-surface-200">
                                 <Button
                                     label="在线咨询"
                                     icon="pi pi-comments"
                                     size="small"
                                     outlined
-                                    className="p-button-sm"
+                                    className="flex-1"
                                     onClick={() => router.push(`/messages?coachId=${subscription.coach_id}`)}
-                                    tooltip={hasChatService ? "一对一实时聊天" : "体验聊天功能（演示版）"}
-                                    tooltipOptions={{ position: 'top' }}
+                                />
+                                <Button
+                                    label="查看详情"
+                                    icon="pi pi-user"
+                                    size="small"
+                                    className="flex-1"
+                                    onClick={() => router.push(`/coach/profile/${subscription.coach_id}`)}
                                 />
                             </div>
-                            
-                            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                                <div className="flex items-center space-x-2">
-                                    <Brain className="w-4 h-4 text-primary-500" />
-                                    <span>专属训练计划</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <MessageCircle className="w-4 h-4 text-purple-500" />
-                                    <span>{hasChatService ? '一对一实时聊天' : '体验版聊天功能'}</span>
-                                </div>
-                            </div>
 
+                            {/* 续费提示 */}
                             {status.status === 'expiring' && (
-                                <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg dark:bg-primary-900 dark:border-primary-700">
-                                    <div className="flex items-center space-x-2">
-                                        <Clock className="w-4 h-4 text-primary-600 dark:text-primary-300" />
-                                        <span className="text-sm text-primary-800 dark:text-primary-200">订阅即将到期</span>
+                                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Clock className="w-4 h-4 text-orange-600" />
+                                        <span className="text-sm font-medium text-orange-800">订阅即将到期</span>
                                     </div>
-                                    <Button label="立即续费" className="mt-2 w-full p-button-primary text-sm" />
+                                    <Button 
+                                        label="立即续费" 
+                                        size="small"
+                                        className="w-full p-button-warning" 
+                                        onClick={() => router.push(`/coach/profile/${subscription.coach_id}?renew=true`)}
+                                    />
                                 </div>
                             )}
                         </div>

@@ -125,7 +125,7 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
             // 2. 如果需要AI增强
             let finalPlan = rulePlan;
             if (useAIEnhancement) {
-                setMessage({ type: 'info', text: 'AI正在为您个性化增强计划...' });
+                setMessage({ type: 'info', text: '正在为您个性化优化计划...' });
 
                 const aiService = AIEnhancementService.getInstance();
                 const enhancements = await aiService.enhancePlan({
@@ -281,8 +281,8 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
                                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Zap className="w-8 h-8 text-blue-600" />
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">AI快速生成</h3>
-                                    <p className="text-gray-600 mb-4">基于您的信息，AI立即为您生成个性化训练计划</p>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">智能快速生成</h3>
+                                    <p className="text-gray-600 mb-4">基于您的信息，系统立即为您生成个性化训练计划</p>
                                     <ul className="text-sm text-gray-500 mb-6 text-left">
                                         <li>• 即时获得计划</li>
                                         <li>• 基于科学算法</li>
@@ -347,13 +347,13 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
                                         onChange={(e) => setUseAIEnhancement(e.target.checked)}
                                         className="rounded text-blue-600 focus:ring-blue-500"
                                     />
-                                    <span className="text-sm text-gray-700">使用AI增强</span>
+                                    <span className="text-sm text-gray-700">智能优化</span>
                                 </label>
                             </div>
 
                             <div className="text-sm text-gray-600 mb-4">
                                 <p>• 基于规则引擎生成，确保计划科学性和可执行性</p>
-                                {useAIEnhancement && <p>• AI将提供个性化文案、技术要点和安全提示</p>}
+                                {useAIEnhancement && <p>• 系统将提供个性化文案、技术要点和安全提示</p>}
                             </div>
 
                             <div className="flex justify-center">
@@ -403,8 +403,8 @@ const EnhancedAITrainingGenerator: React.FC<EnhancedAITrainingGeneratorProps> = 
                                 <Brain className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">AI智能训练计划</h1>
-                                <p className="text-gray-600">基于规则引擎 + AI增强的个性化方案</p>
+                                <h1 className="text-2xl font-bold text-gray-900">智能训练计划</h1>
+                                <p className="text-gray-600">基于规则引擎的个性化智能方案</p>
                             </div>
                         </div>
 

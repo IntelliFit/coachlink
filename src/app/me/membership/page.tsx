@@ -79,7 +79,7 @@ export default function MembershipDashboard() {
 
                     {isFree ? (
                         <div className="bg-surface-50 p-4 rounded-lg border border-surface-200">
-                            <p className="text-sm text-surface-600 mb-3">升级会员解锁更多 AI 次数和存储空间，提升训练效率！</p>
+                            <p className="text-sm text-surface-600 mb-3">升级会员解锁更多智能生成次数和存储空间，提升训练效率！</p>
                             <Button label="立即升级" onClick={() => router.push('/me/membership/subscribe')} className="w-full sm:w-auto" severity="help" />
                         </div>
                     ) : (
@@ -94,7 +94,7 @@ export default function MembershipDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-surface-0 border border-surface-200 rounded-xl p-6 shadow-sm">
                     <div className="flex flex-row items-center justify-between pb-4">
-                        <h3 className="text-base font-medium text-surface-900">AI 智能导入次数</h3>
+                        <h3 className="text-base font-medium text-surface-900">智能导入次数</h3>
                         <Sparkles className="h-4 w-4 text-surface-500" />
                     </div>
                     <div>

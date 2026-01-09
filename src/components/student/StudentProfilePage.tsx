@@ -14,6 +14,7 @@ import { PlanPreferencesDisplay } from './profile/PlanPreferencesDisplay';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
 import { VideoCollectionSection } from './profile/VideoCollectionSection';
+import { E1RMProgressChart } from './profile/E1RMProgressChart';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
 import type { TrainingItem } from '@/types/questionnaires';
@@ -208,13 +209,19 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 {/* Left column - slightly wider */}
                 <div className="lg:w-7/12 space-y-6">
                     <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
+                    
+                    {/* Strength Progress Curve */}
+                    <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200 p-5">
+                         <E1RMProgressChart studentId={session?.user.id as string} />
+                    </div>
+
                     <ProgressTimeline data={data} />
                     
                     {/* 训练偏好/问卷展示 */}
                     {subscription && subscription.subscribe_data && (
                         <PlanPreferencesDisplay 
                             subscribeData={subscription.subscribe_data} 
-                            coachId={subscription.coach_id}
+                            coachId={subscription.coach?.user_id || subscription.coach_id}
                             planStatus={planStatus}
                             onEditQuestionnaire={handleEditQuestionnaire}
                         />
@@ -238,7 +245,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 visible={questionnaireVisible}
                 onHide={() => setQuestionnaireVisible(false)}
                 questions={questionnaireQuestions}
-                coach={{ id: subscription.coach_id, name: '', rating: 0 } as any}
+                coach={subscription.coach}
                 onSubmit={handleSaveQuestionnaire}
                 loading={questionnaireLoading}
                 existingAnswers={subscription.subscribe_data as any}
