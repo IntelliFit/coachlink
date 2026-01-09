@@ -28,6 +28,14 @@ interface SetData {
     has_video?: boolean;
     video_url?: string;
     is_pr?: boolean;
+    // Auto e1RM fields
+    e1rm?: number;
+    is_auto_pr?: boolean;
+    // Polymorphic fields
+    actual_distance?: number; // meters
+    actual_duration?: number; // seconds
+    diet_content?: string;
+    calories?: number;
 }
 
 interface ActionExecution {
@@ -74,6 +82,12 @@ function TrainingExecutionContent() {
 
     // Share modal state
     const [shareModalVisible, setShareModalVisible] = useState(false);
+
+    // Polymorphic Item State
+    const [dietContent, setDietContent] = useState('');
+    const [dietCalories, setDietCalories] = useState<number | null>(null);
+    const [cardioDistance, setCardioDistance] = useState<number | null>(null); // km
+    const [cardioDuration, setCardioDuration] = useState<number | null>(null); // minutes
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
@@ -240,7 +254,23 @@ function TrainingExecutionContent() {
             });
 
             if (res.success) {
-                // 3. Create PR record if marked
+                // Check for auto-detected PR (e1RM system)
+                if (res.data?.autoE1RM?.isPR) {
+                    const e1rm = res.data.autoE1RM.e1rm;
+                    const previousPR = res.data.autoE1RM.previousPR;
+                    const improvement = previousPR ? (e1rm - previousPR).toFixed(1) : null;
+                    
+                    showToast({
+                        severity: 'success',
+                        summary: '🎉 新纪录！',
+                        detail: improvement 
+                            ? `${actionExecution.action_name} e1RM: ${e1rm}kg (+${improvement}kg)`
+                            : `${actionExecution.action_name} e1RM: ${e1rm}kg`,
+                        life: 4000
+                    });
+                }
+
+                // 3. Create PR record if marked (manual marking)
                 if (markAsPR && weight && reps) {
                     await executionService.createPR({
                         executionId: execution.id,
@@ -266,7 +296,10 @@ function TrainingExecutionContent() {
                     notes: setNotes,
                     is_pr: markAsPR,
                     has_video: hasVideo,
-                    video_url: uploadedVideoUrl
+                    video_url: uploadedVideoUrl,
+                    // Add e1RM info
+                    e1rm: res.data?.autoE1RM?.e1rm,
+                    is_auto_pr: res.data?.autoE1RM?.isPR
                 };
                 updatedExecution.action_executions[actionIndex].completed_sets++;
                 updatedExecution.completed_sets = res.data?.completedSets || execution.completed_sets + 1;
@@ -307,6 +340,80 @@ function TrainingExecutionContent() {
             }
         } catch (error) {
             console.error('Complete set failed:', error);
+            showToast({
+                severity: 'error',
+                summary: '错误',
+                detail: '保存失败'
+            });
+        }
+    };
+
+    const handleCompleteItem = async (actionIndex: number) => {
+        if (!execution) return;
+
+        try {
+            const actionExecution = execution.action_executions[actionIndex];
+            const action = actions[actionExecution.action_id];
+            
+            // Determine type
+            const itemType = action?.type || 'STRENGTH';
+            
+            // Call API
+            const res = await executionService.completeItem({
+                executionId: execution.id,
+                actionIndex,
+                itemType: itemType as any,
+                completed: true,
+                actualContent: itemType === 'DIET' ? dietContent : undefined,
+                actualDistance: itemType === 'CARDIO' && cardioDistance ? cardioDistance * 1000 : undefined, // to meters
+                actualDuration: itemType === 'CARDIO' && cardioDuration ? cardioDuration * 60 : undefined, // to seconds
+                notes: sessionNotes // Reuse session notes or add specific field if needed
+            });
+
+            if (res.success) {
+                // Update local state
+                const updatedExecution = { ...execution };
+                const setData = updatedExecution.action_executions[actionIndex].sets[0];
+                
+                // Update the single set to completed
+                updatedExecution.action_executions[actionIndex].sets[0] = {
+                    ...setData,
+                    status: 'completed',
+                    diet_content: dietContent,
+                    actual_distance: itemType === 'CARDIO' && cardioDistance ? cardioDistance * 1000 : undefined,
+                    actual_duration: itemType === 'CARDIO' && cardioDuration ? cardioDuration * 60 : undefined,
+                };
+                
+                updatedExecution.action_executions[actionIndex].completed_sets = 1;
+                updatedExecution.completed_sets = res.data?.completedSets || execution.completed_sets + 1;
+                setExecution(updatedExecution);
+
+                // Reset forms
+                setDietContent('');
+                setDietCalories(null);
+                setCardioDistance(null);
+                setCardioDuration(null);
+
+                showToast({
+                    severity: 'success',
+                    summary: '完成',
+                    detail: `${action?.name || '项目'} 已完成`
+                });
+
+                // Move to next action
+                const nextActionIndex = actionIndex + 1;
+                if (nextActionIndex < execution.action_executions.length) {
+                    setExpandedAction(nextActionIndex);
+                } else {
+                     showToast({
+                        severity: 'success',
+                        summary: '训练完成',
+                        detail: '所有项目已完成！'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Complete item failed:', error);
             showToast({
                 severity: 'error',
                 summary: '错误',
@@ -469,195 +576,295 @@ function TrainingExecutionContent() {
                                 </div>
                             </div>
 
-                            {/* Sets */}
+                            {/* Sets or Item Content */}
                             {isExpanded && (
                                 <div className="mt-4 space-y-4">
-                                    {actionExec.sets.map((setData: SetData, setIndex: number) => {
-                                        const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
-                                        const isSetCompleted = setData.status === 'completed' || execution?.status === 'completed';
+                                    {(!action?.type || action.type === 'STRENGTH') ? (
+                                        // 力量训练：显示组列表
+                                        actionExec.sets.map((setData: SetData, setIndex: number) => {
+                                            const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
+                                            const isSetCompleted = setData.status === 'completed' || execution?.status === 'completed';
 
-                                        return (
-                                            <div 
-                                                key={setIndex}
-                                                className={`border rounded-lg p-4 ${
-                                                    isSetCompleted 
-                                                        ? 'border-green-500/50 bg-green-500/10' 
-                                                        : isCurrentSet
-                                                        ? 'border-purple-500 bg-purple-500/10'
-                                                        : 'border-gray-700'
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <span className="font-bold">第 {setData.set_number} 组</span>
-                                                    {setData.is_pr && (
-                                                        <span className="flex items-center gap-1 text-yellow-400 text-sm">
-                                                            <Star className="w-4 h-4" /> PR
-                                                        </span>
+                                            return (
+                                                <div 
+                                                    key={setIndex}
+                                                    className={`border rounded-lg p-4 ${
+                                                        isSetCompleted 
+                                                            ? 'border-green-500/50 bg-green-500/10' 
+                                                            : isCurrentSet
+                                                            ? 'border-purple-500 bg-purple-500/10'
+                                                            : 'border-gray-700'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <span className="font-bold">第 {setData.set_number} 组</span>
+                                                        {setData.is_pr && (
+                                                            <span className="flex items-center gap-1 text-yellow-400 text-sm">
+                                                                <Star className="w-4 h-4" /> PR
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Planned values */}
+                                                    <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg p-3 mb-3">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-orange-600 text-xs font-medium">📋 教练计划</span>
+                                                        </div>
+                                                        <div className="text-surface-900 text-lg font-bold">
+                                                            {setData.planned_weight || '-'} × {setData.planned_reps || '-'}次
+                                                        </div>
+                                                    </div>
+
+                                                    {isSetCompleted ? (
+                                                        // Completed display
+                                                        <div className="space-y-3">
+                                                            <div className="grid grid-cols-3 gap-3">
+                                                                <div>
+                                                                    <label className="text-xs text-surface-500">重量(kg)</label>
+                                                                    <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
+                                                                        {setData.actual_weight || '-'}
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-xs text-surface-500">次数</label>
+                                                                    <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
+                                                                        {setData.actual_reps || '-'}
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-xs text-surface-500">RPE</label>
+                                                                    <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
+                                                                        {setData.rpe || '-'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {setData.notes && (
+                                                                <div className="bg-surface-100 rounded p-2 text-sm text-surface-600">
+                                                                    📝 {setData.notes}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center gap-4 flex-wrap">
+                                                                {setData.has_video && (
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            if (setData.video_url) {
+                                                                                setCurrentVideoUrl(setData.video_url);
+                                                                                setVideoModalVisible(true);
+                                                                            } else {
+                                                                                showToast({
+                                                                                    severity: 'info',
+                                                                                    summary: '视频查看',
+                                                                                    detail: '视频链接不可用，请刷新页面'
+                                                                                });
+                                                                            }
+                                                                        }}
+                                                                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30"
+                                                                    >
+                                                                        <Video className="w-4 h-4" /> 查看视频
+                                                                    </button>
+                                                                )}
+                                                                {setData.is_pr && (
+                                                                    <span className="flex items-center gap-1 text-yellow-400 text-sm">
+                                                                        <Star className="w-4 h-4" /> 进步组
+                                                                    </span>
+                                                                )}
+                                                                {setData.is_auto_pr && (
+                                                                    <span className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs rounded-full font-medium animate-pulse">
+                                                                        🏆 新纪录
+                                                                    </span>
+                                                                )}
+                                                                {setData.e1rm && (
+                                                                    <span className="text-surface-500 text-xs">
+                                                                        e1RM: {setData.e1rm}kg
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="text-green-400 text-sm font-medium">
+                                                                ✓ 已完成
+                                                            </div>
+                                                        </div>
+                                                    ) : isCurrentSet ? (
+                                                        // Input form
+                                                        <div className="space-y-3">
+                                                            <div className="grid grid-cols-3 gap-3">
+                                                                <div>
+                                                                    <label className="text-xs text-surface-600 font-medium">重量(kg)</label>
+                                                                    <InputNumber 
+                                                                        value={weight}
+                                                                        onValueChange={(e) => setWeight(e.value ?? null)}
+                                                                        className="w-full"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-xs text-surface-600 font-medium">次数</label>
+                                                                    <InputNumber 
+                                                                        value={reps}
+                                                                        onValueChange={(e) => setReps(e.value ?? null)}
+                                                                        className="w-full"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-xs text-surface-600 font-medium">RPE</label>
+                                                                    <InputNumber 
+                                                                        value={rpe}
+                                                                        onValueChange={(e) => setRpe(e.value ?? null)}
+                                                                        min={1}
+                                                                        max={10}
+                                                                        className="w-full"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <InputTextarea 
+                                                                value={setNotes}
+                                                                onChange={(e) => setSetNotes(e.target.value)}
+                                                                placeholder="添加备注（可选）"
+                                                                rows={2}
+                                                                className="w-full"
+                                                            />
+
+                                                            <div className="flex items-center gap-4 flex-wrap">
+                                                                <input
+                                                                    type="file"
+                                                                    ref={fileInputRef}
+                                                                    accept="video/*"
+                                                                    onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                                                                    className="hidden"
+                                                                />
+                                                                <Button 
+                                                                    icon={<Upload className="w-4 h-4" />}
+                                                                    label={videoFile ? videoFile.name.slice(0, 15) + '...' : "选择视频"}
+                                                                    outlined
+                                                                    size="small"
+                                                                    onClick={() => fileInputRef.current?.click()}
+                                                                    severity={videoFile ? "success" : "secondary"}
+                                                                />
+                                                                {videoFile && (
+                                                                    <button 
+                                                                        onClick={() => setVideoFile(null)}
+                                                                        className="text-xs text-red-400 hover:text-red-300"
+                                                                    >
+                                                                        删除
+                                                                    </button>
+                                                                )}
+                                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                                    <input 
+                                                                        type="checkbox"
+                                                                        checked={markAsPR}
+                                                                        onChange={(e) => setMarkAsPR(e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <Star className="w-4 h-4 text-yellow-400" />
+                                                                    <span className="text-sm">标记为进步组</span>
+                                                                </label>
+                                                            </div>
+
+                                                            <Button 
+                                                                label="✓ 完成本组"
+                                                                onClick={() => handleCompleteSet(actionIndex, setIndex)}
+                                                                className="w-full"
+                                                                severity="success"
+                                                                disabled={!weight || !reps}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        // Pending display
+                                                        <div className="text-gray-500">待完成</div>
                                                     )}
                                                 </div>
-
-                                                {/* Planned values - 更醒目的显示 */}
-                                                <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg p-3 mb-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-orange-600 text-xs font-medium">📋 教练计划</span>
-                                                    </div>
-                                                    <div className="text-surface-900 text-lg font-bold">
-                                                        {setData.planned_weight || '-'} × {setData.planned_reps || '-'}次
+                                            );
+                                        })
+                                    ) : (
+                                        // 非力量训练 (饮食/有氧/习惯)
+                                        <div className="border rounded-lg p-4 border-purple-500 bg-purple-500/10">
+                                            {actionExec.completed_sets > 0 ? (
+                                                // 已完成状态
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <span className="text-green-600 font-medium">✓ 已打卡完成</span>
+                                                        <div className="mt-2 text-sm text-surface-600">
+                                                            {actionExec.sets[0]?.diet_content && <div>内容: {actionExec.sets[0].diet_content}</div>}
+                                                            {actionExec.sets[0]?.actual_distance && <div>距离: {actionExec.sets[0].actual_distance / 1000} km</div>}
+                                                            {actionExec.sets[0]?.actual_duration && <div>时长: {actionExec.sets[0].actual_duration / 60} 分钟</div>}
+                                                        </div>
                                                     </div>
                                                 </div>
-
-                                                {isSetCompleted ? (
-                                                    // Completed display - same layout as input form but readonly
-                                                    <div className="space-y-3">
-                                                        <div className="grid grid-cols-3 gap-3">
-                                                            <div>
-                                                                <label className="text-xs text-surface-500">重量(kg)</label>
-                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
-                                                                    {setData.actual_weight || '-'}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-surface-500">次数</label>
-                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
-                                                                    {setData.actual_reps || '-'}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-surface-500">RPE</label>
-                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
-                                                                    {setData.rpe || '-'}
-                                                                </div>
-                                                            </div>
+                                            ) : (
+                                                // 未完成 - 填写表单
+                                                <div className="space-y-4">
+                                                    <h3 className="font-bold text-surface-900 border-b pb-2">
+                                                        {action.type === 'DIET' ? '🍽️ 饮食打卡' : action.type === 'CARDIO' ? '🏃 有氧打卡' : '✅ 习惯打卡'}
+                                                    </h3>
+                                                    
+                                                    {/* Plan Detail Reminder */}
+                                                    {action?.item_schema && (
+                                                        <div className="bg-surface-100 p-3 rounded text-sm text-surface-600">
+                                                             {action.type === 'DIET' && <div>建议: {action.item_schema.calories} kcal</div>}
+                                                             {action.type === 'CARDIO' && (
+                                                                 <div>目标: {(action.item_schema.distance / 1000).toFixed(1)} km / {(action.item_schema.duration / 60).toFixed(0)} 分钟</div>
+                                                             )}
+                                                             {action.type === 'HABIT' && <div>说明: {action.detail}</div>}
                                                         </div>
-
-                                                        {setData.notes && (
-                                                            <div className="bg-surface-100 rounded p-2 text-sm text-surface-600">
-                                                                📝 {setData.notes}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-center gap-4 flex-wrap">
-                                                            {setData.has_video && (
-                                                                <button 
-                                                                    onClick={() => {
-                                                                        if (setData.video_url) {
-                                                                            setCurrentVideoUrl(setData.video_url);
-                                                                            setVideoModalVisible(true);
-                                                                        } else {
-                                                                            showToast({
-                                                                                severity: 'info',
-                                                                                summary: '视频查看',
-                                                                                detail: '视频链接不可用，请刷新页面'
-                                                                            });
-                                                                        }
-                                                                    }}
-                                                                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30"
-                                                                >
-                                                                    <Video className="w-4 h-4" /> 查看视频
-                                                                </button>
-                                                            )}
-                                                            {setData.is_pr && (
-                                                                <span className="flex items-center gap-1 text-yellow-400 text-sm">
-                                                                    <Star className="w-4 h-4" /> 进步组
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="text-green-400 text-sm font-medium">
-                                                            ✓ 已完成
-                                                        </div>
-                                                    </div>
-                                                ) : isCurrentSet ? (
-                                                    // Input form
-                                                    <div className="space-y-3">
-                                                        <div className="grid grid-cols-3 gap-3">
-                                                            <div>
-                                                                <label className="text-xs text-surface-600 font-medium">重量(kg)</label>
-                                                                <InputNumber 
-                                                                    value={weight}
-                                                                    onValueChange={(e) => setWeight(e.value ?? null)}
-                                                                    className="w-full"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-surface-600 font-medium">次数</label>
-                                                                <InputNumber 
-                                                                    value={reps}
-                                                                    onValueChange={(e) => setReps(e.value ?? null)}
-                                                                    className="w-full"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-surface-600 font-medium">RPE</label>
-                                                                <InputNumber 
-                                                                    value={rpe}
-                                                                    onValueChange={(e) => setRpe(e.value ?? null)}
-                                                                    min={1}
-                                                                    max={10}
-                                                                    className="w-full"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        <InputTextarea 
-                                                            value={setNotes}
-                                                            onChange={(e) => setSetNotes(e.target.value)}
-                                                            placeholder="添加备注（可选）"
-                                                            rows={2}
-                                                            className="w-full"
-                                                        />
-
-                                                        <div className="flex items-center gap-4 flex-wrap">
-                                                            <input
-                                                                type="file"
-                                                                ref={fileInputRef}
-                                                                accept="video/*"
-                                                                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                                                                className="hidden"
+                                                    )}
+                                                    
+                                                    {/* Diet Form */}
+                                                    {action.type === 'DIET' && (
+                                                        <div className="space-y-3">
+                                                            <label className="text-sm font-medium">记录内容 (可选)</label>
+                                                            <InputTextarea 
+                                                                value={dietContent}
+                                                                onChange={(e) => setDietContent(e.target.value)}
+                                                                rows={3}
+                                                                placeholder="吃了什么？(例如: 鸡胸肉, 西兰花...)"
+                                                                className="w-full"
                                                             />
-                                                            <Button 
-                                                                icon={<Upload className="w-4 h-4" />}
-                                                                label={videoFile ? videoFile.name.slice(0, 15) + '...' : "选择视频"}
-                                                                outlined
-                                                                size="small"
-                                                                onClick={() => fileInputRef.current?.click()}
-                                                                severity={videoFile ? "success" : "secondary"}
-                                                            />
-                                                            {videoFile && (
-                                                                <button 
-                                                                    onClick={() => setVideoFile(null)}
-                                                                    className="text-xs text-red-400 hover:text-red-300"
-                                                                >
-                                                                    删除
-                                                                </button>
-                                                            )}
-                                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                                <input 
-                                                                    type="checkbox"
-                                                                    checked={markAsPR}
-                                                                    onChange={(e) => setMarkAsPR(e.target.checked)}
-                                                                    className="w-4 h-4"
-                                                                />
-                                                                <Star className="w-4 h-4 text-yellow-400" />
-                                                                <span className="text-sm">标记为进步组</span>
-                                                            </label>
                                                         </div>
+                                                    )}
 
-                                                        <Button 
-                                                            label="✓ 完成本组"
-                                                            onClick={() => handleCompleteSet(actionIndex, setIndex)}
-                                                            className="w-full"
-                                                            severity="success"
-                                                            disabled={!weight || !reps}
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    // Pending display
-                                                    <div className="text-gray-500">待完成</div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                                    {/* Cardio Form */}
+                                                    {action.type === 'CARDIO' && (
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-sm font-medium">距离 (km)</label>
+                                                                <InputNumber 
+                                                                    value={cardioDistance}
+                                                                    onValueChange={(e) => setCardioDistance(e.value ?? null)}
+                                                                    min={0}
+                                                                    max={100}
+                                                                    minFractionDigits={1}
+                                                                    placeholder="0.0"
+                                                                    className="w-full"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium">时长 (分钟)</label>
+                                                                <InputNumber 
+                                                                    value={cardioDuration}
+                                                                    onValueChange={(e) => setCardioDuration(e.value ?? null)}
+                                                                    min={0}
+                                                                    max={300}
+                                                                    placeholder="0"
+                                                                    className="w-full"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Submit Button */}
+                                                    <Button 
+                                                        label="完成打卡"
+                                                        icon="pi pi-check"
+                                                        onClick={() => handleCompleteItem(actionIndex)}
+                                                        className="w-full"
+                                                        severity="success"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </Card>

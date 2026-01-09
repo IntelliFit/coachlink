@@ -16,6 +16,9 @@ import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import StudentSmartImportDialog from '../components/StudentSmartImportDialog';
+import { studentService } from '@/app/service/studentService';
+import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
+import OneRMConfigPanel from '../components/OneRMConfigPanel';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -47,24 +50,21 @@ const CreatePlanPage = () => {
 
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
+    
+    // 学生数据状态，用于自动计算重量
+    const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
 
-    // Load actions from student action library
-    useEffect(() => {
-        if (!session?.user?.id) return;
-        loadActions();
-    }, [session?.user?.id]);
+    // Plan-level 1RM configuration
+    const [planReference1RMs, setPlanReference1RMs] = useState<Record<string, number>>({});
 
+    // Load actions and student profile
     const loadActions = async () => {
         try {
-            const res = await studentActionLibService.listActions({
-                page: 1,
-                limit: 100
-            });
-            if (res) {
-                // 转换为 CoachActionRow 格式以兼容现有组件
+            const res = await studentActionLibService.listActions({ page: 1, limit: 1000 });
+            if (res?.actions) {
                 const convertedActions: CoachActionRow[] = res.actions.map((action: StudentActionRow) => ({
                     id: action.id,
-                    coach_id: action.user_id, // 映射 user_id 到 coach_id
+                    coach_id: action.user_id,
                     name: action.name,
                     detail: action.detail,
                     positions: action.positions,
@@ -72,18 +72,50 @@ const CreatePlanPage = () => {
                     url: action.url,
                     created_at: action.created_at,
                     updated_at: action.updated_at,
-                    enableAutoWeightCompute: false,
-                    includesBodyWeight: false,
+                    enableAutoWeightCompute: action.enableAutoWeightCompute || false,
+                    includesBodyWeight: action.includesBodyWeight || false,
+                    canonical_action_id: action.canonical_action_id
                 }));
                 setActions(convertedActions);
             }
         } catch (error) {
             console.error('加载动作库失败:', error);
             showToast({ severity: 'error', summary: '加载失败', detail: '无法加载动作库' });
-        } finally {
-            setLoading(false);
         }
     };
+
+    const fetchProfile = async () => {
+        try {
+             if (!session?.user?.id) return;
+             const profileRes = await studentService.getStudentProfile(session.user.id);
+             if (profileRes?.profile) {
+                setStudentData({
+                    id: session.user.id,
+                    student_id: session.user.id,
+                    tier: 1,
+                    status: 'active',
+                    start_date: new Date().toISOString(),
+                    end_date: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    subscribe_data: null,
+                    monthly_price: 0,
+                    profile: profileRes.profile,
+                    uploaded: 0,
+                    reviewed: 0
+                });
+            }
+        } catch (error) {
+            console.error('加载档案失败:', error);
+        }
+    }
+
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        
+        setLoading(true);
+        Promise.all([loadActions(), fetchProfile()])
+            .finally(() => setLoading(false));
+    }, [session?.user?.id]);
 
     const handleAddWeek = () => {
         const currentLength = days.length;
@@ -379,6 +411,14 @@ const CreatePlanPage = () => {
                         </div>
                     </div>
 
+                    {/* Global 1RM Configuration Panel */}
+                    <OneRMConfigPanel 
+                        days={days}
+                        actions={actions}
+                        value={planReference1RMs}
+                        onChange={setPlanReference1RMs}
+                    />
+
                     {/* 周日历视图 */}
                     <div className="mb-6">
                         <WeekCalendar
@@ -408,6 +448,8 @@ const CreatePlanPage = () => {
                             totalDays={days.length}
                             onCopyFromDay={handleCopyFromDay}
                             existingTrainingDays={existingTrainingDays}
+                            studentData={studentData}
+                            planReference1RMs={planReference1RMs}
                         />
                     )}
 

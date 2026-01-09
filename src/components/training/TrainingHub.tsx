@@ -245,7 +245,7 @@ const TrainingHub: React.FC<TrainingHubProps> = ({
               </div>
               {trainingPlan.ai_generated && (
                 <div className="bg-blue-500 px-2 py-1 rounded text-xs">
-                  AI生成
+                  智能生成
                 </div>
               )}
             </div>

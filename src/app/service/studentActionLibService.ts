@@ -19,6 +19,11 @@ import type {
     BatchCreateStudentActionsDto,
     BatchCreateStudentActionsResponseDto,
 } from "@/app/api/student/action-lib/batch-create-actions/entity";
+import type { ListCoachActionsResponseDto } from "@/app/api/student/action-lib/list-coach-actions/entity";
+import type {
+    CopyCoachActionDto,
+    CopyCoachActionResponseDto,
+} from "@/app/api/student/action-lib/copy-coach-action/entity";
 
 export class StudentActionLibService extends BaseService {
     async listActions(reqData: ListStudentActionsDto) {
@@ -72,6 +77,34 @@ export class StudentActionLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res?.data?.message || "批量创建动作失败");
+        }
+        return res.data.data;
+    }
+
+    /**
+     * 获取教练动作列表（基于学员订阅）
+     */
+    async listCoachActions() {
+        const res = await this.post<ListCoachActionsResponseDto>(
+            "list-coach-actions",
+            {},
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "获取教练动作列表失败");
+        }
+        return res.data.data;
+    }
+
+    /**
+     * 复制教练动作到学员自己的动作库
+     */
+    async copyCoachAction(reqData: CopyCoachActionDto) {
+        const res = await this.post<CopyCoachActionResponseDto>(
+            "copy-coach-action",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "复制动作失败");
         }
         return res.data.data;
     }

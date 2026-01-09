@@ -21,7 +21,7 @@
   },
   "home": {
     "description": "欢迎来到智健联盟！请选择您需要的服务：",
-    "ai_training": "AI训练计划",
+    "ai_training": "智能训练计划",
     "ai_training_desc": "个性化定制训练方案",
     "coaching": "教练",
     "coaching_desc": "专业教练指导服务",

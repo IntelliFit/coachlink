@@ -125,7 +125,7 @@ export const StudentPlanHistory: React.FC<StudentPlanHistoryProps> = ({
             return <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">教练指派</span>;
         }
         if (source === 'ai') {
-            return <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">AI生成</span>;
+            return <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">智能生成</span>;
         }
         return <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">学员自建</span>;
     };

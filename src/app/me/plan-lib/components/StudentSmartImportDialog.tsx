@@ -271,7 +271,7 @@ export default function StudentSmartImportDialog({
                 return (
                     <div className="flex flex-col gap-4">
                         <p className="text-sm text-gray-600">
-                            请粘贴您的训练计划文本，系统将使用 AI 自动解析动作和训练结构。
+                            请粘贴您的训练计划文本，系统将自动智能解析动作和训练结构。
                         </p>
                         <InputTextarea
                             value={inputText}

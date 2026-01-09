@@ -9,6 +9,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 export async function POST(req: Request) {
     const addData = await req.json() as AddStudentActionDto;
+    console.log("[API] add-action data:", addData);
 
     // 检查用户登录
     const session = await getServerSession();
@@ -39,6 +40,9 @@ export async function POST(req: Request) {
             positions: addData.positions || ["全身"],
             attrs: addData.attrs || ["组数", "次数", "强度", "休息时间"],
             url: addData.url || null,
+            enableAutoWeightCompute: addData.enableAutoWeightCompute || false,
+            includesBodyWeight: addData.includesBodyWeight || false,
+            canonical_action_id: addData.canonical_action_id || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })

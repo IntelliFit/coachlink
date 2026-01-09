@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     }
 
     // 更新动作（确保只能更新自己的动作）
+    console.log("[API] update-action data:", updateData);
     const { data: action, error } = await supabase
         .from("student_actions")
         .update({

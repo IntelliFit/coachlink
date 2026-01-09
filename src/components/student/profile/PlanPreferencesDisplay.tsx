@@ -142,24 +142,28 @@ export const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                {autoComputeActions.map(action => {
-                                                    // Handle userInputs potentially being a string or object
-                                                    let userInputs = item.userInputs;
-                                                    if (typeof userInputs === 'string') {
-                                                        try { userInputs = JSON.parse(userInputs); } 
-                                                        catch (e) { userInputs = {}; }
-                                                    }
-                                                    
-                                                    const val = userInputs?.[action.id] || 0;
-                                                    return (
-                                                        <div key={action.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                                            <span className="text-sm text-gray-600">{action.name}</span>
-                                                            <span className="text-sm font-bold text-gray-900">{val > 0 ? `${val}kg` : '-'}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {autoComputeActions.length === 0 && <span className="text-sm text-gray-400">暂无 RM 数据配置</span>}
-                                            </div>
+                                                  {autoComputeActions.length > 0 ? (
+                                                      autoComputeActions.map(action => {
+                                                          let userInputs = item.userInputs;
+                                                          if (typeof userInputs === 'string') {
+                                                              try { userInputs = JSON.parse(userInputs); } 
+                                                              catch (e) { userInputs = {}; }
+                                                          }
+                                                          
+                                                          const val = userInputs?.[action.id] || 0;
+                                                          return (
+                                                              <div key={action.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                                                  <span className="text-sm text-gray-600">{action.name}</span>
+                                                                  <span className="text-sm font-bold text-gray-900">{val > 0 ? `${val}kg` : '-'}</span>
+                                                              </div>
+                                                          );
+                                                      })
+                                                  ) : (
+                                                      <div className="text-center py-4 text-gray-400 text-sm italic">
+                                                          未配置 RM 动作或加载中...
+                                                      </div>
+                                                  )}
+                                              </div>
                                         )}
                                     </div>
                                 </>

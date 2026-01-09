@@ -27,6 +27,7 @@
         "date-fns": "^4.1.0",
         "dompurify": "^3.3.1",
         "dotenv": "^16.4.5",
+        "driver.js": "^1.4.0",
         "framer-motion": "^12.23.24",
         "gradient-string": "^3.0.0",
         "html2canvas": "^1.4.1",

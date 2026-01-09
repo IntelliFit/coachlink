@@ -19,6 +19,7 @@ import { checkTrainingDays } from '@/utils/template';
 import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
 import SmartImportDialog from '../components/SmartImportDialog';
+import { ItemType } from '@/types/student';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -205,17 +206,66 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
-    const handleAddActionSet = (dayIndex: number) => {
+
+
+    const handleAddActionSet = (dayIndex: number, type: ItemType = 'STRENGTH') => {
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
 
-        newDays[actualDayIndex].actionSets.push({
+        let newItem: any = {
             type: 'no-filter',
             actionId: '',
             setName: '',
-            params: {}
-        });
+            params: {},
+            itemType: type
+        };
+
+        // Initialize default values based on type
+        switch (type) {
+            case 'DIET':
+                newItem.setName = 'Diet Item';
+                newItem.actionId = ''; // Allow user to select template
+                newItem.params = {
+                    suggested_time: '08:00',
+                    custom_data: {
+                        content: '',
+                        calories: 0
+                    }
+                };
+                break;
+            case 'CARDIO':
+                newItem.setName = 'Cardio Item';
+                newItem.actionId = ''; // Allow user to select template
+                newItem.params = {
+                    custom_data: {
+                        content: '',
+                        duration: 30 * 60, // 30 minutes in seconds
+                        distance: 0,
+                        pace: 0
+                    }
+                };
+                break;
+            case 'HABIT':
+                newItem.setName = 'Habit Item';
+                newItem.actionId = ''; // Allow user to select template
+                newItem.params = {
+                    custom_data: {
+                        habit_name: '',
+                        target_duration: 10
+                    }
+                };
+                break;
+            case 'STRENGTH':
+            default:
+                // Existing strength logic
+                newItem.actionId = '';
+                newItem.setName = '';
+                newItem.params = {};
+                break;
+        }
+
+        newDays[actualDayIndex].actionSets.push(newItem);
 
         setDays(newDays);
     };
@@ -391,7 +441,7 @@ const CreatePlanPage = () => {
                     severity="help"
                     onClick={() => setShowImportDialog(true)}
                     disabled={saving || loading}
-                    tooltip="使用 AI 从文本快速导入训练计划"
+                    tooltip="使用智能导入快速导入训练计划"
                     tooltipOptions={{ position: 'right' }}
                 />
             </div>

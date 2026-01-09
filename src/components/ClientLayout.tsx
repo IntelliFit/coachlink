@@ -5,10 +5,28 @@ import { useTheme } from '@/context/ThemeContext';
 import { ToastContextProvider } from "../context/ToastContext";
 import { LoginModalProvider } from './auth/LoginModalContext';
 import { OnboardingModalProvider } from './auth/OnboardingModalContext';
-import { SessionProvider } from 'next-auth/react';
-import Lenis from 'lenis';
-import 'lenis/dist/lenis.css';
+import { SessionProvider, useSession } from 'next-auth/react';
+import { GuideProvider } from '@/stores/useGuideStore';
+import { GuideManager } from '@/components/guide/GuideManager';
 import Footer from './Footer';
+
+// Wrapper component to access session and provide guide context
+function GuideWrapper({ children }: { children: ReactNode }) {
+    const { data: session } = useSession();
+    const userId = session?.user?.id;
+    
+    // Use primary_role to determine current active view (respects role switching)
+    // primary_role is set by /api/user/switch-role when user switches between coach/student views
+    const primaryRole = (session?.user as any)?.primary_role;
+    const userRole = primaryRole === 'coach' ? 'coach' : 'student';
+
+    return (
+        <GuideProvider userId={userId}>
+            {session?.user && <GuideManager userRole={userRole} />}
+            {children}
+        </GuideProvider>
+    );
+}
 
 export default function ClientLayout({
     children,
@@ -17,23 +35,13 @@ export default function ClientLayout({
 }) {
     const { theme } = useTheme();
 
-    const [lenis, setLenis] = useState<Lenis | null>(null);
+    const [lenis, setLenis] = useState<any>(null);
 
     const preventLenisOnSide = () => {
         (document.querySelectorAll('aside') || []).forEach(el => {
             el.setAttribute('data-lenis-prevent', '');
         });
     };
-
-    // useEffect(() => {
-    //     const lenisInstance = new Lenis({
-    //         autoRaf: true,
-    //     });
-
-    //     setLenis(lenisInstance);
-
-    //     return () => lenisInstance.destroy();
-    // }, []);
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
@@ -56,12 +64,14 @@ export default function ClientLayout({
             <ToastContextProvider>
                 <LoginModalProvider>
                     <OnboardingModalProvider>
-                        <div className="min-h-screen flex flex-col">
-                            <main className="flex-grow">
-                                {children}
-                            </main>
-                            <Footer />
-                        </div>
+                        <GuideWrapper>
+                            <div className="min-h-screen flex flex-col">
+                                <main className="flex-grow">
+                                    {children}
+                                </main>
+                                <Footer />
+                            </div>
+                        </GuideWrapper>
                     </OnboardingModalProvider>
                 </LoginModalProvider>
             </ToastContextProvider>

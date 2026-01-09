@@ -14,6 +14,10 @@ export async function POST(req: Request) {
         search,
     } = await req.json() as ListStudentActionsDto;
 
+    console.log(
+        `[API] list-actions params: page=${page}, limit=${limit}, search=${search}`,
+    );
+
     // 检查用户登录
     const session = await getServerSession();
     const userId = session?.user?.id || null;
@@ -34,7 +38,11 @@ export async function POST(req: Request) {
 
     // 应用搜索过滤
     if (search) {
-        query = query.or(`name.ilike.%${search}%,detail.ilike.%${search}%`);
+        // 转义特殊字符，确保搜索安全
+        const escapedSearch = search.replace(/[%_]/g, "\\$&");
+        query = query.or(
+            `name.ilike.%${escapedSearch}%,detail.ilike.%${escapedSearch}%`,
+        );
     }
 
     // 应用分页
@@ -43,6 +51,10 @@ export async function POST(req: Request) {
     query = query.range(from, to);
 
     const { data: actions, count, error } = await query;
+
+    console.log(
+        `[API] list-actions result: count=${count}, fetched=${actions?.length}`,
+    );
 
     if (error) {
         console.error("Error fetching student actions:", error);

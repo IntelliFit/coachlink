@@ -22,7 +22,7 @@ export interface StartExecutionResponseDto {
     message?: string;
 }
 
-// Complete Set
+// Complete Set (STRENGTH type)
 export interface CompleteSetDto {
     executionId: string;
     actionIndex: number;
@@ -36,12 +36,34 @@ export interface CompleteSetDto {
     has_video?: boolean; // Video uploaded flag
 }
 
+// Complete Item (DIET/CARDIO/HABIT types)
+export interface CompleteItemDto {
+    executionId: string;
+    actionIndex: number;
+    itemType: "DIET" | "CARDIO" | "HABIT";
+    completed: boolean;
+    // DIET specific
+    photoUrl?: string;
+    actualContent?: string;
+    // CARDIO specific
+    actualDistance?: number;
+    actualDuration?: number;
+    // Common
+    notes?: string;
+}
+
 export interface CompleteSetResponseDto {
     success: boolean;
     data?: {
         executionId: string;
         completedSets: number;
         totalSets: number;
+        // Auto e1RM calculation result (for PR celebration)
+        autoE1RM?: {
+            e1rm: number;
+            isPR: boolean;
+            previousPR?: number;
+        };
     };
     message?: string;
 }
@@ -97,8 +119,9 @@ export interface CreatePRResponseDto {
         id: string;
         user_id: string;
         exercise_name: string;
-        max_weight: number;
-        max_reps: number;
+        weight: number; // Training weight
+        reps: number; // Training reps
+        e1rm: number; // Calculated e1RM
         load_formula: string;
         date_achieved: string;
     };

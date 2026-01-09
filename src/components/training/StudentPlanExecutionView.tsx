@@ -197,33 +197,43 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({ sub
         }
 
         // Strength 类型渲染（原有逻辑）
+        const note = (actionSet as any).params?.note;
+
         return (
-            <div className="flex items-center justify-between py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors">
-                <div className="flex items-center gap-3 flex-1">
-                    <div className="flex items-center gap-2 text-surface-500">
-                        <i className="pi pi-th-large text-sm" />
-                        <span className="text-sm">{(actionSet as any).params?.['组数'] || 3}组×{(actionSet as any).params?.['次数'] || 8}次</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <i className="pi pi-box text-sm text-surface-500" />
-                        <span className="font-medium text-surface-900">{actionName}</span>
-                    </div>
-                    {((actionSet as any).params?.['休息时间']) && (
-                        <div className="flex items-center gap-1 text-surface-500">
-                            <i className="pi pi-clock text-xs" />
-                            <span className="text-sm">休息{(((actionSet as any).params?.['休息时间']) / 60).toFixed(1)}分钟</span>
+            <div className="flex flex-col py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors gap-2">
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3 flex-1">
+                        <div className="flex items-center gap-2 text-surface-500">
+                            <i className="pi pi-th-large text-sm" />
+                            <span className="text-sm">{(actionSet as any).params?.['组数'] || 3}组×{(actionSet as any).params?.['次数'] || 8}次</span>
                         </div>
+                        <div className="flex items-center gap-2">
+                            <i className="pi pi-box text-sm text-surface-500" />
+                            <span className="font-medium text-surface-900">{actionName}</span>
+                        </div>
+                        {((actionSet as any).params?.['休息时间']) && (
+                            <div className="flex items-center gap-1 text-surface-500">
+                                <i className="pi pi-clock text-xs" />
+                                <span className="text-sm">休息{(((actionSet as any).params?.['休息时间']) / 60).toFixed(1)}分钟</span>
+                            </div>
+                        )}
+                    </div>
+                    {hasVideo && (
+                        <Button
+                            icon="pi pi-video"
+                            rounded
+                            text
+                            size="small"
+                            className="text-primary"
+                            onClick={() => window.open(action?.url, '_blank')}
+                        />
                     )}
                 </div>
-                {hasVideo && (
-                    <Button
-                        icon="pi pi-video"
-                        rounded
-                        text
-                        size="small"
-                        className="text-primary"
-                        onClick={() => window.open(action?.url, '_blank')}
-                    />
+                {note && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded border border-amber-100 w-full">
+                        <i className="pi pi-info-circle text-xs" />
+                        <span>{note}</span>
+                    </div>
                 )}
             </div>
         );

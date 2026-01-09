@@ -47,7 +47,120 @@ export async function POST(request: NextRequest) {
             .maybeSingle();
 
         if (existingExecution) {
-            // 返回现有的执行记录
+            // 如果是已完成状态，直接返回，不需要同步
+            if (existingExecution.status === "completed") {
+                return NextResponse.json<StartExecutionResponseDto>({
+                    success: true,
+                    data: existingExecution,
+                });
+            }
+
+            // 对于 in_progress 状态，需要与母版计划同步
+            // 获取最新的母版计划数据
+            const { data: masterInstance } = await supabase
+                .from("coach_plan_instances")
+                .select("training_days")
+                .eq("id", instanceId)
+                .single();
+
+            if (masterInstance) {
+                const masterDays = masterInstance.training_days as any[];
+                const masterDay = masterDays?.find((d: any) =>
+                    d.dayIndex === dayIndex
+                );
+
+                if (masterDay) {
+                    const masterActionSets = masterDay.actionSets || [];
+                    const existingActionExecutions = existingExecution
+                        .action_executions as any[];
+                    let needsUpdate = false;
+
+                    // 遍历并同步每个动作的计划数据（只更新 pending 状态的组）
+                    const updatedActionExecutions = existingActionExecutions
+                        .map((actionExec: any, actionIdx: number) => {
+                            const masterActionSet = masterActionSets[actionIdx];
+                            if (!masterActionSet) return actionExec;
+
+                            const masterLoad = masterActionSet.params?.load;
+                            const masterIntensity =
+                                masterActionSet.params?.["强度"] ||
+                                masterActionSet.intensity;
+                            const masterReps =
+                                masterActionSet.params?.["次数"] ||
+                                masterActionSet.reps;
+                            const masterSets =
+                                masterActionSet.params?.["组数"] ||
+                                masterActionSet.sets || 1;
+
+                            // 计算母版的计划重量
+                            const masterPlannedWeight = masterLoad
+                                ? `${Math.round(masterLoad * 10) / 10}kg`
+                                : (masterIntensity
+                                    ? `${masterIntensity}RM`
+                                    : null);
+                            const masterPlannedReps = masterReps
+                                ? `${masterReps}`
+                                : null;
+
+                            // 更新每个 pending 状态的组
+                            const updatedSets = actionExec.sets.map(
+                                (set: any) => {
+                                    // 只更新 pending 状态的组，不影响已完成或已输入数据的组
+                                    if (set.status !== "pending") {
+                                        return set;
+                                    }
+
+                                    // 检查是否有变化
+                                    if (
+                                        set.planned_weight !==
+                                            masterPlannedWeight ||
+                                        set.planned_reps !== masterPlannedReps
+                                    ) {
+                                        needsUpdate = true;
+                                        return {
+                                            ...set,
+                                            planned_weight: masterPlannedWeight,
+                                            planned_reps: masterPlannedReps,
+                                        };
+                                    }
+                                    return set;
+                                },
+                            );
+
+                            return {
+                                ...actionExec,
+                                sets: updatedSets,
+                                total_sets: masterSets, // 同步组数
+                            };
+                        });
+
+                    // 如果有变化，更新数据库
+                    if (needsUpdate) {
+                        const { data: updatedExecution, error: updateError } =
+                            await supabase
+                                .from("plan_instance_executions")
+                                .update({
+                                    action_executions: updatedActionExecutions,
+                                    updated_at: new Date().toISOString(),
+                                })
+                                .eq("id", existingExecution.id)
+                                .select()
+                                .single();
+
+                        if (!updateError && updatedExecution) {
+                            console.log("已同步执行记录与母版计划");
+                            return NextResponse.json<StartExecutionResponseDto>(
+                                {
+                                    success: true,
+                                    data: updatedExecution,
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+
+            // 没有变化或同步失败，返回原执行记录
             return NextResponse.json<StartExecutionResponseDto>({
                 success: true,
                 data: existingExecution,

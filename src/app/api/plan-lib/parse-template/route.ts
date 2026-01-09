@@ -14,8 +14,18 @@ import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
  */
 function parseChineseNum(input: string): number | null {
     const map: Record<string, number> = {
-        "零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
-        "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+        "零": 0,
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
     };
     if (/^\d+$/.test(input)) return parseInt(input, 10);
     if (input === "十") return 10;
@@ -58,7 +68,9 @@ function splitPlanByWeekSections(text: string): Array<{
         const line = raw;
 
         const wMatch = line.match(/W(\d+)D/i);
-        const chineseWeekMatch = line.match(/第\s*([0-9一二三四五六七八九十两]+)\s*周/);
+        const chineseWeekMatch = line.match(
+            /第\s*([0-9一二三四五六七八九十两]+)\s*周/,
+        );
 
         if (chineseWeekMatch) {
             const num = parseChineseNum(chineseWeekMatch[1]);
@@ -111,7 +123,10 @@ function normalizeWeekDays(days: any[], weekIndex: number) {
     let nextDay = 1;
     for (const d of sorted) {
         let dayOfWeek = typeof d.dayOfWeek === "number" ? d.dayOfWeek : null;
-        if (dayOfWeek && dayOfWeek >= 1 && dayOfWeek <= 7 && !used.has(dayOfWeek)) {
+        if (
+            dayOfWeek && dayOfWeek >= 1 && dayOfWeek <= 7 &&
+            !used.has(dayOfWeek)
+        ) {
             // keep as is
         } else {
             while (used.has(nextDay) && nextDay <= 7) nextDay++;
@@ -190,51 +205,92 @@ export async function POST(req: Request) {
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 
-        const parsedSections = await Promise.all(sections.map(async (section) => {
-            const prompt = buildParseTemplatePrompt(
-                section.text,
-                actions,
-                section.weekIndex,
-            );
+        const parsedSections = await Promise.all(
+            sections.map(async (section) => {
+                const prompt = buildParseTemplatePrompt(
+                    section.text,
+                    actions,
+                    section.weekIndex,
+                );
 
-            const response = await callDeepSeek(prompt, { maxTokens: 3500 });
-            const parsedResult = parseJsonResponse<GeminiParsedTemplate>(
-                response,
-                `parse-template-week-${section.weekIndex}`,
-            );
+                const response = await callDeepSeek(prompt, {
+                    maxTokens: 3500,
+                });
+                const parsedResult = parseJsonResponse<GeminiParsedTemplate>(
+                    response,
+                    `parse-template-week-${section.weekIndex}`,
+                );
 
-            const sectionDaysRaw = (parsedResult.trainingDays || []).map(
-                (day, idx) => ({
-                    ...day,
-                    _idx: idx, // 仅用于周内排序
-                    weekIndex: section.weekIndex,
-                    actions: (day.actions || []).map((action) => ({
-                        actionId: action.actionId,
-                        sets: action.sets,
-                        reps: action.reps,
-                        restSeconds: action.restSeconds || 180,
-                        intensityConfig: action.intensityConfig
-                            ? {
-                                relativeIntensity: action.intensityConfig.relativeIntensity,
-                                fixedWeight: action.intensityConfig.fixedWeight,
+                const sectionDaysRaw = (parsedResult.trainingDays || []).map(
+                    (day, idx) => ({
+                        ...day,
+                        _idx: idx, // 仅用于周内排序
+                        weekIndex: section.weekIndex,
+                        actions: (day.actions || []).map((action) => {
+                            // 处理 AI 输出的强度配置 - 支持多种格式
+                            let processedIntensityConfig: any = null;
+
+                            if (action.intensityConfig) {
+                                const ic = action.intensityConfig;
+
+                                // 情况1: AI 输出 { type: "fixed", fixedWeight: 127.5 }
+                                if (
+                                    (ic as any).type === "fixed" &&
+                                    (ic as any).fixedWeight
+                                ) {
+                                    processedIntensityConfig = {
+                                        fixedWeight: {
+                                            value: (ic as any).fixedWeight,
+                                            unit: "kg",
+                                        },
+                                    };
+                                } // 情况2: AI 输出 { type: "rm", value: 5 } 或 { relativeIntensity: { type, value } }
+                                else if (
+                                    (ic as any).type === "rm" ||
+                                    (ic as any).type === "percentage"
+                                ) {
+                                    processedIntensityConfig = {
+                                        relativeIntensity: {
+                                            type: (ic as any).type,
+                                            value: (ic as any).value,
+                                        },
+                                    };
+                                } // 情况3: 已经是正确的嵌套格式 { relativeIntensity: {...} } 或 { fixedWeight: {...} }
+                                else if (
+                                    ic.relativeIntensity ||
+                                    (ic as any).fixedWeight
+                                ) {
+                                    processedIntensityConfig = {
+                                        relativeIntensity: ic.relativeIntensity,
+                                        fixedWeight: (ic as any).fixedWeight,
+                                    };
+                                }
                             }
-                            : null,
-                        note: action.note,
-                    })),
-                }),
-            );
 
-            const normalizedDays = normalizeWeekDays(
-                sectionDaysRaw,
-                section.weekIndex,
-            );
+                            return {
+                                actionId: action.actionId,
+                                sets: action.sets,
+                                reps: action.reps,
+                                restSeconds: action.restSeconds || 180,
+                                intensityConfig: processedIntensityConfig,
+                                note: action.note,
+                            };
+                        }),
+                    }),
+                );
 
-            return {
-                days: normalizedDays,
-                weeks: parsedResult.weeks || section.weekIndex,
-                weekIndex: section.weekIndex,
-            };
-        }));
+                const normalizedDays = normalizeWeekDays(
+                    sectionDaysRaw,
+                    section.weekIndex,
+                );
+
+                return {
+                    days: normalizedDays,
+                    weeks: parsedResult.weeks || section.weekIndex,
+                    weekIndex: section.weekIndex,
+                };
+            }),
+        );
 
         // 按周顺序拼接，保持每周内部编号和长度
         parsedSections.sort((a, b) => a.weekIndex - b.weekIndex);
@@ -279,10 +335,11 @@ function buildParseTemplatePrompt(
 可用动作库：
 ${actionsListStr}
 
-强度识别规则：
-- "5RM" 或 "5rm" 或 "5-6RM" → 取较小值，type: "rm"
-- "70%" 或 "70%rm" 或 "80%1RM" → type: "percentage"
-- "50kg" 或 "50公斤" 或 "100lbs" → type: "fixed"（使用 fixedWeight）
+强度识别规则（按优先级从高到低）：
+- **最高优先级：绝对重量** - 当同时出现绝对重量和百分比时（如 "112.5kg (75%)" 或 "@ 127.5kg (85%)"），优先使用绝对重量：type: "fixed", fixedWeight: 112.5
+- "50kg" 或 "50公斤" 或 "100lbs" 或 "@XXXkg" → type: "fixed"（使用 fixedWeight: 数值）
+- "5RM" 或 "5rm" 或 "5-6RM" → 取较小值，type: "rm", value: 5
+- "70%" 或 "70%rm" 或 "80%1RM" → type: "percentage", value: 70
 - 无强度描述 → intensityConfig: null
 
 动作必填规则：
@@ -328,14 +385,77 @@ ${actionsListStr}
 - RPE 等信息放入 note 字段
 
 输出范围限制：
-- 仅解析并输出 weekIndex = ${fixedWeekIndex ?? "原文中的周序"} 的训练日；不要返回其他周
+- 仅解析并输出 weekIndex = ${
+        fixedWeekIndex ?? "原文中的周序"
+    } 的训练日；不要返回其他周
 
 训练计划文本：
 """
 ${userInput}
 """
 
-请严格返回以下 JSON 格式（不要添加其他内容）：
+请严格返回以下 JSON 格式（不要添加其他内容）。
+
+【示例1】同时有百分比和绝对重量："卧推 5×5 @ 112.5kg (75%)"：
+{
+  "actionId": "xxx",
+  "sets": 5,
+  "reps": 5,
+  "restSeconds": 180,
+  "intensityConfig": {
+    "relativeIntensity": { "type": "percentage", "value": 75 },
+    "fixedWeight": 112.5
+  },
+  "note": ""
+}
+
+【示例2】只有RM值："负重引体 4×4 @ 5RM rpe9 组休60s"：
+{
+  "actionId": "xxx",
+  "sets": 4,
+  "reps": 4,
+  "restSeconds": 60,
+  "intensityConfig": {
+    "relativeIntensity": { "type": "rm", "value": 5 }
+  },
+  "note": "rpe9"
+}
+
+【示例3】只有绝对重量："深蹲 3×8 @ 100kg"：
+{
+  "actionId": "xxx",
+  "sets": 3,
+  "reps": 8,
+  "restSeconds": 180,
+  "intensityConfig": {
+    "fixedWeight": 100
+  },
+  "note": ""
+}
+
+【示例4】只有百分比："硬拉 4×5 @ 80%1RM"：
+{
+  "actionId": "xxx",
+  "sets": 4,
+  "reps": 5,
+  "restSeconds": 180,
+  "intensityConfig": {
+    "relativeIntensity": { "type": "percentage", "value": 80 }
+  },
+  "note": ""
+}
+
+【示例5】无强度信息："杠铃划船 4×10"：
+{
+  "actionId": "xxx",
+  "sets": 4,
+  "reps": 10,
+  "restSeconds": 180,
+  "intensityConfig": null,
+  "note": ""
+}
+
+完整返回格式：
 {
   "weeks": 4,
   "trainingDays": [
@@ -343,18 +463,7 @@ ${userInput}
       "weekIndex": 1,
       "dayOfWeek": 1,
       "type": "training",
-      "actions": [
-        {
-          "actionId": "匹配的动作UUID",
-          "sets": 4,
-          "reps": 8,
-          "restSeconds": 240,
-          "intensityConfig": {
-            "relativeIntensity": { "type": "rm", "value": 5 }
-          },
-          "note": "备注信息（如 rpe9 等）"
-        }
-      ],
+      "actions": [ /* 动作数组，格式见上方示例 */ ],
       "dayNote": "当天整体备注"
     }
   ]

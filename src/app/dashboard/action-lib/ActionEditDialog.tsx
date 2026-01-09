@@ -8,7 +8,9 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
+import { AutoComplete } from 'primereact/autocomplete';
 import { CoachActionRow, ItemType } from '@/types';
+import { CanonicalAction } from '@/types/canonical';
 
 interface ActionEditDialogProps {
     visible: boolean;
@@ -29,9 +31,22 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [positions, setPositions] = useState<string[]>([]);
     const [attrs, setAttrs] = useState<string[]>([]);
     const [itemType, setItemType] = useState<ItemType>('STRENGTH'); // 项目类型
+    const [suggestedTime, setSuggestedTime] = useState<string>('');
+    const [calories, setCalories] = useState<number | null>(null);
+    const [distance, setDistance] = useState<number | null>(null);
+    const [duration, setDuration] = useState<number | null>(null);
+    const [pace, setPace] = useState<number | null>(null);
+    const [targetDuration, setTargetDuration] = useState<number | null>(null);
+
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
     const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
     const [loading, setLoading] = useState(false);
+    
+    // 公共动作库关联
+    const [canonicalActionId, setCanonicalActionId] = useState<string | null>(null);
+    const [canonicalActions, setCanonicalActions] = useState<CanonicalAction[]>([]);
+    const [filteredCanonicalActions, setFilteredCanonicalActions] = useState<CanonicalAction[]>([]);
+    const [selectedCanonical, setSelectedCanonical] = useState<CanonicalAction | null>(null);
 
     // 项目类型选项
     const itemTypeOptions = [
@@ -60,6 +75,8 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         { label: '休息时间', value: '休息时间' }
     ];
 
+    // ... existing options ...
+
     useEffect(() => {
         if (action) {
             setName(action.name);
@@ -70,8 +87,17 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             setItemType((action.type as ItemType) || 'STRENGTH');
             setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
             setIncludesBodyWeight(action.includesBodyWeight || false);
+            
+            // Populate schema fields
+            setSuggestedTime(action.suggested_time || '');
+            const schema = action.item_schema as any || {};
+            setCalories(schema.calories || null);
+            setDistance(schema.distance ? schema.distance / 1000 : null); // meters to km
+            setDuration(schema.duration ? schema.duration / 60 : null); // seconds to min
+            setPace(schema.pace || null);
+            setTargetDuration(schema.target_duration || null);
         } else {
-            // 重置表单
+            // ... existing reset ...
             setName('');
             setDetail('');
             setUrl('');
@@ -80,12 +106,55 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             setItemType('STRENGTH');
             setEnableAutoWeightCompute(false);
             setIncludesBodyWeight(false);
+            
+            // Reset schema fields
+            setSuggestedTime('');
+            setCalories(null);
+            setDistance(null);
+            setDuration(null);
+            setPace(null);
+            setTargetDuration(null);
         }
     }, [action, visible]);
+
+    // 加载公共动作库
+    useEffect(() => {
+        const fetchCanonicalActions = async () => {
+            try {
+                const res = await fetch('/api/canonical-actions/list');
+                const data = await res.json();
+                if (data.success) {
+                    setCanonicalActions(data.data);
+                    // 如果当前动作已关联公共动作，找到对应项
+                    if (action?.canonical_action_id) {
+                        const linked = data.data.find((c: CanonicalAction) => c.id === action.canonical_action_id);
+                        setSelectedCanonical(linked || null);
+                        setCanonicalActionId(action.canonical_action_id);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch canonical actions:', error);
+            }
+        };
+        if (visible) {
+            fetchCanonicalActions();
+        }
+    }, [visible, action]);
 
     const handleSave = async () => {
         setLoading(true);
         try {
+            const itemSchema: any = {};
+            if (itemType === 'DIET') {
+                if (calories) itemSchema.calories = calories;
+            } else if (itemType === 'CARDIO') {
+                if (distance) itemSchema.distance = distance * 1000; // km to meters
+                if (duration) itemSchema.duration = duration * 60; // min to seconds
+                if (pace) itemSchema.pace = pace;
+            } else if (itemType === 'HABIT') {
+                if (targetDuration) itemSchema.target_duration = targetDuration;
+            }
+
             const actionData: Partial<CoachActionRow> = {
                 name,
                 detail,
@@ -94,9 +163,13 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 attrs,
                 type: itemType,
                 enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
-                includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false
+                includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
+                suggested_time: itemType === 'DIET' && suggestedTime ? suggestedTime : null,
+                item_schema: Object.keys(itemSchema).length > 0 ? itemSchema : null,
+                canonical_action_id: canonicalActionId
             };
 
+            // ... save logic ...
             if (action) {
                 actionData.id = action.id;
             }
@@ -125,8 +198,11 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         </div>
     );
 
+    // ... existing footer ...
+
     return (
         <Dialog
+            // ... existing props ...
             header={action ? "编辑动作" : "添加动作"}
             visible={visible}
             style={{ width: '800px' }}
@@ -134,7 +210,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             footer={footerContent}
         >
             <div className="flex flex-col gap-4">
-                {/* 项目类型选择 */}
+                {/* ... existing type and name ... */}
                 <div className="flex flex-col gap-2">
                     <label htmlFor="itemType" className="font-medium">项目类型 *</label>
                     <Dropdown
@@ -159,7 +235,137 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                     />
                 </div>
 
-                {/* 以下字段只对力量训练类型显示 */}
+                {/* 公共动作库关联 - 仅力量训练显示 */}
+                {itemType === 'STRENGTH' && (
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="canonicalAction" className="font-medium">
+                            关联公共动作库 <span className="text-surface-500 text-sm">(可选)</span>
+                        </label>
+                        <AutoComplete
+                            id="canonicalAction"
+                            value={selectedCanonical}
+                            suggestions={filteredCanonicalActions}
+                            completeMethod={(e) => {
+                                const query = e.query.toLowerCase();
+                                const filtered = canonicalActions.filter(c => 
+                                    c.name.toLowerCase().includes(query) ||
+                                    c.aliases.some(a => a.toLowerCase().includes(query))
+                                );
+                                setFilteredCanonicalActions(filtered);
+                            }}
+                            field="name"
+                            onChange={(e) => {
+                                setSelectedCanonical(e.value);
+                                setCanonicalActionId(e.value?.id || null);
+                            }}
+                            dropdown
+                            placeholder="搜索公共动作..."
+                            className="w-full"
+                            itemTemplate={(item: CanonicalAction) => (
+                                <div className="flex flex-col">
+                                    <span className="font-medium">{item.name}</span>
+                                    {item.aliases.length > 0 && (
+                                        <span className="text-xs text-surface-500">
+                                            别名: {item.aliases.slice(0, 2).join(', ')}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        />
+                        {selectedCanonical && (
+                            <div className="flex items-center gap-2 text-sm text-green-600">
+                                <i className="pi pi-link" />
+                                <span>已关联: {selectedCanonical.name}</span>
+                                <Button
+                                    icon="pi pi-times"
+                                    className="p-button-text p-button-sm p-button-danger"
+                                    onClick={() => {
+                                        setSelectedCanonical(null);
+                                        setCanonicalActionId(null);
+                                    }}
+                                    tooltip="取消关联"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Diet Fields */}
+                {itemType === 'DIET' && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="calories" className="font-medium">参考热量 (kcal)</label>
+                            <InputText
+                                id="calories"
+                                type="number"
+                                value={calories !== null ? String(calories) : ''}
+                                onChange={(e) => setCalories(e.target.value ? Number(e.target.value) : null)}
+                                placeholder="如: 500"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="suggestedTime" className="font-medium">建议时间</label>
+                            <InputText
+                                id="suggestedTime"
+                                type="time"
+                                value={suggestedTime}
+                                onChange={(e) => setSuggestedTime(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Cardio Fields */}
+                {itemType === 'CARDIO' && (
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="distance" className="font-medium">目标距离 (km)</label>
+                            <InputText
+                                id="distance"
+                                type="number"
+                                value={distance !== null ? String(distance) : ''}
+                                onChange={(e) => setDistance(e.target.value ? Number(e.target.value) : null)}
+                                placeholder="如: 5.0"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="duration" className="font-medium">目标时长 (分钟)</label>
+                            <InputText
+                                id="duration"
+                                type="number"
+                                value={duration !== null ? String(duration) : ''}
+                                onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : null)}
+                                placeholder="如: 30"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="pace" className="font-medium">建议配速 (min/km)</label>
+                            <InputText
+                                id="pace"
+                                type="number"
+                                value={pace !== null ? String(pace) : ''}
+                                onChange={(e) => setPace(e.target.value ? Number(e.target.value) : null)}
+                                placeholder="如: 5.5"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Habit Fields */}
+                {itemType === 'HABIT' && (
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="targetDuration" className="font-medium">目标时长/次数 (选填)</label>
+                        <InputText
+                            id="targetDuration"
+                            type="number"
+                            value={targetDuration !== null ? String(targetDuration) : ''}
+                            onChange={(e) => setTargetDuration(e.target.value ? Number(e.target.value) : null)}
+                            placeholder="如: 10 (分钟或次)"
+                        />
+                    </div>
+                )}
+
+                {/* Strength Fields */}
                 {itemType === 'STRENGTH' && (
                     <>
                         {/* 自动计算负重开关 */}
@@ -238,6 +444,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                     />
                 </div>
 
+                {/* Common fields */}
                 <div className="flex flex-col gap-2">
                     <label htmlFor="url" className="font-medium">视频链接</label>
                     <InputText

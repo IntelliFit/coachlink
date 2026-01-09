@@ -6,12 +6,16 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { CoachActionRow, CoachSubscriptionRow } from '@/types';
+import { CoachActionRow, CoachSubscriptionRow, ItemType } from '@/types';
 import CopyTrainingDayDialog from './CopyTrainingDayDialog';
 import ActionSetForm from './ActionSetForm';
 import ExecutionDetails from './ExecutionDetails';
-import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { FormPlanTrainingDay, CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
 import { TrainingItem, TrainingOptionQuestion } from '@/types/questionnaires';
+import { PolymorphicItemMenu } from './PolymorphicItemMenu';
+import { DietItemForm } from './DietItemForm';
+import { CardioItemForm } from './CardioItemForm';
+import { HabitItemForm } from './HabitItemForm';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -38,6 +42,12 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
                     {action.enableAutoWeightCompute && (
                         <div className="bg-primary-100 text-primary-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
                             自动计算重量
+                        </div>
+                    )}
+                    
+                    {action.type && action.type !== 'STRENGTH' && (
+                        <div className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                            {action.type}
                         </div>
                     )}
                 </div>
@@ -83,7 +93,7 @@ interface PlanDayCardProps {
     onDayTypeChange: (index: number, type: 'training' | 'rest') => void;
     onRemoveDay: (index: number) => void;
     onNoteChange: (dayIndex: number, note: string) => void;
-    onAddActionSet: (dayIndex: number) => void;
+    onAddActionSet: (dayIndex: number, type?: ItemType) => void; // 支持 type 参数
     onRemoveActionSet: (dayIndex: number, setIndex: number) => void;
     onActionSetChange: (
         dayIndex: number,
@@ -100,6 +110,7 @@ interface PlanDayCardProps {
     questions?: TrainingItem[];
     subscription?: CoachSubscriptionRow | null;
     execution?: any; // 添加执行数据属性
+    planReference1RMs?: Record<string, number>;
 }
 
 
@@ -120,7 +131,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     studentData,
     questions,
     subscription,
-    execution
+    execution,
+    planReference1RMs
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
@@ -128,7 +140,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     const [filterDialogVisible, setFilterDialogVisible] = useState(false);
     const [selectedQuestions, setSelectedQuestions] = useState<TrainingOptionQuestion[]>([]);
     const [currentActionSetIndex, setCurrentActionSetIndex] = useState<number | null>(null);
-    const [activeTabIndexes, setActiveTabIndexes] = useState([]);
+    const [activeTabIndexes, setActiveTabIndexes] = useState<number[]>([]);
 
     useEffect(() => {
         const indexes = [];
@@ -140,7 +152,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         const questions: TrainingOptionQuestion[] = [];
         for (const actionSet of day.actionSets) {
             if (actionSet.type === 'no-filter') {
-                questions.push(null);
+                questions.push(null as any);
             } else {
                 questions.push(actionSet.question);
             }
@@ -156,13 +168,44 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         action: action
     }));
 
+    // 获取过滤后的动作选项
+    const getFilteredOptions = (itemType: ItemType | undefined) => {
+        return actions.filter(action => {
+            // 如果是力量训练（或未定义），显示 STRENGTH 类型或无类型的动作
+            if (!itemType || itemType === 'STRENGTH') {
+                return !action.type || action.type === 'STRENGTH';
+            }
+            // 其他类型精确匹配
+            return action.type === itemType;
+        }).map(action => ({
+            label: action.name,
+            value: action.id,
+            action: action
+        }));
+    };
+
     const actionName = (setIndex: number) => {
         const actionSet = day.actionSets[setIndex];
+
+        // 优先显示 group_title (如果存在)
+        if (actionSet.group_title) {
+            // 这里可以处理分组显示的逻辑，目前暂时只返回标准名称
+        }
 
         if (actionSet.type === 'one-filter') {
             return actionSet.question.question;
         } else {
-            const actionId = day.actionSets[setIndex].actionId;
+            const actionId = (actionSet as any).actionId;
+            const itemType = (actionSet as any).itemType;
+            
+            // 如果是非动作类型，显示自定义名称
+            if (itemType && itemType !== 'STRENGTH') {
+               const customName = (actionSet.params?.custom_data?.habit_name) || 
+                                (itemType === 'DIET' ? '饮食建议' : 
+                                 itemType === 'CARDIO' ? '有氧运动' : '习惯');
+               return customName;
+            }
+
             if (actionId) {
                 return actionOptions.find(option => option.action.id === actionId)?.label || '';
             }
@@ -170,6 +213,31 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
             return '';
         }
     }
+    
+    // 获取当前项的 ItemType
+    const getItemType = (set: CoachPlanAction | any): ItemType => {
+        return set.itemType || 'STRENGTH';
+    };
+    
+    // 获取图标
+    const getItemIcon = (type: ItemType) => {
+        switch (type) {
+            case 'DIET': return 'pi pi-apple';
+            case 'CARDIO': return 'pi pi-heart';
+            case 'HABIT': return 'pi pi-check-circle';
+            default: return 'pi pi-bolt'; // STRENGTH
+        }
+    };
+    
+    // 获取颜色
+    const getItemColorClass = (type: ItemType) => {
+        switch (type) {
+            case 'DIET': return 'text-orange-500 bg-orange-50';
+            case 'CARDIO': return 'text-red-500 bg-red-50';
+            case 'HABIT': return 'text-green-500 bg-green-50';
+            default: return 'text-primary bg-primary-50';
+        }
+    };
 
     // 处理复制操作
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
@@ -202,15 +270,17 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
     // 处理条件筛选
     const handleFilterSelect = (question: TrainingOptionQuestion) => {
+        if (currentActionSetIndex === null) return;
+        
         const newSelectedQuestions = [...selectedQuestions];
         newSelectedQuestions[currentActionSetIndex] = question;
         setSelectedQuestions(newSelectedQuestions);
 
         const actionSet = day.actionSets[currentActionSetIndex];
         actionSet.type = 'one-filter';
-        actionSet.question = question;
+        (actionSet as any).question = question;
         // 初始化 actions
-        actionSet.actions = question.options.map(option => ({
+        (actionSet as any).actions = question.options.map((option: any) => ({
             type: 'no-filter',
             actionId: '',
             setName: '',
@@ -223,6 +293,13 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         setActiveTabIndexes(newActiveIndexes);
 
         setFilterDialogVisible(false);
+    };
+
+    // 处理 Group Title 变更 (当前项及其后的所有同组项)
+    const handleGroupTitleChange = (setIndex: number, newTitle: string) => {
+         onActionSetChange(dayIndex, setIndex, 'group_title', newTitle);
+         // 实际上应该由父组件处理批量更新，或者这里只更新当前项，依赖后端/上层逻辑聚合
+         // 简化起见，这里我们认为 group_title 是 Item 属性，UI 渲染时会自动聚合
     };
 
     return (
@@ -283,12 +360,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         />
                     )}
                     {day.type === 'training' && (
-                        <Button
-                            label="添加动作"
-                            icon="pi pi-plus"
-                            onClick={() => onAddActionSet(day.dayIndex)}
+                        <PolymorphicItemMenu 
+                            onAdd={(type) => onAddActionSet(day.dayIndex, type)}
                             disabled={saving}
-                            className="p-button-sm p-button-outlined"
                         />
                     )}
                 </div>
@@ -303,106 +377,162 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
-                            {day.actionSets.map((set, setIndex) => (
-                                <div
-                                    key={setIndex}
-                                    className="p-4 bg-surface-100 rounded-sm shadow-sm border border-surface-200"
-                                >
-                                    {/* 动作卡片头部 */}
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className='flex gap-2 items-center'>
-                                            <h5 className="font-medium text-900 text-md">
-                                                A{setIndex + 1} {actionName(setIndex)}
-                                            </h5>
-                                            {shouldShowFilterButton && (
-                                                <Button
-                                                    icon="pi pi-filter"
-                                                    text
-                                                    size='small'
-                                                    className="p-button-sm p-button-outlined"
-                                                    onClick={() => {
-                                                        setCurrentActionSetIndex(setIndex);
-                                                        setFilterDialogVisible(true);
-                                                    }}
-                                                    tooltip="设置条件筛选"
-                                                />
-                                            )}
+                            {day.actionSets.map((set, setIndex) => {
+                                const itemType = getItemType(set);
+                                const isStrength = itemType === 'STRENGTH';
+                                const prevSet = setIndex > 0 ? day.actionSets[setIndex - 1] : null;
+                                
+                                // 检查是否需要显示 Group Title 输入框
+                                // 逻辑：如果是第一项，或者 group_title 与上一项不同
+                                const showGroupTitle = setIndex === 0 || set.group_title !== (prevSet as any)?.group_title;
 
-                                            {selectedQuestions[setIndex] && (
-                                                selectedQuestions[setIndex].options.map((option, index) => (
+                                // 获取当前类型的过滤选项
+                                const filteredOptions = getFilteredOptions(itemType);
+
+                                return (
+                                <div key={setIndex}>
+                                    <div
+                                        className={`p-4 rounded-sm shadow-sm border border-surface-200 ${isStrength ? 'bg-surface-0' : 'bg-surface-50'}`}
+                                    >
+                                        {/* 动作卡片头部 */}
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className='flex gap-2 items-center'>
+                                                <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${getItemColorClass(itemType)}`}>
+                                                    <i className={`${getItemIcon(itemType)} text-xs`}></i>
+                                                </span>
+                                                <h5 className="font-medium text-900 text-md">
+                                                    #{setIndex + 1} {actionName(setIndex)}
+                                                </h5>
+                                                
+                                                {/* 只有力量训练支持条件筛选 */}
+                                                {isStrength && shouldShowFilterButton && (
                                                     <Button
-                                                        key={index}
-                                                        text={activeTabIndexes[setIndex] !== index}
-                                                        outlined={activeTabIndexes[setIndex] === index}
+                                                        icon="pi pi-filter"
+                                                        text
                                                         size='small'
+                                                        className="p-button-sm p-button-outlined"
                                                         onClick={() => {
-                                                            setActiveTabIndexes(prev => {
-                                                                const newIndexes = [...prev];
-                                                                newIndexes[setIndex] = index;
-                                                                return newIndexes;
-                                                            });
+                                                            setCurrentActionSetIndex(setIndex);
+                                                            setFilterDialogVisible(true);
                                                         }}
-                                                        label={option}
+                                                        tooltip="设置条件筛选"
                                                     />
-                                                ))
-                                            )}
+                                                )}
+
+                                                {isStrength && selectedQuestions[setIndex] && (
+                                                    selectedQuestions[setIndex].options.map((option, index) => (
+                                                        <Button
+                                                            key={index}
+                                                            text={activeTabIndexes[setIndex] !== index}
+                                                            outlined={activeTabIndexes[setIndex] === index}
+                                                            size='small'
+                                                            onClick={() => {
+                                                                setActiveTabIndexes(prev => {
+                                                                    const newIndexes = [...prev];
+                                                                    newIndexes[setIndex] = index;
+                                                                    return newIndexes;
+                                                                });
+                                                            }}
+                                                            label={option}
+                                                        />
+                                                    ))
+                                                )}
+                                            </div>
+
+                                            <Button
+                                                icon="pi pi-trash"
+                                                text
+                                                size='small'
+                                                className="p-button-rounded p-button-text p-button-danger p-button-sm"
+                                                onClick={() => onRemoveActionSet(day.dayIndex, setIndex)}
+                                                disabled={saving}
+                                            />
                                         </div>
 
-                                        <Button
-                                            icon="pi pi-trash"
-                                            text
-                                            size='small'
-                                            className="p-button-rounded p-button-text p-button-danger p-button-sm"
-                                            onClick={() => onRemoveActionSet(dayIndex, setIndex)}
-                                            disabled={saving}
-                                        />
+                                        {/* 多态表单渲染 */}
+                                        {itemType === 'STRENGTH' && (
+                                            <ActionSetForm
+                                                set={set.type === 'one-filter' ? (set as any).actions[activeTabIndexes[setIndex] || 0] : set}
+                                                setIndex={setIndex}
+                                                actionOptions={filteredOptions}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onActionSetChange={(dayIndex: number,
+                                                    innerSetIndex: number,
+                                                    field: string,
+                                                    value: string | number
+                                                ) => {
+                                                    if (set.type === 'one-filter') {
+                                                        const activeIndex = activeTabIndexes[setIndex] || 0;
+                                                        const actions = (set as any).actions;
+                                                        
+                                                        switch (field) {
+                                                            case 'actionId':
+                                                            case 'setName':
+                                                                actions[activeIndex][field] = value as any;
+                                                                break;
+                                                            case 'params':
+                                                                actions[activeIndex].params = {
+                                                                    ...actions[activeIndex].params,
+                                                                    ...(value as any)
+                                                                };
+                                                                break;
+                                                            case 'all':
+                                                                actions[activeIndex] = value as any;
+                                                                break;
+                                                            default:
+                                                                throw new Error(`Unknown field: ${field}`);
+                                                        }
+                                                        onActionSetChange(dayIndex, setIndex, 'all', set);
+                                                    } else {
+                                                        onActionSetChange(dayIndex, innerSetIndex, field, value);
+                                                    }
+                                                }}
+                                                actions={actions}
+                                                studentData={studentData}
+                                                subscription={subscription}
+                                                planReference1RM={planReference1RMs?.[set.type === 'one-filter' ? ((set as any).actions[activeTabIndexes[setIndex] || 0]?.actionId as string) : (set.actionId as string)]}
+                                                isGlobalOneRMConfigEnabled={planReference1RMs !== undefined}
+                                            />
+                                        )}
+                                        
+                                        {itemType === 'DIET' && (
+                                            <DietItemForm 
+                                                item={set as any} 
+                                                setIndex={setIndex}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onUpdate={onActionSetChange}
+                                                actionOptions={filteredOptions}
+                                            />
+                                        )}
+
+                                        {itemType === 'CARDIO' && (
+                                            <CardioItemForm 
+                                                item={set as any}
+                                                setIndex={setIndex}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onUpdate={onActionSetChange}
+                                                actionOptions={filteredOptions}
+                                            />
+                                        )}
+                                        
+                                        {itemType === 'HABIT' && (
+                                            <HabitItemForm 
+                                                item={set as any}
+                                                setIndex={setIndex}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onUpdate={onActionSetChange}
+                                                actionOptions={filteredOptions}
+                                            />
+                                        )}
+
                                     </div>
-
-                                    <ActionSetForm
-                                        set={set.type === 'one-filter' ? set.actions[activeTabIndexes[setIndex] || 0] : set}
-                                        setIndex={setIndex}
-                                        actionOptions={actionOptions}
-                                        dayIndex={dayIndex}
-                                        saving={saving}
-                                        onActionSetChange={(dayIndex: number,
-                                            innerSetIndex: number,
-                                            field: string,
-                                            value: string | number
-                                        ) => {
-                                            if (set.type === 'one-filter') {
-                                                switch (field) {
-                                                    case 'actionId':
-                                                    case 'setName':
-                                                        set.actions[activeTabIndexes[setIndex]][field] = value as string;
-                                                        break;
-                                                    case 'params':
-                                                        set.actions[activeTabIndexes[setIndex]].params = {
-                                                            ...set.actions[activeTabIndexes[setIndex]].params,
-                                                            ...(value as any)
-                                                        };
-                                                        break;
-                                                    case 'all':
-                                                        set.actions[activeTabIndexes[setIndex]] = value as any;
-                                                        break;
-                                                    default:
-                                                        throw new Error(`Unknown field: ${field}`);
-                                                }
-                                                onActionSetChange(dayIndex, setIndex, 'all', set);
-                                            } else {
-                                                onActionSetChange(dayIndex, innerSetIndex, field, value);
-
-                                            }
-                                        }}
-                                        actions={actions}
-                                        studentData={studentData}
-                                        subscription={subscription}
-                                    />
-
-
-
                                 </div>
-
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 
@@ -429,7 +559,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                             message={
                                 <div className="flex flex-col gap-3 p-3">
                                     <div className='text-sm text-surface-400 mb-4'>
-                                        <span>为当前动作选择一个分支条件用于匹配AI计划，
+                                        <span>为当前动作选择一个分支条件用于匹配智能计划，
 
                                             <br />
                                             如果需要修改下面的选项，请前往
@@ -456,8 +586,9 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                         label="取消当前条件"
                                         icon="pi pi-times"
                                         onClick={() => {
+                                            if (currentActionSetIndex === null) return;
                                             const newSelectedQuestions = [...selectedQuestions];
-                                            newSelectedQuestions[currentActionSetIndex] = null;
+                                            newSelectedQuestions[currentActionSetIndex] = null as any;
                                             setSelectedQuestions(newSelectedQuestions);
 
                                             setFilterDialogVisible(false);

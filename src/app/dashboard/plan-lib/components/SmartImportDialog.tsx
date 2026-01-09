@@ -275,7 +275,7 @@ export default function SmartImportDialog({
                 return (
                     <div className="flex flex-col gap-4">
                         <p className="text-sm text-gray-600">
-                            请粘贴您的训练计划文本，系统将使用 AI 自动解析动作和训练结构。
+                            请粘贴您的训练计划文本，系统将自动智能解析动作和训练结构。
                         </p>
                         <InputTextarea
                             value={inputText}
@@ -551,24 +551,40 @@ function convertToTemplateDays(
                 actionSets: (parsedDay.actions && parsedDay.actions.length > 0
                     ? parsedDay.actions
                     : [{ actionId: '', sets: null, reps: null, restSeconds: 180, intensityConfig: null, note: '自动解析未给出动作，请选择动作' }]
-                ).map((action, idx) => ({
-                    type: 'no-filter',
-                    actionId: action.actionId || '',
-                    setName: `动作${idx + 1}`,
-                    params: {
-                        // 使用中文字段名，与 action.attrs 对应
-                        '组数': action.sets ?? '',
-                        '次数': action.reps ?? '',
-                        '休息时间': action.restSeconds ?? 180,
-                        '强度': action.intensityConfig?.relativeIntensity?.type === 'rm' 
-                            ? action.intensityConfig.relativeIntensity.value 
-                            : action.intensityConfig?.relativeIntensity?.type === 'percentage'
-                                ? action.intensityConfig.relativeIntensity.value
-                                : action.intensityConfig?.fixedWeight ?? '',
-                        intensityConfig: action.intensityConfig || null,
-                        note: action.note || '',
-                    },
-                })),
+                ).map((action, idx) => {
+                    const ic = action.intensityConfig;
+                    let intensityValue: string | number = '';
+                    let loadValue: number | null = null;
+                    
+                    if (ic) {
+                        // 处理相对强度 (RM 或百分比)
+                        if (ic.relativeIntensity) {
+                            intensityValue = ic.relativeIntensity.value;
+                        }
+                        // 处理固定重量 - 直接设置到 load 字段
+                        if ((ic as any).fixedWeight) {
+                            const fw = (ic as any).fixedWeight;
+                            loadValue = typeof fw === 'object' ? fw.value : fw;
+                        }
+                    }
+                    
+                    return {
+                        type: 'no-filter',
+                        actionId: action.actionId || '',
+                        setName: `动作${idx + 1}`,
+                        params: {
+                            // 使用中文字段名，与 action.attrs 对应
+                            '组数': action.sets ?? '',
+                            '次数': action.reps ?? '',
+                            '休息时间': action.restSeconds ?? 180,
+                            '强度': intensityValue,
+                            // 如果有固定重量，直接设置 load
+                            load: loadValue,
+                            intensityConfig: action.intensityConfig || null,
+                            note: action.note || '',
+                        },
+                    };
+                }),
             });
         } else {
             result.push({

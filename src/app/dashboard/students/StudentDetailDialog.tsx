@@ -17,6 +17,7 @@ import { Button } from 'primereact/button';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
+import { E1RMProgressChart } from '@/components/student/profile/E1RMProgressChart';
 import { StudentPlanHistory } from '@/components/coach/StudentPlanHistory';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
@@ -318,6 +319,17 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                         <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">专项运动表现</h3>
                     </div>
                     <SportCardsDisplay sportCards={profile?.sport_cards as any} />
+                </section>
+
+                {/* 3.5 Strength Progress Curve */}
+                <section className="space-y-6">
+                    <div className="flex items-center gap-3 px-1">
+                        <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
+                        <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">力量进步曲线</h3>
+                    </div>
+                    <div className="bg-surface rounded-[32px] border border-surface-100 p-4">
+                        <E1RMProgressChart studentId={student.id} />
+                    </div>
                 </section>
 
                 {/* 4. Timeline */}

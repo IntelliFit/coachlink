@@ -13,9 +13,12 @@ export interface CoachActionRow {
     positions: string[] | null;
     attrs: string[] | null;
     url: string | null;
-    type?: ItemType; // 项目类型，可选（迁移前默认为 STRENGTH）
+    type?: ItemType; // 项目类型（数据库迁移后默认为 STRENGTH）
+    item_schema?: Record<string, unknown> | null; // 类型特定的默认配置
+    suggested_time?: string | null; // 建议执行时间
     enableAutoWeightCompute: boolean;
     includesBodyWeight: boolean;
+    canonical_action_id?: string | null; // 关联的公共动作ID
     created_at: string;
     updated_at: string;
 }
@@ -27,8 +30,11 @@ export interface CoachActionInsert {
     attrs?: string[] | null;
     url?: string | null;
     type?: ItemType;
+    item_schema?: Record<string, unknown> | null;
+    suggested_time?: string | null;
     enableAutoWeightCompute?: boolean;
     includesBodyWeight?: boolean;
+    canonical_action_id?: string | null;
 }
 
 export interface CoachStudentItem {

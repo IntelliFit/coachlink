@@ -59,7 +59,7 @@ const TrainingSummary: React.FC = () => {
                     icon={Brain} 
                     color="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300" 
                     value={stats.aiPlans} 
-                    label="AI训练计划" 
+                    label="智能训练计划" 
                 />
                 <Stat 
                     icon={Video} 

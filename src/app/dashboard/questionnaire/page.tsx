@@ -276,7 +276,7 @@ const QuestionarePage = () => {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h4 className="font-medium">训练项目偏好</h4>
-                                <p className="text-sm text-surface-500">学员可以选择偏好的训练项目（AI计划将会自动根据这个项目进行匹配）</p>
+                                <p className="text-sm text-surface-500">学员可以选择偏好的训练项目（智能计划将会自动根据这个项目进行匹配）</p>
                             </div>
                             <Button
                                 icon="pi pi-trash"
@@ -293,7 +293,7 @@ const QuestionarePage = () => {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h4 className="font-medium">每周训练次数</h4>
-                                <p className="text-sm text-surface-500">学员可以选择每周训练的次数（AI计划将会自动根据这个项目进行匹配）</p>
+                                <p className="text-sm text-surface-500">学员可以选择每周训练的次数（智能计划将会自动根据这个项目进行匹配）</p>
                             </div>
                             <Button
                                 icon="pi pi-trash"
@@ -313,7 +313,7 @@ const QuestionarePage = () => {
                                     <h4 className="font-medium">用户极限（1RM）</h4>
                                     <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">必须</span>
                                 </div>
-                                <p className="text-sm text-surface-500">学员填写各动作的极限重量，用于AI计划自动计算训练负重</p>
+                                <p className="text-sm text-surface-500">学员填写各动作的极限重量，用于智能计划自动计算训练负重</p>
                             </div>
                         </div>
                     </div>
