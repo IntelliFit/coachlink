@@ -91,7 +91,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                     )}
 
                     {template.tags?.slice(0, 2).map((tag, i) => (
-                        <span key={i} className="text-[10px] font-bold text-blue-500/80">
+                        <span key={i} className="text-[10px] font-bold text-primary-500/80">
                             #{tag}
                         </span>
                     ))}

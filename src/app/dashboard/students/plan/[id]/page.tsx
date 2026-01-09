@@ -25,7 +25,7 @@ import { StudentProfilePanel } from './components/StudentProfilePanel';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
-import StudentPlanExecutionView from '@/components/training/StudentPlanExecutionView';
+import StudentPlanExecutionView from './components/StudentPlanExecutionView';
 import { Panel } from 'primereact/panel';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
@@ -62,7 +62,7 @@ const StudentPlanPage = () => {
     const [selectTemplateDialogVisible, setSelectTemplateDialogVisible] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [instanceId, setInstanceId] = useState<string | null>(null);
-    
+
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
     const [studentDataLoading, setStudentDataLoading] = useState(false);
@@ -105,7 +105,7 @@ const StudentPlanPage = () => {
                     console.log('Could not load student data');
                 } finally {
                 }
-                    setStudentDataLoading(false);
+                setStudentDataLoading(false);
 
                 // Try to load instance data
                 try {
@@ -116,7 +116,7 @@ const StudentPlanPage = () => {
 
                     if (instanceRes) {
                         const instance = instanceRes.instance;
-                        
+
                         // NOTE: 如果计划已完成，我们不填充表单，而是让教练创建新计划
                         // 但是 StudentPlanExecutionView 仍然会显示旧计划的执行情况
                         if (instance.status === 'active') {
@@ -136,7 +136,7 @@ const StudentPlanPage = () => {
 
                             setDays(convertedDays);
                             setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
-                            
+
                             // 设置起始执行天数
                             if (instance.start_execution_day && instance.start_execution_day > 1) {
                                 setStartExecutionDay(instance.start_execution_day);
@@ -172,7 +172,7 @@ const StudentPlanPage = () => {
             const res = await subscriptionService.getSubscription({
                 id: params.id as string
             });
-            
+
             if (res?.subscription) {
                 setSubscription(res.subscription);
             }
@@ -421,11 +421,11 @@ const StudentPlanPage = () => {
 
     const handleNoteChange = (dayIndex: number, note: string) => {
         const newDays = [...days];
-        
+
         if (!newDays[dayIndex]) {
             return;
         }
-        
+
         const actualDayIndex = dayIndex;
 
         newDays[actualDayIndex].note = note;
@@ -535,7 +535,7 @@ const StudentPlanPage = () => {
             type: day.type,
             note: day.note,
             actionSets: day.actionSets
-        }));    
+        }));
 
     // 打开问卷编辑对话框
     const handleOpenQuestionnaire = async () => {
@@ -543,13 +543,13 @@ const StudentPlanPage = () => {
             showToast({ severity: 'error', summary: '无法获取教练信息' });
             return;
         }
-        
+
         setQuestionnaireLoading(true);
         try {
             const qRes = await coachService.getQuestionnaires({
                 coachId: subscription.coach_id
             });
-            
+
             if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
                 setQuestionnaireQuestions(qRes.questionnaires);
                 setQuestionnaireVisible(true);
@@ -584,7 +584,7 @@ const StudentPlanPage = () => {
             if (res.ok) {
                 showToast({ severity: 'success', summary: '问卷更新成功' });
                 setQuestionnaireVisible(false);
-                
+
                 // 刷新学员数据
                 const studentRes = await coachService.getStudent({ subscriptionId: params.id.toString() });
                 if (studentRes) {
@@ -647,7 +647,7 @@ const StudentPlanPage = () => {
                     onSelectTemplate={handleSelectTemplate}
                     coachId={coach?.id || ''}
                 />
-                
+
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-2xl font-bold text-900">
                         {studentData?.profile?.nickname ? `${studentData?.profile?.nickname}的训练计划` : '学员训练计划'}
@@ -662,11 +662,19 @@ const StudentPlanPage = () => {
                 </div>
 
                 {/* 学员信息面板 */}
-                <StudentProfilePanel 
-                    studentData={studentData}
-                    subscription={subscription}
-                    loading={studentDataLoading}
-                />
+
+                <div className='grid grid-cols-2 gap-6'>
+                    <StudentProfilePanel
+                        studentData={studentData}
+                        subscription={subscription}
+                        loading={studentDataLoading}
+                    />
+
+                    <StudentPlanExecutionView
+                        subscriptionId={params.id as string}
+                    />
+                </div>
+
 
                 <BasicInfoForm
                     variant="student"
@@ -691,21 +699,7 @@ const StudentPlanPage = () => {
                     }
                 />
 
-                {/* 学员执行情况展示 - 可折叠区域 */}
-                <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
-                    <Panel 
-                        header={
-                            <div className="flex items-center gap-2">
-                                <i className="pi pi-chart-bar text-primary" />
-                                <span className="font-semibold">学员执行情况</span>
-                            </div>
-                        }
-                        toggleable
-                        collapsed={true}
-                    >
-                        <StudentPlanExecutionView subscriptionId={params.id as string} />
-                    </Panel>
-                </Card>
+
 
                 <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">

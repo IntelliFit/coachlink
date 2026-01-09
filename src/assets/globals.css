@@ -202,3 +202,16 @@ body {
 .prose a:hover {
     opacity: 0.8;
 }
+
+/* 修改边框高亮颜色与阴影 */
+.p-inputtext.p-filled:enabled:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-color); /* 这里的变量取决于你的主题 */
+}
+
+/* 专门针对 time 类型的内部图标（在 Chrome/Edge 中有效） */
+input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(48%) sepia(13%) saturate(3207%) hue-rotate(130deg) brightness(95%) contrast(80%);
+    /* 注意：上面的 filter 需要根据你的主题色（primary）进行调整 */
+    cursor: pointer;
+}
