@@ -51,6 +51,7 @@ import type {
     RenewSubscriptionDto,
     RenewSubscriptionResponseDto,
 } from "../api/subscription/renew-subscription/entity";
+import { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/coach/update-questionnaires/entity";
 
 interface SubscriptionStats {
     aiPlans: number;
@@ -207,6 +208,17 @@ class SubscriptionService extends BaseService {
     async renewSubscription(reqData: RenewSubscriptionDto) {
         const res = await this.post<RenewSubscriptionResponseDto>(
             "renew-subscription",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
+    async updateQuestionnaire(reqData: UpdateQuestionnairesDto) {
+        const res = await this.post<UpdateQuestionnairesResponseDto>(
+            "update-questionnaire",
             reqData,
         );
         if (res.data && res.data.success) {

@@ -49,50 +49,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 }) => {
     const currentAction = actions.find(action => action.id === set.actionId);
     
-    // 动态获取的聚合1RM数据 (来自 API: max(问卷, PR))
-    const [aggregated1RM, setAggregated1RM] = useState<Record<string, number>>({});
-    
     // 从问卷获取初始值作为 fallback
     const questionnaireInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};
-
-    // 获取聚合1RM数据（问卷+PR取最大值）
-    useEffect(() => {
-        if (!studentData?.student_id) return;
-        
-        const fetchAggregated1RM = async () => {
-            // console.log('[ActionSetForm] 🔄 Fetching aggregated 1RM for student:', studentData.student_id);
-            try {
-                const response = await fetch('/api/student/get-current-1rm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ targetUserId: studentData.student_id })
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success && result.data?.records) {
-                        const rmMap: Record<string, number> = {};
-                        for (const record of result.data.records) {
-                            // 1. 存入 ID 映射
-                            if (record.actionId) {
-                                rmMap[record.actionId] = Math.max(rmMap[record.actionId] || 0, record.current1RM);
-                            }
-                            // 2. 存入 名称 映射 (解决 CoachActionID vs StudentActionID 不一致的问题)
-                            if (record.actionName) {
-                                rmMap[record.actionName] = Math.max(rmMap[record.actionName] || 0, record.current1RM);
-                            }
-                        }
-                        // console.log('[ActionSetForm] ✅ Aggregated 1RM loaded:', Object.keys(rmMap).length, 'keys', rmMap);
-                        setAggregated1RM(rmMap);
-                    }
-                }
-            } catch (error) {
-                console.error('获取聚合1RM失败:', error);
-            }
-        };
-        
-        fetchAggregated1RM();
-    }, [studentData?.student_id]);
 
     // 从 props 计算当前强度配置（无本地状态，完全受控）
     const existingConfig = useMemo(() => normalizeIntensityConfig(set.params), [set.params]);
@@ -151,11 +109,11 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
         // 2. 使用 API 返回的聚合值
         // 优先尝试 ID 匹配
-        let aggregatedValue = aggregated1RM[currentAction.id];
+        let aggregatedValue = studentData.aggregated1RM[currentAction.id];
         
         // 如果 ID 匹配失败或者值太小，尝试 Name 匹配 (fallback)
         if ((!aggregatedValue || aggregatedValue <= 1) && currentAction.name) {
-            aggregatedValue = aggregated1RM[currentAction.name];
+            aggregatedValue = studentData.aggregated1RM[currentAction.name];
         }
 
         if (aggregatedValue && aggregatedValue > 0) {
@@ -164,7 +122,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         
         // 3. Fallback 到问卷数据
         return questionnaireInput[currentAction.id] || 1;
-    }, [currentAction, aggregated1RM, questionnaireInput, planReference1RM]);
+    }, [currentAction, studentData.aggregated1RM, questionnaireInput, planReference1RM]);
 
     const considerBodyWeightActions = ['深蹲', '引体向上', '俯卧撑', '平板支撑'];
 

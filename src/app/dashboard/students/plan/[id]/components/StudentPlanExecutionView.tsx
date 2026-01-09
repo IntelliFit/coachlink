@@ -13,7 +13,11 @@ import { Divider } from 'primereact/divider';
 
 interface StudentPlanExecutionViewProps {
     subscriptionId: string;
-    // 外部传入基础信息，避免初始化请求
+    // 新增：直接接收数据
+    instance: CoachPlanInstanceRow | null;
+    executions: Record<number, any>;
+    loading?: boolean;
+    // 基础信息
     planName?: string;
     planDescription?: string;
     isCompleted?: boolean;
@@ -28,44 +32,18 @@ interface TrainingDay {
 
 const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
     subscriptionId,
+    instance,
+    executions,
+    loading = false,
     planName = '学员执行情况',
     planDescription = '查看详细执行记录',
     isCompleted = false
 }) => {
-    const [instance, setInstance] = useState<CoachPlanInstanceRow | null>(null);
     const [actions, setActions] = useState<Record<string, CoachActionRow>>({});
-    const [executions, setExecutions] = useState<Record<number, any>>({});
-    const [loading, setLoading] = useState(false); // 默认不加载
 
     const [detailVisible, setDetailVisible] = useState(false);
     const [videoModalVisible, setVideoModalVisible] = useState(false);
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
-
-    // 仅在对话框打开时加载数据
-    useEffect(() => {
-        if (detailVisible && subscriptionId && !instance) {
-            loadData();
-        }
-    }, [detailVisible, subscriptionId]);
-
-    const loadData = async () => {
-        try {
-            setLoading(true);
-            const res = await planLibService.getInstance({ subscriptionId });
-            if (res?.instance) {
-                setInstance(res.instance);
-                if (res.actions) setActions(res.actions);
-            }
-            try {
-                const exeRes = await planLibService.getWithExecutions({ subscriptionId });
-                if (exeRes?.executions) setExecutions(exeRes.executions);
-            } catch (e) { console.log('No execution data'); }
-        } catch (error) {
-            console.error('加载计划失败:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // --- 内部渲染逻辑 (代码复用) ---
     const ExecutionDetailsSection = ({ execution }: { execution: any }) => {
