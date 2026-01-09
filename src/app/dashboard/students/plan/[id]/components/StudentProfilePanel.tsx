@@ -4,22 +4,26 @@ import React, { useState, useEffect } from 'react';
 import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
 import { Skeleton } from 'primereact/skeleton';
-import { User, FileText, Calendar, Users, Clock, ChevronUp, ChevronDown } from 'lucide-react';
+import { Dialog } from 'primereact/dialog'; // 引入 Dialog
+import { User, FileText, Calendar, Users, Clock, ChevronRight } from 'lucide-react';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
-import { CoachSubscriptionRow, UserProfilesRow } from '@/types';
+import { CoachSubscriptionRow } from '@/types';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { RadioButton } from 'primereact/radiobutton';
 import { actionLibService } from '@/app/service/actionLibService';
 import { CoachActionRow } from '@/types';
 import { useSession } from 'next-auth/react';
+import { PersonalInfo } from './PersonalInfo';
+import { SportCard } from './SportsCard';
+import { StudentSubscribeDataView } from './StudentSubscribeDataView';
 
 interface StudentProfilePanelProps {
     studentData: GetStudentResponseDto['student'] | null;
     subscription: CoachSubscriptionRow | null;
     loading: boolean;
-    onEditQuestionnaire?: () => void; // 点击编辑问卷时的回调
+    onEditQuestionnaire?: () => void;
 }
 
 export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
@@ -27,14 +31,14 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
     loading,
     onEditQuestionnaire
 }) => {
-    const [expanded, setExpanded] = useState(false);
+    const [visible, setVisible] = useState(false); // 控制 Dialog 显示
     const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(true);
     const { data: session } = useSession();
 
     useEffect(() => {
+        if (!session?.user?.id || !visible) return; // 只有当对话框打开时才尝试加载动作库（可选优化）
 
-        if (!session?.user?.id) return;
         const fetchAutoComputeActions = async () => {
             setLoadingActions(true);
             try {
@@ -52,9 +56,10 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
         };
 
         fetchAutoComputeActions();
-    }, [session?.user?.id]);
+    }, [session?.user?.id, visible]);
 
     const formatDate = (dateString: string) => {
+        if (!dateString) return '未设置';
         return new Date(dateString).toLocaleDateString('zh-CN', {
             year: 'numeric',
             month: 'long',
@@ -62,246 +67,152 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
         });
     };
 
-    // 计算订阅时长（周）
     const calculateDuration = (startDate: string, endDate: string) => {
         const start = new Date(startDate);
         const end = endDate ? new Date(endDate) : new Date();
         const diffTime = Math.abs(end.getTime() - start.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const diffWeeks = Math.ceil(diffDays / 7);
-        const diffMonths = Math.ceil(diffDays / 30); // 按每月30天计算
-        return { days: diffDays, weeks: diffWeeks, months: diffMonths };
+        return { days: diffDays };
     };
 
     const profile = studentData?.profile;
     const duration = studentData ? calculateDuration(studentData.start_date, studentData.end_date) : null;
 
     return (
-        <div className="bg-surface border border-surface-200 rounded-lg mb-6">
+        <>
+            {/* 学员档案入口 - 严格对齐 Aero 风格 */}
             <div
-                className="flex items-center justify-between p-4 cursor-pointer"
-                onClick={() => setExpanded(!expanded)}
+                className="group relative bg-surface-50/50 rounded-[24px] p-5 cursor-pointer transition-all duration-500 ease-out border border-surface-200/70 hover:bg-surface hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] mb-6"
+                onClick={() => setVisible(true)}
             >
-                <div className="flex items-center gap-2">
-                    {/* 学员头部信息 */}
-                    <Avatar
-                        image={profile?.avatar_url}
-                        label={profile?.nickname?.charAt(0) || studentData?.profile?.nickname.charAt(0) || 'U'}
-                        size="large"
-                        shape="circle"
-                        className="bg-primary-500 text-white font-bold"
-                    />
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-900 truncate">
-                            {profile?.nickname || studentData?.profile?.nickname || '学员'}
-                        </h3>
-                        <div className="flex items-center gap-1 text-xs text-600 mt-0.5">
-                            <Users size={12} />
-                            <span>学员</span>
+                {/* 背景光晕装饰：对齐计划卡片的渐变逻辑 */}
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 rounded-[24px] transition-opacity duration-500" />
+
+                <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-4">
+                        {/* 头像容器：间距与图标容器对齐 */}
+                        <div className="relative">
+                            <Avatar
+                                image={profile?.avatar_url}
+                                label={!profile?.avatar_url ? (profile?.nickname?.charAt(0) || 'U') : undefined}
+                                size="large"
+                                shape="circle"
+                                className="bg-primary-600 text-surface font-black shadow-lg shadow-primary-500/10 transition-all duration-500 group-hover:scale-105"
+                            />
+                            {/* 动态光环：对齐物理反馈感 */}
+                            <div className="absolute inset-0 rounded-full ring-2 ring-primary-500/0 group-hover:ring-primary-500/20 group-hover:scale-125 transition-all duration-700 ease-out" />
+                        </div>
+
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-black text-surface-900 tracking-tighter group-hover:text-primary-700 transition-colors">
+                                    {profile?.nickname || '学员档案'}
+                                </h3>
+                                {/* 状态标注：保持与“已完成”标签一致的视觉逻辑 */}
+                                <span className="flex items-center gap-1 px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-tight rounded-full border border-primary-100/30 transition-colors group-hover:bg-primary-100/50">
+                                    正式学员
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <span className="text-xs font-medium text-surface-500 opacity-80 flex items-center gap-1">
+                                    <Users size={12} strokeWidth={2} />
+                                    查看详细资料与体能档案
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 右侧交互提示：完全对齐计划卡片的间距与动效 */}
+                    <div className="flex items-center gap-1">
+                        <span className="text-[11px] font-black text-primary-600 opacity-0 translate-x-4 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-x-0">
+                            查看详情
+                        </span>
+                        <div className="w-8 h-8 flex items-center justify-center rounded-full text-primary-600 transition-all duration-500 group-hover:bg-primary-500 group-hover:text-surface group-hover:rotate-[-45deg]">
+                            <ChevronRight size={18} strokeWidth={3} />
                         </div>
                     </div>
                 </div>
-                <Button
-                    icon={expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    className="p-button-text p-button-rounded"
-                    severity="secondary"
-                />
             </div>
 
-            {expanded && (
-                <div className="p-4 border-t border-surface-200">
-                    {loading ? (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4 p-4 bg-surface-50 rounded-lg">
-                                <Skeleton shape="circle" size="3rem" />
-                                <div className="flex-1">
-                                    <Skeleton width="60%" height="1.25rem" className="mb-2" />
-                                    <Skeleton width="40%" height="0.875rem" />
-                                </div>
-                            </div>
-                            <Skeleton height="6rem" className="rounded-lg" />
-                            <Skeleton height="10rem" className="rounded-lg" />
+            {/* 弹出对话框 */}
+            <Dialog
+                header={<span className="tracking-tight font-bold text-surface-900 text-lg">学员详细档案</span>}
+                visible={visible}
+                style={{ width: '95vw', maxWidth: '600px' }}
+                onHide={() => setVisible(false)}
+                className="aero-dialog"
+                pt={{
+                    root: { className: 'rounded-[24px] border-none shadow-2xl bg-surface overflow-hidden' },
+                    header: { className: 'p-6 pb-0 border-none' },
+                    content: { className: 'p-6 pt-4' }
+                }}
+                blockScroll={true}
+            >
+                {loading ? (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Skeleton height="80px" className="rounded-[20px] bg-surface-50/50" />
+                            <Skeleton height="80px" className="rounded-[20px] bg-surface-50/50" />
                         </div>
-                    ) : studentData ? (
-                        <div className="space-y-4">
-
-
-                            {/* 订阅信息 */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 bg-surface-50 rounded-lg border border-surface-200">
-                                    <div className="flex items-center gap-1.5 text-600 text-xs mb-1">
-                                        <Calendar size={11} />
-                                        订阅开始
-                                    </div>
-                                    <div className="text-sm font-semibold text-900">
-                                        {formatDate(studentData.start_date)}
-                                    </div>
+                        <Skeleton height="240px" className="rounded-[20px] bg-surface-50/50" />
+                    </div>
+                ) : studentData ? (
+                    <div className="space-y-8 pt-2">
+                        {/* 1. 订阅概览 - 数值中心化设计 */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-5 bg-surface-50/50 rounded-[20px] border border-surface-100/50 transition-all hover:bg-surface-50">
+                                <div className="flex items-center gap-1.5 text-surface-400 font-bold text-[10px] tracking-widest uppercase mb-2">
+                                    <Calendar size={12} strokeWidth={2.5} />
+                                    订阅开始
                                 </div>
-                                <div className="p-3 bg-surface-50 rounded-lg border border-surface-200">
-                                    <div className="flex items-center gap-1.5 text-600 text-xs mb-1">
-                                        <Clock size={11} />
-                                        订阅时长
-                                    </div>
-                                    <div className="text-sm font-semibold text-900">
-                                        {duration?.days}天
-                                    </div>
+                                <div className="text-xl font-black text-surface-900 tracking-tight">
+                                    {formatDate(studentData.start_date)}
                                 </div>
                             </div>
+                            <div className="p-5 bg-surface-50/50 rounded-[20px] border border-surface-100/50 transition-all hover:bg-surface-50">
+                                <div className="flex items-center gap-1.5 text-surface-400 font-bold text-[10px] tracking-widest uppercase mb-2">
+                                    <Clock size={12} strokeWidth={2.5} />
+                                    已加入
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-black text-primary-600 tracking-tight">{duration?.days}</span>
+                                    <span className="text-xs font-bold text-primary-400">Days</span>
+                                </div>
+                            </div>
+                        </div>
 
-                            {/* 本期需求（订阅问卷） */}
-                            {studentData?.subscribe_data && studentData.subscribe_data.length > 0 && (
-                                <div className="bg-surface-50 rounded-lg border border-surface-200 p-3">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <FileText size={16} />
-                                            <h4 className="font-bold text-sm">本期需求</h4>
-                                        </div>
-                                        {onEditQuestionnaire && (
-                                            <Button
-                                                label="编辑"
-                                                size="small"
-                                                icon="pi pi-pencil"
-                                                text
-                                                severity="secondary"
-                                                onClick={onEditQuestionnaire}
-                                                className="text-xs"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="space-y-4">
-                                        {studentData.subscribe_data.map((item, index) => (
-                                            <div key={`q-${index}`} className="bg-surface-0 rounded-lg p-4 border border-surface-100 shadow-sm">
-                                                {item.type === 'tags' ? (
-                                                    <>
-                                                        <div className="text-sm font-medium text-primary-700 dark:text-primary-400 mb-2">
-                                                            Q{index + 1}. 请选择您偏好的训练项目（可多选）
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {item.userSelections?.map((tag, tagIndex) => (
-                                                                <span
-                                                                    key={tagIndex}
-                                                                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                                                                >
-                                                                    {tag}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </>
-                                                ) : item.type === 'times' ? (
-                                                    <>
-                                                        <div className="text-sm font-medium text-primary-700 dark:text-primary-400 mb-2">
-                                                            Q{index + 1}. 您希望每周训练几次？
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                                                                <div key={num} className="flex items-center rounded px-3 py-2">
-                                                                    <RadioButton
-                                                                        disabled
-                                                                        inputId={`times${index}-${num}`}
-                                                                        name={`times${index}`}
-                                                                        value={num}
-                                                                        checked={item.userSelection === num}
-                                                                    />
-                                                                    <label htmlFor={`times${index}-${num}`} className="ml-2 text-sm">{num}次</label>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </>
-                                                ) : item.type === 'rm' ? (
-                                                    <>
-                                                        <div className="text-sm font-medium text-primary-700 dark:text-primary-400 mb-2">
-                                                            Q{index + 1}. 请输入以下动作您的 RM
-                                                        </div>
-                                                        {loadingActions ? (
-                                                            <div className="flex flex-col gap-3">
-                                                                {[1, 2, 3].map((_, i) => (
-                                                                    <div key={i} className="flex flex-column gap-2">
-                                                                        <Skeleton width="100px" height="0.75rem" />
-                                                                        <Skeleton width="150px" height="2rem" />
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex flex-col gap-4">
-                                                                {autoComputeActions.map((action) => {
-                                                                    const rmValue = item.userInputs?.[action.id];
-                                                                    return (
-                                                                        <div key={action.id} className="flex flex-col">
-                                                                            <label className="block text-xs text-600 mb-1">{action.name}</label>
-                                                                            <div className="p-2 bg-surface-50 border border-surface-200 rounded">
-                                                                                {rmValue ? `${rmValue} kg` : '未填写'}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                ) : item.type === 'option' ? (
-                                                    <>
-                                                        <div className="text-sm font-medium text-primary-700 dark:text-primary-400 mb-2">
-                                                            Q{index + 1}. {item.question || `问题 ${index + 1}`}
-                                                        </div>
-                                                        <div className="flex flex-col gap-4">
-                                                            {item.options?.map((option, optionIndex) => (
-                                                                <div key={optionIndex} className="flex items-center">
-                                                                    <RadioButton
-                                                                        disabled
-                                                                        inputId={`option${index}-${optionIndex}`}
-                                                                        name={`option${index}`}
-                                                                        value={optionIndex}
-                                                                        checked={item.userSelection === optionIndex}
-                                                                    />
-                                                                    <label htmlFor={`option${index}-${optionIndex}`} className="ml-2 text-sm">{option}</label>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="text-sm font-medium text-primary-700 dark:text-primary-400 mb-2">
-                                                            Q{index + 1}. {item.question}
-                                                        </div>
-                                                        <div className="text-900 bg-primary-25 p-3 rounded min-h-[60px]">
-                                                            {(item as any).userSelection || '未填写'}
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        ))}
+                        {/* 2. 本期需求 - 模块化问卷布局 (已除噪) */}
+                        {studentData?.subscribe_data && studentData.subscribe_data.length > 0 && (
+                            <StudentSubscribeDataView
+                                data={studentData.subscribe_data}
+                                loading={loading}
+                                autoComputeActions={autoComputeActions}
+                                onEdit={onEditQuestionnaire}
+                            />
+                        )}
+
+                        {/* 3. 公共档案 - 分割线轻量化 */}
+                        <div className="space-y-8 pt-4 border-t border-surface-100/60">
+                            <PersonalInfo profile={profile || null} phone={profile?.phone} />
+                            <SportCard sportCards={profile?.sport_cards as any} />
+
+                            {studentData.student_id && (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-bold tracking-tight text-surface-900 px-1">进步足迹</h4>
+                                    <div className="px-1">
+                                        <CoachViewProgressTimeline studentId={studentData.student_id} limit={5} />
                                     </div>
                                 </div>
                             )}
-
-                            {/* 公共档案 */}
-                            <div className="pt-3">
-
-                                {/* 基础信息 */}
-                                <PersonalInfoDisplay
-                                    profile={profile || null}
-                                    phone={profile?.phone}
-                                />
-
-                                {/* 运动数据卡片 */}
-                                <SportCardsDisplay sportCards={profile?.sport_cards as any} />
-
-                                {/* 进步足迹 */}
-                                {studentData.student_id && (
-                                    <CoachViewProgressTimeline
-                                        studentId={studentData.student_id}
-                                        limit={5}
-                                    />
-                                )}
-                            </div>
                         </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-32 text-center">
-                            <User className="w-10 h-10 text-surface-300 mb-2" />
-                            <p className="text-sm text-surface-500">无法加载学员信息</p>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-16 opacity-40">
+                        <User className="w-16 h-16 text-surface-300 mb-3 stroke-[1.5]" />
+                        <p className="text-sm font-medium tracking-tight">无法加载学员信息</p>
+                    </div>
+                )}
+            </Dialog>
+        </>
     );
 };

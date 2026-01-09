@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { History, Trophy, Video, Play, Calendar, Star, Loader2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
+import { Skeleton } from 'primereact/skeleton';
 
 interface PRRecord {
     id: string;
@@ -37,10 +38,7 @@ interface CoachViewProgressTimelineProps {
     limit?: number;
 }
 
-/**
- * 教练视图的进步足迹组件
- * 用于在学员详情弹窗中显示学员的PR记录
- */
+
 export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps> = ({ 
     studentId,
     limit = 10
@@ -48,174 +46,139 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
     const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
     const [prRecords, setPrRecords] = useState<PRRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (studentId) {
-            fetchPRRecords();
-        }
+        if (studentId) fetchPRRecords();
     }, [studentId]);
 
     const fetchPRRecords = async () => {
         try {
             setLoading(true);
-            setError(null);
             const res = await fetch(`/api/execution/get-pr-records?userId=${studentId}&limit=${limit}`);
             const result = await res.json();
-            
-            if (result.success && result.data) {
-                setPrRecords(result.data.records || []);
-            } else {
-                // 如果无权访问或无数据，静默处理
-                setPrRecords([]);
-            }
-        } catch (err) {
-            console.error('获取学员PR记录失败:', err);
-            setPrRecords([]);
-        } finally {
-            setLoading(false);
-        }
+            setPrRecords(result.success ? result.data.records : []);
+        } catch (err) { setPrRecords([]); } finally { setLoading(false); }
     };
-
-    // Transform PR records to timeline format
-    const timelineItems: TimelineItem[] = prRecords.map(pr => ({
-        id: pr.id,
-        date: pr.date_achieved,
-        title: `${pr.exercise_name} 新纪录！`,
-        description: pr.notes || `成功完成 ${pr.load_formula}`,
-        type: 'pr' as const,
-        videoUrl: pr.video_url,
-        load_formula: pr.load_formula,
-        stats: {
-            weight: pr.max_weight,
-            reps: pr.max_reps,
-        }
-    }));
 
     if (loading) {
         return (
-            <div className="bg-surface rounded-xl p-4 mb-4">
-                <h3 className="text-md font-bold text-surface-900 flex items-center gap-2 mb-4">
-                    <History className="text-primary" size={18} />
-                    进步足迹
-                </h3>
-                <div className="flex items-center justify-center py-6">
-                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                    <span className="ml-2 text-sm text-gray-500">加载中...</span>
+            <div className="p-2 space-y-6">
+                <Skeleton width="120px" height="1.5rem" className="rounded-full bg-surface-100" />
+                <div className="pl-4 space-y-8 border-l border-surface-100">
+                    {[1, 2].map(i => <Skeleton key={i} height="100px" className="rounded-[20px] bg-surface-50/50" />)}
                 </div>
             </div>
         );
     }
 
-    if (timelineItems.length === 0) {
+    if (prRecords.length === 0) {
         return (
-            <div className="bg-surface rounded-xl p-4 mb-4">
-                <h3 className="text-md font-bold text-surface-900 flex items-center gap-2 mb-4">
-                    <History className="text-primary" size={18} />
-                    进步足迹
-                </h3>
-                <div className="text-center py-6">
-                    <Trophy className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">暂无进步记录</p>
-                </div>
+            <div className="flex flex-col items-center justify-center py-12 bg-surface-50/30 rounded-[24px] border border-dashed border-surface-200">
+                <Trophy className="w-10 h-10 text-surface-200 mb-2 stroke-[1.5]" />
+                <p className="text-xs font-bold text-surface-400 tracking-tight">暂无进步记录</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-surface rounded-xl p-4 mb-4">
-            <h3 className="text-md font-bold text-surface-900 flex items-center gap-2 mb-4">
-                <History className="text-primary" size={18} />
-                进步足迹
-                <span className="text-xs font-normal text-gray-500">
-                    ({prRecords.length} 个记录)
+        <div className="space-y-6">
+            {/* Header: 紧凑字间距 */}
+            <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2 font-bold tracking-tight text-surface-900 text-sm">
+                    <History size={16} className="text-primary-500" />
+                    <span>进步足迹</span>
+                </div>
+                <span className="text-[10px] font-black text-surface-300 tracking-widest uppercase">
+                    {prRecords.length} Records
                 </span>
-            </h3>
+            </div>
 
-            <div className="relative pl-3 border-l-2 border-primary-100 space-y-4">
-                {timelineItems.map((item) => (
-                    <div key={item.id} className="relative">
-                        {/* Dot */}
-                        <div className={`absolute -left-[13px] top-0 w-3 h-3 rounded-full border-2 border-surface shadow-sm ${
-                            item.type === 'pr' ? 'bg-yellow-400' : 
-                            item.type === 'video' ? 'bg-blue-400' : 'bg-primary-400'
-                        }`} />
+            {/* Timeline: 保留结构，轻量化线条 */}
+            <div className="relative ml-2 pl-6 border-l border-surface-100 space-y-8">
+                {prRecords.map((pr) => (
+                    <div key={pr.id} className="relative group">
+                        
+                        {/* 物理感节点: 静态时微弱，Hover时发光 */}
+                        <div className="absolute -left-[31px] top-1 w-2.5 h-2.5 rounded-full border-2 border-surface bg-surface-300 
+                                      ring-4 ring-surface transition-all duration-300 group-hover:bg-primary-500 group-hover:ring-primary-50" />
 
-                        <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <span className="text-xs font-medium text-surface-500 bg-surface-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                        <Calendar size={10} />
-                                        {item.date}
-                                    </span>
-                                    {item.type === 'pr' && (
-                                        <span className="text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                            <Star size={10} className="fill-yellow-500" />
-                                            新纪录
-                                        </span>
-                                    )}
-                                </div>
-                                <h4 className="text-sm font-semibold text-surface-900">{item.title}</h4>
-                                
-                                {/* Load Formula */}
-                                {item.load_formula && (
-                                    <div className="mt-1 text-xs font-medium text-primary-600">
-                                        🏋️ {item.load_formula}
+                        <div className="flex flex-col gap-3 transition-all duration-300">
+                            
+                            {/* 第一行：日期与徽章 */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold text-surface-400 bg-surface-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-surface-100/50">
+                                    <Calendar size={10} strokeWidth={2.5} />
+                                    {pr.date_achieved}
+                                </span>
+                                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-amber-100/50 flex items-center gap-1">
+                                    <Star size={10} className="fill-amber-500" />
+                                    New PR
+                                </span>
+                            </div>
+
+                            {/* 第二行：核心标题与备注 */}
+                            <div>
+                                <h4 className="text-sm font-bold text-surface-900 tracking-tight">{pr.exercise_name} 新纪录！</h4>
+                                <p className="text-[11px] text-surface-500 mt-0.5 opacity-80 leading-relaxed font-medium">
+                                    {pr.notes || `成功完成 ${pr.load_formula}`}
+                                </p>
+                            </div>
+
+                            {/* 第三行：数值中心化数据区（严格保留数字） */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex-1 flex items-center gap-3 p-3 bg-surface-50/50 rounded-[16px] border border-surface-100/30 group-hover:border-primary-100 transition-colors">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Weight</span>
+                                        <span className="text-lg font-black text-surface-900 tracking-tighter">{pr.max_weight}<small className="text-[10px] ml-0.5 font-bold">kg</small></span>
                                     </div>
-                                )}
-                                
-                                {item.stats && (
-                                    <div className="flex gap-2 mt-1 flex-wrap">
-                                        <div className="text-xs bg-surface-50 px-2 py-0.5 rounded border border-surface-100">
-                                            <span className="text-surface-500">重量:</span> <span className="font-medium">{item.stats.weight}kg</span>
-                                        </div>
-                                        <div className="text-xs bg-surface-50 px-2 py-0.5 rounded border border-surface-100">
-                                            <span className="text-surface-500">次数:</span> <span className="font-medium">{item.stats.reps}</span>
+                                    <div className="w-[1px] h-6 bg-surface-200/50" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Reps</span>
+                                        <span className="text-lg font-black text-surface-900 tracking-tighter">{pr.max_reps}</span>
+                                    </div>
+                                    <div className="ml-auto text-right">
+                                        <div className="text-[9px] font-bold text-primary-400 uppercase tracking-widest">Formula</div>
+                                        <div className="text-[11px] font-bold text-primary-600 tracking-tight italic">{pr.load_formula}</div>
+                                    </div>
+                                </div>
+
+                                {/* 视频入口：物理缩放反馈 */}
+                                {pr.video_url && (
+                                    <div 
+                                        className="relative w-16 h-16 rounded-[18px] overflow-hidden cursor-pointer flex-shrink-0 
+                                                   transition-all duration-300 active:scale-[0.95] hover:shadow-lg shadow-sm"
+                                        onClick={() => setSelectedVideo(pr.video_url || null)}
+                                    >
+                                        <video src={pr.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                                            <div className="w-8 h-8 rounded-full bg-surface/95 flex items-center justify-center shadow-xl">
+                                                <Play size={10} className="text-primary-600 ml-0.5" fill="currentColor" />
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                             </div>
-
-                            {item.videoUrl && (
-                                <div 
-                                    className="relative w-24 h-14 bg-surface-900 rounded-lg overflow-hidden cursor-pointer group flex-shrink-0"
-                                    onClick={() => setSelectedVideo(item.videoUrl || null)}
-                                >
-                                    {/* Video thumbnail */}
-                                    <video 
-                                        src={item.videoUrl}
-                                        className="w-full h-full object-cover"
-                                        muted
-                                        preload="metadata"
-                                    />
-                                    {/* Play button overlay */}
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
-                                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                                            <Play size={12} className="text-primary ml-0.5" fill="currentColor" />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 ))}
             </div>
 
+            {/* 视频 Dialog */}
             <Dialog 
-                header="训练视频" 
+                header={<span className="text-sm font-bold tracking-tight">训练实录</span>} 
                 visible={!!selectedVideo} 
-                style={{ width: '90vw', maxWidth: '800px' }} 
                 onHide={() => setSelectedVideo(null)}
-                dismissableMask
+                style={{ width: '90vw', maxWidth: '450px' }}
+                pt={{
+                    root: { className: 'rounded-[24px] overflow-hidden border-none shadow-2xl' },
+                    header: { className: 'p-4 pb-0' },
+                    content: { className: 'p-4' }
+                }}
+                modal dismissableMask
             >
                 {selectedVideo && (
-                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                        <video 
-                            src={selectedVideo} 
-                            controls 
-                            className="w-full h-full" 
-                            autoPlay
-                        />
+                    <div className="aspect-[9/16] max-h-[70vh] bg-black rounded-[20px] overflow-hidden">
+                        <video src={selectedVideo} controls className="w-full h-full" autoPlay />
                     </div>
                 )}
             </Dialog>

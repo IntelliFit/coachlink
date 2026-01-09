@@ -32,6 +32,14 @@ import type {
     UpdateProfileResponseDto,
     UpdateProileDto,
 } from "../api/user/update-profile/entity";
+import type {
+    GetE1RMHistoryDto,
+    GetE1RMHistoryResponseDto,
+} from "../api/student/get-e1rm-history/entity";
+import type {
+    GetCurrent1RMDto,
+    GetCurrent1RMResponseDto,
+} from "../api/student/get-current-1rm/entity";
 
 class StudentService extends BaseService {
     /**
@@ -159,6 +167,54 @@ class StudentService extends BaseService {
         }
         console.error("updateProfile failed:", res.data);
         return null;
+    }
+
+    /**
+     * @description 获取 e1RM 历史数据
+     * @param reqData
+     * @returns
+     */
+    async getE1RMHistory(reqData: GetE1RMHistoryDto) {
+        try {
+            const response = await fetch("/api/student/get-e1rm-history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(reqData),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                return result.data;
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to fetch e1RM history:", error);
+            return null;
+        }
+    }
+
+    /**
+     * @description 获取当前 1RM 数据
+     * @param reqData
+     * @returns
+     */
+    async getCurrent1RM(reqData: GetCurrent1RMDto) {
+        try {
+            const response = await fetch("/api/student/get-current-1rm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(reqData),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                return result.data;
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to fetch current 1RM:", error);
+            return null;
+        }
     }
 }
 
