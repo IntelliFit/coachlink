@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from 'primereact/button';
+import { Tooltip } from 'primereact/tooltip';
 import type { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity';
 
 interface TemplateCardProps {
@@ -11,89 +12,109 @@ interface TemplateCardProps {
 }
 
 const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete }) => {
+    const totalWeeks = Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7);
+
     return (
-        <div className="group flex flex-col md:flex-row items-center gap-6 p-6 mb-4 bg-surface-0 dark:bg-surface-50 border border-surface-100 rounded-[24px] transition-all duration-300 hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.02)] active:scale-[0.995]">
-            <div className="flex items-start justify-between">
-                <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-900 mb-2">{template.name}</h3>
-                    <p className="text-600 mb-3 line-clamp-2">
-                        {template.description || '无描述'}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                        <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                            {Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7)} 周
+        <div className="group relative flex flex-col md:flex-row items-center gap-6 p-5 mb-4 
+                        bg-surface dark:bg-surface-900 
+                        border border-surface-100 dark:border-surface-800 
+                        rounded-[20px] transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                        hover:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:border-primary-200
+                        active:scale-[0.98]">
+            
+            {/* 左侧：核心指标（数值中心化） */}
+            <div className="flex flex-col items-center justify-center min-w-[72px] h-[72px] bg-surface-50 dark:bg-surface-800/50 rounded-[18px] border border-surface-50 dark:border-surface-700">
+                <span className="text-2xl font-black text-primary-600 dark:text-primary-400 tracking-tighter leading-none">
+                    {totalWeeks}
+                </span>
+                <span className="text-[11px] font-bold text-surface-400 mt-1.5">
+                    周计划
+                </span>
+            </div>
 
-                            ({template.weekDays.join(',')})
-                        </span>
+            {/* 中间：内容排版 */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                    <h3 className="text-[17px] font-bold text-surface-900 dark:text-surface-0 tracking-tight truncate">
+                        {template.name}
+                    </h3>
+                </div>
+                
+                <p className="text-[13px] text-surface-500 dark:text-surface-400 mb-4 line-clamp-1 leading-relaxed">
+                    {template.description || '暂无计划描述'}
+                </p>
 
-                        {/* 显示标签 */}
-                        {template.tags && template.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                                {template.tags.map((tag, index) => (
-                                    <span key={index} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* 显示 options */}
-                        {template.containedOptions && template.containedOptions.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                                {template.containedOptions.map((tag, index) => (
-                                    <span key={index} className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded-full">
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                        
-                        {/* 显示全局问题答案 */}
-                        {template.globalAnswers && Object.keys(template.globalAnswers).length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                                {Object.keys(template.globalAnswers).map((question, index) => (
-                                    <span key={index} className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
-                                        {question}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+                {/* 标签组：低饱和功能色 (50级背景 + 600级文字) */}
+                <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400">
+                        <i className="pi pi-calendar-plus mr-1.5 scale-75 opacity-70" />
+                        每周 {template.weekDays.length} 练
                     </div>
+
+                    {template.tags?.map((tag, i) => (
+                        <span key={i} className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                            {tag}
+                        </span>
+                    ))}
+
+                    {template.containedOptions?.map((opt, i) => (
+                        <span key={i} className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400">
+                            {opt}
+                        </span>
+                    ))}
+                    
+                    {Object.keys(template.globalAnswers || {}).map((q, i) => (
+                        <span key={i} className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                            {q}
+                        </span>
+                    ))}
                 </div>
-                <div className="flex gap-1 ml-2">
-                    {onSelect && (
-                        <Button
-                            icon="pi pi-check"
-                            className="p-button-rounded p-button-text"
-                            tooltip="选择"
-                            onClick={() => onSelect(template)}
-                        />
-                    )}
-                    {onCopy && (
-                        <Button
-                            icon="pi pi-copy"
-                            className="p-button-rounded p-button-text"
-                            tooltip="复制"
-                            onClick={() => onCopy(template.id)}
-                        />
-                    )}
-                    {onEdit && (
-                        <Button
-                            icon="pi pi-pencil"
-                            className="p-button-rounded p-button-text"
-                            tooltip="编辑"
-                            onClick={() => onEdit(template.id)}
-                        />
-                    )}
-                    {onDelete && (
-                        <Button
-                            icon="pi pi-trash"
-                            className="p-button-rounded p-button-text p-button-danger"
-                            tooltip="删除"
-                            onClick={() => onDelete(template.id)}
-                        />
-                    )}
-                </div>
+            </div>
+
+            {/* 右侧：交互触发区 (Hover 后显示) */}
+            <div className="flex items-center gap-1.5 
+                            opacity-0 translate-x-4 pointer-events-none
+                            group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto
+                            transition-all duration-300 ease-out">
+                {onSelect && (
+                    <Button
+                        icon="pi pi-check"
+                        text rounded
+                        severity="success"
+                        className="w-9 h-9 hover:bg-green-50 dark:hover:bg-green-900/20"
+                        tooltip="使用此模版" tooltipOptions={{ position: 'top' }}
+                        onClick={() => onSelect(template)}
+                    />
+                )}
+                {onCopy && (
+                    <Button
+                        icon="pi pi-copy"
+                        text rounded
+                        className="w-9 h-9 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
+                        tooltip="复制" tooltipOptions={{ position: 'top' }}
+                        onClick={() => onCopy(template.id)}
+                    />
+                )}
+                {onEdit && (
+                    <Button
+                        icon="pi pi-pencil"
+                        text rounded
+                        className="w-9 h-9 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
+                        tooltip="编辑" tooltipOptions={{ position: 'top' }}
+                        onClick={() => onEdit(template.id)}
+                    />
+                )}
+                <div className="w-px h-4 bg-surface-200 dark:bg-surface-700 mx-1" />
+                {onDelete && (
+                    <Button
+                        icon="pi pi-trash"
+                        text rounded
+                        severity="danger"
+                        className="w-9 h-9 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        tooltip="删除" tooltipOptions={{ position: 'top' }}
+                        onClick={() => onDelete(template.id)}
+                    />
+                )}
             </div>
         </div>
     );
