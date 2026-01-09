@@ -3,6 +3,7 @@ import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import type { ApiData } from '@/types/api';
 import type { GetStudentDto, GetStudentResponseDto } from './entity';
+import { getCurrent1RMRecords } from '../../student/get-current-1rm/route';
 
 async function getVideoStats(studentId: string) {
     const { data: videos } = await supabase
@@ -29,7 +30,11 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const { studentId, subscriptionId } = await req.json() as GetStudentDto;
+    const {
+        studentId,
+        subscriptionId,
+        need1RM = false
+    } = await req.json() as GetStudentDto;
 
     // 验证参数
     if (!studentId && !subscriptionId) {
@@ -103,7 +108,25 @@ export async function POST(req: Request) {
         profile,
         uploaded: videoStats.uploaded,
         reviewed: videoStats.reviewed
-    };
+    } as GetStudentResponseDto['student'];
+
+    if (need1RM) {
+        const records = await getCurrent1RMRecords(session.user.id, {
+            targetUserId: student.student_id
+        });
+        const rmMap: Record<string, number> = {};
+        for (const record of records) {
+            // 1. 存入 ID 映射
+            if (record.actionId) {
+                rmMap[record.actionId] = Math.max(rmMap[record.actionId] || 0, record.current1RM);
+            }
+            // 2. 存入 名称 映射 (解决 CoachActionID vs StudentActionID 不一致的问题)
+            if (record.actionName) {
+                rmMap[record.actionName] = Math.max(rmMap[record.actionName] || 0, record.current1RM);
+            }
+        }
+        student.aggregated1RM = rmMap;
+    }
 
     return NextResponse.json<ApiData<GetStudentResponseDto>>({
         success: true,

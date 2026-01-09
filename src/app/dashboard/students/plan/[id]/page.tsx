@@ -12,7 +12,7 @@ import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { actionLibService } from '@/app/service/actionLibService';
 import { planLibService } from '@/app/service/planLibService';
-import { CoachActionRow, ItemType } from '@/types';
+import { CoachActionRow, CoachPlanInstanceRow, ItemType } from '@/types';
 import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
 import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
@@ -26,7 +26,6 @@ import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import StudentPlanExecutionView from './components/StudentPlanExecutionView';
-import { Panel } from 'primereact/panel';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
 
@@ -62,6 +61,7 @@ const StudentPlanPage = () => {
     const [selectTemplateDialogVisible, setSelectTemplateDialogVisible] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [instanceId, setInstanceId] = useState<string | null>(null);
+    const [rawInstance, setRawInstance] = useState<CoachPlanInstanceRow>(null);
 
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
@@ -84,87 +84,74 @@ const StudentPlanPage = () => {
 
         const loadData = async () => {
             try {
-                // Load actions first
-                const reqData: ListActionsDto = {
-                    page: 1,
-                    limit: 100
-                };
-                const res = await actionLibService.listActions(reqData);
-                if (res) {
-                    setActions(res.actions);
+                setLoading(true);
+                setStudentDataLoading(true);
+
+                // 1. 定义所有并发任务
+                const actionsPromise = actionLibService.listActions({ page: 1, limit: 100 });
+                const studentPromise = coachService.getStudent({ subscriptionId: params.id.toString(), need1RM: true });
+                const instancePromise = planLibService.getInstance({ subscriptionId: params.id as string });
+                const executionPromise = planLibService.getWithExecutions({ subscriptionId: params.id as string });
+
+                // 2. 使用 Promise.all 并行请求
+                // 注意：有些接口报错不应中断整个流程（如 execution 可能为空），所以需处理 catch
+                const [actionsRes, studentRes, instanceRes, exeRes] = await Promise.all([
+                    actionsPromise.catch(e => (console.error('Actions load failed', e), null)),
+                    studentPromise.catch(e => (console.error('Student load failed', e), null)),
+                    instancePromise.catch(e => (console.error('Instance load failed', e), null)),
+                    executionPromise.catch(e => (console.error('Execution load failed', e), null))
+                ]);
+
+                // 3. 处理 Actions
+                if (actionsRes?.actions) {
+                    setActions(actionsRes.actions);
                 }
 
-                // Load student data
-                setStudentDataLoading(true);
-                try {
-                    const res = await coachService.getStudent({ subscriptionId: params.id.toString() });
-                    if (res) {
-                        setStudentData(res.student);
-                    }
-                } catch (e) {
-                    console.log('Could not load student data');
-                } finally {
+                // 4. 处理 Student Data
+                if (studentRes?.student) {
+                    setStudentData(studentRes.student);
                 }
                 setStudentDataLoading(false);
 
-                // Try to load instance data
-                try {
-                    const instanceReq: GetInstanceDto = {
-                        subscriptionId: params.id as string
-                    };
-                    const instanceRes = await planLibService.getInstance(instanceReq);
+                // 5. 处理 Instance (训练计划详情)
+                if (instanceRes?.instance) {
+                    const instance = instanceRes.instance;
+                    setRawInstance(instance); // 新增：保存原始对象传给子组件
 
-                    if (instanceRes) {
-                        const instance = instanceRes.instance;
+                    if (instance.status === 'active') {
+                        setInstanceExists(true);
+                        setInstanceId(instance.id);
+                        setName(instance.name);
+                        setDescription(instance.description || '');
 
-                        // NOTE: 如果计划已完成，我们不填充表单，而是让教练创建新计划
-                        // 但是 StudentPlanExecutionView 仍然会显示旧计划的执行情况
-                        if (instance.status === 'active') {
-                            setInstanceExists(true);
-                            setInstanceId(instance.id);
-                            setName(instance.name);
-                            setDescription(instance.description || '');
+                        const convertedDays = (instance.training_days || []).map((day: any) => ({
+                            id: day.id,
+                            dayIndex: day.dayIndex,
+                            type: day.type,
+                            note: day.note || '',
+                            actionSets: day.actionSets || []
+                        })).sort((a, b) => a.dayIndex - b.dayIndex);
 
-                            // Convert days data to local format
-                            const convertedDays: FormPlanTrainingDay[] = (instance.training_days as any[] || []).map((day: any) => ({
-                                id: day.id,
-                                dayIndex: day.dayIndex,
-                                type: day.type as 'training' | 'rest',
-                                note: day.note || '',
-                                actionSets: day.actionSets || []
-                            })).sort((a, b) => a.dayIndex - b.dayIndex);
-
-                            setDays(convertedDays);
-                            setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
-
-                            // 设置起始执行天数
-                            if (instance.start_execution_day && instance.start_execution_day > 1) {
-                                setStartExecutionDay(instance.start_execution_day);
-                            }
-                        } else if (instance.status === 'completed') {
-                            // 计划已完成，通知教练
-                            showToast({ severity: 'info', summary: '计划已完成', detail: '上一阶段计划已完成，请创建新计划' });
-                            setInstanceExists(false); // 这一步很重要，确保保存按钮是 "创建" 而不是 "更新"
-                        }
+                        setDays(convertedDays);
+                        if (convertedDays.length > 0) setSelectedDayIndex(convertedDays[0].dayIndex);
+                        if (instance.start_execution_day > 1) setStartExecutionDay(instance.start_execution_day);
+                    } else if (instance.status === 'completed') {
+                        showToast({ severity: 'info', summary: '计划已完成', detail: '请为学员创建新阶段计划' });
+                        setInstanceExists(false);
                     }
-                    // Load execution data for this subscription
-                    try {
-                        const exeRes = await planLibService.getWithExecutions({ subscriptionId: params.id as string });
-                        if (exeRes?.executions) {
-                            setExecutions(exeRes.executions);
-                        }
-                    } catch (exeError) {
-                        console.log('No execution data available');
-                    }
-                } catch (instanceError) {
-                    // Instance doesn't exist, which is fine - we'll create a new one
-                    console.log('Instance does not exist yet, will create new one');
                 }
+
+                // 6. 处理 Executions (执行记录)
+                if (exeRes?.executions) {
+                    setExecutions(exeRes.executions);
+                }
+
             } catch (error) {
-                console.error('加载训练计划失败:', error);
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法加载训练计划' });
+                console.error('加载训练页面失败:', error);
+                showToast({ severity: 'error', summary: '加载失败', detail: '无法获取完整学员数据' });
             } finally {
                 setLoading(false);
+                setStudentDataLoading(false);
             }
         };
 
@@ -572,21 +559,17 @@ const StudentPlanPage = () => {
         }
 
         try {
-            const res = await fetch('/api/subscription/update-questionnaire', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subscriptionId: subscription.id,
-                    subscribeData: answers
-                })
+            const res = await subscriptionService.updateQuestionnaire({
+                id: subscription.id,
+                questionnaires: answers
             });
 
-            if (res.ok) {
+            if (res) {
                 showToast({ severity: 'success', summary: '问卷更新成功' });
                 setQuestionnaireVisible(false);
 
                 // 刷新学员数据
-                const studentRes = await coachService.getStudent({ subscriptionId: params.id.toString() });
+                const studentRes = await coachService.getStudent({ subscriptionId: params.id.toString(), need1RM: true });
                 if (studentRes) {
                     setStudentData(studentRes.student);
                 }
@@ -672,6 +655,12 @@ const StudentPlanPage = () => {
 
                     <StudentPlanExecutionView
                         subscriptionId={params.id as string}
+                        instance={rawInstance}
+                        executions={executions}
+                        loading={loading}
+                        planName={name || '学员训练计划'}
+                        planDescription={description}
+                        isCompleted={false}
                     />
                 </div>
 
@@ -734,7 +723,7 @@ const StudentPlanPage = () => {
                                     totalDays={days.length}
                                     onCopyFromDay={handleCopyFromDay}
                                     existingTrainingDays={existingTrainingDays}
-                                    studentData={studentData} /* 传递studentData */
+                                    studentData={studentData}
                                     subscription={subscription}
                                     execution={executions[selectedDay.dayIndex]}
                                 />

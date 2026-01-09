@@ -4,6 +4,7 @@ import { UserProfilesRow } from "@/types";
 export interface GetStudentDto {
     studentId?: string;
     subscriptionId?: string;
+    need1RM?: boolean;
 }
 
 // 返回参数的接口类型
@@ -21,5 +22,6 @@ export interface GetStudentResponseDto {
         profile: UserProfilesRow;
         uploaded: number;
         reviewed: number;
+        aggregated1RM?: Record<string, number>;
     } | null;
 }
