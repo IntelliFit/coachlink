@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../../auth/[...nextauth]/auth";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
@@ -46,7 +46,8 @@ export async function POST(req: Request) {
                 status: "active",
                 order_id,
                 started_at: new Date().toISOString(),
-                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30天后过期
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                    .toISOString(), // 30天后过期
                 updated_at: new Date().toISOString(),
             })
             .eq("user_id", userId)
@@ -65,7 +66,8 @@ export async function POST(req: Request) {
                 status: "active",
                 order_id,
                 started_at: new Date().toISOString(),
-                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30天后过期
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                    .toISOString(), // 30天后过期
             }])
             .select()
             .single();
