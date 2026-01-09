@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../../../auth/[...nextauth]/auth";
+import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from "@/types/api";
-import type {
-    GetKnowledgeBookByIdResponseDto,
-} from "../entity";
+import type { GetKnowledgeBookByIdResponseDto } from "../entity";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+    req: Request,
+    { params }: { params: { id: string } },
+) {
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({

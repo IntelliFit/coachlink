@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../../auth/[...nextauth]/auth";
+import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         user_id,
         status,
         page = 0,
-        limit = 20
+        limit = 20,
     } = await req.json() as ListKnowledgeSubscriptionsDto;
 
     // 构建查询
