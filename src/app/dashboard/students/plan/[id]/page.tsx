@@ -682,6 +682,17 @@ const StudentPlanPage = () => {
                             label="从模板创建"
                             size="small"
                             icon="pi pi-book"
+                            className="
+                                flex items-center gap-2 px-4 py-2 
+                                bg-surface border border-surface-200 rounded-[14px]
+                                
+                                text-[12px] font-black text-surface-700 tracking-tight
+                                
+                                transition-all duration-200 active:scale-[0.95]
+                                hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                                disabled:opacity-40 disabled:cursor-not-allowed
+                            "
+                            text
                             onClick={() => setSelectTemplateDialogVisible(true)}
                             disabled={saving}
                         />
@@ -690,7 +701,7 @@ const StudentPlanPage = () => {
 
 
 
-                <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
+                <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                         {/* 左侧：周历视图 */}
                         <div className="lg:col-span-1">
@@ -750,6 +761,7 @@ const StudentPlanPage = () => {
                         <Button
                             label={instanceExists ? "更新计划" : "制定计划"}
                             icon="pi pi-check"
+                            className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
                             onClick={handleSave}
                             loading={saving}
                         />

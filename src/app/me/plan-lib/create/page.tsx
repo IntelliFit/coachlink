@@ -355,7 +355,7 @@ const CreatePlanPage = () => {
 
     return (
         <div className="mx-auto p-4">
-            <Card className="shadow-sm">
+            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
                 {/* 顶部区域 */}
                 <div className="border-b border-surface-200 p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

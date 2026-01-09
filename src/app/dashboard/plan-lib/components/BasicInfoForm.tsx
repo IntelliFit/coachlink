@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
-import { Dropdown } from 'primereact/dropdown';
-import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
 import { trainingItemService } from '@/app/service/trainingItemService';
 import { useToastContext } from '@/context/ToastContext';
 import { TrainingOptionQuestion } from '@/types/questionnaires';
+import { Sparkles, Info, Target, Calendar } from 'lucide-react';
 
 interface BasicInfoFormProps {
     name: string;
@@ -30,12 +29,6 @@ interface BasicInfoFormProps {
     globalAnswers?: Record<string, number>;
     onGlobalAnswerChange?: (question: string, answerIndex: number) => void;
 }
-
-const experienceLevels = [
-    { label: '新手学员', value: '新手学员' },
-    { label: '中级学员', value: '中级学员' },
-    { label: '高级学员', value: '高级学员' }
-];
 
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     name,
@@ -91,152 +84,156 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     }, [variant, showToast]);
 
     return (
-        <div className="flex flex-col gap-4 mb-10">
-
-            <div className='flex justify-between items-center'>
-                <h2 className="text-xl font-semibold">
-                    {isStudent ? '计划基础信息' : '模板基础信息'}
-                </h2>
-                <div>
+        <div className="flex flex-col gap-6 mb-12">
+            {/* 头部区域：紧凑字间距 + 呼吸感引导 */}
+            <div className='flex justify-between items-end px-1'>
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-2xl font-black text-surface-900 tracking-tighter">
+                        {isStudent ? '计划配置' : '模板定义'}
+                    </h2>
+                </div>
+                <div className="flex gap-2">
                     {extraButton}
                 </div>
             </div>
 
-
+            {/* 主容器：非线性圆角 + 极浅边框 */}
             <div className="
-                p-5 
-                bg-surface-0 
-                border border-surface-200 
-                rounded-lg
-                flex flex-col md:flex-row 
-                gap-10
+                relative overflow-hidden
+                p-8 bg-surface border border-surface-200/70 
+                rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.02)]
+                flex flex-col lg:flex-row gap-12
             ">
-                {/* 左侧表单区域 */}
-                <div className={`flex flex-col gap-5 w-full ${isStudent ? '' : 'md:max-w-md'}`}>
+                {/* 左侧表单区域：利用层级代替分割线 */}
+                <div className="flex flex-col gap-8 w-full flex-1">
+                    
+                    {/* 第一行：双列布局以节省空间并保持紧凑 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[11px] text-surface-400 uppercase px-1">
+                                {isStudent ? '计划名称' : '模板名称'} *
+                            </label>
+                            <InputText
+                                value={name}
+                                onChange={(e) => onNameChange(e.target.value)}
+                                placeholder="e.g. 夏季增肌进阶计划"
+                                className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-3 transition-all"
+                                disabled={saving}
+                            />
+                        </div>
 
-                    {/* 名称 */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm text-900 font-medium">{isStudent ? '计划名称 *' : '模板名称 *'}</label>
-                        <InputText
-                            value={name}
-                            onChange={(e) => onNameChange(e.target.value)}
-                            placeholder={isStudent ? "输入计划名称" : "输入模板名称"}
-                            className="p-inputtext-sm"
-                            disabled={saving}
-                        />
-                    </div>
-
-                    {/* 描述 */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm text-900 font-medium">{isStudent ? '计划描述' : '模板描述'}</label>
-                        <InputText
-                            value={description}
-                            onChange={(e) => onDescriptionChange(e.target.value)}
-                            placeholder="输入描述内容（可选）"
-                            className="p-inputtext-sm"
-                            disabled={saving}
-                        />
-                    </div>
-
-                    {!isStudent && (
-                        <>
-                            {/* 训练项目 */}
+                        {!isStudent && (
                             <div className="flex flex-col gap-2">
-                                <label className="text-sm text-900 font-medium">训练项目</label>
+                                <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest px-1">训练项目</label>
                                 <MultiSelect
                                     value={tags}
                                     options={templateTypes}
                                     onChange={(e) => onTagsChange(e.value)}
-                                    placeholder="选择训练项目"
-                                    className="text-sm"
-                                    disabled={saving || loadingTemplateTypes}
+                                    placeholder="选择核心动作库"
+                                    className="aero-multiselect"
                                     display="chip"
                                     filter
-                                    showClear
-                                    virtualScrollerOptions={{ itemSize: 38 }}
                                 />
                             </div>
+                        )}
+                    </div>
 
+                    {/* 描述区域：使用半透明背景块 */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest px-1">详情描述</label>
+                        <InputText
+                            value={description}
+                            onChange={(e) => onDescriptionChange(e.target.value)}
+                            placeholder="简述此计划的核心目标（可选）"
+                            className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-3 transition-all"
+                        />
+                    </div>
 
-                        </>
-                    )}
-
+                    {/* 频率选择：非对称过渡选项 */}
                     {!isStudent && (
-                        <>
-                            {/* 适用每周训练次数 */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm text-900 font-medium">适用每周训练次数</label>
-                                <MultiSelect
-                                    value={weekDays}
-                                    options={[1, 2, 3, 4, 5, 6, 7].map(n => ({ label: `${n}次`, value: n }))}
-                                    onChange={(e) => onWeekDaysChange?.(e.value)}
-                                    placeholder="选择适用的训练频率"
-                                    className="text-sm"
-                                    disabled={saving}
-                                    display="chip"
-                                    showClear
-                                />
-                            </div>
-
-                            {/* 动态显示全局选项问题 */}
-                            {globalQuestions.map((question, idx) => (
-                                <div key={idx} className="flex flex-col gap-2">
-                                    <label className="text-sm text-900 font-medium">{question.question}</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {question.options.map((opt, i) => (
-                                            <label
-                                                key={i}
+                        <div className="space-y-6">
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2">
+                                    <Calendar size={14} className="text-surface-400" />
+                                    <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest">建议每周频率</label>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {[1, 2, 3, 4, 5, 6, 7].map(n => {
+                                        const active = weekDays.includes(n);
+                                        return (
+                                            <div 
+                                                key={n}
+                                                onClick={() => {
+                                                    const newDays = active ? weekDays.filter(d => d !== n) : [...weekDays, n];
+                                                    onWeekDaysChange?.(newDays);
+                                                }}
                                                 className={`
-                                                    flex items-center gap-2 px-4 py-2 
-                                                    border rounded-lg cursor-pointer
-                                                    transition-all duration-200
-                                                    ${globalAnswers[question.question] === i
-                                                        ? 'border-primary bg-primary/10 text-primary'
-                                                        : 'border-surface-300 hover:border-primary/50 hover:bg-surface-50'
-                                                    }
-                                                    ${saving ? 'opacity-50 cursor-not-allowed' : ''}
+                                                    px-5 py-2 rounded-full text-xs font-black transition-all duration-300 cursor-pointer active:scale-[0.95]
+                                                    ${active ? 'bg-primary-500 text-surface shadow-md shadow-primary-500/20' : 'bg-surface-50 text-surface-400 hover:bg-surface-100'}
                                                 `}
                                             >
-                                                <Checkbox
-                                                    checked={globalAnswers[question.question] === i}
-                                                    onChange={() => onGlobalAnswerChange?.(question.question, i)}
-                                                    disabled={saving}
-                                                    className="hidden"
-                                                />
-                                                <i className={`pi ${globalAnswers[question.question] === i ? 'pi-check-circle text-primary' : 'pi-circle text-surface-400'}`} />
-                                                <span className="text-sm font-medium">{opt}</span>
-                                            </label>
-                                        ))}
+                                                {n} 次 / 周
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* 动态全局问题：数值中心化选择 */}
+                            {globalQuestions.map((question, idx) => (
+                                <div key={idx} className="flex flex-col gap-3">
+                                    <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest px-1">{question.question}</label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        {question.options.map((opt, i) => {
+                                            const selected = globalAnswers[question.question] === i;
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    onClick={() => onGlobalAnswerChange?.(question.question, i)}
+                                                    className={`
+                                                        p-3 rounded-[16px] border transition-all duration-300 cursor-pointer text-center
+                                                        ${selected 
+                                                            ? 'border-primary-200 bg-primary-50 text-primary-700 font-bold' 
+                                                            : 'border-surface-100 bg-surface-50/30 text-surface-500 hover:border-surface-200'
+                                                        }
+                                                    `}
+                                                >
+                                                    <span className="text-[11px] tracking-tight">{opt}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
-                        </>
+                        </div>
                     )}
                 </div>
 
-                {/* 右侧说明文本 */}
+                {/* 右侧说明文本：转换为“轻量生产力”引导卡片 */}
                 {!isStudent && (
-                    <div className="flex-1 hidden md:flex flex-col gap-3 text-sm text-surface-600">
-                        <div>
-                            <div className="font-medium text-900">说明</div>
-                            <p>
-                                设置模板的基本信息，包括名称、描述以及类型。
-                                这些信息将帮助你在动作库和训练库中快速识别模板。
-                            </p>
-                            <p>
-                                <strong>训练项目</strong>可以多选，用于标记训练计划的特点和适用人群。
-                            </p>
-                            <p>
-                                <strong>适用每周训练次数</strong>用于匹配学员问卷中的训练频率，可多选（如2次、3次）。
-                            </p>
-                            <p>
-                                <strong>全局选项问题</strong>会根据问卷设置自动显示，用于进一步匹配学员需求。
-                            </p>
+                    <div className="lg:w-64 flex flex-col gap-4">
+                        <div className="p-6 bg-surface-50/50 rounded-[20px] border border-surface-100/50 space-y-4">
+                            <div className="flex items-center gap-2 text-surface-900 font-black text-xs tracking-tight">
+                                <Info size={14} />
+                                <span>设计指南</span>
+                            </div>
+                            <div className="space-y-4 text-[11px] text-surface-500 leading-relaxed font-medium">
+                                <div className="flex gap-2">
+                                    <Target size={12} className="shrink-0 text-primary-400" />
+                                    <p>训练项目会直接关联动作库的<span className="text-surface-900 font-bold">自动筛选</span>逻辑。</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-green-100 shrink-0" />
+                                    <p>每周次数用于匹配学员问卷，实现<span className="text-surface-900 font-bold">智能分发</span>。</p>
+                                </div>
+                            </div>
                         </div>
+                        
+                        {/* 装饰位：体现 Aero 风格的层级 */}
+                        <div className="flex-1 rounded-[20px] bg-gradient-to-br from-primary-50 to-transparent opacity-40 border border-dashed border-primary-200" />
                     </div>
                 )}
             </div>
-
         </div>
     );
 };

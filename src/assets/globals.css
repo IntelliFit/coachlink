@@ -215,3 +215,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     /* 注意：上面的 filter 需要根据你的主题色（primary）进行调整 */
     cursor: pointer;
 }
+
+.p-inputtext.p-filled:enabled:focus {
+    box-shadow: none !important;
+}

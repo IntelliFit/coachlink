@@ -166,7 +166,7 @@ const Content = () => {
             
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 px-2">
                 <div className="space-y-1">
-                    <h1 className="text-4xl font-black tracking-tighter text-surface-900">内容管理</h1>
+                    <h1 className="text-3xl font-black tracking-tighter text-surface-900">内容管理</h1>
                     <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary-50 px-2 py-0.5 rounded">
                             {filteredContents.length} items

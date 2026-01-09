@@ -48,7 +48,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     isGlobalOneRMConfigEnabled,
 }) => {
     const currentAction = actions.find(action => action.id === set.actionId);
-    
+
     // 从问卷获取初始值作为 fallback
     const questionnaireInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};
 
@@ -107,22 +107,22 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             return planReference1RM;
         }
 
-        // 2. 使用 API 返回的聚合值
-        // 优先尝试 ID 匹配
-        let aggregatedValue = studentData.aggregated1RM[currentAction.id];
-        
-        // 如果 ID 匹配失败或者值太小，尝试 Name 匹配 (fallback)
-        if ((!aggregatedValue || aggregatedValue <= 1) && currentAction.name) {
-            aggregatedValue = studentData.aggregated1RM[currentAction.name];
+        if (studentData && studentData.aggregated1RM) {
+            let aggregatedValue = studentData.aggregated1RM[currentAction.id];
+
+            // 如果 ID 匹配失败或者值太小，尝试 Name 匹配 (fallback)
+            if ((!aggregatedValue || aggregatedValue <= 1) && currentAction.name) {
+                aggregatedValue = studentData.aggregated1RM[currentAction.name];
+            }
+            if (aggregatedValue && aggregatedValue > 0) {
+                return aggregatedValue;
+            }
         }
 
-        if (aggregatedValue && aggregatedValue > 0) {
-            return aggregatedValue;
-        }
-        
+
         // 3. Fallback 到问卷数据
         return questionnaireInput[currentAction.id] || 1;
-    }, [currentAction, studentData.aggregated1RM, questionnaireInput, planReference1RM]);
+    }, [currentAction, studentData?.aggregated1RM, questionnaireInput, planReference1RM]);
 
     const considerBodyWeightActions = ['深蹲', '引体向上', '俯卧撑', '平板支撑'];
 
@@ -144,8 +144,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             newConfig.relativeIntensity = { type: 'rm', value: rmValue };
             newParams['强度'] = rmValue;
         } else if (newType === 'percentage') {
-            const pctValue = existingConfig?.relativeIntensity?.type === 'percentage' 
-                ? existingConfig.relativeIntensity.value 
+            const pctValue = existingConfig?.relativeIntensity?.type === 'percentage'
+                ? existingConfig.relativeIntensity.value
                 : 80;
             newConfig.relativeIntensity = { type: 'percentage', value: pctValue };
             // 清除旧的 RM 强度字段
@@ -172,7 +172,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         const newConfig: IntensityConfig = {
             relativeIntensity: { type: 'rm', value: rmValue }
         };
-        
+
         if (recommendedValue > 0) {
             newConfig.recommendedLoad = { value: recommendedValue, unit: recommendedUnit };
         }
@@ -189,7 +189,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         const newConfig: IntensityConfig = {
             relativeIntensity: { type: 'percentage', value: pctValue }
         };
-        
+
         if (recommendedValue > 0) {
             newConfig.recommendedLoad = { value: recommendedValue, unit: recommendedUnit };
         }
@@ -204,14 +204,14 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     const handleRecommendedChange = useCallback((value: number | null, unit?: WeightUnit) => {
         const newValue = value || 0;
         const newUnit = unit || recommendedUnit;
-        
+
         const newConfig: IntensityConfig = {};
-        
+
         // 保留当前的相对强度设置
         if (existingConfig?.relativeIntensity) {
             newConfig.relativeIntensity = existingConfig.relativeIntensity;
         }
-        
+
         if (newValue > 0) {
             newConfig.recommendedLoad = { value: newValue, unit: newUnit };
         }
@@ -232,7 +232,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     useEffect(() => {
         // 如果有计划层级的配置，优先不操作本地状态
         if (planReference1RM && planReference1RM > 0) {
-             return;
+            return;
         }
 
         const bgRm = getUserOneRM();
@@ -273,7 +273,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         }
 
         let calculatedWeight: number | null = null;
-        const includesBodyWeight = currentAction?.includesBodyWeight || 
+        const includesBodyWeight = currentAction?.includesBodyWeight ||
             considerBodyWeightActions.includes(currentAction?.name);
 
         if (intensityType === 'rm') {
@@ -299,10 +299,10 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             );
         } else if (intensityType === 'percentage') {
             // 百分比模式
-            const pctValue = existingConfig?.relativeIntensity?.type === 'percentage' 
-                ? existingConfig.relativeIntensity.value 
+            const pctValue = existingConfig?.relativeIntensity?.type === 'percentage'
+                ? existingConfig.relativeIntensity.value
                 : percentageValue;
-            
+
             if (!pctValue || pctValue <= 0) return;
 
             const targetTotal = oneRm * (pctValue / 100);
@@ -317,7 +317,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         if (calculatedWeight !== null) {
             // 四舍五入到一位小数
             calculatedWeight = Math.round(calculatedWeight * 10) / 10;
-            
+
             // 如果计算结果 < 0 (例如自重超过目标重量)，则设为 0
             if (calculatedWeight < 0) calculatedWeight = 0;
 
@@ -349,7 +349,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     optionLabel="label"
                     placeholder="选择动作"
                     filter
-                    className="w-full"
+                    className="w-full rounded-2xl"
                     disabled={saving}
                     itemTemplate={(option) => <ActionOptionTemplate action={option.action} />}
                     valueTemplate={(option) => <ActionValueTemplate action={option?.action || null} />}
@@ -368,9 +368,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                 const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
                                 updateParams({ [attr]: value });
                             }}
-                            showButtons
                             suffix={getUnit(attr)}
-                            className="w-full"
+                            inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
                             disabled={saving}
                             min={attr === '休息时间' ? 0.5 : 1}
                             step={attr === '休息时间' ? 0.5 : 1}
@@ -380,25 +379,21 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 ))
             }
 
-            {/* 新的强度配置区域 */}
             {hasIntensityAttr && (
-                <div className="md:col-span-2 border-t border-surface-200 pt-3 mt-2">
-                    <label className="block text-900 text-sm font-medium mb-2">强度设置</label>
-                    
-                    {/* 1RM参考值输入 (仅当开启自动计算且未在计划层级统一配置且当前不是针对具体学员(已有数据)时显示) 
-                        如果有全局配置面板 (isGlobalOneRMConfigEnabled)，则完全隐藏此处的输入框，避免重复/混淆 
-                        如果有学员数据 (studentData)，则隐藏输入框，直接使用自动获取的数据
-                     */}
+                <div className="md:col-span-2 mt-4 rounded-2xl">
+                    <label className="block text-900 text-sm font-medium mb-3">强度设置</label>
+
+                    {/* 1RM参考值输入区 */}
                     {currentAction?.enableAutoWeightCompute && !isGlobalOneRMConfigEnabled && !studentData && (
-                        <div className={`mb-4 p-3 rounded-lg ${planReference1RM ? 'bg-green-50' : 'bg-primary-50'}`}>
+                        <div className={`mb-4 p-3 rounded-lg border ${planReference1RM ? 'bg-green-50 border-green-100' : 'bg-primary-50 border-primary-100'}`}>
                             <div className="flex items-end gap-3">
-                                <div className="flex-1">
-                                    <label className="block text-700 text-xs mb-1">
+                                <div className="flex-1 flex flex-col gap-1.5">
+                                    <label className="block text-700 text-xs leading-none">
                                         参考极限重量 (1RM)
                                         {studentData?.profile?.weight ? (
-                                             <span className="text-500 ml-2 font-normal">
+                                            <span className="text-500 ml-2 font-normal">
                                                 (当前体重: {studentData.profile.weight}kg)
-                                             </span>
+                                            </span>
                                         ) : (
                                             <span className="text-orange-500 ml-2 font-normal">
                                                 (未设置体重，可能影响计算)
@@ -416,24 +411,18 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                         suffix=" kg"
                                         min={0}
                                         max={500}
-                                        className={`w-full ${planReference1RM ? 'p-inputtext-sm opacity-90' : ''}`}
-                                        showButtons={!planReference1RM}
-                                        buttonLayout="horizontal"
-                                        step={2.5}
-                                        decrementButtonClassName="p-button-secondary"
-                                        incrementButtonClassName="p-button-secondary"
-                                        inputClassName="font-semibold text-primary"
                                         disabled={saving || !!planReference1RM}
+                                        inputClassName='w-full border border-surface-200 rounded-2xl'
                                     />
                                     {planReference1RM && (
-                                        <p className="text-xs text-green-700 mt-1">
+                                        <p className="text-xs text-green-700">
                                             * 已在计划顶部统一配置，如需修改请滚动到顶部。
                                         </p>
                                     )}
                                 </div>
                                 {currentAction.includesBodyWeight && (
-                                    <div className="pb-3">
-                                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                    <div className="pb-1">
+                                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-bold">
                                             含自重
                                         </span>
                                     </div>
@@ -442,114 +431,93 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         </div>
                     )}
 
-                    {/* 相对强度类型选择 */}
-                    <div className="flex flex-wrap gap-4 mb-3">
-                        <div className="flex items-center">
-                            <RadioButton
-                                inputId={`intensity-rm-${dayIndex}-${setIndex}-${set.actionId}`}
-                                name={`intensity-type-${dayIndex}-${setIndex}-${set.actionId}`}
-                                value="rm"
-                                checked={intensityType === 'rm'}
-                                onChange={() => handleIntensityTypeChange('rm')}
-                                disabled={saving}
-                            />
-                            <label htmlFor={`intensity-rm-${dayIndex}-${setIndex}-${set.actionId}`} className="ml-2 text-sm">
-                                RM
-                            </label>
-                        </div>
-                        <div className="flex items-center">
-                            <RadioButton
-                                inputId={`intensity-pct-${dayIndex}-${setIndex}-${set.actionId}`}
-                                name={`intensity-type-${dayIndex}-${setIndex}-${set.actionId}`}
-                                value="percentage"
-                                checked={intensityType === 'percentage'}
-                                onChange={() => handleIntensityTypeChange('percentage')}
-                                disabled={saving}
-                            />
-                            <label htmlFor={`intensity-pct-${dayIndex}-${setIndex}-${set.actionId}`} className="ml-2 text-sm">
-                                百分比
-                            </label>
-                        </div>
-                        <div className="flex items-center">
-                            <RadioButton
-                                inputId={`intensity-none-${dayIndex}-${setIndex}-${set.actionId}`}
-                                name={`intensity-type-${dayIndex}-${setIndex}-${set.actionId}`}
-                                value="none"
-                                checked={intensityType === 'none'}
-                                onChange={() => handleIntensityTypeChange('none')}
-                                disabled={saving}
-                            />
-                            <label htmlFor={`intensity-none-${dayIndex}-${setIndex}-${set.actionId}`} className="ml-2 text-sm">
-                                仅固定重量
-                            </label>
-                        </div>
+                    {/* 相对强度类型选择：胶囊切换风格 */}
+                    <div className="flex p-1 bg-surface-100/80 rounded-[12px] w-fit mb-4 border border-surface-200/50">
+                        {[
+                            { label: 'RM', value: 'rm' },
+                            { label: '百分比', value: 'percentage' },
+                            { label: '仅固定重量', value: 'none' }
+                        ].map((opt) => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => handleIntensityTypeChange(opt.value as any)}
+                                className={`
+                        px-4 py-1.5 rounded-[9px] text-[12px] font-bold transition-all
+                        ${intensityType === opt.value
+                                        ? 'bg-surface text-surface-900 shadow-sm'
+                                        : 'text-surface-500 hover:text-surface-700'}
+                    `}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* RM 输入 */}
                         {intensityType === 'rm' && (
-                            <div>
-                                <label className="block text-900 text-xs mb-1">RM 值</label>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="block text-900 text-xs ml-1">RM 值</label>
                                 <InputNumber
                                     value={set.params?.['强度'] || 5}
                                     onValueChange={e => handleRmChange(e.value)}
-                                    showButtons
                                     suffix="RM"
-                                    className="w-full"
-                                    disabled={saving}
                                     min={1}
                                     max={36}
+                                    disabled={saving}
+                                    inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
                                 />
-                                <small className="text-500 text-xs">RM范围1-36，如5RM = 能做5次的最大重量</small>
+                                <small className="text-500 text-xs ml-1 opacity-50">RM范围1-36，如5RM = 能做5次的最大重量</small>
                             </div>
                         )}
 
                         {/* 百分比输入 */}
                         {intensityType === 'percentage' && (
-                            <div>
-                                <label className="block text-900 text-xs mb-1">1RM 百分比</label>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="block text-900 text-xs ml-1">1RM 百分比</label>
                                 <InputNumber
                                     value={percentageValue}
                                     onValueChange={e => handlePercentageChange(e.value)}
-                                    showButtons
                                     suffix="%"
-                                    className="w-full"
-                                    disabled={saving}
                                     min={30}
                                     max={100}
+                                    disabled={saving}
+                                    inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
                                 />
-                                <small className="text-500 text-xs">如80% = 1RM的80%重量</small>
+                                <small className="text-500 text-xs ml-1">如80% = 1RM的80%重量</small>
                             </div>
                         )}
 
                         {/* 推荐/固定重量 */}
-                        <div>
-                            <label className="block text-900 text-xs mb-1">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="block text-900 text-xs ml-1">
                                 {intensityType === 'none' ? '固定重量' : '推荐数值（备选）'}
                             </label>
                             <div className="flex gap-2">
                                 <InputNumber
                                     value={recommendedValue}
                                     onValueChange={e => handleRecommendedChange(e.value)}
-                                    className="flex-1"
                                     disabled={saving}
                                     min={0}
                                     maxFractionDigits={1}
+                                    inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
                                 />
                                 <Dropdown
                                     value={recommendedUnit}
-                                    options={[
-                                        { label: 'kg', value: 'kg' },
-                                        { label: 'lbs', value: 'lbs' }
-                                    ]}
+                                    options={[{ label: 'kg', value: 'kg' }, { label: 'lbs', value: 'lbs' }]}
                                     onChange={e => handleRecommendedChange(recommendedValue, e.value)}
-                                    className="w-20"
                                     disabled={saving}
+                                    pt={{
+                                        root: { className: 'w-20 bg-surface-100 border-none rounded-[12px] flex items-center shadow-none' },
+                                        input: { className: 'text-[12px] font-bold text-center pr-0' },
+                                        trigger: { className: 'w-6' }
+                                    }}
                                 />
                             </div>
-                            <small className="text-500 text-xs">
-                                {intensityType === 'none' 
-                                    ? '直接使用此重量' 
+                            <small className="text-500 text-xs ml-1 opacity-50">
+                                {intensityType === 'none'
+                                    ? '直接使用此重量'
                                     : '无法计算时使用此值'}
                             </small>
                         </div>
@@ -557,43 +525,46 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 </div>
             )}
 
-            {/* 备注字段 */}
-            <div className="md:col-span-2">
-                <label className="block text-900 text-sm font-medium mb-2">备注</label>
-                <input
-                    type="text"
-                    value={set.params?.note || ''}
-                    onChange={e => onActionSetChange(dayIndex, setIndex, 'params', { note: e.target.value } as any)}
-                    placeholder="如 rpe9、热身组等"
-                    className="w-full p-2 border border-surface-200 rounded text-sm"
-                    disabled={saving}
-                />
-            </div>
-
             {/* 智能计算预览（仅当有学员数据且启用自动计算时） */}
             {currentAction?.enableAutoWeightCompute && studentData && (
-                <div className="md:col-span-2 border-t border-surface-200 pt-3 mt-2">
-                    <div>
-                        <label className="block text-900 text-xs mb-1">计算预览</label>
-                        <div className="p-2 bg-surface-100 rounded text-sm">
-                            {set.params?.load && set.params.load > 0 ? (
-                                <span className="font-semibold text-primary">
-                                    {Number(set.params.load).toFixed(1)} {set.params?.loadUnit || 'kg'}
-                                </span>
-                            ) : (
-                                <span className="text-500">待计算</span>
-                            )}
-                            {intensityType === 'rm' && set.params?.['强度'] && (
-                                <span className="text-500 ml-2">({set.params?.['强度']}RM)</span>
-                            )}
-                            {intensityType === 'percentage' && (
-                                <span className="text-500 ml-2">({percentageValue}%)</span>
-                            )}
-                            {/* 显示使用的 1RM 基准 (仅当有学员数据时显示，因为此时输入框被隐藏了) */}
+                <div className="md:col-span-2 mt-2 pt-3 border-t border-surface-100">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="block text-surface-400 text-[11px] font-bold ml-1">计算预览</label>
+
+                        <div className="flex items-center justify-between p-3 bg-surface-50 rounded-[14px] border border-surface-100/50">
+                            <div className="flex items-center gap-3">
+                                {/* 结果数值：保持清晰但尺寸适中 */}
+                                <div className="flex items-baseline gap-1">
+                                    {set.params?.load && set.params.load > 0 ? (
+                                        <>
+                                            <span className="text-base font-black text-primary-600">
+                                                {Number(set.params.load).toFixed(1)}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-primary-500 uppercase">
+                                                {set.params?.loadUnit || 'kg'}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-sm font-medium text-surface-400">待计算</span>
+                                    )}
+                                </div>
+
+                                {/* 强度详情：辅助信息 */}
+                                <div className="flex items-center gap-2 text-[12px] text-surface-500 font-medium border-l border-surface-200 pl-3">
+                                    {intensityType === 'rm' && set.params?.['强度'] && (
+                                        <span>{set.params?.['强度']}RM</span>
+                                    )}
+                                    {intensityType === 'percentage' && (
+                                        <span>{percentageValue}%</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 1RM 基准信息：极简展示 */}
                             {studentData && (planReference1RM || manual1RM) > 0 && (
-                                <span className="text-gray-400 text-xs ml-2">
-                                    [基准1RM: {studentData ? getUserOneRM() : (planReference1RM || manual1RM)}kg]
-                                </span>
+                                <div className="text-[10px] text-surface-400 font-medium bg-white/50 px-2 py-0.5 rounded-md border border-surface-100">
+                                    基准1RM: {studentData ? getUserOneRM() : (planReference1RM || manual1RM)}kg
+                                </div>
                             )}
                         </div>
                     </div>
