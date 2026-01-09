@@ -1,4 +1,4 @@
-import { UserProfilesRow } from "@/types";
+import { CoachPlanInstanceRow, UserProfilesRow } from "@/types";
 
 export interface GetStudentsDto {
     pagination: {
@@ -15,7 +15,7 @@ export interface SubscribeData {
 export interface StudentSubscription {
     id: string;
     student_id: string;
-    tier: string;
+    tier: number;
     status: string;
     start_date: string;
     end_date: string;
@@ -26,7 +26,22 @@ export interface StudentSubscription {
     monthly_price: number;
     subscribe_data: SubscribeData | null;
     subscribed_weeks: number | null;
-    prior_training_weeks: number | null; // 学员迁入平台前已跟随教练训练的周数
+
+    // 学员迁入平台前已跟随教练训练的周数
+    prior_training_weeks: number | null;
+
+    plan: {
+        name: string;
+        description: string;
+        status: string;
+        [key: string]: any;
+    };
+
+    // 统计执行进度
+    progress: {
+        total: number;
+        completed: number;
+    };
 }
 
 export interface ListStudentsDto {

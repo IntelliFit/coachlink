@@ -84,7 +84,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             if (result?.error) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
             } else {
-                showToast({ severity: 'success', summary: '欢迎回来' });
                 onClose();
                 router.refresh();
             }

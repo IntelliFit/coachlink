@@ -60,8 +60,6 @@ export async function POST(req: Request) {
             contained_options: makeContainedOptions(trainingDays),
             suitable_for: suitableFor || null,
             training_days: trainingDays,
-            training_days_count: trainingDays.filter(day => day.type === 'training').length,
-            rest_days_count: trainingDays.filter(day => day.type === 'rest').length,
             type: 'custom'
         })
         .select()

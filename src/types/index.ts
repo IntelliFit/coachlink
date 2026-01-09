@@ -35,6 +35,12 @@ export type LeaderboardTemplateRow =
 export type LeaderboardEntriesRow =
     CoachLinkTable["leaderboard_entries"]["Row"];
 
+export type KnowledgeBookRow = CoachLinkTable["knowledge_books"]["Row"];
+export type KnowledgeSubscriptionRow =
+    CoachLinkTable["knowledge_subscriptions"]["Row"];
+export type KnowledgeVideoRow = CoachLinkTable["knowledge_videos"]["Row"];
+export type KnowledgeProgressRow = CoachLinkTable["knowledge_progress"]["Row"];
+
 // 强度描述系统类型
 export * from "./intensity";
 
