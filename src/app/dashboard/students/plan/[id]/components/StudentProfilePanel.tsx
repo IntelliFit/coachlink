@@ -82,7 +82,7 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
         <>
             {/* 学员档案入口 - 严格对齐 Aero 风格 */}
             <div
-                className="group relative bg-surface-50/50 rounded-[24px] p-5 cursor-pointer transition-all duration-500 ease-out border border-surface-200/70 hover:bg-surface hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] mb-6"
+                className="group relative bg-surface rounded-[24px] p-5 cursor-pointer transition-all duration-500 ease-out border border-surface-200/70 hover:bg-surface hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] mb-6"
                 onClick={() => setVisible(true)}
             >
                 {/* 背景光晕装饰：对齐计划卡片的渐变逻辑 */}

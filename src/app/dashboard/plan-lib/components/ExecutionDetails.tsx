@@ -68,7 +68,7 @@ const ExecutionDetails: React.FC<ExecutionDetailsProps> = ({
 
     return (
         <>
-            <div className="mt-4 border-t border-surface-200 pt-4">
+            <div className="mt-4 border-surface-200 pt-4">
                 <div 
                     className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 overflow-hidden"
                 >

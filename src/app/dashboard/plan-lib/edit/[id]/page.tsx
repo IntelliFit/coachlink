@@ -540,7 +540,7 @@ const EditPlanPage = () => {
                 }}
             />
 
-            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200">
+            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1">
@@ -597,6 +597,7 @@ const EditPlanPage = () => {
                     <Button
                         label="保存模板"
                         icon="pi pi-check"
+                        className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
                         onClick={handleSave}
                         loading={saving}
                     />

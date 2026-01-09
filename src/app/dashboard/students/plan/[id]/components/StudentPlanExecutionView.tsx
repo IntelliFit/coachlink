@@ -5,7 +5,7 @@ import { Button } from 'primereact/button';
 import { Badge } from 'primereact/badge';
 import { Dialog } from 'primereact/dialog';
 import { Skeleton } from 'primereact/skeleton';
-import { ClipboardList, ChevronRight, Bolt, Moon, CheckCircle2, History } from 'lucide-react';
+import { ClipboardList, ChevronRight, Bolt, Moon, CheckCircle2, History, Dumbbell, Coffee } from 'lucide-react';
 import { planLibService } from '@/app/service/planLibService';
 import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
@@ -100,7 +100,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
         <>
             {/* 1. 外部展示卡片 (Aero 风格版) */}
             <div
-                className="group relative bg-surface-50/50 rounded-[24px] p-5 cursor-pointer transition-all duration-500 ease-out border border-surface-200/70 hover:bg-surface hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] mb-6"
+                className="group relative bg-surface rounded-[24px] p-5 cursor-pointer transition-all duration-500 ease-out border border-surface-200/70 hover:bg-surface hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] mb-6"
                 onClick={() => setDetailVisible(true)}
             >
                 {/* 背景光晕装饰 */}
@@ -174,9 +174,6 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                         <div className="space-y-8">
                             {/* 1. 计划概览 - 数值中心化布局 */}
                             <div className="bg-surface-50/40 rounded-[24px] p-6 border border-surface-100/50">
-                                <p className="text-sm text-surface-500 font-medium leading-relaxed mb-6 italic opacity-80">
-                                    “ {instance.description || '暂无详细计划描述'} ”
-                                </p>
                                 <div className="flex items-center justify-around relative">
                                     {/* 极简纵向分割线 */}
                                     <div className="absolute left-1/2 -translate-x-1/2 h-8 w-[1px] bg-surface-200/40" />
@@ -225,7 +222,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform duration-500 ${isRest ? 'bg-blue-50 text-blue-500' : 'bg-primary-50 text-primary-500'
                                                             }`}>
-                                                            {isRest ? <Moon size={16} /> : <Bolt size={16} strokeWidth={2.5} />}
+                                                            {isRest ? <Coffee size={16} /> : <Dumbbell size={16} strokeWidth={2.5} />}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-sm font-black text-surface-900 tracking-tight">第 {day.dayIndex} 天</span>
