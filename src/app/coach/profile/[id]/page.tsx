@@ -14,9 +14,6 @@ import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-inf
 
 const CoachProfilePage: React.FC = () => {
     const searchParam = useSearchParams();
-
-
-
     const [activeTab, setActiveTab] = useState<number>(parseInt(searchParam.get('tab') || '0'));
 
     const [mySubscriptions, setMySubscriptions] = useState<QueryCoachSubscription[]>([]);
