@@ -17,7 +17,10 @@ export interface CoachPlansPreview {
     trainingDaysCount: number;
     containedOptions: string[];
     weekDays: number[];
-    globalAnswers: Record<string, number> | null; // 新增
+    globalAnswers: Record<string, number> | null;
+
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface ListTemplatesResponseDto {
