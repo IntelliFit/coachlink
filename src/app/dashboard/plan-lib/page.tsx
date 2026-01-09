@@ -164,23 +164,6 @@ const PlanLib = () => {
         );
     };
 
-
-    // 确定当前应该显示的数据
-    const getCurrentData = () => {
-        if (searchTerm) {
-            return searchResults;
-        }
-        return templates;
-    };
-
-    // 确定当前的总记录数
-    const getCurrentTotalRecords = () => {
-        if (searchTerm) {
-            return searchTotalRecords;
-        }
-        return totalRecords;
-    };
-
     // 确定是否应该显示骨架屏
     const shouldShowSkeleton = () => {
         // 初始加载或搜索时显示骨架屏
@@ -199,7 +182,7 @@ const PlanLib = () => {
                     </h1>
                     <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary-50 px-2 py-0.5 rounded">
-                            {totalRecords} Total
+                            {totalRecords} Templates
                         </span>
                         <span className="text-sm text-surface-500 font-medium">沉淀高效训练体系</span>
                     </div>
@@ -276,11 +259,12 @@ const PlanLib = () => {
                     </div>
                 ) : (
                     <DataView
-                        value={getCurrentData()}
+                        lazy
+                        value={searchTerm ? searchResults : templates}
                         itemTemplate={renderTemplateCard}
                         paginator
                         rows={itemsPerPage}
-                        totalRecords={getCurrentTotalRecords()}
+                        totalRecords={searchTerm ? searchTotalRecords : totalRecords}
                         first={searchTerm ? 0 : (currentPage - 1) * itemsPerPage}
                         onPage={onPageChange}
                         className="bg-transparent"
@@ -298,7 +282,7 @@ const PlanLib = () => {
                     />
                 )}
 
-                {!loading && getCurrentData().length === 0 && (
+                {!loading && (searchTerm ? searchResults : templates).length === 0 && (
                     <div className="text-center py-32 border-2 border-dashed border-surface-100 rounded-[32px]">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 text-primary mb-4">
                             <i className="pi pi-folder-open text-2xl" />

@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     let query = supabase
         .from("coach_plan_templates")
         .select(
-            "id,name,description,type,tags,suitable_for,rest_days_count,training_days_count,contained_options,week_days,global_answers",
+            "id,name,description,type,tags,suitable_for,rest_days_count,training_days_count,contained_options,week_days,global_answers,created_at,updated_at",
             { count: "exact" },
         )
         .eq("coach_id", userId)
@@ -83,6 +83,8 @@ export async function POST(req: Request) {
                 weekDays: template.week_days || [],
                 globalAnswers:
                     (template.global_answers as Record<string, number>) || null,
+                createdAt: template.created_at,
+                updatedAt: template.updated_at,
             })),
             totalCount: count || 0,
             page,

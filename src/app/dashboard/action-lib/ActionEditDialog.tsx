@@ -147,7 +147,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center">
                     <i className={`pi ${action ? 'pi-pencil' : 'pi-plus'} text-primary-500 text-sm`} />
                 </div>
-                <span className="font-black text-xl tracking-tight text-surface-900">{action ? "编辑项目" : "新增项目"}</span>
+                <span className="font-black text-xl tracking-tight text-surface-900">{action ? "编辑动作" : "添加动作"}</span>
             </div>}
             visible={visible}
             style={{ width: '600px' }}

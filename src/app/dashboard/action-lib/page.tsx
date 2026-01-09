@@ -138,9 +138,9 @@ const ActionLib = () => {
 
     const onPageChange = (event: { first: number; rows: number }) => {
         const newPage = Math.floor(event.first / event.rows) + 1;
-        const params = new URLSearchParams(searchParams.toString())
-        params.set('page', newPage.toString());
-        router.push(pathname + '?' + params.toString());
+        // const params = new URLSearchParams(searchParams.toString())
+        // params.set('page', newPage.toString());
+        // router.push(pathname + '?' + params.toString());
 
         setCurrentPage(newPage);
     };
