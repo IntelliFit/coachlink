@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
-import { Dropdown } from 'primereact/dropdown';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
 import { IconField } from 'primereact/iconfield';
@@ -227,7 +225,7 @@ const PlanLib = () => {
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         placeholder="搜索模板名称或描述..."
-                        className="w-full border-surface-200 bg-surface-50/50 focus:bg-white focus:border-primary rounded-2xl py-3 transition-all"
+                        className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-3 transition-all"
                     />
                 </IconField>
                 <Button
@@ -242,14 +240,37 @@ const PlanLib = () => {
             <main>
                 {shouldShowSkeleton() ? (
                     <div className="space-y-4">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="flex items-center gap-6 p-6 bg-white border border-surface-100 rounded-[20px]">
-                                <Skeleton shape="circle" size="3rem" />
-                                <div className="flex-1">
-                                    <Skeleton width="30%" className="mb-2" />
-                                    <Skeleton width="60%" />
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex flex-col md:flex-row items-center gap-6 p-5 bg-surface dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px]">
+
+                                {/* 左侧：核心数值占位 (对齐 72x72 尺寸) */}
+                                <div className="flex flex-col items-center justify-center min-w-[72px] h-[72px] bg-surface-50 dark:bg-surface-800/50 rounded-[18px]">
+                                    <Skeleton width="1.5rem" height="1.5rem" className="mb-2" />
+                                    <Skeleton width="2rem" height="0.6rem" />
                                 </div>
-                                <Skeleton width="8rem" height="2.5rem" borderRadius="12px" />
+
+                                {/* 中间：信息排版占位 */}
+                                <div className="flex-1 min-w-0 w-full">
+                                    {/* 标题占位 */}
+                                    <Skeleton width="40%" height="1.25rem" className="mb-3" />
+
+                                    {/* 描述占位 */}
+                                    <Skeleton width="80%" height="0.8rem" className="mb-4" />
+
+                                    {/* 标签组占位：模拟多个胶囊标签 */}
+                                    <div className="flex gap-2">
+                                        <Skeleton width="4rem" height="1.5rem" borderRadius="12px" />
+                                        <Skeleton width="3rem" height="1.5rem" borderRadius="12px" />
+                                        <Skeleton width="5rem" height="1.5rem" borderRadius="12px" />
+                                    </div>
+                                </div>
+
+                                {/* 右侧：操作区占位 (对应 Hover 时才会出现的按钮空间) */}
+                                <div className="hidden md:flex items-center gap-2">
+                                    <Skeleton shape="circle" size="2rem" />
+                                    <Skeleton shape="circle" size="2rem" />
+                                    <Skeleton shape="circle" size="2rem" />
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -269,7 +290,7 @@ const PlanLib = () => {
                             paginator: {
                                 pageButton: ({ context }) => ({
                                     className: context.active
-                                        ? 'bg-primary text-white rounded-xl shadow-md shadow-primary-100'
+                                        ? 'bg-primary text-surface rounded-xl shadow-md shadow-primary-100'
                                         : 'text-surface-500 rounded-xl hover:bg-surface-100'
                                 })
                             }

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { DataView } from 'primereact/dataview';
@@ -15,110 +14,84 @@ import ActionEditDialog from './ActionEditDialog';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { CoachActionRow } from '@/types';
+import ActionCard from './ActionCard';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 
 const ActionLib = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
 
-    // 普通分页数据
+    const { showToast } = useToastContext();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
     const [actions, setActions] = useState<CoachActionRow[]>([]);
-    // 搜索结果数据
     const [searchResults, setSearchResults] = useState<CoachActionRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('pageId') || '1'));
     const [totalRecords, setTotalRecords] = useState(0);
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
     const [editingAction, setEditingAction] = useState<CoachActionRow | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
 
-    const { showToast } = useToastContext();
     const itemsPerPage = 12;
 
-    // 加载动作列表
+    // 逻辑：加载列表
     useEffect(() => {
-        if (!coach?.id) return;
-
-        // 搜索模式下不加载普通列表
-        if (searchTerm) return;
-
+        if (!coach?.id || searchTerm) return;
         loadActions();
     }, [coach?.id, currentPage]);
 
     const loadActions = async () => {
-        if (!coach?.id) return;
 
         setLoading(true);
         try {
             const res = await actionLibService.listActions({
-                search: undefined,
                 page: currentPage,
                 limit: itemsPerPage
             });
-
             if (res) {
                 setActions(res.actions);
                 setTotalRecords(res.totalCount);
             }
         } catch (error) {
-            console.error('加载动作列表失败:', error);
             showToast({ severity: 'error', summary: '加载失败', detail: '无法加载动作列表' });
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAddAction = () => {
-        setEditingAction(null);
-        setDialogVisible(true);
-    };
-
-    const handleEditAction = async (action: CoachActionRow) => {
-        setEditingAction(action);
-        setDialogVisible(true);
-    };
-
-    const handleDeleteAction = (action: CoachActionRow) => {
-        confirmDialog({
-            message: `确定要删除动作"${action.name}"吗？此操作无法撤销。`,
-            header: '删除确认',
-            icon: 'pi pi-exclamation-triangle',
-            accept: () => deleteAction(action.id),
-            reject: () => { }
-        });
-    };
-
-    const deleteAction = async (actionId: string) => {
+    const handleSearch = async () => {
+        if (!coach?.id) return;
+        setSearching(true);
         try {
-            await actionLibService.deleteAction({ id: actionId });
-            showToast({ severity: 'success', summary: '删除成功', detail: '动作已删除' });
-
-            // 重新加载当前数据（普通数据或搜索结果）
-            if (searchTerm) {
-                handleSearch();
-            } else {
-                loadActions();
+            const res = await actionLibService.listActions({
+                search: searchTerm || undefined,
+                page: 1,
+                limit: itemsPerPage
+            });
+            if (res) {
+                setSearchResults(res.actions);
+                setSearchTotalRecords(res.totalCount);
+                setCurrentPage(1);
             }
         } catch (error) {
-            console.error('删除动作失败:', error);
-            showToast({ severity: 'error', summary: '删除失败', detail: '无法删除动作' });
+            showToast({ severity: 'error', summary: '搜索失败', detail: '无法搜索动作' });
+        } finally {
+            setSearching(false);
         }
     };
 
     const handleSaveAction = async (actionData: Partial<CoachActionRow>) => {
         try {
             if (editingAction) {
-                // 更新动作
-                await actionLibService.updateAction({
-                    id: editingAction.id,
-                    ...actionData
-                });
+                await actionLibService.updateAction({ id: editingAction.id, ...actionData });
                 showToast({ severity: 'success', summary: '更新成功', detail: '动作已更新' });
             } else {
-                // 添加新动作
                 if (!coach?.id) return;
-
                 await actionLibService.addAction({
                     name: actionData.name || '',
                     detail: actionData.detail || '',
@@ -131,169 +104,57 @@ const ActionLib = () => {
                     item_schema: actionData.item_schema,
                     suggested_time: actionData.suggested_time,
                 });
-
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
-
             setDialogVisible(false);
-
-            // 重新加载当前数据（普通数据或搜索结果）
-            if (searchTerm) {
-                handleSearch();
-            } else {
-                loadActions();
-            }
+            searchTerm ? handleSearch() : loadActions();
         } catch (error) {
-            console.error('保存动作失败:', error);
             showToast({ severity: 'error', summary: '保存失败', detail: '无法保存动作' });
         }
     };
 
-    const handleSearch = async () => {
-        if (!coach?.id) return;
+    const handleEditAction = (action: CoachActionRow) => {
+        setEditingAction(action);
+        setDialogVisible(true);
+    };
 
-        setSearching(true);
-        console.log(searchTerm);
-
-        try {
-            const res = await actionLibService.listActions({
-                search: searchTerm || undefined,
-                page: 1, // 搜索时重置到第一页
-                limit: itemsPerPage
-            });
-
-            if (res) {
-                setSearchResults(res.actions);
-                setSearchTotalRecords(res.totalCount);
-                setCurrentPage(1); // 重置到第一页
+    const handleDeleteAction = (action: CoachActionRow) => {
+        confirmDialog({
+            message: `确定要删除动作"${action.name}"吗？此操作无法撤销。`,
+            header: '确认删除',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger',
+            accept: async () => {
+                try {
+                    await actionLibService.deleteAction({ id: action.id });
+                    showToast({ severity: 'success', summary: '删除成功', detail: '动作已删除' });
+                    searchTerm ? handleSearch() : loadActions();
+                } catch (error) {
+                    showToast({ severity: 'error', summary: '删除失败', detail: '无法删除动作' });
+                }
             }
-        } catch (error) {
-            console.error('搜索动作失败:', error);
-            showToast({ severity: 'error', summary: '搜索失败', detail: '无法搜索动作' });
-        } finally {
-            setSearching(false);
-        }
+        });
     };
 
     const onPageChange = (event: { first: number; rows: number }) => {
         const newPage = Math.floor(event.first / event.rows) + 1;
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('page', newPage.toString());
+        router.push(pathname + '?' + params.toString());
+
         setCurrentPage(newPage);
     };
 
     const renderActionCard = (action: CoachActionRow) => {
-        const positions = action.positions || [];
-
-        return (
-            <div className="border border-surface-200 rounded-lg p-4 hover:shadow-sm transition-all mb-2">
-                <div className="flex justify-between gap-3">
-
-                    {/* 左侧内容 */}
-                    <div className="flex-1 min-w-0">
-                        {/* 名称 */}
-                        <h3 className="text-lg font-semibold text-900 mb-2 line-clamp-1">
-                            {action.name}
-                        </h3>
-
-                        {/* 描述 */}
-                        <p className="text-600 text-sm mb-3 line-clamp-2">
-                            {action.detail}
-                        </p>
-
-                        {/* 标签区域 */}
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {/* Type Badge */}
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                                action.type === 'DIET' ? 'bg-green-100 text-green-700' :
-                                action.type === 'CARDIO' ? 'bg-blue-100 text-blue-700' :
-                                action.type === 'HABIT' ? 'bg-purple-100 text-purple-700' :
-                                'bg-orange-100 text-orange-700'
-                            }`}>
-                                {action.type === 'DIET' ? '饮食' :
-                                 action.type === 'CARDIO' ? '有氧' :
-                                 action.type === 'HABIT' ? '习惯' : '力量'}
-                            </span>
-
-                            {positions.map((pos, index) => (
-                                <span
-                                    key={index}
-                                    className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-700"
-                                >
-                                    {pos}
-                                </span>
-                            ))}
-
-
-
-                            {action.url && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600">
-                                    <i className="pi pi-video mr-1 text-xs"></i>演示
-                                </span>
-                            )}
-
-                            {action.attrs && action.attrs.length > 0 && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-700">
-                                    属性: {action.attrs.length}
-                                </span>
-                            )}
-
-                            {action.enableAutoWeightCompute && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-orange-50 text-orange-600">
-                                    <i className="pi pi-bolt mr-1 text-xs"></i>智能重量
-                                </span>
-                            )}
-
-                            {action.canonical_action_id && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-teal-50 text-teal-600" title="已关联公共动作库">
-                                    <i className="pi pi-check-circle mr-1 text-xs"></i>已关联
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* 右侧操作按钮 */}
-                    <div className="flex flex-col items-center gap-2 shrink-0">
-                        <Button
-                            icon="pi pi-pencil"
-                            className="p-button-rounded p-button-text"
-                            tooltip="编辑"
-                            onClick={() => handleEditAction(action)}
-                        />
-                        <Button
-                            icon="pi pi-trash"
-                            className="p-button-rounded p-button-text p-button-danger"
-                            tooltip="删除"
-                            onClick={() => handleDeleteAction(action)}
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // 确定当前应该显示的数据
-    const getCurrentData = () => {
-        if (searchTerm) {
-            return searchResults;
-        }
-        return actions;
-    };
-
-    // 确定当前的总记录数
-    const getCurrentTotalRecords = () => {
-        if (searchTerm) {
-            return searchTotalRecords;
-        }
-        return totalRecords;
-    };
-
-    // 确定是否应该显示骨架屏
-    const shouldShowSkeleton = () => {
-        // 初始加载或搜索时显示骨架屏
-        return loading || searching;
+        return <ActionCard
+            action={action}
+            onEditAction={handleEditAction}
+            onDeleteAction={handleDeleteAction}
+        />
     };
 
     return (
-        <div className="mx-auto">
+        <div className="max-w-5xl mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-2 duration-1000">
             <ConfirmDialog />
             <ActionEditDialog
                 visible={dialogVisible}
@@ -302,98 +163,91 @@ const ActionLib = () => {
                 onCancel={() => setDialogVisible(false)}
             />
 
-            <Card className="shadow-sm">
-                {/* 顶部区域 - 始终显示搜索框 */}
-                <div className="border-b border-surface-200 p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-900">动作库管理</h1>
-                            <p className="text-600 mt-1">管理您的训练动作库</p>
-                        </div>
-                        <Button
-                            label="添加动作"
-                            icon="pi pi-plus"
-                            onClick={handleAddAction}
-                        />
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-4 mt-6">
-                        <div className="flex-1">
-                            <IconField iconPosition="left" className='w-full'>
-                                <InputIcon className="pi pi-search"> </InputIcon>
-                                <InputText
-                                    value={searchTerm}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
-                                        setSearchTerm(value);
-
-                                        if (!value) {
-                                            // 清空搜索结果，不发请求
-                                            setSearchResults([]);
-                                            setSearchTotalRecords(0);
-                                            // 保留原动作列表的 actions，不调用 loadActions()
-                                        }
-                                    }}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                    placeholder="搜索动作名称或描述..."
-                                    className="w-full"
-                                />
-                            </IconField>
-
-                        </div>
-                        <Button
-                            label="搜索"
-                            icon="pi pi-search"
-                            onClick={handleSearch}
-                        />
+            {/* Header: 数值中心化 */}
+            <header className="flex items-center justify-between mb-10 px-2">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tight text-surface-900">动作库管理</h1>
+                    <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary-50 px-2 py-0.5 rounded">
+                            {searchTerm ? searchTotalRecords : totalRecords} Actions
+                        </span>
+                        <span className="text-sm text-surface-500 font-medium">定制您的标准动作教学体系</span>
                     </div>
                 </div>
+                <Button label="添加动作" icon="pi pi-plus" onClick={() => { setEditingAction(null); setDialogVisible(true); }}
+                    className="p-button-primary shadow-lg shadow-primary-100 rounded-2xl px-6 active:scale-95 transition-transform" />
+            </header>
 
-                {/* 动作列表区域 */}
-                <div className="p-4 md:p-6">
-                    {shouldShowSkeleton() ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="border rounded-lg p-4">
-                                    <Skeleton width="100%" height="1.5rem" className="mb-3" />
-                                    <Skeleton width="80%" height="1rem" className="mb-2" />
-                                    <Skeleton width="60%" height="1rem" className="mb-4" />
-                                    <div className="flex justify-between">
-                                        <Skeleton width="3rem" height="1.5rem" />
-                                        <div className="flex gap-1">
-                                            <Skeleton width="2rem" height="2rem" shape="circle" />
-                                            <Skeleton width="2rem" height="2rem" shape="circle" />
-                                        </div>
-                                    </div>
+            {/* Search: 呼吸感交互 */}
+            <section className="flex gap-3 mb-8 px-2">
+                <IconField iconPosition="left" className="flex-1">
+                    <InputIcon className="pi pi-search text-surface-400" />
+                    <InputText
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            if (!e.target.value) {
+                                setSearchResults([]);
+                                setSearchTotalRecords(0);
+                                setCurrentPage(1);
+                                loadActions();
+                            }
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        placeholder="搜索动作名称、描述或训练部位..."
+                        className="w-full border-surface-200 bg-surface-50/50 focus:bg-white focus:border-primary rounded-2xl py-3 transition-all"
+                    />
+                </IconField>
+                <Button icon="pi pi-search" onClick={handleSearch} loading={searching}
+                    className="p-button-primary p-button-outlined rounded-2xl px-6 active:scale-95 transition-transform" />
+            </section>
+
+            <main>
+                {loading || searching ? (
+                    <div className="space-y-3">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="flex items-center gap-5 p-4 bg-white border border-surface-100 rounded-[20px]">
+                                <Skeleton width="56px" height="56px" borderRadius="16px" />
+                                <div className="flex-1"><Skeleton width="30%" className="mb-2" /><Skeleton width="60%" height="0.8rem" /></div>
+                                <div className="flex gap-2"><Skeleton shape="circle" size="2rem" /><Skeleton shape="circle" size="2rem" /></div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <>
+                        <DataView
+                            lazy
+                            value={searchTerm ? searchResults : actions}
+                            itemTemplate={renderActionCard}
+                            paginator
+                            rows={itemsPerPage}
+                            totalRecords={searchTerm ? searchTotalRecords : totalRecords}
+                            onPage={onPageChange}
+                            first={(currentPage - 1) * itemsPerPage}
+                            className="bg-transparent"
+                            pt={{
+                                content: { className: 'bg-transparent border-none space-y-1' },
+                                paginator: {
+                                    pageButton: ({ context }) => ({
+                                        className: context.active
+                                            ? 'bg-primary text-white rounded-xl shadow-md shadow-primary-100'
+                                            : 'text-surface-500 rounded-xl hover:bg-surface-100 transition-colors'
+                                    })
+                                }
+                            }}
+                        />
+                        {(searchTerm ? searchResults : actions).length === 0 && (
+                            <div className="text-center py-24 border-2 border-dashed border-surface-100 rounded-[32px]">
+                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-surface-50 text-surface-400 mb-4">
+                                    <i className="pi pi-search text-xl" />
                                 </div>
-                            ))}
-                        </div>
-                    ) : getCurrentData().length === 0 && !searchTerm ? (
-                        <div className="text-center py-12">
-                            <h3 className="text-lg font-semibold text-900 mb-2">暂无动作</h3>
-                            <p className="text-600 mb-6">开始添加您的第一个训练动作</p>
-                            <Button
-                                label="添加动作"
-                                icon="pi pi-plus"
-                                onClick={handleAddAction}
-                            />
-                        </div>
-                    ) : (
-                        <>
-                            <DataView
-                                value={getCurrentData()}
-                                itemTemplate={renderActionCard}
-                                paginator
-                                rows={itemsPerPage}
-                                totalRecords={getCurrentTotalRecords()}
-                                first={searchTerm ? 0 : (currentPage - 1) * itemsPerPage}
-                                onPage={onPageChange}
-                                emptyMessage="未找到匹配的动作"
-                            />
-                        </>
-                    )}
-                </div>
-            </Card>
+                                <h3 className="text-lg font-bold text-surface-900 tracking-tight">未找到相关动作</h3>
+                                <p className="text-surface-500 text-sm mt-1">请尝试更换搜索关键词或添加新动作</p>
+                            </div>
+                        )}
+                    </>
+                )}
+            </main>
         </div>
     );
 };
