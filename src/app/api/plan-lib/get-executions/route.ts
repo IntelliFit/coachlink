@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     const { data: executions, error } = await supabase
         .from("plan_instance_executions")
         .select("*")
-        .eq("plan_instance_id", instanceId)
+        .eq("instance_id", instanceId)
         .order("day_index", { ascending: true });
 
     if (error) {

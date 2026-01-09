@@ -77,12 +77,6 @@ export async function POST(req: Request) {
         }
 
         updateData.training_days = trainingDays;
-        updateData.training_days_count = trainingDays.filter((day) =>
-            day.type === "training"
-        ).length;
-        updateData.rest_days_count = trainingDays.filter((day) =>
-            day.type === "rest"
-        ).length;
 
         // 如果前端提供了 weekDays，使用前端的值；否则自动计算
         if (weekDays !== undefined) {
