@@ -1,0 +1,1 @@
+scp -r .next/standalone/ root@154.8.205.78:/www/wwwroot/coachlink/.next/standalone

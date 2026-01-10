@@ -84,8 +84,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             if (result?.error) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
             } else {
+                // Close modal and redirect to dashboard/home after successful login
                 onClose();
-                router.refresh();
+                // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
+                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                    router.push('/');
+                } else {
+                    router.refresh();
+                }
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '登录失败' });
@@ -101,8 +107,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 redirect: false,
             });
             if (!result?.error) {
+                // Close modal and redirect to dashboard/home after successful login
                 onClose();
-                router.refresh();
+                // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
+                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                    router.push('/');
+                } else {
+                    router.refresh();
+                }
             }
         } finally { setLoading(false); }
     };

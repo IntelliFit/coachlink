@@ -1,9 +1,21 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-    baseURL: "https://api.deepseek.com",
-    apiKey: process.env.DEEPSEEK_API_KEY,
-});
+let openai: OpenAI;
+
+function getOpenAIClient(): OpenAI {
+    if (!openai) {
+        if (!process.env.DEEPSEEK_API_KEY) {
+            throw new Error("Missing DEEPSEEK_API_KEY environment variable");
+        }
+
+        openai = new OpenAI({
+            baseURL: "https://api.deepseek.com",
+            apiKey: process.env.DEEPSEEK_API_KEY,
+        });
+    }
+
+    return openai;
+}
 
 type DeepSeekOptions = {
     /**
@@ -28,7 +40,7 @@ export async function callDeepSeek(
         maxTokens = 6000,
     } = options;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
         messages: [{ role: "user", content: prompt }],
         model: useReasoner ? "deepseek-reasoner" : "deepseek-chat",
         max_tokens: maxTokens,
