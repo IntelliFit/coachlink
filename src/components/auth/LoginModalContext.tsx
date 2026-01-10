@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import LoginModal from './LoginModal';
+import { useRouter } from 'next/navigation';
 
 type LoginModalContextType = {
     isLoginModalOpen: boolean;
@@ -18,8 +19,13 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
         setIsLoginModalOpen(true);
     };
 
+    const router = useRouter();
+
     const closeLoginModal = () => {
         setIsLoginModalOpen(false);
+        setTimeout(() => {
+            router.back();
+        }, 0);
     };
 
     return (

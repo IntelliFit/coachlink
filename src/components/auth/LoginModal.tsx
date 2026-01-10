@@ -111,7 +111,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <Dialog
             visible={isOpen}
             onHide={onClose}
-            dismissableMask
             showHeader={false}
             className="border-none shadow-2xl rounded-3xl overflow-hidden"
             style={{ width: '850px', maxWidth: '95vw' }}

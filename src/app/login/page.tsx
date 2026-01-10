@@ -11,9 +11,6 @@ export default function LoginPage() {
     useEffect(() => {
         // 当访问 /login 路由时，打开登录模态框
         openLoginModal();
-        
-        // 然后导航回前一个页面
-        router.push('/');
     }, []);
 
     return null;
