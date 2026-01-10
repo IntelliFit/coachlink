@@ -30,3 +30,4 @@ dist-ssr
 .env.development
 
 pnpm-lock.yaml
+standalone.tar.gz

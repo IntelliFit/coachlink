@@ -21,11 +21,11 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
 
     const router = useRouter();
 
-    const closeLoginModal = () => {
+    const closeLoginModal = (back: boolean = true) => {
         setIsLoginModalOpen(false);
-        setTimeout(() => {
+        if (back) {
             router.back();
-        }, 0);
+        }
     };
 
     return (
@@ -33,7 +33,7 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
             {children}
             <LoginModal 
                 isOpen={isLoginModalOpen} 
-                onClose={closeLoginModal} 
+                onClose={back => closeLoginModal(back)} 
             />
         </LoginModalContext.Provider>
     );

@@ -13,7 +13,7 @@ import { Phone, Lock, ShieldCheck, X, LogIn, Send } from 'lucide-react';
 
 interface LoginModalProps {
     isOpen: boolean;
-    onClose: () => void;
+    onClose: (back: boolean) => void;
 }
 
 interface DevUser {
@@ -85,7 +85,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
             } else {
                 // Close modal and redirect to dashboard/home after successful login
-                onClose();
+                onClose(true);
                 // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
                 if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
                     router.push('/');
@@ -108,7 +108,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             });
             if (!result?.error) {
                 // Close modal and redirect to dashboard/home after successful login
-                onClose();
+                onClose(true);
                 // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
                 if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
                     router.push('/');
@@ -122,7 +122,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     return (
         <Dialog
             visible={isOpen}
-            onHide={onClose}
+            onHide={() => onClose(true)}
             showHeader={false}
             className="border-none shadow-2xl rounded-3xl overflow-hidden"
             style={{ width: '850px', maxWidth: '95vw' }}
@@ -176,7 +176,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 {/* 右侧表单区域 */}
                 <div className="flex-1 p-8 md:p-14 flex flex-col justify-center relative">
                     <button
-                        onClick={onClose}
+                        onClick={() => onClose(true)}
                         className="absolute top-6 right-6 p-2 text-surface-400 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-all"
                     >
                         <X size={20} />
@@ -263,7 +263,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                             <p className="text-sm text-surface-400">
                                 还没有账户？{' '}
                                 <button
-                                    onClick={() => { onClose(); router.push('/register'); }}
+                                    onClick={() => {
+                                        router.push('/register');
+                                        onClose(false);
+                                    }}
                                     className="text-primary-600 hover:text-primary-700 font-bold ml-1 transition-colors"
                                     type="button"
                                 >
