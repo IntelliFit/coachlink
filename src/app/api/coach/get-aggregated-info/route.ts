@@ -8,10 +8,17 @@ import type {
 } from "./entity";
 import redis from "@/lib/redisClient";
 
+/**
+ * 用于将“教练申请表”的资料补全到 coaches.profile：
+ * - 只在 coaches.profile 缺少该字段（undefined）时才补全
+ * - 不覆盖教练已经填写/清空后的字段（哪怕是 null / [] / {}）
+ */
 function mergeProfile(base: any, incoming: Record<string, any>) {
+    if (!incoming) return base || null;
     const merged = { ...(base || {}) };
     Object.entries(incoming || {}).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (value === undefined || value === null) return;
+        if (merged[key] === undefined) {
             merged[key] = value;
         }
     });

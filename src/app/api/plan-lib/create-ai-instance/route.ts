@@ -43,11 +43,13 @@ export async function POST(req: Request) {
     // 获取学员体重
     const { data: profile } = await supabase
         .from("user_profiles")
-        .select("weight")
+        .select("weight, nickname, full_name")
         .eq("user_id", subscription.student_id)
         .single();
 
     const studentBodyWeight = profile?.weight || null;
+    const studentNameRaw = (profile?.nickname || profile?.full_name || "学员").trim();
+    const studentName = studentNameRaw || "学员";
 
     // --- QUOTA CHECK START ---
     // Check if user has sufficient AI quota (1 per generation)
@@ -132,12 +134,10 @@ export async function POST(req: Request) {
             `保留完整训练计划，共${trainingDays.length}天，从第${startExecutionDay}天开始执行`,
         );
 
-        // 计算计划名称，标注起始位置
+        const planBaseName = `${studentName}的计划`;
         const planName = startExecutionDay > 1
-            ? `AI 生成计划 (从第${startWeek}周${
-                startDay > 1 ? `第${startDay}天` : ""
-            }开始)`
-            : "AI 生成计划";
+            ? `${planBaseName}（从第${startWeek}周${startDay > 1 ? `第${startDay}天` : ""}开始）`
+            : planBaseName;
 
         // 更新数据库 - 保留完整结构，通过 start_execution_day 标记起始位置
         const { data: template, error: updateError } = await supabase
