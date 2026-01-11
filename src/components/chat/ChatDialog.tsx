@@ -41,6 +41,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     // 1. 加载用户 Profile
     useEffect(() => {
         if (!visible || !chatroom || !session?.user?.id) return;
+        
         const loadUserProfiles = async () => {
             for (const id of chatroom.members) {
                 if (id === session.user.id) {
@@ -141,8 +142,8 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         setSending(true);
 
         const count = videos.length;
-        const content = count === 1 
-            ? `[视频] ${videos[0].actionName}` 
+        const content = count === 1
+            ? `[视频] ${videos[0].actionName}`
             : `[${count}个视频]`;
 
         const optimisticMsg: MessageItemType = {
@@ -159,13 +160,13 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         };
         setMessages(prev => [...prev, optimisticMsg]);
 
-        const res = await chatService.sendMessage({ 
-            roomId: chatroom.id, 
-            messageType: 'video_reference', 
+        const res = await chatService.sendMessage({
+            roomId: chatroom.id,
+            messageType: 'video_reference',
             content: '',
-            videoReferences: videos 
+            videoReferences: videos
         });
-        
+
         if (!res) {
             showToast({ severity: 'error', summary: '发送失败' });
             setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
@@ -174,10 +175,10 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     };
 
     const renderHeader = () => {
-        if (!chatPartner) return <div className="flex gap-3 items-center px-2"><Skeleton shape="circle" size="2.5rem"/><Skeleton width="6rem" height="1.2rem"/></div>;
+        if (!chatPartner) return <div className="flex gap-3 items-center px-2"><Skeleton shape="circle" size="2.5rem" /><Skeleton width="6rem" height="1.2rem" /></div>;
         return (
             <div className="flex items-center gap-3 px-2">
-                <Avatar image={chatPartner.avatar || undefined} label={chatPartner.avatar ? undefined : chatPartner.name?.charAt(0)} shape="circle" className="bg-primary-500 text-white font-bold" />
+                <Avatar image={chatPartner.avatar || undefined} label={chatPartner.avatar ? undefined : chatPartner.name?.charAt(0)} shape="circle" className="bg-primary-500 text-surface font-bold" />
                 <div className="flex flex-col">
                     <span className="text-base font-black text-surface-900 tracking-tight leading-tight">{chatPartner.name}</span>
                     <div className="flex items-center gap-1.5">
@@ -216,7 +217,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                                 <div className="absolute inset-0 w-10 h-10 border-4 border-primary-100 rounded-full"></div>
                             </div>
                             <p className="mt-4 text-[10px] font-black text-surface-400 uppercase tracking-[0.2em] animate-pulse">
-                                Loading Messages
+                                正在加载消息
                             </p>
                         </div>
                     ) : messages.length === 0 ? (
@@ -239,7 +240,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                 {/* 输入区域 */}
                 <div className="p-4 md:p-6 bg-surface-0 border-t border-surface-100">
                     <div className="flex items-end gap-2 bg-surface-50 p-2 rounded-[1.5rem] border border-surface-100 focus-within:border-primary-300 focus-within:ring-4 focus-within:ring-primary-500/5 transition-all">
-                        <button 
+                        <button
                             className="p-2.5 text-surface-400 hover:text-primary-500 transition-colors"
                             onClick={() => setShowVideoPicker(true)}
                             disabled={sending}
@@ -247,7 +248,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                         >
                             <AtSign size={20} />
                         </button>
-                        
+
                         <InputTextarea
                             value={messageText}
                             onChange={(e) => setMessageText(e.target.value)}
@@ -263,11 +264,33 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                         <Button
                             onClick={sendMessage}
                             disabled={!messageText.trim() || sending}
-                            className={`w-10 h-10 rounded-full border-none flex-shrink-0 transition-all ${
-                                messageText.trim() ? 'bg-primary-500 text-white shadow-lg' : 'bg-surface-200 text-surface-400'
-                            }`}
+                            // 移除 Primereact 默认样式，完全自定义 Aero 物理动效
+                            className={`
+                                relative w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center 
+                                transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] border-none
+                                ${messageText.trim() && !sending
+                                                            ? 'bg-primary-500 text-surface shadow-[0_8px_24px_rgba(var(--primary-rgb),0.35)] scale-100 hover:scale-110 active:scale-90'
+                                                            : 'bg-surface-100 text-surface-300 scale-95 cursor-not-allowed'
+                                                        }
+                            `}
                         >
-                            {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={2.5} />}
+                            {sending ? (
+                                <Loader2 size={18} className="animate-spin text-surface" />
+                            ) : (
+                                <div className={`transition-all duration-500 ${messageText.trim() ? 'translate-x-0.5 -translate-y-0.5' : ''}`}>
+                                    <Send
+                                        size={18}
+                                        strokeWidth={3}
+                                        className={`transition-transform duration-500 ${messageText.trim() ? 'rotate-[-12deg] scale-110' : 'rotate-0 scale-100'
+                                            }`}
+                                    />
+                                </div>
+                            )}
+
+                            {/* 呼吸感氛围灯：仅在可发送时，背景产生极其微弱的脉冲感 */}
+                            {messageText.trim() && !sending && (
+                                <span className="absolute inset-0 rounded-full bg-primary-400 animate-ping opacity-20 pointer-events-none" />
+                            )}
                         </Button>
                     </div>
                 </div>
@@ -284,9 +307,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                     studentId={
                         // 如果当前用户是教练，查看聊天对象（学员）的视频
                         // 如果当前用户是学员，查看自己的视频
-                        session?.user?.role === 'coach' && chatPartner 
-                            ? chatPartner.id 
-                            : session?.user?.id
+                        session?.user?.is_coach ? undefined : session?.user?.id
                     }
                     onSelect={sendVideoReferences}
                 />

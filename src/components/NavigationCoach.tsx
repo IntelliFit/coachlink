@@ -59,7 +59,7 @@ export default function NavigationCoach() {
                     flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-all duration-300
                     ${isActive
                         ? 'bg-primary-50 text-primary-600'
-                        : 'hover:bg-surface-50 text-surface-600 hover:text-primary-600'}
+                        : 'text-surface-600 hover:text-primary-600'}
                 `}
             >
                 <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
