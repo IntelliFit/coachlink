@@ -219,3 +219,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .p-inputtext.p-filled:enabled:focus {
     box-shadow: none !important;
 }
+
+.p-menu .p-menuitem > .p-menuitem-content {
+    @apply rounded-lg;
+}

@@ -119,7 +119,12 @@ export default function StudentsPage() {
 
     const loadCoach = async () => {
         const res = await coachService.getCoach({ userId: session?.user?.id || '' });
-        if (res) setCoach(res.coach);
+        if (res) {
+            setCoach(res.coach);
+            if (res.coach.allow_personal_qrcode) {
+                loadWaitingStudents();
+            }
+        }
     };
 
     useEffect(() => {
@@ -132,7 +137,6 @@ export default function StudentsPage() {
 
         loadStudents(0, rows);
         loadCoach();
-        loadWaitingStudents();
     }, [status, session, router, rows]);
 
     useEffect(() => {
@@ -584,15 +588,17 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </div>
-                {/* <div className="flex gap-3">
-                    <Button
-                        label="待支付确认"
-                        onClick={() => setPaymentDialogVisible(true)}
-                        className="p-button-outlined p-button-secondary rounded-2xl font-bold px-5"
-                        badge={waitingStudents.length > 0 ? waitingStudents.length.toString() : undefined}
-                        badgeClassName="p-badge-danger"
-                    />
-                </div> */}
+                {coach.allow_personal_qrcode && (
+                    <div className="flex gap-3">
+                        <Button
+                            label="待支付确认"
+                            onClick={() => setPaymentDialogVisible(true)}
+                            className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                            badge={waitingStudents.length > 0 ? waitingStudents.length.toString() : undefined}
+                            badgeClassName="p-badge-danger"
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Main Content: 去线条化的 DataView */}
