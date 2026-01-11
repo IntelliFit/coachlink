@@ -439,9 +439,82 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                         />
                     </div>
 
-                    {student.subscribe_data?.answers?.length > 0 && (
+                    {(() => {
+                        // 兼容两种 subscribe_data 结构：
+                        // 1) 旧结构：{ answers: [{ question, answer }] }
+                        // 2) 新结构：TrainingItem[]（tags/times/rm/option/text...）
+                        const sd: any = student.subscribe_data as any;
+
+                        const getQuestionText = (item: any) => {
+                            if (item?.question && String(item.question).trim()) return String(item.question);
+                            switch (item?.type) {
+                                case 'tags':
+                                    return '请选择您偏好的训练项目（可多选）';
+                                case 'times':
+                                    return '您希望每周训练几次？';
+                                case 'rm':
+                                    return '请输入以下动作您的极限重量';
+                                default:
+                                    return '未命名问卷项';
+                            }
+                        };
+
+                        const getAnswerText = (item: any) => {
+                            // 旧结构
+                            if (typeof item?.answer === 'string') return item.answer;
+
+                            // 新结构（TrainingItem）
+                            switch (item?.type) {
+                                case 'tags': {
+                                    const selections = Array.isArray(item.userSelections) ? item.userSelections : [];
+                                    return selections.length > 0 ? selections.join('、') : '未选择';
+                                }
+                                case 'times': {
+                                    const v = item.userSelection;
+                                    return typeof v === 'number' ? `${v} 次/每周` : '未填写';
+                                }
+                                case 'rm': {
+                                    const inputs = item.userInputs;
+                                    const hasAny =
+                                        inputs &&
+                                        typeof inputs === 'object' &&
+                                        Object.values(inputs).some((n: any) => typeof n === 'number' && n > 0);
+                                    return hasAny ? '已填写 RM 数据' : '未填写';
+                                }
+                                case 'option': {
+                                    if (typeof item.userSelection === 'number') {
+                                        const opts = Array.isArray(item.options) ? item.options : [];
+                                        return opts[item.userSelection] ?? `选项 ${item.userSelection + 1}`;
+                                    }
+                                    return '未填写';
+                                }
+                                case 'text': {
+                                    return typeof item.userSelection === 'string' && item.userSelection.trim()
+                                        ? item.userSelection
+                                        : '未填写';
+                                }
+                                default: {
+                                    if (typeof item.userSelection === 'string') return item.userSelection;
+                                    if (typeof item.userSelection === 'number') return String(item.userSelection);
+                                    return '未填写';
+                                }
+                            }
+                        };
+
+                        const normalized: { question: string; answer: string }[] = Array.isArray(sd)
+                            ? sd.map((it: any) => ({ question: getQuestionText(it), answer: getAnswerText(it) }))
+                            : Array.isArray(sd?.answers)
+                                ? sd.answers.map((it: any) => ({
+                                    question: it?.question ? String(it.question) : '未命名问卷项',
+                                    answer: it?.answer ? String(it.answer) : '未填写'
+                                }))
+                                : [];
+
+                        if (normalized.length === 0) return null;
+
+                        return (
                         <div className="space-y-4">
-                            {student.subscribe_data.answers.map((item, index) => (
+                            {normalized.map((item, index) => (
                                 <div key={index} className="group relative flex flex-col gap-2 p-5 rounded-[24px] bg-surface-50/50 border border-surface-100 hover:border-primary-100 hover:bg-surface transition-all">
                                     <div className="flex items-start gap-3">
                                         <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-surface border border-surface-200 flex items-center justify-center text-[10px] font-black text-surface-400 group-hover:text-primary group-hover:border-primary-200 transition-colors">
@@ -461,7 +534,8 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                 </div>
                             ))}
                         </div>
-                    )}
+                        );
+                    })()}
                 </section>
             </div>
 

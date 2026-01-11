@@ -8,8 +8,10 @@ import { Skeleton } from 'primereact/skeleton';
 interface PRRecord {
     id: string;
     exercise_name: string;
-    max_weight: number;
-    max_reps: number;
+    // 与 /api/execution/get-pr-records 返回保持一致
+    weight: number;
+    reps: number;
+    e1rm?: number;
     load_formula: string;
     date_achieved: string;
     notes?: string;
@@ -120,7 +122,8 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
                             <div>
                                 <h4 className="text-sm font-bold text-surface-900 tracking-tight">{pr.exercise_name} 新纪录！</h4>
                                 <p className="text-[11px] text-surface-500 mt-0.5 opacity-80 leading-relaxed font-medium">
-                                    {pr.notes || `成功完成 ${pr.load_formula}`}
+                                    {/* 避免与右侧 Formula 区重复：公式单独展示，这里仅展示备注或简短说明 */}
+                                    {pr.notes || '成功完成'}
                                 </p>
                             </div>
 
@@ -129,12 +132,12 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
                                 <div className="flex-1 flex items-center gap-3 p-3 bg-surface-50/50 rounded-[16px] border border-surface-100/30 group-hover:border-primary-100 transition-colors">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Weight</span>
-                                        <span className="text-lg font-black text-surface-900 tracking-tighter">{pr.max_weight}<small className="text-[10px] ml-0.5 font-bold">kg</small></span>
+                                        <span className="text-lg font-black text-surface-900 tracking-tighter">{pr.weight}<small className="text-[10px] ml-0.5 font-bold">kg</small></span>
                                     </div>
                                     <div className="w-[1px] h-6 bg-surface-200/50" />
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Reps</span>
-                                        <span className="text-lg font-black text-surface-900 tracking-tighter">{pr.max_reps}</span>
+                                        <span className="text-lg font-black text-surface-900 tracking-tighter">{pr.reps}</span>
                                     </div>
                                     <div className="ml-auto text-right">
                                         <div className="text-[9px] font-bold text-primary-400 uppercase tracking-widest">Formula</div>

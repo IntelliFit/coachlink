@@ -26,6 +26,22 @@ export const StudentSubscribeDataView: React.FC<StudentSubscribeDataViewProps> =
     autoComputeActions = [],
     onEdit
 }) => {
+    const getQuestionText = (item: SubscribeItem) => {
+        // 兼容：部分题型（tags/times/rm）历史上不存 question 字段，标题需由前端按类型提供
+        if (item.question && item.question.trim()) return item.question;
+
+        switch (item.type) {
+            case 'tags':
+                return '请选择您偏好的训练项目（可多选）';
+            case 'times':
+                return '您希望每周训练几次？';
+            case 'rm':
+                return '请输入以下动作您的极限重量';
+            default:
+                return '未命名问卷项';
+        }
+    };
+
     // 骨架屏状态
     if (loading) {
         return (
@@ -77,7 +93,7 @@ export const StudentSubscribeDataView: React.FC<StudentSubscribeDataViewProps> =
                         
                         {/* 问题文本 */}
                         <div className="text-sm font-bold text-surface-900 mb-3 tracking-tight leading-snug">
-                            {item.question || '未命名问卷项'}
+                            {getQuestionText(item)}
                         </div>
 
                         {/* 答案呈现区 */}

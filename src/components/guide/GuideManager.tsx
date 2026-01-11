@@ -83,6 +83,14 @@ export function GuideManager({ userRole }: GuideManagerProps) {
     if (isGuideActive) return;
     if (shouldPauseGuides) return;
 
+    // Student: Find coach guide (discovery page)
+    if (pathname === '/coach/discovery') {
+      if (!hasCompletedGuide('student_find_coach') && !hasTriggeredContextual['student_find_coach']) {
+        setHasTriggeredContextual((prev) => ({ ...prev, student_find_coach: true }));
+        setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 800);
+      }
+    }
+
     // Plan Editor Guide (coach & student create flows)
     if (
       pathname.includes('/dashboard/plan-lib') ||

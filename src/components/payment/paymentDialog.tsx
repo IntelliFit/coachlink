@@ -653,6 +653,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     return (
         <>
             <Dialog
+                id="guide-payment-options"
                 header={
                     selectedPaymentMethod === 'alipay_api' ? '平台支付' : 
                     selectedPaymentMethod === 'offline' ? '线下支付确认' : '扫码支付'
