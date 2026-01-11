@@ -12,6 +12,7 @@ import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 import { useRouter } from 'next/navigation';
+import { useGuideStore } from '@/stores/useGuideStore';
 
 const CoachDiscoveryPage: React.FC = () => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
@@ -23,11 +24,21 @@ const CoachDiscoveryPage: React.FC = () => {
     const [first, setFirst] = useState(0);
     const coachesPerPage = 10;
     const router = useRouter();
+    const { startGuide, hasCompletedGuide } = useGuideStore();
 
     useEffect(() => {
         loadCoaches(1);
         loadSpecialties();
     }, []);
+
+    // Auto start guide once after list is available (action-oriented, not just nav overview)
+    useEffect(() => {
+        if (isLoading) return;
+        if (!coaches || coaches.length === 0) return;
+        if (hasCompletedGuide('student_find_coach')) return;
+        const t = setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 600);
+        return () => clearTimeout(t);
+    }, [isLoading, coaches, hasCompletedGuide, startGuide]);
 
     const loadSpecialties = async () => {
         try {
@@ -60,11 +71,12 @@ const CoachDiscoveryPage: React.FC = () => {
         loadCoaches(1);
     };
 
-    const renderCoachCard = (coach: CoachesRow & { studentCount?: number; averageRating?: number }) => (
+    const renderCoachCard = (coach: CoachesRow & { studentCount?: number; averageRating?: number }, idx: number) => (
         <div
             key={coach.id}
+            id={idx === 0 ? "guide-discovery-first-coach" : undefined}
             className="group bg-surface-0 rounded-lg p-5 mb-4 transition-all hover:shadow-md border border-surface-100 cursor-pointer"
-            onClick={() => router.push('/coach/profile/' + coach.id)}
+            onClick={() => router.push('/coach/profile/' + coach.id + '?from=discovery')}
         >
             <div className="flex flex-col md:flex-row gap-5">
                 {/* 头像 */}
@@ -139,12 +151,24 @@ const CoachDiscoveryPage: React.FC = () => {
             <div className="max-w-5xl mx-auto">
                 {/* 头部标题区 */}
                 <header className="mb-8">
-                    <h1 className="text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
-                    <p className="text-surface-500 text-sm mt-1 font-medium">找到最适合你的专业健身伙伴</p>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
+                            <p className="text-surface-500 text-sm mt-1 font-medium">找到最适合你的专业健身伙伴</p>
+                        </div>
+                        <Button
+                            icon="pi pi-question-circle"
+                            label="新手引导"
+                            outlined
+                            size="small"
+                            onClick={() => startGuide('STUDENT_FIND_COACH_GUIDE')}
+                            className="shrink-0"
+                        />
+                    </div>
 
                     {/* 搜索与筛选区域 */}
                     <div className="mt-6 flex flex-col md:flex-row gap-3 p-2 bg-surface-0 rounded-lg shadow-sm border border-surface-100">
-                        <div className="flex-1 relative flex items-center">
+                        <div id="guide-discovery-search" className="flex-1 relative flex items-center">
                             <Search className="absolute left-3 text-surface-400" size={18} />
                             <InputText
                                 value={searchTerm}
@@ -155,17 +179,19 @@ const CoachDiscoveryPage: React.FC = () => {
                         </div>
                         
                         <div className="flex gap-2">
-                            <Dropdown
-                                value={selectedSpecialty}
-                                options={specialties}
-                                onChange={(e) => setSelectedSpecialty(e.value)}
-                                // 核心修复：垂直居中问题
-                                pt={{
-                                    root: { className: 'w-full md:w-44 bg-surface-50 border-none rounded-lg flex items-center' },
-                                    input: { className: 'flex items-center py-2 px-3 text-sm font-medium text-surface-600' },
-                                    trigger: { className: 'w-10 flex items-center justify-center' }
-                                }}
-                            />
+                            <div id="guide-discovery-filter">
+                                <Dropdown
+                                    value={selectedSpecialty}
+                                    options={specialties}
+                                    onChange={(e) => setSelectedSpecialty(e.value)}
+                                    // 核心修复：垂直居中问题
+                                    pt={{
+                                        root: { className: 'w-full md:w-44 bg-surface-50 border-none rounded-lg flex items-center' },
+                                        input: { className: 'flex items-center py-2 px-3 text-sm font-medium text-surface-600' },
+                                        trigger: { className: 'w-10 flex items-center justify-center' }
+                                    }}
+                                />
+                            </div>
                             <Button
                                 onClick={onSearchOrFilter}
                                 label="搜索"
@@ -203,7 +229,7 @@ const CoachDiscoveryPage: React.FC = () => {
                     </div>
                 ) : (
                     <>
-                        {coaches.map(renderCoachCard)}
+                        {coaches.map((c, idx) => renderCoachCard(c as any, idx))}
                         <Paginator
                             first={first}
                             rows={coachesPerPage}

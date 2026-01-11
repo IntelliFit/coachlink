@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { Button } from 'primereact/button';
+import { Calendar as PRCalendar } from 'primereact/calendar';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
@@ -43,6 +44,11 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [priorWeeksValue, setPriorWeeksValue] = useState<number | null>(student?.prior_training_weeks ?? 0);
     const [isSavingPriorWeeks, setIsSavingPriorWeeks] = useState(false);
 
+    // End Date Editing
+    const [isEditingEndDate, setIsEditingEndDate] = useState(false);
+    const [endDateValue, setEndDateValue] = useState<Date | null>(student?.end_date ? new Date(student.end_date) : null);
+    const [isSavingEndDate, setIsSavingEndDate] = useState(false);
+
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
@@ -65,6 +71,35 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
             console.error('保存失败:', error);
         } finally {
             setIsSavingPriorWeeks(false);
+        }
+    };
+
+    const getRemainingDuration = () => {
+        if (!student?.end_date) return '长期';
+        const end = new Date(student.end_date);
+        const now = new Date();
+        const diff = end.getTime() - now.getTime();
+        if (diff < 0) return '已过期';
+        const weeks = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
+        return `${weeks} 周`;
+    };
+
+    const saveEndDate = async () => {
+        if (!student) return;
+        setIsSavingEndDate(true);
+        try {
+            await subscriptionService.updateSubscription({
+                id: student.id,
+                end_date: endDateValue ? endDateValue.toISOString() : null,
+            });
+            onStudentUpdate?.({ ...student, end_date: endDateValue ? endDateValue.toISOString() : null });
+            setIsEditingEndDate(false);
+            showToast({ severity: 'success', summary: '更新成功' });
+        } catch (error) {
+            console.error('保存失败:', error);
+            showToast({ severity: 'error', summary: '保存失败' });
+        } finally {
+            setIsSavingEndDate(false);
         }
     };
 
@@ -217,7 +252,38 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-orange-500 shadow-sm"><Clock size={16} /></div>
                             <div>
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">剩余时长</p>
-                                <p className="text-xs font-black text-surface-700">{student.end_date ? '12 周' : '长期'}</p>
+                                <div className="flex items-center gap-1">
+                                    {isEditingEndDate ? (
+                                        <div className="flex items-center gap-1">
+                                            <PRCalendar 
+                                                value={endDateValue} 
+                                                onChange={(e) => setEndDateValue(e.value as Date)} 
+                                                className="w-24 h-6 text-xs" 
+                                                inputClassName="p-1 px-2 text-xs font-black"
+                                                dateFormat="yy/mm/dd"
+                                            />
+                                              <Button
+                                                icon={<Check size={12} />}
+                                                className="p-button-success p-button-sm w-6 h-6 rounded-md p-0"
+                                                onClick={saveEndDate}
+                                                loading={isSavingEndDate}
+                                            />
+                                            <Button
+                                                icon={<X size={12} />}
+                                                className="p-button-secondary p-button-text p-button-sm w-6 h-6 rounded-md p-0"
+                                                onClick={() => {
+                                                    setIsEditingEndDate(false);
+                                                    setEndDateValue(student.end_date ? new Date(student.end_date) : null);
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingEndDate(true)}>
+                                            <p className="text-xs font-black text-surface-700">{getRemainingDuration()}</p>
+                                            <Edit2 size={12} className="text-primary opacity-70 hover:opacity-100 transition-all" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
@@ -328,7 +394,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                         <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">力量进步曲线</h3>
                     </div>
                     <div className="bg-surface rounded-[32px] border border-surface-100 p-4">
-                        <E1RMProgressChart studentId={student.id} />
+                        <E1RMProgressChart studentId={student.student_id} coachId={coach.id} />
                     </div>
                 </section>
 
@@ -373,9 +439,82 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                         />
                     </div>
 
-                    {student.subscribe_data?.answers?.length > 0 && (
+                    {(() => {
+                        // 兼容两种 subscribe_data 结构：
+                        // 1) 旧结构：{ answers: [{ question, answer }] }
+                        // 2) 新结构：TrainingItem[]（tags/times/rm/option/text...）
+                        const sd: any = student.subscribe_data as any;
+
+                        const getQuestionText = (item: any) => {
+                            if (item?.question && String(item.question).trim()) return String(item.question);
+                            switch (item?.type) {
+                                case 'tags':
+                                    return '请选择您偏好的训练项目（可多选）';
+                                case 'times':
+                                    return '您希望每周训练几次？';
+                                case 'rm':
+                                    return '请输入以下动作您的极限重量';
+                                default:
+                                    return '未命名问卷项';
+                            }
+                        };
+
+                        const getAnswerText = (item: any) => {
+                            // 旧结构
+                            if (typeof item?.answer === 'string') return item.answer;
+
+                            // 新结构（TrainingItem）
+                            switch (item?.type) {
+                                case 'tags': {
+                                    const selections = Array.isArray(item.userSelections) ? item.userSelections : [];
+                                    return selections.length > 0 ? selections.join('、') : '未选择';
+                                }
+                                case 'times': {
+                                    const v = item.userSelection;
+                                    return typeof v === 'number' ? `${v} 次/每周` : '未填写';
+                                }
+                                case 'rm': {
+                                    const inputs = item.userInputs;
+                                    const hasAny =
+                                        inputs &&
+                                        typeof inputs === 'object' &&
+                                        Object.values(inputs).some((n: any) => typeof n === 'number' && n > 0);
+                                    return hasAny ? '已填写 RM 数据' : '未填写';
+                                }
+                                case 'option': {
+                                    if (typeof item.userSelection === 'number') {
+                                        const opts = Array.isArray(item.options) ? item.options : [];
+                                        return opts[item.userSelection] ?? `选项 ${item.userSelection + 1}`;
+                                    }
+                                    return '未填写';
+                                }
+                                case 'text': {
+                                    return typeof item.userSelection === 'string' && item.userSelection.trim()
+                                        ? item.userSelection
+                                        : '未填写';
+                                }
+                                default: {
+                                    if (typeof item.userSelection === 'string') return item.userSelection;
+                                    if (typeof item.userSelection === 'number') return String(item.userSelection);
+                                    return '未填写';
+                                }
+                            }
+                        };
+
+                        const normalized: { question: string; answer: string }[] = Array.isArray(sd)
+                            ? sd.map((it: any) => ({ question: getQuestionText(it), answer: getAnswerText(it) }))
+                            : Array.isArray(sd?.answers)
+                                ? sd.answers.map((it: any) => ({
+                                    question: it?.question ? String(it.question) : '未命名问卷项',
+                                    answer: it?.answer ? String(it.answer) : '未填写'
+                                }))
+                                : [];
+
+                        if (normalized.length === 0) return null;
+
+                        return (
                         <div className="space-y-4">
-                            {student.subscribe_data.answers.map((item, index) => (
+                            {normalized.map((item, index) => (
                                 <div key={index} className="group relative flex flex-col gap-2 p-5 rounded-[24px] bg-surface-50/50 border border-surface-100 hover:border-primary-100 hover:bg-surface transition-all">
                                     <div className="flex items-start gap-3">
                                         <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-surface border border-surface-200 flex items-center justify-center text-[10px] font-black text-surface-400 group-hover:text-primary group-hover:border-primary-200 transition-colors">
@@ -395,7 +534,8 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                 </div>
                             ))}
                         </div>
-                    )}
+                        );
+                    })()}
                 </section>
             </div>
 

@@ -152,7 +152,7 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
             case 'rm':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的 RM</label>
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的极限重量</label>
                         {loadingActions ? (
                             <div className="flex flex-col gap-3">
                                 {[1, 2, 3].map((_, i) => (

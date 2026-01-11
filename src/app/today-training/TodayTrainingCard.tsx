@@ -36,7 +36,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     const isInProgress = executionStatus === 'in_progress';
 
     return (
-        <Card className={`shadow-lg border-2 ${isCompleted ? 'border-green-500' : 'border-primary-500'}`}>
+        <Card id="guide-today-card" className={`shadow-lg border-2 ${isCompleted ? 'border-green-500' : 'border-primary-500'}`}>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -238,6 +238,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     />
                 ) : (
                     <Button
+                        id="guide-start-training"
                         label="开始训练"
                         icon={<Play className="w-5 h-5" />}
                         onClick={handleStartTraining}

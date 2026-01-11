@@ -212,7 +212,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     
                     {/* Strength Progress Curve */}
                     <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200 p-5">
-                         <E1RMProgressChart studentId={session?.user.id as string} />
+                         <E1RMProgressChart studentId={session?.user.id as string} coachId={subscription?.coach_id} />
                     </div>
 
                     <ProgressTimeline data={data} />

@@ -33,7 +33,7 @@ export default function NavigationStudent() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
-    const { openOnboardingModal } = useOnboardingModal();
+    const { openOnboardingModal, clearOnboardingSuppression } = useOnboardingModal();
     const { data: session, status } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
@@ -46,11 +46,17 @@ export default function NavigationStudent() {
         if (status === 'loading') return;
         if (session?.user) {
             const profile = session.profile as any;
+            if (profile?.onboarding_completed === true) {
+                // Once session reflects completion, allow future onboarding opens (if needed)
+                clearOnboardingSuppression();
+                return;
+            }
+
             if (profile?.onboarding_completed !== true) {
                 openOnboardingModal();
             }
         }
-    }, [session, status, openOnboardingModal]);
+    }, [session, status, openOnboardingModal, clearOnboardingSuppression]);
 
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;
