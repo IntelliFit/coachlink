@@ -8,6 +8,41 @@ import { getWhiteList } from "@/lib/devUsers";
 
 export const authOptions: AuthOptions = {
     providers: [
+        {
+            id: "wechat",
+            name: "WeChat",
+            type: "oauth",
+            // 微信 PC 端网页登录授权地址
+            authorization: {
+                url: "https://open.weixin.qq.com/connect/qrconnect",
+                params: { scope: "snsapi_login" },
+            },
+            token: "https://api.weixin.qq.com/sns/oauth2/access_token",
+            userinfo: "https://api.weixin.qq.com/sns/userinfo",
+            
+            // 适配微信非标参数名
+            clientId: process.env.WECHAT_APP_ID,
+            clientSecret: process.env.WECHAT_APP_SECRET,
+
+            // 自定义配置：由于微信返回的是 openid 而不是普通的 sub
+            profile(profile) {
+                console.log(profile);
+                
+                return {
+                    id: profile.unionid || profile.openid,
+                    name: profile.nickname,
+                    email: null, // 微信不返回邮箱
+                    image: profile.headimgurl,
+                };
+            },
+            
+            // 关键：微信的 token 接口需要特定的参数处理
+            options: {
+                client: {
+                    token_endpoint_auth_method: "client_secret_post",
+                }
+            }
+        },
         CredentialsProvider({
             name: "Credentials",
             credentials: {
