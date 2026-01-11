@@ -117,6 +117,8 @@ export async function POST(req: NextRequest) {
                     .from("coach_plan_instances")
                     .select("*")
                     .eq("coach_subscription_id", activeSub.id)
+                    // 仅取当前计划，避免把历史 completed/archived 的执行记录带到“当前计划编辑页”里
+                    .in("status", ["active", "paused"])
                     .order("created_at", { ascending: false })
                     .limit(1)
                     .single();
@@ -262,6 +264,21 @@ export async function POST(req: NextRequest) {
             if (actions) {
                 for (const action of actions) {
                     actionsMap[action.id] = action;
+                }
+            }
+        }
+
+        // 7. 为 executionsMap 补齐 action_name（便于前端展示执行记录）
+        for (const dayIndex of Object.keys(executionsMap)) {
+            const exec = executionsMap[parseInt(dayIndex)];
+            if (!exec?.action_executions || !Array.isArray(exec.action_executions)) continue;
+            for (const actionExec of exec.action_executions) {
+                if (!actionExec) continue;
+                if (!actionExec.action_name && actionExec.action_id) {
+                    actionExec.action_name =
+                        actionsMap[actionExec.action_id]?.name ||
+                        actionExec.exercise_name ||
+                        actionExec.action_id;
                 }
             }
         }

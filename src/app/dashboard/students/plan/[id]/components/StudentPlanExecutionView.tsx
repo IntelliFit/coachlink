@@ -10,12 +10,14 @@ import { planLibService } from '@/app/service/planLibService';
 import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
 import { Divider } from 'primereact/divider';
+import ExecutionDetails from '@/app/dashboard/plan-lib/components/ExecutionDetails';
 
 interface StudentPlanExecutionViewProps {
     subscriptionId: string;
     // 新增：直接接收数据
     instance: CoachPlanInstanceRow | null;
     executions: Record<number, any>;
+    actionsMap?: Record<string, any>;
     loading?: boolean;
     // 基础信息
     planName?: string;
@@ -34,67 +36,100 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
     subscriptionId,
     instance,
     executions,
+    actionsMap = {},
     loading = false,
     planName = '学员执行情况',
     planDescription = '查看详细执行记录',
     isCompleted = false
 }) => {
-    const [actions, setActions] = useState<Record<string, CoachActionRow>>({});
 
     const [detailVisible, setDetailVisible] = useState(false);
-    const [videoModalVisible, setVideoModalVisible] = useState(false);
-    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
-    // --- 内部渲染逻辑 (代码复用) ---
-    const ExecutionDetailsSection = ({ execution }: { execution: any }) => {
-        if (!execution || !execution.action_executions) return null;
-        const completedSets = execution.action_executions.flatMap((ae: any) =>
-            (ae.sets || []).filter((s: any) => s.status === 'completed').map((s: any) => ({
-                ...s,
-                action_name: ae.action_name
-            }))
-        );
-        if (completedSets.length === 0) return null;
+    const ActionItem = ({ actionSet }: { actionSet: CoachPlanAction }) => {
+        const actionId = (actionSet as any).actionId || (actionSet as any).action_id;
+        // 优先从 actionsMap（后端返回的动作库映射）获取动作名称
+        const actionName =
+            (actionId && actionsMap?.[actionId]?.name) ||
+            (actionSet as any).actionName ||
+            (actionSet as any).action_name ||
+            (actionSet as any).name ||
+            (actionSet as any).title ||
+            // setName 是“组名”，不应作为动作名展示，但兜底时可显示
+            (actionSet as any).setName ||
+            (actionSet as any).set_name ||
+            '未知动作';
+        // 获取参数
+        const params = (actionSet as any).params || {};
+        const sets = params['组数'] ?? params.sets ?? (actionSet as any).sets ?? 3;
+        const reps = params['次数'] ?? params.reps ?? (actionSet as any).reps ?? 8;
+
+        // 计划侧“重量”常见来源：load（推荐/固定重量），其次才是历史字段
+        const weightValue =
+            params.load ??
+            params['重量'] ??
+            params.weight ??
+            params['目标重量'] ??
+            params.targetWeight ??
+            (actionSet as any).weight;
+        const weightUnit = params.loadUnit || params.unit || 'kg';
+
+        const restTime =
+            // ActionSetForm 里用的是 '休息时间'，单位：秒
+            params['休息时间'] ??
+            params['组间休息'] ??
+            params.restTime ??
+            params.rest_seconds ??
+            params.restSeconds ??
+            (actionSet as any).rest_seconds;
+        
+        // 格式化休息时间显示（计划侧通常以 0.5 分钟步进输入，但存为秒）
+        const formatRestTime = (seconds: number | undefined) => {
+            if (!seconds || typeof seconds !== 'number' || seconds <= 0) return null;
+            const minutes = Math.round((seconds / 60) * 10) / 10; // 1位小数
+            const text = String(minutes).endsWith('.0') ? String(minutes).slice(0, -2) : String(minutes);
+            return `${text}分钟`;
+        };
+        
         return (
-            <div className="mt-4 border-t border-surface-200 pt-4">
-                <div className="bg-green-50 rounded-lg p-2 mb-2 border border-green-100 flex items-center gap-2 text-green-700 text-xs font-bold">
-                    <CheckCircle2 size={14} /> 执行记录
+            <div className="flex items-center justify-between gap-3 py-2 px-3 bg-surface-50 rounded-xl border border-surface-100 mb-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* 组数×次数 */}
+                    <div className="flex items-center gap-1 text-surface-500 text-xs font-medium flex-shrink-0">
+                        <i className="pi pi-th-large text-[10px]" />
+                        <span>{sets}组×{reps}次</span>
+                    </div>
+                    {/* 重量 */}
+                    {typeof weightValue === 'number' && weightValue > 0 && (
+                        <div className="flex items-center gap-1 text-amber-600 text-xs font-bold flex-shrink-0">
+                            <i className="pi pi-bolt text-[10px]" />
+                            <span>{Number(weightValue).toFixed(1).replace(/\.0$/, '')}{weightUnit}</span>
+                        </div>
+                    )}
+                    {/* 休息时间 */}
+                    {restTime && (
+                        <div className="flex items-center gap-1 text-surface-400 text-xs flex-shrink-0">
+                            <i className="pi pi-clock text-[10px]" />
+                            <span>休息{formatRestTime(restTime)}</span>
+                        </div>
+                    )}
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-[11px]">
-                        <tbody className="divide-y divide-surface-100">
-                            {completedSets.map((set: any, idx: number) => (
-                                <tr key={idx}>
-                                    <td className="py-2 font-medium">{set.action_name}</td>
-                                    <td className="py-2 text-surface-600">{set.actual_weight}kg × {set.actual_reps}</td>
-                                    <td className="py-2 text-right">
-                                        {set.has_video && (
-                                            <Button icon="pi pi-video" className="p-0 h-5 w-5" text onClick={() => {
-                                                setCurrentVideoUrl(set.video_url);
-                                                setVideoModalVisible(true);
-                                            }} />
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                {/* 动作名称 */}
+                <div className="flex items-center gap-1.5 text-surface-700 font-semibold text-sm truncate">
+                    <i className="pi pi-circle text-[6px] text-primary-400" />
+                    <span className="truncate">{actionName}</span>
                 </div>
             </div>
         );
     };
 
-    const ActionItem = ({ actionSet, action }: { actionSet: CoachPlanAction; action?: any }) => {
-        const actionName = action?.name || actionSet.setName || '未知动作';
-        return (
-            <div className="p-2 bg-surface-50 rounded border border-surface-100 mb-1 flex justify-between items-center text-xs">
-                <span className="font-medium">{actionName}</span>
-                <span className="text-surface-500">{(actionSet as any).params?.['组数'] || 3}组</span>
-            </div>
-        );
-    };
-
-    const trainingDays = (instance?.training_days as unknown as TrainingDay[] || []).sort((a, b) => a.dayIndex - b.dayIndex);
+    const rawDays = (instance?.training_days as unknown as any[] | undefined) || [];
+    const trainingDays = (rawDays as TrainingDay[])
+        .map((d: any) => ({
+            ...d,
+            dayIndex: d.dayIndex ?? d.day_index,
+        }))
+        .filter((d: any) => typeof d.dayIndex === 'number')
+        .sort((a: any, b: any) => a.dayIndex - b.dayIndex);
 
     return (
         <>
@@ -116,7 +151,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                         <div className="flex flex-col">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-black text-surface-900 tracking-tighter group-hover:text-primary-700 transition-colors">
-                                    {planName}
+                                    学员执行情况
                                 </span>
                                 {isCompleted && (
                                     <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-tight rounded-full border border-green-100/50">
@@ -126,7 +161,9 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                 )}
                             </div>
                             <span className="text-xs font-medium text-surface-500 mt-1 opacity-80 leading-snug">
-                                {planDescription || "暂无详细描述"}
+                                {Object.keys(executions).length > 0 
+                                    ? `已完成 ${Object.keys(executions).length} 次训练` 
+                                    : '查看训练计划与执行记录'}
                             </span>
                         </div>
                     </div>
@@ -189,7 +226,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                     <div className="text-center">
                                         <div className="text-[10px] font-black text-surface-400 tracking-widest mb-1">已执行</div>
                                         <div className="text-2xl font-black text-primary-600 tracking-tighter">
-                                            {Object.keys(executions).length}
+                                            {isCompleted ? 0 : Object.keys(executions).length}
                                             <span className="text-[10px] font-bold text-primary-300 ml-1">次</span>
                                         </div>
                                     </div>
@@ -207,7 +244,8 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                 <div className="space-y-3">
                                     {trainingDays.map((day, idx) => {
                                         const isRest = day.type === 'rest';
-                                        const dayExe = executions[day.dayIndex];
+                                        // 如果计划已完成，不显示执行状态
+                                        const dayExe = isCompleted ? null : executions[day.dayIndex];
 
                                         return (
                                             <div
@@ -244,20 +282,26 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                                 {!isRest && (
                                                     <div className="px-5 pb-5 space-y-3">
                                                         <div className="space-y-2">
-                                                            {day.actionSets?.map((as, i) => (
-                                                                <div key={i} className="p-3 bg-surface-50/50 rounded-[14px] hover:bg-surface-50 transition-colors">
-                                                                    <ActionItem
-                                                                        actionSet={as}
-                                                                        action={actions[(as as any).action_id || (as as any).actionId]}
-                                                                    />
-                                                                </div>
-                                                            ))}
+                                                            {day.actionSets?.map((as: any, i: number) => {
+                                                                if (!as) return null;
+                                                                // one-filter 类型：展示其 actions 列表
+                                                                if (as.type === 'one-filter' && Array.isArray(as.actions)) {
+                                                                    return (
+                                                                        <div key={i} className="space-y-2">
+                                                                            {as.actions.map((sub: any, j: number) => (
+                                                                                <ActionItem key={`${i}-${j}`} actionSet={sub} />
+                                                                            ))}
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return <ActionItem key={i} actionSet={as} />;
+                                                            })}
                                                         </div>
 
                                                         {dayExe && (
                                                             <div className="mt-4 pt-4 border-t border-dashed border-surface-100/60">
                                                                 <div className="text-[10px] font-black text-surface-300 tracking-widest mb-2">执行反馈详情</div>
-                                                                <ExecutionDetailsSection execution={dayExe} />
+                                                                <ExecutionDetails execution={dayExe} collapsed={true} />
                                                             </div>
                                                         )}
                                                     </div>
@@ -275,11 +319,6 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                         </div>
                     )}
                 </div>
-            </Dialog>
-
-            {/* 3. 视频 */}
-            <Dialog visible={videoModalVisible} onHide={() => setVideoModalVisible(false)} style={{ width: '90vw', maxWidth: '450px' }} header="训练录像" modal>
-                {currentVideoUrl && <video src={currentVideoUrl} controls autoPlay className="w-full rounded-lg bg-black" />}
             </Dialog>
         </>
     );
