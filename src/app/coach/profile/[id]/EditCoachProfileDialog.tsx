@@ -45,7 +45,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
     const [contactEmail, setContactEmail] = useState<string | null>(null);
     const [contactPhone, setContactPhone] = useState<string | null>(null);
     const [socialLinks, setSocialLinks] = useState<{ name: string; url: string }[]>([]);
-    const [newSocialPlatform, setNewSocialPlatform] = useState<{ label: string; value: string } | null>(null);
+    const [newSocialPlatform, setNewSocialPlatform] = useState<string>('');
     const [newSocialUrl, setNewSocialUrl] = useState('');
 
     const SOCIAL_MEDIA_OPTIONS: { label: string; value: string }[] = [
@@ -167,9 +167,9 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
     };
 
     const handleAddSocial = () => {
-        if (!newSocialPlatform?.value || !newSocialUrl.trim()) return;
-        setSocialLinks([...socialLinks, { name: newSocialPlatform.value, url: newSocialUrl.trim() }]);
-        setNewSocialPlatform(null);
+        if (!newSocialPlatform || !newSocialUrl.trim()) return;
+        setSocialLinks([...socialLinks, { name: newSocialPlatform, url: newSocialUrl.trim() }]);
+        setNewSocialPlatform('');
         setNewSocialUrl('');
     };
 
@@ -233,7 +233,8 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 credentials,
                 contactEmail,
                 contactPhone,
-                socialLinks: socialLinksObj,
+                // 空对象表示“已清空”，用 null 明确表达，避免被其他来源回填
+                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
             };
 
             // 调用服务更新教练信息
@@ -379,9 +380,15 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                 onChange={(e) => setNewSpecialty(e.target.value)}
                                 placeholder="输入专业领域，按回车添加"
                                 className="flex-1"
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddSpecialty()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newSpecialty.trim()) {
+                                        e.preventDefault();
+                                        handleAddSpecialty();
+                                    }
+                                }}
                             />
                             <Button
+                                type="button"
                                 icon="pi pi-plus"
                                 onClick={handleAddSpecialty}
                                 disabled={!newSpecialty.trim()}
@@ -449,9 +456,15 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                 onChange={(e) => setNewAchievement(e.target.value)}
                                 placeholder="输入成就奖项"
                                 className="flex-1"
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddAchievement()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newAchievement.trim()) {
+                                        e.preventDefault();
+                                        handleAddAchievement();
+                                    }
+                                }}
                             />
                             <Button
+                                type="button"
                                 icon="pi pi-plus"
                                 onClick={handleAddAchievement}
                                 disabled={!newAchievement.trim()}
@@ -479,9 +492,15 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                 onChange={(e) => setNewCaseStudy(e.target.value)}
                                 placeholder="输入案例描述"
                                 className="flex-1"
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddCaseStudy()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newCaseStudy.trim()) {
+                                        e.preventDefault();
+                                        handleAddCaseStudy();
+                                    }
+                                }}
                             />
                             <Button
+                                type="button"
                                 icon="pi pi-plus"
                                 onClick={handleAddCaseStudy}
                                 disabled={!newCaseStudy.trim()}
@@ -533,7 +552,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                 placeholder="证书链接（可选）"
                                 className="flex-1"
                             />
-                            <Button icon="pi pi-plus" onClick={handleAddCredential} disabled={!newCredName.trim()} />
+                            <Button type="button" icon="pi pi-plus" onClick={handleAddCredential} disabled={!newCredName.trim()} />
                         </div>
                     </div>
 
@@ -564,11 +583,13 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                             {socialLinks.map((item, index) => (
                                 <div key={index} className="flex gap-2 items-center">
                                     <Dropdown
-                                        value={SOCIAL_MEDIA_OPTIONS.find(opt => opt.value === item.name) || null}
+                                        value={item.name || null}
                                         options={SOCIAL_MEDIA_OPTIONS}
+                                        optionLabel="label"
+                                        optionValue="value"
                                         onChange={(e) => {
                                             const next = [...socialLinks];
-                                            next[index] = { ...next[index], name: e.value?.value || '' };
+                                            next[index] = { ...next[index], name: e.value || '' };
                                             setSocialLinks(next);
                                         }}
                                         placeholder="选择平台"
@@ -592,7 +613,9 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                             <Dropdown
                                 value={newSocialPlatform}
                                 options={SOCIAL_MEDIA_OPTIONS}
-                                onChange={(e) => setNewSocialPlatform(e.value)}
+                                optionLabel="label"
+                                optionValue="value"
+                                onChange={(e) => setNewSocialPlatform(e.value || '')}
                                 placeholder="选择平台"
                                 className="flex-1"
                             />
@@ -601,8 +624,19 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                 onChange={(e) => setNewSocialUrl(e.target.value)}
                                 placeholder="链接"
                                 className="flex-1"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newSocialPlatform && newSocialUrl.trim()) {
+                                        e.preventDefault();
+                                        handleAddSocial();
+                                    }
+                                }}
                             />
-                            <Button icon="pi pi-plus" onClick={handleAddSocial} disabled={!newSocialPlatform?.value || !newSocialUrl.trim()} />
+                            <Button 
+                                type="button"
+                                icon="pi pi-plus" 
+                                onClick={handleAddSocial} 
+                                disabled={!newSocialPlatform || !newSocialUrl.trim()} 
+                            />
                         </div>
                     </div>
                 </div>

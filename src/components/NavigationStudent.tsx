@@ -108,6 +108,7 @@ export default function NavigationStudent() {
         },
         { separator: true },
         { label: '个人设置', icon: 'pi pi-cog', command: () => openProfileSetupModal(session?.profile, session?.user?.id) },
+        { label: '账户设置', icon: 'pi pi-shield', command: () => router.push('/me/settings') },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
     ], [session, openProfileSetupModal, router]);
 

@@ -174,13 +174,19 @@ export default function StudentsPage() {
                     showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
                     setAiConfigDialogVisible(false);
                     // 当res.template非空时，更新当前表单
+                    const defaultPlanName = `${student.profile?.nickname || '学员'}的计划`;
+                    const sanitizedName = res.template.name?.trim();
+                    const planName = sanitizedName && !/AI\s*生成计划/.test(sanitizedName)
+                        ? sanitizedName
+                        : defaultPlanName;
+
                     setStudents(prev =>
                         prev.map(s =>
                             s.id === student.id
                                 ? {
                                     ...s,
                                     plan: {
-                                        name: res.template.name || '快速生成计划',
+                                        name: planName,
                                         description: res.template.description || '暂无描述',
                                         status: 'active'
                                     }
@@ -318,13 +324,20 @@ export default function StudentsPage() {
         const plan = student.plan;
         const isCompleted = plan?.status === 'completed';
         const isActive = plan && !isCompleted;
+        const hasPlan = !!plan; // 是否已有计划
 
         if (student.plan === undefined) return <Skeleton width="160px" height="48px" borderRadius="12px" />;
 
-        const handleAction = (e: React.MouseEvent, type: 'manual' | 'ai') => {
+        const handleAction = (e: React.MouseEvent, type: 'manual' | 'ai' | 'view') => {
             e.stopPropagation();
             op.current?.hide();
-            type === 'manual' ? router.push(`/dashboard/students/plan/${student.id}`) : openAiConfigDialog(student);
+            if (type === 'view') {
+                router.push(`/dashboard/students/plan/${student.id}`);
+            } else if (type === 'manual') {
+                router.push(`/dashboard/students/plan/${student.id}`);
+            } else {
+                openAiConfigDialog(student);
+            }
         };
 
         return (
@@ -379,23 +392,25 @@ export default function StudentsPage() {
                         </div>
                     </div>
 
-                    {/* 更多操作 */}
-                    <Button
-                        icon={<MoreHorizontal size={18} />}
-                        className="p-button-rounded p-button-text p-button-secondary ml-1"
-                        style={{ width: '2.5rem', height: '2.5rem' }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            op.current?.toggle(e);
-                        }}
-                    />
+                    {/* 更多操作 - 只对已完成和未配置的计划显示 */}
+                    {!isActive && (
+                        <Button
+                            icon={<MoreHorizontal size={18} />}
+                            className="p-button-rounded p-button-text p-button-secondary ml-1"
+                            style={{ width: '2.5rem', height: '2.5rem' }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                op.current?.toggle(e);
+                            }}
+                        />
+                    )}
                 </div>
 
-                {/* Popover 菜单样式优化 */}
+                {/* Popover 菜单 - 只有快速生成和手动创建两个选项 */}
                 <OverlayPanel ref={op} className="p-0 shadow-2xl border border-surface-100 rounded-xl overflow-hidden">
                     <div className="flex flex-col p-1.5 min-w-[150px] bg-surface">
                         <div className="px-3 py-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest border-b border-surface-50 mb-1">
-                            计划操作
+                            创建计划
                         </div>
                         <button
                             onClick={(e) => handleAction(e, 'ai')}

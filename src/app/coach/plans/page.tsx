@@ -15,6 +15,7 @@ import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptio
 import { useToastContext } from '@/context/ToastContext';
 import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
 import { CoachPlanAction, CoachPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { calculateCurrentWeek, isDayUnlocked, getDayWeekNumber, formatUnlockDate, getUnlockDate } from '@/lib/weekUnlock';
 
 const TrainingPlansHome: React.FC = () => {
     const { data: session } = useSession();
@@ -534,10 +535,53 @@ const TrainingPlansHome: React.FC = () => {
     };
 
     // 训练日卡片
-    const TrainingDayCard = ({ day }: { day: CoachPlanTrainingDay }) => {
+    const TrainingDayCard = ({ day, startDate, unlockedWeek }: { day: CoachPlanTrainingDay; startDate?: string | Date | null; unlockedWeek: number }) => {
         const isRestDay = day.type === 'rest';
         const actionSets = day.actionSets || [];
         const dayExecution = executions[day.dayIndex];
+        
+        // 🔒 检查该天是否已解锁
+        const isUnlocked = isDayUnlocked(day.dayIndex, unlockedWeek);
+        const weekNumber = getDayWeekNumber(day.dayIndex);
+
+        // 📝 制定中状态卡片
+        if (!isUnlocked) {
+            return (
+                <div className="border border-amber-100 rounded-xl p-4 bg-amber-50/30 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-50/80 to-amber-50/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <i className="pi pi-pencil text-amber-500" />
+                            </div>
+                            <p className="text-sm font-medium text-amber-600">第 {weekNumber} 周 · 制定中</p>
+                            <p className="text-xs text-amber-400">
+                                {(() => {
+                                    const unlockDate = getUnlockDate(weekNumber, startDate);
+                                    if (unlockDate) {
+                                        return `预计 ${formatUnlockDate(unlockDate)} 发布`;
+                                    }
+                                    return '教练精心准备中';
+                                })()}
+                            </p>
+                        </div>
+                    </div>
+                    {/* 模糊的背景内容 */}
+                    <div className="opacity-30 filter blur-[1px] pointer-events-none">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-surface-200 rounded-full flex items-center justify-center">
+                                <i className={`pi ${isRestDay ? 'pi-moon' : 'pi-bolt'} text-surface-400`} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-semibold text-surface-600">{getDayName(day.dayIndex)}</h4>
+                                <p className="text-sm text-surface-400">
+                                    {isRestDay ? '休息日' : `${actionSets.length} 个动作`}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         if (isRestDay) {
             return (
@@ -623,6 +667,9 @@ const TrainingPlansHome: React.FC = () => {
         const statusConfig = getStatusConfig(instance.status);
         const trainingDays = (instance.training_days as unknown as CoachPlanTrainingDay[] || [])
             .sort((a, b) => a.dayIndex - b.dayIndex);
+        
+        // 🔒 计算已解锁的周次
+        const unlockedWeek = calculateCurrentWeek(instance.start_date);
 
         return (
             <div className="space-y-8">
@@ -681,12 +728,21 @@ const TrainingPlansHome: React.FC = () => {
                         <h3 className="text-xl font-bold text-surface-800 flex items-center gap-2">
                             <i className="pi pi-calendar-clock text-primary text-2xl" />
                             训练安排
+                            {/* 🔒 显示当前解锁周次 */}
+                            <span className="text-sm font-normal text-surface-400 ml-2">
+                                已解锁: 第 {unlockedWeek} 周
+                            </span>
                         </h3>
                         <span className="text-sm text-surface-400 font-medium">共 {trainingDays.length} 天计划</span>
                     </div>
                     <div className="grid gap-6">
                         {trainingDays.map((day, idx) => (
-                            <TrainingDayCard key={idx} day={day} />
+                            <TrainingDayCard 
+                                key={idx} 
+                                day={day} 
+                                startDate={instance.start_date}
+                                unlockedWeek={unlockedWeek}
+                            />
                         ))}
                     </div>
                 </div>

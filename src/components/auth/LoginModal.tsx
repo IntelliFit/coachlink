@@ -10,6 +10,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { signIn } from 'next-auth/react';
 import { smsService } from '@/app/service/smsService';
 import { Phone, Lock, ShieldCheck, X, LogIn, Send } from 'lucide-react';
+import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -22,15 +23,32 @@ interface DevUser {
     password: string;
 }
 
+type AuthView = 'login' | 'reset-password';
+
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const router = useRouter();
     const { showToast } = useToastContext();
+    const [currentView, setCurrentView] = useState<AuthView>('login');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [sendingCode, setSendingCode] = useState(false);
+
+    // 重置视图状态当弹窗关闭
+    useEffect(() => {
+        if (!isOpen) {
+            // 给一个小延迟，让动画播完
+            const timer = setTimeout(() => {
+                setCurrentView('login');
+                setPhone('');
+                setPassword('');
+                setVerificationCode('');
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
 
     const devUsers = useMemo<DevUser[]>(() => {
         try {
@@ -146,16 +164,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
                         <div className="space-y-4">
                             <h1 className="text-3xl font-bold text-surface-900 tracking-tight leading-tight">
-                                开启您的<br /><span className="text-primary-500">专业健身</span>之旅
+                                {currentView === 'login' ? (
+                                    <>开启您的<br /><span className="text-primary-500">专业健身</span>之旅</>
+                                ) : (
+                                    <>重置您的<br /><span className="text-primary-500">登录密码</span></>
+                                )}
                             </h1>
                             <p className="text-sm text-surface-500 leading-relaxed font-light">
-                                无论您是寻求进步的学员，还是追求卓越的教练，在这里连接无限可能。
+                                {currentView === 'login'
+                                    ? "无论您是寻求进步的学员，还是追求卓越的教练，在这里连接无限可能。"
+                                    : "设置一个新的安全密码，重新开始您的旅程。"
+                                }
                             </p>
                         </div>
                     </div>
 
-                    {/* 开发模式快捷入口 */}
-                    {process.env.NODE_ENV === 'development' && devUsers.length > 0 && (
+                    {/* 开发模式快捷入口 - 仅在登录页显示 */}
+                    {currentView === 'login' && process.env.NODE_ENV === 'development' && devUsers.length > 0 && (
                         <div className="relative z-10 pt-8 border-t border-surface-200">
                             <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-4">快速接入 (Dev)</p>
                             <div className="flex flex-wrap gap-2">
@@ -182,99 +207,119 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                         <X size={20} />
                     </button>
 
-                    <div className="mb-10 text-center md:text-left">
-                        <h2 className="text-2xl font-bold text-surface-900 mb-2">登录账户</h2>
-                    </div>
-
-                    <form onSubmit={handleLogin} className="space-y-5">
-                        <div className="space-y-4">
-                            {/* 手机号 */}
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                    <Phone size={18} />
-                                </div>
-                                <InputText
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="手机号码"
-                                    className="w-full pl-12 pr-4 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all"
-                                />
+                    {currentView === 'reset-password' ? (
+                        <ResetPasswordForm
+                            onBackToLogin={() => setCurrentView('login')}
+                            onSuccess={() => setCurrentView('login')}
+                        />
+                    ) : (
+                        <>
+                            <div className="mb-10 text-center md:text-left">
+                                <h2 className="text-2xl font-bold text-surface-900 mb-2">登录账户</h2>
                             </div>
 
-                            {/* 密码 */}
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-4 flex items-center z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                    <Lock size={18} />
-                                </div>
-                                <Password
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="输入登录密码"
-                                    toggleMask
-                                    feedback={false}
-                                    // 关键点：通过 pt 属性强制控制 root 容器和 input 元素
-                                    pt={{
-                                        root: { className: 'w-full' }, // 强制外层容器撑满
-                                        input: {
-                                            className: 'w-full pl-12 pr-12 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all'
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            {/* 验证码 */}
-                            <div className="flex gap-3">
-                                <div className="relative flex-1 group">
-                                    <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                        <ShieldCheck size={18} />
+                            <form onSubmit={handleLogin} className="space-y-5">
+                                <div className="space-y-4">
+                                    {/* 手机号 */}
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                            <Phone size={18} />
+                                        </div>
+                                        <InputText
+                                            value={phone}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            placeholder="手机号码"
+                                            className="w-full pl-12 pr-4 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                        />
                                     </div>
-                                    <InputText
-                                        value={verificationCode}
-                                        onChange={(e) => setVerificationCode(e.target.value)}
-                                        placeholder="6位验证码"
-                                        maxLength={6}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all"
-                                    />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={sendVerificationCode}
-                                    disabled={countdown > 0 || sendingCode || !phone}
-                                    className="px-5 rounded-2xl text-sm font-bold border border-primary-100 text-primary-600 hover:bg-primary-50 disabled:opacity-50 transition-all min-w-[120px] flex items-center justify-center gap-2"
-                                >
-                                    {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : <><Send size={16} /> 获取</>}
-                                </button>
-                            </div>
-                        </div>
 
-                        <div className="pt-4">
-                            <Button
-                                loading={loading}
-                                className="w-full py-4 bg-primary-500 border-none rounded-2xl shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all transform active:scale-[0.98]"
-                            >
-                                <div className="flex items-center justify-center gap-2 w-full">
-                                    <LogIn size={20} />
-                                    <span className="font-bold text-lg">立即登录</span>
-                                </div>
-                            </Button>
-                        </div>
+                                    <div className='space-y-2'>
+                                        <div className="flex justify-between items-end px-1">
+                                            <label className="text-sm font-semibold text-surface-700">登录密码</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentView('reset-password')}
+                                                className="text-xs text-primary-500 hover:text-primary-700 font-medium transition-colors"
+                                            >
+                                                忘记密码？
+                                            </button>
+                                        </div>
 
-                        <div className="pt-6 text-center">
-                            <p className="text-sm text-surface-400">
-                                还没有账户？{' '}
-                                <button
-                                    onClick={() => {
-                                        router.push('/register');
-                                        onClose(false);
-                                    }}
-                                    className="text-primary-600 hover:text-primary-700 font-bold ml-1 transition-colors"
-                                    type="button"
-                                >
-                                    立即注册
-                                </button>
-                            </p>
-                        </div>
-                    </form>
+                                        {/* 密码 */}
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-4 flex items-center z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                                <Lock size={18} />
+                                            </div>
+                                            <Password
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                placeholder="输入登录密码"
+                                                toggleMask
+                                                feedback={false}
+                                                // 关键点：通过 pt 属性强制控制 root 容器和 input 元素
+                                                pt={{
+                                                    root: { className: 'w-full' }, // 强制外层容器撑满
+                                                    input: {
+                                                        className: 'w-full pl-12 pr-12 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all'
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+
+                                    </div>
+
+                                    {/* 验证码 */}
+                                    <div className="flex gap-3 mt-6">
+                                        <div className="relative flex-1 group">
+                                            <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                                <ShieldCheck size={18} />
+                                            </div>
+                                            <InputText
+                                                value={verificationCode}
+                                                onChange={(e) => setVerificationCode(e.target.value)}
+                                                placeholder="6位验证码"
+                                                maxLength={6}
+                                                className="w-full pl-12 pr-4 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={sendVerificationCode}
+                                            disabled={countdown > 0 || sendingCode || !phone}
+                                            className="px-5 rounded-2xl text-sm font-bold border border-primary-100 text-primary-600 hover:bg-primary-50 disabled:opacity-50 transition-all min-w-[120px] flex items-center justify-center gap-2"
+                                        >
+                                            {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : <><Send size={16} /> 获取</>}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4">
+                                    <Button
+                                        loading={loading}
+                                        className="w-full py-4 bg-primary-500 border-none rounded-2xl shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all transform active:scale-[0.98]"
+                                    >
+                                        <div className="flex items-center justify-center gap-2 w-full">
+                                            <LogIn size={20} />
+                                            <span className="font-bold text-lg">立即登录</span>
+                                        </div>
+                                    </Button>
+                                </div>
+
+                                <div className="pt-6 text-center">
+                                    <p className="text-sm text-surface-400">
+                                        还没有账户？{' '}
+                                        <button
+                                            onClick={() => { onClose(false); router.push('/register'); }}
+                                            className="text-primary-600 hover:text-primary-700 font-bold ml-1 transition-colors"
+                                            type="button"
+                                        >
+                                            立即注册
+                                        </button>
+                                    </p>
+                                </div>
+                            </form>
+                        </>
+                    )}
                 </div>
             </div>
         </Dialog>

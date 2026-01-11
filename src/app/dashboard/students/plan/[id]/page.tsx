@@ -69,6 +69,7 @@ const StudentPlanPage = () => {
 
     // Execution data
     const [executions, setExecutions] = useState<Record<number, any>>({});
+    const [executionActions, setExecutionActions] = useState<Record<string, any>>({});
 
     // 起始执行天数（用于显示"开始"标记）
     const [startExecutionDay, setStartExecutionDay] = useState<number | undefined>(undefined);
@@ -86,6 +87,11 @@ const StudentPlanPage = () => {
             try {
                 setLoading(true);
                 setStudentDataLoading(true);
+
+                // 防止“上一份计划的执行记录”残留到当前页面（尤其是当前无 active 计划时）
+                setExecutions({});
+                setExecutionActions({});
+                setRawInstance(null);
 
                 // 1. 定义所有并发任务
                 const actionsPromise = actionLibService.listActions({ page: 1, limit: 100 });
@@ -116,7 +122,8 @@ const StudentPlanPage = () => {
                 // 5. 处理 Instance (训练计划详情)
                 if (instanceRes?.instance) {
                     const instance = instanceRes.instance;
-                    setRawInstance(instance); // 新增：保存原始对象传给子组件
+                    // 仅在 active 时作为“当前计划”展示（completed 走历史页，不在当前编辑页展示执行记录）
+                    setRawInstance(instance.status === 'active' || instance.status === 'paused' ? instance : null);
 
                     if (instance.status === 'active') {
                         setInstanceExists(true);
@@ -138,12 +145,19 @@ const StudentPlanPage = () => {
                     } else if (instance.status === 'completed') {
                         showToast({ severity: 'info', summary: '计划已完成', detail: '请为学员创建新阶段计划' });
                         setInstanceExists(false);
+                        // 当前计划已完成：清空编辑区（避免显示旧内容）
+                        setInstanceId(null);
+                        setDays([]);
+                        setSelectedDayIndex(null);
                     }
                 }
 
                 // 6. 处理 Executions (执行记录)
                 if (exeRes?.executions) {
                     setExecutions(exeRes.executions);
+                }
+                if (exeRes?.actions) {
+                    setExecutionActions(exeRes.actions);
                 }
 
             } catch (error) {
@@ -280,9 +294,8 @@ const StudentPlanPage = () => {
 
     const handleAddActionSet = (dayIndex: number, type: ItemType = 'STRENGTH') => {
         const newDays = [...days];
-        if (!newDays[dayIndex]) return;
-
-        const actualDayIndex = dayIndex;
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        if (actualDayIndex === -1) return;
 
         let newItem: any = {
             type: 'no-filter',
@@ -657,6 +670,7 @@ const StudentPlanPage = () => {
                         subscriptionId={params.id as string}
                         instance={rawInstance}
                         executions={executions}
+                        actionsMap={executionActions}
                         loading={loading}
                         planName={name || '学员训练计划'}
                         planDescription={description}

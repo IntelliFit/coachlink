@@ -22,7 +22,6 @@ const config = {
                 sans: ["var(--font-sans)", ...fontFamily.sans]
             },
             colors: {
-                // 核心修复：使用 withOpacity 函数包装所有变量
                 border: withOpacity("--border"),
                 input: withOpacity("--input"),
                 ring: withOpacity("--ring"),

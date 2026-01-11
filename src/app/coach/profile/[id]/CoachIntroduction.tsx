@@ -275,7 +275,36 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                     </div>
                 </div>
             </div>
-            {/* Dialog 组件保持不变 */}
+            {/* 编辑教练资料对话框 */}
+            <EditCoachProfileDialog
+                visible={editDialogVisible}
+                onHide={() => setEditDialogVisible(false)}
+                coach={coach}
+                onSave={() => {
+                    // 刷新页面以获取更新后的教练信息
+                    window.location.reload();
+                }}
+            />
+
+            {/* 聊天对话框 */}
+            {chatroom && (
+                <ChatDialog
+                    visible={chatDialogVisible}
+                    onHide={() => setChatDialogVisible(false)}
+                    chatroom={chatroom}
+                />
+            )}
+
+            {/* 问卷表单 */}
+            <QuestionnaireForm
+                coach={coach}
+                visible={questionnaireVisible}
+                onHide={() => setQuestionnaireVisible(false)}
+                questions={questionnaireQuestions}
+                onSubmit={handleQuestionnaireSubmit}
+                loading={questionnaireLoading}
+                existingAnswers={userSubscription?.subscribe_data as unknown as TrainingItem[] | undefined}
+            />
         </div>
     );
 };

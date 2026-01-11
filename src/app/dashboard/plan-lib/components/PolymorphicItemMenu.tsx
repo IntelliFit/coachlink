@@ -34,13 +34,13 @@ export const PolymorphicItemMenu: React.FC<PolymorphicItemMenuProps> = ({ onAdd,
         }
     ];
 
-return (
+    return (
         <>
-            <Menu 
-                model={items} 
-                popup 
-                ref={menu} 
-                id="add_item_menu" 
+            <Menu
+                model={items}
+                popup
+                ref={menu}
+                id="add_item_menu"
                 // 这里的 pt 属性可以让你直接注入 Tailwind 来优化 PrimeReact 原生菜单
                 pt={{
                     root: { className: 'border-none shadow-xl rounded-[20px] p-2 bg-surface/90 backdrop-blur-md' },
@@ -50,7 +50,7 @@ return (
                     icon: { className: 'text-primary-500 mr-3 text-sm' }
                 }}
             />
-            
+
             <button
                 onClick={(event) => menu.current?.toggle(event)}
                 disabled={disabled}
