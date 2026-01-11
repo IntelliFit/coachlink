@@ -285,19 +285,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 </div>
             ) : (
                 <>
-<<<<<<< HEAD
-                    {renderTierSection('basic')}
-                    {renderTierSection('standard')}
-                    {renderTierSection('vip')}
-=======
                     <div id="guide-subscribe-products">
                         {renderTierSection('basic')}
-                        <Divider className="my-12" />
                         {renderTierSection('standard')}
-                        <Divider className="my-12" />
                         {renderTierSection('vip')}
                     </div>
->>>>>>> cd38a5757d9845841f0d9bed904baf52cb8a6ecb
                 </>
             )}
 
