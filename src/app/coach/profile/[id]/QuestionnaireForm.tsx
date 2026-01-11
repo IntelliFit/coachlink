@@ -340,7 +340,6 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
                                         <InputNumber
                                             className='text-xs'
-                                            showButtons
                                             min={0}
                                             suffix=' kg'
                                             value={(question.userInputs || {})[action.id] || 0}
@@ -407,7 +406,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 label="取消"
                 icon="pi pi-times"
                 onClick={onHide}
-                className="p-button-text"
+                className="p-button-text rounded-2xl"
                 disabled={loading}
             />
             <Button
@@ -416,7 +415,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 onClick={handleSubmit}
                 loading={loading}
                 disabled={loading}
-                className="p-button-primary"
+                className="p-button-primary rounded-2xl"
             />
         </div>
     );
