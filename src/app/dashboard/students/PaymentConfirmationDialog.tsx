@@ -7,11 +7,22 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Avatar } from 'primereact/avatar';
 import { Skeleton } from 'primereact/skeleton';
+import { Image } from 'primereact/image';
+import { Tag } from 'primereact/tag';
 import { userService } from '@/app/service/userService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
 import type { CoachSubscriptionRow } from '@/types';
 import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
+
+// 线下支付数据结构
+interface OfflinePaymentData {
+    payment_type: 'offline';
+    expires_at: string;
+    amount?: number;
+    receipt_url?: string;
+    note?: string;
+}
 
 interface PaymentConfirmationDialogProps {
     visible: boolean;
@@ -81,13 +92,42 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
     const handleConfirm = async () => {
         setLoading(true);
         try {
-            // 批量更新订阅状态
-            const updatePromises = selectedSubscriptions.map(subscription =>
-                subscriptionService.updateSubscription({
+            // 批量更新订阅状态，并为线下支付设置 end_date
+            const updatePromises = selectedSubscriptions.map(subscription => {
+                const subscribeData = subscription.subscribe_data as any;
+                // 兼容处理：支持数组或对象格式查找
+                let offlinePayment: OfflinePaymentData | undefined;
+                
+                if (Array.isArray(subscribeData)) {
+                    offlinePayment = subscribeData.find((item: any) => item.type === 'offline_payment');
+                } else if (subscribeData?.offline_payment) {
+                    offlinePayment = subscribeData.offline_payment;
+                }
+                
+                const updateData: Record<string, unknown> = {
                     id: subscription.id,
                     status: 'active'
-                })
-            );
+                };
+
+                // 如果是线下支付，设置 end_date 为学员填写的到期日期
+                if (offlinePayment?.expires_at) {
+                    updateData.end_date = offlinePayment.expires_at;
+                }
+                
+                // 自动修复数据结构：如果发现是对象格式，借此机会转换为数组
+                if (!Array.isArray(subscribeData) && subscribeData && typeof subscribeData === 'object') {
+                     // 尝试转换: 将对象属性转换为数组项，或者保留 offline_payment
+                     const newSubscribeData = [];
+                     if (offlinePayment) {
+                         newSubscribeData.push({ type: 'offline_payment', ...offlinePayment });
+                     }
+                     // 如果有其他属性（如问卷），这里比较难无损恢复，但通常线下支付时问卷数据可能为空或不同
+                     // 简单起见，如果检测到格式错误，我们在激活时修复它
+                    updateData.subscribe_data = newSubscribeData;
+                }
+
+                return subscriptionService.updateSubscription(updateData as Parameters<typeof subscriptionService.updateSubscription>[0]);
+            });
 
             await Promise.all(updatePromises);
             
@@ -109,6 +149,66 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         } finally {
             setLoading(false);
         }
+    };
+
+    // 获取线下支付数据
+    const getOfflinePayment = (subscription: SubscriptionWithStudentProfile): OfflinePaymentData | null => {
+        const subscribeData = subscription.subscribe_data as any;
+        if (!subscribeData) return null;
+        
+        if (Array.isArray(subscribeData)) {
+            return subscribeData.find((item: any) => item.type === 'offline_payment') || null;
+        }
+        
+        // 兼容旧对象格式
+        return subscribeData.offline_payment || null;
+    };
+
+    // 支付方式模板
+    const paymentTypeTemplate = (subscription: SubscriptionWithStudentProfile) => {
+        const offlinePayment = getOfflinePayment(subscription);
+        if (offlinePayment) {
+            return <Tag value="线下已支付" severity="warning" rounded />;
+        }
+        return <Tag value="扫码支付" severity="info" rounded />;
+    };
+
+    // 线下支付详情模板
+    const offlineDetailsTemplate = (subscription: SubscriptionWithStudentProfile) => {
+        const offlinePayment = getOfflinePayment(subscription);
+        if (!offlinePayment) {
+            return <span className="text-surface-400">-</span>;
+        }
+
+        return (
+            <div className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center gap-2">
+                    <span className="text-surface-500">到期:</span>
+                    <span className="font-medium text-primary">
+                        {new Date(offlinePayment.expires_at).toLocaleDateString()}
+                    </span>
+                </div>
+                {offlinePayment.amount && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-surface-500">金额:</span>
+                        <span>¥{offlinePayment.amount}</span>
+                    </div>
+                )}
+                {offlinePayment.receipt_url && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-surface-500">凭证:</span>
+                        <Image
+                            src={offlinePayment.receipt_url}
+                            alt="支付凭证"
+                            width="40"
+                            height="40"
+                            preview
+                            className="rounded border cursor-pointer"
+                        />
+                    </div>
+                )}
+            </div>
+        );
     };
 
     const studentTemplate = (subscription: SubscriptionWithStudentProfile) => (
@@ -151,14 +251,33 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         </span>
     );
 
-    const priceTemplate = (subscription: SubscriptionWithStudentProfile) => (
-        <div className="text-right">
-            <div>¥{subscription.monthly_price.toFixed(2)}</div>
-            {subscription.order_id && (
-                <div className="text-xs text-surface-500">订单: {subscription.order_id.substring(0, 8)}...</div>
-            )}
-        </div>
-    );
+    const priceTemplate = (subscription: SubscriptionWithStudentProfile) => {
+        const offlinePayment = getOfflinePayment(subscription);
+        
+        if (offlinePayment) {
+            return (
+                <div className="text-right">
+                    {offlinePayment.amount ? (
+                        <>
+                            <div className="font-medium text-green-600">¥{offlinePayment.amount}</div>
+                            <div className="text-xs text-surface-500">线下实付</div>
+                        </>
+                    ) : (
+                        <div className="text-surface-500 italic">线下支付</div>
+                    )}
+                </div>
+            );
+        }
+
+        return (
+            <div className="text-right">
+                <div>¥{subscription.monthly_price.toFixed(2)}</div>
+                {subscription.order_id && (
+                    <div className="text-xs text-surface-500">订单: {subscription.order_id.substring(0, 8)}...</div>
+                )}
+            </div>
+        );
+    };
 
     const noteTemplate = (subscription: SubscriptionWithStudentProfile) => (
         subscription.remind_coach_note ? (
@@ -209,20 +328,25 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                         onSelectionChange={(e) => setSelectedSubscriptions(e.value as CoachSubscriptionRow[])}
                         selectionMode="checkbox"
                         dataKey="id"
+                        scrollable
+                        scrollHeight="400px"
                     >
                         <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
                         <Column field="student" header="学员" body={studentTemplate}></Column>
-                        <Column field="tier" header="订阅等级" body={tierTemplate}></Column>
-                        <Column field="monthly_price" header="月费" body={priceTemplate} align="right"></Column>
+                        <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '100px' }}></Column>
+                        <Column field="offline_details" header="线下支付详情" body={offlineDetailsTemplate} style={{ width: '180px' }}></Column>
+                        <Column field="monthly_price" header="月费" body={priceTemplate} align="right" style={{ width: '100px' }}></Column>
                         <Column 
                             field="remind_coach_note" 
-                            header="支付备注" 
+                            header="备注" 
                             body={noteTemplate}
+                            style={{ maxWidth: '150px' }}
                         ></Column>
                         <Column 
                             field="created_at" 
                             header="申请时间" 
                             body={(rowData) => new Date(rowData.created_at).toLocaleString()}
+                            style={{ width: '140px' }}
                         ></Column>
                     </DataTable>
                 ) : (

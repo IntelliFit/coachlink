@@ -383,53 +383,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 <div className="md:col-span-2 mt-4 rounded-2xl">
                     <label className="block text-900 text-sm font-medium mb-3">强度设置</label>
 
-                    {/* 1RM参考值输入区 */}
-                    {currentAction?.enableAutoWeightCompute && !isGlobalOneRMConfigEnabled && !studentData && (
-                        <div className={`mb-4 p-3 rounded-lg border ${planReference1RM ? 'bg-green-50 border-green-100' : 'bg-primary-50 border-primary-100'}`}>
-                            <div className="flex items-end gap-3">
-                                <div className="flex-1 flex flex-col gap-1.5">
-                                    <label className="block text-700 text-xs leading-none">
-                                        参考极限重量 (1RM)
-                                        {studentData?.profile?.weight ? (
-                                            <span className="text-500 ml-2 font-normal">
-                                                (当前体重: {studentData.profile.weight}kg)
-                                            </span>
-                                        ) : (
-                                            <span className="text-orange-500 ml-2 font-normal">
-                                                (未设置体重，可能影响计算)
-                                            </span>
-                                        )}
-                                        {planReference1RM && (
-                                            <span className="text-green-600 ml-2 font-bold text-xs bg-green-100 px-2 py-0.5 rounded">
-                                                计划统一设定
-                                            </span>
-                                        )}
-                                    </label>
-                                    <InputNumber
-                                        value={planReference1RM || manual1RM}
-                                        onValueChange={(e) => !planReference1RM && setManual1RM(e.value || 0)}
-                                        suffix=" kg"
-                                        min={0}
-                                        max={500}
-                                        disabled={saving || !!planReference1RM}
-                                        inputClassName='w-full border border-surface-200 rounded-2xl'
-                                    />
-                                    {planReference1RM && (
-                                        <p className="text-xs text-green-700">
-                                            * 已在计划顶部统一配置，如需修改请滚动到顶部。
-                                        </p>
-                                    )}
-                                </div>
-                                {currentAction.includesBodyWeight && (
-                                    <div className="pb-1">
-                                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-bold">
-                                            含自重
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
 
                     {/* 相对强度类型选择：胶囊切换风格 */}
                     <div className="flex p-1 bg-surface-100/80 rounded-[12px] w-fit mb-4 border border-surface-200/50">
@@ -524,6 +477,19 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* 备注字段 */}
+            <div className="md:col-span-2">
+                <label className="block text-surface-400 text-[11px] font-bold uppercase tracking-widest mb-2 ml-1">备注</label>
+                <input
+                    type="text"
+                    value={set.params?.note || ''}
+                    onChange={e => onActionSetChange(dayIndex, setIndex, 'params', { note: e.target.value } as any)}
+                    placeholder="如 rpe9、热身组等"
+                    className="w-full p-3 border border-surface-200 rounded-2xl text-sm bg-surface-50/50 focus:bg-white focus:border-primary-300 transition-all"
+                    disabled={saving}
+                />
+            </div>
 
             {/* 智能计算预览（仅当有学员数据且启用自动计算时） */}
             {currentAction?.enableAutoWeightCompute && studentData && (

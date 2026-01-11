@@ -23,6 +23,7 @@ import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfilePanel';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { PlanStartConfigDialog, PlanStartConfig } from './components/PlanStartConfigDialog';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import StudentPlanExecutionView from './components/StudentPlanExecutionView';
@@ -78,6 +79,11 @@ const StudentPlanPage = () => {
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
+
+    // 计划导入配置
+    const [planStartConfigVisible, setPlanStartConfigVisible] = useState(false);
+    const [pendingTemplate, setPendingTemplate] = useState<GetTemplateResponseDto | null>(null);
+    const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
 
     // Load instance data
     useEffect(() => {
@@ -478,7 +484,8 @@ const StudentPlanPage = () => {
                 tags: tags || null,
                 type: type || null,
                 suitableFor: suitableFor || null,
-                trainingDays: daysData
+                trainingDays: daysData,
+                startDate: customStartDate ? customStartDate.toISOString() : undefined
             });
 
             if (res) {
@@ -505,8 +512,33 @@ const StudentPlanPage = () => {
     };
 
     // 新增函数：处理选择模板
+    // 新增函数：处理选择模板 -> 弹出配置框
     const handleSelectTemplate = (templateData: GetTemplateResponseDto) => {
-        // 设置基本信息
+        setPendingTemplate(templateData);
+        setPlanStartConfigVisible(true);
+    };
+
+    // 确认配置并应用模板
+    const handleConfirmPlanStart = (config: PlanStartConfig) => {
+        if (!pendingTemplate) return;
+
+        setPlanStartConfigVisible(false);
+
+        // 1. 计算回推的开始日期
+        // 如果选择从第W周第D天开始，说明前 (W-1)*7 + (D-1) 天已经过去了
+        const today = new Date();
+        const daysToSubtract = (config.startWeek - 1) * 7 + (config.startDay - 1);
+        
+        if (daysToSubtract > 0) {
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - daysToSubtract);
+            setCustomStartDate(startDate);
+        } else {
+            setCustomStartDate(null);
+        }
+
+        // 2. 应用模板数据
+        const templateData = pendingTemplate;
         setName(templateData.template.name);
         setDescription(templateData.template.description || '');
         setTags(templateData.template.tags || []);
@@ -520,6 +552,8 @@ const StudentPlanPage = () => {
 
         setDays(convertedDays);
         setSelectedDayIndex(convertedDays.length > 0 ? convertedDays[0].dayIndex : null);
+        
+        setPendingTemplate(null);
     };
 
     // 获取选中的训练日
@@ -642,6 +676,16 @@ const StudentPlanPage = () => {
                     onHide={() => setSelectTemplateDialogVisible(false)}
                     onSelectTemplate={handleSelectTemplate}
                     coachId={coach?.id || ''}
+                />
+                
+                <PlanStartConfigDialog 
+                    visible={planStartConfigVisible}
+                    onHide={() => {
+                        setPlanStartConfigVisible(false);
+                        setPendingTemplate(null);
+                    }}
+                    onConfirm={handleConfirmPlanStart}
+                    totalWeeks={pendingTemplate ? Math.ceil((pendingTemplate.days?.length || 0) / 7) : 12}
                 />
 
                 <div className="flex items-center justify-between mb-6">

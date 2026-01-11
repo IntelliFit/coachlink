@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { Button } from 'primereact/button';
+import { Calendar as PRCalendar } from 'primereact/calendar';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
@@ -43,6 +44,11 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [priorWeeksValue, setPriorWeeksValue] = useState<number | null>(student?.prior_training_weeks ?? 0);
     const [isSavingPriorWeeks, setIsSavingPriorWeeks] = useState(false);
 
+    // End Date Editing
+    const [isEditingEndDate, setIsEditingEndDate] = useState(false);
+    const [endDateValue, setEndDateValue] = useState<Date | null>(student?.end_date ? new Date(student.end_date) : null);
+    const [isSavingEndDate, setIsSavingEndDate] = useState(false);
+
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
@@ -65,6 +71,35 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
             console.error('保存失败:', error);
         } finally {
             setIsSavingPriorWeeks(false);
+        }
+    };
+
+    const getRemainingDuration = () => {
+        if (!student?.end_date) return '长期';
+        const end = new Date(student.end_date);
+        const now = new Date();
+        const diff = end.getTime() - now.getTime();
+        if (diff < 0) return '已过期';
+        const weeks = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
+        return `${weeks} 周`;
+    };
+
+    const saveEndDate = async () => {
+        if (!student) return;
+        setIsSavingEndDate(true);
+        try {
+            await subscriptionService.updateSubscription({
+                id: student.id,
+                end_date: endDateValue ? endDateValue.toISOString() : null,
+            });
+            onStudentUpdate?.({ ...student, end_date: endDateValue ? endDateValue.toISOString() : null });
+            setIsEditingEndDate(false);
+            showToast({ severity: 'success', summary: '更新成功' });
+        } catch (error) {
+            console.error('保存失败:', error);
+            showToast({ severity: 'error', summary: '保存失败' });
+        } finally {
+            setIsSavingEndDate(false);
         }
     };
 
@@ -217,7 +252,38 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-orange-500 shadow-sm"><Clock size={16} /></div>
                             <div>
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">剩余时长</p>
-                                <p className="text-xs font-black text-surface-700">{student.end_date ? '12 周' : '长期'}</p>
+                                <div className="flex items-center gap-1">
+                                    {isEditingEndDate ? (
+                                        <div className="flex items-center gap-1">
+                                            <PRCalendar 
+                                                value={endDateValue} 
+                                                onChange={(e) => setEndDateValue(e.value as Date)} 
+                                                className="w-24 h-6 text-xs" 
+                                                inputClassName="p-1 px-2 text-xs font-black"
+                                                dateFormat="yy/mm/dd"
+                                            />
+                                              <Button
+                                                icon={<Check size={12} />}
+                                                className="p-button-success p-button-sm w-6 h-6 rounded-md p-0"
+                                                onClick={saveEndDate}
+                                                loading={isSavingEndDate}
+                                            />
+                                            <Button
+                                                icon={<X size={12} />}
+                                                className="p-button-secondary p-button-text p-button-sm w-6 h-6 rounded-md p-0"
+                                                onClick={() => {
+                                                    setIsEditingEndDate(false);
+                                                    setEndDateValue(student.end_date ? new Date(student.end_date) : null);
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingEndDate(true)}>
+                                            <p className="text-xs font-black text-surface-700">{getRemainingDuration()}</p>
+                                            <Edit2 size={12} className="text-primary opacity-70 hover:opacity-100 transition-all" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
@@ -328,7 +394,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                         <h3 className="text-lg font-black tracking-tight text-surface-900 uppercase">力量进步曲线</h3>
                     </div>
                     <div className="bg-surface rounded-[32px] border border-surface-100 p-4">
-                        <E1RMProgressChart studentId={student.id} />
+                        <E1RMProgressChart studentId={student.student_id} coachId={coach.id} />
                     </div>
                 </section>
 

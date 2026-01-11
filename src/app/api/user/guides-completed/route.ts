@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 // GET: Fetch user's completed guides

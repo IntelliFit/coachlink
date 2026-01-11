@@ -9,6 +9,7 @@ import { TrendingUp } from 'lucide-react';
 
 interface E1RMProgressChartProps {
     studentId: string;
+    coachId?: string; // Optional: filter actions by coach
     height?: string;
 }
 
@@ -19,6 +20,7 @@ interface ActionOption {
 
 export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({ 
     studentId, 
+    coachId,
     height = '250px' 
 }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +41,7 @@ export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({
                 const response = await fetch('/api/student/get-available-actions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({ coachId })
                 });
                 const result = await response.json();
                 
@@ -64,7 +66,7 @@ export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({
         };
 
         fetchAvailableActions();
-    }, [studentId]);
+    }, [studentId, coachId]);
 
     // Fetch chart data when action changes
     useEffect(() => {

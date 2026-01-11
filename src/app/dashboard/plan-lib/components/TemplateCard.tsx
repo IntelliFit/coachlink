@@ -82,7 +82,12 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                 {/* 底部功能标签组 */}
                 <div className="flex flex-wrap gap-1.5 items-center">
                     <div className="flex items-center text-[10px] font-black px-2 py-0.5 rounded-md bg-surface-100 text-surface-500 dark:bg-surface-800 uppercase tracking-widest">
-                        每周 {template.weekDays.length} 练
+                        {template.weekDays.length === 0 
+                            ? '频率未设定'
+                            : template.weekDays.length === 1
+                                ? `每周 ${template.weekDays[0]} 练`
+                                : `每周 ${Math.min(...template.weekDays)}-${Math.max(...template.weekDays)} 练`
+                        }
                     </div>
                     
                     {/* 微型垂直分割线 */}

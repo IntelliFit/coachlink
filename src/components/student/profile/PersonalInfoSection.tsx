@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Edit, Dumbbell, Activity } from 'lucide-react';
+import { User, Edit, Dumbbell, Activity, Bike, Footprints } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -10,13 +10,14 @@ import { Checkbox } from 'primereact/checkbox';
 import { ProfileData } from './types';
 import { studentService } from '@/app/service/studentService';
 import { useToastContext } from '@/context/ToastContext';
+import { SportCards, getEmptySportCards } from '@/types/sportCards';
 
 interface PersonalInfoSectionProps {
     data: ProfileData;
     onUpdate: () => void;
 }
 
-// 性别选项 - 使用英文值匹配数据库
+// 性别选项
 const GENDER_OPTIONS = [
     { label: '男', value: 'male' },
     { label: '女', value: 'female' },
@@ -30,27 +31,23 @@ const FITNESS_GOAL_OPTIONS = [
     { label: '体能改善', value: '体能改善' },
 ];
 
-// 健身水平选项 - 使用英文值匹配数据库约束
+// 健身水平选项
 const FITNESS_LEVEL_OPTIONS = [
     { label: '初学者', value: 'beginner' },
     { label: '中级', value: 'intermediate' },
     { label: '高级', value: 'advanced' },
 ];
 
-// 运动卡片类型
+// 运动卡片类型 - 7 大类
 const CARD_TYPES = [
-    { key: 'powerlifting', label: '力量举', icon: Dumbbell },
-    { key: 'bodybuilding', label: '健美/形体', icon: User },
-    { key: 'fitness', label: '一般体能', icon: Activity },
+    { key: 'powerlifting', label: '力量举', icon: Dumbbell, bgClass: 'bg-orange-50', borderClass: 'border-orange-200', textClass: 'text-orange-700' },
+    { key: 'streetlifting', label: '街头力量举', icon: Dumbbell, bgClass: 'bg-lime-50', borderClass: 'border-lime-200', textClass: 'text-lime-700' },
+    { key: 'calisthenics', label: '街头健身', icon: User, bgClass: 'bg-green-50', borderClass: 'border-green-200', textClass: 'text-green-700' },
+    { key: 'weightlifting', label: '举重', icon: Dumbbell, bgClass: 'bg-red-50', borderClass: 'border-red-200', textClass: 'text-red-700' },
+    { key: 'bodybuilding', label: '健美/形体', icon: User, bgClass: 'bg-purple-50', borderClass: 'border-purple-200', textClass: 'text-purple-700' },
+    { key: 'running', label: '跑步', icon: Footprints, bgClass: 'bg-blue-50', borderClass: 'border-blue-200', textClass: 'text-blue-700' },
+    { key: 'cycling', label: '骑行', icon: Bike, bgClass: 'bg-cyan-50', borderClass: 'border-cyan-200', textClass: 'text-cyan-700' },
 ];
-
-// 辅助函数：转换性别显示
-const getGenderDisplay = (gender: string | null) => {
-    if (!gender) return '未填写';
-    if (gender === 'male') return '男';
-    if (gender === 'female') return '女';
-    return gender;
-};
 
 // 辅助函数：转换健身水平显示
 const getFitnessLevelDisplay = (level: string | null) => {
@@ -64,13 +61,13 @@ const getFitnessLevelDisplay = (level: string | null) => {
 };
 
 export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, onUpdate }) => {
-    const { user, profile } = data;
+    const { profile } = data;
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const { showToast } = useToastContext();
 
-    // Form state - 包含所有问卷字段
+    // Form state
     const [formData, setFormData] = useState({
         nickname: '',
         avatar_url: '',
@@ -81,22 +78,12 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         lifestyle: '',
         fitness_goal: '',
         fitness_level: '',
-        sport_cards: {
-            activeCards: [] as string[],
-            powerlifting: { squat: null as number | null, bench: null as number | null, deadlift: null as number | null },
-            bodybuilding: { chest: null as number | null, arm: null as number | null, waist: null as number | null, hip: null as number | null, bodyfat: null as number | null },
-            fitness: { pullups: null as number | null, pushups: null as number | null, plank: null as number | null, restingHR: null as number | null },
-        }
+        sport_cards: getEmptySportCards()
     });
 
     // 初始化表单数据
     const initFormData = () => {
-        const sportCards = profile?.sport_cards as any || {
-            activeCards: [],
-            powerlifting: { squat: null, bench: null, deadlift: null },
-            bodybuilding: { chest: null, arm: null, waist: null, hip: null, bodyfat: null },
-            fitness: { pullups: null, pushups: null, plank: null, restingHR: null },
-        };
+        const sportCards = (profile?.sport_cards as unknown as SportCards) || getEmptySportCards();
         
         setFormData({
             nickname: profile?.nickname || '',
@@ -108,7 +95,10 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
             lifestyle: profile?.lifestyle || '',
             fitness_goal: profile?.fitness_goal || '',
             fitness_level: profile?.fitness_level || '',
-            sport_cards: sportCards
+            sport_cards: {
+                ...getEmptySportCards(),
+                ...sportCards
+            }
         });
     };
 
@@ -127,19 +117,11 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                 fitness_level: formData.fitness_level,
                 sport_cards: formData.sport_cards
             });
-            showToast({
-                severity: 'success',
-                summary: '保存成功',
-                detail: '个人信息已更新'
-            });
+            showToast({ severity: 'success', summary: '保存成功', detail: '个人信息已更新' });
             setIsEditing(false);
             onUpdate();
         } catch (error) {
-            showToast({
-                severity: 'error',
-                summary: '保存失败',
-                detail: '无法更新个人信息，请重试'
-            });
+            showToast({ severity: 'error', summary: '保存失败', detail: '无法更新个人信息，请重试' });
         } finally {
             setLoading(false);
         }
@@ -177,14 +159,28 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         });
     };
 
-    // 更新卡片数据
+    // 更新卡片数据 (数字类型)
     const updateCardData = (cardKey: string, field: string, value: number | null) => {
         setFormData({
             ...formData,
             sport_cards: {
                 ...formData.sport_cards,
                 [cardKey]: {
-                    ...(formData.sport_cards[cardKey as keyof typeof formData.sport_cards] as object),
+                    ...(formData.sport_cards[cardKey as keyof SportCards] as object),
+                    [field]: value,
+                },
+            },
+        });
+    };
+
+    // 更新卡片数据 (字符串类型)
+    const updateCardDataString = (cardKey: string, field: string, value: string | null) => {
+        setFormData({
+            ...formData,
+            sport_cards: {
+                ...formData.sport_cards,
+                [cardKey]: {
+                    ...(formData.sport_cards[cardKey as keyof SportCards] as object),
                     [field]: value,
                 },
             },
@@ -198,7 +194,6 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         </div>
     );
 
-    // 渲染信息项骨架屏
     const InfoItemSkeleton = () => (
         <div className="p-4 bg-surface-50 rounded-xl border border-surface-100">
             <Skeleton width="40%" height="0.875rem" className="mb-2" />
@@ -217,33 +212,28 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                     label="编辑资料" 
                     icon={<Edit size={16} className="mr-2" />} 
                     text 
-                    onClick={() => {
-                        initFormData();
-                        setIsEditing(true);
-                    }}
+                    onClick={() => { initFormData(); setIsEditing(true); }}
                 />
             </div>
 
-            {/* 显示加载状态的骨架屏 */}
             {!profile ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[...Array(6)].map((_, index) => (
-                        <InfoItemSkeleton key={index} />
-                    ))}
+                    {[...Array(6)].map((_, index) => (<InfoItemSkeleton key={index} />))}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
                     <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
                     <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
-                    <InfoItem label="健身水平" value={getFitnessLevelDisplay(profile?.fitness_level)} /><InfoItem label="生活作息" value={profile?.lifestyle || null} />
+                    <InfoItem label="健身水平" value={getFitnessLevelDisplay(profile?.fitness_level)} />
+                    <InfoItem label="生活作息" value={profile?.lifestyle || null} />
                 </div>
             )}
 
             <Dialog 
                 header="编辑个人资料" 
                 visible={isEditing} 
-                style={{ width: '90vw', maxWidth: '900px' }} 
+                style={{ width: '95vw', maxWidth: '950px' }} 
                 onHide={() => setIsEditing(false)}
                 footer={
                     <div className="flex justify-end gap-2">
@@ -252,28 +242,19 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                     </div>
                 }
             >
-                <div className="flex flex-col gap-6 py-4">
+                <div className="flex flex-col gap-6 py-4 max-h-[70vh] overflow-y-auto">
                     {/* 基本信息 */}
                     <div>
                         <h3 className="text-md font-semibold mb-4 text-surface-700">基本信息</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="nickname" className="text-sm font-medium">昵称</label>
-                                <InputText 
-                                    id="nickname" 
-                                    value={formData.nickname} 
-                                    onChange={(e) => setFormData({...formData, nickname: e.target.value})} 
-                                />
+                                <InputText id="nickname" value={formData.nickname} onChange={(e) => setFormData({...formData, nickname: e.target.value})} />
                             </div>
                             <div className="flex flex-col gap-2">
-                                <label htmlFor="avatar" className="text-sm font-medium">头像链接</label>
+                                <label htmlFor="avatar" className="text-sm font-medium">头像</label>
                                 <div className="flex items-center gap-3">
-                                    <InputText 
-                                        id="avatar"
-                                        value={formData.avatar_url}
-                                        onChange={(e) => setFormData({...formData, avatar_url: e.target.value})} 
-                                        placeholder="粘贴图片URL"
-                                    />
+                                    <InputText id="avatar" value={formData.avatar_url} onChange={(e) => setFormData({...formData, avatar_url: e.target.value})} placeholder="粘贴图片URL" className="flex-1" />
                                     {formData.avatar_url ? (
                                         <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-100 border">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -296,92 +277,38 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                         />
                                         选择本地图片
                                     </label>
-                                    <Button label="清空" text size="small" onClick={() => setFormData({ ...formData, avatar_url: '' })} />
+                                    <Button label="清空" text size="small" onClick={() => setFormData({ ...formData, avatar_url: '' })} type="button" />
                                     {uploading && <span className="text-xs text-surface-500">上传中...</span>}
                                 </div>
                                 <p className="text-xs text-surface-500">支持 PNG/JPG/WEBP，≤2MB。</p>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="age" className="text-sm font-medium">年龄</label>
-                                <InputNumber 
-                                    id="age" 
-                                    value={formData.age} 
-                                    onValueChange={(e) => setFormData({...formData, age: e.value ?? null})} 
-                                    min={10} max={100}
-                                    suffix=" 岁"
-                                    className="w-full"
-                                />
+                                <InputNumber id="age" value={formData.age} onValueChange={(e) => setFormData({...formData, age: e.value ?? null})} min={10} max={100} suffix=" 岁" className="w-full" />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="gender" className="text-sm font-medium">性别</label>
-                                <Dropdown 
-                                    id="gender" 
-                                    value={formData.gender} 
-                                    options={GENDER_OPTIONS} 
-                                    onChange={(e) => setFormData({...formData, gender: e.value})} 
-                                    placeholder="选择性别"
-                                    className="w-full"
-                                />
+                                <Dropdown id="gender" value={formData.gender} options={GENDER_OPTIONS} onChange={(e) => setFormData({...formData, gender: e.value})} placeholder="选择性别" className="w-full" />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="height" className="text-sm font-medium">身高 (cm)</label>
-                                <InputNumber 
-                                    id="height" 
-                                    value={formData.height} 
-                                    onValueChange={(e) => setFormData({...formData, height: e.value ?? null})} 
-                                    min={100} max={250}
-                                    className="w-full"
-                                />
+                                <InputNumber id="height" value={formData.height} onValueChange={(e) => setFormData({...formData, height: e.value ?? null})} min={100} max={250} className="w-full" />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="weight" className="text-sm font-medium">体重 (kg)</label>
-                                <InputNumber 
-                                    id="weight" 
-                                    value={formData.weight} 
-                                    onValueChange={(e) => setFormData({...formData, weight: e.value ?? null})} 
-                                    min={30} max={300}
-                                    mode="decimal" 
-                                    minFractionDigits={1}
-                                    className="w-full"
-                                />
+                                <InputNumber id="weight" value={formData.weight} onValueChange={(e) => setFormData({...formData, weight: e.value ?? null})} min={30} max={300} mode="decimal" minFractionDigits={1} className="w-full" />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="lifestyle" className="text-sm font-medium">生活作息</label>
-                                <InputText 
-                                    id="lifestyle" 
-                                    value={formData.lifestyle} 
-                                    onChange={(e) => setFormData({...formData, lifestyle: e.target.value})} 
-                                    placeholder="如：朝九晚五，久坐办公"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 健身目标 */}
-                    <div>
-                        <h3 className="text-md font-semibold mb-4 text-surface-700">健身目标</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="fitness_goal" className="text-sm font-medium">健身目标</label>
-                                <Dropdown 
-                                    id="fitness_goal" 
-                                    value={formData.fitness_goal} 
-                                    options={FITNESS_GOAL_OPTIONS} 
-                                    onChange={(e) => setFormData({...formData, fitness_goal: e.value})} 
-                                    placeholder="选择健身目标"
-                                    className="w-full"
-                                />
+                                <Dropdown id="fitness_goal" value={formData.fitness_goal} options={FITNESS_GOAL_OPTIONS} onChange={(e) => setFormData({...formData, fitness_goal: e.value})} placeholder="选择健身目标" className="w-full" />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label htmlFor="fitness_level" className="text-sm font-medium">当前水平</label>
-                                <Dropdown 
-                                    id="fitness_level" 
-                                    value={formData.fitness_level} 
-                                    options={FITNESS_LEVEL_OPTIONS} 
-                                    onChange={(e) => setFormData({...formData, fitness_level: e.value})} 
-                                    placeholder="选择健身水平"
-                                    className="w-full"
-                                />
+                                <Dropdown id="fitness_level" value={formData.fitness_level} options={FITNESS_LEVEL_OPTIONS} onChange={(e) => setFormData({...formData, fitness_level: e.value})} placeholder="选择健身水平" className="w-full" />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label htmlFor="lifestyle" className="text-sm font-medium">生活作息</label>
+                                <InputText id="lifestyle" value={formData.lifestyle} onChange={(e) => setFormData({...formData, lifestyle: e.target.value})} placeholder="如：朝九晚五" />
                             </div>
                         </div>
                     </div>
@@ -389,9 +316,9 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                     {/* 运动卡片 */}
                     <div>
                         <h3 className="text-md font-semibold mb-4 text-surface-700">运动数据卡片</h3>
-                        <p className="text-sm text-surface-500 mb-4">选择您参与的运动类型，记录您的训练数据</p>
+                        <p className="text-sm text-surface-500 mb-4">选择您参与的运动类型，记录您的训练数据（全部选填）</p>
                         
-                        {/* 卡片选择 */}
+                        {/* 卡片选择 - 7 个类型 */}
                         <div className="flex flex-wrap gap-3 mb-4">
                             {CARD_TYPES.map((card) => {
                                 const isActive = formData.sport_cards.activeCards.includes(card.key);
@@ -401,9 +328,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                         key={card.key}
                                         onClick={() => toggleCard(card.key)}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-all ${
-                                            isActive 
-                                                ? 'border-primary bg-primary/10 text-primary' 
-                                                : 'border-surface-200 bg-surface-50 text-surface-600 hover:border-surface-300'
+                                            isActive ? 'border-primary bg-primary/10 text-primary' : 'border-surface-200 bg-surface-50 text-surface-600 hover:border-surface-300'
                                         }`}
                                     >
                                         <Checkbox checked={isActive} onChange={() => toggleCard(card.key)} />
@@ -414,145 +339,94 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                             })}
                         </div>
 
-                        {/* 力量举卡片 */}
+                        {/* 1. 力量举 */}
                         {formData.sport_cards.activeCards.includes('powerlifting') && (
                             <div className="p-4 bg-orange-50 rounded-xl border border-orange-200 mb-4">
-                                <h4 className="font-semibold text-orange-700 mb-3 flex items-center gap-2">
-                                    <Dumbbell size={18} /> 力量举数据 (1RM)
-                                </h4>
+                                <h4 className="font-semibold text-orange-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 力量举数据</h4>
                                 <div className="grid grid-cols-3 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-orange-600">深蹲 (kg)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.powerlifting.squat}
-                                            onValueChange={(e) => updateCardData('powerlifting', 'squat', e.value ?? null)}
-                                            min={0} max={500}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-orange-600">卧推 (kg)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.powerlifting.bench}
-                                            onValueChange={(e) => updateCardData('powerlifting', 'bench', e.value ?? null)}
-                                            min={0} max={500}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-orange-600">硬拉 (kg)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.powerlifting.deadlift}
-                                            onValueChange={(e) => updateCardData('powerlifting', 'deadlift', e.value ?? null)}
-                                            min={0} max={500}
-                                            className="w-full"
-                                        />
-                                    </div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-orange-600">深蹲 1RM (kg)</label><InputNumber value={formData.sport_cards.powerlifting?.squat} onValueChange={(e) => updateCardData('powerlifting', 'squat', e.value ?? null)} min={0} max={500} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-orange-600">卧推 1RM (kg)</label><InputNumber value={formData.sport_cards.powerlifting?.bench} onValueChange={(e) => updateCardData('powerlifting', 'bench', e.value ?? null)} min={0} max={500} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-orange-600">硬拉 1RM (kg)</label><InputNumber value={formData.sport_cards.powerlifting?.deadlift} onValueChange={(e) => updateCardData('powerlifting', 'deadlift', e.value ?? null)} min={0} max={500} className="w-full" /></div>
                                 </div>
                             </div>
                         )}
 
-                        {/* 健美卡片 */}
+                        {/* 2. 街头力量举 */}
+                        {formData.sport_cards.activeCards.includes('streetlifting') && (
+                            <div className="p-4 bg-lime-50 rounded-xl border border-lime-200 mb-4">
+                                <h4 className="font-semibold text-lime-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 街头力量举数据</h4>
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">负重引体 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.weightedPullup} onValueChange={(e) => updateCardData('streetlifting', 'weightedPullup', e.value ?? null)} min={0} max={200} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">负重双杠 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.weightedDip} onValueChange={(e) => updateCardData('streetlifting', 'weightedDip', e.value ?? null)} min={0} max={200} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">负重双力臂 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.weightedMuscleUp} onValueChange={(e) => updateCardData('streetlifting', 'weightedMuscleUp', e.value ?? null)} min={0} max={200} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">深蹲 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.squat} onValueChange={(e) => updateCardData('streetlifting', 'squat', e.value ?? null)} min={0} max={500} className="w-full" /></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. 街头健身 */}
+                        {formData.sport_cards.activeCards.includes('calisthenics') && (
+                            <div className="p-4 bg-green-50 rounded-xl border border-green-200 mb-4">
+                                <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2"><User size={18} /> 街头健身数据</h4>
+                                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">最大引体 (次)</label><InputNumber value={formData.sport_cards.calisthenics?.maxPullups} onValueChange={(e) => updateCardData('calisthenics', 'maxPullups', e.value ?? null)} min={0} max={100} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">最大双杠 (次)</label><InputNumber value={formData.sport_cards.calisthenics?.maxDips} onValueChange={(e) => updateCardData('calisthenics', 'maxDips', e.value ?? null)} min={0} max={100} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">双力臂 (次)</label><InputNumber value={formData.sport_cards.calisthenics?.maxMuscleUps} onValueChange={(e) => updateCardData('calisthenics', 'maxMuscleUps', e.value ?? null)} min={0} max={50} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">前水平 (秒)</label><InputNumber value={formData.sport_cards.calisthenics?.frontLever} onValueChange={(e) => updateCardData('calisthenics', 'frontLever', e.value ?? null)} min={0} max={120} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">俄挺 (秒)</label><InputNumber value={formData.sport_cards.calisthenics?.planche} onValueChange={(e) => updateCardData('calisthenics', 'planche', e.value ?? null)} min={0} max={120} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">人旗 (秒)</label><InputNumber value={formData.sport_cards.calisthenics?.humanFlag} onValueChange={(e) => updateCardData('calisthenics', 'humanFlag', e.value ?? null)} min={0} max={120} className="w-full" /></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4. 举重 */}
+                        {formData.sport_cards.activeCards.includes('weightlifting') && (
+                            <div className="p-4 bg-red-50 rounded-xl border border-red-200 mb-4">
+                                <h4 className="font-semibold text-red-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 举重数据</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-red-600">抓举 1RM (kg)</label><InputNumber value={formData.sport_cards.weightlifting?.snatch} onValueChange={(e) => updateCardData('weightlifting', 'snatch', e.value ?? null)} min={0} max={300} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-red-600">挺举 1RM (kg)</label><InputNumber value={formData.sport_cards.weightlifting?.cleanAndJerk} onValueChange={(e) => updateCardData('weightlifting', 'cleanAndJerk', e.value ?? null)} min={0} max={400} className="w-full" /></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 5. 健美 */}
                         {formData.sport_cards.activeCards.includes('bodybuilding') && (
                             <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 mb-4">
-                                <h4 className="font-semibold text-purple-700 mb-3 flex items-center gap-2">
-                                    <User size={18} /> 健美数据
-                                </h4>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-purple-600">胸围 (cm)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.bodybuilding.chest}
-                                            onValueChange={(e) => updateCardData('bodybuilding', 'chest', e.value ?? null)}
-                                            min={0} max={200}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-purple-600">臂围 (cm)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.bodybuilding.arm}
-                                            onValueChange={(e) => updateCardData('bodybuilding', 'arm', e.value ?? null)}
-                                            min={0} max={100}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-purple-600">腰围 (cm)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.bodybuilding.waist}
-                                            onValueChange={(e) => updateCardData('bodybuilding', 'waist', e.value ?? null)}
-                                            min={0} max={200}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-purple-600">臀围 (cm)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.bodybuilding.hip}
-                                            onValueChange={(e) => updateCardData('bodybuilding', 'hip', e.value ?? null)}
-                                            min={0} max={200}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-purple-600">体脂率 (%)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.bodybuilding.bodyfat}
-                                            onValueChange={(e) => updateCardData('bodybuilding', 'bodyfat', e.value ?? null)}
-                                            min={0} max={100}
-                                            mode="decimal"
-                                            minFractionDigits={1}
-                                            className="w-full"
-                                        />
-                                    </div>
+                                <h4 className="font-semibold text-purple-700 mb-3 flex items-center gap-2"><User size={18} /> 健美数据</h4>
+                                <div className="grid grid-cols-4 md:grid-cols-7 gap-4">
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">体脂率 (%)</label><InputNumber value={formData.sport_cards.bodybuilding?.bodyfat} onValueChange={(e) => updateCardData('bodybuilding', 'bodyfat', e.value ?? null)} min={0} max={50} mode="decimal" minFractionDigits={1} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">胸围 (cm)</label><InputNumber value={formData.sport_cards.bodybuilding?.chest} onValueChange={(e) => updateCardData('bodybuilding', 'chest', e.value ?? null)} min={0} max={200} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">臂围 (cm)</label><InputNumber value={formData.sport_cards.bodybuilding?.arm} onValueChange={(e) => updateCardData('bodybuilding', 'arm', e.value ?? null)} min={0} max={80} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">腰围 (cm)</label><InputNumber value={formData.sport_cards.bodybuilding?.waist} onValueChange={(e) => updateCardData('bodybuilding', 'waist', e.value ?? null)} min={0} max={150} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">臀围 (cm)</label><InputNumber value={formData.sport_cards.bodybuilding?.hip} onValueChange={(e) => updateCardData('bodybuilding', 'hip', e.value ?? null)} min={0} max={150} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">大腿 (cm)</label><InputNumber value={formData.sport_cards.bodybuilding?.thigh} onValueChange={(e) => updateCardData('bodybuilding', 'thigh', e.value ?? null)} min={0} max={100} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">小腿 (cm)</label><InputNumber value={formData.sport_cards.bodybuilding?.calf} onValueChange={(e) => updateCardData('bodybuilding', 'calf', e.value ?? null)} min={0} max={80} className="w-full" /></div>
                                 </div>
                             </div>
                         )}
 
-                        {/* 体能卡片 */}
-                        {formData.sport_cards.activeCards.includes('fitness') && (
-                            <div className="p-4 bg-green-50 rounded-xl border border-green-200 mb-4">
-                                <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
-                                    <Activity size={18} /> 体能数据
-                                </h4>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-green-600">引体向上 (个)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.fitness.pullups}
-                                            onValueChange={(e) => updateCardData('fitness', 'pullups', e.value ?? null)}
-                                            min={0} max={100}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-green-600">俯卧撑 (个)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.fitness.pushups}
-                                            onValueChange={(e) => updateCardData('fitness', 'pushups', e.value ?? null)}
-                                            min={0} max={200}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-green-600">平板支撑 (秒)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.fitness.plank}
-                                            onValueChange={(e) => updateCardData('fitness', 'plank', e.value ?? null)}
-                                            min={0} max={600}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs text-green-600">静息心率 (次/分)</label>
-                                        <InputNumber 
-                                            value={formData.sport_cards.fitness.restingHR}
-                                            onValueChange={(e) => updateCardData('fitness', 'restingHR', e.value ?? null)}
-                                            min={30} max={150}
-                                            className="w-full"
-                                        />
-                                    </div>
+                        {/* 6. 跑步 */}
+                        {formData.sport_cards.activeCards.includes('running') && (
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 mb-4">
+                                <h4 className="font-semibold text-blue-700 mb-3 flex items-center gap-2"><Footprints size={18} /> 跑步数据</h4>
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">5公里用时</label><InputText value={formData.sport_cards.running?.fiveK || ''} onChange={(e) => updateCardDataString('running', 'fiveK', e.target.value || null)} placeholder="如 25:30" className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">10公里用时</label><InputText value={formData.sport_cards.running?.tenK || ''} onChange={(e) => updateCardDataString('running', 'tenK', e.target.value || null)} placeholder="如 55:00" className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">半马用时</label><InputText value={formData.sport_cards.running?.halfMarathon || ''} onChange={(e) => updateCardDataString('running', 'halfMarathon', e.target.value || null)} placeholder="如 2:05:00" className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">全马用时</label><InputText value={formData.sport_cards.running?.marathon || ''} onChange={(e) => updateCardDataString('running', 'marathon', e.target.value || null)} placeholder="如 4:30:00" className="w-full" /></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 7. 骑行 */}
+                        {formData.sport_cards.activeCards.includes('cycling') && (
+                            <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-200 mb-4">
+                                <h4 className="font-semibold text-cyan-700 mb-3 flex items-center gap-2"><Bike size={18} /> 骑行数据</h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-cyan-600">FTP功率 (W)</label><InputNumber value={formData.sport_cards.cycling?.ftp} onValueChange={(e) => updateCardData('cycling', 'ftp', e.value ?? null)} min={0} max={500} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-cyan-600">最大功率 (W)</label><InputNumber value={formData.sport_cards.cycling?.maxPower} onValueChange={(e) => updateCardData('cycling', 'maxPower', e.value ?? null)} min={0} max={2000} className="w-full" /></div>
+                                    <div className="flex flex-col gap-1"><label className="text-xs text-cyan-600">最长单骑 (km)</label><InputNumber value={formData.sport_cards.cycling?.maxDistance} onValueChange={(e) => updateCardData('cycling', 'maxDistance', e.value ?? null)} min={0} max={500} className="w-full" /></div>
                                 </div>
                             </div>
                         )}
