@@ -5,6 +5,7 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Check, Play, Eye } from 'lucide-react';
+import { calculateCurrentWeek, isDayUnlocked, getDayWeekNumber, formatUnlockDate, getUnlockDate } from '@/lib/weekUnlock';
 
 interface BrowseSectionProps {
     instance: any;
@@ -38,12 +39,20 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
         return Math.max(1, Math.min(startWeek, totalWeeks));
     });
     
+    // 🔒 计算已解锁的周次（基于计划开始日期）
+    const unlockedWeek = useMemo(() => {
+        return calculateCurrentWeek(instance?.start_date);
+    }, [instance?.start_date]);
+    
     // 计算当前周的训练日范围
     const weekDays = useMemo(() => {
         const startDay = (currentWeek - 1) * 7 + 1;
         const endDay = currentWeek * 7;
         return Array.from({ length: 7 }, (_, i) => startDay + i).filter(d => d <= trainingDays.length);
     }, [currentWeek, trainingDays.length]);
+    
+    // 检查当前显示的周是否已解锁
+    const isCurrentWeekUnlocked = currentWeek <= unlockedWeek;
     
     const selectedDay = trainingDays.find(d => d.dayIndex === selectedDayIndex);
 
@@ -82,7 +91,10 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                             disabled={currentWeek === 1}
                             className="p-button-text p-button-sm"
                         />
-                        <span className="text-sm text-gray-600">第 {currentWeek} 周</span>
+                        <span className={`text-sm flex items-center gap-1.5 ${isCurrentWeekUnlocked ? 'text-gray-600' : 'text-amber-500'}`}>
+                            第 {currentWeek} 周
+                            {!isCurrentWeekUnlocked && <i className="pi pi-pencil text-xs text-amber-400" />}
+                        </span>
                         <Button
                             icon={<ChevronRight className="w-4 h-4" />}
                             onClick={handleNextWeek}
@@ -93,8 +105,32 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 </div>
                 
                 {/* Week Calendar */}
-                <div className="bg-white rounded-xl p-4 mb-6">
-                    <div className="grid grid-cols-7 gap-2">
+                <div className="bg-white rounded-xl p-4 mb-6 relative">
+                    {/* 📝 制定中周遮罩 */}
+                    {!isCurrentWeekUnlocked && (
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-surface-900/10 backdrop-blur-sm rounded-xl">
+                            <div className="bg-white/90 rounded-2xl p-6 shadow-lg text-center max-w-xs">
+                                <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i className="pi pi-pencil text-2xl text-amber-500" />
+                                </div>
+                                <h4 className="text-lg font-bold text-gray-800 mb-1">第 {currentWeek} 周内容制定中</h4>
+                                <p className="text-sm text-gray-500 mb-2">
+                                    {(() => {
+                                        const unlockDate = getUnlockDate(currentWeek, instance?.start_date);
+                                        if (unlockDate) {
+                                            return `预计 ${formatUnlockDate(unlockDate)} 发布`;
+                                        }
+                                        return '教练正在为您精心准备训练内容';
+                                    })()}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                    专属计划，逐周发布
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className={`grid grid-cols-7 gap-2 ${!isCurrentWeekUnlocked ? 'opacity-30 pointer-events-none' : ''}`}>
                         {weekDays.map((dayIndex) => {
                             const day = trainingDays.find(d => d.dayIndex === dayIndex);
                             const isTrainingDay = day && day.type === 'training';
@@ -108,6 +144,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 <button
                                     key={dayIndex}
                                     onClick={() => setSelectedDayIndex(dayIndex)}
+                                    disabled={!isCurrentWeekUnlocked}
                                     className={`
                                         relative flex flex-col items-center justify-center p-3 rounded-lg transition-all
                                         ${isSelected 
@@ -159,7 +196,14 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 </div>
 
                 {/* Selected Day Preview */}
-                {selectedDay ? (
+                {!isCurrentWeekUnlocked ? (
+                    /* 制定中周的预览区域 */
+                    <div className="text-center py-8 bg-amber-50/50 rounded-xl border border-amber-100">
+                        <i className="pi pi-pencil text-2xl text-amber-400 mb-3" />
+                        <p className="text-amber-600 text-sm font-medium">本周训练内容制定中</p>
+                        <p className="text-amber-400 text-xs mt-1">教练正在精心准备，敬请期待</p>
+                    </div>
+                ) : selectedDay ? (
                     selectedDay.type === 'training' ? (
                         <div>
                             <div className="mb-4">

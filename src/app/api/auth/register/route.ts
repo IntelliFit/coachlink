@@ -12,13 +12,17 @@ export async function POST(req: NextRequest) {
         verifyCode,
     } = await req.json() as RegisterDto;
 
-    if (!phone || !password) {
+    const trimmedPhone = phone?.trim();
+    const trimmedPassword = password?.trim();
+    const trimmedVerifyCode = verifyCode?.trim();
+
+    if (!trimmedPhone || !trimmedPassword) {
         return NextResponse.json({ message: "手机号和密码不能为空" }, {
             status: 200,
         });
     }
 
-    if (!verifyCode) {
+    if (!trimmedVerifyCode) {
         return NextResponse.json({ message: "验证码不能为空" }, {
             status: 200,
         });
@@ -26,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     // 开发模式下接受模拟验证码 123456
     const useMockSms = process.env.NODE_ENV === "development";
-    const isMockCode = useMockSms && verifyCode.trim() === "123456";
+    const isMockCode = useMockSms && trimmedVerifyCode === "123456";
 
     if (!isMockCode) {
         // 生产模式：验证真实验证码
@@ -35,7 +39,7 @@ export async function POST(req: NextRequest) {
         }
 
         const storedCode = await redis.get(
-            `sms_verification_code:${phone.trim()}`,
+            `sms_verification_code:${trimmedPhone}`,
         );
         if (!storedCode) {
             return NextResponse.json({ message: "验证码已过期或不存在" }, {
@@ -43,32 +47,32 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        if (storedCode !== verifyCode.trim()) {
+        if (storedCode !== trimmedVerifyCode) {
             return NextResponse.json({ message: "验证码错误" }, {
                 status: 200,
             });
         }
 
         // 验证成功后删除验证码，防止重复使用
-        await redis.del(`sms_verification_code:${phone.trim()}`);
+        await redis.del(`sms_verification_code:${trimmedPhone}`);
     }
 
     const { data: existingUser } = await supabase
         .from("users")
         .select("id")
-        .eq("phone", phone)
+        .eq("phone", trimmedPhone)
         .single();
 
     if (existingUser) {
         return NextResponse.json({ message: "手机号已注册" }, { status: 200 });
     }
 
-    const password_hash = hashPassword(password);
+    const password_hash = hashPassword(trimmedPassword);
 
     const { data: user } = await supabase
         .from("users")
         .insert({
-            phone,
+            phone: trimmedPhone,
             password_hash,
             created_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
