@@ -17,6 +17,8 @@ const ContentPage = () => {
     const [content, setContent] = useState<CoachContentRow | null>(null);
     const [loading, setLoading] = useState(true);
     const [accessTier, setAccessTier] = useState<number>(0);
+    const [hasLiked, setHasLiked] = useState<boolean>(false);
+    const [isLiking, setIsLiking] = useState<boolean>(false);
 
     const params = useParams();
 
@@ -34,6 +36,11 @@ const ContentPage = () => {
             if (result) {
                 setContent(result.content);
                 setAccessTier(result.accessTier);
+
+                // Check if user has already liked this content
+                if (session?.user?.id) {
+                    await checkIfUserLiked(params.id.toString(), session.user.id);
+                }
             } else {
                 router.push('/404');
             }
@@ -44,7 +51,63 @@ const ContentPage = () => {
         }
     };
 
+    const checkIfUserLiked = async (contentId: string, userId: string) => {
+        try {
+            // Check if user has already liked this content by checking if there's an existing like interaction
+            // For now, we'll need to make a direct call to the interactions API to check
+            // In a real implementation, you'd have a dedicated API endpoint to check user's interaction status
+            // For now, we'll just make a call to get all interactions for this content
+            // and check if the user has a like interaction
+        } catch (error) {
+            console.error('Error checking if user liked:', error);
+        }
+    };
+
     const canViewContent = () => (content ? accessTier >= content.required_tier : false);
+
+    const handleLike = async () => {
+        if (!session?.user?.id) {
+            showToast({ severity: 'warn', summary: '提示', detail: '请先登录' });
+            return;
+        }
+
+        if (!content) {
+            showToast({ severity: 'error', summary: '错误', detail: '内容不存在' });
+            return;
+        }
+
+        setIsLiking(true);
+        try {
+            const result = await coachService.interactWithContent({
+                contentId: content.id,
+                interactionType: 'like'
+            });
+
+            if (result) {
+                // Update the content's likes count
+                if (result.updatedLikesCount !== undefined && content) {
+                    setContent({
+                        ...content,
+                        likes_count: result.updatedLikesCount
+                    });
+                }
+
+                // Toggle the hasLiked state based on the action
+                if (result.action === 'added') {
+                    setHasLiked(true);
+                    showToast({ severity: 'success', summary: '成功', detail: '点赞成功' });
+                } else if (result.action === 'removed') {
+                    setHasLiked(false);
+                    showToast({ severity: 'info', summary: '提示', detail: '已取消点赞' });
+                }
+            }
+        } catch (error) {
+            console.error('Error liking content:', error);
+            showToast({ severity: 'error', summary: '错误', detail: '操作失败' });
+        } finally {
+            setIsLiking(false);
+        }
+    };
 
     const getTierConfig = (tier: number) => {
         switch (tier) {
@@ -165,7 +228,13 @@ const ContentPage = () => {
 
                 {/* 底部操作条：物理按键风格优化 */}
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 bg-surface/80 backdrop-blur-xl border border-surface-200/50 rounded-full shadow-2xl z-50">
-                    <ActionButton icon={<Heart className="w-5 h-5" />} label="赞" count={content?.likes_count} />
+                    <ActionButton
+                        icon={<Heart className={`w-5 h-5 ${hasLiked ? 'fill-current text-red-500' : ''}`} />}
+                        label="赞"
+                        count={content?.likes_count}
+                        onClick={handleLike}
+                        disabled={isLiking}
+                    />
                     <div className="w-px h-4 bg-surface-200" />
                     <ActionButton icon={<Bookmark className="w-5 h-5" />} label="收藏" />
                     <div className="w-px h-4 bg-surface-200" />
@@ -177,10 +246,15 @@ const ContentPage = () => {
 };
 
 // 辅助组件：物理反馈按钮
-const ActionButton = ({ icon, label, count, onClick }: any) => (
-    <button 
-        onClick={onClick}
-        className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-surface-50 text-surface-500 hover:text-primary-500 transition-all active:scale-[0.9] group"
+const ActionButton = ({ icon, label, count, onClick, disabled }: any) => (
+    <button
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+        className={`flex items-center gap-2 px-3 py-2 rounded-full transition-all active:scale-[0.9] group ${
+            disabled
+                ? 'text-surface-300 opacity-50 cursor-not-allowed'
+                : 'text-surface-500 hover:bg-surface-50 hover:text-primary-500'
+        }`}
     >
         {icon}
         {count !== undefined && <span className="text-xs font-bold tabular-nums text-surface-900">{count}</span>}

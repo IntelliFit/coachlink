@@ -168,6 +168,13 @@ class CoachService extends BaseService {
         }
     }
 
+    async interactWithContent(reqData: ContentInteractionDto) {
+        const res = await this.post<ContentInteractionResponseDto>('content-interactions', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
     async getAllSpecialties() {
         // TODO: 使用 redis 优化
         const res = await this.post<GetSpecialtiesResponseDto>('get-specialties');
