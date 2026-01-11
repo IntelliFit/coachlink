@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { ThumbsUp, Eye, MessageCircle, Lock, Play, Image, ArrowRight } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { useToastContext } from '@/context/ToastContext';
@@ -19,6 +20,7 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
     userSubscription,
 }) => {
     const { showToast } = useToastContext();
+    const router = useRouter();
 
     // 渲染缩略图 - 遵循 16px 圆角与微妙光影逻辑
     const renderContentThumbnail = () => {
@@ -132,7 +134,10 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
 
                     <div className="mt-4">
                         {canViewContent() ? (
-                            <button className="flex items-center gap-2 text-sm font-bold text-primary-500 hover:text-primary-600 transition-colors group/btn">
+                            <button
+                                onClick={() => router.push(`/coach/content/${content.id}`)}
+                                className="flex items-center gap-2 text-sm font-bold text-primary-500 hover:text-primary-600 transition-colors group/btn"
+                            >
                                 立即阅读
                                 <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
                             </button>

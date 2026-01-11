@@ -29,6 +29,10 @@ import type {
     PublishContentDto,
     PublishContentResponseDto
 } from '@/app/api/coach/publish-content/entity';
+import type {
+    GetContentByIdDto,
+    GetContentByIdResponseDto
+} from '@/app/api/coach/get-content-by-id/entity';
 
 // 规则包与专长相关接口
 import type {
@@ -151,6 +155,14 @@ class CoachService extends BaseService {
     // 添加删除内容的方法
     async deleteContent(contentId: string) {
         const res = await this.post<DeleteContentDto>('delete-content', { id: contentId });
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    // 添加获取单个内容的方法
+    async getContentById(reqData: GetContentByIdDto) {
+        const res = await this.post<GetContentByIdResponseDto>('get-content-by-id', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
