@@ -30,14 +30,45 @@ export async function POST(request: Request) {
         }
 
         const userId = session.user.id;
+        const body = await request.json().catch(() => ({}));
+        const { coachId } = body;
 
         // Get distinct actions from personal_records_history - strictly by action_id
-        const { data: prActions, error: prError } = await supabase
+        // If coachId is provided, filter by source_coach_id to get coach-specific actions
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let queryBuilder: any = supabase
             .from("personal_records_history")
             .select("action_id, exercise_name")
             .eq("user_id", userId)
-            .not("action_id", "is", null) // Only include records with action_id
-            .order("created_at", { ascending: false });
+            .not("action_id", "is", null); // Only include records with action_id
+
+        // Filter by coach if provided
+        if (coachId) {
+            queryBuilder = queryBuilder.eq("source_coach_id", coachId);
+        }
+
+        let { data: prActions, error: prError } = await queryBuilder.order(
+            "created_at",
+            { ascending: false },
+        );
+
+        // Fallback: If filtering by coachId returned no results, try without filter
+        // This handles legacy data that doesn't have source_coach_id populated
+        if (!prError && (!prActions || prActions.length === 0) && coachId) {
+            console.log(
+                "No records with source_coach_id, falling back to all user records",
+            );
+            const fallbackQuery = supabase
+                .from("personal_records_history")
+                .select("action_id, exercise_name")
+                .eq("user_id", userId)
+                .not("action_id", "is", null)
+                .order("created_at", { ascending: false });
+
+            const fallbackResult = await fallbackQuery;
+            prActions = fallbackResult.data;
+            prError = fallbackResult.error;
+        }
 
         if (prError) {
             console.error("获取动作列表失败:", prError);

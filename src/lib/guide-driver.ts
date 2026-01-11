@@ -49,6 +49,7 @@ export function createGuide(config: GuideConfig) {
     return {
         start: () => driverInstance.drive(),
         destroy: () => driverInstance.destroy(),
+        instance: driverInstance,
     };
 }
 
@@ -101,7 +102,7 @@ export const GUIDE_CONFIGS = {
                 popover: {
                     title: "欢迎来到 CoachLink！",
                     description:
-                        "您的专业运动之旅即将开始。让我们花 1 分钟带您熟悉核心功能。",
+                        "我们用 1 分钟带你走完核心路径：找到教练 → 订阅支付 → 等待教练下发计划 → 今日训练直接开练。",
                 },
             },
             {
@@ -118,7 +119,7 @@ export const GUIDE_CONFIGS = {
                 popover: {
                     title: "还没有计划？",
                     description:
-                        "在这里浏览我们的金牌教练库，找到适合您的专业导师，为您定制专属计划。",
+                        "从这里进入教练主页：看擅长领域/价格方案/订阅问卷。订阅后系统会留存支付与服务记录，方便追溯。",
                     side: "right" as const,
                 },
             },
@@ -127,7 +128,7 @@ export const GUIDE_CONFIGS = {
                 popover: {
                     title: "见证您的蜕变",
                     description:
-                        "所有的训练数据、身体指标变化都会在这里形成可视化报表。",
+                        "体重、1RM、训练记录、进步组与关键视频都会沉淀在这里，方便复盘与和教练沟通。",
                     side: "right" as const,
                 },
             },
@@ -135,7 +136,76 @@ export const GUIDE_CONFIGS = {
                 popover: {
                     title: "准备就绪！",
                     description:
-                        "去做第一次训练，或者去完善一下您的个人资料吧！",
+                        "建议：先完善档案（体重/1RM 越准，自动算重量越准），再完成一次训练并分享，形成第一条闭环。",
+                },
+            },
+        ],
+    },
+
+    // Student Subscribe Flow (coach profile page)
+    STUDENT_SUBSCRIBE_FLOW_GUIDE: {
+        key: "student_subscribe_flow",
+        steps: [
+            {
+                popover: {
+                    title: "订阅教练：完整流程（1分钟）",
+                    description:
+                        "你会经历：选择方案 →（可能需要填问卷）→ 支付 → 等待教练确认与下发计划 → 今日训练开始执行。",
+                },
+            },
+            {
+                element: "#guide-subscribe-products",
+                popover: {
+                    title: "先选方案与周期",
+                    description:
+                        "点击某个周期按钮即可进入下一步。不同方案通常对应不同服务强度（例如是否包含视频点评/沟通频率）。",
+                    side: "top" as const,
+                },
+            },
+            {
+                popover: {
+                    title: "问卷不是形式",
+                    description:
+                        "如果弹出教练问卷，请认真填写：它会直接影响计划个性化与自动算重量的准确性（尤其是 1RM 相关数据）。",
+                },
+            },
+            {
+                popover: {
+                    title: "支付后去哪看进度？",
+                    description:
+                        '支付/提交凭证后会进入“等待教练确认/发计划”。你可以在「我的订阅」里看到状态，并一键联系教练加速处理。',
+                },
+            },
+        ],
+    },
+
+    // Student Subscription Status (subscription list page)
+    STUDENT_SUBSCRIPTION_STATUS_GUIDE: {
+        key: "student_subscription_status",
+        steps: [
+            {
+                popover: {
+                    title: "这里是订阅进度中心",
+                    description:
+                        "订阅不是一次性发完模板就结束：这里会展示你与每位教练的状态、到期时间，以及下一步该做什么。",
+                },
+            },
+            {
+                element: "#guide-subscription-list",
+                popover: {
+                    title: "看懂状态（很重要）",
+                    description:
+                        "如果显示「待支付」：说明流程没走完；如果显示「等待教练确认」：已提交支付信息，教练确认后会下发计划。",
+                    side: "top" as const,
+                },
+            },
+            {
+                element: "#guide-subscription-chat",
+                popover: {
+                    title: "等待期别干等",
+                    description:
+                        "建议直接在线咨询教练，把你的目标/时间安排/受伤史补充清楚，计划会更贴合，也能加速教练处理。",
+                    side: "top" as const,
                 },
             },
         ],

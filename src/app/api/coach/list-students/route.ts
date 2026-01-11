@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { GetStudentsDto, ListStudentsResponseDto, StudentSubscription } from "./entity";
+import {
+    GetStudentsDto,
+    ListStudentsResponseDto,
+    StudentSubscription,
+} from "./entity";
 import { UserProfilesRow } from "@/types";
 import pLimit from "p-limit";
 import { ApiData } from "@/types/api";
@@ -38,7 +42,9 @@ async function getStudentPlanData(coachId: string, studentId: string) {
     // 获取当前活跃的计划实例
     const { data: planInstance, error: instanceErr } = await supabase
         .from("coach_plan_instances")
-        .select("id, name, description, status, rest_days_count, training_days_count")
+        .select(
+            "id, name, description, status, rest_days_count, training_days_count, start_execution_day",
+        )
         .eq("coach_id", coachId)
         .eq("student_id", studentId)
         .order("created_at", { ascending: false })
@@ -49,7 +55,7 @@ async function getStudentPlanData(coachId: string, studentId: string) {
         // 统计已完成的任务数量 (利用 head: true 优化性能)
         const { count: completedCount } = await supabase
             .from("plan_instance_executions")
-            .select("id", { count: 'exact', head: true })
+            .select("id", { count: "exact", head: true })
             .eq("instance_id", planInstance.id)
             .eq("status", "completed");
 
@@ -58,26 +64,28 @@ async function getStudentPlanData(coachId: string, studentId: string) {
                 name: planInstance.name,
                 description: planInstance.description || "",
                 status: planInstance.status,
-                id: planInstance.id // 保留 ID 方便前端跳转
+                id: planInstance.id, // 保留 ID 方便前端跳转
             },
             progress: {
                 total: planInstance.training_days_count || 0,
                 completed: completedCount || 0,
-            }
+            },
         };
     }
 
     // 无计划时的回退数据
     return {
         plan: null,
-        progress: { total: 0, completed: 0 }
+        progress: { total: 0, completed: 0 },
     };
 }
 
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
-        return NextResponse.json({ success: false, message: "未登录" }, { status: 401 });
+        return NextResponse.json({ success: false, message: "未登录" }, {
+            status: 401,
+        });
     }
 
     const { pagination } = await req.json() as GetStudentsDto;
@@ -90,7 +98,10 @@ export async function POST(req: Request) {
         .maybeSingle();
 
     if (!coachRow?.id) {
-        return NextResponse.json({ success: false, message: "未找到教练身份" }, { status: 400 });
+        return NextResponse.json(
+            { success: false, message: "未找到教练身份" },
+            { status: 400 },
+        );
     }
 
     // 2. 获取订阅列表
@@ -101,34 +112,55 @@ export async function POST(req: Request) {
 
     const { data: subs, count, error: subsErr } = await supabase
         .from("coach_subscriptions")
-        .select("id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks", { count: "exact" })
+        .select(
+            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks",
+            { count: "exact" },
+        )
         .eq("coach_id", coachRow.id)
         .eq("status", "active")
         .order("updated_at", { ascending: false })
         .range(from, to);
 
-    if (subsErr) return NextResponse.json({ success: false, message: subsErr.message }, { status: 500 });
+    if (subsErr) {
+        return NextResponse.json({ success: false, message: subsErr.message }, {
+            status: 500,
+        });
+    }
 
-    const studentIds = Array.from(new Set((subs || []).map(s => s.student_id))).filter(Boolean);
+    const studentIds = Array.from(
+        new Set((subs || []).map((s) => s.student_id)),
+    ).filter(Boolean);
 
     // 3. 并行获取档案和视频统计
     const [profilesRows, studentViews] = await Promise.all([
-        supabase.from("user_profiles").select("*").in("user_id", studentIds as string[]),
-        getVideoStats(studentIds as string[])
+        supabase.from("user_profiles").select("*").in(
+            "user_id",
+            studentIds as string[],
+        ),
+        getVideoStats(studentIds as string[]),
     ]);
 
-    const profileMap = new Map((profilesRows.data || []).map(p => [p.user_id, p]));
+    const profileMap = new Map(
+        (profilesRows.data || []).map((p) => [p.user_id, p]),
+    );
 
     // 4. 并行获取 Plan 和 Progress 数据
     const limitController = pLimit(10);
-    const planDetailTasks = (subs || []).map(sub =>
+    const planDetailTasks = (subs || []).map((sub) =>
         limitController(async () => {
-            const detail = await getStudentPlanData(coachRow.id, sub.student_id);
+            const detail = await getStudentPlanData(
+                coachRow.id,
+                sub.student_id,
+            );
             return { subId: sub.id, ...detail };
         })
     );
     const planDetails = await Promise.all(planDetailTasks);
-    const planDetailMap = new Map(planDetails.map(d => [d.subId, { plan: d.plan, progress: d.progress }]));
+    const planDetailMap = new Map(
+        planDetails.map(
+            (d) => [d.subId, { plan: d.plan, progress: d.progress }],
+        ),
+    );
 
     // 5. 组装数据
     const students: StudentSubscription[] = (subs || []).map((sub) => {
@@ -144,7 +176,7 @@ export async function POST(req: Request) {
             uploaded: view?.uploaded || 0,
             reviewed: view?.reviewed || 0,
             plan: detail?.plan || null, // 对应实例中的 status, name 等
-            progress: detail?.progress || { total: 0, completed: 0 }
+            progress: detail?.progress || { total: 0, completed: 0 },
         } as unknown as StudentSubscription;
     });
 
@@ -153,7 +185,7 @@ export async function POST(req: Request) {
         message: "ok",
         data: {
             students,
-            pagination: { page, limit, total: count || 0 }
-        }
+            pagination: { page, limit, total: count || 0 },
+        },
     });
 }

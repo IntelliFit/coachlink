@@ -12,6 +12,7 @@ import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { StudentDetailDialog } from './StudentDetailDialog';
+import { Tag } from 'primereact/tag';
 import { CoachReviewDialog } from './CoachReviewDialog';
 import ChatDialog from '@/components/chat/ChatDialog';
 import { PaymentConfirmationDialog } from './PaymentConfirmationDialog';
@@ -273,17 +274,36 @@ export default function StudentsPage() {
     );
 
     /** 订阅详情列 */
-    const subscribeTemplate = (student: StudentSubscription) => (
-        <div className="flex flex-col gap-1.5 py-2">
-            {productTagTemplate(Number(student.tier))}
-            <div className="flex items-center gap-2 text-surface-500">
-                <Calendar size={12} />
-                <span className="text-xs font-bold tracking-tight">
-                    {student.subscribed_weeks}周计划
-                </span>
+    const subscribeTemplate = (student: StudentSubscription) => {
+        const subscribeData = student.subscribe_data as any;
+        let isOffline = false;
+        if (Array.isArray(subscribeData)) {
+            isOffline = !!subscribeData.find((item: any) => item.type === 'offline_payment');
+        } else if (subscribeData?.offline_payment) {
+            isOffline = true;
+        }
+
+        return (
+            <div className="flex flex-col gap-1.5 py-2">
+                {productTagTemplate(Number(student.tier))}
+                <div className="flex items-center gap-2 text-surface-500">
+                    {isOffline ? (
+                        <>
+                            <Tag value="线下" className="bg-emerald-100 text-emerald-700 border-emerald-200 h-5 text-[10px]" rounded></Tag>
+                            <span className="text-xs font-bold tracking-tight text-emerald-700">已支付</span>
+                        </>
+                    ) : (
+                        <>
+                            <Calendar size={12} />
+                            <span className="text-xs font-bold tracking-tight">
+                                {student.subscribed_weeks}周计划
+                            </span>
+                        </>
+                    )}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     /** 视频评价进度列 */
     const videoStatsTemplate = (student: StudentSubscription) => {

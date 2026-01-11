@@ -20,7 +20,7 @@ import type { TrainingItem } from '@/types/questionnaires';
 
 // 组件引用
 import QuestionnaireForm from './QuestionnaireForm';
-import PaymentDialog from '@/components/payment/paymentDialog';
+import PaymentDialog, { OfflinePaymentData } from '@/components/payment/paymentDialog';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
@@ -110,7 +110,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         }
     };
 
-    const handlePaymentSuccess = async (note?: string) => {
+    const handlePaymentSuccess = async (note?: string, offlinePaymentData?: OfflinePaymentData) => {
         if (!selectedProduct || !selectedDuration) return;
         
         if (isRenew) {
@@ -128,11 +128,33 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             }
         }
 
+        // 获取当前 subscribe_data 并添加线下支付信息
+        let updatedSubscribeData: any[] = [];
+        const currentData = coachSubscription?.subscribe_data;
+
+        if (Array.isArray(currentData)) {
+            // 是数组，筛选掉旧的线下支付信息（如果有），然后添加新的
+            updatedSubscribeData = currentData.filter((item: any) => item.type !== 'offline_payment');
+        } else if (currentData) {
+            // 是对象或其他非空值，可能是旧数据，尝试保留但不破坏
+            // 如果原本就是错误的非数组格式，这里直接初始化为数组可能反而安全
+            // 暂时忽略旧的错误格式，重置为数组
+            console.warn('subscribe_data is not an array, resetting to array', currentData);
+        }
+
+        if (offlinePaymentData) {
+            updatedSubscribeData.push({
+                type: 'offline_payment',
+                ...offlinePaymentData
+            });
+        }
+
         const res = await subscriptionService.updateSubscription({
             id: coachSubscription?.id,
             status: 'waiting',
             has_remind_coach: true,
-            remind_coach_note: note || ''
+            remind_coach_note: note || '',
+            subscribe_data: updatedSubscribeData as any
         });
 
         if (res) {
@@ -237,11 +259,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 </div>
             ) : (
                 <>
-                    {renderTierSection('basic')}
-                    <Divider className="my-12" />
-                    {renderTierSection('standard')}
-                    <Divider className="my-12" />
-                    {renderTierSection('vip')}
+                    <div id="guide-subscribe-products">
+                        {renderTierSection('basic')}
+                        <Divider className="my-12" />
+                        {renderTierSection('standard')}
+                        <Divider className="my-12" />
+                        {renderTierSection('vip')}
+                    </div>
                 </>
             )}
 

@@ -10,7 +10,7 @@ import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-inf
 
 // 定义订阅状态的类型
 type SubscriptionStatus = {
-  status: 'active' | 'expired' | 'expiring';
+  status: 'active' | 'expired' | 'expiring' | 'waiting' | 'inactive';
   text: string;
   color: 'success' | 'warning' | 'danger';
 };
@@ -49,6 +49,14 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
     }, [subscriptions]);
 
     const getSubscriptionStatus = (subscription: QueryCoachSubscription): SubscriptionStatus => {
+        // 优先按订阅状态展示（比 end_date 更直观，且能覆盖“待支付/待确认”等等待期）
+        if (subscription.status === 'inactive') {
+            return { status: 'inactive', text: '待支付', color: 'warning' };
+        }
+        if (subscription.status === 'waiting') {
+            return { status: 'waiting', text: '等待教练确认', color: 'warning' };
+        }
+
         if (!subscription.end_date) {
             return { status: 'active', text: '永久有效', color: 'success' };
         }
@@ -64,9 +72,9 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
         return { status: 'active', text: `${daysLeft}天后到期`, color: 'success' };
     };
 
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {subscriptions.map(subscription => {
+        return (
+            <div id="guide-subscription-list" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {subscriptions.map((subscription, idx) => {
                 const status = getSubscriptionStatus(subscription);
                 const coach = subscription.coach;
                 const aggregatedInfo = aggregatedInfoMap[subscription.coach_id];
@@ -125,6 +133,16 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                                                 已订阅
                                             </div>
                                         )}
+                                {subscription.status === 'waiting' && (
+                                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        待确认
+                                    </div>
+                                )}
+                                {subscription.status === 'inactive' && (
+                                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                        待支付
+                                    </div>
+                                )}
                                     </div>
                                     {coach?.title && (
                                         <p className="text-sm text-surface-600 mb-3">{coach.title}</p>
@@ -200,6 +218,7 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                                     size="small"
                                     outlined
                                     className="flex-1"
+                                    id={idx === 0 ? "guide-subscription-chat" : undefined}
                                     onClick={() => router.push(`/messages?coachId=${subscription.coach_id}`)}
                                 />
                                 <Button
@@ -210,6 +229,24 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                                     onClick={() => router.push(`/coach/profile/${subscription.coach_id}`)}
                                 />
                             </div>
+
+                            {/* 等待期提示 */}
+                            {subscription.status === 'waiting' && (
+                                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <div className="text-sm font-medium text-yellow-900 mb-1">已提交支付信息</div>
+                                    <div className="text-xs text-yellow-700">
+                                        正在等待教练确认并下发训练计划。建议点击「在线咨询」补充你的目标与训练安排，加速计划制定。
+                                    </div>
+                                </div>
+                            )}
+                            {subscription.status === 'inactive' && (
+                                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                    <div className="text-sm font-medium text-orange-900 mb-1">订阅未生效</div>
+                                    <div className="text-xs text-orange-700">
+                                        你的订阅流程尚未完成（通常是未支付或未提交凭证）。点击「查看详情」回到教练主页继续完成订阅。
+                                    </div>
+                                </div>
+                            )}
 
                             {/* 续费提示 */}
                             {status.status === 'expiring' && (

@@ -1,27 +1,8 @@
 import { Database } from "@/types/database.types";
+import { SportCards } from "@/types/sportCards";
 
-// 运动数据卡片类型定义
-export interface SportCards {
-    activeCards: string[];
-    powerlifting?: {
-        squat: number | null;
-        bench: number | null;
-        deadlift: number | null;
-    };
-    bodybuilding?: {
-        chest: number | null;
-        arm: number | null;
-        waist: number | null;
-        hip: number | null;
-        bodyfat: number | null;
-    };
-    fitness?: {
-        pullups: number | null;
-        pushups: number | null;
-        plank: number | null;
-        restingHR: number | null;
-    };
-}
+// Re-export SportCards for convenience
+export type { SportCards } from "@/types/sportCards";
 
 export interface UpdateProileDto {
     full_name?: string | null;

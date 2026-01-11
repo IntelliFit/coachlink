@@ -1,15 +1,32 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { InputNumber } from 'primereact/inputnumber';
 import { Checkbox } from 'primereact/checkbox';
 import { RadioButton } from 'primereact/radiobutton';
+import { Calendar } from 'primereact/calendar';
+import { addLocale } from 'primereact/api';
+import { FileUpload, FileUploadHandlerEvent } from 'primereact/fileupload';
+import { Image } from 'primereact/image';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
+
+// 中文语言包配置
+addLocale('zh-CN', {
+    firstDayOfWeek: 1,
+    dayNames: ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'],
+    dayNamesShort: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+    dayNamesMin: ['日', '一', '二', '三', '四', '五', '六'],
+    monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
+    monthNamesShort: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+    today: '今天',
+    clear: '清除'
+});
 
 interface QrCodeItem {
     type: 'wechat' | 'alipay';
@@ -23,16 +40,25 @@ interface PaymentInfo {
     qrCodes: QrCodeItem[];
 }
 
+// 线下支付数据接口
+export interface OfflinePaymentData {
+    payment_type: 'offline';
+    expires_at: string;      // ISO 日期字符串
+    amount?: number;
+    receipt_url?: string;    // 凭证图片 URL
+    note?: string;
+}
+
 interface PaymentDialogProps {
     visible: boolean;
     onHide: () => void;
     coachId: string;
     amount?: number;
-    onSuccess?: (note?: string) => void;
+    onSuccess?: (note?: string, offlinePaymentData?: OfflinePaymentData) => void;
     onCancel?: () => void;
 }
 
-type PaymentMethodType = 'qrcode' | 'alipay_api';
+type PaymentMethodType = 'qrcode' | 'alipay_api' | 'offline';
 
 const PaymentDialog: React.FC<PaymentDialogProps> = ({
     visible,
@@ -52,6 +78,14 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [selectedQrCode, setSelectedQrCode] = useState<QrCodeItem | null>(null);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>('qrcode');
     const [processingAlipay, setProcessingAlipay] = useState(false);
+
+    // 线下支付相关状态
+    const [offlineExpiresAt, setOfflineExpiresAt] = useState<Date | null>(null);
+    const [offlineAmount, setOfflineAmount] = useState<number | null>(null);
+    const [offlineReceiptUrl, setOfflineReceiptUrl] = useState<string>('');
+    const [offlineNote, setOfflineNote] = useState('');
+    const [uploadingReceipt, setUploadingReceipt] = useState(false);
+    const fileUploadRef = useRef<FileUpload>(null);
 
     const loadCoach = async () => {
         const res = await coachService.getCoach({
@@ -74,7 +108,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     setSelectedQrCode(res.paymentInfo.qrCodes[0]);
                 }
             } else if (mode === 'both') {
-                // both 模式下默认选择二维码（如果有的话）
                 if (res.paymentInfo?.qrCodes?.length > 0) {
                     setSelectedPaymentMethod('qrcode');
                     setSelectedQrCode(res.paymentInfo.qrCodes[0]);
@@ -98,8 +131,69 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             setPaymentInfo(null);
             setPaymentNote('');
             setAgreedToTerms(false);
+            // 重置线下支付状态
+            setOfflineExpiresAt(null);
+            setOfflineAmount(null);
+            setOfflineReceiptUrl('');
+            setOfflineNote('');
         }
     }, [visible, coachId]);
+
+    // 上传支付凭证
+    const handleReceiptUpload = async (event: FileUploadHandlerEvent) => {
+        const file = event.files[0];
+        if (!file) return;
+
+        setUploadingReceipt(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload/payment-receipt', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data?.url) {
+                setOfflineReceiptUrl(data.data.url);
+                showToast({ severity: 'success', summary: '上传成功', detail: '凭证已上传' });
+            } else {
+                showToast({ severity: 'error', summary: '上传失败', detail: data.message || '请重试' });
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast({ severity: 'error', summary: '上传失败', detail: '网络错误，请重试' });
+        } finally {
+            setUploadingReceipt(false);
+            fileUploadRef.current?.clear();
+        }
+    };
+
+    // 提交线下支付
+    const handleOfflinePaymentSubmit = () => {
+        if (!offlineExpiresAt) {
+            showToast({ severity: 'warn', summary: '请填写到期日期', detail: '到期日期为必填项' });
+            return;
+        }
+        if (!offlineReceiptUrl) {
+            showToast({ severity: 'warn', summary: '请上传支付凭证', detail: '支付凭证为必填项' });
+            return;
+        }
+
+        const offlinePaymentData: OfflinePaymentData = {
+            payment_type: 'offline',
+            expires_at: offlineExpiresAt.toISOString(),
+            amount: offlineAmount || undefined,
+            receipt_url: offlineReceiptUrl,
+            note: offlineNote || undefined,
+        };
+
+        showToast({ severity: 'success', summary: '已提交', detail: '请等待教练确认' });
+        onSuccess?.(offlineNote, offlinePaymentData);
+        onHide();
+    };
 
     const handleQrCodePaymentConfirmation = () => {
         setShowTermsDialog(true);
@@ -154,12 +248,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
             if (data.success && data.data?.paymentInfo?.formHtml) {
                 if (mobile) {
-                    // 移动端：直接在当前页面跳转（会唤起支付宝APP）
                     document.open();
                     document.write(data.data.paymentInfo.formHtml);
                     document.close();
                 } else {
-                    // PC端：新窗口打开
                     const newWindow = window.open('', '_blank');
                     if (newWindow) {
                         newWindow.document.write(data.data.paymentInfo.formHtml);
@@ -228,6 +320,32 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             );
         }
 
+        if (selectedPaymentMethod === 'offline') {
+            return (
+                <div className="flex justify-end gap-2">
+                    <Button
+                        label="取消"
+                        icon="pi pi-times"
+                        onClick={() => {
+                            onCancel?.();
+                            onHide();
+                        }}
+                        className="p-button-text"
+                        disabled={uploadingReceipt}
+                    />
+                    <Button
+                        label="提交待确认"
+                        icon="pi pi-check"
+                        onClick={handleOfflinePaymentSubmit}
+                        disabled={!offlineExpiresAt || !offlineReceiptUrl || uploadingReceipt}
+                        loading={uploadingReceipt}
+                        autoFocus
+                        className="p-button-primary"
+                    />
+                </div>
+            );
+        }
+
         return (
             <div className="flex justify-end gap-2">
                 <Button
@@ -252,14 +370,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         );
     };
 
-    // 渲染支付方式选择（both 模式）
+    // 渲染支付方式选择（总是显示，包含线下支付选项）
     const renderPaymentMethodSelection = () => {
-        if (effectiveMode !== 'both') return null;
-
         return (
             <div className="w-full mb-4 p-3 bg-surface-50 rounded-lg">
                 <div className="text-sm font-medium text-surface-700 mb-2">选择支付方式：</div>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-3">
                     {hasQrCodes && (
                         <div 
                             className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'qrcode' ? 'bg-primary-100' : ''}`}
@@ -274,17 +390,32 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             <label htmlFor="method-qrcode" className="cursor-pointer">扫码支付</label>
                         </div>
                     )}
+                    {(effectiveMode === 'alipay_api' || effectiveMode === 'both') && (
+                        <div 
+                            className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'alipay_api' ? 'bg-primary-100' : ''}`}
+                            onClick={() => setSelectedPaymentMethod('alipay_api')}
+                        >
+                            <RadioButton
+                                inputId="method-alipay"
+                                value="alipay_api"
+                                checked={selectedPaymentMethod === 'alipay_api'}
+                                onChange={() => setSelectedPaymentMethod('alipay_api')}
+                            />
+                            <label htmlFor="method-alipay" className="cursor-pointer">平台支付宝</label>
+                        </div>
+                    )}
+                    {/* 线下已支付选项 - 始终显示 */}
                     <div 
-                        className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'alipay_api' ? 'bg-primary-100' : ''}`}
-                        onClick={() => setSelectedPaymentMethod('alipay_api')}
+                        className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'offline' ? 'bg-primary-100' : ''}`}
+                        onClick={() => setSelectedPaymentMethod('offline')}
                     >
                         <RadioButton
-                            inputId="method-alipay"
-                            value="alipay_api"
-                            checked={selectedPaymentMethod === 'alipay_api'}
-                            onChange={() => setSelectedPaymentMethod('alipay_api')}
+                            inputId="method-offline"
+                            value="offline"
+                            checked={selectedPaymentMethod === 'offline'}
+                            onChange={() => setSelectedPaymentMethod('offline')}
                         />
-                        <label htmlFor="method-alipay" className="cursor-pointer">平台支付宝</label>
+                        <label htmlFor="method-offline" className="cursor-pointer">已线下支付</label>
                     </div>
                 </div>
             </div>
@@ -391,40 +522,108 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         );
     };
 
+    // 渲染线下支付表单
+    const renderOfflinePaymentForm = () => {
+        return (
+            <div className="w-full space-y-4">
+                <div className="text-center mb-4">
+                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i className="pi pi-check-circle text-white text-3xl"></i>
+                    </div>
+                    <div className="font-bold text-lg text-surface-900">线下已支付</div>
+                    <div className="text-sm text-surface-500 mt-1">请填写支付信息，教练确认后即可生效</div>
+                </div>
+
+                {/* 到期日期（必填） */}
+                <div className="flex flex-col gap-2">
+                    <label className="font-medium text-surface-700">
+                        订阅有效期至 <span className="text-red-500">*</span>
+                    </label>
+                    <Calendar
+                        value={offlineExpiresAt}
+                        onChange={(e) => setOfflineExpiresAt(e.value as Date)}
+                        dateFormat="yy-mm-dd"
+                        placeholder="选择到期日期"
+                        minDate={new Date()}
+                        showIcon
+                        locale="zh-CN"
+                        className="w-full"
+                    />
+                </div>
+
+                {/* 已支付金额（选填） */}
+                <div className="flex flex-col gap-2">
+                    <label className="font-medium text-surface-700">已支付金额，最后1次支付（选填）</label>
+                    <InputNumber
+                        value={offlineAmount}
+                        onValueChange={(e) => setOfflineAmount(e.value ?? null)}
+                        mode="currency"
+                        currency="CNY"
+                        locale="zh-CN"
+                        placeholder="输入支付金额"
+                        className="w-full"
+                    />
+                </div>
+
+                {/* 支付凭证（必填） */}
+                <div className="flex flex-col gap-2">
+                    <label className="font-medium text-surface-700">
+                        支付凭证（最后一次支付） <span className="text-red-500">*</span>
+                    </label>
+                    {offlineReceiptUrl ? (
+                        <div className="relative inline-block">
+                            <Image
+                                src={offlineReceiptUrl}
+                                alt="支付凭证"
+                                width="200"
+                                preview
+                                className="border rounded-lg"
+                            />
+                            <Button
+                                icon="pi pi-times"
+                                className="p-button-rounded p-button-danger p-button-sm absolute top-0 right-0 -mt-2 -mr-2"
+                                onClick={() => setOfflineReceiptUrl('')}
+                            />
+                        </div>
+                    ) : (
+                        <FileUpload
+                            ref={fileUploadRef}
+                            mode="basic"
+                            name="file"
+                            accept="image/*"
+                            maxFileSize={5000000}
+                            customUpload
+                            uploadHandler={handleReceiptUpload}
+                            auto
+                            chooseLabel={uploadingReceipt ? "上传中..." : "上传凭证截图"}
+                            disabled={uploadingReceipt}
+                            className="w-full"
+                        />
+                    )}
+                    <p className="text-xs text-surface-500">支持 JPG、PNG 格式，最大 5MB</p>
+                </div>
+
+                {/* 备注说明（选填） */}
+                <div className="flex flex-col gap-2">
+                    <label className="font-medium text-surface-700">备注说明（选填）</label>
+                    <InputText
+                        value={offlineNote}
+                        onChange={(e) => setOfflineNote(e.target.value)}
+                        placeholder="如：微信转账、线下现金等"
+                        className="w-full"
+                    />
+                </div>
+            </div>
+        );
+    };
+
     // 根据支付模式渲染内容
     const renderPaymentContent = () => {
-        if (effectiveMode === 'alipay_api') {
-            return renderAlipayApiPayment();
-        }
-
-        if (effectiveMode === 'qrcode') {
-            return (
-                <>
-                    {renderQrCodePayment()}
-                    {hasQrCodes && (
-                        <>
-                            <InputText
-                                type="text"
-                                className="w-full border rounded px-3 py-2 mb-2 text-sm mt-4"
-                                placeholder="支付备注（选填，例：学员姓名/手机号/用途等）"
-                                value={paymentNote}
-                                onChange={e => setPaymentNote(e.target.value)}
-                            />
-                            <div className="text-surface-500 text-xs text-center">
-                                请使用{selectedQrCode?.type === 'wechat' ? '微信' : '支付宝'}扫码支付，支付后请联系教练确认收款
-                            </div>
-                        </>
-                    )}
-                </>
-            );
-        }
-
-        // both 模式
         return (
             <>
                 {renderPaymentMethodSelection()}
                 
-                {selectedPaymentMethod === 'qrcode' ? (
+                {selectedPaymentMethod === 'qrcode' && (
                     <>
                         {renderQrCodePayment()}
                         {hasQrCodes && (
@@ -442,9 +641,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             </>
                         )}
                     </>
-                ) : (
-                    renderAlipayApiPayment()
                 )}
+
+                {selectedPaymentMethod === 'alipay_api' && renderAlipayApiPayment()}
+
+                {selectedPaymentMethod === 'offline' && renderOfflinePaymentForm()}
             </>
         );
     };
@@ -452,7 +653,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     return (
         <>
             <Dialog
-                header={selectedPaymentMethod === 'alipay_api' ? '平台支付' : '扫码支付'}
+                header={
+                    selectedPaymentMethod === 'alipay_api' ? '平台支付' : 
+                    selectedPaymentMethod === 'offline' ? '线下支付确认' : '扫码支付'
+                }
                 visible={visible}
                 onHide={onHide}
                 footer={getFooterContent()}

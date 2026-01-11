@@ -11,6 +11,7 @@ interface GuideContextType {
   isGuideActive: boolean;
   isLoading: boolean;
   startGuide: (guideKey: GuideKey) => void;
+  stopActiveGuide: () => void;
   markGuideComplete: (guideKey: string) => Promise<void>;
   hasCompletedGuide: (guideKey: string) => boolean;
   loadCompletedGuides: () => Promise<void>;
@@ -27,6 +28,13 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
   const [completedGuides, setCompletedGuides] = useState<Record<string, boolean>>({});
   const [isGuideActive, setIsGuideActive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [startedGuides, setStartedGuides] = useState<Record<string, boolean>>({});
+  const [activeDriver, setActiveDriver] = useState<ReturnType<typeof createGuide> | null>(null);
+
+  const getLocalGuidesKey = useCallback(() => {
+    if (!userId) return null;
+    return `coachlink_guides_completed_${userId}`;
+  }, [userId]);
 
   // Load completed guides from API
   const loadCompletedGuides = useCallback(async () => {
@@ -37,24 +45,72 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
     
     try {
       console.log('[GuideStore] Loading guides for user:', userId);
+
+      // Load local fallback first (prevents repeated guides even if backend column is missing/migration not applied yet)
+      let localCompleted: Record<string, boolean> = {};
+      try {
+        const k = getLocalGuidesKey();
+        if (k && typeof window !== 'undefined') {
+          localCompleted = JSON.parse(window.localStorage.getItem(k) || '{}') || {};
+        }
+      } catch (e) {
+        console.warn('[GuideStore] Failed to parse local guides:', e);
+      }
+
       const response = await fetch('/api/user/guides-completed');
       if (response.ok) {
         const data = await response.json();
         console.log('[GuideStore] Loaded guides:', data.guidesCompleted);
-        setCompletedGuides(data.guidesCompleted || {});
+        const merged = { ...(localCompleted || {}), ...(data.guidesCompleted || {}) };
+        setCompletedGuides(merged);
+
+        // Ensure local fallback stays in sync
+        try {
+          const k = getLocalGuidesKey();
+          if (k && typeof window !== 'undefined') {
+            window.localStorage.setItem(k, JSON.stringify(merged));
+          }
+        } catch (e) {
+          console.warn('[GuideStore] Failed to persist local guides:', e);
+        }
+      } else {
+        // Fallback to local only
+        setCompletedGuides(localCompleted || {});
       }
     } catch (error) {
       console.error('[GuideStore] Failed to load completed guides:', error);
+      // Fallback to local only
+      try {
+        const k = getLocalGuidesKey();
+        if (k && typeof window !== 'undefined') {
+          const localCompleted = JSON.parse(window.localStorage.getItem(k) || '{}') || {};
+          setCompletedGuides(localCompleted);
+        }
+      } catch (e) {
+        console.warn('[GuideStore] Failed to read local guides after API error:', e);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [userId, getLocalGuidesKey]);
 
   // Mark a guide as complete
   const markGuideComplete = useCallback(async (guideKey: string) => {
     console.log('[GuideStore] Marking guide complete:', guideKey);
     // Optimistic update
     setCompletedGuides((prev) => ({ ...prev, [guideKey]: true }));
+
+    // Local fallback persistence (prevents repeated guides across refresh)
+    try {
+      const k = getLocalGuidesKey();
+      if (k && typeof window !== 'undefined') {
+        const localCompleted = JSON.parse(window.localStorage.getItem(k) || '{}') || {};
+        const next = { ...localCompleted, [guideKey]: true };
+        window.localStorage.setItem(k, JSON.stringify(next));
+      }
+    } catch (e) {
+      console.warn('[GuideStore] Failed to persist local guide completion:', e);
+    }
 
     try {
       await fetch('/api/user/guides-completed', {
@@ -70,8 +126,20 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
         delete next[guideKey];
         return next;
       });
+
+      // Revert local fallback too
+      try {
+        const k = getLocalGuidesKey();
+        if (k && typeof window !== 'undefined') {
+          const localCompleted = JSON.parse(window.localStorage.getItem(k) || '{}') || {};
+          delete localCompleted[guideKey];
+          window.localStorage.setItem(k, JSON.stringify(localCompleted));
+        }
+      } catch (e) {
+        console.warn('[GuideStore] Failed to revert local guides:', e);
+      }
     }
-  }, []);
+  }, [getLocalGuidesKey]);
 
   // Check if a guide is completed
   const hasCompletedGuide = useCallback(
@@ -85,6 +153,12 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
   const startGuide = useCallback(
     (guideKey: GuideKey) => {
       console.log('[GuideStore] startGuide called:', guideKey);
+
+      // Don't start until completion state is loaded, otherwise the guide can re-trigger repeatedly.
+      if (isLoading) {
+        console.log('[GuideStore] Guides still loading, skip start');
+        return;
+      }
       
       const config = GUIDE_CONFIGS[guideKey];
       if (!config) {
@@ -104,8 +178,15 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
         return;
       }
 
+      // Don't start the same guide more than once per page session.
+      if (startedGuides[config.key]) {
+        console.log('[GuideStore] Guide already started in this session:', config.key);
+        return;
+      }
+
       console.log('[GuideStore] Starting guide:', config.key);
       setIsGuideActive(true);
+      setStartedGuides((prev) => ({ ...prev, [config.key]: true }));
 
       const guide = createGuide({
         key: config.key,
@@ -114,21 +195,36 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
           console.log('[GuideStore] Guide completed:', config.key);
           markGuideComplete(config.key);
           setIsGuideActive(false);
+          setActiveDriver(null);
         },
         onSkip: () => {
           console.log('[GuideStore] Guide skipped:', config.key);
           markGuideComplete(config.key);
           setIsGuideActive(false);
+          setActiveDriver(null);
         },
       });
 
+      setActiveDriver(guide);
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         guide.start();
       }, 500);
     },
-    [hasCompletedGuide, isGuideActive, markGuideComplete]
+    [hasCompletedGuide, isGuideActive, markGuideComplete, isLoading, startedGuides]
   );
+
+  const stopActiveGuide = useCallback(() => {
+    if (activeDriver) {
+      try {
+        activeDriver.destroy();
+      } catch (e) {
+        console.warn('[GuideStore] Failed to destroy active guide', e);
+      }
+    }
+    setIsGuideActive(false);
+    setActiveDriver(null);
+  }, [activeDriver]);
 
   // Load guides on mount
   useEffect(() => {
@@ -142,6 +238,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
         isGuideActive,
         isLoading,
         startGuide,
+        stopActiveGuide,
         markGuideComplete,
         hasCompletedGuide,
         loadCompletedGuides,
