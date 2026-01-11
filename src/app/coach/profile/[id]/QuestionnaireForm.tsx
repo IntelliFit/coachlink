@@ -423,6 +423,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
     return (
         <Dialog
+            id="guide-coach-questionnaire"
             header="订阅问卷"
             visible={visible}
             onHide={onHide}

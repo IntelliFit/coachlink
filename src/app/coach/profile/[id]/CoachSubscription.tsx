@@ -21,6 +21,7 @@ import type { TrainingItem } from '@/types/questionnaires';
 // 组件引用
 import QuestionnaireForm from './QuestionnaireForm';
 import PaymentDialog, { OfflinePaymentData } from '@/components/payment/paymentDialog';
+import { useGuideStore } from '@/stores/useGuideStore';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
@@ -36,6 +37,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const { showToast } = useToastContext();
     const router = useRouter();
     const { data: session } = useSession();
+    const { startGuide, hasCompletedGuide } = useGuideStore();
 
     // 状态管理
     const [products, setProducts] = useState<Product[]>([]);
@@ -73,6 +75,21 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         };
         if (coach?.id) fetchPricing();
     }, [coach?.id]);
+
+    // When dialogs open, show action-specific guides (in-context, not just homepage tour)
+    useEffect(() => {
+        if (questionnaireVisible && !hasCompletedGuide('student_questionnaire')) {
+            const t = setTimeout(() => startGuide('STUDENT_QUESTIONNAIRE_GUIDE'), 200);
+            return () => clearTimeout(t);
+        }
+    }, [questionnaireVisible, hasCompletedGuide, startGuide]);
+
+    useEffect(() => {
+        if (paymentDialogVisible && !hasCompletedGuide('student_payment')) {
+            const t = setTimeout(() => startGuide('STUDENT_PAYMENT_GUIDE'), 200);
+            return () => clearTimeout(t);
+        }
+    }, [paymentDialogVisible, hasCompletedGuide, startGuide]);
 
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const isRenew = searchParams.get('renew') === 'true' || searchParams.get('extend') === 'true';
@@ -251,6 +268,15 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-12">
+            <div className="flex justify-end mb-4">
+                <Button
+                    icon="pi pi-question-circle"
+                    label="新手引导"
+                    outlined
+                    size="small"
+                    onClick={() => startGuide('STUDENT_SUBSCRIBE_FLOW_GUIDE')}
+                />
+            </div>
             {products.length === 0 ? (
                 <div className="py-20 text-center bg-surface-50 rounded-3xl border-2 border-dashed border-surface-200">
                     <Inbox className="w-16 h-16 text-surface-200 mx-auto mb-4" />

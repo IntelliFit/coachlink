@@ -142,6 +142,44 @@ export const GUIDE_CONFIGS = {
         ],
     },
 
+    // Student: Find coach (discovery page) - action-oriented
+    STUDENT_FIND_COACH_GUIDE: {
+        key: "student_find_coach",
+        steps: [
+            {
+                popover: {
+                    title: "第一步：找到合适的教练",
+                    description:
+                        "你可以按姓名/专长筛选。点进教练主页后，选择方案→填写问卷→支付→等待教练下发计划。",
+                },
+            },
+            {
+                element: "#guide-discovery-search",
+                popover: {
+                    title: "先搜你想要的方向",
+                    description: "例如：力量举/增肌/减脂/康复等关键词。",
+                    side: "bottom" as const,
+                },
+            },
+            {
+                element: "#guide-discovery-filter",
+                popover: {
+                    title: "再用专长筛一下",
+                    description: "更快找到匹配你目标的教练。",
+                    side: "bottom" as const,
+                },
+            },
+            {
+                element: "#guide-discovery-first-coach",
+                popover: {
+                    title: "点开一个教练主页",
+                    description: "查看方案与服务内容，准备进入订阅流程。",
+                    side: "top" as const,
+                },
+            },
+        ],
+    },
+
     // Student Subscribe Flow (coach profile page)
     STUDENT_SUBSCRIBE_FLOW_GUIDE: {
         key: "student_subscribe_flow",
@@ -174,6 +212,50 @@ export const GUIDE_CONFIGS = {
                     title: "支付后去哪看进度？",
                     description:
                         '支付/提交凭证后会进入“等待教练确认/发计划”。你可以在「我的订阅」里看到状态，并一键联系教练加速处理。',
+                },
+            },
+        ],
+    },
+
+    // Student: Questionnaire dialog guide (shown when questionnaire dialog opens)
+    STUDENT_QUESTIONNAIRE_GUIDE: {
+        key: "student_questionnaire",
+        steps: [
+            {
+                element: "#guide-coach-questionnaire",
+                popover: {
+                    title: "填写教练问卷（关键一步）",
+                    description:
+                        "请尽量填写真实的训练经历/目标/频率/1RM（如有）。这些信息会直接影响计划个性化与智能算重量的准确性。",
+                    side: "top" as const,
+                },
+            },
+            {
+                popover: {
+                    title: "提交后做什么？",
+                    description: "提交问卷后会进入支付步骤。支付完成后去「我的订阅」查看状态，并可一键联系教练。",
+                },
+            },
+        ],
+    },
+
+    // Student: Payment dialog guide (shown when payment dialog opens)
+    STUDENT_PAYMENT_GUIDE: {
+        key: "student_payment",
+        steps: [
+            {
+                element: "#guide-payment-options",
+                popover: {
+                    title: "完成支付/提交凭证",
+                    description:
+                        "根据页面提示选择支付方式。提交后状态会变为「等待教练确认」，系统会通知教练处理。",
+                    side: "top" as const,
+                },
+            },
+            {
+                popover: {
+                    title: "支付后去哪？",
+                    description: "回到「我的订阅」查看进度；也可以直接在线咨询教练，加速计划下发。",
                 },
             },
         ],
