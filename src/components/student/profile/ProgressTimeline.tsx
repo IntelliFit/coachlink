@@ -43,13 +43,14 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
         id: pr.id,
         date: pr.date_achieved,
         title: `${pr.exercise_name} 新纪录！`,
-        description: pr.notes || `成功完成 ${pr.load_formula}`,
+        // 避免与 load_formula 展示重复：公式单独展示，description 只展示备注或简短说明
+        description: pr.notes || '成功完成',
         type: 'pr' as const,
         videoUrl: pr.video_url,
         load_formula: pr.load_formula,
         stats: {
-            weight: pr.max_weight,
-            reps: pr.max_reps,
+            weight: pr.weight,
+            reps: pr.reps,
         }
     }));
 

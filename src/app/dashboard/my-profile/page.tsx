@@ -13,16 +13,10 @@ import { Skeleton } from 'primereact/skeleton';
 import { Avatar } from 'primereact/avatar';
 import { useToastContext } from '@/context/ToastContext';
 import { studentService } from '@/app/service/studentService';
-import { Dumbbell, User, Activity, Edit, TrendingUp, Users, MessageSquare, Calendar } from 'lucide-react';
+import { User, Activity, Edit, TrendingUp, Users, MessageSquare, Calendar } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-
-// 运动数据卡片类型定义
-interface SportCards {
-    activeCards: string[];
-    powerlifting?: { squat: number | null; bench: number | null; deadlift: number | null };
-    bodybuilding?: { chest: number | null; arm: number | null; waist: number | null; hip: number | null; bodyfat: number | null };
-    fitness?: { pullups: number | null; pushups: number | null; plank: number | null; restingHR: number | null };
-}
+import { SportCards } from '@/types/sportCards';
+import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 
 interface ProfileData {
     id: string;
@@ -112,12 +106,7 @@ export default function MyProfilePage() {
         return gender === 'male' ? '男' : gender === 'female' ? '女' : '-';
     };
 
-    // 计算力量举总和
-    const getPowerliftingTotal = () => {
-        const pl = profile?.sport_cards?.powerlifting;
-        if (!pl) return 0;
-        return (pl.squat || 0) + (pl.bench || 0) + (pl.deadlift || 0);
-    };
+
 
     if (loading) {
         return (
@@ -202,140 +191,14 @@ export default function MyProfilePage() {
                 </div>
             </Card>
 
-            {/* 运动数据卡片 */}
+            {/* 运动数据卡片 - 使用 SportCardsDisplay 组件 */}
             {profile?.sport_cards?.activeCards && profile.sport_cards.activeCards.length > 0 && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                     <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
                         <Activity className="w-6 h-6 text-green-500" />
                         运动数据
                     </h2>
-
-                    {/* 力量举卡片 */}
-                    {profile.sport_cards.activeCards.includes('powerlifting') && profile.sport_cards.powerlifting && (
-                        <Card className="shadow-lg border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100">
-                            <h3 className="text-lg font-bold flex items-center gap-2 mb-6 text-orange-700">
-                                <Dumbbell className="w-6 h-6" />
-                                力量举
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-orange-200">
-                                    <div className="text-xs text-gray-500 mb-1">深蹲 1RM</div>
-                                    <div className="text-2xl font-bold text-orange-600">
-                                        {profile.sport_cards.powerlifting.squat || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-400">kg</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-orange-200">
-                                    <div className="text-xs text-gray-500 mb-1">卧推 1RM</div>
-                                    <div className="text-2xl font-bold text-orange-600">
-                                        {profile.sport_cards.powerlifting.bench || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-400">kg</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-orange-200">
-                                    <div className="text-xs text-gray-500 mb-1">硬拉 1RM</div>
-                                    <div className="text-2xl font-bold text-orange-600">
-                                        {profile.sport_cards.powerlifting.deadlift || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-400">kg</div>
-                                </div>
-                                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-center shadow-md">
-                                    <div className="text-xs text-white/80 mb-1">总和</div>
-                                    <div className="text-2xl font-bold text-white">
-                                        {getPowerliftingTotal()}
-                                    </div>
-                                    <div className="text-xs text-white/80">kg</div>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
-
-                    {/* 健美卡片 */}
-                    {profile.sport_cards.activeCards.includes('bodybuilding') && profile.sport_cards.bodybuilding && (
-                        <Card className="shadow-lg border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-                            <h3 className="text-lg font-bold flex items-center gap-2 mb-6 text-purple-700">
-                                <User className="w-6 h-6" />
-                                健美/形体
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-purple-200">
-                                    <div className="text-xs text-gray-500 mb-1">胸围</div>
-                                    <div className="text-2xl font-bold text-purple-600">
-                                        {profile.sport_cards.bodybuilding.chest || '-'}
-                                    </div>
-                                    <div className="text-xs text-gray-400">cm</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-purple-200">
-                                    <div className="text-xs text-gray-500 mb-1">臂围</div>
-                                    <div className="text-2xl font-bold text-purple-600">
-                                        {profile.sport_cards.bodybuilding.arm || '-'}
-                                    </div>
-                                    <div className="text-xs text-gray-400">cm</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-purple-200">
-                                    <div className="text-xs text-gray-500 mb-1">腰围</div>
-                                    <div className="text-2xl font-bold text-purple-600">
-                                        {profile.sport_cards.bodybuilding.waist || '-'}
-                                    </div>
-                                    <div className="text-xs text-gray-400">cm</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-purple-200">
-                                    <div className="text-xs text-gray-500 mb-1">臀围</div>
-                                    <div className="text-2xl font-bold text-purple-600">
-                                        {profile.sport_cards.bodybuilding.hip || '-'}
-                                    </div>
-                                    <div className="text-xs text-gray-400">cm</div>
-                                </div>
-                                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-center shadow-md">
-                                    <div className="text-xs text-white/80 mb-1">体脂率</div>
-                                    <div className="text-2xl font-bold text-white">
-                                        {profile.sport_cards.bodybuilding.bodyfat || '-'}
-                                    </div>
-                                    <div className="text-xs text-white/80">%</div>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
-
-                    {/* 体能卡片 */}
-                    {profile.sport_cards.activeCards.includes('fitness') && profile.sport_cards.fitness && (
-                        <Card className="shadow-lg border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-                            <h3 className="text-lg font-bold flex items-center gap-2 mb-6 text-green-700">
-                                <Activity className="w-6 h-6" />
-                                一般体能
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-green-200">
-                                    <div className="text-xs text-gray-500 mb-1">引体向上</div>
-                                    <div className="text-2xl font-bold text-green-600">
-                                        {profile.sport_cards.fitness.pullups || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-400">次</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-green-200">
-                                    <div className="text-xs text-gray-500 mb-1">俯卧撑</div>
-                                    <div className="text-2xl font-bold text-green-600">
-                                        {profile.sport_cards.fitness.pushups || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-400">次</div>
-                                </div>
-                                <div className="bg-white rounded-xl p-4 text-center shadow-sm border border-green-200">
-                                    <div className="text-xs text-gray-500 mb-1">平板支撑</div>
-                                    <div className="text-2xl font-bold text-green-600">
-                                        {profile.sport_cards.fitness.plank || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-400">秒</div>
-                                </div>
-                                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-center shadow-md">
-                                    <div className="text-xs text-white/80 mb-1">静态心率</div>
-                                    <div className="text-2xl font-bold text-white">
-                                        {profile.sport_cards.fitness.restingHR || '-'}
-                                    </div>
-                                    <div className="text-xs text-white/80">bpm</div>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
+                    <SportCardsDisplay sportCards={profile.sport_cards} />
                 </div>
             )}
 

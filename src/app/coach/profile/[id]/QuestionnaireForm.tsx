@@ -322,7 +322,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'rm':
                 return (
                     <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的 1RM（极限重量）</label>
+                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的极限重量</label>
                         {loadingActions ? (
                             <div className="flex flex-col gap-3">
                                 {[1, 2, 3].map((_, i) => (
@@ -422,6 +422,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
     return (
         <Dialog
+            id="guide-coach-questionnaire"
             header="订阅问卷"
             visible={visible}
             onHide={onHide}

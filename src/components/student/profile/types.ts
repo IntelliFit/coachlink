@@ -3,8 +3,10 @@ import { UserProfilesRow, UsersRow } from "@/types";
 export interface PRRecord {
     id: string;
     exercise_name: string;
-    max_weight: number;
-    max_reps: number;
+    // 与 /api/execution/get-pr-records 返回保持一致
+    weight: number;
+    reps: number;
+    e1rm?: number;
     load_formula: string;
     date_achieved: string;
     notes?: string;
