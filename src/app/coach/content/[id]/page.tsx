@@ -23,8 +23,10 @@ const ContentPage = () => {
     const params = useParams();
 
     useEffect(() => {
-        fetchContent();
-    }, []);
+        if (session?.user?.id) {
+            fetchContent();
+        }
+    }, [session?.user?.id]);
 
     const fetchContent = async () => {
         try {
@@ -53,11 +55,16 @@ const ContentPage = () => {
 
     const checkIfUserLiked = async (contentId: string, userId: string) => {
         try {
-            // Check if user has already liked this content by checking if there's an existing like interaction
-            // For now, we'll need to make a direct call to the interactions API to check
-            // In a real implementation, you'd have a dedicated API endpoint to check user's interaction status
-            // For now, we'll just make a call to get all interactions for this content
-            // and check if the user has a like interaction
+            // Check if user has already liked this content by using the new API endpoint
+            const result = await coachService.checkContentInteraction({
+                contentId,
+                userId,
+                interactionType: 'like'
+            });            
+
+            if (result) {
+                setHasLiked(result.hasInteracted);
+            }
         } catch (error) {
             console.error('Error checking if user liked:', error);
         }
@@ -236,9 +243,13 @@ const ContentPage = () => {
                         disabled={isLiking}
                     />
                     <div className="w-px h-4 bg-surface-200" />
-                    <ActionButton icon={<Bookmark className="w-5 h-5" />} label="收藏" />
+                    <ActionButton icon={<Bookmark className="w-5 h-5" />} label="收藏" onClick={() => {
+                        showToast({ severity: 'info', summary: '施工中🏗️' });
+                    }} />
                     <div className="w-px h-4 bg-surface-200" />
-                    <ActionButton icon={<Share2 className="w-5 h-5" />} label="分享" onClick={() => {}} />
+                    <ActionButton icon={<Share2 className="w-5 h-5" />} label="分享" onClick={() => {
+                        showToast({ severity: 'info', summary: '施工中🏗️' });
+                    }} />
                 </div>
             </div>
         </div>

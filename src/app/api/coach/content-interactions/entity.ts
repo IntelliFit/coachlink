@@ -5,11 +5,7 @@ export interface ContentInteractionDto {
 }
 
 export interface ContentInteractionResponseDto {
-    success: boolean;
-    message: string;
-    data?: {
-        interactionId?: string;
-        updatedLikesCount?: number;
-        action?: 'added' | 'removed';
-    };
+    interactionId?: string;
+    updatedLikesCount?: number;
+    action?: 'added' | 'removed';
 }

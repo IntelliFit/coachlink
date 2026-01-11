@@ -33,6 +33,10 @@ import type {
     GetContentByIdDto,
     GetContentByIdResponseDto
 } from '@/app/api/coach/get-content-by-id/entity';
+import type {
+    CheckContentInteractionDto,
+    CheckContentInteractionResponseDto
+} from '@/app/api/coach/check-content-interaction/entity';
 
 // 规则包与专长相关接口
 import type {
@@ -96,6 +100,7 @@ import type {
     UpdateCoachApplicationResponseDto
 } from '@/app/api/coach/update-coach-application/entity';
 import { CreateCoachApplicationDto, CreateCoachApplicationResponseDto } from "../api/coach/create-coach-application/entity";
+import { ContentInteractionDto, ContentInteractionResponseDto } from "../api/coach/content-interactions/entity";
 
 // 添加UpdateContentDto和DeleteContentDto类型
 interface DeleteContentDto {
@@ -170,6 +175,14 @@ class CoachService extends BaseService {
 
     async interactWithContent(reqData: ContentInteractionDto) {
         const res = await this.post<ContentInteractionResponseDto>('content-interactions', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    // 添加检查内容互动状态的方法
+    async checkContentInteraction(reqData: CheckContentInteractionDto) {
+        const res = await this.post<CheckContentInteractionResponseDto>('check-content-interaction', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
