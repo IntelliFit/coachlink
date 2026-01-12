@@ -23,12 +23,17 @@ export async function POST(request: Request) {
     // In future, we can generate a short alphanumeric code and store it in user_profiles.
     const inviteCode = userId;
 
-    // Retrieve base URL from environment or request headers, generic fallback
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    // Prefer explicit base URL; otherwise infer from request headers to avoid leaking localhost in production.
+    const forwardedProto = request.headers.get("x-forwarded-proto");
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const host = forwardedHost || request.headers.get("host");
+    const proto = forwardedProto || "http";
+    const inferredBaseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || inferredBaseUrl;
     const inviteLink = `${baseUrl}/register?ref=${inviteCode}`;
 
     const shareText =
-        `来 CoachLink 和我一起科学训练！注册即送会员体验，点击链接加入：${inviteLink}`;
+        `来 CoachLink 和我一起科学训练！注册即送智能导入次数 + 存储空间奖励，点击链接加入：${inviteLink}`;
 
     return NextResponse.json<ApiData<InviteInfo>>({
         success: true,

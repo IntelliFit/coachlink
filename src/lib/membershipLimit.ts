@@ -8,6 +8,111 @@ export interface QuotaCheckResult {
     message?: string;
 }
 
+async function getOrInitStudentQuota(userId: string) {
+    // 1) Try fetch existing quota row
+    const { data: existing, error: fetchError } = await supabase
+        .from("student_quotas")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (fetchError) {
+        console.error(`[Quota] Failed to fetch quota for user ${userId}`, fetchError);
+        throw fetchError;
+    }
+
+    if (existing) {
+        // Repair legacy/bad data: storage_total_mb or ai_import_balance might be null/0 from earlier versions
+        const { data: membership } = await supabase
+            .from("student_memberships")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        const currentTier =
+            (membership?.tier || "free") as keyof typeof MEMBER_BENEFITS;
+        const tierBenefits = MEMBER_BENEFITS[currentTier] || MEMBER_BENEFITS["free"];
+
+        const patch: Record<string, any> = {};
+        // storage_total_mb: should never be null/0 for usable tiers (free should be 50MB)
+        if (
+            existing.storage_total_mb === null ||
+            existing.storage_total_mb === undefined ||
+            existing.storage_total_mb <= 0
+        ) {
+            patch.storage_total_mb = tierBenefits.storage_mb;
+        }
+        // storage_used_mb: normalize null to 0
+        if (existing.storage_used_mb === null || existing.storage_used_mb === undefined) {
+            patch.storage_used_mb = 0;
+        }
+        // ai_import_balance: only repair null/undefined (0 may mean used up)
+        if (existing.ai_import_balance === null || existing.ai_import_balance === undefined) {
+            patch.ai_import_balance = tierBenefits.ai_limit_monthly;
+            patch.last_reset_date = new Date().toISOString();
+        }
+
+        if (Object.keys(patch).length > 0) {
+            const { data: updated, error: updateError } = await supabase
+                .from("student_quotas")
+                .update(patch as any)
+                .eq("user_id", userId)
+                .select("*")
+                .single();
+            if (!updateError && updated) return updated;
+            console.warn(
+                `[Quota] Failed to repair quota row for user ${userId}`,
+                updateError,
+            );
+        }
+
+        return existing;
+    }
+
+    // 2) No quota row -> initialize by membership tier (default free)
+    const { data: membership } = await supabase
+        .from("student_memberships")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    const currentTier =
+        (membership?.tier || "free") as keyof typeof MEMBER_BENEFITS;
+    const tierBenefits = MEMBER_BENEFITS[currentTier] || MEMBER_BENEFITS["free"];
+
+    const now = new Date();
+    const initRow = {
+        user_id: userId,
+        ai_import_balance: tierBenefits.ai_limit_monthly,
+        storage_total_mb: tierBenefits.storage_mb,
+        storage_used_mb: 0,
+        last_reset_date: now.toISOString(),
+    };
+
+    // Insert; if a race creates the row first, re-fetch.
+    const { data: inserted, error: insertError } = await supabase
+        .from("student_quotas")
+        .insert(initRow as any)
+        .select("*")
+        .single();
+
+    if (insertError) {
+        console.warn(
+            `[Quota] Failed to insert quota row for user ${userId}, retrying fetch`,
+            insertError,
+        );
+        const { data: retry, error: retryError } = await supabase
+            .from("student_quotas")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+        if (retryError) throw retryError;
+        return retry;
+    }
+
+    return inserted;
+}
+
 /**
  * Checks if a user has sufficient smart generation quota and deducts it.
  * Implements "Lazy Reset" logic: if the quota hasn't been reset this month,
@@ -21,25 +126,13 @@ export async function checkAndConsumeAiQuota(
     userId: string,
     count: number = 1,
 ): Promise<QuotaCheckResult> {
-    // 1. Get Quota and Membership
-    const { data: quota, error: quotaError } = await supabase
-        .from("student_quotas")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
-
-    if (quotaError) {
-        console.error(
-            `[Quota] Failed to fetch quota for user ${userId}`,
-            quotaError,
-        );
-        // Fallback: If quota doesn't exist, try to initialize it?
-        // Or fail safe. Let's fail safe for now.
-        return {
-            success: false,
-            remaining: 0,
-            message: "无法获取配额信息",
-        };
+    // 1. Get or init quota row
+    let quota: any;
+    try {
+        quota = await getOrInitStudentQuota(userId);
+    } catch (quotaError) {
+        console.error(`[Quota] Failed to get/init quota for user ${userId}`, quotaError);
+        return { success: false, remaining: 0, message: "无法获取配额信息" };
     }
 
     const { data: membership } = await supabase
@@ -142,21 +235,11 @@ export async function checkStorageAvailable(
     userId: string,
     fileSizeBytes: number,
 ): Promise<{ success: boolean; message?: string }> {
-    const { data: quota, error } = await supabase
-        .from("student_quotas")
-        .select("storage_used_mb, storage_total_mb")
-        .eq("user_id", userId)
-        .single();
-
-    if (error || !quota) {
-        // Fail safe: allow if we can't check? Or block? Block is safer for business.
-        // But if user has no quota record, they might be new.
-        // Let's assume free tier defaults if no record found (which shouldn't happen if fulfillment worked).
-        // For now, return false.
-        console.error(
-            `[Storage] Failed to fetch quota for user ${userId}`,
-            error,
-        );
+    let quota: any;
+    try {
+        quota = await getOrInitStudentQuota(userId);
+    } catch (error) {
+        console.error(`[Storage] Failed to get/init quota for user ${userId}`, error);
         return { success: false, message: "无法获取存储配额信息" };
     }
 
@@ -189,26 +272,7 @@ export async function incrementStorageUsage(
         } MB`,
     );
 
-    const { data: quota, error: fetchError } = await supabase
-        .from("student_quotas")
-        .select("storage_used_mb")
-        .eq("user_id", userId)
-        .single();
-
-    if (fetchError) {
-        console.error(
-            `[Storage] Failed to fetch quota for user ${userId}`,
-            fetchError,
-        );
-        throw fetchError;
-    }
-
-    if (!quota) {
-        console.warn(
-            `[Storage] No quota record found for user ${userId}. Cannot increment.`,
-        );
-        return;
-    }
+    const quota: any = await getOrInitStudentQuota(userId);
 
     const newUsage = Math.round((quota.storage_used_mb + fileSizeMB) * 100) /
         100; // Round to 2 decimal places

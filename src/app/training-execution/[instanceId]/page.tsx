@@ -62,6 +62,9 @@ function TrainingExecutionContent() {
     const [actions, setActions] = useState<Record<string, any>>({});
     const [expandedAction, setExpandedAction] = useState<number>(0);
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
+    const [showOptionalFields, setShowOptionalFields] = useState(false);
+    const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null); // 用于已完成组“展开详情”
+     const [completing, setCompleting] = useState(false);
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
@@ -145,6 +148,20 @@ function TrainingExecutionContent() {
             }
         }
     }, [expandedAction, currentSetIndex, execution]);
+
+    const isWeightRequiredForSet = (setData: SetData) => {
+        // 如果计划里是 “xxkg”/数字重量，重量是必填；如果是 “RM/%” 这类强度描述，允许先不填重量（更贴合手机端快打卡）
+        const planned = String(setData.planned_weight || '').toLowerCase();
+        if (!planned) return true;
+        if (planned.includes('kg')) return true;
+        // 纯数字（例如 "100"）也当作重量必填
+        const numeric = parseFloat(planned.replace(/[^0-9.]/g, ''));
+        if (Number.isFinite(numeric) && numeric > 0 && planned.replace(/[^0-9.]/g, '').length > 0) return true;
+        // 其他情况（RM / %1RM / RPE 等）先不强制
+        return false;
+    };
+
+    const setKeyOf = (actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`;
 
     const startTraining = async () => {
         try {
@@ -363,6 +380,8 @@ function TrainingExecutionContent() {
                 setSetNotes('');
                 setMarkAsPR(false);
                 setVideoFile(null);
+                setShowOptionalFields(false);
+                setExpandedSetKey(null);
 
                 // Start rest timer if configured
                 const restSeconds = setData.planned_rest_seconds || 90;
@@ -381,6 +400,7 @@ function TrainingExecutionContent() {
                     if (nextActionIndex < execution.action_executions.length) {
                         setExpandedAction(nextActionIndex);
                         setCurrentSetIndex(0);
+                        setShowOptionalFields(false);
                         showToast({
                             severity: 'success',
                             summary: '动作完成',
@@ -550,8 +570,8 @@ function TrainingExecutionContent() {
                     <button onClick={() => router.back()} className="p-2 hover:bg-white/20 rounded-lg">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h1 className="text-lg font-bold">训练执行</h1>
-                    <div className="text-sm">
+                    <h1 className="text-lg font-bold text-white">训练执行</h1>
+                    <div className="text-sm text-white/90">
                         {execution.completed_sets}/{execution.total_sets} 组
                     </div>
                 </div>
@@ -562,10 +582,10 @@ function TrainingExecutionContent() {
             {isResting && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center">
                     <Timer className="w-16 h-16 text-blue-400 mb-4 animate-pulse" />
-                    <div className="text-6xl font-bold mb-4">
+                    <div className="text-6xl font-bold mb-4 text-white">
                         {Math.floor(restTimer / 60)}:{(restTimer % 60).toString().padStart(2, '0')}
                     </div>
-                    <p className="text-gray-400 mb-6">组间休息</p>
+                    <p className="text-white/70 mb-6">组间休息</p>
                     <div className="flex gap-4">
                         <Button 
                             label="+30s" 
@@ -592,7 +612,7 @@ function TrainingExecutionContent() {
                     return (
                         <Card 
                             key={actionIndex}
-                            className={`${isCompleted ? 'opacity-60' : ''}`}
+                            className={`${isCompleted ? 'opacity-60' : ''} rounded-2xl`}
                         >
                             {/* Action Header */}
                             <div 
@@ -670,139 +690,185 @@ function TrainingExecutionContent() {
                                         actionExec.sets.map((setData: SetData, setIndex: number) => {
                                             const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
                                             const isSetCompleted = setData.status === 'completed' || execution?.status === 'completed';
+                                            const isSelectedSet = actionIndex === expandedAction && setIndex === currentSetIndex;
+                                            const key = setKeyOf(actionIndex, setIndex);
+                                            const isDetailsExpanded = expandedSetKey === key;
+                                            const plannedText = `${setData.planned_weight || '-'} × ${setData.planned_reps || '-'}次`;
+                                            const actualText = `${setData.actual_weight ?? '-'}kg · ${setData.actual_reps ?? '-'}次`;
 
                                             return (
                                                 <div 
                                                     key={setIndex}
-                                                    className={`border rounded-lg p-4 ${
+                                                    className={`border rounded-2xl ${
                                                         isSetCompleted 
-                                                            ? 'border-green-500/50 bg-green-500/10' 
+                                                            ? 'border-green-500/40 bg-green-500/5'
                                                             : isCurrentSet
-                                                            ? 'border-purple-500 bg-purple-500/10'
-                                                            : 'border-gray-700'
+                                                            ? 'border-purple-500 bg-purple-500/5'
+                                                            : 'border-surface-200 bg-surface'
                                                     }`}
                                                 >
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <span className="font-bold">第 {setData.set_number} 组</span>
-                                                        {setData.is_pr && (
-                                                            <span className="flex items-center gap-1 text-yellow-400 text-sm">
-                                                                <Star className="w-4 h-4" /> PR
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Planned values */}
-                                                    <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg p-3 mb-3">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-orange-600 text-xs font-medium">📋 教练计划</span>
-                                                        </div>
-                                                        <div className="text-surface-900 text-lg font-bold">
-                                                            {setData.planned_weight || '-'} × {setData.planned_reps || '-'}次
-                                                        </div>
-                                                    </div>
-
-                                                    {isSetCompleted ? (
-                                                        // Completed display
-                                                        <div className="space-y-3">
-                                                            <div className="grid grid-cols-3 gap-3">
-                                                                <div>
-                                                                    <label className="text-xs text-surface-500">重量(kg)</label>
-                                                                    <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
-                                                                        {setData.actual_weight || '-'}
-                                                                    </div>
-                                                                </div>
-                                                                <div>
-                                                                    <label className="text-xs text-surface-500">次数</label>
-                                                                    <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
-                                                                        {setData.actual_reps || '-'}
-                                                                    </div>
-                                                                </div>
-                                                                <div>
-                                                                    <label className="text-xs text-surface-500">RPE</label>
-                                                                    <div className="bg-green-50 border border-green-200 rounded p-2 text-green-700 font-medium">
-                                                                        {setData.rpe || '-'}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {setData.notes && (
-                                                                <div className="bg-surface-100 rounded p-2 text-sm text-surface-600">
-                                                                    📝 {setData.notes}
-                                                                </div>
-                                                            )}
-
-                                                            <div className="flex items-center gap-4 flex-wrap">
-                                                                {setData.has_video && (
+                                                    {/* 组标题行：默认紧凑；点击可切换/展开 */}
                                                                     <button 
+                                                        type="button"
                                                                         onClick={() => {
-                                                                            if (setData.video_url) {
-                                                                                openVideo(setData.video_url);
-                                                                            } else {
-                                                                                showToast({
-                                                                                    severity: 'info',
-                                                                                    summary: '视频查看',
-                                                                                    detail: '视频链接不可用，请刷新页面'
-                                                                                });
-                                                                            }
+                                                            // 未完成组：点击直接切换为当前编辑组
+                                                            if (!isSetCompleted) {
+                                                                setExpandedAction(actionIndex);
+                                                                setCurrentSetIndex(setIndex);
+                                                                setShowOptionalFields(false);
+                                                                return;
+                                                            }
+                                                            // 已完成组：点击展开/收起详情
+                                                            setExpandedSetKey(prev => (prev === key ? null : key));
                                                                         }}
-                                                                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30"
-                                                                    >
-                                                                        <Video className="w-4 h-4" /> 查看视频
-                                                                    </button>
-                                                                )}
+                                                        className="w-full px-4 py-3 flex items-center justify-between gap-3"
+                                                    >
+                                                        <div className="min-w-0 text-left">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-sm font-black tracking-tight ${isSelectedSet ? 'text-purple-700' : 'text-surface-900'}`}>
+                                                                    第 {setData.set_number} 组
+                                                                </span>
                                                                 {setData.is_pr && (
-                                                                    <span className="flex items-center gap-1 text-yellow-400 text-sm">
-                                                                        <Star className="w-4 h-4" /> 进步组
+                                                                    <span className="inline-flex items-center gap-1 text-amber-500 text-xs font-bold">
+                                                                        <Star className="w-3.5 h-3.5" /> PR
                                                                     </span>
                                                                 )}
                                                                 {setData.is_auto_pr && (
-                                                                    <span className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs rounded-full font-medium animate-pulse">
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[10px] rounded-full font-bold">
                                                                         🏆 新纪录
                                                                     </span>
                                                                 )}
-                                                                {setData.e1rm && (
-                                                                    <span className="text-surface-500 text-xs">
-                                                                        e1RM: {setData.e1rm}kg
-                                                                    </span>
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-surface-500 truncate">
+                                                                {/* 当前组展开时避免重复展示计划重量：页面里已有输入框预填 */} 
+                                                                {!isSetCompleted && isCurrentSet ? (
+                                                                    <span className="font-medium text-surface-500">正在填写…</span>
+                                                                ) : (
+                                                                    <span className="font-bold text-surface-600">📋 {plannedText}</span>
                                                                 )}
+                                                                {isSetCompleted && <span className="ml-2">✅ {actualText}</span>}
+                                                                {!isSetCompleted && !isSelectedSet && <span className="ml-2">点击开始填写</span>}
+                                                            </div>
                                                             </div>
 
-                                                            <div className="text-green-400 text-sm font-medium">
-                                                                ✓ 已完成
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            {setData.has_video && (
+                                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                                                                    有视频
+                                                                </span>
+                                                            )}
+                                                            <ChevronDown className={`w-5 h-5 text-surface-400 transition-transform ${isSetCompleted && isDetailsExpanded ? 'rotate-180' : ''}`} />
                                                             </div>
-                                                        </div>
-                                                    ) : isCurrentSet ? (
-                                                        // Input form
-                                                        <div className="space-y-3">
-                                                            <div className="grid grid-cols-3 gap-3">
-                                                                <div>
-                                                                    <label className="text-xs text-surface-600 font-medium">重量(kg)</label>
+                                                    </button>
+
+                                                    {/* 当前组才展示完整表单（减少单组占屏面积） */}
+                                                    {!isSetCompleted && isCurrentSet && (
+                                                        <div className="px-4 pb-4">
+                                                            {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
+                                                            {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
+                                                            <div className="mt-3 grid grid-cols-[96px_72px_72px_56px] items-end gap-2 justify-between">
+                                                                <div className="min-w-0">
+                                                                    <label className="text-xs text-surface-600 font-bold">重量(kg)</label>
                                                                     <InputNumber 
                                                                         value={weight}
                                                                         onValueChange={(e) => setWeight(e.value ?? null)}
                                                                         className="w-full"
+                                                                        inputClassName="w-full text-center font-bold"
+                                                                        placeholder={isWeightRequiredForSet(setData) ? '必填' : '可选'}
                                                                     />
                                                                 </div>
-                                                                <div>
-                                                                    <label className="text-xs text-surface-600 font-medium">次数</label>
+                                                                <div className="min-w-0">
+                                                                    <label className="text-xs text-surface-600 font-bold">次数</label>
                                                                     <InputNumber 
                                                                         value={reps}
                                                                         onValueChange={(e) => setReps(e.value ?? null)}
                                                                         className="w-full"
+                                                                        inputClassName="w-full text-center font-bold"
                                                                     />
                                                                 </div>
-                                                                <div>
-                                                                    <label className="text-xs text-surface-600 font-medium">RPE</label>
+                                                                <div className="min-w-0">
+                                                                    <label className="text-xs text-surface-600 font-bold">RPE</label>
                                                                     <InputNumber 
                                                                         value={rpe}
                                                                         onValueChange={(e) => setRpe(e.value ?? null)}
                                                                         min={1}
                                                                         max={10}
                                                                         className="w-full"
+                                                                        inputClassName="w-full text-center font-bold"
                                                                     />
                                                                 </div>
+
+                                                                {/* 大方框：勾选即完成（替代大按钮） */}
+                                                                <button
+                                                                    type="button"
+                                                                    className="flex flex-col items-center gap-2 select-none"
+                                                                    onClick={async () => {
+                                                                        if (completing || uploading) return;
+
+                                                                        if (!reps) {
+                                                                            showToast({
+                                                                                severity: 'warn',
+                                                                                summary: '还差一步',
+                                                                                detail: '请先填写次数',
+                                                                            });
+                                                                            return;
+                                                                        }
+                                                                        if (isWeightRequiredForSet(setData) && !weight) {
+                                                                            showToast({
+                                                                                severity: 'warn',
+                                                                                summary: '还差一步',
+                                                                                detail: '请先填写重量',
+                                                                            });
+                                                                            return;
+                                                                        }
+
+                                                                        try {
+                                                                            setCompleting(true);
+                                                                            await handleCompleteSet(actionIndex, setIndex);
+                                                                        } finally {
+                                                                            setCompleting(false);
+                                                                        }
+                                                                    }}
+                                                                    aria-label="完成本组"
+                                                                >
+                                                                    <span className="text-[11px] font-bold text-surface-500">完成</span>
+                                                                    <div
+                                                                        className={`
+                                                                            w-14 h-14 rounded-2xl border-2 flex items-center justify-center
+                                                                            transition-all active:scale-[0.98]
+                                                                            ${completing || uploading ? 'bg-surface-50 border-surface-200 text-surface-300' : 'bg-surface border-surface-300 text-surface-400 hover:border-emerald-400 hover:text-emerald-600'}
+                                                                        `}
+                                                                        title="勾选完成本组"
+                                                                    >
+                                                                        <Check className={`w-7 h-7 ${completing || uploading ? 'opacity-40' : ''}`} />
+                                                                    </div>
+                                                                </button>
                                                             </div>
 
+                                                            <label className="mt-3 flex items-center gap-2 cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={markAsPR}
+                                                                    onChange={(e) => setMarkAsPR(e.target.checked)}
+                                                                    className="w-4 h-4"
+                                                                />
+                                                                <Star className="w-4 h-4 text-yellow-400" />
+                                                                <span className="text-sm text-surface-700 font-medium">标记为进步组</span>
+                                                            </label>
+
+                                                            {/* 次要字段折叠：备注/视频 */}
+                                                            <div className="mt-3">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowOptionalFields(v => !v)}
+                                                                    className="w-full flex items-center justify-between px-3 py-2 rounded-2xl bg-surface-50 border border-surface-200 text-surface-700 font-medium"
+                                                                >
+                                                                    <span className="text-sm">备注 / 视频（可选）</span>
+                                                                    <ChevronDown className={`w-5 h-5 text-surface-400 transition-transform ${showOptionalFields ? 'rotate-180' : ''}`} />
+                                                                </button>
+
+                                                                {showOptionalFields && (
+                                                                    <div className="mt-3 space-y-3">
                                                             <InputTextarea 
                                                                 value={setNotes}
                                                                 onChange={(e) => setSetNotes(e.target.value)}
@@ -821,7 +887,7 @@ function TrainingExecutionContent() {
                                                                 />
                                                                 <Button 
                                                                     icon={<Upload className="w-4 h-4" />}
-                                                                    label={videoFile ? videoFile.name.slice(0, 15) + '...' : "选择视频"}
+                                                                                label={videoFile ? "已选择视频" : "选择视频"}
                                                                     outlined
                                                                     size="small"
                                                                     onClick={() => fileInputRef.current?.click()}
@@ -829,35 +895,79 @@ function TrainingExecutionContent() {
                                                                 />
                                                                 {videoFile && (
                                                                     <button 
+                                                                                    type="button"
                                                                         onClick={() => setVideoFile(null)}
                                                                         className="text-xs text-red-400 hover:text-red-300"
                                                                     >
                                                                         删除
                                                                     </button>
                                                                 )}
-                                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                                    <input 
-                                                                        type="checkbox"
-                                                                        checked={markAsPR}
-                                                                        onChange={(e) => setMarkAsPR(e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <Star className="w-4 h-4 text-yellow-400" />
-                                                                    <span className="text-sm">标记为进步组</span>
-                                                                </label>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
 
-                                                            <Button 
-                                                                label="✓ 完成本组"
-                                                                onClick={() => handleCompleteSet(actionIndex, setIndex)}
-                                                                className="w-full"
-                                                                severity="success"
-                                                                disabled={!weight || !reps}
-                                                            />
+                                                            {/* 完成动作由右侧大方框触发：不再展示大按钮 */}
                                                         </div>
-                                                    ) : (
-                                                        // Pending display
-                                                        <div className="text-gray-500">待完成</div>
+                                                    )}
+
+                                                    {/* 已完成组的详情区域（可折叠） */}
+                                                    {isSetCompleted && isDetailsExpanded && (
+                                                        <div className="px-4 pb-4 pt-1 space-y-3">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                                <div>
+                                                                    <label className="text-xs text-surface-500">重量(kg)</label>
+                                                                    <div className="bg-green-50 border border-green-200 rounded-xl p-2 text-green-700 font-medium">
+                                                                        {setData.actual_weight ?? '-'}
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-xs text-surface-500">次数</label>
+                                                                    <div className="bg-green-50 border border-green-200 rounded-xl p-2 text-green-700 font-medium">
+                                                                        {setData.actual_reps ?? '-'}
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-xs text-surface-500">RPE</label>
+                                                                    <div className="bg-green-50 border border-green-200 rounded-xl p-2 text-green-700 font-medium">
+                                                                        {setData.rpe ?? '-'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {setData.notes && (
+                                                                <div className="bg-surface-50 border border-surface-200 rounded-xl p-2 text-sm text-surface-700">
+                                                                    📝 {setData.notes}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center gap-3 flex-wrap">
+                                                                {setData.has_video && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (setData.video_url) {
+                                                                                openVideo(setData.video_url);
+                                                                            } else {
+                                                                                showToast({
+                                                                                    severity: 'info',
+                                                                                    summary: '视频查看',
+                                                                                    detail: '视频链接不可用，请刷新页面'
+                                                                                });
+                                                                            }
+                                                                        }}
+                                                                        className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm hover:bg-blue-100"
+                                                                    >
+                                                                        <Video className="w-4 h-4" /> 查看视频
+                                                                    </button>
+                                                                )}
+                                                                {setData.e1rm && (
+                                                                    <span className="text-surface-500 text-xs">
+                                                                        e1RM: {setData.e1rm}kg
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             );
@@ -911,7 +1021,7 @@ function TrainingExecutionContent() {
 
                                                     {/* Cardio Form */}
                                                     {action.type === 'CARDIO' && (
-                                                        <div className="grid grid-cols-2 gap-4">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div>
                                                                 <label className="text-sm font-medium">距离 (km)</label>
                                                                 <InputNumber 

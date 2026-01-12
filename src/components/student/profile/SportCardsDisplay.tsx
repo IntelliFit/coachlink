@@ -8,39 +8,39 @@ interface SportCardsDisplayProps {
     sportCards: SportCards | null;
 }
 
-// 数据单元格组件
-const DataCell = ({ label, value, unit }: { label: string; value: string | number | null; unit: string }) => (
-    <div className="bg-surface-50 rounded-xl p-4 text-center border border-surface-200">
-        <div className="text-xs text-surface-600 mb-1 font-medium">{label}</div>
-        <div className="text-xl font-bold text-primary">{value || '-'}</div>
-        <div className="text-xs text-surface-500">{unit}</div>
-    </div>
+const MetricPill = ({ label, value, unit, highlight }: { label: string; value: string | number | null; unit?: string; highlight?: boolean }) => (
+    <span
+        className={[
+            'inline-flex items-baseline gap-1 rounded-xl border px-2.5 py-1.5',
+            highlight ? 'bg-surface-100 border-surface-200' : 'bg-surface-50 border-surface-200'
+        ].join(' ')}
+    >
+        <span className="text-[11px] font-bold text-surface-600">{label}</span>
+        <span className={highlight ? 'text-sm font-black text-surface-900' : 'text-sm font-black text-primary'}>
+            {value ?? '-'}
+        </span>
+        {unit ? <span className="text-[11px] text-surface-500">{unit}</span> : null}
+    </span>
 );
 
-// 高亮数据单元格
-const HighlightCell = ({ label, value, unit }: { label: string; value: string | number | null; unit: string }) => (
-    <div className="bg-surface-100 rounded-xl p-4 text-center border border-surface-200">
-        <div className="text-xs text-surface-600 mb-1 font-medium">{label}</div>
-        <div className="text-xl font-bold text-surface-900">{value || '-'}</div>
-        <div className="text-xs text-surface-500">{unit}</div>
-    </div>
-);
-
-// 卡片容器
-const CardContainer = ({ title, icon: Icon, children, color = 'primary' }: { 
-    title: string; 
-    icon: React.ElementType; 
+const RowLine = ({ title, icon: Icon, iconClass, children }: {
+    title: string;
+    icon: React.ElementType;
+    iconClass: string;
     children: React.ReactNode;
-    color?: string;
 }) => (
-    <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200">
-        <div className="px-5 py-3 border-b border-surface-200">
-            <h3 className="text-base font-bold flex items-center gap-2 text-surface-900">
-                <Icon className={`w-5 h-5 text-${color}`} />
-                {title}
-            </h3>
+    <div className="bg-surface rounded-2xl shadow-sm border border-surface-200 px-3 py-2">
+        <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                <Icon className={`w-4 h-4 ${iconClass}`} />
+                <span className="text-sm font-black text-surface-900">{title}</span>
+            </div>
+            <div className="flex-1 min-w-0 overflow-x-auto">
+                <div className="flex gap-2 whitespace-nowrap pb-0.5">
+                    {children}
+                </div>
+            </div>
         </div>
-        <div className="p-5">{children}</div>
     </div>
 );
 
@@ -50,92 +50,79 @@ export const SportCardsDisplay: React.FC<SportCardsDisplayProps> = ({ sportCards
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-2">
             {/* 1. 力量举 */}
             {sportCards.activeCards.includes('powerlifting') && sportCards.powerlifting && (
-                <CardContainer title="力量举" icon={Dumbbell} color="orange-500">
-                    <div className="grid grid-cols-4 gap-3">
-                        <DataCell label="深蹲" value={sportCards.powerlifting.squat} unit="kg" />
-                        <DataCell label="卧推" value={sportCards.powerlifting.bench} unit="kg" />
-                        <DataCell label="硬拉" value={sportCards.powerlifting.deadlift} unit="kg" />
-                        <HighlightCell label="总和" value={getPowerliftingTotal(sportCards.powerlifting)} unit="kg" />
-                    </div>
-                </CardContainer>
+                <RowLine title="力量举" icon={Dumbbell} iconClass="text-orange-500">
+                    <MetricPill label="深蹲" value={sportCards.powerlifting.squat} unit="kg" />
+                    <MetricPill label="卧推" value={sportCards.powerlifting.bench} unit="kg" />
+                    <MetricPill label="硬拉" value={sportCards.powerlifting.deadlift} unit="kg" />
+                    <MetricPill label="总和" value={getPowerliftingTotal(sportCards.powerlifting)} unit="kg" highlight />
+                </RowLine>
             )}
 
             {/* 2. 街头力量举 */}
             {sportCards.activeCards.includes('streetlifting') && sportCards.streetlifting && (
-                <CardContainer title="街头力量举" icon={Dumbbell} color="lime-500">
-                    <div className="grid grid-cols-4 gap-3">
-                        <DataCell label="负重引体" value={sportCards.streetlifting.weightedPullup} unit="kg" />
-                        <DataCell label="负重双杠" value={sportCards.streetlifting.weightedDip} unit="kg" />
-                        <DataCell label="负重双力臂" value={sportCards.streetlifting.weightedMuscleUp} unit="kg" />
-                        <DataCell label="深蹲" value={sportCards.streetlifting.squat} unit="kg" />
-                    </div>
-                </CardContainer>
+                <RowLine title="街头力量举" icon={Dumbbell} iconClass="text-lime-600">
+                    <MetricPill label="引体" value={sportCards.streetlifting.weightedPullup} unit="kg" />
+                    <MetricPill label="双杠" value={sportCards.streetlifting.weightedDip} unit="kg" />
+                    <MetricPill label="双力臂" value={sportCards.streetlifting.weightedMuscleUp} unit="kg" />
+                    <MetricPill label="深蹲" value={sportCards.streetlifting.squat} unit="kg" />
+                    <MetricPill label="总和" value={getStreetliftingTotal(sportCards.streetlifting)} unit="kg" highlight />
+                </RowLine>
             )}
 
             {/* 3. 街头健身 */}
             {sportCards.activeCards.includes('calisthenics') && sportCards.calisthenics && (
-                <CardContainer title="街头健身" icon={User} color="green-500">
-                    <div className="grid grid-cols-3 gap-3">
-                        <DataCell label="最大引体" value={sportCards.calisthenics.maxPullups} unit="次" />
-                        <DataCell label="最大双杠" value={sportCards.calisthenics.maxDips} unit="次" />
-                        <DataCell label="最大双力臂" value={sportCards.calisthenics.maxMuscleUps} unit="次" />
-                        <DataCell label="前水平" value={sportCards.calisthenics.frontLever} unit="秒" />
-                        <DataCell label="俄式挺身" value={sportCards.calisthenics.planche} unit="秒" />
-                        <DataCell label="人体旗帜" value={sportCards.calisthenics.humanFlag} unit="秒" />
-                    </div>
-                </CardContainer>
+                <RowLine title="街头健身" icon={User} iconClass="text-green-600">
+                    <MetricPill label="引体" value={sportCards.calisthenics.maxPullups} unit="次" />
+                    <MetricPill label="双杠" value={sportCards.calisthenics.maxDips} unit="次" />
+                    <MetricPill label="双力臂" value={sportCards.calisthenics.maxMuscleUps} unit="次" />
+                    <MetricPill label="前水平" value={sportCards.calisthenics.frontLever} unit="秒" />
+                    <MetricPill label="俄式" value={sportCards.calisthenics.planche} unit="秒" />
+                    <MetricPill label="旗帜" value={sportCards.calisthenics.humanFlag} unit="秒" />
+                </RowLine>
             )}
 
             {/* 4. 举重 */}
             {sportCards.activeCards.includes('weightlifting') && sportCards.weightlifting && (
-                <CardContainer title="举重" icon={Dumbbell} color="red-500">
-                    <div className="grid grid-cols-3 gap-3">
-                        <DataCell label="抓举" value={sportCards.weightlifting.snatch} unit="kg" />
-                        <DataCell label="挺举" value={sportCards.weightlifting.cleanAndJerk} unit="kg" />
-                        <HighlightCell label="总成绩" value={getWeightliftingTotal(sportCards.weightlifting)} unit="kg" />
-                    </div>
-                </CardContainer>
+                <RowLine title="举重" icon={Dumbbell} iconClass="text-red-600">
+                    <MetricPill label="抓举" value={sportCards.weightlifting.snatch} unit="kg" />
+                    <MetricPill label="挺举" value={sportCards.weightlifting.cleanAndJerk} unit="kg" />
+                    <MetricPill label="总和" value={getWeightliftingTotal(sportCards.weightlifting)} unit="kg" highlight />
+                </RowLine>
             )}
 
             {/* 5. 健美/形体 */}
             {sportCards.activeCards.includes('bodybuilding') && sportCards.bodybuilding && (
-                <CardContainer title="健美/形体" icon={User} color="purple-500">
-                    <div className="grid grid-cols-4 gap-3">
-                        <DataCell label="体脂率" value={sportCards.bodybuilding.bodyfat} unit="%" />
-                        <DataCell label="胸围" value={sportCards.bodybuilding.chest} unit="cm" />
-                        <DataCell label="臂围" value={sportCards.bodybuilding.arm} unit="cm" />
-                        <DataCell label="腰围" value={sportCards.bodybuilding.waist} unit="cm" />
-                        <DataCell label="臀围" value={sportCards.bodybuilding.hip} unit="cm" />
-                        <DataCell label="大腿围" value={sportCards.bodybuilding.thigh} unit="cm" />
-                        <DataCell label="小腿围" value={sportCards.bodybuilding.calf} unit="cm" />
-                    </div>
-                </CardContainer>
+                <RowLine title="健美/形体" icon={User} iconClass="text-purple-600">
+                    <MetricPill label="体脂" value={sportCards.bodybuilding.bodyfat} unit="%" />
+                    <MetricPill label="胸" value={sportCards.bodybuilding.chest} unit="cm" />
+                    <MetricPill label="臂" value={sportCards.bodybuilding.arm} unit="cm" />
+                    <MetricPill label="腰" value={sportCards.bodybuilding.waist} unit="cm" />
+                    <MetricPill label="臀" value={sportCards.bodybuilding.hip} unit="cm" />
+                    <MetricPill label="大腿" value={sportCards.bodybuilding.thigh} unit="cm" />
+                    <MetricPill label="小腿" value={sportCards.bodybuilding.calf} unit="cm" />
+                </RowLine>
             )}
 
             {/* 6. 跑步 */}
             {sportCards.activeCards.includes('running') && sportCards.running && (
-                <CardContainer title="跑步" icon={Footprints} color="blue-500">
-                    <div className="grid grid-cols-4 gap-3">
-                        <DataCell label="5公里" value={sportCards.running.fiveK} unit="" />
-                        <DataCell label="10公里" value={sportCards.running.tenK} unit="" />
-                        <DataCell label="半马" value={sportCards.running.halfMarathon} unit="" />
-                        <DataCell label="全马" value={sportCards.running.marathon} unit="" />
-                    </div>
-                </CardContainer>
+                <RowLine title="跑步" icon={Footprints} iconClass="text-blue-600">
+                    <MetricPill label="5km" value={sportCards.running.fiveK} />
+                    <MetricPill label="10km" value={sportCards.running.tenK} />
+                    <MetricPill label="半马" value={sportCards.running.halfMarathon} />
+                    <MetricPill label="全马" value={sportCards.running.marathon} />
+                </RowLine>
             )}
 
             {/* 7. 骑行 */}
             {sportCards.activeCards.includes('cycling') && sportCards.cycling && (
-                <CardContainer title="骑行" icon={Bike} color="cyan-500">
-                    <div className="grid grid-cols-3 gap-3">
-                        <DataCell label="FTP" value={sportCards.cycling.ftp} unit="W" />
-                        <DataCell label="最大功率" value={sportCards.cycling.maxPower} unit="W" />
-                        <DataCell label="最长单骑" value={sportCards.cycling.maxDistance} unit="km" />
-                    </div>
-                </CardContainer>
+                <RowLine title="骑行" icon={Bike} iconClass="text-cyan-600">
+                    <MetricPill label="FTP" value={sportCards.cycling.ftp} unit="W" />
+                    <MetricPill label="最大功率" value={sportCards.cycling.maxPower} unit="W" />
+                    <MetricPill label="最长" value={sportCards.cycling.maxDistance} unit="km" />
+                </RowLine>
             )}
         </div>
     );

@@ -136,7 +136,7 @@ export default function MembershipDashboard() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold text-lg text-orange-900">邀请好友，免费领会员</h3>
-                        <p className="text-sm text-orange-800">每邀请一位好友注册，双方各获 3 天高级会员奖励！</p>
+                        <p className="text-sm text-orange-800">每邀请一位好友注册，双方各获智能导入次数与存储空间奖励！</p>
                     </div>
                     <Button label="去邀请" icon={<Share2 className="w-4 h-4 mr-2" />} className="bg-white text-orange-600 hover:bg-orange-50 border-orange-200" onClick={() => router.push('/me/membership/referral')} severity="warning" outlined />
                 </div>

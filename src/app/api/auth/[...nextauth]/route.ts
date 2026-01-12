@@ -51,70 +51,73 @@ export const authOptions: AuthOptions = {
                 verifyCode: { label: "verifyCode", type: "text" },
             },
             async authorize(credentials) {
-                // 如果是开发者模式 获取白名单
-                const whiteList = getWhiteList();
-                if (
-                    !whiteList.some((user) => user.phone === credentials?.phone)
-                ) {
-                    if (!credentials?.verifyCode) {
-                        throw new Error("请输入验证码");
-                    }
+                const phone = credentials?.phone?.trim();
+                const password = credentials?.password?.trim();
+                const verifyCode = credentials?.verifyCode?.trim();
 
-                    // 开发模式下接受模拟验证码 123456
-                    const useMockSms = process.env.NODE_ENV === "development";
-                    const isMockCode = useMockSms &&
-                        credentials.verifyCode.trim() === "123456";
-
-                    if (!isMockCode) {
-                        // 验证验证码
-                        if (!redis) {
-                            throw new Error("验证服务不可用");
-                        }
-
-                        const storedCode = await redis.get(
-                            `sms_verification_code:${credentials.phone.trim()}`,
-                        );
-                        if (!storedCode) {
-                            throw new Error("验证码已过期或不存在");
-                        }
-
-                        if (storedCode !== credentials.verifyCode.trim()) {
-                            throw new Error("验证码错误");
-                        }
-
-                        // 验证成功后删除验证码，防止重复使用
-                        await redis.del(
-                            `sms_verification_code:${credentials.phone.trim()}`,
-                        );
-                    }
+                if (!phone) {
+                    throw new Error("请输入手机号");
                 }
 
-                if (!credentials?.phone || !credentials?.password) {
-                    throw new Error("请输入手机号和密码");
-                }
-
-                // 查询用户
+                // 查询用户（两种登录方式都需要）
                 const { data: user, error: userError } = await supabase
                     .from("users")
                     .select("*")
-                    .eq("phone", credentials.phone.trim())
+                    .eq("phone", phone)
                     .single();
 
                 if (userError || !user) {
                     throw new Error("用户不存在\n" + userError?.message);
                 }
 
-                const isValid = verifyPassword(
-                    credentials.password.trim(),
-                    user.password_hash,
-                );
-                if (!isValid) {
-                    throw new Error("密码错误");
+                // 方式 1：验证码登录（手机号 + 验证码）
+                if (verifyCode && !password) {
+                    // 如果是开发者模式 获取白名单（白名单跳过验证码校验）
+                    const whiteList = getWhiteList();
+                    const isInWhiteList = whiteList.some((u) => u.phone === phone);
+
+                    if (!isInWhiteList) {
+                        // 开发模式下接受模拟验证码 123456
+                        const useMockSms = process.env.NODE_ENV === "development";
+                        const isMockCode = useMockSms && verifyCode === "123456";
+
+                        if (!isMockCode) {
+                            if (!redis) {
+                                throw new Error("验证服务不可用");
+                            }
+
+                            const storedCode = await redis.get(
+                                `sms_verification_code:${phone}`,
+                            );
+                            if (!storedCode) {
+                                throw new Error("验证码已过期或不存在");
+                            }
+                            if (storedCode !== verifyCode) {
+                                throw new Error("验证码错误");
+                            }
+
+                            // 验证成功后删除验证码，防止重复使用
+                            await redis.del(`sms_verification_code:${phone}`);
+                        }
+                    }
+
+                    (user as any).password_hash = undefined;
+                    return user;
                 }
 
-                // 返回用户信息（会保存到 token / session）
-                (user as any).password_hash = undefined;
-                return user;
+                // 方式 2：密码登录（手机号 + 密码）
+                if (password && !verifyCode) {
+                    const isValid = verifyPassword(password, user.password_hash);
+                    if (!isValid) {
+                        throw new Error("密码错误");
+                    }
+
+                    (user as any).password_hash = undefined;
+                    return user;
+                }
+
+                // 不允许“什么都不填”或“两种都填”（避免歧义，前端也只会传一种）
+                throw new Error("请选择“密码登录”或“验证码登录”");
             },
         }),
     ],

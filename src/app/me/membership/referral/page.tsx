@@ -17,14 +17,26 @@ interface InviteInfo {
 export default function ReferralPage() {
     const { showToast } = useToastContext();
     const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
+    const [stats, setStats] = useState<{
+        invites: number;
+        rewardedAi: number;
+        rewardedStorageMb: number;
+    } | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchInvite = async () => {
             try {
-                const res = await axios.post('/api/membership/referral/create-invite');
-                if (res.data && res.data.success) {
-                    setInviteInfo(res.data.data);
+                const [inviteRes, statsRes] = await Promise.all([
+                    axios.post('/api/membership/referral/create-invite'),
+                    axios.post('/api/membership/referral/stats'),
+                ]);
+
+                if (inviteRes.data && inviteRes.data.success) {
+                    setInviteInfo(inviteRes.data.data);
+                }
+                if (statsRes.data && statsRes.data.success) {
+                    setStats(statsRes.data.data);
                 }
             } catch (error) {
                 console.error(error);
@@ -52,7 +64,7 @@ export default function ReferralPage() {
         <div className="container mx-auto p-4 max-w-2xl py-10 space-y-8">
             <div className="text-center space-y-2">
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">邀请有礼</h1>
-                <p className="text-surface-500">邀请好友注册，一起变强，双方均获 **3天高级会员**</p>
+                <p className="text-surface-500">邀请好友注册，一起变强，双方均获智能导入次数与存储空间奖励</p>
             </div>
 
             <div className="bg-surface-0 border border-orange-200 shadow-lg rounded-xl overflow-hidden">
@@ -95,7 +107,7 @@ export default function ReferralPage() {
                         累计邀请
                     </div>
                     <div>
-                        <div className="text-2xl font-bold text-surface-900">0 <span className="text-sm font-normal text-surface-500">人</span></div>
+                        <div className="text-2xl font-bold text-surface-900">{stats?.invites || 0} <span className="text-sm font-normal text-surface-500">人</span></div>
                     </div>
                 </div>
                 <div className="bg-surface-0 border border-surface-200 rounded-xl p-6 shadow-sm">
@@ -104,13 +116,18 @@ export default function ReferralPage() {
                         获得奖励
                     </div>
                     <div>
-                        <div className="text-2xl font-bold text-surface-900">0 <span className="text-sm font-normal text-surface-500">天会员</span></div>
+                        <div className="text-2xl font-bold text-surface-900">
+                            +{stats?.rewardedAi || 0} <span className="text-sm font-normal text-surface-500">次AI导入</span>
+                        </div>
+                        <div className="text-sm font-semibold text-surface-700 mt-1">
+                            +{stats?.rewardedStorageMb || 0} <span className="text-xs font-normal text-surface-500">MB 存储</span>
+                        </div>
                     </div>
                 </div>
             </div>
             
-             <p className="text-xs text-center text-surface-400">
-                * 奖励将在好友完成注册后自动发放。最终解释权归平台所有。
+            <p className="text-xs text-center text-surface-400">
+                * 奖励将在好友完成注册后自动发放（智能导入次数 + 存储配额）。最终解释权归平台所有。
             </p>
         </div>
     );

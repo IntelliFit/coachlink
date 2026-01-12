@@ -30,6 +30,15 @@ const CopyCoachActionDialog: React.FC<CopyCoachActionDialogProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [coachName, setCoachName] = useState<string | null>(null);
     const { showToast } = useToastContext();
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 640px)');
+        const update = () => setIsMobile(mql.matches);
+        update();
+        mql.addEventListener?.('change', update);
+        return () => mql.removeEventListener?.('change', update);
+    }, []);
 
     useEffect(() => {
         if (visible) {
@@ -165,9 +174,20 @@ const CopyCoachActionDialog: React.FC<CopyCoachActionDialogProps> = ({
                 </div>
             }
             visible={visible}
-            style={{ width: '90vw', maxWidth: '700px' }}
+            modal
+            draggable={false}
+            resizable={false}
+            dismissableMask
+            style={isMobile ? { width: '100vw', height: '100dvh', margin: 0 } : { width: '90vw', maxWidth: '700px' }}
+            position={isMobile ? 'bottom' : 'center'}
             footer={footer}
             onHide={onHide}
+            pt={{
+                root: { className: isMobile ? 'm-0 p-0 rounded-none overflow-hidden' : 'rounded-2xl overflow-hidden' },
+                header: { className: isMobile ? 'px-4 py-3 border-b border-surface-200 bg-surface sticky top-0 z-10' : 'px-6 py-4 border-b border-surface-200 bg-surface' },
+                content: { className: isMobile ? 'px-4 py-4 bg-surface overflow-auto' : 'px-6 py-5 bg-surface' },
+                footer: { className: isMobile ? 'px-4 py-3 border-t border-surface-200 bg-surface sticky bottom-0 z-10' : 'px-6 py-4 border-t border-surface-200 bg-surface' },
+            } as any}
         >
             <div className="mb-4">
                 <IconField iconPosition="left" className='w-full'>
