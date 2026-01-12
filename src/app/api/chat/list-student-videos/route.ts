@@ -82,7 +82,7 @@ export async function POST(req: Request) {
                 set_number,
                 duration_seconds,
                 created_at,
-                plan_instance_executions!inner(student_id, action_executions, day_index)
+                plan_instance_executions (student_id, action_executions, day_index)
             `,
             { count: "exact" },
         );
@@ -113,6 +113,38 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    // 获取所有涉及的学生ID，用于批量查询用户信息
+    const studentIds = Array.from(new Set((videos || [])
+        .filter(v => v.plan_instance_executions?.student_id)
+        .map(v => v.plan_instance_executions.student_id)
+    ));
+
+    // 批量查询学生用户信息
+    let studentProfiles: any[] = [];
+    if (studentIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('user_id, full_name, nickname, avatar_url')
+            .in('user_id', studentIds);
+
+        if (profileError) {
+            console.error("查询用户档案失败:", profileError);
+        } else {
+            studentProfiles = profiles || [];
+        }
+    }
+
+    // 创建学生ID到用户信息的映射
+    const profileMap = new Map();
+    studentProfiles.forEach(profile => {
+        profileMap.set(profile.user_id, {
+            id: profile.user_id,
+            fullName: profile.full_name,
+            nickname: profile.nickname,
+            avatarUrl: profile.avatar_url,
+        });
+    });
+
     // 转换为返回格式
     const videoItems: VideoItem[] = (videos || []).map((v: any) => {
         // 从执行记录的 action_executions 中补充动作名、计划/实际重量次数
@@ -137,6 +169,9 @@ export async function POST(req: Request) {
             }
         }
 
+        const studentId = v.plan_instance_executions?.student_id;
+        const studentInfo = studentId ? profileMap.get(studentId) : undefined;
+
         return {
             id: v.id,
             videoUrl: v.video_url,
@@ -149,6 +184,7 @@ export async function POST(req: Request) {
             createdAt: v.created_at,
             duration: v.duration_seconds,
             dayIndex: v.plan_instance_executions?.day_index ?? null,
+            studentInfo,
         };
     });
 

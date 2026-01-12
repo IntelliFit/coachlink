@@ -223,3 +223,44 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .p-menu .p-menuitem > .p-menuitem-content {
     @apply rounded-lg;
 }
+
+/* 引导框主体 */
+.aero-guide-popover.driver-popover-item {
+  @apply bg-surface border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-6 rounded-[24px] !important;
+  max-width: 320px;
+}
+
+.driver-popover {
+    
+}
+
+/* 引导标题 */
+.driver-popover-title {
+  @apply text-lg font-black tracking-tight text-slate-900 mb-2 !important;
+}
+
+/* 引导描述 */
+.driver-popover-description {
+  @apply text-sm leading-relaxed text-slate-500 font-medium !important;
+}
+
+/* 引导按钮通用 */
+.driver-popover-footer button {
+  @apply rounded-full px-4 py-2 text-sm font-bold transition-all active:scale-[0.95] !important;
+  text-shadow: none !important;
+}
+
+/* “下一步”按钮 */
+.driver-next-btn {
+  @apply bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary/90 !important;
+}
+
+/* “跳过/完成”按钮 */
+.driver-close-btn, .driver-prev-btn {
+  @apply bg-slate-100 text-slate-500 hover:bg-slate-200 !important;
+}
+
+/* 步骤计数器（如果有） */
+.driver-navigation-btns {
+  @apply mt-6 flex justify-between items-center !important;
+}

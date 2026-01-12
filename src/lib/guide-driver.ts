@@ -26,8 +26,9 @@ export function createGuide(config: GuideConfig) {
     const driverInstance = driver({
         showProgress: true,
         animate: true,
-        overlayColor: "rgba(0, 0, 0, 0.7)",
-        popoverClass: "coachlink-guide-popover",
+        allowClose: false,
+        overlayColor: 'rgba(15, 23, 42, 0.3)',
+        popoverClass: "aero-guide-popover",
         nextBtnText: "下一步",
         prevBtnText: "上一步",
         doneBtnText: "完成",
