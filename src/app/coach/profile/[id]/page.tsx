@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -35,6 +35,23 @@ const CoachProfilePage: React.FC = () => {
 
     const { showToast } = useToastContext();
     const { data: session } = useSession();
+
+    const SUBSCRIBE_TAB_INDEX = 3;
+
+    const goToSubscribeTab = useCallback(() => {
+        setActiveTab(SUBSCRIBE_TAB_INDEX);
+
+        // 同步 URL，便于分享/刷新后保持在订阅价格
+        const nextParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+        nextParams.set('tab', String(SUBSCRIBE_TAB_INDEX));
+        router.replace(`/coach/profile/${coachId}?${nextParams.toString()}`);
+
+        // 滚动到 Tab 区域（移动端避免“订阅价格需要右滑才看见”的问题）
+        setTimeout(() => {
+            const el = document.getElementById('coach-profile-tabs');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+    }, [coachId, router]);
 
     // 初始化教练信息
     const initCoach = async () => {
@@ -149,12 +166,13 @@ const CoachProfilePage: React.FC = () => {
         };
 
         return (
-            <div className="min-h-screen">
+            <div className="min-h-screen pb-24 md:pb-0">
                 {/* 教练介绍部分 */}
                 <CoachIntroduction
                     coach={displayCoach}
                     userSubscription={userSubscription}
                     aggregatedInfo={aggregatedInfo}
+                    onGoToSubscribe={goToSubscribeTab}
                 />
 
                 {/* 教练内容部分（包含标签页） */}
@@ -168,6 +186,27 @@ const CoachProfilePage: React.FC = () => {
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
                 />
+
+                {/* 移动端底部固定 CTA：避免“订阅价格 Tab 需要右滑才能看到” */}
+                {session?.user?.id !== displayCoach.user_id && (
+                    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+                        <div className="bg-surface/90 backdrop-blur border-t border-surface-200 px-4 py-3">
+                            <button
+                                onClick={goToSubscribeTab}
+                                className="w-full h-12 rounded-2xl bg-primary text-surface font-black tracking-tight shadow-lg active:scale-[0.99] transition"
+                            >
+                                {userSubscription?.status === 'active'
+                                    ? '查看订阅'
+                                    : userSubscription?.status === 'waiting'
+                                        ? '查看订阅进度'
+                                        : '立即订阅 / 查看价格'}
+                            </button>
+                            <p className="mt-2 text-[11px] text-surface-500 text-center">
+                                不用右滑找“订阅价格”，点这里直接跳转
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
         );
 

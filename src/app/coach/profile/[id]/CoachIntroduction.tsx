@@ -18,15 +18,16 @@ import { coachService } from '@/app/service/coachService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useSearchParams } from 'next/navigation';
-import { MessageCircle, Edit3, ClipboardList, Star, Users, BookOpen, Award } from 'lucide-react';
+import { MessageCircle, Edit3, ClipboardList, Star, Users, BookOpen, Award, Zap } from 'lucide-react';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
     userSubscription: QueryCoachSubscription | null;
     aggregatedInfo: GetAggregatedInfoResponseDto | null;
+    onGoToSubscribe?: () => void;
 }
 
-const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo }) => {
+const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo, onGoToSubscribe }) => {
     const { data: session } = useSession();
     const isOwnProfile = session?.user?.id === coach.user_id;
     const searchParams = useSearchParams();
@@ -190,9 +191,23 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                         查看问卷
                                     </button>
                                 )}
+                                {!isOwnProfile && (
+                                    <button
+                                        id="guide-subscribe-entry"
+                                        onClick={() => onGoToSubscribe?.()}
+                                        className="flex items-center gap-2 px-6 py-2.5 bg-primary text-surface rounded-[16px] text-xs font-black shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all active:scale-95"
+                                    >
+                                        <Zap size={16} />
+                                        {userSubscription?.status === 'active'
+                                            ? '查看订阅'
+                                            : userSubscription?.status === 'waiting'
+                                                ? '查看进度'
+                                                : '立即订阅'}
+                                    </button>
+                                )}
                                 <button
                                     onClick={contactCoach}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary-500 text-surface rounded-[16px] text-xs font-black shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all active:scale-95"
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-surface border border-surface-200 rounded-[16px] text-xs font-black text-surface-700 hover:border-primary-300 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
                                 >
                                     <MessageCircle size={16} />
                                     联系教练
