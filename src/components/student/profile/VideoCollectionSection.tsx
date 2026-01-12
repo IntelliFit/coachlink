@@ -154,7 +154,7 @@ export const VideoCollectionSection: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="bg-surface rounded-2xl p-4 shadow-sm">
                 <div className="animate-pulse h-6 w-32 bg-gray-100 rounded mb-4" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="h-32 bg-gray-100 rounded" />
@@ -165,7 +165,7 @@ export const VideoCollectionSection: React.FC = () => {
     }
 
     return (
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="bg-surface rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <Video className="w-5 h-5 text-blue-500" />
@@ -178,7 +178,7 @@ export const VideoCollectionSection: React.FC = () => {
                         setMode('existing');
                         loadExistingVideos();
                     }}
-                    className="inline-flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-blue-600 text-surface rounded-lg hover:bg-blue-700 text-sm"
                 >
                     <Plus className="w-4 h-4" /> 添加视频
                 </button>
@@ -231,7 +231,7 @@ export const VideoCollectionSection: React.FC = () => {
                                             rel="noreferrer"
                                             className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
                                         >
-                                            <Play className="w-12 h-12 text-white" />
+                                            <Play className="w-12 h-12 text-surface" />
                                         </a>
                                     )}
                                 </div>
@@ -279,7 +279,7 @@ export const VideoCollectionSection: React.FC = () => {
 
             {showModal && (
                 <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-                    <div className="bg-white rounded-xl w-full max-w-3xl p-4 shadow-xl max-h-[90vh] overflow-y-auto">
+                    <div className="bg-surface rounded-xl w-full max-w-3xl p-4 shadow-xl max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <Upload className="w-5 h-5 text-blue-500" />
@@ -292,13 +292,13 @@ export const VideoCollectionSection: React.FC = () => {
 
                         <div className="flex gap-2 mb-3">
                             <button
-                                className={`px-3 py-2 rounded-lg text-sm ${mode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                className={`px-3 py-2 rounded-lg text-sm ${mode === 'existing' ? 'bg-blue-600 text-surface' : 'bg-gray-100 text-gray-700'}`}
                                 onClick={() => { setMode('existing'); }}
                             >
                                 从已有视频选择
                             </button>
                             <button
-                                className={`px-3 py-2 rounded-lg text-sm ${mode === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                className={`px-3 py-2 rounded-lg text-sm ${mode === 'upload' ? 'bg-blue-600 text-surface' : 'bg-gray-100 text-gray-700'}`}
                                 onClick={() => { setMode('upload'); }}
                             >
                                 上传/链接新视频
@@ -358,7 +358,7 @@ export const VideoCollectionSection: React.FC = () => {
                                         <button
                                             onClick={handleAddExisting}
                                             disabled={uploading}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                                            className="px-4 py-2 bg-blue-600 text-surface rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
                                         >
                                             {uploading ? '提交中...' : '加入视频集'}
                                         </button>
