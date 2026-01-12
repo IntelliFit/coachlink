@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     // 检查动作是否存在且属于该教练
     const { data: existingAction, error: fetchError } = await supabase
         .from("coach_actions")
-        .select("id")
+        .select("id, url")
         .eq("id", id)
         .eq("coach_id", userId)
         .single();
@@ -56,6 +56,29 @@ export async function POST(req: NextRequest) {
             message: "动作不存在或无权访问",
             data: null
         }, { status: 404 });
+    }
+
+    // 如果演示视频来自本项目 Storage，则尝试删除文件
+    try {
+        const storageUrl = process.env.NEXT_SUPABASE_URL;
+        const prevUrl = (existingAction as any)?.url;
+        if (storageUrl && prevUrl && typeof prevUrl === "string" && prevUrl.includes(storageUrl)) {
+            const parts = prevUrl.split("/videos/");
+            if (parts.length === 2) {
+                const rawPath = parts[1];
+                const filePath = rawPath.split("?")[0];
+                if (filePath) {
+                    const { error: storageError } = await supabase.storage
+                        .from("videos")
+                        .remove([filePath]);
+                    if (storageError) {
+                        console.error("删除动作演示视频失败:", storageError);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("删除动作演示视频异常:", e);
     }
 
     // 删除动作

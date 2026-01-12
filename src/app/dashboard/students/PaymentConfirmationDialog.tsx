@@ -279,15 +279,43 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         );
     };
 
-    const noteTemplate = (subscription: SubscriptionWithStudentProfile) => (
-        subscription.remind_coach_note ? (
-            <div className="max-w-xs truncate" title={subscription.remind_coach_note}>
-                {subscription.remind_coach_note}
+    const noteTemplate = (subscription: SubscriptionWithStudentProfile) => {
+        const note = subscription.remind_coach_note;
+        if (!note) {
+            return <div className="text-surface-500 italic">无备注</div>;
+        }
+        
+        // 检测是否包含付款凭证 URL
+        const receiptMatch = note.match(/付款凭证:\s*(https?:\/\/[^\s]+)/);
+        if (receiptMatch) {
+            const receiptUrl = receiptMatch[1];
+            const otherNote = note.replace(/付款凭证:\s*https?:\/\/[^\s]+/, '').trim();
+            
+            return (
+                <div className="flex items-center gap-2">
+                    <Image 
+                        src={receiptUrl} 
+                        alt="付款凭证" 
+                        width="40"
+                        height="40"
+                        preview
+                        className="rounded border cursor-pointer flex-shrink-0"
+                    />
+                    {otherNote && (
+                        <span className="text-sm text-surface-600 truncate max-w-[100px]" title={otherNote}>
+                            {otherNote}
+                        </span>
+                    )}
+                </div>
+            );
+        }
+        
+        return (
+            <div className="max-w-xs truncate" title={note}>
+                {note}
             </div>
-        ) : (
-            <div className="text-surface-500 italic">无备注</div>
-        )
-    );
+        );
+    };
 
     const footerContent = (
         <div className="flex justify-end gap-2">

@@ -191,12 +191,19 @@ export const VideoCollectionSection: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {collections.map(item => (
-                        <div key={item.id} className="border rounded-xl overflow-hidden bg-gray-50">
+                    {collections.map(item => {
+                        const titleTrim = typeof item.title === 'string' ? item.title.trim() : '';
+                        const descTrim = typeof item.description === 'string' ? item.description.trim() : '';
+                        const displayTitle = titleTrim || descTrim || '未命名视频';
+                        // 避免 title 与 description 相同导致重复显示
+                        const displaySubtitle = titleTrim && descTrim && descTrim !== titleTrim ? descTrim : '';
+
+                        return (
+                            <div key={item.id} className="border rounded-xl overflow-hidden bg-gray-50">
                             <div className="relative">
                                 <div className="aspect-video bg-black/5 flex items-center justify-center overflow-hidden relative">
                                     {item.thumbnail_url ? (
-                                        <img src={item.thumbnail_url} alt={item.title || '视频封面'} className="w-full h-full object-cover" />
+                                        <img src={item.thumbnail_url} alt={displayTitle} className="w-full h-full object-cover" />
                                     ) : item.video_url ? (
                                         <video
                                             src={item.video_url}
@@ -238,9 +245,11 @@ export const VideoCollectionSection: React.FC = () => {
                                 <div className="flex items-start justify-between gap-2">
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 line-clamp-1">
-                                            {item.title || '未命名视频'}
+                                            {displayTitle}
                                         </p>
-                                        <p className="text-xs text-gray-500 line-clamp-2">{item.description}</p>
+                                {displaySubtitle ? (
+                                    <p className="text-xs text-gray-500 line-clamp-2">{displaySubtitle}</p>
+                                ) : null}
                                     </div>
                                     <button
                                         onClick={() => handleDelete(item.id)}
@@ -263,7 +272,8 @@ export const VideoCollectionSection: React.FC = () => {
                                 </p>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
@@ -364,6 +374,7 @@ export const VideoCollectionSection: React.FC = () => {
                                         onUploadSuccess={handleUploadSuccess}
                                         onUploadError={(e) => showToast({ severity: 'error', summary: '上传失败', detail: e?.message || '请稍后再试' })}
                                         showUrlInput
+                                        showNotes={false}
                                         maxFiles={1}
                                         submitDisabled={!description.trim()}
                                         submitDisabledMessage="请先填写视频描述"

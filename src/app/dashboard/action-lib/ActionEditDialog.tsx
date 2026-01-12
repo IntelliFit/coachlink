@@ -11,6 +11,8 @@ import { InputSwitch } from 'primereact/inputswitch';
 import { AutoComplete } from 'primereact/autocomplete';
 import { CoachActionRow, ItemType } from '@/types';
 import { CanonicalAction } from '@/types/canonical';
+import { useToastContext } from '@/context/ToastContext';
+import { actionLibService } from '@/app/service/actionLibService';
 
 interface ActionEditDialogProps {
     visible: boolean;
@@ -25,6 +27,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     onSave,
     onCancel
 }) => {
+    const { showToast } = useToastContext();
     // ... [保持所有 useState 逻辑不变] ...
     const [name, setName] = useState('');
     const [detail, setDetail] = useState('');
@@ -45,6 +48,9 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [canonicalActions, setCanonicalActions] = useState<CanonicalAction[]>([]);
     const [filteredCanonicalActions, setFilteredCanonicalActions] = useState<CanonicalAction[]>([]);
     const [selectedCanonical, setSelectedCanonical] = useState<CanonicalAction | null>(null);
+
+    const [uploadingDemoVideo, setUploadingDemoVideo] = useState(false);
+    const demoVideoInputRef = React.useRef<HTMLInputElement>(null);
 
     const itemTypeOptions = [
         { label: '力量训练', value: 'STRENGTH', icon: 'pi-sliders-h', color: 'text-orange-500' },
@@ -131,6 +137,36 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             };
             await onSave(actionData);
         } finally { setLoading(false); }
+    };
+
+    const handleUploadDemoVideo = async (file?: File) => {
+        if (!file) return;
+        try {
+            setUploadingDemoVideo(true);
+            const res = await actionLibService.uploadDemoVideo(file);
+            if (res?.url) {
+                setUrl(res.url);
+                showToast({
+                    severity: "success",
+                    summary: "上传成功",
+                    detail: "已自动回填演示视频链接",
+                });
+            } else {
+                showToast({
+                    severity: "error",
+                    summary: "上传失败",
+                    detail: "未获取到视频链接",
+                });
+            }
+        } catch (e: any) {
+            showToast({
+                severity: "error",
+                summary: "上传失败",
+                detail: e?.message || "请稍后再试",
+            });
+        } finally {
+            setUploadingDemoVideo(false);
+        }
     };
 
     const footerContent = (
@@ -321,6 +357,37 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 placeholder="https://..."
                                 className="rounded-r-xl border-surface-200"
                             />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                ref={demoVideoInputRef}
+                                type="file"
+                                accept="video/*"
+                                className="hidden"
+                                onChange={(e) => handleUploadDemoVideo(e.target.files?.[0])}
+                            />
+                            <Button
+                                type="button"
+                                icon="pi pi-upload"
+                                label={uploadingDemoVideo ? "上传中..." : "上传视频"}
+                                disabled={uploadingDemoVideo}
+                                loading={uploadingDemoVideo}
+                                className="p-button-outlined rounded-xl"
+                                onClick={() => demoVideoInputRef.current?.click()}
+                            />
+                            <Button
+                                type="button"
+                                icon="pi pi-times"
+                                label="清空"
+                                severity="secondary"
+                                text
+                                className="rounded-xl"
+                                onClick={() => setUrl('')}
+                                disabled={uploadingDemoVideo}
+                            />
+                            <span className="text-xs text-surface-500">
+                                支持 MP4/WEBM，≤100MB。上传后会自动回填到 URL。
+                            </span>
                         </div>
                     </div>
                 </div>

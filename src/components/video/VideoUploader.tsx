@@ -17,6 +17,7 @@ interface VideoUploaderProps {
     maxFiles?: number;
     acceptedFormats?: string[];
     showUrlInput?: boolean;
+    showNotes?: boolean; // whether to show per-video notes input
     submitDisabled?: boolean; // External control to disable submit
     submitDisabledMessage?: string;
 }
@@ -29,6 +30,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
     maxFiles = 5,
     acceptedFormats = ['video/mp4', 'video/mov', 'video/avi', 'video/webm'],
     showUrlInput = true,
+    showNotes = true,
     submitDisabled = false,
     submitDisabledMessage = ''
 }) => {
@@ -303,24 +305,26 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                                         </div>
 
                                         {/* Individual notes for each file */}
-                                        <div className="space-y-2">
-                                            <label className="block text-xs font-medium text-gray-700">
-                                                视频 {index + 1} 备注（可选）
-                                            </label>
-                                            <textarea
-                                                value={videoFile.notes}
-                                                onChange={(e) => updateFileNotes(videoFile.id, e.target.value)}
-                                                placeholder={
-                                                    context.type === 'baseline'
-                                                        ? '例如：这是我测试引体向上的视频，请指导我的动作'
-                                                        : context.type === 'training'
-                                                            ? '例如：今天的训练感觉不错，负重增加了5kg'
-                                                            : '例如：完成了本周的训练计划，这是最后的总结视频'
-                                                }
-                                                rows={2}
-                                                className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
-                                            />
-                                        </div>
+                                        {showNotes ? (
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-medium text-gray-700">
+                                                    视频 {index + 1} 备注（可选）
+                                                </label>
+                                                <textarea
+                                                    value={videoFile.notes}
+                                                    onChange={(e) => updateFileNotes(videoFile.id, e.target.value)}
+                                                    placeholder={
+                                                        context.type === 'baseline'
+                                                            ? '例如：这是我测试引体向上的视频，请指导我的动作'
+                                                            : context.type === 'training'
+                                                                ? '例如：今天的训练感觉不错，负重增加了5kg'
+                                                                : '例如：完成了本周的训练计划，这是最后的总结视频'
+                                                    }
+                                                    rows={2}
+                                                    className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                        ) : null}
 
                                         {/* Progress bar for individual file */}
                                         {uploading && progress[videoFile.id] !== undefined && (
@@ -350,34 +354,36 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                         />
 
                         {/* URL 备注字段 */}
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                                视频备注（可选）
-                            </label>
-                            <textarea
-                                value={url ? (files.find(f => f.id === 'url')?.notes || '') : ''}
-                                onChange={(e) => {
-                                    // 为 URL 创建一个虚拟文件对象来存储备注
-                                    setFiles(prev => {
-                                        const urlFile = prev.find(f => f.id === 'url');
-                                        if (urlFile) {
-                                            return prev.map(f => f.id === 'url' ? { ...f, notes: e.target.value } : f);
-                                        } else {
-                                            return [...prev, { id: 'url', file: null as any, notes: e.target.value }];
-                                        }
-                                    });
-                                }}
-                                placeholder={
-                                    context.type === 'baseline'
-                                        ? '例如：这是我测试引体向上的视频，请指导我的动作'
-                                        : context.type === 'training'
-                                            ? '例如：今天的训练感觉不错，负重增加了5kg'
-                                            : '例如：完成了本周的训练计划，这是最后的总结视频'
-                                }
-                                rows={3}
-                                className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
+                        {showNotes ? (
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    视频备注（可选）
+                                </label>
+                                <textarea
+                                    value={url ? (files.find(f => f.id === 'url')?.notes || '') : ''}
+                                    onChange={(e) => {
+                                        // 为 URL 创建一个虚拟文件对象来存储备注
+                                        setFiles(prev => {
+                                            const urlFile = prev.find(f => f.id === 'url');
+                                            if (urlFile) {
+                                                return prev.map(f => f.id === 'url' ? { ...f, notes: e.target.value } : f);
+                                            } else {
+                                                return [...prev, { id: 'url', file: null as any, notes: e.target.value }];
+                                            }
+                                        });
+                                    }}
+                                    placeholder={
+                                        context.type === 'baseline'
+                                            ? '例如：这是我测试引体向上的视频，请指导我的动作'
+                                            : context.type === 'training'
+                                                ? '例如：今天的训练感觉不错，负重增加了5kg'
+                                                : '例如：完成了本周的训练计划，这是最后的总结视频'
+                                    }
+                                    rows={3}
+                                    className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                        ) : null}
                     </div>
                 )}
 

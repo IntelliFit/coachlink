@@ -195,6 +195,57 @@ function TrainingExecutionContent() {
         }
     };
 
+    const canPlayInlineVideo = (url?: string | null) => {
+        if (!url) return false;
+        if (url.startsWith("blob:")) return true;
+
+        const lower = url.toLowerCase();
+        // 常见可被 <video> 直接播放的直链扩展名
+        if (
+            lower.endsWith(".mp4") ||
+            lower.endsWith(".webm") ||
+            lower.endsWith(".mov") ||
+            lower.endsWith(".m4v") ||
+            lower.endsWith(".ogg") ||
+            lower.includes(".mp4?") ||
+            lower.includes(".webm?") ||
+            lower.includes(".mov?") ||
+            lower.includes(".m4v?") ||
+            lower.includes(".ogg?")
+        ) {
+            return true;
+        }
+
+        // Supabase Storage public / signed URL 一般可直接播放
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (
+            (supabaseUrl && url.includes(supabaseUrl)) ||
+            url.includes("/storage/v1/object/")
+        ) {
+            return true;
+        }
+
+        return false;
+    };
+
+    const openVideo = (url?: string | null) => {
+        if (!url) return;
+
+        if (canPlayInlineVideo(url)) {
+            setCurrentVideoUrl(url);
+            setVideoModalVisible(true);
+            return;
+        }
+
+        // 外站页面链接（B站/抖音/YouTube 等）无法用 <video> 播放：直接跳转
+        showToast({
+            severity: "info",
+            summary: "外部视频链接",
+            detail: "该链接无法在页面内播放，已为你打开新窗口观看",
+        });
+        window.open(url, "_blank");
+    };
+
     const handleCompleteSet = async (actionIndex: number, setIndex: number) => {
         if (!execution) return;
 
@@ -534,6 +585,7 @@ function TrainingExecutionContent() {
             <div className="p-4 space-y-4">
                 {actionExecutions.map((actionExec: ActionExecution, actionIndex: number) => {
                     const action = actions[actionExec.action_id];
+                    const demoVideoUrl = action?.url || action?.video_url;
                     const isExpanded = expandedAction === actionIndex;
                     const isCompleted = actionExec.completed_sets === actionExec.total_sets;
 
@@ -561,15 +613,16 @@ function TrainingExecutionContent() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {action?.url && (
+                                    {!isExpanded && demoVideoUrl && (
                                         <button 
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                window.open(action.url, '_blank');
+                                                openVideo(demoVideoUrl);
                                             }}
-                                            className="p-2 hover:bg-gray-700 rounded-lg"
+                                            className="p-2 hover:bg-surface-100 rounded-lg"
+                                            title="查看动作演示视频"
                                         >
-                                            <Video className="w-5 h-5 text-blue-400" />
+                                            <Video className="w-5 h-5 text-primary" />
                                         </button>
                                     )}
                                     {isExpanded ? <ChevronUp /> : <ChevronDown />}
@@ -579,6 +632,39 @@ function TrainingExecutionContent() {
                             {/* Sets or Item Content */}
                             {isExpanded && (
                                 <div className="mt-4 space-y-4">
+                                    {(action?.detail || demoVideoUrl) && (
+                                        <div className="border border-surface-200 rounded-xl bg-surface-50 p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <div className="text-xs font-bold uppercase tracking-widest text-surface-400">
+                                                        动作要点
+                                                    </div>
+                                                    {action?.detail ? (
+                                                        <div className="mt-2 text-sm text-surface-700 whitespace-pre-wrap">
+                                                            {action.detail}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="mt-2 text-sm text-surface-500">
+                                                            暂无动作备注
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {demoVideoUrl && (
+                                                    <Button
+                                                        type="button"
+                                                        icon="pi pi-video"
+                                                        label="演示视频"
+                                                        className="p-button-outlined rounded-xl shrink-0"
+                                                        onClick={() => {
+                                                            openVideo(demoVideoUrl);
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {(!action?.type || action.type === 'STRENGTH') ? (
                                         // 力量训练：显示组列表
                                         actionExec.sets.map((setData: SetData, setIndex: number) => {
@@ -650,8 +736,7 @@ function TrainingExecutionContent() {
                                                                     <button 
                                                                         onClick={() => {
                                                                             if (setData.video_url) {
-                                                                                setCurrentVideoUrl(setData.video_url);
-                                                                                setVideoModalVisible(true);
+                                                                                openVideo(setData.video_url);
                                                                             } else {
                                                                                 showToast({
                                                                                     severity: 'info',

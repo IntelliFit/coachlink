@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     // Check if action belongs to this coach
     const { data: existingAction, error: fetchError } = await supabase
         .from("coach_actions")
-        .select("id")
+        .select("id, url")
         .eq("id", id)
         .eq("coach_id", userId)
         .single();
@@ -46,6 +46,36 @@ export async function POST(req: Request) {
             message: "Action not found or unauthorized"
         }, { status: 404 });
     }
+
+    // 如果替换/清空了演示视频，并且旧链接来自本项目 Storage，则尝试删除旧文件，避免堆积
+    const storageUrl = process.env.NEXT_SUPABASE_URL;
+    const nextUrl = (updateData as any)?.url;
+    const prevUrl = (existingAction as any)?.url;
+
+    const tryRemoveOldVideo = async () => {
+        if (!storageUrl) return;
+        if (!prevUrl || typeof prevUrl !== "string") return;
+        if (typeof nextUrl !== "string") return; // 未更新 url 则不处理
+        if (prevUrl === nextUrl) return;
+        if (!prevUrl.includes(storageUrl)) return;
+
+        // 兼容 /videos/ 解析（项目里其它上传也使用这个策略）
+        const parts = prevUrl.split("/videos/");
+        if (parts.length !== 2) return;
+        const rawPath = parts[1];
+        const filePath = rawPath.split("?")[0];
+        if (!filePath) return;
+
+        const { error: storageError } = await supabase.storage
+            .from("videos")
+            .remove([filePath]);
+
+        if (storageError) {
+            console.error("删除旧动作演示视频失败:", storageError);
+        }
+    };
+
+    await tryRemoveOldVideo();
 
     // Update action
     const { data: action, error } = await supabase
