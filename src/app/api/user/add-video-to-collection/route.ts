@@ -19,7 +19,10 @@ export async function POST(req: Request) {
     const body = await req.json() as AddVideoToCollectionDto;
     const { trainingVideoId, executionSetVideoId, title, description, tags, isFeatured } = body;
 
-    if (!description || !description.trim()) {
+    const normalizedDescription = typeof description === 'string' ? description.trim() : '';
+    const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+
+    if (!normalizedDescription) {
         return NextResponse.json({
             success: false,
             message: '请填写视频描述',
@@ -90,8 +93,9 @@ export async function POST(req: Request) {
                 training_video_id: trainingVideoId ?? null,
                 execution_set_video_id: executionSetVideoId ?? null,
                 source,
-                title: title?.trim() || null,
-                description: description.trim(),
+                // title 为可选字段；避免写入与 description 重复的冗余数据
+                title: normalizedTitle || null,
+                description: normalizedDescription,
                 tags: tags && tags.length > 0 ? tags : [],
                 is_featured: !!isFeatured,
                 video_url: videoUrl,

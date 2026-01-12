@@ -6,6 +6,7 @@ import { UpdateActionRequest, UpdateActionResponse } from "@/app/api/action-lib/
 import { DeleteActionDto, DeleteActionResponseDto } from "@/app/api/action-lib/delete-action/entity";
 import { GetActionDto, GetActionResponseDto } from "@/app/api/action-lib/get-action/entity";
 import { ListAutoComputeActionsDto, ListAutoComputeActionsResponseDto } from "../api/action-lib/list-auto-compute-actions/entity";
+import { UploadDemoVideoResponseDto } from "@/app/api/action-lib/upload-demo-video/entity";
 
 export class ActionLibService extends BaseService {
     async listActions(reqData: ListActionsDto) {
@@ -52,6 +53,26 @@ export class ActionLibService extends BaseService {
         const res = await this.post<DeleteActionResponseDto>("delete-action", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete action");
+        }
+        return res.data.data;
+    }
+
+    async uploadDemoVideo(file: File) {
+        const form = new FormData();
+        form.append("file", file);
+
+        const res = await this.post<UploadDemoVideoResponseDto>(
+            "upload-demo-video",
+            form,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            },
+        );
+
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to upload demo video");
         }
         return res.data.data;
     }

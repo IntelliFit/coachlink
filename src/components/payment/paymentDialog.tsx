@@ -86,6 +86,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [offlineNote, setOfflineNote] = useState('');
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
     const fileUploadRef = useRef<FileUpload>(null);
+    
+    // 扫码支付凭证状态
+    const [qrcodeReceiptUrl, setQrcodeReceiptUrl] = useState<string>('');
+    const [uploadingQrcodeReceipt, setUploadingQrcodeReceipt] = useState(false);
+    const qrcodeFileUploadRef = useRef<FileUpload>(null);
 
     const loadCoach = async () => {
         const res = await coachService.getCoach({
@@ -136,6 +141,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             setOfflineAmount(null);
             setOfflineReceiptUrl('');
             setOfflineNote('');
+            // 重置扫码支付凭证状态
+            setQrcodeReceiptUrl('');
         }
     }, [visible, coachId]);
 
@@ -171,6 +178,38 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         }
     };
 
+    // 上传扫码支付凭证
+    const handleQrcodeReceiptUpload = async (event: FileUploadHandlerEvent) => {
+        const file = event.files[0];
+        if (!file) return;
+
+        setUploadingQrcodeReceipt(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload/payment-receipt', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data?.url) {
+                setQrcodeReceiptUrl(data.data.url);
+                showToast({ severity: 'success', summary: '上传成功', detail: '付款凭证已上传' });
+            } else {
+                showToast({ severity: 'error', summary: '上传失败', detail: data.message || '请重试' });
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast({ severity: 'error', summary: '上传失败', detail: '网络错误，请重试' });
+        } finally {
+            setUploadingQrcodeReceipt(false);
+            qrcodeFileUploadRef.current?.clear();
+        }
+    };
+
     // 提交线下支付
     const handleOfflinePaymentSubmit = () => {
         if (!offlineExpiresAt) {
@@ -203,7 +242,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         if (agreedToTerms) {
             setShowTermsDialog(false);
             showToast({ severity: 'success', summary: '请等待教练确认收款', detail: '支付后请联系教练，系统会通知教练确认收款' });
-            onSuccess?.(paymentNote);
+            // 传递扫码支付凭证信息（如果有）
+            const noteWithReceipt = qrcodeReceiptUrl 
+                ? `${paymentNote ? paymentNote + '\n' : ''}付款凭证: ${qrcodeReceiptUrl}`
+                : paymentNote;
+            onSuccess?.(noteWithReceipt);
             onHide();
         }
     };
@@ -362,7 +405,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     label='我已支付'
                     icon="pi pi-check"
                     onClick={handleQrCodePaymentConfirmation}
-                    disabled={!hasQrCodes || !selectedQrCode}
+                    disabled={!hasQrCodes || !selectedQrCode || !qrcodeReceiptUrl}
                     autoFocus
                     className="p-button-primary"
                 />
@@ -446,6 +489,49 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         <div className="font-bold text-lg text-surface-900">{coach?.name} - {qr.name}</div>
                         {amount && <div className="text-primary font-bold mt-2 text-xl">支付金额：¥{amount.toFixed(2)}</div>}
                     </div>
+                    
+                    {/* 付款凭证上传区域 */}
+                    <div className="w-full max-w-[280px] p-4 bg-surface-50 rounded-lg border border-surface-200">
+                        <div className="text-sm font-medium text-surface-700 mb-2">
+                            <i className="pi pi-camera mr-2" />
+                            上传付款凭证
+                        </div>
+                        
+                        {qrcodeReceiptUrl ? (
+                            <div className="flex flex-col items-center gap-2">
+                                <Image 
+                                    src={qrcodeReceiptUrl} 
+                                    alt="付款凭证" 
+                                    width="120"
+                                    preview
+                                    className="rounded border"
+                                />
+                                <Button
+                                    label="重新上传"
+                                    icon="pi pi-refresh"
+                                    size="small"
+                                    outlined
+                                    onClick={() => setQrcodeReceiptUrl('')}
+                                />
+                            </div>
+                        ) : (
+                            <FileUpload
+                                ref={qrcodeFileUploadRef}
+                                mode="basic"
+                                accept="image/*"
+                                maxFileSize={5000000}
+                                customUpload
+                                uploadHandler={handleQrcodeReceiptUpload}
+                                auto
+                                chooseLabel={uploadingQrcodeReceipt ? "上传中..." : "选择图片"}
+                                disabled={uploadingQrcodeReceipt}
+                                className="w-full"
+                            />
+                        )}
+                        <div className="text-xs text-surface-400 mt-2 text-center">
+                            支持 JPG/PNG，≤5MB
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -493,6 +579,51 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             alt={selectedQrCode.name} 
                             className="max-w-[240px] h-auto object-contain border rounded-lg shadow-sm" 
                         />
+                    </div>
+                )}
+                
+                {/* 付款凭证上传区域 */}
+                {selectedQrCode && (
+                    <div className="mt-4 p-4 bg-surface-50 rounded-lg border border-surface-200">
+                        <div className="text-sm font-medium text-surface-700 mb-2">
+                            <i className="pi pi-camera mr-2" />
+                            上传付款凭证
+                        </div>
+                        
+                        {qrcodeReceiptUrl ? (
+                            <div className="flex flex-col items-center gap-2">
+                                <Image 
+                                    src={qrcodeReceiptUrl} 
+                                    alt="付款凭证" 
+                                    width="120"
+                                    preview
+                                    className="rounded border"
+                                />
+                                <Button
+                                    label="重新上传"
+                                    icon="pi pi-refresh"
+                                    size="small"
+                                    outlined
+                                    onClick={() => setQrcodeReceiptUrl('')}
+                                />
+                            </div>
+                        ) : (
+                            <FileUpload
+                                ref={qrcodeFileUploadRef}
+                                mode="basic"
+                                accept="image/*"
+                                maxFileSize={5000000}
+                                customUpload
+                                uploadHandler={handleQrcodeReceiptUpload}
+                                auto
+                                chooseLabel={uploadingQrcodeReceipt ? "上传中..." : "选择图片"}
+                                disabled={uploadingQrcodeReceipt}
+                                className="w-full"
+                            />
+                        )}
+                        <div className="text-xs text-surface-400 mt-2">
+                            支持 JPG/PNG，≤5MB
+                        </div>
                     </div>
                 )}
             </div>
