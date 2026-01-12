@@ -10,6 +10,11 @@ interface GuideContextType {
   completedGuides: Record<string, boolean>;
   isGuideActive: boolean;
   isLoading: boolean;
+  /**
+   * True only after we've loaded completion state for the current userId at least once.
+   * This prevents guides from firing with an empty completedGuides during session hydration.
+   */
+  isInitialized: boolean;
   startGuide: (guideKey: GuideKey) => void;
   stopActiveGuide: () => void;
   markGuideComplete: (guideKey: string) => Promise<void>;
@@ -28,6 +33,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
   const [completedGuides, setCompletedGuides] = useState<Record<string, boolean>>({});
   const [isGuideActive, setIsGuideActive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [startedGuides, setStartedGuides] = useState<Record<string, boolean>>({});
   const [activeDriver, setActiveDriver] = useState<ReturnType<typeof createGuide> | null>(null);
 
@@ -40,8 +46,10 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
   const loadCompletedGuides = useCallback(async () => {
     if (!userId) {
       setIsLoading(false);
+      setIsInitialized(false);
       return;
     }
+    setIsLoading(true);
     
     try {
       console.log('[GuideStore] Loading guides for user:', userId);
@@ -91,6 +99,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
       }
     } finally {
       setIsLoading(false);
+      setIsInitialized(true);
     }
   }, [userId, getLocalGuidesKey]);
 
@@ -154,6 +163,12 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
     (guideKey: GuideKey) => {
       console.log('[GuideStore] startGuide called:', guideKey);
 
+      // Don't start until we've loaded completion state for the current user.
+      if (!isInitialized) {
+        console.log('[GuideStore] Guide state not initialized yet, skip start');
+        return;
+      }
+
       // Don't start until completion state is loaded, otherwise the guide can re-trigger repeatedly.
       if (isLoading) {
         console.log('[GuideStore] Guides still loading, skip start');
@@ -211,7 +226,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
         guide.start();
       }, 500);
     },
-    [hasCompletedGuide, isGuideActive, markGuideComplete, isLoading, startedGuides]
+    [hasCompletedGuide, isGuideActive, markGuideComplete, isLoading, startedGuides, isInitialized]
   );
 
   const stopActiveGuide = useCallback(() => {
@@ -237,6 +252,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
         completedGuides,
         isGuideActive,
         isLoading,
+        isInitialized,
         startGuide,
         stopActiveGuide,
         markGuideComplete,

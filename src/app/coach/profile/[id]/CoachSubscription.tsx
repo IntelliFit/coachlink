@@ -37,7 +37,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const { showToast } = useToastContext();
     const router = useRouter();
     const { data: session } = useSession();
-    const { startGuide, hasCompletedGuide } = useGuideStore();
+    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading, isInitialized: isGuideInitialized } = useGuideStore();
 
     // 状态管理
     const [products, setProducts] = useState<Product[]>([]);
@@ -78,18 +78,20 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     // When dialogs open, show action-specific guides (in-context, not just homepage tour)
     useEffect(() => {
+        if (!isGuideInitialized || isGuideLoading) return;
         if (questionnaireVisible && !hasCompletedGuide('student_questionnaire')) {
             const t = setTimeout(() => startGuide('STUDENT_QUESTIONNAIRE_GUIDE'), 200);
             return () => clearTimeout(t);
         }
-    }, [questionnaireVisible, hasCompletedGuide, startGuide]);
+    }, [questionnaireVisible, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized]);
 
     useEffect(() => {
+        if (!isGuideInitialized || isGuideLoading) return;
         if (paymentDialogVisible && !hasCompletedGuide('student_payment')) {
             const t = setTimeout(() => startGuide('STUDENT_PAYMENT_GUIDE'), 200);
             return () => clearTimeout(t);
         }
-    }, [paymentDialogVisible, hasCompletedGuide, startGuide]);
+    }, [paymentDialogVisible, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized]);
 
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const isRenew = searchParams.get('renew') === 'true' || searchParams.get('extend') === 'true';

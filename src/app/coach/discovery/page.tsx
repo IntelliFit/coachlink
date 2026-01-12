@@ -24,7 +24,7 @@ const CoachDiscoveryPage: React.FC = () => {
     const [first, setFirst] = useState(0);
     const coachesPerPage = 10;
     const router = useRouter();
-    const { startGuide, hasCompletedGuide } = useGuideStore();
+    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading, isInitialized: isGuideInitialized } = useGuideStore();
 
     useEffect(() => {
         loadCoaches(1);
@@ -35,10 +35,11 @@ const CoachDiscoveryPage: React.FC = () => {
     useEffect(() => {
         if (isLoading) return;
         if (!coaches || coaches.length === 0) return;
+        if (isGuideLoading || !isGuideInitialized) return;
         if (hasCompletedGuide('student_find_coach')) return;
         const t = setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 600);
         return () => clearTimeout(t);
-    }, [isLoading, coaches, hasCompletedGuide, startGuide]);
+    }, [isLoading, coaches, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized]);
 
     const loadSpecialties = async () => {
         try {
