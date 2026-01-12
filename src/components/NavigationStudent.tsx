@@ -77,17 +77,58 @@ export default function NavigationStudent() {
         );
     };
 
+    // Desktop 顶部导航：不放“当前计划”（统一放到头像菜单）
     const studentMenuItems = useMemo(() => [
         { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
         { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
         { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
-        { label: '训练计划', icon: ClipboardList, url: '/coach/plans', command: () => router.push('/coach/plans'), template: itemRenderer },
         { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
         { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
     ], [router, pathname]);
 
+    // Mobile 端底部固定 5 个入口（不使用“更多”）
+    const mobileBottomTabs = useMemo(() => [
+        {
+            key: 'today',
+            label: '今日训练',
+            icon: PlayCircle,
+            active: pathname === '/today-training' || pathname.startsWith('/training-execution'),
+            onClick: () => router.push('/today-training'),
+        },
+        {
+            key: 'discover',
+            label: '发现教练',
+            icon: Search,
+            active: pathname.startsWith('/coach/discovery'),
+            onClick: () => router.push('/coach/discovery'),
+        },
+        {
+            key: 'profile',
+            label: '我的档案',
+            icon: User,
+            active: pathname.startsWith('/me/profile'),
+            onClick: () => router.push('/me/profile'),
+        },
+        {
+            key: 'ranking',
+            label: '排行榜',
+            icon: TrendingUp,
+            active: pathname.startsWith('/ranking'),
+            onClick: () => router.push('/ranking'),
+        },
+        {
+            key: 'activity',
+            label: '好友动态',
+            icon: Activity,
+            active: pathname.startsWith('/friends/activity'),
+            onClick: () => router.push('/friends/activity'),
+        },
+    ], [pathname, router]);
+
     const userMenuItems = useMemo(() => [
-        { label: '我的订阅', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
+        // 统一入口：当前计划（替代“训练计划”）
+        { label: '当前计划', icon: 'pi pi-clipboard', command: () => router.push('/coach/plans') },
+        { label: '我的教练', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
         { label: '我的会员', icon: 'pi pi-crown', command: () => router.push('/me/membership') },
         { separator: true },
         { label: '我的好友', icon: 'pi pi-users', command: () => router.push('/friends') },
@@ -190,7 +231,16 @@ export default function NavigationStudent() {
 
     return (
         <>
-            <div className="sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
+            {/* Mobile: 顶部轻量栏（减少 Menubar 横向溢出问题） */}
+            <div className="md:hidden sticky top-0 z-50 w-full px-3 pt-3 pointer-events-none">
+                <div className="pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-4 py-2 flex items-center justify-between">
+                    {start}
+                    {end}
+                </div>
+            </div>
+
+            {/* Desktop: Menubar */}
+            <div className="hidden md:block sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
                 <Menubar
                     model={studentMenuItems}
                     start={start}
@@ -205,6 +255,27 @@ export default function NavigationStudent() {
                 ref={menuRef}
                 className="mt-2 border-none shadow-xl rounded-2xl p-2 min-w-48 text-sm"
             />
+
+            {/* Mobile: 底部主导航（高频入口） */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2">
+                <div className="backdrop-blur-md bg-surface/90 border border-surface/20 shadow-[0_12px_40px_rgba(0,0,0,0.12)] rounded-3xl px-3 py-2">
+                    <div className="grid grid-cols-5 gap-1">
+                        {mobileBottomTabs.map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                onClick={item.onClick}
+                                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-all active:scale-[0.98] ${
+                                    item.active ? 'bg-primary-50 text-primary-600' : 'text-surface-600 hover:bg-surface-50'
+                                }`}
+                            >
+                                <item.icon size={20} strokeWidth={item.active ? 2.5 : 2} />
+                                <span className={`text-[11px] ${item.active ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
         </>
     );
 }

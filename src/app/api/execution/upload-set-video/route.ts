@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import supabase from "@/lib/supabaseClient";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { v4 as uuidv4 } from "uuid";
 import type { UploadSetVideoResponseDto } from "../entity";
 
@@ -18,7 +17,7 @@ export const preferredRegion = "auto";
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
             return NextResponse.json<UploadSetVideoResponseDto>(
                 { success: false, message: "未登录" },
@@ -99,7 +98,7 @@ export async function POST(req: Request) {
         if (uploadError) {
             console.error("上传失败:", uploadError);
             return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: "上传失败" },
+                { success: false, message: uploadError.message || "上传失败" },
                 { status: 500 },
             );
         }

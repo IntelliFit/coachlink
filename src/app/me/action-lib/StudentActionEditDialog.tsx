@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -40,6 +40,16 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     const [canonicalActions, setCanonicalActions] = useState<CanonicalAction[]>([]);
     const [filteredCanonicalActions, setFilteredCanonicalActions] = useState<CanonicalAction[]>([]);
     const [selectedCanonical, setSelectedCanonical] = useState<CanonicalAction | null>(null);
+
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 640px)');
+        const update = () => setIsMobile(mql.matches);
+        update();
+        mql.addEventListener?.('change', update);
+        return () => mql.removeEventListener?.('change', update);
+    }, []);
 
     const actionTypes = [
         { label: '胸部', value: '胸部' },
@@ -132,7 +142,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     };
 
     const footerContent = (
-        <div className="flex justify-end gap-2">
+        <div className={`flex gap-2 ${isMobile ? 'w-full justify-between' : 'justify-end'}`}>
             <Button
                 label="取消"
                 icon="pi pi-times"
@@ -149,16 +159,40 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
         </div>
     );
 
+    const dialogPt = useMemo(() => {
+        // 小屏：全屏/底部抽屉体验 + 底部按钮区固定感更强
+        if (isMobile) {
+            return {
+                root: { className: 'm-0 p-0 rounded-none sm:rounded-2xl overflow-hidden' },
+                header: { className: 'px-4 py-3 border-b border-surface-200 bg-surface sticky top-0 z-10' },
+                content: { className: 'px-4 py-4 bg-surface overflow-auto' },
+                footer: { className: 'px-4 py-3 border-t border-surface-200 bg-surface sticky bottom-0 z-10' },
+            };
+        }
+        return {
+            root: { className: 'rounded-2xl overflow-hidden' },
+            header: { className: 'px-6 py-4 border-b border-surface-200 bg-surface' },
+            content: { className: 'px-6 py-5 bg-surface' },
+            footer: { className: 'px-6 py-4 border-t border-surface-200 bg-surface' },
+        };
+    }, [isMobile]);
+
     return (
         <Dialog
             header={action ? "编辑动作" : "添加动作"}
             visible={visible}
-            style={{ width: '600px' }}
+            modal
+            draggable={false}
+            resizable={false}
+            dismissableMask
+            style={isMobile ? { width: '100vw', height: '100dvh', margin: 0 } : { width: '600px', maxWidth: '95vw' }}
+            position={isMobile ? 'bottom' : 'center'}
             onHide={onCancel}
             footer={footerContent}
             className="p-fluid"
+            pt={dialogPt as any}
         >
-            <div className="flex flex-col gap-4">
+            <div className={`flex flex-col gap-4 ${isMobile ? 'pb-2' : ''}`}>
                 <div className="flex flex-col gap-2">
                     <label htmlFor="name" className="font-medium">动作名称 *</label>
                     <InputText
@@ -170,16 +204,18 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                 </div>
 
                 {/* 自动计算负重设置 */}
-                <div className="flex flex-col gap-2 p-3 bg-surface-50 rounded-lg border border-surface-200">
-                    <div className="flex items-center justify-between">
-                        <label htmlFor="enableAutoWeightCompute" className="font-medium flex items-center gap-2">
-                             <i className="pi pi-bolt text-orange-500"></i>
-                             智能重量计算
-                             <span className="text-xs text-surface-500 font-normal">
-                                 (在计划中自动根据 1RM 计算负重)
-                             </span>
-                        </label>
-                        <InputSwitch 
+                <div className="flex flex-col gap-2 p-3 bg-surface-50 rounded-2xl border border-surface-200">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <div className="font-medium flex items-center gap-2">
+                                <i className="pi pi-bolt text-orange-500"></i>
+                                <span>智能重量计算</span>
+                            </div>
+                            <div className="text-xs text-surface-500 mt-1">
+                                在计划中自动根据 1RM 计算负重
+                            </div>
+                        </div>
+                        <InputSwitch
                             id="enableAutoWeightCompute"
                             checked={enableAutoWeightCompute}
                             onChange={(e) => setEnableAutoWeightCompute(e.value || false)}
@@ -187,14 +223,14 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                     </div>
 
                     {enableAutoWeightCompute && (
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-surface-200">
-                            <label htmlFor="includesBodyWeight" className="font-medium text-sm pl-6">
-                                包含自重
-                                <span className="text-xs text-surface-500 font-normal ml-2">
-                                    (适用于引体向上等动作)
-                                </span>
-                            </label>
-                            <InputSwitch 
+                        <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
+                            <div className="min-w-0 pl-0">
+                                <div className="font-medium text-sm">包含自重</div>
+                                <div className="text-xs text-surface-500 mt-1">
+                                    适用于引体向上等动作
+                                </div>
+                            </div>
+                            <InputSwitch
                                 id="includesBodyWeight"
                                 checked={includesBodyWeight}
                                 onChange={(e) => setIncludesBodyWeight(e.value || false)}
@@ -265,7 +301,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                         onChange={(e) => setPositions(e.value)}
                         placeholder="选择动作类型"
                         className="w-full"
-                        display="chip"
+                        display={isMobile ? 'comma' : 'chip'}
                     />
                 </div>
 
@@ -278,7 +314,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                         onChange={(e) => setAttrs(e.value)}
                         placeholder="选择动作属性"
                         className="w-full"
-                        display="chip"
+                        display={isMobile ? 'comma' : 'chip'}
                     />
                 </div>
 

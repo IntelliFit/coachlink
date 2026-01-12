@@ -66,7 +66,8 @@ export default function ClientLayout({
                     <OnboardingModalProvider>
                         <GuideWrapper>
                             <div className="min-h-screen flex flex-col">
-                                <main className="flex-grow">
+                                {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
+                                <main className="flex-grow pb-24 md:pb-0">
                                     {children}
                                 </main>
                                 <Footer />

@@ -16,6 +16,7 @@ interface TemplateCalendarProps {
         durationMinutes: number;
         monthlyTrainingDays: string[];
         shareToken: string;
+        acquisitionUrl?: string;
         user: {
             nickname: string;
             avatarUrl: string;
@@ -25,6 +26,7 @@ interface TemplateCalendarProps {
 
 const TemplateCalendar: React.FC<TemplateCalendarProps> = ({ data }) => {
     const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/public/training/${data.shareToken}`;
+    const qrUrl = data.acquisitionUrl || shareUrl;
     const targetDate = new Date(data.completedAt);
     const monthName = format(targetDate, 'MMMM yyyy', { locale: zhCN });
     
@@ -139,11 +141,11 @@ const TemplateCalendar: React.FC<TemplateCalendarProps> = ({ data }) => {
                 <div className="max-w-[180px]">
                     <h5 className="text-[10px] font-bold text-slate-800 leading-tight mb-1">训练使我变强。</h5>
                     <p className="text-[9px] text-slate-400 leading-normal">
-                        扫码查看我的训练明细，开启你的进化之路。
+                        扫码加入 CoachLink，注册即得 +2 AI 与 +100MB 存储。
                     </p>
                 </div>
                 <div className="p-1.5 border border-slate-100 rounded-lg bg-white overflow-hidden shrink-0">
-                    <QRCodeSVG value={shareUrl} size={42} level="M" />
+                    <QRCodeSVG value={qrUrl} size={42} level="M" />
                 </div>
             </div>
         </div>

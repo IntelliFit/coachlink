@@ -219,7 +219,15 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
                                     outlined
                                     className="flex-1"
                                     id={idx === 0 ? "guide-subscription-chat" : undefined}
-                                    onClick={() => router.push(`/messages?coachId=${subscription.coach_id}`)}
+                                    onClick={() => {
+                                        const peerUserId = coach?.user_id;
+                                        const params = new URLSearchParams();
+                                        // 优先传对端用户ID（chat系统使用 users.id）
+                                        if (peerUserId) params.set('peerUserId', peerUserId);
+                                        // 兼容：仍保留 coachId，便于消息页兜底映射
+                                        params.set('coachId', subscription.coach_id);
+                                        router.push(`/messages?${params.toString()}`);
+                                    }}
                                 />
                                 <Button
                                     label="查看详情"

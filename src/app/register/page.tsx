@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
@@ -48,7 +48,28 @@ export default function RegisterPage() {
     const [disclaimer, setDisclaimer] = useState<string>('');
 
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { showToast } = useToastContext();
+
+    // Persist share attribution for embedded browsers that may drop query params/cookies during navigation.
+    useEffect(() => {
+        const share = searchParams.get('share');
+        if (share) {
+            try {
+                localStorage.setItem('share_id', share);
+            } catch {}
+        }
+
+        // Also try cookie-based attribution if present
+        try {
+            const m = document.cookie.match(/(?:^|; )share_attribution=([^;]+)/);
+            if (m && m[1]) {
+                const decoded = decodeURIComponent(m[1]);
+                const obj = JSON.parse(decoded);
+                if (obj?.shareId) localStorage.setItem('share_id', obj.shareId);
+            }
+        } catch {}
+    }, [searchParams]);
 
     const loadDocs = async () => {
         const [tHtml, dHtml] = await Promise.all([
@@ -84,10 +105,22 @@ export default function RegisterPage() {
 
         setLoading(true);
         try {
+            const ref = searchParams.get('ref') || undefined;
+            const shareId =
+                searchParams.get('share') ||
+                (() => {
+                    try {
+                        return localStorage.getItem('share_id') || undefined;
+                    } catch {
+                        return undefined;
+                    }
+                })();
             const res = await authService.register({
                 phone: phone.trim(),
                 password: password.trim(),
                 verifyCode: verificationCode.trim(),
+                ref,
+                shareId,
             });
             if (res) {
                 showToast({ severity: 'success', summary: '注册成功' });

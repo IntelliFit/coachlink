@@ -16,6 +16,8 @@ interface TemplateDataFlowProps {
         durationMinutes: number;
         prRecords: any[];
         shareToken: string;
+        /** 拉新落地页链接（/s/<shareId>） */
+        acquisitionUrl?: string;
         user: {
             nickname: string;
             avatarUrl: string;
@@ -25,6 +27,7 @@ interface TemplateDataFlowProps {
 
 const TemplateDataFlow: React.FC<TemplateDataFlowProps> = ({ data }) => {
     const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/public/training/${data.shareToken}`;
+    const qrUrl = data.acquisitionUrl || shareUrl;
     const dateStr = format(new Date(data.completedAt), 'yyyy年MM月dd日 HH:mm', { locale: zhCN });
 
     return (
@@ -120,11 +123,11 @@ const TemplateDataFlow: React.FC<TemplateDataFlowProps> = ({ data }) => {
                         <span className="text-xs font-black italic tracking-tighter">COACHLINK</span>
                     </div>
                     <p className="text-[8px] text-white/30 lowercase">
-                        Scan to view training details & join me
+                        Scan to join CoachLink · +2 AI & +100MB
                     </p>
                 </div>
                 <div className="p-1 bg-white rounded-lg">
-                    <QRCodeSVG value={shareUrl} size={48} level="L" />
+                    <QRCodeSVG value={qrUrl} size={48} level="L" />
                 </div>
             </div>
 
