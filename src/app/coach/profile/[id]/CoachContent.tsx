@@ -42,8 +42,8 @@ const CoachContent: React.FC<CoachContentProps> = ({
     };
 
     return (
-        <div className="max-w-7xl mx-auto min-h-screen bg-surface-50 rounded-2xl overflow-hidden">
-            <TabView activeIndex={activeTab} onTabChange={handleTabChange}>
+        <div id="coach-profile-tabs" className="max-w-7xl mx-auto min-h-screen bg-surface-50 rounded-2xl overflow-hidden">
+            <TabView activeIndex={activeTab} onTabChange={handleTabChange} scrollable>
                 <TabPanel header="关于教练">
                     <CoachAboutPanel coach={coach} />
                 </TabPanel>

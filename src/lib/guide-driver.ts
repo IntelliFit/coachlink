@@ -192,11 +192,20 @@ export const GUIDE_CONFIGS = {
                 },
             },
             {
+                element: "#guide-subscribe-entry",
+                popover: {
+                    title: "订阅入口在这里（不用右滑找 Tab）",
+                    description:
+                        "在手机上“订阅价格”标签可能需要右滑才能看见。点这个“立即订阅”按钮会自动跳到订阅价格区。",
+                    side: "bottom" as const,
+                },
+            },
+            {
                 element: "#guide-subscribe-products",
                 popover: {
-                    title: "先选方案与周期",
+                    title: "进入订阅价格后：选方案与周期",
                     description:
-                        "点击某个周期按钮即可进入下一步。不同方案通常对应不同服务强度（例如是否包含视频点评/沟通频率）。",
+                        "不同方案通常对应不同服务强度（例如是否包含视频点评/沟通频率）。选好后按页面提示继续即可。",
                     side: "top" as const,
                 },
             },
