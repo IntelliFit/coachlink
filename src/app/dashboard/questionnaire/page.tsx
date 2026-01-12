@@ -20,6 +20,7 @@ import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, Questi
 import { CoachesRow } from '@/types';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from "uuid";
+import { Checkbox } from 'primereact/checkbox';
 
 const QuestionarePage = () => {
     const { data: session } = useSession();
@@ -76,6 +77,9 @@ const QuestionarePage = () => {
                     case 'times':
                         trainingQuestions.push({
                             type: 'times'
+                            ,
+                            question: (item as any).question,
+                            options: (item as any).options,
                         });
                         break;
                     case 'rm':
@@ -167,9 +171,44 @@ const QuestionarePage = () => {
     const addTimesQuestion = () => {
         const hasTimes = questions.some(q => q.type === 'times');
         if (!hasTimes) {
-            setQuestions([...questions, { type: 'times', id: uuidv4() }]);
+            setQuestions([...questions, {
+                type: 'times',
+                question: '您希望每周训练几次？',
+                options: [1, 2, 3, 4, 5, 6, 7],
+                id: uuidv4()
+            }]);
         }
         overlayPanel.current?.hide();
+    };
+
+    const updateTimesQuestionText = (questionIndex: number, text: string) => {
+        const newQuestions = [...questions];
+        const q = newQuestions[questionIndex];
+        if (q.type === 'times') {
+            (q as any).question = text;
+            setQuestions(newQuestions);
+        }
+    };
+
+    const toggleTimesOption = (questionIndex: number, num: number, checked: boolean) => {
+        const newQuestions = [...questions];
+        const q = newQuestions[questionIndex];
+        if (q.type !== 'times') return;
+
+        const current: number[] = Array.isArray((q as any).options) ? [...(q as any).options] : [1, 2, 3, 4, 5, 6, 7];
+        const next = checked
+            ? Array.from(new Set([...current, num])).sort((a, b) => a - b)
+            : current.filter(n => n !== num);
+
+        // 至少保留一个选项，避免学员无法选择
+        (q as any).options = next.length > 0 ? next : current;
+        setQuestions(newQuestions);
+    };
+
+    // 由于 react-beautiful-dnd 可能将整块区域作为拖拽句柄，交互控件需要阻止事件冒泡，避免点击被当成拖拽
+    const stopDndEvent = (e: any) => {
+        if (!e) return;
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
     };
 
     // 添加RM问题
@@ -294,6 +333,50 @@ const QuestionarePage = () => {
                             <div>
                                 <h4 className="font-medium">每周训练次数</h4>
                                 <p className="text-sm text-surface-500">学员可以选择每周训练的次数（智能计划将会自动根据这个项目进行匹配）</p>
+                                <div className="mt-3 space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-surface-500 mb-1">题干（可选）</label>
+                                        <InputText
+                                            value={(question as any).question || ''}
+                                            onChange={(e) => updateTimesQuestionText(index, e.target.value)}
+                                            placeholder="例如：您希望每周训练几次？"
+                                            className="w-full"
+                                            onMouseDown={stopDndEvent as any}
+                                            onTouchStart={stopDndEvent as any}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-surface-500 mb-2">可选次数</label>
+                                        <div className="flex flex-wrap gap-3">
+                                            {[1, 2, 3, 4, 5, 6, 7].map(num => {
+                                                const opts: number[] = Array.isArray((question as any).options)
+                                                    ? (question as any).options
+                                                    : [1, 2, 3, 4, 5, 6, 7];
+                                                const isChecked = opts.includes(num);
+                                                return (
+                                                    <div
+                                                        key={num}
+                                                        className="flex items-center gap-2"
+                                                        onMouseDown={stopDndEvent}
+                                                        onTouchStart={stopDndEvent}
+                                                    >
+                                                        <Checkbox
+                                                            inputId={`times-opt-${index}-${num}`}
+                                                            checked={isChecked}
+                                                            onChange={(e) => toggleTimesOption(index, num, Boolean(e.checked))}
+                                                            onMouseDown={stopDndEvent as any}
+                                                            onTouchStart={stopDndEvent as any}
+                                                        />
+                                                        <label htmlFor={`times-opt-${index}-${num}`} className="text-sm text-surface-700">{num} 次</label>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-2 text-[11px] text-surface-500">
+                                            提示：至少勾选 1 个选项；学员端将只显示你勾选的次数。
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <Button
                                 icon="pi pi-trash"
@@ -479,15 +562,25 @@ const QuestionarePage = () => {
                                             {...provided.droppableProps}
                                             ref={provided.innerRef}
                                         >
+                                            {/* 使用稳定 id 作为 draggableId，避免拖拽/重排时交互异常 */}
                                             {questions.map((question, index) => (
-                                                <Draggable key={index} draggableId={`question-${index}`} index={index}>
+                                                <Draggable key={question.id} draggableId={question.id} index={index}>
                                                     {(provided, snapshot) => (
                                                         <div
                                                             ref={provided.innerRef}
                                                             {...provided.draggableProps}
-                                                            {...provided.dragHandleProps}
-                                                            className={`${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                                                            className={`relative ${snapshot.isDragging ? 'shadow-lg' : ''}`}
                                                         >
+                                                            {/* 独立拖拽把手：避免把整块卡片变成 drag handle，导致内部控件无法点击 */}
+                                                            <div
+                                                                {...provided.dragHandleProps}
+                                                                className="absolute right-2 top-2 z-10 w-8 h-8 rounded-full bg-surface-0 border border-surface-200 flex items-center justify-center cursor-grab active:cursor-grabbing text-surface-500 hover:text-primary hover:border-primary-200"
+                                                                title="拖拽排序"
+                                                                onMouseDown={stopDndEvent}
+                                                                onTouchStart={stopDndEvent}
+                                                            >
+                                                                <i className="pi pi-bars text-sm" />
+                                                            </div>
                                                             {renderQuestion(question, index)}
                                                         </div>
                                                     )}

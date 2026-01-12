@@ -118,7 +118,11 @@ export const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
                                         Q{index + 1}. {item.question || "每周训练频率"}
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                                        {(
+                                            Array.isArray(item.options) && item.options.length > 0
+                                                ? item.options
+                                                : [1, 2, 3, 4, 5, 6, 7]
+                                        ).map((num: number) => (
                                             <div key={num} className={`flex items-center justify-center w-10 h-10 rounded-lg text-sm font-medium transition-all ${
                                                 item.userSelection === num 
                                                     ? 'bg-primary-600 text-white shadow-md shadow-primary-200' 

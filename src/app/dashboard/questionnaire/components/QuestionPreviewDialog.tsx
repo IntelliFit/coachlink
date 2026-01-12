@@ -131,9 +131,15 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
             case 'times':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">Q{index + 1}. 您希望每周训练几次？</label>
+                        <label className="block text-sm font-medium mb-2">
+                            Q{index + 1}. {(question as any).question || '您希望每周训练几次？'}
+                        </label>
                         <div className="flex flex-wrap gap-2">
-                            {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                            {(
+                                Array.isArray((question as any).options) && (question as any).options.length > 0
+                                    ? (question as any).options
+                                    : [1, 2, 3, 4, 5, 6, 7]
+                            ).map((num: number) => (
                                 <div key={num} className="flex items-center rounded px-3 py-2">
                                     <RadioButton 
                                         inputId={`times${index}-${num}`} 
