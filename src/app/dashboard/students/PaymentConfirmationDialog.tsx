@@ -323,7 +323,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 label="取消"
                 icon="pi pi-times"
                 onClick={onHide}
-                className="p-button-text"
+                className="p-button-text rounded-2xl"
                 disabled={loading}
             />
             <Button
@@ -331,7 +331,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 icon="pi pi-check"
                 onClick={handleConfirm}
                 disabled={selectedSubscriptions.length === 0 || loading}
-                className="p-button-primary"
+                className="p-button-primary rounded-2xl"
                 loading={loading}
             />
         </div>

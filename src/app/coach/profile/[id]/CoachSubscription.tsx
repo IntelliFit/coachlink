@@ -182,7 +182,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     // 渲染产品卡片 (与 PricingSettings 镜像)
     const renderProductCard = (product: Product) => (
-        <div key={product.id} className="bg-white border border-surface-200 rounded-2xl p-6 hover:border-primary-400 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+        <div key={product.id} className="bg-surface border border-surface-200 rounded-2xl p-6 hover:border-primary-400 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
             <div>
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                             key={idx}
                             onClick={() => handleSelectProduct(product, opt)}
                             disabled={subscribing}
-                            className="w-full flex justify-between items-center p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 transition-all group"
+                            className="w-full flex justify-between items-center p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 dark:hover:bg-primary-800/50 dark:hover:border-primary-700 transition-all group"
                         >
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold text-surface-700">{opt.months}个月</span>
@@ -287,9 +287,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 <>
                     <div id="guide-subscribe-products">
                         {renderTierSection('basic')}
-                        <Divider className="my-12" />
                         {renderTierSection('standard')}
-                        <Divider className="my-12" />
                         {renderTierSection('vip')}
                     </div>
                 </>

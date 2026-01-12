@@ -324,14 +324,14 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 label="取消"
                 icon="pi pi-times"
                 onClick={handleTermsReject}
-                className="p-button-text"
+                className="p-button-text rounded-2xl"
             />
             <Button
                 label="我已知晓"
                 icon="pi pi-check"
                 onClick={handleTermsAccept}
                 disabled={!agreedToTerms}
-                className="p-button-primary"
+                className="p-button-primary rounded-2xl"
             />
         </div>
     );
@@ -390,7 +390,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         }
 
         return (
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
                 <Button
                     label="取消"
                     icon="pi pi-times"
@@ -398,7 +398,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         onCancel?.();
                         onHide();
                     }}
-                    className="p-button-text"
+                    className="p-button-text rounded-2xl"
                     disabled={loading}
                 />
                 <Button
@@ -407,7 +407,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     onClick={handleQrCodePaymentConfirmation}
                     disabled={!hasQrCodes || !selectedQrCode || !qrcodeReceiptUrl}
                     autoFocus
-                    className="p-button-primary"
+                    className="p-button-primary rounded-2xl"
                 />
             </div>
         );
@@ -552,7 +552,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             key={qr.type}
                             className={`border-2 rounded-lg p-3 cursor-pointer transition-all ${
                                 selectedQrCode?.type === qr.type 
-                                    ? 'border-primary bg-primary-50' 
+                                    ? 'border-primary bg-primary-50 dark:bg-primary-800' 
                                     : 'border-surface-200 hover:border-surface-300'
                             }`}
                             onClick={() => setSelectedQrCode(qr)}
@@ -565,7 +565,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                                     onChange={() => setSelectedQrCode(qr)}
                                 />
                                 <label htmlFor={qr.type} className="font-medium cursor-pointer">
-                                    {qr.type === 'wechat' ? '💚 微信支付' : '🔵 支付宝'}
+                                    {qr.type === 'wechat' ? '微信支付' : '支付宝'}
                                 </label>
                             </div>
                         </div>

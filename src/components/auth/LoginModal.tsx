@@ -150,8 +150,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 {/* 左侧品牌区域 - 延续导航栏风格 */}
                 <div className="hidden md:flex w-[38%] bg-surface-50 p-10 flex-col justify-between relative overflow-hidden">
                     {/* 背景装饰球 */}
-                    <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary-100/50 rounded-full blur-3xl"></div>
-                    <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary-200/30 rounded-full blur-3xl"></div>
+                    <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary-100/50 dark:bg-primary-800/50 rounded-full blur-3xl"></div>
+                    <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary-200/30 dark:bg-primary-700/30 rounded-full blur-3xl"></div>
 
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-12">
@@ -202,7 +202,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 <div className="flex-1 p-8 md:p-14 flex flex-col justify-center relative">
                     <button
                         onClick={() => onClose(true)}
-                        className="absolute top-6 right-6 p-2 text-surface-400 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-all"
+                        className="absolute top-6 right-6 p-2 text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-surface-50 rounded-full transition-all"
                     >
                         <X size={20} />
                     </button>
@@ -286,7 +286,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                             type="button"
                                             onClick={sendVerificationCode}
                                             disabled={countdown > 0 || sendingCode || !phone}
-                                            className="px-5 rounded-2xl text-sm font-bold border border-primary-100 text-primary-600 hover:bg-primary-50 disabled:opacity-50 transition-all min-w-[120px] flex items-center justify-center gap-2"
+                                            className="px-5 rounded-2xl text-sm font-bold border border-primary-100 dark:border-primary-500 text-primary-600 hover:bg-primary-50 dark:bg-primary-800 disabled:opacity-50 transition-all min-w-[120px] flex items-center justify-center gap-2"
                                         >
                                             {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : <><Send size={16} /> 获取</>}
                                         </button>
@@ -299,7 +299,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                         className="w-full py-4 bg-primary-500 border-none rounded-2xl shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all transform active:scale-[0.98]"
                                     >
                                         <div className="flex items-center justify-center gap-2 w-full">
-                                            <LogIn size={20} />
+                                            {!loading  && <LogIn size={20} /> }
                                             <span className="font-bold text-lg">立即登录</span>
                                         </div>
                                     </Button>

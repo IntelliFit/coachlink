@@ -125,7 +125,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
     }
 
     return (
-        <div className="bg-surface pb-12">
+        <div className="pb-12">
             {/* 背景装饰：淡淡的径向渐变，增加层次感 */}
             <div className="absolute inset-0 h-64 bg-gradient-to-b from-primary-100/50 to-transparent dark:from-primary-800/50 pointer-events-none" />
 
@@ -192,7 +192,7 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                 )}
                                 <button
                                     onClick={contactCoach}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-surface rounded-[16px] text-xs font-black shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-700 transition-all active:scale-95"
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary-500 text-surface rounded-[16px] text-xs font-black shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all active:scale-95"
                                 >
                                     <MessageCircle size={16} />
                                     联系教练
