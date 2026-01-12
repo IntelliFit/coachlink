@@ -10,6 +10,12 @@ export interface VideoReferenceItem {
     isProgress: boolean;
     createdAt: string;
     dayIndex?: number | null;
+    studentInfo?: {
+        id: string;
+        fullName: string | null;
+        nickname: string | null;
+        avatarUrl: string | null;
+    };
 }
 
 export interface SendMessageDto {
