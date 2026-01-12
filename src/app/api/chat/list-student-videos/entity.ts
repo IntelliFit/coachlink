@@ -9,13 +9,21 @@ export interface ListStudentVideosDto {
 
     // 只看进步视频
     onlyProgress?: boolean;
-    
+
     page?: number;
     pageSize?: number;
 }
 
+export interface StudentUserInfo {
+    id: string;
+    fullName: string | null;
+    nickname: string | null;
+    avatarUrl: string | null;
+}
+
 export interface VideoItem extends Omit<VideoReferenceItem, "videoId"> {
     id: string;
+    studentInfo?: StudentUserInfo;
 }
 
 export interface ListStudentVideosResponseDto {
