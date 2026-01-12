@@ -5,6 +5,10 @@ export interface TrainingTagsQuestion {
 
 export interface TrainingTimesQuestion {
     type: "times";
+    // 允许教练自定义题干（不填则使用默认文案）
+    question?: string;
+    // 允许教练配置可选项（例如 [3,4,5]）；不填则默认 1~7
+    options?: number[];
     userSelection?: number;
 }
 

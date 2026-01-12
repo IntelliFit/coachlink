@@ -70,7 +70,11 @@ export async function POST(req: Request) {
     // 默认问题列表：包含用户极限（1RM）问题
     const defaultQuestions = [
         { type: "tags" }, // 训练项目偏好
-        { type: "times" }, // 每周训练次数
+        {
+            type: "times",
+            question: "您希望每周训练几次？",
+            options: [1, 2, 3, 4, 5, 6, 7],
+        }, // 每周训练次数（可配置）
         { type: "rm" }, // 用户极限（1RM）
     ];
 

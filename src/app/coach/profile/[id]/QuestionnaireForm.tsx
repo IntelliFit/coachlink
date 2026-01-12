@@ -108,9 +108,9 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     const mergeExistingAnswers = (subscribeData: TrainingItem[]) => {
         const subscribeMap = new Map<string, any>();
         const makeKey = (item: { type: string; question?: string }) => {
-            return item.question
-                ? `${item.type}::${item.question}`
-                : item.type;
+            // 固定题型（单例）一律用 type 作为 key，避免题干变更导致无法匹配历史答案
+            if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return item.type;
+            return item.question ? `${item.type}::${item.question}` : item.type;
         };
 
         subscribeData.forEach(item => {
@@ -151,9 +151,9 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             const subscribeData = res.subscriptions[0].subscribe_data as unknown as TrainingItem[];
             const subscribeMap = new Map<string, any>();
             const makeKey = (item: { type: string; question?: string }) => {
-                return item.question
-                    ? `${item.type}::${item.question}`
-                    : item.type;
+            // 固定题型（单例）一律用 type 作为 key，避免题干变更导致无法匹配历史答案
+            if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return item.type;
+            return item.question ? `${item.type}::${item.question}` : item.type;
             };
 
             subscribeData.forEach(item => {
@@ -301,9 +301,15 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'times':
                 return (
                     <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-2">Q{index + 1}. 您希望每周训练几次？</label>
+                        <label className="block text-sm font-medium mb-2">
+                            Q{index + 1}. {(question as any).question || '您希望每周训练几次？'}
+                        </label>
                         <div className="flex flex-wrap gap-2">
-                            {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                            {(
+                                Array.isArray((question as any).options) && (question as any).options.length > 0
+                                    ? (question as any).options
+                                    : [1, 2, 3, 4, 5, 6, 7]
+                            ).map((num: number) => (
                                 <div key={num} className="flex items-center rounded px-3 py-2">
                                     <RadioButton
                                         inputId={`times${index}-${num}`}
