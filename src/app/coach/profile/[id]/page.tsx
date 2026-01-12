@@ -149,7 +149,7 @@ const CoachProfilePage: React.FC = () => {
         };
 
         return (
-            <div className="min-h-screen bg-surface-50">
+            <div className="min-h-screen">
                 {/* 教练介绍部分 */}
                 <CoachIntroduction
                     coach={displayCoach}
@@ -168,7 +168,6 @@ const CoachProfilePage: React.FC = () => {
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
                 />
-
             </div>
         );
 
