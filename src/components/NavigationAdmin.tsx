@@ -154,7 +154,7 @@ export default function NavigationAdmin() {
                             image={session.profile?.avatar_url || undefined}
                             label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'A')}
                             shape="circle"
-                            className="bg-primary-500 text-surface text-xs font-bold"
+                            className="bg-primary-500 text-surface text-xs font-bold inner-img-object-fit"
                         />
                         <div className="hidden md:flex flex-col items-start leading-tight">
                             <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">

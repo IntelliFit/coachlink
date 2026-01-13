@@ -264,3 +264,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .driver-navigation-btns {
   @apply mt-6 flex justify-between items-center !important;
 }
+
+.inner-img-object-fit > img {
+    object-fit: cover;
+}

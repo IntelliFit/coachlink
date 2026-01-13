@@ -24,7 +24,7 @@ import { chatService } from '@/app/service/chatService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
-import { Calendar, CheckCircle2, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, Users, Video } from 'lucide-react';
+import { Calendar, CheckCircle2, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
 import { ProgressBar } from 'primereact/progressbar';
 
 export default function StudentsPage() {
@@ -381,7 +381,7 @@ export default function StudentsPage() {
                     {/* 状态指示区 */}
                     <div className="flex-shrink-0 mr-3">
                         {isActive ? (
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-50 text-primary-600">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-50/10 text-primary-600">
                                 <span className="relative flex h-2.5 w-2.5">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-600"></span>
@@ -404,7 +404,7 @@ export default function StudentsPage() {
                             {plan?.name || '未配置计划'}
                         </span>
                         <div className="flex items-center gap-2">
-                            <span className={`text-[11px] font-semibold tracking-wide uppercase ${isActive ? 'text-primary-600' : 'text-surface-400'}`}>
+                            <span className={`text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase ${isActive ? 'text-primary-600' : 'text-surface-400'}`}>
                                 {isActive ? '进行中' : isCompleted ? '已完成' : '待处理'}
                             </span>
                             {plan?.description && (
@@ -434,7 +434,7 @@ export default function StudentsPage() {
 
                 {/* Popover 菜单 - 只有快速生成和手动创建两个选项 */}
                 <OverlayPanel ref={op} className="p-0 shadow-2xl border border-surface-100 rounded-xl overflow-hidden">
-                    <div className="flex flex-col p-1.5 min-w-[150px] bg-surface">
+                    <div className="flex flex-col p-1.5 min-w-[150px] bg-surface dark:bg-surface-50">
                         <div className="px-3 py-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest border-b border-surface-50 mb-1">
                             创建计划
                         </div>
@@ -442,7 +442,7 @@ export default function StudentsPage() {
                             onClick={(e) => handleAction(e, 'ai')}
                             className="flex items-center gap-3 px-3 py-2.5 hover:bg-primary-50 text-primary-700 rounded-lg transition-all text-xs font-bold active:scale-95"
                         >
-                            <Sparkles size={16} className="text-primary-500" />
+                            <SparklesIcon size={16} className="text-primary-500" />
                             快速生成
                         </button>
                         <button
@@ -615,7 +615,7 @@ export default function StudentsPage() {
                     <Button
                         label="待支付确认"
                         onClick={() => setPaymentDialogVisible(true)}
-                        className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                        className="p-button-primary shadow-lg shadow-primary-200 dark:shadow-primary-700 transition-transform active:scale-95 rounded-2xl px-6"
                         badge={(manualPaymentSubscriptions.length + systemPaymentSubscriptions.length) > 0
                             ? (manualPaymentSubscriptions.length + systemPaymentSubscriptions.length).toString()
                             : undefined}
