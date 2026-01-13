@@ -86,11 +86,14 @@ export async function POST(req: Request) {
 
         // 确定生效的支付模式
         const effectivePaymentMode = coach.payment_mode || (
-            coach.allow_personal_qrcode ? 'qrcode' : defaultMode
+            coach.allow_personal_qrcode ? "qrcode" : defaultMode
         );
 
-        // 获取收款码列表
-        const qrCodes: QrCodeItem[] = coach.payment_qr_codes || [];
+        // 获取收款码列表（仅当允许使用个人二维码时才返回）
+        const allowQr = coach.allow_personal_qrcode ?? true;
+        const qrCodes: QrCodeItem[] = allowQr
+            ? (coach.payment_qr_codes || [])
+            : [];
 
         responseData.paymentInfo = {
             effectivePaymentMode,

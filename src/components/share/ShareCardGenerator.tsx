@@ -7,6 +7,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { ArrowLeft, Download, Share2, Copy } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { executionService } from '@/app/service/executionService';
+import { growthService } from '@/app/service/growthService';
 import { useToastContext } from '@/context/ToastContext';
 import TemplateDataFlow from './TemplateDataFlow';
 import TemplateCalendar from './TemplateCalendar';
@@ -42,7 +43,21 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
             const data = await executionService.getShareInfo(executionId);
             
             if (data?.success) {
-                setShareData(data.data);
+                const baseData = data.data;
+
+                // Create acquisition share link for QR code (best-effort)
+                try {
+                    const share = await growthService.createShareLink({
+                        executionId,
+                    });
+                    baseData.acquisitionUrl = share.acquisitionUrl;
+                    baseData.acquisitionExpiresAt = share.expiresAt;
+                } catch (e: any) {
+                    // If migrations not applied yet, fall back to public training link QR
+                    console.warn("Failed to create acquisition share link:", e);
+                }
+
+                setShareData(baseData);
             } else {
                 showToast({
                     severity: 'error',
@@ -208,16 +223,27 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
                             disabled={generating}
                         />
                         <Button
-                            label="复制链接"
+                            label="复制招募链接"
                             icon={<Copy className="w-4 h-4 mr-2" />}
                             outlined
                             className="flex-1 py-4 font-bold rounded-2xl"
                             onClick={() => {
-                                const url = `${window.location.origin}/public/training/${shareData.shareToken}`;
+                                const url = shareData.acquisitionUrl ||
+                                    `${window.location.origin}/public/training/${shareData.shareToken}`;
                                 navigator.clipboard.writeText(url);
                                 showToast({ severity: 'success', summary: '已复制', detail: '分享链接已复制到剪贴板' });
                             }}
                         />
+                    </div>
+
+                    {/* Acquisition hint */}
+                    <div className="text-[11px] text-surface-500 space-y-1">
+                        <div>
+                            扫描卡片二维码可注册领取：双方 +2 次智能导入 +100MB 存储（24小时内有效，单日上限 10 次）。
+                        </div>
+                        <div className="font-mono text-[10px] text-surface-400 break-all">
+                            当前二维码指向：{shareData.acquisitionUrl || '(未生成，已回退为训练明细链接)'}
+                        </div>
                     </div>
                 </div>
             ) : (

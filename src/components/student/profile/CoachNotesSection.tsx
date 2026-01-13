@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Quote } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { Avatar } from 'primereact/avatar';
-import { Chip } from 'primereact/chip';
 import { ProfileData } from './types';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
@@ -54,8 +53,8 @@ export const CoachNotesSection: React.FC<CoachNotesSectionProps> = ({ data, user
 
     if (loading) {
         return (
-            <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
-                <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2 mb-6">
+            <div className="bg-surface rounded-2xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+                <h2 className="text-base font-black text-surface-900 flex items-center gap-2 mb-3">
                     <MessageSquare className="text-primary" size={20} />
                     教链评语
                 </h2>
@@ -86,45 +85,68 @@ export const CoachNotesSection: React.FC<CoachNotesSectionProps> = ({ data, user
         tags: [] // 标签信息需要从其他地方获取或生成
     }));
 
+    const latest = formattedReviews[0];
+    const rest = formattedReviews.slice(1);
+
     return (
-        <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2 mb-6">
-                <MessageSquare className="text-primary" size={20} />
-                教链评语
-            </h2>
-
-            <div className="grid grid-cols-1 gap-6">
-                {formattedReviews.map((note) => (
-                    <div key={note.id} className="relative bg-surface-50 rounded-xl p-6 border border-surface-300">
-                        <Quote className="absolute top-4 right-4 text-surface-300" size={40} />
-                        
-                        <div className="flex items-center gap-3 mb-4">
-                            <Avatar 
-                                image={note.coachAvatar || undefined} 
-                                label={!note.coachAvatar ? note.coachName.charAt(0) : undefined}
-                                shape="circle" 
-                                className="bg-surface-200 text-primary font-bold"
-                            />
-                            <div>
-                                <div className="font-bold text-surface-900">{note.coachName}</div>
-                                <div className="text-xs text-surface-500">{note.date}</div>
-                            </div>
-                        </div>
-
-                        <p className="text-surface-700 leading-relaxed mb-4 relative z-10">
-                            {note.content}
-                        </p>
-
-                        {note.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {note.tags.map((tag, index) => (
-                                    <Chip key={index} label={tag} className="text-xs bg-surface border border-blue-300 text-blue-300" />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ))}
+        <div className="bg-surface rounded-2xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-black text-surface-900 flex items-center gap-2">
+                    <MessageSquare className="text-primary" size={18} />
+                    教链评语
+                </h2>
+                <div className="text-[11px] font-bold text-surface-500">
+                    {formattedReviews.length} 条
+                </div>
             </div>
+
+            <div className="bg-surface-50 rounded-xl p-3 border border-surface-200">
+                <div className="flex items-center gap-2">
+                    <Avatar
+                        image={latest.coachAvatar || undefined}
+                        label={!latest.coachAvatar ? latest.coachName.charAt(0) : undefined}
+                        shape="circle"
+                        className="bg-surface-200 text-primary font-bold w-8 h-8"
+                    />
+                    <div className="min-w-0">
+                        <div className="text-sm font-black text-surface-900 leading-tight truncate">{latest.coachName}</div>
+                        <div className="text-[11px] text-surface-500 leading-tight truncate">{latest.date}</div>
+                    </div>
+                </div>
+
+                <p className="mt-2 text-sm text-surface-700 leading-snug line-clamp-2">
+                    {latest.content}
+                </p>
+            </div>
+
+            {rest.length > 0 && (
+                <details className="mt-2">
+                    <summary className="cursor-pointer select-none text-xs font-bold text-primary-600 hover:text-primary-700">
+                        查看全部评语
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                        {rest.map((note) => (
+                            <div key={note.id} className="bg-surface-50 rounded-xl p-3 border border-surface-200">
+                                <div className="flex items-center gap-2">
+                                    <Avatar
+                                        image={note.coachAvatar || undefined}
+                                        label={!note.coachAvatar ? note.coachName.charAt(0) : undefined}
+                                        shape="circle"
+                                        className="bg-surface-200 text-primary font-bold w-7 h-7"
+                                    />
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-black text-surface-900 leading-tight truncate">{note.coachName}</div>
+                                        <div className="text-[11px] text-surface-500 leading-tight truncate">{note.date}</div>
+                                    </div>
+                                </div>
+                                <p className="mt-2 text-sm text-surface-700 leading-snug line-clamp-2">
+                                    {note.content}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </details>
+            )}
         </div>
     );
 };

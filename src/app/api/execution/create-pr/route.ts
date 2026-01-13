@@ -125,29 +125,64 @@ export async function POST(request: NextRequest) {
             lombardi: e1rmResult.lombardi,
         };
 
-        // 插入PR记录 (使用新的 weight/reps/e1rm 列)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
+        const today = new Date().toISOString().split("T")[0];
+
+        // 防重复：如果该 execution/action/set 今日已存在记录（常见于 auto e1RM + 手动标记同一次训练）
+        const { data: existing } = await (supabase as any)
             .from("personal_records_history")
-            .insert({
-                user_id: userId,
-                action_id: actionId,
-                exercise_name: actionName,
-                weight: weight, // 训练重量
-                reps: reps, // 训练次数
-                e1rm: e1rmResult.e1rm, // 计算的 e1RM
-                load_formula: loadFormula,
-                execution_id: executionId,
-                execution_set_number: setNumber,
-                date_achieved: new Date().toISOString().split("T")[0],
-                notes: notes || null,
-                video_url: videoUrl,
-                is_verified: false,
-                is_auto_calculated: false, // 手动标记的 PR
-                estimated_from: estimatedFrom,
-            })
-            .select()
-            .single();
+            .select("id, is_auto_calculated")
+            .eq("user_id", userId)
+            .eq("execution_id", executionId)
+            .eq("action_id", actionId)
+            .eq("execution_set_number", setNumber)
+            .eq("date_achieved", today)
+            .maybeSingle();
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const baseUpdate: any = {
+            action_id: actionId,
+            exercise_name: actionName,
+            weight: weight,
+            reps: reps,
+            e1rm: e1rmResult.e1rm,
+            load_formula: loadFormula,
+            execution_id: executionId,
+            execution_set_number: setNumber,
+            date_achieved: today,
+            notes: notes || null,
+            video_url: videoUrl,
+            is_verified: false,
+            estimated_from: estimatedFrom,
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const query = (supabase as any).from("personal_records_history");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let error: any = null;
+
+        if (existing?.id) {
+            // 保留原 is_auto_calculated，不强行改写（避免干扰 auto e1RM 的“当日只保留一条自动 PR”逻辑）
+            const updateRes = await query
+                .update(baseUpdate)
+                .eq("id", existing.id)
+                .select()
+                .single();
+            data = updateRes.data;
+            error = updateRes.error;
+        } else {
+            const insertRes = await query
+                .insert({
+                    ...baseUpdate,
+                    is_auto_calculated: false, // 手动标记的 PR（首次插入时）
+                })
+                .select()
+                .single();
+            data = insertRes.data;
+            error = insertRes.error;
+        }
 
         if (error) {
             console.error("创建PR失败:", error);

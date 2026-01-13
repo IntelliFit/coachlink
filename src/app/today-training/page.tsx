@@ -266,7 +266,7 @@ if (loading) {
                         <div className="h-4 bg-gray-100 w-1/2 rounded"></div>
                     </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="h-20 bg-gray-50 rounded-xl"></div>
                     <div className="h-20 bg-gray-50 rounded-xl"></div>
                     <div className="h-20 bg-gray-50 rounded-xl"></div>
@@ -314,7 +314,7 @@ if (loading) {
     const todayTraining = trainingDays.find(d => d.dayIndex === todayDayIndex);
 
 return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-12">
+    <div className="min-h-screen bg-surface-50 pb-12">
         {/* 确认对话框 */}
         <ConfirmDialog />
         
@@ -331,10 +331,10 @@ return (
             />
         )}
         
-        <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
             {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
             {hasBothPlans && (
-                <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl mb-6 w-full sm:w-fit">
                     <button
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                             planMode === 'coach'
@@ -452,7 +452,7 @@ return (
                 <section>
                     <div className="flex items-end justify-between mb-6 px-2">
                         <div>
-                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                            <h3 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
                                 TODAY'S MISSION
                             </h3>
                             <p className="text-slate-500 text-sm">
@@ -462,7 +462,7 @@ return (
                                 }
                             </p>
                         </div>
-                        <div className={`flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full ${
+                        <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full ${
                             todayCompleted 
                                 ? 'text-green-600 bg-green-50' 
                                 : 'text-primary-600 bg-primary-50'
@@ -473,7 +473,7 @@ return (
                     </div>
 
                     {/* 卡片渲染 */}
-                    <div className="transform transition-all hover:translate-y-[-4px]">
+                    <div className="transform transition-all sm:hover:translate-y-[-4px]">
                         {todayCompleted ? (
                             /* 今日已完成状态卡片 */
                             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 shadow-sm">

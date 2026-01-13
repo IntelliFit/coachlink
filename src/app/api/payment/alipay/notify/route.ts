@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { fulfillmentService } from "@/app/service/fulfillmentService";
 import { AlipaySdk } from "alipay-sdk";
+import { sendSystemMessage } from "@/lib/chat";
 
 export async function POST(req: Request) {
     console.log("[Alipay Notify] HIT!");
@@ -84,10 +85,12 @@ export async function POST(req: Request) {
         }
 
         // 1. Update `alipay_orders`
-        const { data: alipayOrder, error: updateError } = await supabase
+        const { data: alipayOrder, error: updateError } = await serviceRoleSupabase
             .from("alipay_orders")
             .update({
                 status: orderStatus,
+                trade_status: trade_status,
+                alipay_trade_no: params.trade_no,
                 updated_at: new Date().toISOString(),
             })
             .eq("id", out_trade_no) // Note: create-order uses `id` as out_trade_no
@@ -129,6 +132,79 @@ export async function POST(req: Request) {
                     console.error("[Fulfillment] Failed:", err);
                     // Even if fulfillment fails, we might still return success to Alipay to stop retries,
                     // but we should probably log critical error for manual intervention.
+                }
+            }
+        }
+
+        // 3. Subscription auto-confirm / auto-renew (platform payment must be fully automated)
+        if (orderStatus === "paid") {
+            const orderType = alipayOrder.order_type;
+            const orderData = (alipayOrder.order_data || {}) as any;
+            const subscriptionId = orderData?.subscriptionId as string | undefined;
+            const coachId = orderData?.coachId as string | undefined;
+
+            if (
+                subscriptionId &&
+                (orderType === "subscription" || orderType === "subscription_renew")
+            ) {
+                const { data: sub, error: subErr } = await serviceRoleSupabase
+                    .from("coach_subscriptions")
+                    .select("id, student_id, coach_id, status, end_date, last_payment_order_id")
+                    .eq("id", subscriptionId)
+                    .single();
+
+                if (!subErr && sub) {
+                    // basic safety: payer must match subscription owner, and coach must match (if provided)
+                    if (sub.student_id === alipayOrder.user_id && (!coachId || sub.coach_id === coachId)) {
+                        // Idempotency guard: do not process the same order twice
+                        if (sub.last_payment_order_id !== alipayOrder.id) {
+                            const nowIso = new Date().toISOString();
+                            const update: Record<string, unknown> = {
+                                payment_method: "platform_alipay",
+                                payment_confirmed_by: "system",
+                                payment_confirmed_at: nowIso,
+                                coach_seen_at: null, // coach needs to see a notification in unified inbox
+                                last_payment_order_id: alipayOrder.id,
+                            };
+
+                            if (orderType === "subscription") {
+                                update.status = "active";
+                            }
+
+                            if (orderType === "subscription_renew") {
+                                const weeks = Number(orderData?.renewAdditionalWeeks || 0);
+                                if (weeks > 0) {
+                                    const base = sub.end_date ? new Date(sub.end_date) : new Date();
+                                    const now = new Date();
+                                    const effectiveBase = base.getTime() < now.getTime() ? now : base;
+                                    effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
+                                    update.end_date = effectiveBase.toISOString();
+                                }
+                            }
+
+                            await serviceRoleSupabase
+                                .from("coach_subscriptions")
+                                .update(update)
+                                .eq("id", subscriptionId);
+
+                            // Notify coach (system-confirmed, no manual action required)
+                            try {
+                                const { data: coach, error: coachErr } = await serviceRoleSupabase
+                                    .from("coaches")
+                                    .select("user_id")
+                                    .eq("id", sub.coach_id)
+                                    .single();
+
+                                if (!coachErr && coach?.user_id) {
+                                    await sendSystemMessage(coach.user_id, {
+                                        content: `新的学员订阅通过【平台支付】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
+                                    });
+                                }
+                            } catch (e) {
+                                console.error("[Alipay Notify] Failed to send coach system message:", e);
+                            }
+                        }
+                    }
                 }
             }
         }

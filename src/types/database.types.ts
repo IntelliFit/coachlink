@@ -810,12 +810,18 @@ export type Database = {
         Row: {
           auto_renew: boolean | null
           coach_id: string
+          coach_seen_at: string | null
           created_at: string | null
           end_date: string | null
           has_remind_coach: boolean | null
           id: string
+          last_payment_order_id: string | null
           monthly_price: number
           order_id: string | null
+          payment_data: Json | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
+          payment_method: string | null
           prior_training_weeks: number | null
           product_id: string | null
           product_name: string | null
@@ -832,12 +838,18 @@ export type Database = {
         Insert: {
           auto_renew?: boolean | null
           coach_id: string
+          coach_seen_at?: string | null
           created_at?: string | null
           end_date?: string | null
           has_remind_coach?: boolean | null
           id?: string
+          last_payment_order_id?: string | null
           monthly_price: number
           order_id?: string | null
+          payment_data?: Json | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_method?: string | null
           prior_training_weeks?: number | null
           product_id?: string | null
           product_name?: string | null
@@ -854,12 +866,18 @@ export type Database = {
         Update: {
           auto_renew?: boolean | null
           coach_id?: string
+          coach_seen_at?: string | null
           created_at?: string | null
           end_date?: string | null
           has_remind_coach?: boolean | null
           id?: string
+          last_payment_order_id?: string | null
           monthly_price?: number
           order_id?: string | null
+          payment_data?: Json | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_method?: string | null
           prior_training_weeks?: number | null
           product_id?: string | null
           product_name?: string | null

@@ -48,15 +48,25 @@ const PaymentPage = () => {
             
             // 调用支付服务获取支付订单详情
             const response = await alipayService.queryOrder({
-                paymentId: id
-            });
+                // backward compat: API accepts paymentId too, but type wants orderId
+                orderId: id as any
+            } as any);
             
             if (response) {
-                setQrCodeUrl(response.qrCodeUrl || '');
-                setAmount(response.amount);
-                setOrderId(response.orderId);
-                setDescription(response.description || '');
-                setStatus(response.status);
+                const order = (response as any).order || response;
+                setQrCodeUrl(order.qr_code || '');
+                setAmount(Number(order.total_amount || 0));
+                setOrderId(order.id || '');
+                setDescription(order.subject || '');
+
+                const ts = order.trade_status;
+                if (order.status === 'paid' || ts === 'TRADE_SUCCESS' || ts === 'TRADE_FINISHED') {
+                    setStatus('success');
+                } else if (order.status === 'cancelled' || ts === 'TRADE_CLOSED') {
+                    setStatus('failed');
+                } else {
+                    setStatus('pending');
+                }
             } else {
                 throw new Error('获取支付订单详情失败');
             }
