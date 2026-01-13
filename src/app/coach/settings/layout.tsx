@@ -10,9 +10,11 @@ interface CoachSettingsLayoutProps {
 }
 
 const SETTINGS_TABS: { label: string; path: string; icon: string }[] = [
+    { label: '邀请设置', path: '/coach/settings/invitation', icon: 'pi pi-link' },
     { label: '收款码设置', path: '/coach/settings/payment', icon: 'pi pi-qrcode' },
     { label: '账号安全', path: '/coach/settings/security', icon: 'pi pi-shield' }
 ];
+
 
 const CoachSettingsLayout: React.FC<CoachSettingsLayoutProps> = ({ children }) => {
     const router = useRouter();

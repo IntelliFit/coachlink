@@ -29,12 +29,16 @@ interface ActionOption {
 // 自定义选项模板组件
 export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) => {
     return (
-        <div className="flex align-items-center">
-            <div className="ml-2 flex-grow">
-                <div className="flex align-items-center gap-2">
-                    <div className="font-bold">{action.name}</div>
-                    {(action.positions || []).map((position, idx) => (
-                        <div className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg"
+        <div className="flex items-start gap-2 max-w-full">
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                    <div className="font-black text-surface-900 truncate">{action.name}</div>
+                </div>
+
+                <div className="mt-1 flex flex-wrap gap-1 max-w-full">
+                    {(action.positions || []).slice(0, 4).map((position, idx) => (
+                        <div
+                            className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg"
                             key={idx}
                         >
                             {position}
@@ -42,19 +46,22 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
                     ))}
 
                     {action.enableAutoWeightCompute && (
-                        <div className="bg-primary-100 text-primary-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                        <div className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
                             自动计算重量
                         </div>
                     )}
 
                     {action.type && action.type !== 'STRENGTH' && (
-                        <div className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
+                        <div className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
                             {action.type}
                         </div>
                     )}
                 </div>
+
                 {action.detail && (
-                    <div className="text-sm text-surface-500 mt-1">{action.detail}</div>
+                    <div className="text-[11px] text-surface-500 mt-1 line-clamp-2 break-words">
+                        {action.detail}
+                    </div>
                 )}
             </div>
         </div>
@@ -68,22 +75,24 @@ export const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = 
     }
 
     return (
-        <div className="flex align-items-center gap-2">
-            <div className="font-bold">{action.name}</div>
-            {(action.positions || []).map((position, idx) => (
-                <div
-                    key={idx}
-                    className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 border-round rounded-lg"
-                >
-                    {position}
-                </div>
-            ))}
-
-            {action.enableAutoWeightCompute && (
-                <div className="bg-primary-100 text-primary-700 text-xs font-medium px-2 py-1 border-round rounded-lg">
-                    自动计算重量
-                </div>
-            )}
+        <div className="flex items-center gap-2 min-w-0">
+            <div className="font-black truncate min-w-0">{action.name}</div>
+            {/* Mobile 只显示少量徽章，避免撑宽输入框 */}
+            <div className="hidden sm:flex flex-wrap gap-1">
+                {(action.positions || []).slice(0, 2).map((position, idx) => (
+                    <div
+                        key={idx}
+                        className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                    >
+                        {position}
+                    </div>
+                ))}
+                {action.enableAutoWeightCompute && (
+                    <div className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                        自动计算重量
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

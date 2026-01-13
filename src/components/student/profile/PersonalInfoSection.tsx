@@ -188,40 +188,41 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     };
 
     const InfoItem = ({ label, value }: { label: string, value: string | number | null }) => (
-        <div className="p-4 bg-surface-50 rounded-xl border border-surface-100">
-            <div className="text-sm text-surface-500 mb-1">{label}</div>
-            <div className="text-sm font-semibold text-surface-900">{value || '未填写'}</div>
+        <div className="px-2.5 py-1.5 bg-surface-50 rounded-xl border border-surface-100 text-xs">
+            <span className="text-[11px] font-bold text-surface-500">{label}</span>
+            <span className="mx-1 text-surface-300">·</span>
+            <span className="font-black text-surface-900">{value || '未填写'}</span>
         </div>
     );
 
     const InfoItemSkeleton = () => (
-        <div className="p-4 bg-surface-50 rounded-xl border border-surface-100">
-            <Skeleton width="40%" height="0.875rem" className="mb-2" />
-            <Skeleton width="60%" height="1.25rem" />
+        <div className="px-2.5 py-1.5 bg-surface-50 rounded-xl border border-surface-100">
+            <Skeleton width="120px" height="0.9rem" />
         </div>
     );
 
     return (
-        <div className="bg-surface rounded-2xl shadow-sm p-6 mb-6">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-surface-900 flex items-center gap-2">
+        <div className="bg-surface rounded-2xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm sm:text-lg font-black text-surface-900 flex items-center gap-2">
                     <User className="text-primary" size={20} />
                     个人信息
                 </h2>
                 <Button 
-                    label="编辑资料" 
-                    icon={<Edit size={16} className="mr-2" />} 
+                    aria-label="编辑资料"
+                    icon={<Edit size={16} />} 
                     text 
                     onClick={() => { initFormData(); setIsEditing(true); }}
+                    className="p-2"
                 />
             </div>
 
             {!profile ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex flex-wrap gap-2">
                     {[...Array(6)].map((_, index) => (<InfoItemSkeleton key={index} />))}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex flex-wrap gap-2">
                     <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
                     <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
                     <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
@@ -343,10 +344,40 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                         {formData.sport_cards.activeCards.includes('powerlifting') && (
                             <div className="p-4 bg-orange-50 rounded-xl border border-orange-200 mb-4">
                                 <h4 className="font-semibold text-orange-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 力量举数据</h4>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-orange-600">深蹲 1RM (kg)</label><InputNumber value={formData.sport_cards.powerlifting?.squat} onValueChange={(e) => updateCardData('powerlifting', 'squat', e.value ?? null)} min={0} max={500} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-orange-600">卧推 1RM (kg)</label><InputNumber value={formData.sport_cards.powerlifting?.bench} onValueChange={(e) => updateCardData('powerlifting', 'bench', e.value ?? null)} min={0} max={500} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-orange-600">硬拉 1RM (kg)</label><InputNumber value={formData.sport_cards.powerlifting?.deadlift} onValueChange={(e) => updateCardData('powerlifting', 'deadlift', e.value ?? null)} min={0} max={500} className="w-full" /></div>
+                                <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-orange-600 leading-tight">深蹲 1RM</label>
+                                        <InputNumber
+                                            value={formData.sport_cards.powerlifting?.squat}
+                                            onValueChange={(e) => updateCardData('powerlifting', 'squat', e.value ?? null)}
+                                            min={0}
+                                            max={500}
+                                            className="w-full"
+                                            inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-orange-600 leading-tight">卧推 1RM</label>
+                                        <InputNumber
+                                            value={formData.sport_cards.powerlifting?.bench}
+                                            onValueChange={(e) => updateCardData('powerlifting', 'bench', e.value ?? null)}
+                                            min={0}
+                                            max={500}
+                                            className="w-full"
+                                            inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-orange-600 leading-tight">硬拉 1RM</label>
+                                        <InputNumber
+                                            value={formData.sport_cards.powerlifting?.deadlift}
+                                            onValueChange={(e) => updateCardData('powerlifting', 'deadlift', e.value ?? null)}
+                                            min={0}
+                                            max={500}
+                                            className="w-full"
+                                            inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -355,11 +386,23 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                         {formData.sport_cards.activeCards.includes('streetlifting') && (
                             <div className="p-4 bg-lime-50 rounded-xl border border-lime-200 mb-4">
                                 <h4 className="font-semibold text-lime-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 街头力量举数据</h4>
-                                <div className="grid grid-cols-4 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">负重引体 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.weightedPullup} onValueChange={(e) => updateCardData('streetlifting', 'weightedPullup', e.value ?? null)} min={0} max={200} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">负重双杠 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.weightedDip} onValueChange={(e) => updateCardData('streetlifting', 'weightedDip', e.value ?? null)} min={0} max={200} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">负重双力臂 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.weightedMuscleUp} onValueChange={(e) => updateCardData('streetlifting', 'weightedMuscleUp', e.value ?? null)} min={0} max={200} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-lime-600">深蹲 (kg)</label><InputNumber value={formData.sport_cards.streetlifting?.squat} onValueChange={(e) => updateCardData('streetlifting', 'squat', e.value ?? null)} min={0} max={500} className="w-full" /></div>
+                                <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">负重引体</label>
+                                        <InputNumber value={formData.sport_cards.streetlifting?.weightedPullup} onValueChange={(e) => updateCardData('streetlifting', 'weightedPullup', e.value ?? null)} min={0} max={200} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">负重双杠</label>
+                                        <InputNumber value={formData.sport_cards.streetlifting?.weightedDip} onValueChange={(e) => updateCardData('streetlifting', 'weightedDip', e.value ?? null)} min={0} max={200} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">负重双力臂</label>
+                                        <InputNumber value={formData.sport_cards.streetlifting?.weightedMuscleUp} onValueChange={(e) => updateCardData('streetlifting', 'weightedMuscleUp', e.value ?? null)} min={0} max={200} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">深蹲</label>
+                                        <InputNumber value={formData.sport_cards.streetlifting?.squat} onValueChange={(e) => updateCardData('streetlifting', 'squat', e.value ?? null)} min={0} max={500} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -383,9 +426,15 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                         {formData.sport_cards.activeCards.includes('weightlifting') && (
                             <div className="p-4 bg-red-50 rounded-xl border border-red-200 mb-4">
                                 <h4 className="font-semibold text-red-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 举重数据</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-red-600">抓举 1RM (kg)</label><InputNumber value={formData.sport_cards.weightlifting?.snatch} onValueChange={(e) => updateCardData('weightlifting', 'snatch', e.value ?? null)} min={0} max={300} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-red-600">挺举 1RM (kg)</label><InputNumber value={formData.sport_cards.weightlifting?.cleanAndJerk} onValueChange={(e) => updateCardData('weightlifting', 'cleanAndJerk', e.value ?? null)} min={0} max={400} className="w-full" /></div>
+                                <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-red-700 leading-tight">抓举 1RM</label>
+                                        <InputNumber value={formData.sport_cards.weightlifting?.snatch} onValueChange={(e) => updateCardData('weightlifting', 'snatch', e.value ?? null)} min={0} max={300} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-[92px]">
+                                        <label className="text-[11px] font-bold text-red-700 leading-tight">挺举 1RM</label>
+                                        <InputNumber value={formData.sport_cards.weightlifting?.cleanAndJerk} onValueChange={(e) => updateCardData('weightlifting', 'cleanAndJerk', e.value ?? null)} min={0} max={400} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
+                                    </div>
                                 </div>
                             </div>
                         )}

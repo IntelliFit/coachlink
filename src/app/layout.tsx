@@ -3,7 +3,7 @@ import "@/assets/globals.css";
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ClientLayout from '@/components/ClientLayout';
@@ -23,6 +23,13 @@ export async function generateMetadata(): Promise<Metadata> {
         },
     };
 }
+
+// 统一移动端视口，避免 DevTools “响应式/设备模式”表现不一致，也更接近真机
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
+};
 
 export default function RootLayout({
     children,

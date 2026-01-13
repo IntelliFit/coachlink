@@ -16,7 +16,7 @@ interface GuideManagerProps {
  */
 export function GuideManager({ userRole }: GuideManagerProps) {
   const pathname = usePathname();
-  const { startGuide, stopActiveGuide, hasCompletedGuide, completedGuides, isLoading, isGuideActive } = useGuideStore();
+  const { startGuide, stopActiveGuide, hasCompletedGuide, completedGuides, isLoading, isInitialized, isGuideActive } = useGuideStore();
   const { data: session } = useSession();
   const { isOnboardingModalOpen } = useOnboardingModal();
   const [hasTriggeredOnboarding, setHasTriggeredOnboarding] = useState(false);
@@ -41,12 +41,14 @@ export function GuideManager({ userRole }: GuideManagerProps) {
     console.log('[GuideManager] completedGuides:', completedGuides);
     console.log('[GuideManager] isLoading:', isLoading, 'isGuideActive:', isGuideActive);
     console.log('[GuideManager] pause:', shouldPauseGuides, 'profileIncomplete:', isStudentProfileIncomplete);
-  }, [userRole, pathname, completedGuides, isLoading, isGuideActive, shouldPauseGuides, isStudentProfileIncomplete]);
+    console.log('[GuideManager] isInitialized:', isInitialized);
+  }, [userRole, pathname, completedGuides, isLoading, isGuideActive, shouldPauseGuides, isStudentProfileIncomplete, isInitialized]);
 
   // Trigger onboarding guide based on role
   useEffect(() => {
     // IMPORTANT: Wait until completedGuides is loaded, otherwise guides may re-trigger on every refresh.
     if (isLoading) return;
+    if (!isInitialized) return;
     if (!userRole || hasTriggeredOnboarding) return;
     if (isGuideActive) return;
     if (shouldPauseGuides) return;
@@ -74,12 +76,13 @@ export function GuideManager({ userRole }: GuideManagerProps) {
     }, 2000); // Wait 2 seconds for page to fully load
 
     return () => clearTimeout(timer);
-  }, [userRole, hasCompletedGuide, startGuide, hasTriggeredOnboarding, isLoading, isGuideActive, shouldPauseGuides, isStudentProfileIncomplete]);
+  }, [userRole, hasCompletedGuide, startGuide, hasTriggeredOnboarding, isLoading, isInitialized, isGuideActive, shouldPauseGuides, isStudentProfileIncomplete]);
 
   // Trigger contextual guides based on specific pages
   useEffect(() => {
     if (!pathname) return;
     if (isLoading) return;
+    if (!isInitialized) return;
     if (isGuideActive) return;
     if (shouldPauseGuides) return;
 
@@ -134,7 +137,7 @@ export function GuideManager({ userRole }: GuideManagerProps) {
         setTimeout(() => startGuide('STUDENT_SUBSCRIPTION_STATUS_GUIDE'), 1200);
       }
     }
-  }, [pathname, startGuide, hasCompletedGuide, isLoading, isGuideActive, hasTriggeredContextual, shouldPauseGuides]);
+  }, [pathname, startGuide, hasCompletedGuide, isLoading, isInitialized, isGuideActive, hasTriggeredContextual, shouldPauseGuides]);
 
   // This is a logic-only component, no UI
   return null;

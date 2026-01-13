@@ -9,7 +9,6 @@ import { PersonalInfoSection } from './profile/PersonalInfoSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
 import { CoachNotesSection } from './profile/CoachNotesSection';
 import { SportCardsDisplay } from './profile/SportCardsDisplay';
-import { MyCoachesList } from './profile/MyCoachesList';
 import { PlanPreferencesDisplay } from './profile/PlanPreferencesDisplay';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
@@ -19,6 +18,8 @@ import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { useToastContext } from '@/context/ToastContext';
+import { TabView, TabPanel } from 'primereact/tabview';
+import { BarChart3, FileText, History, Video as VideoIcon } from 'lucide-react';
 
 interface StudentProfilePageProps {
     onBack?: () => void;
@@ -34,6 +35,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const { data: session } = useSession();
     const router = useRouter();
     const { showToast } = useToastContext();
+    const [activeTab, setActiveTab] = useState(0);
 
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
@@ -195,7 +197,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
     return (
         <>
-        <div className="p-6 max-w-6xl mx-auto space-y-6">
+        <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
             {onBack && (
                 <button className="mb-4 text-surface-500 hover:text-surface-900 flex items-center gap-1" onClick={onBack}>
                     <i className="pi pi-arrow-left"></i> 返回
@@ -204,38 +206,88 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
             <ProfileHeader data={data} />
 
-            {/* Two-column layout on large screens, single column on small screens */}
-            <div className="flex flex-col lg:flex-row gap-6">
-                {/* Left column - slightly wider */}
-                <div className="lg:w-7/12 space-y-6">
+            {/* 个人信息：置顶（你要求的） */}
+            <PersonalInfoSection data={data} onUpdate={fetchData} />
+
+            {/* 首屏：高频信息尽量上移（运动数据 + 教练评语） */}
+            <div className="space-y-3 sm:space-y-4">
                     <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
-                    
-                    {/* Strength Progress Curve */}
-                    <div className="bg-surface rounded-2xl shadow-sm overflow-hidden border border-surface-200 p-5">
-                         <E1RMProgressChart studentId={session?.user.id as string} coachId={subscription?.coach_id} />
+                <CoachNotesSection data={data} userId={session?.user.id} />
+
+                {/* 进步曲线相对低频：默认折叠，避免占用首屏空间 */}
+                <details className="bg-surface rounded-2xl shadow-sm border border-surface-200 overflow-hidden">
+                    <summary className="cursor-pointer select-none px-4 py-3 text-sm font-black text-surface-900">
+                        力量进步曲线
+                        <span className="ml-2 text-xs font-bold text-surface-500">（点开查看）</span>
+                    </summary>
+                    <div className="px-3 pb-3 sm:px-5 sm:pb-5">
+                        <E1RMProgressChart
+                            studentId={session?.user.id as string}
+                            coachId={subscription?.coach_id}
+                            height="180px"
+                        />
+                    </div>
+                </details>
                     </div>
 
+            {/* 方案B：Tab 分页，避免无限下滑 */}
+            <div className="bg-surface rounded-2xl shadow-sm border border-surface-200 overflow-hidden">
+                <TabView
+                    activeIndex={activeTab}
+                    onTabChange={(e) => setActiveTab(e.index)}
+                    scrollable
+                    className="transparent-tabs"
+                >
+                    <TabPanel
+                        header={
+                            <div className="flex items-center gap-2">
+                                <History className="w-4 h-4" />
+                                <span>进步足迹</span>
+                            </div>
+                        }
+                    >
+                        <div className="p-4 sm:p-6">
                     <ProgressTimeline data={data} />
-                    
-                    {/* 训练偏好/问卷展示 */}
-                    {subscription && subscription.subscribe_data && (
+                        </div>
+                    </TabPanel>
+
+                    <TabPanel
+                        header={
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                <span>需求问卷</span>
+                            </div>
+                        }
+                    >
+                        <div className="p-4 sm:p-6">
+                            {subscription && subscription.subscribe_data ? (
                         <PlanPreferencesDisplay 
                             subscribeData={subscription.subscribe_data} 
                             coachId={subscription.coach?.user_id || subscription.coach_id}
                             planStatus={planStatus}
                             onEditQuestionnaire={handleEditQuestionnaire}
                         />
-                    )}
-                    
+                            ) : (
+                                <div className="text-center py-10 text-surface-500">
+                                    暂无训练需求问卷数据
+                                </div>
+                            )}
+                        </div>
+                    </TabPanel>
+
+                    <TabPanel
+                        header={
+                            <div className="flex items-center gap-2">
+                                <VideoIcon className="w-4 h-4" />
+                                <span>训练视频</span>
+                            </div>
+                        }
+                    >
+                        <div className="p-4 sm:p-6">
                     <VideoCollectionSection />
-                    <CoachNotesSection data={data} userId={session?.user.id} />
                 </div>
-                
-                {/* Right column */}
-                <div className="lg:w-5/12 space-y-6">
-                    <PersonalInfoSection data={data} onUpdate={fetchData} />
-                    <MyCoachesList />
-                </div>
+                    </TabPanel>
+                </TabView>
             </div>
         </div>
 

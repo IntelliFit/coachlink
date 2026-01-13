@@ -15,6 +15,7 @@ interface TemplateMinimalistProps {
         totalSets: number;
         durationMinutes: number;
         shareToken: string;
+        acquisitionUrl?: string;
         user: {
             nickname: string;
             avatarUrl: string;
@@ -24,6 +25,7 @@ interface TemplateMinimalistProps {
 
 const TemplateMinimalist: React.FC<TemplateMinimalistProps> = ({ data }) => {
     const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/public/training/${data.shareToken}`;
+    const qrUrl = data.acquisitionUrl || shareUrl;
     const dateStr = format(new Date(data.completedAt), 'MMM dd, yyyy');
 
     return (
@@ -97,7 +99,7 @@ const TemplateMinimalist: React.FC<TemplateMinimalistProps> = ({ data }) => {
                         </p>
                     </div>
                     <div className="p-1 bg-white rounded opacity-80 hover:opacity-100 transition-opacity">
-                        <QRCodeSVG value={shareUrl} size={36} level="L" />
+                        <QRCodeSVG value={qrUrl} size={36} level="L" />
                     </div>
                 </div>
             </div>

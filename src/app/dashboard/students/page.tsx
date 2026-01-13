@@ -21,6 +21,7 @@ import { CoachesRow } from '@/types';
 import { useToastContext } from '@/context/ToastContext';
 import { planLibService } from '@/app/service/planLibService';
 import { chatService } from '@/app/service/chatService';
+import { subscriptionService } from '@/app/service/subscriptionService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import { Calendar, CheckCircle2, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
@@ -28,7 +29,8 @@ import { ProgressBar } from 'primereact/progressbar';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
-    const [waitingStudents, setWaitingStudents] = useState<GetPaymentWaitingStudentsResponseDto['subscriptions']>([]);
+    const [manualPaymentSubscriptions, setManualPaymentSubscriptions] = useState<GetPaymentWaitingStudentsResponseDto['manualSubscriptions']>([]);
+    const [systemPaymentSubscriptions, setSystemPaymentSubscriptions] = useState<GetPaymentWaitingStudentsResponseDto['systemSubscriptions']>([]);
     const [coach, setCoach] = useState<CoachesRow | null>(null);
     const [loading, setLoading] = useState(true);
     const [first, setFirst] = useState(0);
@@ -63,7 +65,8 @@ export default function StudentsPage() {
     const loadWaitingStudents = async () => {
         const res = await coachService.getPaymentWaitingStudents({});
         if (res) {
-            setWaitingStudents(res.subscriptions || []);
+            setManualPaymentSubscriptions(res.manualSubscriptions || []);
+            setSystemPaymentSubscriptions(res.systemSubscriptions || []);
         }
     }
 
@@ -122,9 +125,8 @@ export default function StudentsPage() {
         const res = await coachService.getCoach({ userId: session?.user?.id || '' });
         if (res) {
             setCoach(res.coach);
-            if (res.coach.allow_personal_qrcode) {
-                loadWaitingStudents();
-            }
+            // 无论是平台支付还是个人二维码支付，都加载待确认的学员
+            loadWaitingStudents();
         }
     };
 
@@ -608,17 +610,18 @@ export default function StudentsPage() {
                         </div>
                     </div>
                 </div>
-                {coach.allow_personal_qrcode && (
-                    <div className="flex gap-3">
-                        <Button
-                            label="待支付确认"
-                            onClick={() => setPaymentDialogVisible(true)}
-                            className="p-button-primary shadow-lg shadow-primary-200 dark:shadow-primary-700 transition-transform active:scale-95 rounded-2xl px-6"
-                            badge={waitingStudents.length > 0 ? waitingStudents.length.toString() : undefined}
-                            badgeClassName="p-badge-danger"
-                        />
-                    </div>
-                )}
+                {/* 无论是平台支付还是个人二维码支付，都显示待支付确认按钮 */}
+                <div className="flex gap-3">
+                    <Button
+                        label="待支付确认"
+                        onClick={() => setPaymentDialogVisible(true)}
+                        className="p-button-primary shadow-lg shadow-primary-200 dark:shadow-primary-700 transition-transform active:scale-95 rounded-2xl px-6"
+                        badge={(manualPaymentSubscriptions.length + systemPaymentSubscriptions.length) > 0
+                            ? (manualPaymentSubscriptions.length + systemPaymentSubscriptions.length).toString()
+                            : undefined}
+                        badgeClassName="p-badge-danger"
+                    />
+                </div>
             </div>
 
             {/* Main Content: 去线条化的 DataView */}
@@ -668,7 +671,27 @@ export default function StudentsPage() {
                 onHide={() => setChatDialogVisible(false)}
                 chatroom={selectedChatroom}
             />
-            <PaymentConfirmationDialog visible={paymentDialogVisible} subscriptions={waitingStudents} onHide={() => setPaymentDialogVisible(false)} onConfirm={() => { loadWaitingStudents(); loadStudents(0, rows); }} />
+            <PaymentConfirmationDialog
+                visible={paymentDialogVisible}
+                manualSubscriptions={manualPaymentSubscriptions}
+                systemSubscriptions={systemPaymentSubscriptions}
+                coach={coach}
+                onHide={() => {
+                    setPaymentDialogVisible(false);
+                    // 标记所有“只读通知”（包含 平台待支付 / 系统已确认）为已查看，清除右上角 badge
+                    if (systemPaymentSubscriptions.length > 0) {
+                        const nowIso = new Date().toISOString();
+                        Promise.all(
+                            systemPaymentSubscriptions.map(s =>
+                                subscriptionService.updateSubscription({ id: s.id, coach_seen_at: nowIso } as any),
+                            ),
+                        ).finally(() => {
+                            loadWaitingStudents();
+                        });
+                    }
+                }}
+                onConfirm={() => { loadWaitingStudents(); loadStudents(0, rows); }}
+            />
             <AiInstanceConfigDialog visible={aiConfigDialogVisible} studentName={selectedStudent?.profile?.nickname} totalWeeks={12} loading={aiGenerating} onHide={() => setAiConfigDialogVisible(false)} onConfirm={(config) => selectedStudent && makeAiInstance(selectedStudent, config)} />
         </div>
     );

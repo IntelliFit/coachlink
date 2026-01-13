@@ -101,6 +101,12 @@ export default function AdminPaymentsPage() {
 
     const handleConfirm = async () => {
         try {
+            showToast({
+                severity: 'warn',
+                summary: '已废弃',
+                detail: '管理员后台不再参与支付确认；平台支付自动确认，个人收款码由教练确认。'
+            });
+            return;
             // 批量更新订阅状态
             const updatePromises = selectedSubscriptions.map(subscription =>
                 subscriptionService.updateSubscription({
@@ -213,11 +219,11 @@ export default function AdminPaymentsPage() {
                         className="p-button-outlined"
                     />
                     <Button
-                        label={`确认支付 (${selectedSubscriptions.length})`}
+                        label="支付确认已废弃"
                         icon="pi pi-check"
                         onClick={handleConfirm}
-                        disabled={selectedSubscriptions.length === 0}
-                        className="p-button-success"
+                        disabled
+                        className="p-button-secondary"
                     />
                 </div>
             </div>

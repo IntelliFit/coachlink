@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Star, Users, Clock, Crown, Eye, Search, ArrowRight } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
-import { IconField } from 'primereact/iconfield';
-import { InputIcon } from 'primereact/inputicon';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
@@ -13,6 +11,14 @@ import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useGuideStore } from '@/stores/useGuideStore';
+
+interface VisibilityStatus {
+    focusMode: boolean;
+    focusCoachId: string | null;
+    focusCoachName: string | null;
+    referrerCoachId: string | null;
+    referrerCoachName: string | null;
+}
 
 const CoachDiscoveryPage: React.FC = () => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
@@ -24,21 +30,47 @@ const CoachDiscoveryPage: React.FC = () => {
     const [first, setFirst] = useState(0);
     const coachesPerPage = 10;
     const router = useRouter();
-    const { startGuide, hasCompletedGuide } = useGuideStore();
+    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading, isInitialized: isGuideInitialized } = useGuideStore();
+
+    // 视野状态
+    const [visibilityStatus, setVisibilityStatus] = useState<VisibilityStatus | null>(null);
+    const [visibilityLoading, setVisibilityLoading] = useState(true);
+
+    // 先获取视野状态
+    useEffect(() => {
+        const fetchVisibilityStatus = async () => {
+            try {
+                const res = await fetch('/api/student/visibility-status');
+                const json = await res.json();
+                if (json.success && json.data) {
+                    setVisibilityStatus(json.data);
+                }
+            } catch (error) {
+                console.error('获取视野状态失败:', error);
+            } finally {
+                setVisibilityLoading(false);
+            }
+        };
+        fetchVisibilityStatus();
+    }, []);
 
     useEffect(() => {
+        if (visibilityLoading) return;
         loadCoaches(1);
         loadSpecialties();
-    }, []);
+    }, [visibilityLoading, visibilityStatus]);
 
     // Auto start guide once after list is available (action-oriented, not just nav overview)
     useEffect(() => {
         if (isLoading) return;
         if (!coaches || coaches.length === 0) return;
+        if (isGuideLoading || !isGuideInitialized) return;
         if (hasCompletedGuide('student_find_coach')) return;
+        // 专注模式下不显示发现教练的引导
+        if (visibilityStatus?.focusMode) return;
         const t = setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 600);
         return () => clearTimeout(t);
-    }, [isLoading, coaches, hasCompletedGuide, startGuide]);
+    }, [isLoading, coaches, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized, visibilityStatus]);
 
     const loadSpecialties = async () => {
         try {
@@ -55,13 +87,25 @@ const CoachDiscoveryPage: React.FC = () => {
     const loadCoaches = async (page: number) => {
         setIsLoading(true);
         try {
-            const res = await coachService.getAllCoaches({
-                page: page, limit: coachesPerPage,
-                search: searchTerm || '', specialty: selectedSpecialty
-            });
-            if (res) {
-                setCoaches(res.coaches);
-                setTotalCount(res.count);
+            // 如果处于专注模式，只加载专注的教练
+            if (visibilityStatus?.focusMode && visibilityStatus?.focusCoachId) {
+                const res = await coachService.getCoach({ id: visibilityStatus.focusCoachId });
+                if (res && res.coach) {
+                    setCoaches([res.coach as CoachesRow]);
+                    setTotalCount(1);
+                } else {
+                    setCoaches([]);
+                    setTotalCount(0);
+                }
+            } else {
+                const res = await coachService.getAllCoaches({
+                    page: page, limit: coachesPerPage,
+                    search: searchTerm || '', specialty: selectedSpecialty
+                });
+                if (res) {
+                    setCoaches(res.coaches);
+                    setTotalCount(res.count);
+                }
             }
         } finally { setIsLoading(false); }
     };
@@ -146,6 +190,51 @@ const CoachDiscoveryPage: React.FC = () => {
         </div>
     );
 
+    // 专注模式下显示不同的界面
+    if (visibilityStatus?.focusMode) {
+        return (
+            <div className="min-h-screen bg-surface-50/50 py-8 px-4">
+                <div className="max-w-5xl mx-auto">
+                    {/* 专属教练头部 */}
+                    <header className="mb-8">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-primary-50 rounded-lg">
+                                <UserCheck className="text-primary-500" size={24} />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-surface-900 tracking-tight">我的专属教练</h1>
+                                <p className="text-surface-500 text-sm mt-1 font-medium">
+                                    您通过 {visibilityStatus.focusCoachName || '教练'} 的邀请加入平台
+                                </p>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* 教练卡片 */}
+                    {isLoading || visibilityLoading ? (
+                        <div className="bg-surface-0 rounded-lg p-6 border border-surface-100">
+                            <div className="flex gap-4">
+                                <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
+                                <div className="flex-1 space-y-3">
+                                    <Skeleton width="30%" height="1.2rem" />
+                                    <Skeleton width="100%" height="2rem" />
+                                </div>
+                            </div>
+                        </div>
+                    ) : coaches.length > 0 ? (
+                        coaches.map((c, idx) => renderCoachCard(c as any, idx))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 bg-surface-0 rounded-lg border border-surface-100">
+                            <Eye size={40} className="text-surface-200 mb-3" />
+                            <p className="text-surface-500 font-bold">教练信息加载失败</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // 正常模式 - 发现教练
     return (
         <div className="min-h-screen bg-surface-50/50 py-8 px-4">
             <div className="max-w-5xl mx-auto">
@@ -208,7 +297,7 @@ const CoachDiscoveryPage: React.FC = () => {
                 </div>
 
                 {/* 列表内容 */}
-                {isLoading ? (
+                {isLoading || visibilityLoading ? (
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="bg-surface-0 rounded-lg p-6 border border-surface-100">
@@ -225,7 +314,7 @@ const CoachDiscoveryPage: React.FC = () => {
                 ) : coaches.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-surface-0 rounded-lg border border-surface-100">
                         <Eye size={40} className="text-surface-200 mb-3" />
-                        <p className="text-surface-500 font-bold">没有对话内容</p>
+                        <p className="text-surface-500 font-bold">没有找到教练</p>
                     </div>
                 ) : (
                     <>

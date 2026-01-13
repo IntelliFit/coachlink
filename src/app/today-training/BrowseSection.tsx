@@ -82,16 +82,16 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     return (
         <div className="mt-8">
             <Card>
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">浏览训练日</h3>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
+                    <h3 className="text-lg font-bold text-surface-900">浏览训练日</h3>
+                    <div className="flex items-center justify-between sm:justify-end gap-2">
                         <Button
                             icon={<ChevronLeft className="w-4 h-4" />}
                             onClick={handlePrevWeek}
                             disabled={currentWeek === 1}
                             className="p-button-text p-button-sm"
                         />
-                        <span className={`text-sm flex items-center gap-1.5 ${isCurrentWeekUnlocked ? 'text-gray-600' : 'text-amber-500'}`}>
+                        <span className={`text-sm flex items-center gap-1.5 ${isCurrentWeekUnlocked ? 'text-surface-600' : 'text-amber-500'}`}>
                             第 {currentWeek} 周
                             {!isCurrentWeekUnlocked && <i className="pi pi-pencil text-xs text-amber-400" />}
                         </span>
@@ -105,7 +105,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 </div>
                 
                 {/* Week Calendar */}
-                <div className="bg-white rounded-xl p-4 mb-6 relative">
+                <div className="bg-surface rounded-2xl p-3 sm:p-4 mb-6 relative">
                     {/* 📝 制定中周遮罩 */}
                     {!isCurrentWeekUnlocked && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-surface-900/10 backdrop-blur-sm rounded-xl">
@@ -146,7 +146,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     onClick={() => setSelectedDayIndex(dayIndex)}
                                     disabled={!isCurrentWeekUnlocked}
                                     className={`
-                                        relative flex flex-col items-center justify-center p-3 rounded-lg transition-all
+                                        relative flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl transition-all
                                         ${isSelected 
                                             ? 'bg-primary-500 text-white shadow-md scale-105' 
                                             : isBeforeStart
@@ -174,13 +174,13 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                         </div>
                                     )}
                                     
-                                    <div className={`text-xs mb-1 ${isSelected ? 'text-white opacity-90' : 'text-gray-500'}`}>
+                                    <div className={`text-[10px] sm:text-xs mb-1 ${isSelected ? 'text-white opacity-90' : 'text-surface-500'}`}>
                                         第{dayIndex}天
                                     </div>
-                                    <div className={`text-lg font-bold ${isSelected ? 'text-white' : isCompleted ? 'text-green-700' : 'text-gray-900'}`}>
+                                    <div className={`text-base sm:text-lg font-bold ${isSelected ? 'text-white' : isCompleted ? 'text-green-700' : 'text-surface-900'}`}>
                                         {dayIndex}
                                     </div>
-                                    <div className={`text-xs mt-1 truncate max-w-full ${isSelected ? 'text-white opacity-90' : isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
+                                    <div className={`text-[10px] sm:text-xs mt-1 truncate max-w-full ${isSelected ? 'text-white opacity-90' : isCompleted ? 'text-green-600' : 'text-surface-600'}`}>
                                         {isBeforeStart ? '已完成' : isCompleted ? '✓ 已完成' : isTrainingDay ? '训练' : '休息'}
                                         {isRecommended && !isSelected && !todayCompleted && ' 📍'}
                                     </div>

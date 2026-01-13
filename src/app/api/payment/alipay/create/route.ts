@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
     CreateAlipayOrderDto,
@@ -21,6 +21,14 @@ export async function POST(req: Request) {
     }
 
     const userId = session.user.id;
+
+    // Build a public baseUrl for Alipay callbacks (ngrok/prod) from request headers.
+    // This avoids relying on Alipay后台配置 when testing with ngrok.
+    const xfProto = req.headers.get("x-forwarded-proto");
+    const xfHost = req.headers.get("x-forwarded-host");
+    const host = req.headers.get("host");
+    const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
+    const baseUrl = `${proto}://${xfHost || host}`;
 
     // 读取参数
     const {
@@ -85,11 +93,63 @@ export async function POST(req: Request) {
         });
     }
 
+    // Bind platform payment order to subscription (so notify can auto-confirm/renew)
+    try {
+        const od: any = orderData || {};
+        const subscriptionId = od.subscriptionId as string | undefined;
+        const coachId = od.coachId as string | undefined;
+
+        if (
+            subscriptionId &&
+            (orderType === "subscription" || orderType === "subscription_renew")
+        ) {
+            const { data: sub, error: subErr } = await serviceRoleSupabase
+                .from("coach_subscriptions")
+                .select("id, student_id, coach_id")
+                .eq("id", subscriptionId)
+                .single();
+
+            if (subErr || !sub) {
+                return NextResponse.json(
+                    { success: false, message: "订阅不存在，无法创建平台支付订单", data: null },
+                    { status: 400 },
+                );
+            }
+
+            if (sub.student_id !== userId) {
+                return NextResponse.json(
+                    { success: false, message: "无权为该订阅创建支付订单", data: null },
+                    { status: 403 },
+                );
+            }
+
+            if (coachId && sub.coach_id !== coachId) {
+                return NextResponse.json(
+                    { success: false, message: "订阅与教练不匹配，无法创建支付订单", data: null },
+                    { status: 400 },
+                );
+            }
+
+            await serviceRoleSupabase
+                .from("coach_subscriptions")
+                .update({
+                    order_id: order.id,
+                    payment_method: "platform_alipay",
+                })
+                .eq("id", subscriptionId);
+        }
+    } catch (e) {
+        // Do not block payment creation, but log for investigation
+        console.error("[Alipay Create] Bind subscription failed:", e);
+    }
+
     // 根据设备类型选择支付方式
     let result: string;
     if (isMobile) {
         // 移动端使用 wap.pay，可以唤起支付宝APP
         result = alipaySdk.pageExec("alipay.trade.wap.pay", {
+            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
+            returnUrl: `${baseUrl}/api/payment/alipay/return`,
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: totalAmount.toString(),
@@ -100,6 +160,8 @@ export async function POST(req: Request) {
     } else {
         // PC端使用 page.pay，显示二维码
         result = alipaySdk.pageExec("alipay.trade.page.pay", {
+            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
+            returnUrl: `${baseUrl}/api/payment/alipay/return`,
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: totalAmount.toString(),
