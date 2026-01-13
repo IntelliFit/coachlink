@@ -120,6 +120,24 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 setQuestionnaireQuestions(qRes.questionnaires);
                 setQuestionnaireVisible(true);
             } else {
+                // 无问卷时，也必须先创建订阅记录（否则平台支付无法绑定 subscriptionId，且后续无法自动确认）
+                if (!isRenew) {
+                    const res = await subscriptionService.createSubscription({
+                        coachId: coach.id,
+                        tier: selectedProduct?.tier === 'basic' ? 1 : selectedProduct?.tier === 'standard' ? 2 : 3,
+                        monthlyPrice: selectedDuration?.price || 0,
+                        status: 'inactive',
+                        subscribeData: {},
+                        productId: selectedProduct?.id,
+                        productName: selectedProduct?.name,
+                        productTier: selectedProduct?.tier,
+                        subscribedWeeks: (selectedDuration?.months || 1) * 4
+                    });
+                    if (res) {
+                        setCoachSubscription(res.subscription);
+                    }
+                }
+
                 setPaymentDialogVisible(true);
             }
         } catch (error) {
@@ -132,48 +150,44 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const handlePaymentSuccess = async (note?: string, offlinePaymentData?: OfflinePaymentData) => {
         if (!selectedProduct || !selectedDuration) return;
         
-        if (isRenew) {
-            const activeSub = mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active');
-            if (activeSub) {
-                await subscriptionService.renewSubscription({
-                    subscriptionId: activeSub.id,
-                    renewType: 'extend',
-                    additionalWeeks: selectedDuration.months * 4,
-                    amount: selectedDuration.price
-                });
-                showToast({ severity: 'success', summary: '续费成功' });
-                setTimeout(() => router.push('/dashboard/student/profile'), 1500);
-                return;
-            }
-        }
+        const additionalWeeks = selectedDuration.months * 4;
+        const activeSub = isRenew
+            ? mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active')
+            : null;
+        const targetSubscriptionId = isRenew ? activeSub?.id : coachSubscription?.id;
 
-        // 获取当前 subscribe_data 并添加线下支付信息
-        let updatedSubscribeData: any[] = [];
-        const currentData = coachSubscription?.subscribe_data;
+        if (!targetSubscriptionId) return;
 
-        if (Array.isArray(currentData)) {
-            // 是数组，筛选掉旧的线下支付信息（如果有），然后添加新的
-            updatedSubscribeData = currentData.filter((item: any) => item.type !== 'offline_payment');
-        } else if (currentData) {
-            // 是对象或其他非空值，可能是旧数据，尝试保留但不破坏
-            // 如果原本就是错误的非数组格式，这里直接初始化为数组可能反而安全
-            // 暂时忽略旧的错误格式，重置为数组
-            console.warn('subscribe_data is not an array, resetting to array', currentData);
-        }
+        // NOTE: 平台支付（alipay_api）不再走 onSuccess；只会在支付成功回调中自动确认并生效。
+        // 这里的 onSuccess 仅用于“个人收款码/线下已支付”这类无法自动验款的流程。
 
-        if (offlinePaymentData) {
-            updatedSubscribeData.push({
-                type: 'offline_payment',
-                ...offlinePaymentData
-            });
-        }
+        // 支付相关信息统一写入 payment_data（不要污染 subscribe_data，避免覆盖问卷/档案数据）
+        const nowIso = new Date().toISOString();
+        const currentPaymentData = (isRenew ? (activeSub as any)?.payment_data : coachSubscription?.payment_data) as any;
+        const basePaymentData =
+            currentPaymentData && typeof currentPaymentData === 'object' && !Array.isArray(currentPaymentData)
+                ? currentPaymentData
+                : {};
+
+        const nextPaymentData: any = {
+            ...basePaymentData,
+            offline_payment: offlinePaymentData || null,
+            pending_renew: isRenew
+                ? {
+                      additional_weeks: additionalWeeks,
+                      amount: selectedDuration.price,
+                      requested_at: nowIso,
+                  }
+                : null,
+        };
 
         const res = await subscriptionService.updateSubscription({
-            id: coachSubscription?.id,
+            id: targetSubscriptionId,
             status: 'waiting',
             has_remind_coach: true,
             remind_coach_note: note || '',
-            subscribe_data: updatedSubscribeData as any
+            payment_method: offlinePaymentData ? 'offline' : 'personal_qrcode',
+            payment_data: nextPaymentData as any,
         });
 
         if (res) {
@@ -327,6 +341,12 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 onHide={() => setPaymentDialogVisible(false)}
                 amount={selectedDuration?.price || 0}
                 coachId={coach.id}
+                subscriptionId={isRenew
+                    ? (mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active')?.id || undefined)
+                    : (coachSubscription?.id || undefined)
+                }
+                subscriptionFlow={isRenew ? 'renew' : 'subscribe'}
+                renewAdditionalWeeks={isRenew ? (selectedDuration?.months || 1) * 4 : undefined}
                 onSuccess={handlePaymentSuccess}
                 onCancel={() => setPaymentDialogVisible(false)}
             />

@@ -53,6 +53,16 @@ interface PaymentDialogProps {
     visible: boolean;
     onHide: () => void;
     coachId: string;
+    /** Target subscription id to bind platform payment orders to (new subscribe or renew). */
+    subscriptionId?: string;
+    /**
+     * When using platform Alipay, tells backend which subscription flow this payment is for.
+     * - subscribe: create/activate subscription after payment success
+     * - renew: extend existing subscription after payment success
+     */
+    subscriptionFlow?: 'subscribe' | 'renew';
+    /** Used for renew flow (weeks to extend). */
+    renewAdditionalWeeks?: number;
     amount?: number;
     onSuccess?: (note?: string, offlinePaymentData?: OfflinePaymentData) => void;
     onCancel?: () => void;
@@ -64,6 +74,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     visible,
     onHide,
     coachId,
+    subscriptionId,
+    subscriptionFlow = 'subscribe',
+    renewAdditionalWeeks,
     amount,
     onSuccess,
     onCancel
@@ -267,6 +280,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             showToast({ severity: 'error', summary: '错误', detail: '缺少支付金额' });
             return;
         }
+        if (!subscriptionId) {
+            showToast({ severity: 'error', summary: '错误', detail: '缺少订阅ID，无法绑定平台支付订单' });
+            return;
+        }
 
         setProcessingAlipay(true);
         const mobile = isMobile();
@@ -278,10 +295,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 body: JSON.stringify({
                     subject: `订阅教练 ${coach?.name || ''}`,
                     totalAmount: amount,
-                    orderType: 'subscription',
+                    orderType: subscriptionFlow === 'renew' ? 'subscription_renew' : 'subscription',
                     orderData: {
                         coachId,
-                        note: paymentNote
+                        subscriptionId,
+                        note: paymentNote,
+                        renewAdditionalWeeks: subscriptionFlow === 'renew' ? (renewAdditionalWeeks || 0) : undefined
                     },
                     isMobile: mobile
                 })
@@ -290,6 +309,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             const data = await res.json();
 
             if (data.success && data.data?.paymentInfo?.formHtml) {
+                const createdOrderId: string | undefined = data.data?.order?.id;
                 if (mobile) {
                     document.open();
                     document.write(data.data.paymentInfo.formHtml);
@@ -300,9 +320,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         newWindow.document.write(data.data.paymentInfo.formHtml);
                         newWindow.document.close();
                     }
-                    showToast({ severity: 'info', summary: '正在跳转', detail: '请在新窗口完成支付' });
-                    onSuccess?.(paymentNote);
+                    showToast({ severity: 'info', summary: '正在跳转', detail: '请在新窗口完成支付；本页将展示支付结果' });
                     onHide();
+                    // Redirect current tab to payment status page for reliable polling/auto-confirm
+                    if (createdOrderId) {
+                        window.location.assign(`/payment/${createdOrderId}`);
+                    }
                 }
             } else {
                 showToast({ severity: 'error', summary: '错误', detail: data.message || '创建支付订单失败' });

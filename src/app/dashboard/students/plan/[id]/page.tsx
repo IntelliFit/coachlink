@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
@@ -438,6 +438,100 @@ const StudentPlanPage = () => {
         setDays(newDays);
     }
 
+    // ==================== 自动保存机制 ====================
+    const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const isInitialLoadRef = useRef(true);
+    
+    // 标记有未保存的更改
+    useEffect(() => {
+        // 跳过初始加载
+        if (isInitialLoadRef.current) {
+            return;
+        }
+        // 只有在实例已存在时才追踪更改
+        if (instanceExists && instanceId && days.length > 0) {
+            setHasUnsavedChanges(true);
+            setAutoSaveStatus('pending');
+        }
+    }, [days, instanceExists, instanceId]);
+    
+    // 初始加载完成后设置标记
+    useEffect(() => {
+        if (!loading && instanceExists) {
+            // 给一点延迟，确保所有状态都已设置好
+            const timer = setTimeout(() => {
+                isInitialLoadRef.current = false;
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [loading, instanceExists]);
+
+    // 执行静默自动保存（不跳转页面，不显示 toast）
+    const performAutoSave = useCallback(async () => {
+        if (!coach?.id || !params.id || !instanceExists || !instanceId || !name.trim()) {
+            return;
+        }
+
+        setAutoSaveStatus('saving');
+        
+        const daysData = days.map(day => ({
+            dayIndex: day.dayIndex,
+            type: day.type,
+            note: day.note || null,
+            actionSets: day.actionSets || []
+        }));
+
+        try {
+            const res = await planLibService.updateInstance({
+                id: instanceId,
+                name,
+                description: description || null,
+                tags: tags || null,
+                type: type || null,
+                suitableFor: suitableFor || null,
+                trainingDays: daysData,
+            });
+
+            if (res) {
+                setAutoSaveStatus('saved');
+                setHasUnsavedChanges(false);
+                // 3秒后恢复空闲状态
+                setTimeout(() => setAutoSaveStatus('idle'), 3000);
+            } else {
+                setAutoSaveStatus('error');
+            }
+        } catch (error) {
+            console.error('自动保存失败:', error);
+            setAutoSaveStatus('error');
+        }
+    }, [coach?.id, params.id, instanceExists, instanceId, name, description, tags, type, suitableFor, days]);
+
+    // 防抖自动保存 - 2秒后自动保存
+    useEffect(() => {
+        if (!hasUnsavedChanges || !instanceExists || !instanceId) {
+            return;
+        }
+
+        // 清除之前的定时器
+        if (autoSaveTimeoutRef.current) {
+            clearTimeout(autoSaveTimeoutRef.current);
+        }
+
+        // 设置新的定时器
+        autoSaveTimeoutRef.current = setTimeout(() => {
+            performAutoSave();
+        }, 2000);
+
+        return () => {
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+            }
+        };
+    }, [hasUnsavedChanges, instanceExists, instanceId, performAutoSave]);
+    // ==================== 自动保存机制结束 ====================
+
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
 
@@ -722,6 +816,41 @@ const StudentPlanPage = () => {
                     />
                 </div>
 
+
+                {/* 自动保存状态指示器 */}
+                {instanceExists && autoSaveStatus !== 'idle' && (
+                    <div className={`flex items-center justify-end gap-2 mb-2 text-xs font-medium transition-all ${
+                        autoSaveStatus === 'pending' ? 'text-surface-400' :
+                        autoSaveStatus === 'saving' ? 'text-blue-500' :
+                        autoSaveStatus === 'saved' ? 'text-green-500' :
+                        autoSaveStatus === 'error' ? 'text-red-500' : ''
+                    }`}>
+                        {autoSaveStatus === 'pending' && (
+                            <>
+                                <i className="pi pi-clock text-xs" />
+                                <span>有未保存的更改...</span>
+                            </>
+                        )}
+                        {autoSaveStatus === 'saving' && (
+                            <>
+                                <i className="pi pi-spin pi-spinner text-xs" />
+                                <span>正在自动保存...</span>
+                            </>
+                        )}
+                        {autoSaveStatus === 'saved' && (
+                            <>
+                                <i className="pi pi-check-circle text-xs" />
+                                <span>已自动保存</span>
+                            </>
+                        )}
+                        {autoSaveStatus === 'error' && (
+                            <>
+                                <i className="pi pi-exclamation-circle text-xs" />
+                                <span>自动保存失败</span>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 <BasicInfoForm
                     variant="student"
