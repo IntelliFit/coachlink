@@ -106,6 +106,7 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             const ref = searchParams.get('ref') || undefined;
+            const invitationCode = searchParams.get('invite') || undefined;
             const shareId =
                 searchParams.get('share') ||
                 (() => {
@@ -121,6 +122,7 @@ export default function RegisterPage() {
                 verifyCode: verificationCode.trim(),
                 ref,
                 shareId,
+                invitationCode,
             });
             if (res) {
                 showToast({ severity: 'success', summary: '注册成功' });

@@ -211,7 +211,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
             {/* 首屏：高频信息尽量上移（运动数据 + 教练评语） */}
             <div className="space-y-3 sm:space-y-4">
-                <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
+                    <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
                 <CoachNotesSection data={data} userId={session?.user.id} />
 
                 {/* 进步曲线相对低频：默认折叠，避免占用首屏空间 */}
@@ -228,7 +228,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         />
                     </div>
                 </details>
-            </div>
+                    </div>
 
             {/* 方案B：Tab 分页，避免无限下滑 */}
             <div className="bg-surface rounded-2xl shadow-sm border border-surface-200 overflow-hidden">
@@ -247,7 +247,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         }
                     >
                         <div className="p-4 sm:p-6">
-                            <ProgressTimeline data={data} />
+                    <ProgressTimeline data={data} />
                         </div>
                     </TabPanel>
 
@@ -261,12 +261,12 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     >
                         <div className="p-4 sm:p-6">
                             {subscription && subscription.subscribe_data ? (
-                                <PlanPreferencesDisplay 
-                                    subscribeData={subscription.subscribe_data} 
-                                    coachId={subscription.coach?.user_id || subscription.coach_id}
-                                    planStatus={planStatus}
-                                    onEditQuestionnaire={handleEditQuestionnaire}
-                                />
+                        <PlanPreferencesDisplay 
+                            subscribeData={subscription.subscribe_data} 
+                            coachId={subscription.coach?.user_id || subscription.coach_id}
+                            planStatus={planStatus}
+                            onEditQuestionnaire={handleEditQuestionnaire}
+                        />
                             ) : (
                                 <div className="text-center py-10 text-surface-500">
                                     暂无训练需求问卷数据
@@ -284,8 +284,8 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         }
                     >
                         <div className="p-4 sm:p-6">
-                            <VideoCollectionSection />
-                        </div>
+                    <VideoCollectionSection />
+                </div>
                     </TabPanel>
                 </TabView>
             </div>

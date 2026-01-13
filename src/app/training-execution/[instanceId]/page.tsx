@@ -766,7 +766,7 @@ function TrainingExecutionContent() {
                                                         <div className="px-4 pb-4">
                                                             {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
                                                             {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
-                                                            <div className="mt-3 grid grid-cols-[96px_72px_72px_56px] items-end gap-2 justify-between">
+                                                            <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px_72px_52px] items-end gap-2">
                                                                 <div className="min-w-0">
                                                                     <label className="text-xs text-surface-600 font-bold">重量(kg)</label>
                                                                     <InputNumber 
@@ -801,7 +801,7 @@ function TrainingExecutionContent() {
                                                                 {/* 大方框：勾选即完成（替代大按钮） */}
                                                                 <button
                                                                     type="button"
-                                                                    className="flex flex-col items-center gap-2 select-none"
+                                                                    className="flex flex-col items-center gap-1 select-none w-[52px]"
                                                                     onClick={async () => {
                                                                         if (completing || uploading) return;
 
@@ -834,13 +834,13 @@ function TrainingExecutionContent() {
                                                                     <span className="text-[11px] font-bold text-surface-500">完成</span>
                                                                     <div
                                                                         className={`
-                                                                            w-14 h-14 rounded-2xl border-2 flex items-center justify-center
+                                                                            w-12 h-12 rounded-xl border-2 flex items-center justify-center
                                                                             transition-all active:scale-[0.98]
                                                                             ${completing || uploading ? 'bg-surface-50 border-surface-200 text-surface-300' : 'bg-surface border-surface-300 text-surface-400 hover:border-emerald-400 hover:text-emerald-600'}
                                                                         `}
                                                                         title="勾选完成本组"
                                                                     >
-                                                                        <Check className={`w-7 h-7 ${completing || uploading ? 'opacity-40' : ''}`} />
+                                                                        <Check className={`w-6 h-6 ${completing || uploading ? 'opacity-40' : ''}`} />
                                                                     </div>
                                                                 </button>
                                                             </div>

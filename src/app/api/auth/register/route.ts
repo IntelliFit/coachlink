@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         verifyCode,
         ref,
         shareId,
+        invitationCode,
     } = await req.json() as RegisterDto;
 
     const trimmedPhone = phone?.trim();
@@ -36,14 +37,18 @@ export async function POST(req: NextRequest) {
     const trimmedVerifyCode = verifyCode?.trim();
 
     if (!trimmedPhone || !trimmedPassword) {
-        return NextResponse.json({ message: "手机号和密码不能为空" }, {
-            status: 200,
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "手机号和密码不能为空",
+            data: null,
         });
     }
 
     if (!trimmedVerifyCode) {
-        return NextResponse.json({ message: "验证码不能为空" }, {
-            status: 200,
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "验证码不能为空",
+            data: null,
         });
     }
 
@@ -61,14 +66,18 @@ export async function POST(req: NextRequest) {
             `sms_verification_code:${trimmedPhone}`,
         );
         if (!storedCode) {
-            return NextResponse.json({ message: "验证码已过期或不存在" }, {
-                status: 200,
+            return NextResponse.json<ApiData<null>>({
+                success: false,
+                message: "验证码已过期或不存在",
+                data: null,
             });
         }
 
         if (storedCode !== trimmedVerifyCode) {
-            return NextResponse.json({ message: "验证码错误" }, {
-                status: 200,
+            return NextResponse.json<ApiData<null>>({
+                success: false,
+                message: "验证码错误",
+                data: null,
             });
         }
 
@@ -83,10 +92,37 @@ export async function POST(req: NextRequest) {
         .single();
 
     if (existingUser) {
-        return NextResponse.json({ message: "手机号已注册" }, { status: 200 });
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "手机号已注册",
+            data: null,
+        });
     }
 
     const password_hash = hashPassword(trimmedPassword);
+
+    // 处理教练邀请码：查找对应的教练
+    let referrerCoachId: string | null = null;
+    const trimmedInvitationCode = invitationCode?.trim().toUpperCase();
+    if (trimmedInvitationCode) {
+        const { data: coach } = await supabase
+            .from("coaches")
+            .select("id")
+            .eq("invitation_code", trimmedInvitationCode)
+            // coaches.status 的真实值域是 pending/approved/rejected/suspended（无 active）
+            .eq("status", "approved")
+            .single();
+
+        if (!coach?.id) {
+            return NextResponse.json<ApiData<null>>({
+                success: false,
+                message: "邀请码无效或教练未通过审核",
+                data: null,
+            });
+        }
+
+        referrerCoachId = coach.id;
+    }
 
     const { data: user } = await supabase
         .from("users")
@@ -95,7 +131,8 @@ export async function POST(req: NextRequest) {
             password_hash,
             created_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
-        })
+            ...(referrerCoachId && { referrer_coach_id: referrerCoachId }),
+        } as any)
         .select("*")
         .single();
 
@@ -120,6 +157,7 @@ export async function POST(req: NextRequest) {
         }
 
         const now = new Date();
+        // Reward values (current policy): both sides get +2 AI imports and +100MB storage.
         const rewardAi = 2;
         const rewardStorageMb = 100;
 
@@ -182,7 +220,9 @@ export async function POST(req: NextRequest) {
         let sourceId: string | null = null;
 
         // share_card
-        const cookieAttr = safeDecodeAttribution(req.cookies.get("share_attribution")?.value);
+        const cookieAttr = safeDecodeAttribution(
+            req.cookies.get("share_attribution")?.value,
+        );
         const shareIdFromCookie = cookieAttr?.shareId as string | undefined;
         const effectiveShareId = (shareId || shareIdFromCookie || "").trim();
 
@@ -194,8 +234,13 @@ export async function POST(req: NextRequest) {
                 .eq("id", effectiveShareId)
                 .maybeSingle();
 
-            const expiresAt = shareRow?.expires_at ? new Date(shareRow.expires_at) : null;
-            if (shareRow?.id && (!expiresAt || expiresAt.getTime() >= now.getTime())) {
+            const expiresAt = shareRow?.expires_at
+                ? new Date(shareRow.expires_at)
+                : null;
+            if (
+                shareRow?.id &&
+                (!expiresAt || expiresAt.getTime() >= now.getTime())
+            ) {
                 sourceType = "share_card";
                 inviterId = shareRow.creator_user_id;
                 sourceId = shareRow.id;
@@ -246,7 +291,10 @@ export async function POST(req: NextRequest) {
         }
 
         // Grant quotas to both sides
-        await Promise.all([ensureAndGrantQuota(inviterId), ensureAndGrantQuota(inviteeId)]);
+        await Promise.all([
+            ensureAndGrantQuota(inviterId),
+            ensureAndGrantQuota(inviteeId),
+        ]);
 
         // Record reward
         await serviceRoleSupabase
@@ -276,7 +324,12 @@ export async function POST(req: NextRequest) {
                     meta: { invitee_id: inviteeId },
                 })
                 .then(({ error }: any) => {
-                    if (error) console.warn("Failed to insert register_success event:", error);
+                    if (error) {
+                        console.warn(
+                            "Failed to insert register_success event:",
+                            error,
+                        );
+                    }
                 });
         }
     } catch (e) {

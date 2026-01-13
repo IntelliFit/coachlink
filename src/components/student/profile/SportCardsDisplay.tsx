@@ -24,8 +24,8 @@ const MetricPill = ({ label, value, unit, highlight }: { label: string; value: s
 );
 
 const RowLine = ({ title, icon: Icon, iconClass, children }: {
-    title: string;
-    icon: React.ElementType;
+    title: string; 
+    icon: React.ElementType; 
     iconClass: string;
     children: React.ReactNode;
 }) => (

@@ -25,16 +25,70 @@ interface OverviewData {
 }
 
 // 统一的卡片组件
-const StatCard = ({ title, description, value, icon: Icon, colorClass, loading, href, isStatus = false, isComplete = false }: any) => {
+const StatCard = ({
+    title,
+    description,
+    value,
+    icon: Icon,
+    colorClass,
+    loading,
+    href,
+    isStatus = false,
+    isComplete = false,
+    variant = 'tile', // 'tile' | 'row'
+}: any) => {
     const CardWrapper = ({ children }: { children: React.ReactNode }) => 
         href ? <Link href={href} className="block group">{children}</Link> : <div className="group">{children}</div>;
 
+    if (variant === 'row') {
+        return (
+            <CardWrapper>
+                <div className="bg-white border border-surface-200 rounded-2xl px-3 py-2.5 transition-all duration-300 hover:border-primary-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.99]">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl ${colorClass} transition-colors shrink-0`}>
+                            <Icon className="w-4 h-4" />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                            <div className="text-sm font-black text-surface-900 leading-tight truncate">{title}</div>
+                            {description && (
+                                <div className="text-[11px] text-surface-400 leading-tight line-clamp-1">
+                                    {description}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            {loading ? (
+                                <Skeleton width="3.5rem" height="1.25rem" />
+                            ) : (
+                                <span className="text-sm font-black text-surface-900 tracking-tight">
+                                    {value}
+                                </span>
+                            )}
+                            {isStatus && isComplete && !loading && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">
+                                    已就绪
+                                </span>
+                            )}
+                            {loading ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-surface-200" />
+                            ) : (
+                                href && <ChevronRight className="w-4 h-4 text-surface-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all" />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </CardWrapper>
+        );
+    }
+
     return (
         <CardWrapper>
-            <div className="relative h-full bg-white border border-surface-200 p-5 rounded-2xl transition-all duration-300 hover:border-primary-500 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98]">
-                <div className="flex justify-between items-start mb-4">
-                    <div className={`p-2.5 rounded-xl ${colorClass} transition-colors`}>
-                        <Icon className="w-5 h-5" />
+            <div className="relative h-full bg-white border border-surface-200 p-3 sm:p-5 rounded-2xl transition-all duration-300 hover:border-primary-500 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.99]">
+                <div className="flex justify-between items-start mb-2 sm:mb-4">
+                    <div className={`p-2 rounded-xl ${colorClass} transition-colors`}>
+                        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     {loading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-surface-300" />
@@ -44,12 +98,12 @@ const StatCard = ({ title, description, value, icon: Icon, colorClass, loading, 
                 </div>
 
                 <div>
-                    <h3 className="text-sm font-medium text-surface-500 mb-1">{title}</h3>
+                    <h3 className="text-[11px] sm:text-sm font-bold text-surface-500 mb-1">{title}</h3>
                     <div className="flex items-baseline gap-2">
                         {loading ? (
-                            <Skeleton width="4rem" height="2rem" className="mb-1" />
+                            <Skeleton width="3.5rem" height="1.5rem" className="mb-1" />
                         ) : (
-                            <span className="text-2xl font-bold text-surface-900 tracking-tight">
+                            <span className="text-xl sm:text-2xl font-black text-surface-900 tracking-tight">
                                 {value}
                             </span>
                         )}
@@ -171,32 +225,33 @@ const Overview = () => {
     ];
 
     return (
-        <div className="space-y-10 max-w-[1600px] mx-auto">
+        <div className="space-y-6 sm:space-y-10 max-w-[1600px] mx-auto">
             {/* 1. 核心指标区域 */}
-            <section className="space-y-4">
+            <section className="space-y-3">
                 <div className="px-1">
-                    <h2 className="text-lg font-bold text-surface-900 tracking-tight">业务概览</h2>
-                    <p className="text-xs text-surface-500">关键运营指标实时汇总</p>
+                    <h2 className="text-base sm:text-lg font-black text-surface-900 tracking-tight">业务概览</h2>
+                    <p className="text-[11px] sm:text-xs text-surface-500">关键运营指标实时汇总</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {coreStats.map((stat, idx) => (
-                        <StatCard key={idx} {...stat} loading={loading} />
+                        <StatCard key={idx} {...stat} loading={loading} variant="tile" />
                     ))}
                 </div>
             </section>
 
             {/* 2. 进度看板区域 */}
-            <section className="space-y-4">
+            <section className="space-y-3">
                 <div className="flex items-end justify-between px-1">
                     <div className="space-y-1">
-                        <h2 className="text-lg font-bold text-surface-900 tracking-tight">教学资产配置</h2>
-                        <p className="text-xs text-surface-500">完善以下内容以提升教学专业度</p>
+                        <h2 className="text-base sm:text-lg font-black text-surface-900 tracking-tight">教学资产配置</h2>
+                        <p className="text-[11px] sm:text-xs text-surface-500">完善以下内容以提升教学专业度</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Mobile: 行式列表（更紧凑）；Desktop: 仍可读 */}
+                <div className="space-y-2">
                     {configStats.map((card, idx) => (
-                        <StatCard key={idx} {...card} loading={loading} />
+                        <StatCard key={idx} {...card} loading={loading} variant="row" />
                     ))}
                 </div>
             </section>

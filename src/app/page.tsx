@@ -243,9 +243,9 @@ export default function Home() {
                             <div className="hidden sm:flex flex-wrap justify-center gap-4">
                                 {['体态分析', '极限估算'].map((item, i) => (
                                     <span key={`more-${i}`} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm font-medium backdrop-blur-sm">
-                                        {item}
-                                    </span>
-                                ))}
+                                    {item}
+                                </span>
+                            ))}
                             </div>
                         </div>
 
