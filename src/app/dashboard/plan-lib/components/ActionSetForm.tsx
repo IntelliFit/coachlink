@@ -350,6 +350,9 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     placeholder="选择动作"
                     filter
                     className="w-full rounded-2xl"
+                    panelClassName="max-w-[calc(100vw-1.5rem)] w-[calc(100vw-1.5rem)] sm:max-w-[520px] sm:w-[520px]"
+                    scrollHeight="360px"
+                    appendTo="self"
                     disabled={saving}
                     itemTemplate={(option) => <ActionOptionTemplate action={option.action} />}
                     valueTemplate={(option) => <ActionValueTemplate action={option?.action || null} />}

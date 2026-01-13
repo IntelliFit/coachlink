@@ -41,7 +41,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
     const timeInfo = formatActionTime(template.createdAt, template.updatedAt);
 
     return (
-        <div className="group relative flex items-center gap-5 p-4 mb-3 bg-white dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px] transition-all duration-300 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:border-primary-200">
+        <div className="group relative w-full overflow-hidden flex items-center gap-3 sm:gap-5 p-3 sm:p-4 mb-3 bg-white dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px] transition-all duration-300 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:border-primary-200">
             
             {/* 左侧：核心指标（对齐动作库 56px 尺寸） */}
             <div className="flex flex-col items-center justify-center min-w-[56px] h-[56px] bg-primary-50 dark:bg-primary-900/20 rounded-[16px] border border-primary-100 dark:border-primary-800/50 shadow-sm shrink-0">
@@ -57,7 +57,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
             <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-surface-900 dark:text-surface-0 tracking-tight truncate">
+                        <h3 className="text-sm sm:text-base font-bold text-surface-900 dark:text-surface-0 tracking-tight truncate">
                             {template.name}
                         </h3>
                     </div>
@@ -75,7 +75,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                     )}
                 </div>
                 
-                <p className="text-[13px] text-surface-500 dark:text-surface-400 line-clamp-1 mb-3 leading-relaxed">
+                <p className="text-[12px] sm:text-[13px] text-surface-500 dark:text-surface-400 line-clamp-1 mb-2 sm:mb-3 leading-relaxed">
                     {template.description || '暂无计划模版描述'}
                 </p>
 
@@ -102,7 +102,11 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                     ))}
 
                     {template.containedOptions?.slice(0, 2).map((opt, i) => (
-                        <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-primary-100 text-primary-600 dark:border-primary-900/30">
+                        <span
+                            key={i}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-primary-100 text-primary-600 dark:border-primary-900/30 max-w-[140px] truncate"
+                            title={opt}
+                        >
                             {opt}
                         </span>
                     ))}
@@ -110,18 +114,18 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
             </div>
 
             {/* 右侧交互区 (对齐动作库 Hover 逻辑) */}
-            <div className="flex items-center gap-1 opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 opacity-100 translate-x-0 pointer-events-auto md:opacity-0 md:translate-x-2 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:translate-x-0 md:group-hover:pointer-events-auto transition-all duration-300">
                 {onSelect && (
-                    <Button icon="pi pi-check" text rounded severity="success" className="w-9 h-9 hover:bg-green-50" onClick={() => onSelect(template)} />
+                    <Button icon="pi pi-check" text rounded severity="success" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-green-50" onClick={() => onSelect(template)} />
                 )}
                 {onCopy && (
-                    <Button icon="pi pi-copy" text rounded className="w-9 h-9 text-surface-400 hover:bg-surface-100" onClick={() => onCopy(template.id)} />
+                    <Button icon="pi pi-copy" text rounded className="w-8 h-8 sm:w-9 sm:h-9 text-surface-400 hover:bg-surface-100" onClick={() => onCopy(template.id)} />
                 )}
                 {onEdit && (
-                    <Button icon="pi pi-pencil" text rounded className="w-9 h-9 text-surface-400 hover:bg-surface-100" onClick={() => onEdit(template.id)} />
+                    <Button icon="pi pi-pencil" text rounded className="w-8 h-8 sm:w-9 sm:h-9 text-surface-400 hover:bg-surface-100" onClick={() => onEdit(template.id)} />
                 )}
                 {onDelete && (
-                    <Button icon="pi pi-trash" text rounded severity="danger" className="w-9 h-9 hover:bg-red-50" onClick={() => onDelete(template.id)} />
+                    <Button icon="pi pi-trash" text rounded severity="danger" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-red-50" onClick={() => onDelete(template.id)} />
                 )}
             </div>
         </div>

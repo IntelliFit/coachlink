@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, Shield, UserCheck } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -205,17 +205,6 @@ const CoachDiscoveryPage: React.FC = () => {
                                 <h1 className="text-2xl font-bold text-surface-900 tracking-tight">我的专属教练</h1>
                                 <p className="text-surface-500 text-sm mt-1 font-medium">
                                     您通过 {visibilityStatus.focusCoachName || '教练'} 的邀请加入平台
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* 专属模式提示 */}
-                        <div className="mt-4 p-4 bg-primary-50 border border-primary-100 rounded-lg flex items-start gap-3">
-                            <Shield className="text-primary-500 shrink-0 mt-0.5" size={20} />
-                            <div>
-                                <p className="text-sm font-medium text-primary-700">专属服务模式</p>
-                                <p className="text-xs text-primary-600 mt-1">
-                                    您当前处于专属服务期间，可以专注享受教练为您提供的个性化训练服务。订阅结束后可浏览更多教练。
                                 </p>
                             </div>
                         </div>
