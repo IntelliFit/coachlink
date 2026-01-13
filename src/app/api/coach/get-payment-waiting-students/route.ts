@@ -30,17 +30,51 @@ export async function POST(req: Request) {
         });
     }
 
-    const { data: subscriptions, error: subscriptionError } = await supabase
+    const { data: manualSubscriptions, error: manualErr } = await supabase
         .from('coach_subscriptions')
         .select('*')
         .eq('coach_id', coach.id)
         .eq('status', 'waiting')
         .order('created_at', { ascending: false });
 
-    if (subscriptionError) {
+    if (manualErr) {
         return NextResponse.json({
             success: false,
-            message: subscriptionError.message
+            message: manualErr.message
+        });
+    }
+
+    const { data: systemSubscriptions, error: systemErr } = await supabase
+        .from('coach_subscriptions')
+        .select('*')
+        .eq('coach_id', coach.id)
+        .eq('status', 'active')
+        .eq('payment_confirmed_by', 'system')
+        .is('coach_seen_at', null)
+        .order('payment_confirmed_at', { ascending: false });
+
+    if (systemErr) {
+        return NextResponse.json({
+            success: false,
+            message: systemErr.message
+        });
+    }
+
+    // Platform payment pending (not paid yet): show as read-only notification in the same入口
+    const { data: platformPending, error: pendingErr } = await supabase
+        .from('coach_subscriptions')
+        .select('*')
+        .eq('coach_id', coach.id)
+        .eq('status', 'inactive')
+        .eq('payment_method', 'platform_alipay')
+        .is('coach_seen_at', null)
+        .not('order_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+    if (pendingErr) {
+        return NextResponse.json({
+            success: false,
+            message: pendingErr.message
         });
     }
 
@@ -48,7 +82,11 @@ export async function POST(req: Request) {
         success: true,
         message: '获取定价信息成功',
         data: {
-            subscriptions
+            manualSubscriptions: manualSubscriptions || [],
+            systemSubscriptions: [
+                ...(systemSubscriptions || []),
+                ...(platformPending || []),
+            ]
         }
     });
 }

@@ -318,12 +318,11 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             // 四舍五入到一位小数
             calculatedWeight = Math.round(calculatedWeight * 10) / 10;
 
-            // 如果计算结果 < 0 (例如自重超过目标重量)，则设为 0
-            if (calculatedWeight < 0) calculatedWeight = 0;
+            // 注意：负数是有意义的，表示需要辅助训练（如引体向上用辅助带）
+            // 不再强制设为0
 
             // 只在计算结果有较大变化时才更新，避免无限循环
             if (Math.abs(calculatedWeight - (set.params?.load || 0)) > 0.1) {
-                // console.log(`[ActionSetForm] 🎯 Auto-calculated update...`);
                 updateParams({
                     load: calculatedWeight,
                     loadUnit: 'kg',
@@ -377,6 +376,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             min={attr === '休息时间' ? 0.5 : 1}
                             step={attr === '休息时间' ? 0.5 : 1}
                             maxFractionDigits={attr === '休息时间' ? 1 : 0}
+                            showButtons
+                            buttonLayout="stacked"
                         />
                     </div>
                 ))
@@ -423,6 +424,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     max={36}
                                     disabled={saving}
                                     inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
+                                    showButtons
+                                    buttonLayout="stacked"
                                 />
                                 <small className="text-500 text-xs ml-1 opacity-50">RM范围1-36，如5RM = 能做5次的最大重量</small>
                             </div>
@@ -440,6 +443,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     max={100}
                                     disabled={saving}
                                     inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
+                                    showButtons
+                                    buttonLayout="stacked"
                                 />
                                 <small className="text-500 text-xs ml-1">如80% = 1RM的80%重量</small>
                             </div>
@@ -458,6 +463,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     min={0}
                                     maxFractionDigits={1}
                                     inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
+                                    showButtons
+                                    buttonLayout="stacked"
                                 />
                                 <Dropdown
                                     value={recommendedUnit}
@@ -504,17 +511,20 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             <div className="flex items-center gap-3">
                                 {/* 结果数值：保持清晰但尺寸适中 */}
                                 <div className="flex items-baseline gap-1">
-                                    {set.params?.load && set.params.load > 0 ? (
+                                    {set.params?.load !== null && set.params?.load !== undefined ? (
                                         <>
-                                            <span className="text-base font-black text-primary-600">
-                                                {Number(set.params.load).toFixed(1)}
+                                            <span className={`text-base font-black ${set.params.load < 0 ? 'text-red-500' : 'text-primary-600'}`}>
+                                                {set.params.load < 0 ? '辅助 ' : ''}{Math.abs(Number(set.params.load)).toFixed(1)}
                                             </span>
-                                            <span className="text-[10px] font-bold text-primary-500 uppercase">
+                                            <span className={`text-[10px] font-bold uppercase ${set.params.load < 0 ? 'text-red-400' : 'text-primary-500'}`}>
                                                 {set.params?.loadUnit || 'kg'}
                                             </span>
                                         </>
                                     ) : (
-                                        <span className="text-sm font-medium text-surface-400">待计算</span>
+                                        <span className="text-sm font-medium text-surface-400">
+                                            {!studentData?.profile?.weight ? '缺少体重数据' : 
+                                             getUserOneRM() <= 1 ? '缺少1RM数据' : '待计算'}
+                                        </span>
                                     )}
                                 </div>
 
@@ -530,9 +540,14 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             </div>
 
                             {/* 1RM 基准信息：极简展示 */}
-                            {studentData && (planReference1RM || manual1RM) > 0 && (
+                            {studentData && (
                                 <div className="text-[10px] text-surface-400 font-medium bg-white/50 px-2 py-0.5 rounded-md border border-surface-100">
-                                    基准1RM: {studentData ? getUserOneRM() : (planReference1RM || manual1RM)}kg
+                                    {getUserOneRM() > 1 
+                                        ? `基准1RM: ${getUserOneRM()}kg` 
+                                        : <span className="text-orange-500">需设置1RM</span>}
+                                    {studentData?.profile?.weight 
+                                        ? ` · 体重: ${studentData.profile.weight}kg`
+                                        : <span className="text-orange-500 ml-1">· 需设置体重</span>}
                                 </div>
                             )}
                         </div>

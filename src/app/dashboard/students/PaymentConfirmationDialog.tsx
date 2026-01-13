@@ -9,10 +9,11 @@ import { Avatar } from 'primereact/avatar';
 import { Skeleton } from 'primereact/skeleton';
 import { Image } from 'primereact/image';
 import { Tag } from 'primereact/tag';
+import { Checkbox } from 'primereact/checkbox';
 import { userService } from '@/app/service/userService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
-import type { CoachSubscriptionRow } from '@/types';
+import type { CoachSubscriptionRow, CoachesRow } from '@/types';
 import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
 
 // 线下支付数据结构
@@ -26,7 +27,9 @@ interface OfflinePaymentData {
 
 interface PaymentConfirmationDialogProps {
     visible: boolean;
-    subscriptions: CoachSubscriptionRow[];
+    manualSubscriptions: CoachSubscriptionRow[];
+    systemSubscriptions: CoachSubscriptionRow[];
+    coach: CoachesRow | null;
     onHide: () => void;
     onConfirm: () => void;
 }
@@ -34,37 +37,45 @@ interface PaymentConfirmationDialogProps {
 interface SubscriptionWithStudentProfile extends CoachSubscriptionRow {
     studentProfile?: GetUserProfileResponseDto['profile'] | null;
     loadingProfile?: boolean;
+    __kind?: 'manual' | 'system';
 }
 
 export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps> = ({
     visible,
-    subscriptions,
+    manualSubscriptions,
+    systemSubscriptions,
+    coach,
     onHide,
     onConfirm
 }) => {
     const { showToast } = useToastContext();
-    const [selectedSubscriptions, setSelectedSubscriptions] = useState<CoachSubscriptionRow[]>([]);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
     const [subscriptionsWithProfiles, setSubscriptionsWithProfiles] = useState<SubscriptionWithStudentProfile[]>([]);
 
     // 获取学员信息
     useEffect(() => {
         const fetchStudentProfiles = async () => {
-            if (!visible || subscriptions.length === 0) {
+            const allSubscriptions = [...manualSubscriptions, ...systemSubscriptions];
+            if (!visible || allSubscriptions.length === 0) {
                 setSubscriptionsWithProfiles([]);
+                setSelectedIds(new Set());
                 return;
             }
 
             // 初始化订阅列表，添加加载状态
-            const initialSubscriptions = subscriptions.map(sub => ({
-                ...sub,
+            const initialSubscriptions = [
+                ...manualSubscriptions.map(sub => ({ ...sub, __kind: 'manual' as const })),
+                ...systemSubscriptions.map(sub => ({ ...sub, __kind: 'system' as const })),
+            ].map(sub => ({
+                ...(sub as any),
                 loadingProfile: true,
                 studentProfile: undefined
             }));
             setSubscriptionsWithProfiles(initialSubscriptions);
 
             // 并行获取所有学员信息
-            const profilePromises = subscriptions.map(async (subscription) => {
+            const profilePromises = allSubscriptions.map(async (subscription) => {
                 try {
                     const profile = await userService.getProfile({ userId: subscription.student_id });
                     return {
@@ -83,26 +94,50 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             });
 
             const updatedSubscriptions = await Promise.all(profilePromises);
-            setSubscriptionsWithProfiles(updatedSubscriptions);
+            // re-attach kind
+            const kindMap = new Map<string, 'manual' | 'system'>([
+                ...manualSubscriptions.map(s => [s.id, 'manual' as const]),
+                ...systemSubscriptions.map(s => [s.id, 'system' as const]),
+            ]);
+            setSubscriptionsWithProfiles(updatedSubscriptions.map(s => ({ ...(s as any), __kind: kindMap.get((s as any).id) })));
+
         };
 
         fetchStudentProfiles();
-    }, [visible, subscriptions]);
+    }, [visible, manualSubscriptions, systemSubscriptions]);
+
+    const manualRows = subscriptionsWithProfiles.filter(s => s.__kind !== 'system');
+
+    const toggleSelect = (id: string, checked: boolean) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (checked) next.add(id);
+            else next.delete(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAllManual = (checked: boolean) => {
+        setSelectedIds(() => {
+            if (!checked) return new Set();
+            return new Set(manualRows.map(s => s.id));
+        });
+    };
 
     const handleConfirm = async () => {
         setLoading(true);
         try {
-            // 批量更新订阅状态，并为线下支付设置 end_date
+            // 批量更新订阅状态，并为线下支付/续费请求处理 end_date
+            const selectedSubscriptions = subscriptionsWithProfiles
+                .filter(s => selectedIds.has(s.id) && s.__kind !== 'system')
+                .map(s => s as CoachSubscriptionRow);
+
             const updatePromises = selectedSubscriptions.map(subscription => {
-                const subscribeData = subscription.subscribe_data as any;
-                // 兼容处理：支持数组或对象格式查找
-                let offlinePayment: OfflinePaymentData | undefined;
-                
-                if (Array.isArray(subscribeData)) {
-                    offlinePayment = subscribeData.find((item: any) => item.type === 'offline_payment');
-                } else if (subscribeData?.offline_payment) {
-                    offlinePayment = subscribeData.offline_payment;
-                }
+                const paymentData = (subscription as any).payment_data as any;
+                const offlinePayment: OfflinePaymentData | undefined = paymentData?.offline_payment || undefined;
+                const pendingRenew = paymentData?.pending_renew as
+                    | { additional_weeks?: number; amount?: number; requested_at?: string }
+                    | undefined;
                 
                 const updateData: Record<string, unknown> = {
                     id: subscription.id,
@@ -113,17 +148,20 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 if (offlinePayment?.expires_at) {
                     updateData.end_date = offlinePayment.expires_at;
                 }
-                
-                // 自动修复数据结构：如果发现是对象格式，借此机会转换为数组
-                if (!Array.isArray(subscribeData) && subscribeData && typeof subscribeData === 'object') {
-                     // 尝试转换: 将对象属性转换为数组项，或者保留 offline_payment
-                     const newSubscribeData = [];
-                     if (offlinePayment) {
-                         newSubscribeData.push({ type: 'offline_payment', ...offlinePayment });
-                     }
-                     // 如果有其他属性（如问卷），这里比较难无损恢复，但通常线下支付时问卷数据可能为空或不同
-                     // 简单起见，如果检测到格式错误，我们在激活时修复它
-                    updateData.subscribe_data = newSubscribeData;
+
+                // 如果是续费待确认：在原 end_date 基础上延长
+                const weeks = Number(pendingRenew?.additional_weeks || 0);
+                if (weeks > 0) {
+                    const base = subscription.end_date ? new Date(subscription.end_date) : new Date();
+                    const now = new Date();
+                    const effectiveBase = base.getTime() < now.getTime() ? now : base;
+                    effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
+                    updateData.end_date = effectiveBase.toISOString();
+                }
+
+                // 清理 pending_renew，避免重复处理（保留 offline_payment 作为凭证记录）
+                if (paymentData && typeof paymentData === 'object' && !Array.isArray(paymentData)) {
+                    updateData.payment_data = { ...paymentData, pending_renew: null };
                 }
 
                 return subscriptionService.updateSubscription(updateData as Parameters<typeof subscriptionService.updateSubscription>[0]);
@@ -151,21 +189,36 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         }
     };
 
+    const handleDismiss = async (subscriptionId: string) => {
+        setLoading(true);
+        try {
+            const nowIso = new Date().toISOString();
+            await subscriptionService.updateSubscription({ id: subscriptionId, coach_seen_at: nowIso } as any);
+            showToast({ severity: 'success', summary: '已忽略', detail: '该通知已隐藏' });
+            onConfirm(); // refresh list
+        } catch (e) {
+            console.error('dismiss failed', e);
+            showToast({ severity: 'error', summary: '失败', detail: '无法忽略该通知' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // 获取线下支付数据
     const getOfflinePayment = (subscription: SubscriptionWithStudentProfile): OfflinePaymentData | null => {
-        const subscribeData = subscription.subscribe_data as any;
-        if (!subscribeData) return null;
-        
-        if (Array.isArray(subscribeData)) {
-            return subscribeData.find((item: any) => item.type === 'offline_payment') || null;
-        }
-        
-        // 兼容旧对象格式
-        return subscribeData.offline_payment || null;
+        const paymentData = (subscription as any).payment_data as any;
+        if (!paymentData) return null;
+        return paymentData.offline_payment || null;
     };
 
     // 支付方式模板
     const paymentTypeTemplate = (subscription: SubscriptionWithStudentProfile) => {
+        if (subscription.__kind === 'system') {
+            if ((subscription as any).status === 'inactive') {
+                return <Tag value="平台支付（待支付）" severity="info" rounded />;
+            }
+            return <Tag value="平台支付（系统已确认）" severity="success" rounded />;
+        }
         const offlinePayment = getOfflinePayment(subscription);
         if (offlinePayment) {
             return <Tag value="线下已支付" severity="warning" rounded />;
@@ -327,19 +380,54 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 disabled={loading}
             />
             <Button
-                label={`确认支付 (${selectedSubscriptions.length})`}
+                label={`确认支付 (${selectedIds.size})`}
                 icon="pi pi-check"
                 onClick={handleConfirm}
-                disabled={selectedSubscriptions.length === 0 || loading}
+                disabled={selectedIds.size === 0 || loading}
                 className="p-button-primary rounded-2xl"
                 loading={loading}
             />
         </div>
     );
 
+    const selectHeaderTemplate = () => {
+        const allSelected = manualRows.length > 0 && manualRows.every(r => selectedIds.has(r.id));
+        return (
+            <Checkbox
+                checked={allSelected}
+                onChange={(e) => toggleSelectAllManual(!!e.checked)}
+                disabled={manualRows.length === 0 || loading}
+            />
+        );
+    };
+
+    const selectBodyTemplate = (rowData: SubscriptionWithStudentProfile) => {
+        if (rowData.__kind === 'system') return <span className="text-surface-400">-</span>;
+        return (
+            <Checkbox
+                checked={selectedIds.has(rowData.id)}
+                onChange={(e) => toggleSelect(rowData.id, !!e.checked)}
+                disabled={loading}
+            />
+        );
+    };
+
+    const actionTemplate = (rowData: SubscriptionWithStudentProfile) => {
+        if (rowData.__kind !== 'system') return <span className="text-surface-400">-</span>;
+        return (
+            <Button
+                label="忽略"
+                size="small"
+                outlined
+                onClick={() => handleDismiss(rowData.id)}
+                disabled={loading}
+            />
+        );
+    };
+
     return (
         <Dialog
-            header={`待确认支付 (${subscriptions.length})`}
+            header={`待支付确认 (${manualSubscriptions.length + systemSubscriptions.length})`}
             visible={visible}
             onHide={onHide}
             footer={footerContent}
@@ -352,14 +440,16 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 {subscriptionsWithProfiles.length > 0 ? (
                     <DataTable
                         value={subscriptionsWithProfiles}
-                        selection={selectedSubscriptions}
-                        onSelectionChange={(e) => setSelectedSubscriptions(e.value as CoachSubscriptionRow[])}
-                        selectionMode="checkbox"
                         dataKey="id"
                         scrollable
                         scrollHeight="400px"
                     >
-                        <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
+                        <Column
+                            header={selectHeaderTemplate}
+                            body={selectBodyTemplate}
+                            headerStyle={{ width: '3rem' }}
+                            bodyStyle={{ width: '3rem' }}
+                        />
                         <Column field="student" header="学员" body={studentTemplate}></Column>
                         <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '100px' }}></Column>
                         <Column field="offline_details" header="线下支付详情" body={offlineDetailsTemplate} style={{ width: '180px' }}></Column>
@@ -376,6 +466,11 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                             body={(rowData) => new Date(rowData.created_at).toLocaleString()}
                             style={{ width: '140px' }}
                         ></Column>
+                        <Column
+                            header="操作"
+                            body={actionTemplate}
+                            style={{ width: '100px' }}
+                        />
                     </DataTable>
                 ) : (
                     <div className="text-center text-surface-500 py-8">
@@ -385,7 +480,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 
                 {subscriptionsWithProfiles.length > 0 && (
                     <div className="mt-4 text-sm text-surface-500">
-                        已选择 {selectedSubscriptions.length} 位学员，确认支付后将激活他们的订阅。
+                        已选择 {selectedIds.size} 位学员，确认后将激活/续费生效。
                     </div>
                 )}
             </div>

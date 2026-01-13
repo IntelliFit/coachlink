@@ -85,7 +85,8 @@ export function calcRecommendedLoad(
 
     const load = (oneRM + alpha * weight) / lambda - alpha * weight;
 
-    return Math.max(0, Number(load.toFixed(2)));
+    // 允许负数结果，负数表示需要辅助训练（如引体向上用辅助带减轻自重）
+    return Number(load.toFixed(2));
 }
 
 // ============ 强度描述系统扩展 ============
@@ -190,12 +191,10 @@ export function calcIntensityDisplay(
                 const targetLoad = oneRM * percentage;
 
                 // 如果动作含体重，需要减去体重得到外挂重量
+                // 负数表示需要辅助训练（如引体向上用辅助带）
                 displayWeight = includesBodyWeight
                     ? targetLoad - bodyWeight
                     : targetLoad;
-
-                // 处理负数情况（体重已超过目标负重）
-                displayWeight = Math.max(0, displayWeight);
             }
 
             return {

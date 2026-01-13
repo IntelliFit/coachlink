@@ -172,16 +172,30 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                                     const load = params.load;
                                                                     const intensity = params['强度'] || actionSet.intensity;
                                                                     
-                                                                    if (load && load > 0) {
+                                                                    // 有计算后的重量（包括负数表示辅助训练）
+                                                                    if (load !== null && load !== undefined) {
+                                                                        if (load < 0) {
+                                                                            // 负数表示需要辅助训练
+                                                                            return (
+                                                                                <span className="text-red-500 font-medium">
+                                                                                    💪 辅助{Math.abs(load).toFixed(1)}kg
+                                                                                </span>
+                                                                            );
+                                                                        } else if (load > 0) {
+                                                                            return (
+                                                                                <span className="text-green-600 font-medium">
+                                                                                    💪 {Number(load).toFixed(1)}kg
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        // load === 0 时不显示重量
+                                                                    }
+                                                                    
+                                                                    // 只有RM强度，没有计算后的重量
+                                                                    if (intensity && intensity > 0) {
                                                                         return (
-                                                                            <span className="text-green-600 font-medium">
-                                                                                💪 {load}kg
-                                                                            </span>
-                                                                        );
-                                                                    } else if (intensity) {
-                                                                        return (
-                                                                            <span className="text-surface-600">
-                                                                                💪 {intensity}
+                                                                            <span className="text-surface-500">
+                                                                                💪 {intensity}RM
                                                                             </span>
                                                                         );
                                                                     }
