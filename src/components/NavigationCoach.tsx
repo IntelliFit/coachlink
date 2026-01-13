@@ -19,9 +19,6 @@ import {
     Users,
     FileEdit,
     ClipboardList,
-    Bell,
-    Moon,
-    Sun,
     ChevronDown,
     LogIn
 } from 'lucide-react';
@@ -76,14 +73,55 @@ export default function NavigationCoach() {
         { label: '计划模板', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), guideId: 'guide-plan-library', template: itemRenderer },
     ], [router, pathname]);
 
+    // Mobile 端底部固定 5 个入口（保持与教练端原导航一致）
+    const mobileBottomTabs = useMemo(() => [
+        {
+            key: 'overview',
+            label: '概览',
+            icon: LayoutDashboard,
+            active: pathname.startsWith('/dashboard/overview') || pathname === '/dashboard',
+            onClick: () => router.push('/dashboard/overview'),
+        },
+        {
+            key: 'videos',
+            label: '视频点评',
+            icon: PlayCircle,
+            active: pathname.startsWith('/dashboard/videos'),
+            onClick: () => router.push('/dashboard/videos'),
+        },
+        {
+            key: 'students',
+            label: '我的学员',
+            icon: Users,
+            active: pathname.startsWith('/dashboard/students'),
+            onClick: () => router.push('/dashboard/students'),
+        },
+        {
+            key: 'content',
+            label: '内容管理',
+            icon: FileEdit,
+            active: pathname.startsWith('/dashboard/content'),
+            onClick: () => router.push('/dashboard/content'),
+        },
+        {
+            key: 'planlib',
+            label: '计划模板',
+            icon: ClipboardList,
+            active: pathname.startsWith('/dashboard/plan-lib'),
+            onClick: () => router.push('/dashboard/plan-lib'),
+        },
+    ], [pathname, router]);
+
     const userMenuItems = useMemo(() => [
         { label: '我的主页', icon: 'pi pi-home', command: () => gotoCoachDisplayPage() },
         { label: '我的钱包', icon: 'pi pi-wallet', command: () => router.push('/dashboard/wallet') }, // Added Wallet Entry
         { label: '动作库', icon: 'pi pi-database', command: () => router.push('/dashboard/action-lib') },
         { label: '订阅设置', icon: 'pi pi-tags', command: () => router.push('/dashboard/pricing') }, // Changed icon to distinguish from wallet
         { label: '收款码设置', icon: 'pi pi-qrcode', command: () => router.push('/coach/settings/payment') },
+        { label: '邀请学员', icon: 'pi pi-link', command: () => router.push('/coach/settings/invitation') },
         { label: '学员问卷', icon: 'pi pi-file-edit', command: () => router.push('/dashboard/questionnaire') },
         { separator: true },
+
         {
             label: '切换至学员端', icon: 'pi pi-user', command: async () => {
                 try {
@@ -175,7 +213,16 @@ export default function NavigationCoach() {
 
     return (
         <>
-            <div className="sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
+            {/* Mobile: 顶部轻量栏（避免 Menubar 在窄屏挤压） */}
+            <div className="md:hidden sticky top-0 z-50 w-full px-3 pt-3 pointer-events-none">
+                <div className="pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-4 py-2 flex items-center justify-between">
+                    {start}
+                    {end}
+                </div>
+            </div>
+
+            {/* Desktop: Menubar */}
+            <div className="hidden md:block sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
                 <Menubar
                     model={coachMenuItems}
                     start={start}
@@ -190,6 +237,33 @@ export default function NavigationCoach() {
                 ref={menuRef}
                 className="mt-2 border-none shadow-xl rounded-2xl p-2 min-w-52 text-sm font-medium"
             />
+
+            {/* Mobile: 底部主导航（5-tab，像 App 一样） */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2">
+                <div className="max-w-lg mx-auto backdrop-blur-md bg-surface/90 border border-surface/30 shadow-[0_-8px_32px_rgba(0,0,0,0.06)] rounded-3xl px-2 py-2">
+                    <div className="grid grid-cols-5 gap-1">
+                        {mobileBottomTabs.map((t) => {
+                            const Icon = t.icon;
+                            return (
+                                <button
+                                    key={t.key}
+                                    type="button"
+                                    onClick={t.onClick}
+                                    className={[
+                                        'flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all active:scale-[0.98]',
+                                        t.active ? 'bg-primary-50 text-primary-600' : 'text-surface-500 hover:bg-surface-50',
+                                    ].join(' ')}
+                                >
+                                    <Icon className={['w-5 h-5', t.active ? 'stroke-[2.5]' : 'stroke-[2]'].join(' ')} />
+                                    <span className={['text-[11px] leading-none', t.active ? 'font-black' : 'font-bold'].join(' ')}>
+                                        {t.label}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
         </>
     );
 }
