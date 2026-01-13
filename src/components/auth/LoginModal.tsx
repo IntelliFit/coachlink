@@ -245,114 +245,121 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 <h2 className="text-2xl font-bold text-surface-900 mb-2">登录账户</h2>
                             </div>
 
-                            <form onSubmit={handleLogin} className="space-y-5">
-                                <div className="space-y-4">
-                                    <TabView
-                                        activeIndex={loginMode === 'password' ? 0 : 1}
-                                        onTabChange={(e: TabViewTabChangeEvent) => {
-                                            const nextMode: LoginMode = e.index === 0 ? 'password' : 'verifyCode';
-                                            setLoginMode(nextMode);
-                                            // 切换时清理另一种方式的输入，避免误提交/困惑
-                                            if (nextMode === 'password') {
-                                                setVerificationCode('');
-                                            } else {
-                                                setPassword('');
-                                            }
-                                        }}
-                                    >
-                                        <TabPanel header="密码登录" />
-                                        <TabPanel header="验证码登录" />
-                                    </TabView>
-
-                                    {/* 手机号 */}
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                            <Phone size={18} />
-                                        </div>
-                                        <InputText
-                                            value={phone}
-                                            onChange={(e) => setPhone(e.target.value)}
-                                            placeholder="手机号码"
-                                            className="w-full pl-12 pr-4 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all"
+                            <form onSubmit={handleLogin} className="space-y-6">
+                                <div className="space-y-5">
+                                    {/* 1. 胶囊切换器 */}
+                                    <div className="relative p-1.5 bg-surface-100/80 rounded-[20px] flex">
+                                        <div
+                                            className={`absolute inset-y-1.5 left-1.5 w-[calc(50%-6px)] bg-surface rounded-[14px] shadow-sm transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${loginMode === 'password' ? 'translate-x-0' : 'translate-x-full'
+                                                }`}
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => { setLoginMode('password'); setVerificationCode(''); }}
+                                            className={`relative flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMode === 'password' ? 'text-primary-600' : 'text-surface-500 hover:text-surface-700'}`}
+                                        >
+                                            密码登录
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setLoginMode('verifyCode'); setPassword(''); }}
+                                            className={`relative flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMode === 'verifyCode' ? 'text-primary-600' : 'text-surface-500 hover:text-surface-700'}`}
+                                        >
+                                            验证码登录
+                                        </button>
                                     </div>
 
-                                    {loginMode === 'password' ? (
-                                        <div className='space-y-2'>
-                                            <div className="flex justify-between items-end px-1">
-                                                <label className="text-sm font-semibold text-surface-700">登录密码</label>
+                                    {/* 2. 输入区域 */}
+                                    <div className="space-y-4">
+                                        {/* 手机号 */}
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
+                                                <Phone size={18} />
+                                            </div>
+                                            <InputText
+                                                value={phone}
+                                                onChange={(e) => setPhone(e.target.value)}
+                                                placeholder="手机号码"
+                                                className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl shadow-primary-500"
+                                            />
+                                        </div>
+
+                                        {/* 动态切换：密码或验证码 */}
+                                        {loginMode === 'password' ? (
+                                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="flex justify-between items-center px-1">
+                                                    <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">登录密码</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setCurrentView('reset-password')}
+                                                        className="text-xs text-primary-500 hover:text-primary-700 font-bold transition-colors"
+                                                    >
+                                                        忘记密码？
+                                                    </button>
+                                                </div>
+                                                <div className="relative group">
+                                                    <div className="absolute inset-y-0 left-4 flex items-center z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                                        <Lock size={18} />
+                                                    </div>
+                                                    <Password
+                                                        value={password}
+                                                        onChange={(e) => setPassword(e.target.value)}
+                                                        placeholder="输入登录密码"
+                                                        toggleMask
+                                                        feedback={false}
+                                                        pt={{
+                                                            root: { className: 'w-full' },
+                                                            input: {
+                                                                className: 'w-full pl-12 pr-12 py-4 bg-surface-50 rounded-2xl shadow-primary-500'
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="relative flex-1 group">
+                                                    <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
+                                                        <ShieldCheck size={18} />
+                                                    </div>
+                                                    <InputText
+                                                        value={verificationCode}
+                                                        onChange={(e) => setVerificationCode(e.target.value)}
+                                                        placeholder="6位验证码"
+                                                        maxLength={6}
+                                                        className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl"
+                                                    />
+                                                </div>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setCurrentView('reset-password')}
-                                                    className="text-xs text-primary-500 hover:text-primary-700 font-medium transition-colors"
+                                                    onClick={sendVerificationCode}
+                                                    disabled={countdown > 0 || sendingCode || !phone.trim()}
+                                                    className="px-6 rounded-2xl text-sm font-bold bg-surface border border-primary-500 text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
                                                 >
-                                                    忘记密码？
+                                                    {sendingCode ? '...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
                                                 </button>
                                             </div>
-
-                                            {/* 密码 */}
-                                            <div className="relative group">
-                                                <div className="absolute inset-y-0 left-4 flex items-center z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                                    <Lock size={18} />
-                                                </div>
-                                                <Password
-                                                    value={password}
-                                                    onChange={(e) => setPassword(e.target.value)}
-                                                    placeholder="输入登录密码"
-                                                    toggleMask
-                                                    feedback={false}
-                                                    // 关键点：通过 pt 属性强制控制 root 容器和 input 元素
-                                                    pt={{
-                                                        root: { className: 'w-full' }, // 强制外层容器撑满
-                                                        input: {
-                                                            className: 'w-full pl-12 pr-12 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all'
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-
-                                        </div>
-                                    ) : (
-                                        <div className="flex gap-3 mt-2">
-                                            <div className="relative flex-1 group">
-                                                <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                                    <ShieldCheck size={18} />
-                                                </div>
-                                                <InputText
-                                                    value={verificationCode}
-                                                    onChange={(e) => setVerificationCode(e.target.value)}
-                                                    placeholder="6位验证码"
-                                                    maxLength={6}
-                                                    className="w-full pl-12 pr-4 py-3.5 bg-surface-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-500/20 transition-all"
-                                                />
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={sendVerificationCode}
-                                                disabled={countdown > 0 || sendingCode || !phone.trim()}
-                                                className="px-5 rounded-2xl text-sm font-bold border border-primary-100 dark:border-primary-500 text-primary-600 hover:bg-primary-50 dark:bg-primary-800 disabled:opacity-50 transition-all min-w-[120px] flex items-center justify-center gap-2"
-                                            >
-                                                {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : <><Send size={16} /> 获取</>}
-                                            </button>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="pt-4">
+                                {/* 3. 登录按钮 */}
+                                <div className="pt-2">
                                     <Button
                                         loading={loading}
-                                        className="w-full py-4 bg-primary-500 border-none rounded-2xl shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all transform active:scale-[0.98]"
+                                        className="w-full py-4 bg-primary-500 border-none rounded-2xl shadow-xl shadow-primary-500/20 hover:bg-primary-600 transition-all transform active:scale-[0.98]"
                                     >
                                         <div className="flex items-center justify-center gap-2 w-full">
-                                            {!loading  && <LogIn size={20} /> }
+                                            {!loading && <LogIn size={20} />}
                                             <span className="font-bold text-lg">立即登录</span>
                                         </div>
                                     </Button>
                                 </div>
 
-                                <div className="pt-6 text-center">
+                                {/* 4. 注册跳转 */}
+                                <div className="text-center">
                                     <p className="text-sm text-surface-400">
-                                        还没有账户？{' '}
+                                        还没有账户？
                                         <button
                                             onClick={() => { onClose(false); router.push('/register'); }}
                                             className="text-primary-600 hover:text-primary-700 font-bold ml-1 transition-colors"
