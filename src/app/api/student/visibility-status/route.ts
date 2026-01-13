@@ -49,47 +49,13 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // 2. 获取用户当前活跃的教练订阅
-    const { data: activeSubscriptions } = await supabase
-        .from("coach_subscriptions")
-        .select(`
-            id,
-            coach_id,
-            status,
-            end_date
-        `)
-        .eq("student_id", userId)
-        .eq("status", "active")
-        .gte("end_date", new Date().toISOString());
-
     let focusMode = false;
     let focusCoachId: string | null = null;
     let focusCoachName: string | null = null;
 
-    // 3. 检查是否有活跃订阅，并且该教练设置了 exclusive 模式
-    if (activeSubscriptions && activeSubscriptions.length > 0) {
-        // 获取第一个活跃订阅的教练信息（通常学员只会有一个活跃订阅）
-        const subscription = activeSubscriptions[0];
-
-        const { data: coach } = await supabase
-            .from("coaches")
-            .select("id, name, invitation_mode")
-            .eq("id", subscription.coach_id)
-            .single();
-
-        if (coach) {
-            // 只有当教练设置了 exclusive 模式时，才启用专注模式
-            if (coach.invitation_mode === "exclusive") {
-                focusMode = true;
-                focusCoachId = coach.id;
-                focusCoachName = coach.name;
-            }
-        }
-    }
-
-    // 4. 如果没有活跃订阅，但有邀请来源教练，检查是否应该进入专注模式
-    // （针对注册后尚未订阅的场景）
-    if (!focusMode && referrerCoachId) {
+    // 2. 只对“通过教练邀请链接注册”的学员启用私域（referrer_coach_id 有值）
+    //    非邀请注册的学员，即使有订阅，也应保持公域视野（可发现其他教练）。
+    if (referrerCoachId) {
         const { data: referrerCoach } = await supabase
             .from("coaches")
             .select("id, name, invitation_mode")
@@ -97,7 +63,7 @@ export async function GET(req: NextRequest) {
             .single();
 
         if (referrerCoach && referrerCoach.invitation_mode === "exclusive") {
-            // 学员尚未订阅，但通过专属模式教练邀请注册，也启用专注模式
+            // 通过专属模式教练邀请注册：启用专注模式（只看邀请教练）
             focusMode = true;
             focusCoachId = referrerCoach.id;
             focusCoachName = referrerCoach.name;
