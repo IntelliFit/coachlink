@@ -110,9 +110,13 @@ export async function POST(req: NextRequest) {
             .single();
     }
 
-    const { data: existingUser } = await existingUserQuery;
+    const { data: existingUsers, error: existingUserError } = await existingUserQuery;
 
-    if (existingUser) {
+    if (existingUserError) {
+        console.warn("[register] failed to check existing user:", existingUserError.message);
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: isPhone ? "手机号已注册" : "邮箱已注册",
@@ -130,7 +134,7 @@ export async function POST(req: NextRequest) {
             .select("id")
             .eq("invitation_code", invitationCode?.trim())
             .eq("status", "approved")
-            .single();
+            .maybeSingle();
 
         if (!coach?.id) {
             return NextResponse.json<ApiData<null>>({

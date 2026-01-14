@@ -30,6 +30,33 @@ const Videos: React.FC = () => {
     const [previewVideo, setPreviewVideo] = useState<ExecutionSetVideoWithDetails | null>(null);
     const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
 
+    const canPlayInlineVideo = (url?: string | null) => {
+        if (!url) return false;
+        const lower = url.toLowerCase();
+        if (
+            lower.endsWith(".mp4") ||
+            lower.endsWith(".webm") ||
+            lower.endsWith(".mov") ||
+            lower.endsWith(".m4v") ||
+            lower.endsWith(".ogg") ||
+            lower.includes(".mp4?") ||
+            lower.includes(".webm?") ||
+            lower.includes(".mov?") ||
+            lower.includes(".m4v?") ||
+            lower.includes(".ogg?")
+        ) {
+            return true;
+        }
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (
+            (supabaseUrl && url.includes(supabaseUrl)) ||
+            url.includes("/storage/v1/object/")
+        ) {
+            return true;
+        }
+        return false;
+    };
+
     useEffect(() => {
         if (coach?.id) loadPendingReviews();
     }, [coach?.id, filter]);
@@ -129,14 +156,27 @@ const Videos: React.FC = () => {
 
                                 {/* 视频封面区域 */}
                                 <div className="relative aspect-video bg-surface-900 group">
-                                    <video
-                                        src={video.video_url}
-                                        className="absolute inset-0 w-full h-full object-cover opacity-90"
-                                        onMouseEnter={(e) => e.currentTarget.play()}
-                                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-                                        muted
-                                        loop
-                                    />
+                                    {canPlayInlineVideo(video.video_url) ? (
+                                        <video
+                                            src={video.video_url}
+                                            className="absolute inset-0 w-full h-full object-cover opacity-90"
+                                            onMouseEnter={(e) => e.currentTarget.play()}
+                                            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                                            muted
+                                            loop
+                                        />
+                                    ) : (
+                                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 text-white/80">
+                                            <FileVideo size={36} className="text-white/60" />
+                                            <div className="text-xs font-bold">外部链接视频</div>
+                                            <button
+                                                className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold"
+                                                onClick={() => window.open(video.video_url, "_blank")}
+                                            >
+                                                打开链接
+                                            </button>
+                                        </div>
+                                    )}
                                     {/* 状态显示 - 右上角中文 */}
                                     <div className="absolute top-3 right-3">
                                         <span className={`px-2 py-1 text-[10px] font-bold rounded shadow-sm ${video.review_status === 'pending' ? 'bg-amber-400 text-white' : 'bg-emerald-500 text-white'
@@ -290,8 +330,22 @@ const Videos: React.FC = () => {
             >
                 <div className="space-y-5">
                     {/* 视频播放器 */}
-                    <div className="aspect-video rounded-lg overflow-hidden bg-surface-900 shadow-inner">
-                        <video controls src={selectedVideo?.video_url} className="w-full h-full" />
+                    <div className="aspect-video rounded-lg overflow-hidden bg-surface-900 shadow-inner flex items-center justify-center">
+                        {selectedVideo?.video_url && canPlayInlineVideo(selectedVideo.video_url) ? (
+                            <video controls src={selectedVideo.video_url} className="w-full h-full" />
+                        ) : (
+                            <div className="text-white/80 text-sm font-bold flex flex-col items-center gap-3">
+                                <div>该视频为外部链接，无法在此处直接播放</div>
+                                {selectedVideo?.video_url && (
+                                    <button
+                                        className="px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-xs font-bold"
+                                        onClick={() => window.open(selectedVideo.video_url, "_blank")}
+                                    >
+                                        打开链接观看
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* 执行详情卡片 */}
@@ -395,6 +449,96 @@ const Videos: React.FC = () => {
                             />
                         </div>
                     </div>
+                </div>
+            </Dialog>
+
+            {/* 预览对话框（点击卡片播放按钮） */}
+            <Dialog
+                visible={!!previewVideo}
+                onHide={() => setPreviewVideo(null)}
+                header={
+                    <div className="space-y-1">
+                        <div className="font-bold text-lg">视频预览</div>
+                        {previewVideo && (
+                            <div className="flex items-center gap-3 text-sm text-surface-500">
+                                <span className="flex items-center gap-1">
+                                    <User size={14} />
+                                    {previewVideo.metadata?.student_name || "匿名学员"}
+                                </span>
+                                <span>•</span>
+                                <span className="font-medium text-primary-600">
+                                    {previewVideo.exercise_name || "未指定动作"}
+                                </span>
+                                <span>•</span>
+                                <span>第 {previewVideo.set_number} 组</span>
+                            </div>
+                        )}
+                    </div>
+                }
+                className="w-[95vw] max-w-3xl"
+                pt={{
+                    root: { className: "rounded-lg border-none shadow-xl bg-surface-0" },
+                    header: { className: "px-6 pt-6 border-none" },
+                    content: { className: "px-6 pb-6" },
+                }}
+                footer={
+                    <div className="flex justify-end gap-2 px-6 pb-6">
+                        <Button
+                            label="关闭"
+                            onClick={() => setPreviewVideo(null)}
+                            className="p-button-text font-bold text-surface-400"
+                        />
+                        {previewVideo && (
+                            <Button
+                                label="开始点评"
+                                onClick={() => {
+                                    setSelectedVideo(previewVideo);
+                                    setShowReviewModal(true);
+                                    setPreviewVideo(null);
+                                }}
+                                className="bg-primary-500 border-none font-bold px-6 rounded-lg text-white"
+                            />
+                        )}
+                    </div>
+                }
+            >
+                <div className="space-y-4">
+                    <div className="aspect-video rounded-lg overflow-hidden bg-surface-900 shadow-inner flex items-center justify-center">
+                        {previewVideo?.video_url && canPlayInlineVideo(previewVideo.video_url) ? (
+                            <video controls src={previewVideo.video_url} className="w-full h-full" />
+                        ) : (
+                            <div className="text-white/80 text-sm font-bold flex flex-col items-center gap-3">
+                                <div>该视频为外部链接，无法在此处直接播放</div>
+                                {previewVideo?.video_url && (
+                                    <button
+                                        className="px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-xs font-bold"
+                                        onClick={() => window.open(previewVideo.video_url, "_blank")}
+                                    >
+                                        打开链接观看
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {previewVideo?.execution_details && (
+                        <div className="text-xs text-surface-600">
+                            {previewVideo.execution_details.actual_reps !== undefined && (
+                                <span className="mr-3">
+                                    次数：<b>{previewVideo.execution_details.actual_reps}</b>
+                                </span>
+                            )}
+                            {previewVideo.execution_details.actual_weight !== undefined && (
+                                <span className="mr-3">
+                                    重量：<b>{previewVideo.execution_details.actual_weight}kg</b>
+                                </span>
+                            )}
+                            {previewVideo.execution_details.rpe !== undefined && (
+                                <span className="mr-3">
+                                    RPE：<b>{previewVideo.execution_details.rpe}</b>
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </Dialog>
         </div>

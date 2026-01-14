@@ -42,8 +42,8 @@ export const authOptions: AuthOptions = {
 
                 const { data: user, error: userError } = await userQuery;
 
-                if (userError || !user) {
-                    throw new Error("用户不存在\n" + userError?.message);
+                if (userError) {
+                    throw new Error("登录失败\n" + userError.message);
                 }
 
                 // 方式 1：验证码登录（手机号/邮箱 + 验证码）

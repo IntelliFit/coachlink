@@ -100,6 +100,27 @@ export interface UploadSetVideoResponseDto {
     message?: string;
 }
 
+// Add Set Video Link (external URL, no storage usage)
+export interface AddSetVideoLinkDto {
+    executionId: string;
+    actionId: string;
+    setNumber: number;
+    videoUrl: string;
+}
+
+export interface AddSetVideoLinkResponseDto {
+    success: boolean;
+    data?: {
+        id: string;
+        execution_id: string;
+        action_id: string;
+        set_number: number;
+        video_url: string;
+        storage_path: string;
+    };
+    message?: string;
+}
+
 // Create PR
 export interface CreatePRDto {
     executionId: string;

@@ -25,6 +25,25 @@ export async function POST(req: Request) {
             );
         }
 
+        // Service role key is required for Storage upload on server.
+        // In production this is a common misconfiguration; fail fast with a clear message.
+        if (
+            !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
+            !process.env.SUPABASE_SERVICE_ROLE_KEY
+        ) {
+            console.error(
+                "[upload-set-video] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.",
+            );
+            return NextResponse.json<UploadSetVideoResponseDto>(
+                {
+                    success: false,
+                    message:
+                        "服务器配置缺失：未设置 Supabase Service Role Key，无法上传视频",
+                },
+                { status: 500 },
+            );
+        }
+
         const userId = session.user.id;
 
         // 解析FormData
@@ -66,10 +85,10 @@ export async function POST(req: Request) {
         }
         // --- STORAGE QUOTA CHECK END ---
 
-        // 验证执行记录权限
+        // 验证执行记录权限 & 获取动作名称（用于教练端列表展示）
         const { data: execution } = await supabase
             .from("plan_instance_executions")
-            .select("student_id")
+            .select("student_id, action_executions")
             .eq("id", executionId)
             .single();
 
@@ -77,6 +96,26 @@ export async function POST(req: Request) {
             return NextResponse.json<UploadSetVideoResponseDto>(
                 { success: false, message: "无权限" },
                 { status: 403 },
+            );
+        }
+
+        // Try to determine exercise name from JSONB action_executions
+        let exerciseName: string | null = null;
+        try {
+            let actionExecutions: any = (execution as any).action_executions;
+            if (typeof actionExecutions === "string") {
+                actionExecutions = JSON.parse(actionExecutions);
+            }
+            if (Array.isArray(actionExecutions)) {
+                const ae = actionExecutions.find(
+                    (x: any) => x?.action_id === actionId || x?.id === actionId,
+                );
+                exerciseName = ae?.action_name || ae?.name || null;
+            }
+        } catch (e) {
+            console.warn(
+                "[upload-set-video] Failed to parse action_executions for exercise_name:",
+                e,
             );
         }
 
@@ -135,6 +174,7 @@ export async function POST(req: Request) {
                 .update({
                     video_url: publicUrl,
                     storage_path: filePath,
+                    exercise_name: exerciseName ?? undefined,
                     file_size_bytes: file.size,
                     upload_status: "uploaded",
                 })
@@ -173,6 +213,7 @@ export async function POST(req: Request) {
                 video_url: publicUrl,
                 storage_path: filePath,
                 storage_bucket: "videos",
+                exercise_name: exerciseName ?? undefined,
                 file_size_bytes: file.size,
                 upload_status: "uploaded",
             })
