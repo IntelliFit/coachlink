@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
+import { ScrollPanel } from 'primereact/scrollpanel';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
@@ -52,7 +53,7 @@ const EditPlanPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [questions, setQuestions] = useState<TrainingItem[]>([]);
-
+    
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
 
@@ -547,22 +548,18 @@ const EditPlanPage = () => {
             />
 
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
-                {/* 1. 父容器保持 relative，确保 sticky 作用范围局限在 Card 内部 */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px] relative">
-
-                    {/* 左侧：周历视图 - 增加 sticky 逻辑 */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
+                    {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1">
-                        <div className="lg:sticky lg:top-6 z-10 h-fit">
-                            <WeekCalendar
-                                days={days}
-                                selectedDayIndex={selectedDayIndex}
-                                onSelectDay={setSelectedDayIndex}
-                                onAddWeek={handleAddWeek}
-                                onAddWeekFromExisting={handleAddWeekFromExisting}
-                                onDeleteWeek={handleDeleteWeek}
-                                saving={saving}
-                            />
-                        </div>
+                        <WeekCalendar
+                            days={days}
+                            selectedDayIndex={selectedDayIndex}
+                            onSelectDay={setSelectedDayIndex}
+                            onAddWeek={handleAddWeek}
+                            onAddWeekFromExisting={handleAddWeekFromExisting}
+                            onDeleteWeek={handleDeleteWeek}
+                            saving={saving}
+                        />
                     </div>
 
                     {/* 右侧：训练日详情 */}
@@ -585,30 +582,29 @@ const EditPlanPage = () => {
                                 questions={questions}
                             />
                         ) : (
-                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem border-none bg-surface-50/50 rounded-2xl">
+                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
                                 <div className="text-center p-6">
-                                    <i className="pi pi-info-circle text-surface-400 text-5xl mb-3"></i>
-                                    <p className="text-surface-700 text-lg font-bold">请选择一个训练日进行编辑</p>
-                                    <p className="text-surface-500">从左侧日历中选择一个训练日查看详情</p>
+                                    <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
+                                    <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
+                                    <p className="text-600">从左侧日历中选择一个训练日</p>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* 底部按钮区域 */}
-                <div className="mt-8 pt-6 border-t border-surface-100 flex justify-end gap-3">
+                <div className="mt-6 flex justify-end gap-2">
                     <Button
                         label="取消"
                         icon="pi pi-times"
                         onClick={() => router.back()}
-                        className="p-button-text p-button-secondary rounded-xl"
+                        className="p-button-text"
                         disabled={saving}
                     />
                     <Button
                         label="保存模板"
                         icon="pi pi-check"
-                        className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-xl px-8 py-3"
+                        className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
                         onClick={handleSave}
                         loading={saving}
                     />

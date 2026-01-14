@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
+import { ScrollPanel } from 'primereact/scrollpanel';
 import { useToastContext } from '@/context/ToastContext';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { Calendar, Plus, Trash2, Bolt, Moon, Check, Dumbbell, BatteryMedium, Coffee } from 'lucide-react';
@@ -151,81 +152,83 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     <p className="text-[13px] font-bold text-surface-400 tracking-tight">暂无排期，点击上方按钮开始编排</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-8">
-                    {weeks.map((week, weekIndex) => (
-                        <div key={weekIndex} className="group flex flex-col gap-4">
-                            {/* 周标题与删除操作：非对称过渡 */}
-                            <div className="flex justify-between items-center px-2">
-                                <span className="text-[11px] font-black text-surface-400 uppercase tracking-[0.15em]">
-                                    第 {weekIndex + 1} 周
-                                </span>
-                                {weeks.length > 1 && (
-                                    <button
-                                        onClick={() => {
-                                            setPendingDeleteWeekIndex(weekIndex * 7);
-                                            setDeleteConfirmVisible(true);
-                                        }}
-                                        className="opacity-0 group-hover:opacity-100 p-2 text-surface-400 hover:text-red-500 transition-all active:scale-[0.9]"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* 日历网格：数值中心化 + 物理缩放 */}
-                            <div className="grid grid-cols-7 gap-3">
-                                {week.map((day) => {
-                                    const isSelected = selectedDayIndex === day.dayIndex;
-                                    const isTraining = day.type === 'training';
-                                    const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
-                                    const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
-
-                                    return (
-                                        <div
-                                            key={day.dayIndex}
-                                            onClick={() => !saving && onSelectDay(day.dayIndex)}
-                                            className={`
-                                                relative h-24 cursor-pointer rounded-[20px] transition-all duration-300
-                                                flex flex-col items-center justify-center gap-2
-                                                active:scale-[0.92] select-none
-                                                ${isSelected
-                                                    ? 'bg-surface border-[2px] border-primary-500 shadow-[0_8px_20px_rgba(59,130,246,0.15)] z-10'
-                                                    : 'bg-surface-50/80 border border-transparent hover:bg-surface hover:border-surface-200'
-                                                }
-                                                ${isStarted ? 'ring-2 ring-green-500 ring-offset-2' : ''}
-                                                ${isPassed ? 'opacity-40 filter grayscale' : ''}
-                                            `}
+                <ScrollPanel className="flex-grow" style={{ height: 'calc(100vh - 200px)' }}>
+                    <div className="flex flex-col gap-8 p-2">
+                        {weeks.map((week, weekIndex) => (
+                            <div key={weekIndex} className="group flex flex-col gap-4">
+                                {/* 周标题与删除操作：非对称过渡 */}
+                                <div className="flex justify-between items-center px-2">
+                                    <span className="text-[11px] font-black text-surface-400 uppercase tracking-[0.15em]">
+                                        第 {weekIndex + 1} 周
+                                    </span>
+                                    {weeks.length > 1 && (
+                                        <button
+                                            onClick={() => {
+                                                setPendingDeleteWeekIndex(weekIndex * 7);
+                                                setDeleteConfirmVisible(true);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-surface-400 hover:text-red-500 transition-all active:scale-[0.9]"
                                         >
-                                            <span className={`text-[10px] font-black tracking-tighter ${isSelected ? 'text-primary-500' : 'text-surface-400'}`}>
-                                                第 {day.dayIndex} 日
-                                            </span>
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </div>
 
-                                            <div className={`${isSelected ? 'text-primary-600' : isTraining ? 'text-surface-700' : 'text-surface-300'}`}>
-                                                {isTraining ? <Dumbbell size={20} strokeWidth={2.5} /> : <Coffee size={20} strokeWidth={2.5} />}
-                                            </div>
+                                {/* 日历网格：数值中心化 + 物理缩放 */}
+                                <div className="grid grid-cols-7 gap-3">
+                                    {week.map((day) => {
+                                        const isSelected = selectedDayIndex === day.dayIndex;
+                                        const isTraining = day.type === 'training';
+                                        const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                                        const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
 
-                                            <span className={`text-[10px] font-bold ${isSelected ? 'text-primary-400' : 'text-surface-400'}`}>
-                                                {isTraining ? '训练' : '休息'}
-                                            </span>
+                                        return (
+                                            <div
+                                                key={day.dayIndex}
+                                                onClick={() => !saving && onSelectDay(day.dayIndex)}
+                                                className={`
+                                                    relative h-24 cursor-pointer rounded-[20px] transition-all duration-300
+                                                    flex flex-col items-center justify-center gap-2
+                                                    active:scale-[0.92] select-none
+                                                    ${isSelected
+                                                        ? 'bg-surface border-[2px] border-primary-500 shadow-[0_8px_20px_rgba(59,130,246,0.15)] z-10'
+                                                        : 'bg-surface-50/80 border-transparent hover:bg-surface hover:border-surface-200'
+                                                    }
+                                                    ${isStarted ? 'ring-2 ring-green-500 ring-offset-2' : ''}
+                                                    ${isPassed ? 'opacity-40 filter grayscale' : ''}
+                                                `}
+                                            >
+                                                <span className={`text-[10px] font-black tracking-tighter ${isSelected ? 'text-primary-500' : 'text-surface-400'}`}>
+                                                    第 {day.dayIndex} 日
+                                                </span>
 
-                                            {/* 状态徽章：轻盈色阶 */}
-                                            {isStarted && (
-                                                <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-surface p-1 rounded-full shadow-lg">
-                                                    <Check size={8} strokeWidth={4} />
+                                                <div className={`${isSelected ? 'text-primary-600' : isTraining ? 'text-surface-700' : 'text-surface-300'}`}>
+                                                    {isTraining ? <Dumbbell size={20} strokeWidth={2.5} /> : <Coffee size={20} strokeWidth={2.5} />}
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
 
-                                {/* 补白格：保持结构对齐 */}
-                                {Array.from({ length: 7 - week.length }).map((_, i) => (
-                                    <div key={i} className="h-24 rounded-[20px] border border-dashed border-surface-100 bg-surface-50/20" />
-                                ))}
+                                                <span className={`text-[10px] font-bold ${isSelected ? 'text-primary-400' : 'text-surface-400'}`}>
+                                                    {isTraining ? '训练' : '休息'}
+                                                </span>
+
+                                                {/* 状态徽章：轻盈色阶 */}
+                                                {isStarted && (
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-surface p-1 rounded-full shadow-lg">
+                                                        <Check size={8} strokeWidth={4} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* 补白格：保持结构对齐 */}
+                                    {Array.from({ length: 7 - week.length }).map((_, i) => (
+                                        <div key={i} className="h-24 rounded-[20px] border border-dashed border-surface-100 bg-surface-50/20" />
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                </ScrollPanel>
             )}
 
             {/* 精简版删除弹窗 */}

@@ -107,9 +107,9 @@ export async function POST(req: Request) {
         responseData.invitationInfo = {
             invitationCode: coach.invitation_code,
             invitationMode: coach.invitation_mode as "exclusive" | "open",
-            inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/register?invite=${coach.invitation_code}`,
-            inviteUrlExclusive: `${process.env.NEXT_PUBLIC_APP_URL}/register?invite=${coach.invitation_code}&mode=exclusive`,
-            inviteUrlOpen: `${process.env.NEXT_PUBLIC_APP_URL}/register?invite=${coach.invitation_code}&mode=open`,
+            inviteUrl: `${process.env.NEXTAUTH_URL}/register?invite=${coach.invitation_code}`,
+            inviteUrlExclusive: `${process.env.NEXTAUTH_URL}/register?invite=${coach.invitation_code}&mode=exclusive`,
+            inviteUrlOpen: `${process.env.NEXTAUTH_URL}/register?invite=${coach.invitation_code}&mode=open`,
         }
     }
 

@@ -18,6 +18,7 @@ import { CardioItemForm } from './CardioItemForm';
 import { HabitItemForm } from './HabitItemForm';
 import { Activity, Calendar, Coffee, Copy, Dumbbell, Filter, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
+import { ScrollPanel } from 'primereact/scrollpanel';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -367,246 +368,249 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
             </div>
 
             {day.type === 'training' ? (
-                <div className="flex flex-col gap-4">
-                    {day.actionSets.map((set, setIndex) => {
-                        const itemType = getItemType(set);
-                        const isStrength = itemType === 'STRENGTH';
-                        const filteredOptions = getFilteredOptions(itemType);
+                <ScrollPanel className="flex-grow" style={{ height: 'calc(100vh - 300px)' }}>
+                    <div className="flex flex-col gap-4 p-2">
+                        {day.actionSets.map((set, setIndex) => {
+                            const itemType = getItemType(set);
+                            const isStrength = itemType === 'STRENGTH';
+                            const filteredOptions = getFilteredOptions(itemType);
 
-                        return (
-                            <div
-                                key={setIndex}
-                                className="group relative bg-surface border border-surface-100 rounded-[24px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
-                            >
-                                {/* 动作头部：数值中心化 */}
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="flex gap-4">
-                                        <div className={`w-12 h-12 rounded-[16px] flex flex-col items-center justify-center ${getItemColorClass(itemType)}`}>
-                                            <span className="text-[10px] font-black opacity-60">#{setIndex + 1}</span>
-                                            {isStrength ? <Dumbbell size={18} strokeWidth={2.5} /> : <Activity size={18} strokeWidth={2.5} />}
+                            return (
+                                <div
+                                    key={setIndex}
+                                    className="group relative bg-surface border border-surface-100 rounded-[24px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                                >
+                                    {/* 动作头部：数值中心化 */}
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="flex gap-4">
+                                            <div className={`w-12 h-12 rounded-[16px] flex flex-col items-center justify-center ${getItemColorClass(itemType)}`}>
+                                                <span className="text-[10px] font-black opacity-60">#{setIndex + 1}</span>
+                                                {isStrength ? <Dumbbell size={18} strokeWidth={2.5} /> : <Activity size={18} strokeWidth={2.5} />}
+                                            </div>
+                                            <div className="flex flex-col justify-center gap-1">
+                                                <h5 className="text-lg font-black text-surface-900 tracking-tight leading-none">
+                                                    {actionName(setIndex) || '未选定动作'}
+                                                </h5>
+                                                <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest leading-none">
+                                                    {itemType} SESSION
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col justify-center gap-1">
-                                            <h5 className="text-lg font-black text-surface-900 tracking-tight leading-none">
-                                                {actionName(setIndex) || '未选定动作'}
-                                            </h5>
-                                            <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest leading-none">
-                                                {itemType} SESSION
-                                            </span>
-                                        </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-2">
-                                        {isStrength && shouldShowFilterButton && (
+                                        <div className="flex items-center gap-2">
+                                            {isStrength && shouldShowFilterButton && (
+                                                <button
+                                                    onClick={() => { setCurrentActionSetIndex(setIndex); setFilterDialogVisible(true); }}
+                                                    className="p-2 text-surface-400 hover:text-primary-500 transition-colors active:scale-[0.9]"
+                                                >
+                                                    <Filter size={16} />
+                                                </button>
+                                            )}
                                             <button
-                                                onClick={() => { setCurrentActionSetIndex(setIndex); setFilterDialogVisible(true); }}
-                                                className="p-2 text-surface-400 hover:text-primary-500 transition-colors active:scale-[0.9]"
+                                                onClick={() => onRemoveActionSet(day.dayIndex, setIndex)}
+                                                className="p-2 text-surface-300 hover:text-red-500 transition-colors active:scale-[0.9]"
                                             >
-                                                <Filter size={16} />
+                                                <Trash2 size={16} />
                                             </button>
-                                        )}
-                                        <button
-                                            onClick={() => onRemoveActionSet(day.dayIndex, setIndex)}
-                                            className="p-2 text-surface-300 hover:text-red-500 transition-colors active:scale-[0.9]"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* 条件分支切换：Aero 胶囊风格 */}
-                                {isStrength && selectedQuestions[setIndex] && (
-                                    <div className="flex gap-1.5 p-1 bg-surface-50 rounded-[14px] mb-6 w-fit">
-                                        {selectedQuestions[setIndex].options.map((option, index) => (
-                                            <button
-                                                key={index}
-                                                onClick={() => {
-                                                    setActiveTabIndexes(prev => {
-                                                        const newIndexes = [...prev];
-                                                        newIndexes[setIndex] = index;
-                                                        return newIndexes;
-                                                    });
-                                                }}
-                                                className={`
+                                    {/* 条件分支切换：Aero 胶囊风格 */}
+                                    {isStrength && selectedQuestions[setIndex] && (
+                                        <div className="flex gap-1.5 p-1 bg-surface-50 rounded-[14px] mb-6 w-fit">
+                                            {selectedQuestions[setIndex].options.map((option, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => {
+                                                        setActiveTabIndexes(prev => {
+                                                            const newIndexes = [...prev];
+                                                            newIndexes[setIndex] = index;
+                                                            return newIndexes;
+                                                        });
+                                                    }}
+                                                    className={`
                                                 px-3 py-1.5 rounded-[10px] text-[11px] font-black transition-all
                                                 ${activeTabIndexes[setIndex] === index
                                                         ? 'bg-surface text-primary-600 shadow-sm'
                                                         : 'text-surface-400 hover:text-surface-600'}
                                             `}
+                                                    >
+                                                        {option}
+                                                    </button>
+                                                ))}
+                                        </div>
+                                    )}
+
+                                    {/* 动态表单区域：利用层级去线化 */}
+                                    <div className="bg-surface-50/30 rounded-[20px] p-5 border border-surface-100/50">
+                                        {/* 1. 力量训练 (STRENGTH) */}
+                                        {itemType === 'STRENGTH' && (
+                                            <ActionSetForm
+                                                set={set.type === 'one-filter' ? (set as any).actions[activeTabIndexes[setIndex] || 0] : set}
+                                                setIndex={setIndex}
+                                                actionOptions={filteredOptions}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onActionSetChange={(dayIdx, innerSetIdx, field, value) => {
+                                                    if (set.type === 'one-filter') {
+                                                        const activeIndex = activeTabIndexes[setIndex] || 0;
+                                                        const actions = (set as any).actions;
+
+                                                        // 分支条件下的局部数据更新
+                                                        if (field === 'all') {
+                                                            actions[activeIndex] = value;
+                                                        } else if (field === 'params') {
+                                                            actions[activeIndex].params = { ...actions[activeIndex].params, ...(value as any) };
+                                                        } else {
+                                                            actions[activeIndex][field] = value;
+                                                        }
+                                                        onActionSetChange(dayIdx, setIndex, 'all', set);
+                                                    } else {
+                                                        onActionSetChange(dayIdx, innerSetIdx, field, value);
+                                                    }
+                                                }}
+                                                actions={actions}
+                                                studentData={studentData}
+                                                subscription={subscription}
+                                                // 1RM 数值中心化引用
+                                                planReference1RM={planReference1RMs?.[set.type === 'one-filter'
+                                                    ? ((set as any).actions[activeTabIndexes[setIndex] || 0]?.actionId as string)
+                                                    : (set.actionId as string)]}
+                                                isGlobalOneRMConfigEnabled={planReference1RMs !== undefined}
+                                            />
+                                        )}
+
+                                        {/* 2. 饮食建议 (DIET) */}
+                                        {itemType === 'DIET' && (
+                                            <DietItemForm
+                                                item={set as any}
+                                                setIndex={setIndex}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onUpdate={onActionSetChange}
+                                                actionOptions={filteredOptions}
+                                            />
+                                        )}
+
+                                        {/* 3. 有氧运动 (CARDIO) */}
+                                        {itemType === 'CARDIO' && (
+                                            <CardioItemForm
+                                                item={set as any}
+                                                setIndex={setIndex}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onUpdate={onActionSetChange}
+                                                actionOptions={filteredOptions}
+                                            />
+                                        )}
+
+                                        {/* 4. 习惯追踪 (HABIT) */}
+                                        {itemType === 'HABIT' && (
+                                            <HabitItemForm
+                                                item={set as any}
+                                                setIndex={setIndex}
+                                                dayIndex={dayIndex}
+                                                saving={saving}
+                                                onUpdate={onActionSetChange}
+                                                actionOptions={filteredOptions}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* 执行详情模块 */}
+                        <ExecutionDetails execution={execution} />
+
+                        {/* 条件筛选对话框 */}
+                        {shouldShowFilterButton && (
+                            <Dialog
+                                visible={filterDialogVisible}
+                                onHide={() => setFilterDialogVisible(false)}
+                                header={
+                                    <div className="flex items-center gap-2 py-1">
+                                        <div className="p-2 bg-primary-50 rounded-lg text-primary-600">
+                                            <i className="pi pi-filter" style={{ fontSize: '1rem' }} />
+                                        </div>
+                                        <span className="text-base font-black tracking-tighter text-surface-900">选择筛选条件</span>
+                                    </div>
+                                }
+                                style={{ width: '90vw', maxWidth: '500px' }}
+                                modal
+                                className="aero-dialog"
+                                contentClassName="p-0 border-t border-surface-100"
+                                footer={
+                                    <div className="p-4 bg-surface border-t border-surface-100 flex justify-end">
+                                        <button
+                                            onClick={() => {
+                                                if (currentActionSetIndex === null) return;
+                                                const newSelectedQuestions = [...selectedQuestions];
+                                                newSelectedQuestions[currentActionSetIndex] = null as any;
+                                                setSelectedQuestions(newSelectedQuestions);
+                                                setFilterDialogVisible(false);
+                                            }}
+                                            className="px-6 py-2.5 text-xs font-black text-red-400 hover:text-red-600 transition-colors flex items-center gap-2"
+                                        >
+                                            <i className="pi pi-times" style={{ fontSize: '0.7rem' }} />
+                                            取消当前条件
+                                        </button>
+                                    </div>
+                                }
+                            >
+                                <div className="flex flex-col gap-4 p-6">
+                                    {/* 说明文字区域 */}
+                                    <div className="flex gap-3 p-4 bg-surface-50/50 rounded-[18px] border border-surface-100">
+                                        <div className="text-primary-500 pt-0.5">
+                                            <i className="pi pi-info-circle" />
+                                        </div>
+                                        <div className="text-[12px] leading-relaxed text-surface-500 font-medium">
+                                            为当前动作选择一个分支条件用于匹配智能计划，
+                                            <br />
+                                            如果需要修改下面的选项，请前往
+                                            <a href="/dashboard/questionnaire" className="text-primary-600 font-bold underline underline-offset-4 ml-1 hover:text-primary-700">
+                                                学员问卷
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    {/* 选项列表：采用与日历项一致的卡片风格 */}
+                                    <div className="flex flex-col gap-2.5 mt-2">
+                                        {optionQuestions.map((question, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => handleFilterSelect(question)}
+                                                className="
+                            group relative flex items-center justify-between p-4
+                            bg-white border border-surface-100 rounded-[20px]
+                            transition-all duration-300 text-left
+                            hover:border-primary-300 hover:bg-primary-50/20 hover:shadow-sm
+                            active:scale-[0.98]
+                        "
                                             >
-                                                {option}
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-black text-primary-500 uppercase tracking-widest">
+                                                        Question {index + 1}
+                                                    </span>
+                                                    <span className="text-[14px] font-black text-surface-800 tracking-tight">
+                                                        {question.question}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-bold px-2 py-1 bg-surface-100 text-surface-500 rounded-lg group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
+                                                        共 {question.options.length} 项
+                                                    </span>
+                                                    <i className="pi pi-chevron-right text-[10px] text-surface-300 group-hover:text-primary-400 transition-transform group-hover:translate-x-1" />
+                                                </div>
                                             </button>
                                         ))}
                                     </div>
-                                )}
-
-                                {/* 动态表单区域：利用层级去线化 */}
-                                <div className="bg-surface-50/30 rounded-[20px] p-5 border border-surface-100/50">
-                                    {/* 1. 力量训练 (STRENGTH) */}
-                                    {itemType === 'STRENGTH' && (
-                                        <ActionSetForm
-                                            set={set.type === 'one-filter' ? (set as any).actions[activeTabIndexes[setIndex] || 0] : set}
-                                            setIndex={setIndex}
-                                            actionOptions={filteredOptions}
-                                            dayIndex={dayIndex}
-                                            saving={saving}
-                                            onActionSetChange={(dayIdx, innerSetIdx, field, value) => {
-                                                if (set.type === 'one-filter') {
-                                                    const activeIndex = activeTabIndexes[setIndex] || 0;
-                                                    const actions = (set as any).actions;
-
-                                                    // 分支条件下的局部数据更新
-                                                    if (field === 'all') {
-                                                        actions[activeIndex] = value;
-                                                    } else if (field === 'params') {
-                                                        actions[activeIndex].params = { ...actions[activeIndex].params, ...(value as any) };
-                                                    } else {
-                                                        actions[activeIndex][field] = value;
-                                                    }
-                                                    onActionSetChange(dayIdx, setIndex, 'all', set);
-                                                } else {
-                                                    onActionSetChange(dayIdx, innerSetIdx, field, value);
-                                                }
-                                            }}
-                                            actions={actions}
-                                            studentData={studentData}
-                                            subscription={subscription}
-                                            // 1RM 数值中心化引用
-                                            planReference1RM={planReference1RMs?.[set.type === 'one-filter'
-                                                ? ((set as any).actions[activeTabIndexes[setIndex] || 0]?.actionId as string)
-                                                : (set.actionId as string)]}
-                                            isGlobalOneRMConfigEnabled={planReference1RMs !== undefined}
-                                        />
-                                    )}
-
-                                    {/* 2. 饮食建议 (DIET) */}
-                                    {itemType === 'DIET' && (
-                                        <DietItemForm
-                                            item={set as any}
-                                            setIndex={setIndex}
-                                            dayIndex={dayIndex}
-                                            saving={saving}
-                                            onUpdate={onActionSetChange}
-                                            actionOptions={filteredOptions}
-                                        />
-                                    )}
-
-                                    {/* 3. 有氧运动 (CARDIO) */}
-                                    {itemType === 'CARDIO' && (
-                                        <CardioItemForm
-                                            item={set as any}
-                                            setIndex={setIndex}
-                                            dayIndex={dayIndex}
-                                            saving={saving}
-                                            onUpdate={onActionSetChange}
-                                            actionOptions={filteredOptions}
-                                        />
-                                    )}
-
-                                    {/* 4. 习惯追踪 (HABIT) */}
-                                    {itemType === 'HABIT' && (
-                                        <HabitItemForm
-                                            item={set as any}
-                                            setIndex={setIndex}
-                                            dayIndex={dayIndex}
-                                            saving={saving}
-                                            onUpdate={onActionSetChange}
-                                            actionOptions={filteredOptions}
-                                        />
-                                    )}
                                 </div>
-                            </div>
-                        );
-                    })}
-
-                    {/* 执行详情模块 */}
-                    <ExecutionDetails execution={execution} />
-                    {/* 条件筛选对话框 */}
-                    {shouldShowFilterButton && (
-                        <Dialog
-                            visible={filterDialogVisible}
-                            onHide={() => setFilterDialogVisible(false)}
-                            header={
-                                <div className="flex items-center gap-2 py-1">
-                                    <div className="p-2 bg-primary-50 rounded-lg text-primary-600">
-                                        <i className="pi pi-filter" style={{ fontSize: '1rem' }} />
-                                    </div>
-                                    <span className="text-base font-black tracking-tighter text-surface-900">选择筛选条件</span>
-                                </div>
-                            }
-                            style={{ width: '90vw', maxWidth: '500px' }}
-                            modal
-                            className="aero-dialog"
-                            contentClassName="p-0 border-t border-surface-100"
-                            footer={
-                                <div className="p-4 bg-surface border-t border-surface-100 flex justify-end">
-                                    <button
-                                        onClick={() => {
-                                            if (currentActionSetIndex === null) return;
-                                            const newSelectedQuestions = [...selectedQuestions];
-                                            newSelectedQuestions[currentActionSetIndex] = null as any;
-                                            setSelectedQuestions(newSelectedQuestions);
-                                            setFilterDialogVisible(false);
-                                        }}
-                                        className="px-6 py-2.5 text-xs font-black text-red-400 hover:text-red-600 transition-colors flex items-center gap-2"
-                                    >
-                                        <i className="pi pi-times" style={{ fontSize: '0.7rem' }} />
-                                        取消当前条件
-                                    </button>
-                                </div>
-                            }
-                        >
-                            <div className="flex flex-col gap-4 p-6">
-                                {/* 说明文字区域 */}
-                                <div className="flex gap-3 p-4 bg-surface-50/50 rounded-[18px] border border-surface-100">
-                                    <div className="text-primary-500 pt-0.5">
-                                        <i className="pi pi-info-circle" />
-                                    </div>
-                                    <div className="text-[12px] leading-relaxed text-surface-500 font-medium">
-                                        为当前动作选择一个分支条件用于匹配智能计划，
-                                        <br />
-                                        如果需要修改下面的选项，请前往
-                                        <a href="/dashboard/questionnaire" className="text-primary-600 font-bold underline underline-offset-4 ml-1 hover:text-primary-700">
-                                            学员问卷
-                                        </a>
-                                    </div>
-                                </div>
-
-                                {/* 选项列表：采用与日历项一致的卡片风格 */}
-                                <div className="flex flex-col gap-2.5 mt-2">
-                                    {optionQuestions.map((question, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => handleFilterSelect(question)}
-                                            className="
-                        group relative flex items-center justify-between p-4 
-                        bg-white border border-surface-100 rounded-[20px] 
-                        transition-all duration-300 text-left
-                        hover:border-primary-300 hover:bg-primary-50/20 hover:shadow-sm
-                        active:scale-[0.98]
-                    "
-                                        >
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-black text-primary-500 uppercase tracking-widest">
-                                                    Question {index + 1}
-                                                </span>
-                                                <span className="text-[14px] font-black text-surface-800 tracking-tight">
-                                                    {question.question}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-bold px-2 py-1 bg-surface-100 text-surface-500 rounded-lg group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
-                                                    共 {question.options.length} 项
-                                                </span>
-                                                <i className="pi pi-chevron-right text-[10px] text-surface-300 group-hover:text-primary-400 transition-transform group-hover:translate-x-1" />
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </Dialog>
-                    )}
-                </div>
+                            </Dialog>
+                        )}
+                    </div>
+                </ScrollPanel>
             ) : (
                 /* 休息日：骨架感占位 */
                 <div className="flex flex-col items-center justify-center py-16 bg-surface-50/40 rounded-[32px] border border-dashed border-surface-200">
