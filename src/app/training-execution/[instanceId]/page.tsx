@@ -134,11 +134,11 @@ function TrainingExecutionContent() {
             });
             
             // 只有当包含 "kg" 时才预填充重量（避免把 RM 值填进去）
-            // 注意：支持负数（辅助重量），例如 "-10kg"
+            // 注意：支持负数（辅助重量），例如 "-10kg"；也允许 0kg
             if (weightStr.includes('kg') && weight === null) {
                 const match = weightStr.match(/-?\d+(\.\d+)?/);
                 const numericWeight = match ? parseFloat(match[0]) : NaN;
-                if (Number.isFinite(numericWeight) && numericWeight !== 0) {
+                if (Number.isFinite(numericWeight)) {
                     setWeight(numericWeight);
                 }
             }
@@ -317,9 +317,10 @@ function TrainingExecutionContent() {
                 actionIndex,
                 setIndex,
                 actionId: actionExecution.action_id,
-                actualWeight: weight || undefined,
-                actualReps: reps || undefined,
-                rpe: rpe || undefined,
+                // NOTE: allow 0kg (e.g. unloaded movements); only treat null/undefined as "not provided"
+                actualWeight: weight ?? undefined,
+                actualReps: reps ?? undefined,
+                rpe: rpe ?? undefined,
                 notes: setNotes || undefined,
                 is_pr: markAsPR,
                 has_video: hasVideo
@@ -840,7 +841,8 @@ function TrainingExecutionContent() {
                                                                             });
                                                                             return;
                                                                         }
-                                                                        if (isWeightRequiredForSet(setData) && !weight) {
+                                                                        // Allow 0kg; only block when weight is missing
+                                                                        if (isWeightRequiredForSet(setData) && (weight === null || weight === undefined)) {
                                                                             showToast({
                                                                                 severity: 'warn',
                                                                                 summary: '还差一步',
