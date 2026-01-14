@@ -165,7 +165,17 @@ function normalizeWeekDays(days: any[], weekIndex: number) {
  * 基于已有动作库，将训练计划文本解析为结构化的周训练模板
  */
 export async function POST(req: Request) {
-    const { text, actions } = await req.json() as ParseTemplateDto;
+    let payload: ParseTemplateDto;
+    try {
+        payload = await req.json() as ParseTemplateDto;
+    } catch (error) {
+        return NextResponse.json({
+            success: false,
+            message: "请求体不是有效 JSON",
+        }, { status: 400 });
+    }
+
+    const { text, actions } = payload;
 
     // 检查用户登录和教练权限
     const session = await getServerSession();

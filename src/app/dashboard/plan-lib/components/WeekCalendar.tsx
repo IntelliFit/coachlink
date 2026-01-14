@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { ScrollPanel } from 'primereact/scrollpanel';
 import { useToastContext } from '@/context/ToastContext';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
-import { Calendar, Plus, Trash2, Bolt, Moon, Check, Dumbbell, BatteryMedium, Coffee } from 'lucide-react';
+import { Calendar, Plus, Trash2, Check, Dumbbell, Coffee, ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
 
 interface WeekCalendarProps {
     days: FormPlanTrainingDay[];
@@ -37,11 +37,33 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     const acceptBtnRef = useRef(null);
     const rejectBtnRef = useRef(null);
     const { showToast } = useToastContext();
+    const [mobileExpanded, setMobileExpanded] = useState(false);
 
     const weeks = [];
     for (let i = 0; i < days.length; i += 7) {
         weeks.push(days.slice(i, i + 7));
     }
+
+    const selectedWeekIndex = useMemo(() => {
+        if (!selectedDayIndex || selectedDayIndex < 1) return 0;
+        return Math.floor((selectedDayIndex - 1) / 7);
+    }, [selectedDayIndex]);
+
+    const selectedDayOfWeekIndex = useMemo(() => {
+        if (!selectedDayIndex || selectedDayIndex < 1) return 0;
+        return (selectedDayIndex - 1) % 7;
+    }, [selectedDayIndex]);
+
+    const mobileWeekIndex = Math.min(Math.max(selectedWeekIndex, 0), Math.max(weeks.length - 1, 0));
+    const mobileWeek = weeks[mobileWeekIndex] || [];
+
+    const goToWeek = (nextWeekIndex: number) => {
+        if (weeks.length === 0) return;
+        const clamped = Math.min(Math.max(nextWeekIndex, 0), weeks.length - 1);
+        const targetWeek = weeks[clamped] || [];
+        const targetDay = targetWeek[Math.min(selectedDayOfWeekIndex, Math.max(targetWeek.length - 1, 0))];
+        if (targetDay) onSelectDay(targetDay.dayIndex);
+    };
 
     const confirmDelete = () => {
         if (pendingDeleteWeekIndex !== null) {
@@ -126,23 +148,42 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     </div>
                 </div>
 
-                <button
-                    onClick={onAddWeek}
-                    disabled={saving}
-                    className="
-                        flex items-center gap-2 px-4 py-2 
-                        bg-surface border border-surface-200 rounded-[14px]
-                        
-                        text-[12px] font-black text-surface-700 tracking-tight
-                        
-                        transition-all duration-200 active:scale-[0.95]
-                        hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
-                        disabled:opacity-40 disabled:cursor-not-allowed
-                    "
-                >
-                    <Plus size={14} strokeWidth={3} />
-                    添加新的一周
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* 手机端：展开/收起（默认压缩成 7 天滑动条，省空间） */}
+                    <button
+                        type="button"
+                        onClick={() => setMobileExpanded(v => !v)}
+                        className="
+                            md:hidden
+                            flex items-center gap-2 px-3 py-2
+                            bg-surface border border-surface-200 rounded-[14px]
+                            text-[12px] font-black text-surface-700 tracking-tight
+                            transition-all duration-200 active:scale-[0.95]
+                            hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                        "
+                    >
+                        <ChevronsUpDown size={14} strokeWidth={2.5} />
+                        {mobileExpanded ? '收起' : '展开'}
+                    </button>
+
+                    <button
+                        onClick={onAddWeek}
+                        disabled={saving}
+                        className="
+                            flex items-center gap-2 px-4 py-2 
+                            bg-surface border border-surface-200 rounded-[14px]
+                            
+                            text-[12px] font-black text-surface-700 tracking-tight
+                            
+                            transition-all duration-200 active:scale-[0.95]
+                            hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                    >
+                        <Plus size={14} strokeWidth={3} />
+                        添加新的一周
+                    </button>
+                </div>
             </div>
 
             {weeks.length === 0 ? (
@@ -152,27 +193,106 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     <p className="text-[13px] font-bold text-surface-400 tracking-tight">暂无排期，点击上方按钮开始编排</p>
                 </div>
             ) : (
-                <ScrollPanel className="flex-grow" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="flex flex-col gap-8 p-2">
-                        {weeks.map((week, weekIndex) => (
-                            <div key={weekIndex} className="group flex flex-col gap-4">
-                                {/* 周标题与删除操作：非对称过渡 */}
-                                <div className="flex justify-between items-center px-2">
-                                    <span className="text-[11px] font-black text-surface-400 uppercase tracking-[0.15em]">
-                                        第 {weekIndex + 1} 周
-                                    </span>
-                                    {weeks.length > 1 && (
-                                        <button
-                                            onClick={() => {
-                                                setPendingDeleteWeekIndex(weekIndex * 7);
-                                                setDeleteConfirmVisible(true);
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 p-2 text-surface-400 hover:text-red-500 transition-all active:scale-[0.9]"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    )}
+                <ScrollPanel>
+                    <div className="flex flex-col gap-8">
+                    {/* 手机端：默认压缩为“当前周 7 天滑动条”，节省大量空间 */}
+                    {!mobileExpanded && (
+                        <div className="md:hidden">
+                            <div className="flex items-center justify-between px-2">
+                                <span className="text-[11px] font-black text-surface-400 uppercase tracking-[0.15em]">
+                                    第 {mobileWeekIndex + 1} 周
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        disabled={saving || mobileWeekIndex <= 0}
+                                        onClick={() => goToWeek(mobileWeekIndex - 1)}
+                                        className="p-2 rounded-xl border border-surface-200 bg-surface text-surface-700 disabled:opacity-40"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={saving || mobileWeekIndex >= weeks.length - 1}
+                                        onClick={() => goToWeek(mobileWeekIndex + 1)}
+                                        className="p-2 rounded-xl border border-surface-200 bg-surface text-surface-700 disabled:opacity-40"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
                                 </div>
+                            </div>
+
+                            <div className="mt-3 flex gap-2 overflow-x-auto px-2 pb-1 [-webkit-overflow-scrolling:touch]">
+                                {mobileWeek.map((day) => {
+                                    const isSelected = selectedDayIndex === day.dayIndex;
+                                    const isTraining = day.type === 'training';
+                                    const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                                    const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
+
+                                    return (
+                                        <button
+                                            key={day.dayIndex}
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => !saving && onSelectDay(day.dayIndex)}
+                                            className={`
+                                                relative shrink-0 w-[92px] h-[64px]
+                                                rounded-2xl border transition-all duration-200
+                                                flex items-center justify-between px-3
+                                                active:scale-[0.98]
+                                                ${isSelected
+                                                    ? 'bg-surface border-primary-500 shadow-[0_8px_20px_rgba(59,130,246,0.15)]'
+                                                    : 'bg-surface-50/80 border-surface-100 hover:bg-surface hover:border-surface-200'}
+                                                ${isPassed ? 'opacity-50 grayscale' : ''}
+                                            `}
+                                        >
+                                            <div className="flex flex-col items-start leading-none">
+                                                <span className={`text-[10px] font-black ${isSelected ? 'text-primary-500' : 'text-surface-400'}`}>
+                                                    第{day.dayIndex}日
+                                                </span>
+                                                <span className={`mt-1 text-[11px] font-black ${isSelected ? 'text-primary-700' : 'text-surface-700'}`}>
+                                                    {isTraining ? '训练' : '休息'}
+                                                </span>
+                                            </div>
+
+                                            <div className={`${isSelected ? 'text-primary-600' : isTraining ? 'text-surface-700' : 'text-surface-300'}`}>
+                                                {isTraining ? <Dumbbell size={18} strokeWidth={2.5} /> : <Coffee size={18} strokeWidth={2.5} />}
+                                            </div>
+
+                                            {isStarted && (
+                                                <div className="absolute -top-1 -right-1 bg-green-500 text-surface p-1 rounded-full shadow-lg">
+                                                    <Check size={8} strokeWidth={4} />
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {weeks.map((week, weekIndex) => (
+                        <div
+                            key={weekIndex}
+                            className={`group flex flex-col gap-4 ${mobileExpanded ? '' : 'hidden md:flex'}`}
+                        >
+                            {/* 周标题与删除操作：非对称过渡 */}
+                            <div className="flex justify-between items-center px-2">
+                                <span className="text-[11px] font-black text-surface-400 uppercase tracking-[0.15em]">
+                                    第 {weekIndex + 1} 周
+                                </span>
+                                {weeks.length > 1 && (
+                                    <button
+                                        onClick={() => {
+                                            setPendingDeleteWeekIndex(weekIndex * 7);
+                                            setDeleteConfirmVisible(true);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-2 text-surface-400 hover:text-red-500 transition-all active:scale-[0.9]"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
+                            </div>
 
                                 {/* 日历网格：数值中心化 + 物理缩放 */}
                                 <div className="grid grid-cols-7 gap-3">
