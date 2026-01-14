@@ -314,52 +314,55 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     };
 
     return (
-        <div className="flex flex-col gap-6 p-6">
-            {/* 头部：生产力字重与非线性圆角操作区 */}
-            <div className="flex flex-wrap gap-4 items-end justify-between px-2">
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-baseline gap-3">
-                        <h3 className="text-3xl font-black text-surface-900 tracking-tighter">
-                            第 {dayIndex + 1} 天
-                        </h3>
-                        <span className="px-2 py-0.5 bg-surface-100 rounded-full text-[10px] font-black text-surface-500 uppercase">
-                            W{Math.ceil((dayIndex + 1) / 7)} · D{(dayIndex) % 7 + 1}
+        <div className="flex flex-col gap-5 p-3 sm:p-4 md:p-6">
+            {/* 顶部操作区：吸顶（避免每次回到最上面） */}
+            <div className="sticky top-2 z-20 bg-surface/95 backdrop-blur-md rounded-[20px] border border-surface-100/60 p-3 flex flex-col gap-3">
+                {/* 头部：生产力字重与非线性圆角操作区 */}
+                <div className="flex flex-wrap gap-3 items-end justify-between px-1">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-baseline gap-3">
+                            <h3 className="text-2xl sm:text-3xl font-black text-surface-900 tracking-tighter">
+                                第 {dayIndex + 1} 天
+                            </h3>
+                            <span className="px-2 py-0.5 bg-surface-100 rounded-full text-[10px] font-black text-surface-500 uppercase">
+                                W{Math.ceil((dayIndex + 1) / 7)} · D{(dayIndex) % 7 + 1}
+                            </span>
+                        </div>
+                        <span className="text-[11px] font-bold text-surface-400">
+                            {day.type === 'training' ? `已排布 ${day.actionSets.length} 个训练项` : '休息日'}
                         </span>
                     </div>
-                </div>
 
-                <div className="flex items-center gap-2 p-1 bg-surface-100/50 rounded-[14px]">
-                    {['training', 'rest'].map((type) => (
-                        <button
-                            key={type}
-                            onClick={() => onDayTypeChange(dayIndex, type as any)}
-                            className={`
+                    <div className="flex items-center gap-2 p-1 bg-surface-100/50 rounded-[14px]">
+                        {['training', 'rest'].map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => onDayTypeChange(dayIndex, type as any)}
+                                className={`
                             px-4 py-1.5 rounded-[10px] text-[12px] font-black transition-all active:scale-[0.95]
                             ${day.type === type
                                     ? 'bg-surface text-surface-900 shadow-sm'
                                     : 'text-surface-400 hover:text-surface-600'}
                         `}
-                        >
-                            {type === 'training' ? '训练日' : '休息日'}
-                        </button>
-                    ))}
+                            >
+                                {type === 'training' ? '训练日' : '休息日'}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
 
-            {/* 功能条：轻盈边框与复制入口 */}
-            <div className="flex justify-between items-center bg-surface-50/50 p-4 rounded-[20px] border border-surface-100/40">
-                <span className="text-xs font-bold text-surface-400">
-                    {day.type === 'training' ? `已排布 ${day.actionSets.length} 个训练项` : '享受充分恢复'}
-                </span>
-                <div className="flex gap-2">
-                    {existingTrainingDays?.length > 0 && (
-                        <button
-                            onClick={() => setCopyDialogVisible(true)}
-                            className="flex items-center gap-2 px-3 py-1.5 text-xs font-black text-surface-600 hover:text-primary-600 transition-colors"
-                        >
-                            <Copy size={14} /> 从其他天复制
-                        </button>
-                    )}
+                {/* 功能条：复制 + 添加项目 */}
+                <div className="flex justify-between items-center bg-surface-50/50 px-3 py-2 rounded-[16px] border border-surface-100/40">
+                    <div className="flex items-center gap-2">
+                        {existingTrainingDays?.length > 0 && (
+                            <button
+                                onClick={() => setCopyDialogVisible(true)}
+                                className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-black text-surface-600 hover:text-primary-600 transition-colors"
+                            >
+                                <Copy size={14} /> 从其他天复制
+                            </button>
+                        )}
+                    </div>
                     {day.type === 'training' && (
                         <PolymorphicItemMenu onAdd={(type) => onAddActionSet(day.dayIndex, type)} />
                     )}
@@ -376,10 +379,10 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         return (
                             <div
                                 key={setIndex}
-                                className="group relative bg-surface border border-surface-100 rounded-[24px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                                className="group relative bg-surface border border-surface-100 rounded-[24px] p-4 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
                             >
                                 {/* 动作头部：数值中心化 */}
-                                <div className="flex justify-between items-start mb-6">
+                                <div className="flex justify-between items-start mb-4 md:mb-6">
                                     <div className="flex gap-4">
                                         <div className={`w-12 h-12 rounded-[16px] flex flex-col items-center justify-center ${getItemColorClass(itemType)}`}>
                                             <span className="text-[10px] font-black opacity-60">#{setIndex + 1}</span>
@@ -440,7 +443,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                 )}
 
                                 {/* 动态表单区域：利用层级去线化 */}
-                                <div className="bg-surface-50/30 rounded-[20px] p-5 border border-surface-100/50">
+                                <div className="md:bg-surface-50/30 md:rounded-[20px] p-0 md:p-5 md:border md:border-surface-100/50">
                                     {/* 1. 力量训练 (STRENGTH) */}
                                     {itemType === 'STRENGTH' && (
                                         <ActionSetForm
