@@ -102,6 +102,12 @@ import type {
 import { CreateCoachApplicationDto, CreateCoachApplicationResponseDto } from "../api/coach/create-coach-application/entity";
 import { ContentInteractionDto, ContentInteractionResponseDto } from "../api/coach/content-interactions/entity";
 
+// 邀请码检查相关接口
+import type {
+    CheckInvitationCodeAvailabilityDto,
+    CheckInvitationCodeAvailabilityResponseDto
+} from '@/app/api/coach/invitation-code/check/entity';
+
 // 添加UpdateContentDto和DeleteContentDto类型
 interface DeleteContentDto {
     id: string;
@@ -304,6 +310,15 @@ class CoachService extends BaseService {
 
     async updateCoachApplication(reqData: UpdateCoachApplicationDto) {
         const res = await this.post<UpdateCoachApplicationResponseDto>('update-coach-application', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    // 检查邀请码是否可用
+    async checkInvitationCodeAvailability(reqData: CheckInvitationCodeAvailabilityDto) {
+        const res = await this.post<CheckInvitationCodeAvailabilityResponseDto>('invitation-code/check', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
