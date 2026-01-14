@@ -193,7 +193,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     <p className="text-[13px] font-bold text-surface-400 tracking-tight">暂无排期，点击上方按钮开始编排</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-8">
+                <ScrollPanel>
+                    <div className="flex flex-col gap-8">
                     {/* 手机端：默认压缩为“当前周 7 天滑动条”，节省大量空间 */}
                     {!mobileExpanded && (
                         <div className="md:hidden">
