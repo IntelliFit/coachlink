@@ -1,6 +1,8 @@
 // Service for training execution APIs
 
 import type {
+    AddSetVideoLinkDto,
+    AddSetVideoLinkResponseDto,
     CompleteItemDto,
     CompleteSetDto,
     CompleteSetResponseDto,
@@ -100,6 +102,20 @@ class ExecutionService {
                 raw: text,
             };
         }
+    }
+
+    /**
+     * 直接粘贴视频链接（不占用平台存储）
+     */
+    async addSetVideoLink(
+        dto: AddSetVideoLinkDto,
+    ): Promise<AddSetVideoLinkResponseDto> {
+        const response = await fetch("/api/execution/add-set-video-link", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dto),
+        });
+        return response.json();
     }
 
     /**

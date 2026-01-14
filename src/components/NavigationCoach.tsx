@@ -19,6 +19,7 @@ import {
     Users,
     FileEdit,
     ClipboardList,
+    ArrowLeft,
     ChevronDown,
     LogIn
 } from 'lucide-react';
@@ -111,6 +112,26 @@ export default function NavigationCoach() {
             onClick: () => router.push('/dashboard/plan-lib'),
         },
     ], [pathname, router]);
+
+    // Mobile: 全局返回键（像 App 一样），二级页面自动出现
+    const coachTabRoots = useMemo(() => [
+        '/dashboard/overview',
+        '/dashboard/videos',
+        '/dashboard/students',
+        '/dashboard/content',
+        '/dashboard/plan-lib',
+    ], []);
+
+    const shouldShowMobileBack = useMemo(() => {
+        if (pathname === '/dashboard') return false;
+        return !coachTabRoots.includes(pathname);
+    }, [pathname, coachTabRoots]);
+
+    const fallbackRoot = useMemo(() => {
+        // Find best matching root by prefix; default to overview
+        const match = coachTabRoots.find((r) => pathname.startsWith(r));
+        return match || '/dashboard/overview';
+    }, [pathname, coachTabRoots]);
 
     const userMenuItems = useMemo(() => [
         { label: '我的主页', icon: 'pi pi-home', command: () => gotoCoachDisplayPage() },
@@ -215,8 +236,27 @@ export default function NavigationCoach() {
         <>
             {/* Mobile: 顶部轻量栏（避免 Menubar 在窄屏挤压） */}
             <div className="md:hidden sticky top-0 z-50 w-full px-3 pt-3 pointer-events-none">
-                <div className="pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-4 py-2 flex items-center justify-between">
-                    {start}
+                <div className="pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-3 py-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {shouldShowMobileBack && (
+                            <button
+                                type="button"
+                                className="shrink-0 w-9 h-9 rounded-2xl bg-surface/70 border border-surface/30 flex items-center justify-center text-surface-600 hover:bg-surface active:scale-[0.98]"
+                                onClick={() => {
+                                    if (typeof window !== 'undefined' && window.history.length > 1) {
+                                        router.back();
+                                    } else {
+                                        router.push(fallbackRoot);
+                                    }
+                                }}
+                                aria-label="返回"
+                                title="返回"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                        )}
+                        {start}
+                    </div>
                     {end}
                 </div>
             </div>

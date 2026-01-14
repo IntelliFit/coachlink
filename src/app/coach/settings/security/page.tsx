@@ -4,11 +4,12 @@ import ChangePasswordForm from '@/components/auth/ChangePasswordForm';
 
 export default function CoachSecuritySettingsPage() {
     return (
-        <div className="space-y-6">
-            <div className="bg-surface-0 p-6 rounded-2xl shadow-sm border border-surface-200">
-                <h2 className="text-lg font-bold text-surface-900 mb-4">账号安全</h2>
+        <div className="space-y-8 animate-in fade-in duration-700">
+            {/* 2. 容器：大圆角与呼吸感边框 */}
+            <div 
+                className="justify-center p-8 rounded-[24px] transition-all duration-500"
+            >
                 <div className="max-w-xl">
-                    <p className="text-surface-500 mb-6">建议定期更换密码以保护您的账户安全。</p>
                     <ChangePasswordForm />
                 </div>
             </div>

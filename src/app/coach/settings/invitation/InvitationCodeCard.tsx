@@ -78,11 +78,11 @@ export const InvitationCodeCard: React.FC<Props> = ({
                     </p>
                 </div>
                 {!coach?.invitationInfo.invitationCode && !showManualInput && (
-                    <Button 
-                        label="立即设置" 
-                        icon="pi pi-plus" 
+                    <Button
+                        label="立即设置"
+                        icon="pi pi-plus"
                         className="p-button-text p-button-sm font-bold text-primary-500 hover:bg-primary-50 rounded-xl"
-                        onClick={() => setShowManualInput(true)} 
+                        onClick={() => setShowManualInput(true)}
                     />
                 )}
             </div>
@@ -98,7 +98,7 @@ export const InvitationCodeCard: React.FC<Props> = ({
                             </div>
                         </div>
                         {coach?.invitationInfo.invitationCode && (
-                            <button 
+                            <button
                                 onClick={handleCopyCode}
                                 className="w-12 h-12 rounded-2xl bg-surface border border-surface-100 shadow-sm flex items-center justify-center text-surface-600 hover:text-primary-500 hover:border-primary-200 transition-all active:scale-90"
                             >
@@ -115,7 +115,7 @@ export const InvitationCodeCard: React.FC<Props> = ({
                             <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
                             <span className="text-xs font-black text-primary-700 uppercase tracking-widest">初始化设置</span>
                         </div>
-                        
+
                         <div className="flex gap-3">
                             <div className="flex-1 space-y-2">
                                 <InputText
@@ -125,10 +125,9 @@ export const InvitationCodeCard: React.FC<Props> = ({
                                     className={`w-full py-3.5 px-4 bg-surface/80 rounded-xl border-none shadow-inner text-lg font-bold tracking-widest focus:ring-2 focus:ring-primary-500/20 ${validationStatus === 'invalid' ? 'ring-2 ring-red-500/20' : ''}`}
                                 />
                                 {validationStatus && (
-                                    <p className={`text-[11px] font-bold px-1 flex items-center gap-1.5 ${
-                                        validationStatus === 'valid' ? 'text-green-600' : 
-                                        validationStatus === 'invalid' ? 'text-red-500' : 'text-primary-500'
-                                    }`}>
+                                    <p className={`text-[11px] font-bold px-1 flex items-center gap-1.5 ${validationStatus === 'valid' ? 'text-green-600' :
+                                            validationStatus === 'invalid' ? 'text-red-500' : 'text-primary-500'
+                                        }`}>
                                         <i className={`pi ${validationStatus === 'checking' ? 'pi-spin pi-spinner' : validationStatus === 'valid' ? 'pi-check-circle' : 'pi-exclamation-circle'} text-[10px]`} />
                                         {validationMessage}
                                     </p>
@@ -141,10 +140,10 @@ export const InvitationCodeCard: React.FC<Props> = ({
                                     disabled={isSaveDisabled}
                                     className="p-button-primary shadow-lg shadow-primary-200 h-[52px] w-[52px] rounded-xl active:scale-95 transition-all"
                                 />
-                                <Button 
-                                    icon="pi pi-times" 
+                                <Button
+                                    icon="pi pi-times"
                                     onClick={() => setShowManualInput(false)}
-                                    className="p-button-text p-button-secondary h-[40px] w-[52px] rounded-xl active:scale-95" 
+                                    className="p-button-text p-button-secondary h-[40px] w-[52px] rounded-xl active:scale-95"
                                 />
                             </div>
                         </div>
@@ -155,24 +154,39 @@ export const InvitationCodeCard: React.FC<Props> = ({
                     </div>
                 )}
 
-                {/* 链接区域 - 简约呼吸感 */}
-                <div className="pt-4 border-t border-surface-50">
-                    <div className="flex items-center justify-between mb-3">
-                        <label className="text-[11px] font-black text-surface-400 uppercase tracking-[0.2em]">快速注册链接</label>
-                        <button 
-                            onClick={handleCopyLink}
-                            className="text-xs font-bold text-primary-500 hover:text-primary-600 transition-colors"
+                {/* 链接区域 - 仅在有邀请码时展示，符合信息约束规范 */}
+                {coach?.invitationInfo?.invitationCode && (
+                    <div className="pt-6 border-t border-surface-100/50 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="flex items-center justify-between mb-3 px-1">
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">
+                                专属注册链接 <span className="text-orange-500/30 ml-1">/ Link</span>
+                            </label>
+                            <button
+                                onClick={handleCopyLink}
+                                className="text-[11px] font-black text-orange-500 hover:text-orange-600 transition-all active:scale-95 flex items-center gap-1.5"
+                            >
+                                <i className="pi pi-copy text-[10px]" />
+                                一键复制
+                            </button>
+                        </div>
+
+                        <div
+                            className="group/link bg-surface-50/50 hover:bg-white hover:shadow-sm px-4 py-3 rounded-[16px] border border-surface-100 flex items-center gap-3 transition-all duration-300"
                         >
-                            一键复制链接
-                        </button>
+                            <div className="w-6 h-6 rounded-lg bg-white border border-surface-100 flex items-center justify-center shadow-xs">
+                                <i className="pi pi-link text-[10px] text-surface-400 group-hover/link:text-orange-500 transition-colors" />
+                            </div>
+                            <span className="flex-1 text-[11px] text-surface-500 font-bold truncate tracking-tight italic opacity-80 group-hover/link:opacity-100">
+                                {coach.invitationInfo.inviteUrl}
+                            </span>
+                        </div>
+
+                        {/* 呼吸感提示：利用视觉本能引导 */}
+                        <p className="mt-3 px-1 text-[9px] font-medium text-surface-400 leading-relaxed italic">
+                            * 链接已包含您的专属邀请码 <span className="text-surface-900 font-black">{coach.invitationInfo.invitationCode}</span>，学员注册后将直接建立管理关联。
+                        </p>
                     </div>
-                    <div className="bg-surface-50/80 px-4 py-3 rounded-xl border border-surface-100 flex items-center gap-3">
-                        <i className="pi pi-link text-surface-300" />
-                        <span className="flex-1 text-xs text-surface-500 font-medium truncate italic">
-                            {coach?.invitationInfo.inviteUrl || '等待设置邀请码...'}
-                        </span>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );

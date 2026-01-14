@@ -27,11 +27,30 @@ export async function GET(req: NextRequest) {
     const userId = session.user.id;
 
     // 1. 获取用户的邀请来源教练
-    const { data: userData } = await supabase
-        .from("users")
-        .select("invitation_coach_id")
-        .eq("id", userId)
-        .single();
+    let userData: any = null;
+    {
+        const { data, error } = await supabase
+            .from("users")
+            .select("invitation_coach_id")
+            .eq("id", userId)
+            .single();
+
+        if (
+            error &&
+            typeof (error as any)?.message === "string" &&
+            (error as any).message.includes("invited_visibility_mode")
+        ) {
+            // Backward-compatible fallback when migration not applied yet
+            const { data: fallback } = await supabase
+                .from("users")
+                .select("referrer_coach_id")
+                .eq("id", userId)
+                .single();
+            userData = fallback as any;
+        } else {
+            userData = data as any;
+        }
+    }
 
     let referrerCoachId: string | null = null;
     let referrerCoachName: string | null = null;

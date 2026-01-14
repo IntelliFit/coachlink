@@ -129,7 +129,7 @@ export default function InvitationSettingsPage() {
 
         confirmDialog({
             header: '确认锁定邀请码',
-            message: `您即将设置邀请码为 "${manualCode}"。此操作具有原子性，设置后将无法二次修改，是否确认？`,
+            message: `您即将设置邀请码为 "${manualCode}"。设置后将无法二次修改，是否确认？`,
             icon: 'pi pi-exclamation-circle',
             acceptLabel: '确认设置',
             rejectLabel: '再想想',
