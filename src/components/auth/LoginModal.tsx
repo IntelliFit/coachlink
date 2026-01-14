@@ -10,8 +10,9 @@ import { TabView, TabPanel, TabViewTabChangeEvent } from 'primereact/tabview';
 import { useToastContext } from '@/context/ToastContext';
 import { signIn } from 'next-auth/react';
 import { smsService } from '@/app/service/smsService';
-import { Phone, Lock, ShieldCheck, X, LogIn, Send } from 'lucide-react';
+import { Phone, Lock, ShieldCheck, X, LogIn, Send, User } from 'lucide-react';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
+import { sesService } from '@/app/service/sesService';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -32,7 +33,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const { showToast } = useToastContext();
     const [currentView, setCurrentView] = useState<AuthView>('login');
     const [loginMode, setLoginMode] = useState<LoginMode>('password');
-    const [phone, setPhone] = useState('');
+    const [phoneOrEmail, setPhoneOrEmail] = useState('');
     const [password, setPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [loading, setLoading] = useState(false);
@@ -46,7 +47,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             const timer = setTimeout(() => {
                 setCurrentView('login');
                 setLoginMode('password');
-                setPhone('');
+                setPhoneOrEmail('');
                 setPassword('');
                 setVerificationCode('');
             }, 300);
@@ -70,8 +71,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }, [countdown]);
 
     const sendVerificationCode = async () => {
-        if (!/^1[3-9]\d{9}$/.test(phone)) {
-            showToast({ severity: 'warn', summary: '请输入正确的手机号' });
+        // Check if input is a valid phone number or email
+        const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
+
+        if (!isPhone && !isEmail) {
+            showToast({ severity: 'warn', summary: isPhone ? '请输入正确的手机号' : '请输入正确的邮箱地址' });
             return;
         }
         setSendingCode(true);
@@ -80,7 +85,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 setCountdown(60);
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
-                await smsService.sendVerificationCode({ phoneNumber: phone });
+                if (isEmail) {
+                    await sesService.sendVerificationCode({ email: phoneOrEmail });
+                } else {
+                    await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
+                }
                 setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });
             }
@@ -91,12 +100,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     const handleLogin = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        const trimmedPhone = phone.trim();
+        const trimmedPhoneOrEmail = phoneOrEmail.trim();
         const trimmedPassword = password.trim();
         const trimmedCode = verificationCode.trim();
 
-        if (!trimmedPhone) {
-            showToast({ severity: 'warn', summary: '请输入手机号' });
+        if (!trimmedPhoneOrEmail) {
+            showToast({ severity: 'warn', summary: '请输入手机号或邮箱' });
             return;
         }
 
@@ -116,12 +125,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             const result = await signIn('credentials',
                 loginMode === 'password'
                     ? {
-                        phone: trimmedPhone,
+                        phoneOrEmail: trimmedPhoneOrEmail,
                         password: trimmedPassword,
                         redirect: false,
                     }
                     : {
-                        phone: trimmedPhone,
+                        phoneOrEmail: trimmedPhoneOrEmail,
                         verifyCode: trimmedCode,
                         redirect: false,
                     }
@@ -147,7 +156,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         setLoading(true);
         try {
             const result = await signIn('credentials', {
-                phone: user.phone,
+                phoneOrEmail: user.phone,
                 password: user.password,
                 redirect: false,
             });
@@ -274,12 +283,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                         {/* 手机号 */}
                                         <div className="relative group">
                                             <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
-                                                <Phone size={18} />
+                                                <User size={18} />
                                             </div>
                                             <InputText
-                                                value={phone}
-                                                onChange={(e) => setPhone(e.target.value)}
-                                                placeholder="手机号码"
+                                                value={phoneOrEmail}
+                                                onChange={(e) => setPhoneOrEmail(e.target.value)}
+                                                placeholder="手机号或邮箱"
                                                 className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl shadow-primary-500"
                                             />
                                         </div>
@@ -333,8 +342,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                                 <button
                                                     type="button"
                                                     onClick={sendVerificationCode}
-                                                    disabled={countdown > 0 || sendingCode || !phone.trim()}
-                                                    className="px-6 rounded-2xl text-sm font-bold bg-surface border border-primary-500 text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
+                                                    disabled={countdown > 0 || sendingCode || !phoneOrEmail.trim()}
+                                                    className="px-6 rounded-2xl text-sm font-bold bg-surface border text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
                                                 >
                                                     {sendingCode ? '...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
                                                 </button>
@@ -351,7 +360,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                     >
                                         <div className="flex items-center justify-center gap-2 w-full">
                                             {!loading && <LogIn size={20} />}
-                                            <span className="font-bold text-lg">立即登录</span>
+                                            <span className="font-bold">立即登录</span>
                                         </div>
                                     </Button>
                                 </div>

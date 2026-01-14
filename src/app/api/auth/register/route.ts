@@ -24,23 +24,22 @@ function safeDecodeAttribution(raw: string | undefined) {
 
 export async function POST(req: NextRequest) {
     const {
-        phone,
+        phoneOrEmail,
         password,
         verifyCode,
         ref,
         shareId,
         invitationCode,
-        invitationMode,
     } = await req.json() as RegisterDto;
 
-    const trimmedPhone = phone?.trim();
+    const trimmedPhoneOrEmail = phoneOrEmail?.trim();
     const trimmedPassword = password?.trim();
     const trimmedVerifyCode = verifyCode?.trim();
 
-    if (!trimmedPhone || !trimmedPassword) {
+    if (!trimmedPhoneOrEmail || !trimmedPassword) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: "手机号和密码不能为空",
+            message: "手机号或邮箱和密码不能为空",
             data: null,
         });
     }
@@ -53,44 +52,65 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    // 开发模式下接受模拟验证码 123456
-    const useMockSms = process.env.NODE_ENV === "development";
-    const isMockCode = useMockSms && trimmedVerifyCode === "123456";
+    // Determine if input is phone or email
+    const isPhone = /^1[3-9]\d{9}$/.test(trimmedPhoneOrEmail);
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedPhoneOrEmail);
 
-    if (!isMockCode) {
-        // 生产模式：验证真实验证码
-        if (!redis) {
-            throw new Error("验证服务不可用");
-        }
-
-        const storedCode = await redis.get(
-            `sms_verification_code:${trimmedPhone}`,
-        );
-        if (!storedCode) {
-            return NextResponse.json<ApiData<null>>({
-                success: false,
-                message: "验证码已过期或不存在",
-                data: null,
-            });
-        }
-
-        if (storedCode !== trimmedVerifyCode) {
-            return NextResponse.json<ApiData<null>>({
-                success: false,
-                message: "验证码错误",
-                data: null,
-            });
-        }
-
-        // 验证成功后删除验证码，防止重复使用
-        await redis.del(`sms_verification_code:${trimmedPhone}`);
+    if (!isPhone && !isEmail) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "请输入正确的手机号或邮箱格式",
+            data: null,
+        });
     }
 
-    const { data: existingUsers, error: existingUserError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("phone", trimmedPhone)
-        .limit(2);
+    // 生产模式：验证真实验证码
+    if (!redis) {
+        throw new Error("验证服务不可用");
+    }
+
+    // 根据是手机号还是邮箱来查询验证码
+    const verificationKey = isPhone
+        ? `sms_verification_code:${trimmedPhoneOrEmail}`
+        : `email_verification_code:${trimmedPhoneOrEmail}`;
+
+    const storedCode = await redis.get(verificationKey);
+    if (!storedCode) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "验证码已过期或不存在",
+            data: null,
+        });
+    }
+
+    if (storedCode !== trimmedVerifyCode) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "验证码错误",
+            data: null,
+        });
+    }
+
+    // 验证成功后删除验证码，防止重复使用
+    await redis.del(verificationKey);
+
+    // Check if user already exists by phone or email
+    let existingUserQuery;
+    if (isPhone) {
+        existingUserQuery = supabase
+            .from("users")
+            .select("id")
+            .eq("phone", trimmedPhoneOrEmail)
+            .single();
+    } else {
+        existingUserQuery = supabase
+            .from("users")
+            .select("id")
+            .eq("email", trimmedPhoneOrEmail)
+            .single();
+    }
+
+    const { data: existingUsers, error: existingUserError } = await existingUserQuery;
 
     if (existingUserError) {
         console.warn("[register] failed to check existing user:", existingUserError.message);
@@ -99,7 +119,7 @@ export async function POST(req: NextRequest) {
     if (existingUsers && existingUsers.length > 0) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: "手机号已注册",
+            message: isPhone ? "手机号已注册" : "邮箱已注册",
             data: null,
         });
     }
@@ -108,14 +128,11 @@ export async function POST(req: NextRequest) {
 
     // 处理教练邀请码：查找对应的教练
     let referrerCoachId: string | null = null;
-    const trimmedInvitationCode = invitationCode?.trim().toUpperCase();
-    if (trimmedInvitationCode) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: coach } = await (supabase as any)
+    if (invitationCode?.trim()) {
+        const { data: coach } = await supabase
             .from("coaches")
             .select("id")
-            .eq("invitation_code", trimmedInvitationCode)
-            // coaches.status 的真实值域是 pending/approved/rejected/suspended（无 active）
+            .eq("invitation_code", invitationCode?.trim())
             .eq("status", "approved")
             .maybeSingle();
 
@@ -130,60 +147,17 @@ export async function POST(req: NextRequest) {
         referrerCoachId = coach.id;
     }
 
-    const normalizedInvitationMode =
-        invitationMode === "exclusive" || invitationMode === "open"
-            ? invitationMode
-            : null;
-
-    // Use service role on the server to avoid RLS/returning issues causing "fake success" on mobile.
-    const nowIso = new Date().toISOString();
-    const baseInsert: any = {
-        phone: trimmedPhone,
-        password_hash,
-        created_at: nowIso,
-        last_login_at: nowIso,
-        ...(referrerCoachId && { referrer_coach_id: referrerCoachId }),
-    };
-
-    const insertWith = async (payload: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (serviceRoleSupabase as any)
-            .from("users")
-            .insert(payload)
-            .select("*")
-            .single();
-    };
-
-    // Try to write invited_visibility_mode when the schema supports it; otherwise gracefully retry.
-    let insertPayload: any = baseInsert;
-    if (referrerCoachId && normalizedInvitationMode) {
-        insertPayload = {
-            ...baseInsert,
-            invited_visibility_mode: normalizedInvitationMode,
-        };
-    }
-
-    let { data: user, error: insertError } = await insertWith(insertPayload);
-
-    // Backward-compatible fallback: environments that haven't applied the migration yet
-    // will error with PGRST204 about missing column in schema cache.
-    if (
-        insertError &&
-        typeof (insertError as any)?.message === "string" &&
-        (insertError as any).message.includes("invited_visibility_mode")
-    ) {
-        console.warn("[register] invited_visibility_mode not in schema, retry without it");
-        ({ data: user, error: insertError } = await insertWith(baseInsert));
-    }
-
-    if (insertError || !user) {
-        console.error("[register] failed to insert user:", insertError);
-        return NextResponse.json<ApiData<null>>({
-            success: false,
-            message: insertError?.message || "注册失败，请重试",
-            data: null,
-        }, { status: 200 });
-    }
+    const { data: user } = await supabase
+        .from("users")
+        .insert({
+            ...(isPhone ? { phone: trimmedPhoneOrEmail } : { email: trimmedPhoneOrEmail }),
+            password_hash,
+            created_at: new Date().toISOString(),
+            last_login_at: new Date().toISOString(),
+            ...(referrerCoachId && { invitation_coach_id: referrerCoachId }),
+        })
+        .select("*")
+        .single();
 
     // --- Acquisition Rewards (MVP) ---
     // Two sources:
@@ -199,7 +173,7 @@ export async function POST(req: NextRequest) {
     //
     // Reward should never block registration.
     try {
-        const inviteeId = (user as any)?.id as string | undefined;
+        const inviteeId = user.id as string | undefined;
         if (!inviteeId) {
             // Shouldn't happen, but avoid throwing
             throw new Error("No inviteeId after registration");

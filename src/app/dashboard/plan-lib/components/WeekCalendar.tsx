@@ -4,6 +4,7 @@ import React, { useMemo, useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
+import { ScrollPanel } from 'primereact/scrollpanel';
 import { useToastContext } from '@/context/ToastContext';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { Calendar, Plus, Trash2, Check, Dumbbell, Coffee, ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
@@ -292,60 +293,61 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                 )}
                             </div>
 
-                            {/* 日历网格：数值中心化 + 物理缩放 */}
-                            <div className="grid grid-cols-7 gap-3">
-                                {week.map((day) => {
-                                    const isSelected = selectedDayIndex === day.dayIndex;
-                                    const isTraining = day.type === 'training';
-                                    const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
-                                    const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
+                                {/* 日历网格：数值中心化 + 物理缩放 */}
+                                <div className="grid grid-cols-7 gap-3">
+                                    {week.map((day) => {
+                                        const isSelected = selectedDayIndex === day.dayIndex;
+                                        const isTraining = day.type === 'training';
+                                        const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                                        const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
 
-                                    return (
-                                        <div
-                                            key={day.dayIndex}
-                                            onClick={() => !saving && onSelectDay(day.dayIndex)}
-                                            className={`
-                                                relative h-24 cursor-pointer rounded-[20px] transition-all duration-300
-                                                flex flex-col items-center justify-center gap-2
-                                                active:scale-[0.92] select-none
-                                                ${isSelected
-                                                    ? 'bg-surface border-[2px] border-primary-500 shadow-[0_8px_20px_rgba(59,130,246,0.15)] z-10'
-                                                    : 'bg-surface-50/80 border border-transparent hover:bg-surface hover:border-surface-200'
-                                                }
-                                                ${isStarted ? 'ring-2 ring-green-500 ring-offset-2' : ''}
-                                                ${isPassed ? 'opacity-40 filter grayscale' : ''}
-                                            `}
-                                        >
-                                            <span className={`text-[10px] font-black tracking-tighter ${isSelected ? 'text-primary-500' : 'text-surface-400'}`}>
-                                                第 {day.dayIndex} 日
-                                            </span>
+                                        return (
+                                            <div
+                                                key={day.dayIndex}
+                                                onClick={() => !saving && onSelectDay(day.dayIndex)}
+                                                className={`
+                                                    relative h-24 cursor-pointer rounded-[20px] transition-all duration-300
+                                                    flex flex-col items-center justify-center gap-2
+                                                    active:scale-[0.92] select-none
+                                                    ${isSelected
+                                                        ? 'bg-surface border-[2px] border-primary-500 shadow-[0_8px_20px_rgba(59,130,246,0.15)] z-10'
+                                                        : 'bg-surface-50/80 border-transparent hover:bg-surface hover:border-surface-200'
+                                                    }
+                                                    ${isStarted ? 'ring-2 ring-green-500 ring-offset-2' : ''}
+                                                    ${isPassed ? 'opacity-40 filter grayscale' : ''}
+                                                `}
+                                            >
+                                                <span className={`text-[10px] font-black tracking-tighter ${isSelected ? 'text-primary-500' : 'text-surface-400'}`}>
+                                                    第 {day.dayIndex} 日
+                                                </span>
 
-                                            <div className={`${isSelected ? 'text-primary-600' : isTraining ? 'text-surface-700' : 'text-surface-300'}`}>
-                                                {isTraining ? <Dumbbell size={20} strokeWidth={2.5} /> : <Coffee size={20} strokeWidth={2.5} />}
-                                            </div>
-
-                                            <span className={`text-[10px] font-bold ${isSelected ? 'text-primary-400' : 'text-surface-400'}`}>
-                                                {isTraining ? '训练' : '休息'}
-                                            </span>
-
-                                            {/* 状态徽章：轻盈色阶 */}
-                                            {isStarted && (
-                                                <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-surface p-1 rounded-full shadow-lg">
-                                                    <Check size={8} strokeWidth={4} />
+                                                <div className={`${isSelected ? 'text-primary-600' : isTraining ? 'text-surface-700' : 'text-surface-300'}`}>
+                                                    {isTraining ? <Dumbbell size={20} strokeWidth={2.5} /> : <Coffee size={20} strokeWidth={2.5} />}
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
 
-                                {/* 补白格：保持结构对齐 */}
-                                {Array.from({ length: 7 - week.length }).map((_, i) => (
-                                    <div key={i} className="h-24 rounded-[20px] border border-dashed border-surface-100 bg-surface-50/20" />
-                                ))}
+                                                <span className={`text-[10px] font-bold ${isSelected ? 'text-primary-400' : 'text-surface-400'}`}>
+                                                    {isTraining ? '训练' : '休息'}
+                                                </span>
+
+                                                {/* 状态徽章：轻盈色阶 */}
+                                                {isStarted && (
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-surface p-1 rounded-full shadow-lg">
+                                                        <Check size={8} strokeWidth={4} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* 补白格：保持结构对齐 */}
+                                    {Array.from({ length: 7 - week.length }).map((_, i) => (
+                                        <div key={i} className="h-24 rounded-[20px] border border-dashed border-surface-100 bg-surface-50/20" />
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                </ScrollPanel>
             )}
 
             {/* 精简版删除弹窗 */}

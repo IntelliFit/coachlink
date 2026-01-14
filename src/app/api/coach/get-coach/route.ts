@@ -14,7 +14,7 @@ async function getDefaultPaymentMode(): Promise<
         .eq("key", "payment_mode")
         .single();
 
-    return data?.value?.default_mode || "qrcode";
+    return (data?.value as any)?.default_mode || "qrcode";
 }
 
 export async function POST(req: Request) {
@@ -23,6 +23,7 @@ export async function POST(req: Request) {
         userId,
         needQrCode = false,
         needPaymentInfo = false,
+        needInvitationInfo = false,
     } = await req.json() as GetCoachDto;
 
     let coach: CoachesRow | null = null;
@@ -91,15 +92,25 @@ export async function POST(req: Request) {
 
         // 获取收款码列表（仅当允许使用个人二维码时才返回）
         const allowQr = coach.allow_personal_qrcode ?? true;
-        const qrCodes: QrCodeItem[] = allowQr
-            ? (coach.payment_qr_codes || [])
+        const qrCodes = allowQr
+            ? ((coach.payment_qr_codes as any[]) || [])
             : [];
 
         responseData.paymentInfo = {
-            effectivePaymentMode,
+            effectivePaymentMode: effectivePaymentMode as "qrcode" | "alipay_api" | "both",
             allowPersonalQrcode: coach.allow_personal_qrcode ?? true,
             qrCodes,
         };
+    }
+
+    if (needInvitationInfo && coach) {
+        responseData.invitationInfo = {
+            invitationCode: coach.invitation_code,
+            invitationMode: coach.invitation_mode as "exclusive" | "open",
+            inviteUrl: `${process.env.NEXTAUTH_URL}/register?invite=${coach.invitation_code}`,
+            inviteUrlExclusive: `${process.env.NEXTAUTH_URL}/register?invite=${coach.invitation_code}&mode=exclusive`,
+            inviteUrlOpen: `${process.env.NEXTAUTH_URL}/register?invite=${coach.invitation_code}&mode=open`,
+        }
     }
 
     // 如果不需要二维码信息，清除敏感字段

@@ -34,7 +34,7 @@ const Footer: React.FC<FooterProps> = ({
                             </span>
                         </div>
                         <p className="text-[11px] font-bold text-surface-400 uppercase tracking-widest mt-1">
-                            &copy; {new Date().getFullYear()} All rights reserved.
+                            &copy; 2025-{new Date().getFullYear()} 保留所有权利
                         </p>
                     </div>
 

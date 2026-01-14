@@ -8,11 +8,11 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import Image from 'next/image';
-import { Toast } from 'primereact/toast';
 import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
 import { Chip } from 'primereact/chip';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { useToastContext } from '@/context/ToastContext';
 
 interface EditCoachProfileDialogProps {
     visible: boolean;
@@ -22,9 +22,10 @@ interface EditCoachProfileDialogProps {
 }
 
 const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible, onHide, coach, onSave }) => {
-    const toast = useRef<Toast>(null);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+
+    const { showToast } = useToastContext();
 
     // 教练个人信息字段
     const [name, setName] = useState('');
@@ -187,13 +188,13 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
             const data = await res.json();
             if (data?.success && data?.data?.url) {
                 setAvatarUrl(data.data.url);
-                toast.current?.show({ severity: 'success', summary: '上传成功', detail: '头像已更新' });
+                showToast({ severity: 'success', summary: '上传成功', detail: '头像已更新' });
             } else {
-                toast.current?.show({ severity: 'error', summary: '上传失败', detail: data?.message || '请稍后再试' });
+                showToast({ severity: 'error', summary: '上传失败', detail: data?.message || '请稍后再试' });
             }
         } catch (err) {
             console.error(err);
-            toast.current?.show({ severity: 'error', summary: '上传失败', detail: '网络异常' });
+            showToast({ severity: 'error', summary: '上传失败', detail: '网络异常' });
         } finally {
             setUploading(false);
         }
@@ -208,68 +209,66 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
 
     const handleSubmit = async () => {
         setLoading(true);
-        try {
-            // 构造要更新的profile对象
-            const socialLinksObj: Record<string, string> = {};
-            socialLinks.forEach(item => {
-                if (item.name && item.url) {
-                    const keyMap: Record<string, string> = {
-                        '抖音': 'douyin',
-                        '小红书': 'xiaohongshu',
-                        '知乎': 'zhihu',
-                        'B站': 'bilibili',
-                        '快手': 'kuaishou',
-                        '其他网站': 'other'
-                    };
-                    const key = keyMap[item.name] || item.name;
-                    socialLinksObj[key] = item.url;
-                }
-            });
-
-            const profile = {
-                teachingPhilosophy,
-                achievements,
-                caseStudies,
-                credentials,
-                contactEmail,
-                contactPhone,
-                // 空对象表示“已清空”，用 null 明确表达，避免被其他来源回填
-                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
-            };
-
-            // 调用服务更新教练信息
-            const result = await coachService.updateCoachProfile({
-                id: coach.id,
-                name,
-                title: title || null,
-                avatarUrl: avatarUrl || null,
-                specialties: specialties.length ? specialties : null,
-                yearsExperience: yearsExperience ?? 0,
-                bio,
-                profile
-            });
-
-            if (result) {
-                toast.current?.show({
-                    severity: 'success',
-                    summary: '成功',
-                    detail: '教练信息已更新'
-                });
-
-                // 保存成功后回调
-                onSave();
-                onHide();
+        // 构造要更新的profile对象
+        const socialLinksObj: Record<string, string> = {};
+        socialLinks.forEach(item => {
+            if (item.name && item.url) {
+                const keyMap: Record<string, string> = {
+                    '抖音': 'douyin',
+                    '小红书': 'xiaohongshu',
+                    '知乎': 'zhihu',
+                    'B站': 'bilibili',
+                    '快手': 'kuaishou',
+                    '其他网站': 'other'
+                };
+                const key = keyMap[item.name] || item.name;
+                socialLinksObj[key] = item.url;
             }
-        } catch (error: any) {
-            console.error('更新教练信息失败:', error);
-            toast.current?.show({
+        });
+
+        const profile = {
+            teachingPhilosophy,
+            achievements,
+            caseStudies,
+            credentials,
+            contactEmail,
+            contactPhone,
+            // 空对象表示“已清空”，用 null 明确表达，避免被其他来源回填
+            socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+        };
+
+        // 调用服务更新教练信息
+        const res = await coachService.updateCoachProfile({
+            id: coach.id,
+            name,
+            title: title || null,
+            avatarUrl: avatarUrl || null,
+            specialties: specialties.length ? specialties : null,
+            yearsExperience: yearsExperience ?? 0,
+            bio,
+            profile
+        });
+
+        if (res.data.success) {
+            showToast({
+                severity: 'success',
+                summary: '成功',
+                detail: '教练信息已更新'
+            });
+
+            // 保存成功后回调
+            onSave();
+            onHide();
+        } else {
+            showToast({
                 severity: 'error',
                 summary: '错误',
-                detail: error.message || '更新教练信息失败'
+                detail: res.data.message
             });
-        } finally {
-            setLoading(false);
         }
+
+        setLoading(false);
+
     };
 
     const footer = (
@@ -281,7 +280,6 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
 
     return (
         <>
-            <Toast ref={toast} />
             <ConfirmDialog />
             <Dialog
                 header="编辑教练信息"
@@ -631,11 +629,11 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                     }
                                 }}
                             />
-                            <Button 
+                            <Button
                                 type="button"
-                                icon="pi pi-plus" 
-                                onClick={handleAddSocial} 
-                                disabled={!newSocialPlatform || !newSocialUrl.trim()} 
+                                icon="pi pi-plus"
+                                onClick={handleAddSocial}
+                                disabled={!newSocialPlatform || !newSocialUrl.trim()}
                             />
                         </div>
                     </div>

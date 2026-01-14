@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     {
         const { data, error } = await supabase
             .from("users")
-            .select("referrer_coach_id, invited_visibility_mode")
+            .select("invitation_coach_id")
             .eq("id", userId)
             .single();
 
@@ -55,11 +55,11 @@ export async function GET(req: NextRequest) {
     let referrerCoachId: string | null = null;
     let referrerCoachName: string | null = null;
 
-    if (userData?.referrer_coach_id) {
+    if (userData?.invitation_coach_id) {
         const { data: referrerCoach } = await supabase
             .from("coaches")
             .select("id, name")
-            .eq("id", userData.referrer_coach_id)
+            .eq("id", userData.invitation_coach_id)
             .single();
 
         if (referrerCoach) {
