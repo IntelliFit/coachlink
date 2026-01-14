@@ -9,6 +9,8 @@ import { FileUpload } from 'primereact/fileupload';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Message } from 'primereact/message';
 import { useToastContext } from '@/context/ToastContext';
+import WeixinzhifuIcon from '@/components/icons/weixinzhifu';
+import ZhifubaoIcon from '@/components/icons/zhifubao';
 
 interface QrCodeItem {
     type: 'wechat' | 'alipay';
@@ -216,9 +218,16 @@ export default function CoachPaymentSettingsPage() {
                             {/* 强调色联动：顶部标志条 */}
 
                             <div className="flex flex-col items-center text-center">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-surface-400 mb-6">
-                                    {isWechat ? '微信支付' : '阿里支付'}
-                                </span>
+                                <div className="flex items-center gap-2 mb-6">
+                                    {isWechat ? (
+                                        <WeixinzhifuIcon width="16" height="16" />
+                                    ) : (
+                                        <ZhifubaoIcon width="16" height="16" fill="#1677FF" />
+                                    )}
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-surface-400">
+                                        {isWechat ? '微信支付' : '支付宝'}
+                                    </span>
+                                </div>
 
                                 <div className="relative w-48 h-48 mb-8 group/qr">
                                     {qr ? (
