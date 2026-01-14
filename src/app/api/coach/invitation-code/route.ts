@@ -37,6 +37,19 @@ interface InvitationCodeResponse {
     invitationCode: string;
     invitationMode: "exclusive" | "open";
     inviteUrl: string;
+    inviteUrlExclusive: string;
+    inviteUrlOpen: string;
+    coach: {
+        id: string;
+        name: string;
+        title: string | null;
+        bio: string | null;
+        avatarUrl: string | null;
+        specialties: string[] | null;
+        yearsExperience: number | null;
+        totalStudents: number | null;
+        rating: number | null;
+    };
 }
 
 // GET - 获取当前教练的邀请码和设置
@@ -49,7 +62,7 @@ export async function GET(req: NextRequest) {
     // 获取教练信息
     const { data: coach, error } = await supabase
         .from("coaches")
-        .select("id, invitation_code, invitation_mode")
+        .select("id, name, title, bio, avatar_url, specialties, years_experience, total_students, rating, invitation_code, invitation_mode")
         .eq("user_id", session.user.id)
         .single();
 
@@ -77,12 +90,27 @@ export async function GET(req: NextRequest) {
         ? `${protocol}://${origin.replace(/^https?:\/\//, "")}`
         : (process.env.NEXT_PUBLIC_APP_URL || "https://coachlink.cn");
 
+    const inviteUrl = `${baseUrl}/register?invite=${invitationCode}`;
+
     return NextResponse.json<ApiData<InvitationCodeResponse>>({
         success: true,
         data: {
             invitationCode,
             invitationMode: coach.invitation_mode || "exclusive",
-            inviteUrl: `${baseUrl}/register?invite=${invitationCode}`,
+            inviteUrl,
+            inviteUrlExclusive: `${inviteUrl}&im=exclusive`,
+            inviteUrlOpen: `${inviteUrl}&im=open`,
+            coach: {
+                id: coach.id,
+                name: coach.name,
+                title: coach.title ?? null,
+                bio: coach.bio ?? null,
+                avatarUrl: coach.avatar_url ?? null,
+                specialties: (coach as any).specialties ?? null,
+                yearsExperience: (coach as any).years_experience ?? null,
+                totalStudents: (coach as any).total_students ?? null,
+                rating: (coach as any).rating ?? null,
+            },
         },
     });
 }

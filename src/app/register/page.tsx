@@ -107,6 +107,11 @@ export default function RegisterPage() {
         try {
             const ref = searchParams.get('ref') || undefined;
             const invitationCode = searchParams.get('invite') || undefined;
+            const invitationModeRaw = searchParams.get('im') || searchParams.get('invitationMode') || undefined;
+            const invitationMode =
+                invitationModeRaw === 'exclusive' || invitationModeRaw === 'open'
+                    ? (invitationModeRaw as 'exclusive' | 'open')
+                    : undefined;
             const shareId =
                 searchParams.get('share') ||
                 (() => {
@@ -123,6 +128,7 @@ export default function RegisterPage() {
                 ref,
                 shareId,
                 invitationCode,
+                invitationMode,
             });
             if (res) {
                 showToast({ severity: 'success', summary: '注册成功' });

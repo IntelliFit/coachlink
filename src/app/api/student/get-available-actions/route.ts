@@ -29,9 +29,42 @@ export async function POST(request: Request) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
+        const currentUserId = session.user.id;
         const body = await request.json().catch(() => ({}));
-        const { coachId } = body;
+        const { coachId, targetUserId } = body as {
+            coachId?: string;
+            targetUserId?: string;
+        };
+
+        // Resolve query user (support coach -> student)
+        let userId = currentUserId;
+        if (targetUserId && targetUserId !== currentUserId) {
+            // Verify current user is coach of this student
+            const { data: isCoach } = await supabase
+                .from("coach_subscriptions")
+                .select(
+                    `
+                    id,
+                    coaches!inner(user_id)
+                `,
+                )
+                .eq("coaches.user_id", currentUserId)
+                .eq("student_id", targetUserId)
+                .maybeSingle();
+
+            if (!isCoach) {
+                return NextResponse.json<ApiData<null>>(
+                    {
+                        success: false,
+                        message: "无权查看该用户的动作列表",
+                        data: null,
+                    },
+                    { status: 403 },
+                );
+            }
+
+            userId = targetUserId;
+        }
 
         // Get distinct actions from personal_records_history - strictly by action_id
         // If coachId is provided, filter by source_coach_id to get coach-specific actions

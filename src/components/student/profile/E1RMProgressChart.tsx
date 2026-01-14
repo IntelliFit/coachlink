@@ -41,7 +41,7 @@ export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({
                 const response = await fetch('/api/student/get-available-actions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ coachId })
+                    body: JSON.stringify({ coachId, targetUserId: studentId })
                 });
                 const result = await response.json();
                 
@@ -81,7 +81,8 @@ export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({
                 // Use actionId for strict matching
                 const data = await e1rmService.getHistory({
                     actionId: selectedActionId,
-                    limit: 30
+                    limit: 30,
+                    targetUserId: studentId
                 });
 
                 if (data && data.history.length > 0) {

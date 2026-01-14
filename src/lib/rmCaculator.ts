@@ -63,7 +63,9 @@ export function calcRecommendedLoad(
     alpha: number = 1,
     model: LambdaModel = "average",
 ): number {
-    if (oneRM <= 0) throw new Error("1RM 必须大于 0");
+    // 负数 1RM 是有效的，表示需要辅助的自重动作
+    // 例如：-10 表示需要 10kg 辅助才能完成引体向上
+    if (oneRM === 0) throw new Error("1RM 不能为 0");
     if (weight <= 0) throw new Error("体重必须大于 0");
 
     let lambda: number;

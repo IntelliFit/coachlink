@@ -24,7 +24,7 @@ import { chatService } from '@/app/service/chatService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
-import { Calendar, CheckCircle2, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
 import { ProgressBar } from 'primereact/progressbar';
 
 export default function StudentsPage() {
@@ -597,11 +597,11 @@ export default function StudentsPage() {
     }
 
     return (
-        <div className="min-h-screen p-4 md:p-8 max-w-[1400px] mx-auto animate-in fade-in duration-700">
+        <div className="min-h-screen p-3 sm:p-4 md:p-8 max-w-[1400px] mx-auto animate-in fade-in duration-700">
             {/* Header: 增强生产力氛围 */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 px-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4 mb-4 sm:mb-10 px-1 sm:px-2">
                 <div className="space-y-1">
-                    <h1 className="text-4xl font-black tracking-tighter text-surface-900">
+                    <h1 className="text-2xl sm:text-4xl font-black tracking-tighter text-surface-900">
                         学员管理 <span className="text-primary">.</span>
                     </h1>
                     <div className="flex items-center gap-4 text-surface-400 text-sm font-medium">
@@ -611,11 +611,11 @@ export default function StudentsPage() {
                     </div>
                 </div>
                 {/* 无论是平台支付还是个人二维码支付，都显示待支付确认按钮 */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 w-full md:w-auto">
                     <Button
                         label="待支付确认"
                         onClick={() => setPaymentDialogVisible(true)}
-                        className="p-button-primary shadow-lg shadow-primary-200 dark:shadow-primary-700 transition-transform active:scale-95 rounded-2xl px-6"
+                        className="p-button-primary w-full md:w-auto shadow-lg shadow-primary-200 dark:shadow-primary-700 transition-transform active:scale-95 rounded-2xl px-5 py-2.5 text-sm"
                         badge={(manualPaymentSubscriptions.length + systemPaymentSubscriptions.length) > 0
                             ? (manualPaymentSubscriptions.length + systemPaymentSubscriptions.length).toString()
                             : undefined}
@@ -624,8 +624,195 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            {/* Main Content: 去线条化的 DataView */}
-            <div className="bg-surface rounded-[32px] border border-surface-100 shadow-sm overflow-hidden">
+            {/* Mobile: 卡片列表（避免 DataTable 横向溢出导致“只显示一小块”） */}
+            <div className="md:hidden space-y-2">
+                {students.map((student) => {
+                    const nick = student.profile?.nickname || '未知学员';
+                    const unreviewed = (student.uploaded || 0) - (student.reviewed || 0);
+                    const plan = student.plan;
+                    const isCompleted = plan?.status === 'completed';
+                    const isActive = !!plan && !isCompleted;
+
+                    const completedDays = student.progress?.completed || 0;
+                    const totalDays = student.progress?.total || 0;
+                    const percentage = totalDays === 0 ? 0 : Math.min(Math.round((completedDays / totalDays) * 100), 100);
+
+                    const subscribeData = student.subscribe_data as any;
+                    const isOffline = Array.isArray(subscribeData)
+                        ? !!subscribeData.find((item: any) => item.type === 'offline_payment')
+                        : !!subscribeData?.offline_payment;
+
+                    return (
+                        <details
+                            key={student.id}
+                            className="group w-full bg-surface rounded-2xl border border-surface-100 shadow-sm overflow-hidden"
+                        >
+                            <summary className="list-none cursor-pointer select-none px-3 py-3 active:bg-surface-50">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <Avatar
+                                        image={student.profile?.avatar_url || undefined}
+                                        label={!student.profile?.avatar_url ? nick.charAt(0) : undefined}
+                                        shape="circle"
+                                        className="w-9 h-9 bg-primary-100 text-primary-700 font-bold shrink-0"
+                                    />
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div className="font-black text-surface-900 truncate">{nick}</div>
+                                            {productTagTemplate(Number(student.tier))}
+                                        </div>
+                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                                            <span className="px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 font-bold">
+                                                {isOffline ? '线下已付' : `${student.subscribed_weeks}周`}
+                                            </span>
+                                            <span
+                                                className={[
+                                                    'px-2 py-0.5 rounded-full border font-bold',
+                                                    isActive ? 'bg-primary-50 border-primary-100 text-primary-700' :
+                                                    isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                                                    'bg-surface-50 border-surface-100 text-surface-500'
+                                                ].join(' ')}
+                                            >
+                                                {isActive ? '进行中' : isCompleted ? '已完成' : '未配置'}
+                                            </span>
+                                            <span className={`px-2 py-0.5 rounded-full border font-bold ${unreviewed > 0 ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-surface-50 border-surface-100 text-surface-400'}`}>
+                                                待评 {Math.max(0, unreviewed)}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* “档案”入口：不展开，直接打开弹窗 */}
+                                    <button
+                                        type="button"
+                                        className="shrink-0 px-2 py-2 rounded-xl border border-surface-100 bg-surface-50 text-surface-600 font-bold text-xs active:scale-[0.98]"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setSelectedStudent(student);
+                                            setDialogVisible(true);
+                                        }}
+                                    >
+                                        档案
+                                    </button>
+
+                                    <ChevronRight className="w-4 h-4 text-surface-300 shrink-0 transition-transform group-open:rotate-90" />
+                                </div>
+                            </summary>
+
+                            {/* 展开内容 */}
+                            <div className="px-3 pb-3 pt-1">
+                                <div className="text-[11px] text-surface-400 font-medium mb-2">
+                                    ID: {student.id.slice(0, 8).toUpperCase()}
+                                </div>
+
+                                {/* 计划卡片（保留入口） */}
+                                <div
+                                    className={[
+                                        'mt-2 flex items-center gap-3 p-3 rounded-2xl border transition-all',
+                                        !plan ? 'border-dashed border-surface-200 bg-surface-50/30' :
+                                        isActive ? 'border-primary-100 bg-surface shadow-sm shadow-primary-50/50' :
+                                        'border-surface-100 bg-surface-50/20 opacity-90'
+                                    ].join(' ')}
+                                    onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                                >
+                                    <div className="w-9 h-9 rounded-xl bg-surface-100 flex items-center justify-center shrink-0">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${isActive ? 'bg-primary' : isCompleted ? 'bg-emerald-500' : 'bg-surface-300'}`} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-black text-surface-900 truncate">
+                                            {plan?.name || '未配置计划（点我进入）'}
+                                        </div>
+                                        {plan?.description ? (
+                                            <div className="text-[11px] text-surface-500 truncate">
+                                                {plan.description}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-surface-300 shrink-0" />
+                                </div>
+
+                                {/* 进度 + 视频统计 */}
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <div className="rounded-2xl border border-surface-100 bg-surface-50/40 px-3 py-2">
+                                        <div className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">训练进度</div>
+                                        <div className="mt-1 flex items-baseline justify-between">
+                                            <div className="text-sm font-black text-surface-900">{isCompleted ? 100 : percentage}%</div>
+                                            <div className="text-[10px] font-bold text-surface-400">{completedDays}/{totalDays || 0} 训练日</div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <ProgressBar
+                                                value={isCompleted ? 100 : percentage}
+                                                showValue={false}
+                                                style={{ height: '6px' }}
+                                                className="border-none bg-surface-100 rounded-full overflow-hidden"
+                                                pt={{
+                                                    value: { className: `${isCompleted ? 'bg-green-500' : 'bg-primary'} transition-all duration-700` }
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-surface-100 bg-surface-50/40 px-3 py-2">
+                                        <div className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">点评/视频</div>
+                                        <div className="mt-1 flex items-baseline gap-2">
+                                            <div className="text-sm font-black text-surface-900">{student.reviewed || 0}</div>
+                                            <div className="text-[10px] font-bold text-surface-400">审阅</div>
+                                            <div className="text-surface-200 text-[10px]">/</div>
+                                            <div className="text-sm font-black text-surface-900">{student.uploaded || 0}</div>
+                                            <div className="text-[10px] font-bold text-surface-400">总计</div>
+                                        </div>
+                                        <div className="mt-2 text-[10px] font-bold">
+                                            {unreviewed > 0 ? (
+                                                <span className="text-amber-700">待评 {Math.max(0, unreviewed)}</span>
+                                            ) : (
+                                                <span className="text-surface-400">全部完成</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 快捷操作 */}
+                                <div className="mt-3 flex gap-2">
+                                    <Button
+                                        label={plan ? '查看计划' : '创建计划'}
+                                        icon={plan ? <ChevronRight className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+                                        className="p-button-sm w-full rounded-2xl"
+                                        onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
+                                    />
+                                    {!plan && (
+                                        <Button
+                                            label="AI生成"
+                                            icon={<Sparkles className="w-4 h-4 mr-1" />}
+                                            className="p-button-sm p-button-outlined w-[44%] rounded-2xl"
+                                            onClick={() => openAiConfigDialog(student)}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </details>
+                    );
+                })}
+
+                {/* Mobile 分页：复用 DataTable paginator 太重，这里先用原分页逻辑（保持功能） */}
+                <div className="pt-2">
+                    <DataTable
+                        value={[]}
+                        paginator
+                        rows={rows}
+                        totalRecords={totalRecords}
+                        first={first}
+                        onPage={onPage}
+                        lazy
+                        className="bg-transparent"
+                        pt={{
+                            paginator: { className: 'border-none bg-transparent' },
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Desktop: DataTable */}
+            <div className="hidden md:block bg-surface rounded-[32px] border border-surface-100 shadow-sm overflow-hidden">
                 <DataTable
                     value={students}
                     paginator

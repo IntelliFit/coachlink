@@ -284,6 +284,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-12">
+            {/* Anchor for "scroll to pricing" behaviors (mobile CTA / content lock CTA) */}
+            <div id="choose-pricing" className="scroll-mt-24" />
             <div className="flex justify-end mb-4">
                 <Button
                     icon="pi pi-question-circle"

@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         ref,
         shareId,
         invitationCode,
+        invitationMode,
     } = await req.json() as RegisterDto;
 
     const trimmedPhone = phone?.trim();
@@ -124,6 +125,11 @@ export async function POST(req: NextRequest) {
         referrerCoachId = coach.id;
     }
 
+    const normalizedInvitationMode =
+        invitationMode === "exclusive" || invitationMode === "open"
+            ? invitationMode
+            : null;
+
     const { data: user } = await supabase
         .from("users")
         .insert({
@@ -132,6 +138,9 @@ export async function POST(req: NextRequest) {
             created_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
             ...(referrerCoachId && { referrer_coach_id: referrerCoachId }),
+            ...(referrerCoachId && normalizedInvitationMode && {
+                invited_visibility_mode: normalizedInvitationMode,
+            }),
         } as any)
         .select("*")
         .single();

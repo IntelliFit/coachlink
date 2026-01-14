@@ -5,6 +5,11 @@ export interface GetE1RMHistoryDto {
     startDate?: string;
     endDate?: string;
     limit?: number;
+    /**
+     * Optional: fetch history for a specific user (coach can query their student).
+     * If provided and differs from current session user, backend will enforce coach->student subscription check.
+     */
+    targetUserId?: string;
 }
 
 // Response DTO

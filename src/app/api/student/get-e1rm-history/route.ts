@@ -16,6 +16,7 @@ export interface GetE1RMHistoryDto {
     startDate?: string;
     endDate?: string;
     limit?: number;
+    targetUserId?: string;
 }
 
 // Response DTO
@@ -53,9 +54,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const userId = session.user.id;
+        const currentUserId = session.user.id;
         const body: GetE1RMHistoryDto = await request.json();
-        const { actionId, startDate, endDate } = body;
+        const { actionId, startDate, endDate, targetUserId } = body;
 
         if (!actionId) {
             return NextResponse.json<ApiData<null>>(
@@ -66,6 +67,36 @@ export async function POST(request: NextRequest) {
                 },
                 { status: 400 },
             );
+        }
+
+        // ------------------------------------------------------------
+        // Resolve query user (support coach -> student)
+        // ------------------------------------------------------------
+        let userId = currentUserId;
+        if (targetUserId && targetUserId !== currentUserId) {
+            const { data: isCoach } = await supabase
+                .from("coach_subscriptions")
+                .select(
+                    `
+                    id,
+                    coaches!inner(user_id)
+                `,
+                )
+                .eq("coaches.user_id", currentUserId)
+                .eq("student_id", targetUserId)
+                .maybeSingle();
+
+            if (!isCoach) {
+                return NextResponse.json<ApiData<null>>(
+                    {
+                        success: false,
+                        message: "无权查看该用户的 e1RM 历史",
+                        data: null,
+                    },
+                    { status: 403 },
+                );
+            }
+            userId = targetUserId;
         }
 
         // 1. Fetch Action Details (Name & BodyWeight Prop)
