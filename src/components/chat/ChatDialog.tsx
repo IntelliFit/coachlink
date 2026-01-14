@@ -221,7 +221,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                             </p>
                         </div>
                     ) : messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-surface-400 opacity-60">
+                        <div className="flex flex-col items-center justify-center h-full text-surface-400 opacity-60 min-h-[450px] max-h-[450px]">
                             <div className="w-16 h-16 bg-surface-100 rounded-full flex items-center justify-center mb-4">
                                 <MessageSquareOff size={32} strokeWidth={1.5} className="text-surface-300" />
                             </div>

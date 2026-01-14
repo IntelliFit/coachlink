@@ -74,16 +74,16 @@ export async function POST(req: Request) {
         .from("execution_set_videos")
         .select(
             `
-                id,
-                action_id,
-                video_url,
-                thumbnail_url,
-                exercise_name,
-                set_number,
-                duration_seconds,
-                created_at,
-                plan_instance_executions (student_id, action_executions, day_index)
-            `,
+            id,
+            action_id,
+            video_url,
+            thumbnail_url,
+            exercise_name,
+            set_number,
+            duration_seconds,
+            created_at,
+            plan_instance_executions!inner (student_id, action_executions, day_index)
+        `,
             { count: "exact" },
         );
 
