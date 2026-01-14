@@ -763,7 +763,7 @@ const StudentPlanPage = () => {
     return (
         <div className="flex h-[fit-content]">
             {/* 主编辑区域 */}
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-3 sm:p-4">
                 <ConfirmDialog />
                 <SelectTemplateDialog
                     visible={selectTemplateDialogVisible}
@@ -797,7 +797,7 @@ const StudentPlanPage = () => {
 
                 {/* 学员信息面板 */}
 
-                <div className='grid grid-cols-2 gap-6'>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <StudentProfilePanel
                         studentData={studentData}
                         subscription={subscription}
@@ -889,7 +889,7 @@ const StudentPlanPage = () => {
 
 
                 <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-h-[500px]">
                         {/* 左侧：周历视图 */}
                         <div className="lg:col-span-1">
                             <WeekCalendar
@@ -905,7 +905,7 @@ const StudentPlanPage = () => {
                         </div>
 
                         {/* 右侧：训练日详情 */}
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-2 -mx-2 sm:mx-0">
                             {selectedDay ? (
                                 <PlanDayCard
                                     day={selectedDay}

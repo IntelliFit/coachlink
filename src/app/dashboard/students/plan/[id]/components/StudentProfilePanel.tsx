@@ -103,9 +103,9 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                             <div className="absolute inset-0 rounded-full ring-2 ring-primary-500/0 group-hover:ring-primary-500/20 group-hover:scale-125 transition-all duration-700 ease-out" />
                         </div>
 
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2">
-                                <h3 className="font-black text-surface-900 tracking-tighter group-hover:text-primary-700 transition-colors">
+                                <h3 className="font-black text-surface-900 tracking-tighter group-hover:text-primary-700 transition-colors truncate">
                                     {profile?.nickname || '学员档案'}
                                 </h3>
                                 {/* 状态标注：保持与“已完成”标签一致的视觉逻辑 */}
@@ -114,9 +114,9 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                                 </span>
                             </div>
                             <div className="flex items-center gap-1.5 mt-1">
-                                <span className="text-xs font-medium text-surface-500 opacity-80 flex items-center gap-1">
+                                <span className="text-xs font-medium text-surface-500 opacity-80 flex items-center gap-1 min-w-0">
                                     <Users size={12} strokeWidth={2} />
-                                    查看详细资料与体能档案
+                                    <span className="truncate">查看详细资料与体能档案</span>
                                 </span>
                             </div>
                         </div>

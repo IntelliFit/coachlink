@@ -135,7 +135,7 @@ export default function NavigationStudent() {
         { label: '我的好友', icon: 'pi pi-users', command: () => router.push('/friends') },
         { label: '我的动作库', icon: 'pi pi-list', command: () => router.push('/me/action-lib') },
         { label: '知识库', icon: 'pi pi-book', command: () => router.push('/dashboard/knowledge') },
-        { label: '常用计划', icon: 'pi pi-bookmark', command: () => router.push('/me/plan-lib') },
+        { label: '我的计划库', icon: 'pi pi-bookmark', command: () => router.push('/me/plan-lib') },
         { label: '训练历史', icon: 'pi pi-history', command: () => router.push('/me/plan-history') },
         { separator: true },
         {

@@ -48,6 +48,16 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     isGlobalOneRMConfigEnabled,
 }) => {
     const currentAction = actions.find(action => action.id === set.actionId);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+
+    useEffect(() => {
+        // 桌面端默认展开更多信息；移动端默认收起以提升信息密度
+        try {
+            setAdvancedOpen(window.matchMedia('(min-width: 768px)').matches);
+        } catch {
+            setAdvancedOpen(false);
+        }
+    }, []);
 
     // 从问卷获取初始值作为 fallback
     const questionnaireInput = ((subscription?.subscribe_data || []) as unknown as TrainingItem[]).find(item => item.type === 'rm')?.userInputs || {};
@@ -339,9 +349,10 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
     // 检查当前动作是否有"强度"属性
     const hasIntensityAttr = currentAction?.attrs?.includes('强度');
+    const baseAttrs = (currentAction?.attrs || []).filter(attr => attr !== '强度');
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
             <div className="md:col-span-2">
                 <label className="block text-900 text-xs mb-1">动作</label>
                 <Dropdown
@@ -363,49 +374,69 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 />
             </div>
 
-            {/* 基于attrs动态渲染字段（排除"强度"，改为使用新UI） */}
-            {(currentAction?.attrs || [])
-                .filter(attr => attr !== '强度') // 排除强度，使用新UI
-                .map(attr => (
-                    <div key={attr}>
-                        <label className="block text-900 text-xs mb-1">{attr}</label>
-                        <InputNumber
-                            value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
-                            onValueChange={e => {
-                                const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
-                                updateParams({ [attr]: value });
-                            }}
-                            suffix={getUnit(attr)}
-                            inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
-                            disabled={saving}
-                            min={attr === '休息时间' ? 0.5 : 1}
-                            step={attr === '休息时间' ? 0.5 : 1}
-                            maxFractionDigits={attr === '休息时间' ? 1 : 0}
-                            showButtons
-                            buttonLayout="stacked"
-                        />
+            {/* 核心参数：移动端压缩成紧凑网格，避免“stacked”按钮占满屏 */}
+            {baseAttrs.length > 0 && (
+                <div className="md:col-span-2">
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                        {baseAttrs.map(attr => (
+                            <div key={attr} className="min-w-0">
+                                <label className="block text-900 text-[11px] mb-1 truncate">{attr}</label>
+                                <InputNumber
+                                    value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
+                                    onValueChange={e => {
+                                        const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
+                                        updateParams({ [attr]: value });
+                                    }}
+                                    suffix={getUnit(attr)}
+                                    inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
+                                    disabled={saving}
+                                    min={attr === '休息时间' ? 0.5 : 1}
+                                    step={attr === '休息时间' ? 0.5 : 1}
+                                    maxFractionDigits={attr === '休息时间' ? 1 : 0}
+                                    showButtons
+                                    buttonLayout="stacked"
+                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
+                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
+                                    pt={{
+                                        root: { className: 'w-full' },
+                                        buttonGroup: { className: '!w-7 !ml-1' }
+                                    }}
+                                />
+                            </div>
+                        ))}
                     </div>
-                ))
-            }
+                </div>
+            )}
 
             {hasIntensityAttr && (
                 <div className="md:col-span-2 mt-4 rounded-2xl">
-                    <label className="block text-900 text-sm font-medium mb-3">强度设置</label>
+                    <div className="flex items-center justify-between">
+                        <label className="block text-900 text-sm font-medium mb-2">强度设置</label>
+                        <button
+                            type="button"
+                            className="md:hidden text-[12px] font-bold text-primary-600"
+                            onClick={() => setAdvancedOpen(v => !v)}
+                        >
+                            {advancedOpen ? '收起更多' : '更多设置'}
+                        </button>
+                    </div>
 
 
                     {/* 相对强度类型选择：胶囊切换风格 */}
-                    <div className="flex p-1 bg-surface-100/80 rounded-[12px] w-fit mb-4 border border-surface-200/50">
+                    <div className="flex p-1 bg-surface-100/80 rounded-[12px] w-fit mb-3 border border-surface-200/50">
                         {[
                             { label: 'RM', value: 'rm' },
-                            { label: '百分比', value: 'percentage' },
-                            { label: '仅固定重量', value: 'none' }
+                            { label: '%', value: 'percentage' },
+                            { label: '固定', value: 'none' }
                         ].map((opt) => (
                             <button
                                 key={opt.value}
                                 type="button"
                                 onClick={() => handleIntensityTypeChange(opt.value as any)}
                                 className={`
-                        px-4 py-1.5 rounded-[9px] text-[12px] font-bold transition-all
+                        px-3 py-1.5 rounded-[9px] text-[12px] font-bold transition-all
                         ${intensityType === opt.value
                                         ? 'bg-surface text-surface-900 shadow-sm'
                                         : 'text-surface-500 hover:text-surface-700'}
@@ -416,7 +447,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {/* RM 输入 */}
                         {intensityType === 'rm' && (
                             <div className="flex flex-col gap-1.5">
@@ -428,11 +459,21 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     min={1}
                                     max={36}
                                     disabled={saving}
-                                    inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
+                                    inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                     showButtons
                                     buttonLayout="stacked"
+                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
+                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
+                                    pt={{
+                                        root: { className: 'w-full' },
+                                        buttonGroup: { className: '!w-7 !ml-1' }
+                                    }}
                                 />
-                                <small className="text-500 text-xs ml-1 opacity-50">RM范围1-36，如5RM = 能做5次的最大重量</small>
+                                {advancedOpen && (
+                                    <small className="text-500 text-xs ml-1 opacity-50">RM范围1-36，如5RM=能做5次的最大重量</small>
+                                )}
                             </div>
                         )}
 
@@ -447,11 +488,21 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     min={30}
                                     max={100}
                                     disabled={saving}
-                                    inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
+                                    inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                     showButtons
                                     buttonLayout="stacked"
+                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
+                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
+                                    pt={{
+                                        root: { className: 'w-full' },
+                                        buttonGroup: { className: '!w-7 !ml-1' }
+                                    }}
                                 />
-                                <small className="text-500 text-xs ml-1">如80% = 1RM的80%重量</small>
+                                {advancedOpen && (
+                                    <small className="text-500 text-xs ml-1 opacity-50">如80%=1RM的80%重量</small>
+                                )}
                             </div>
                         )}
 
@@ -467,9 +518,17 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     disabled={saving}
                                     min={0}
                                     maxFractionDigits={1}
-                                    inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
+                                    inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                     showButtons
                                     buttonLayout="stacked"
+                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
+                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
+                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
+                                    pt={{
+                                        root: { className: 'w-full' },
+                                        buttonGroup: { className: '!w-7 !ml-1' }
+                                    }}
                                 />
                                 <Dropdown
                                     value={recommendedUnit}
@@ -483,36 +542,42 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     }}
                                 />
                             </div>
-                            <small className="text-500 text-xs ml-1 opacity-50">
-                                {intensityType === 'none'
-                                    ? '直接使用此重量'
-                                    : '无法计算时使用此值'}
-                            </small>
+                            {advancedOpen && (
+                                <small className="text-500 text-xs ml-1 opacity-50">
+                                    {intensityType === 'none'
+                                        ? '直接使用此重量'
+                                        : '无法计算时使用此值'}
+                                </small>
+                            )}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 备注字段 */}
+            {/* 更多设置：移动端默认折叠（备注 + 计算预览等） */}
             <div className="md:col-span-2">
-                <label className="block text-surface-400 text-[11px] font-bold uppercase tracking-widest mb-2 ml-1">备注</label>
-                <input
-                    type="text"
-                    value={set.params?.note || ''}
-                    onChange={e => onActionSetChange(dayIndex, setIndex, 'params', { note: e.target.value } as any)}
-                    placeholder="如 rpe9、热身组等"
-                    className="w-full p-3 border border-surface-200 rounded-2xl text-sm bg-surface-50/50 focus:bg-white focus:border-primary-300 transition-all"
-                    disabled={saving}
-                />
-            </div>
+                {advancedOpen && (
+                    <div className="mt-2 pt-3 border-t border-surface-100">
+                        {/* 备注字段 */}
+                        <div className="mb-3">
+                            <label className="block text-surface-400 text-[11px] font-bold uppercase tracking-widest mb-2 ml-1">备注</label>
+                            <input
+                                type="text"
+                                value={set.params?.note || ''}
+                                onChange={e => onActionSetChange(dayIndex, setIndex, 'params', { note: e.target.value } as any)}
+                                placeholder="如 rpe9、热身组等"
+                                className="w-full p-2.5 border border-surface-200 rounded-2xl text-sm bg-surface-50/50 focus:bg-white focus:border-primary-300 transition-all"
+                                disabled={saving}
+                            />
+                        </div>
 
-            {/* 智能计算预览（仅当有学员数据且启用自动计算时） */}
-            {currentAction?.enableAutoWeightCompute && studentData && (
-                <div className="md:col-span-2 mt-2 pt-3 border-t border-surface-100">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="block text-surface-400 text-[11px] font-bold ml-1">计算预览</label>
+                        {/* 智能计算预览（仅当有学员数据且启用自动计算时） */}
+                        {currentAction?.enableAutoWeightCompute && studentData && (
+                            <div className="pt-2">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="block text-surface-400 text-[11px] font-bold ml-1">计算预览</label>
 
-                        <div className="flex items-center justify-between p-3 bg-surface-50 rounded-[14px] border border-surface-100/50">
+                                    <div className="flex items-center justify-between p-3 bg-surface-50 rounded-[14px] border border-surface-100/50">
                             <div className="flex items-center gap-3">
                                 {/* 结果数值：保持清晰但尺寸适中 */}
                                 <div className="flex items-baseline gap-1">
@@ -559,10 +624,13 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                         : <span className="text-orange-500 ml-1">· 需设置体重</span>}
                                 </div>
                             )}
-                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };
