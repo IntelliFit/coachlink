@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import CoachList from '@/app/coach/subscription/CoachList';
 
 const SubscriptionDashboard = () => {
-    const { data: session } = useSession();    
+    const { data: session } = useSession();
     const router = useRouter();
 
     const [subscriptions, setSubscriptions] = useState<QueryCoachSubscription[]>([]);
@@ -40,73 +40,81 @@ const SubscriptionDashboard = () => {
     }, [session?.user?.id]); // 依赖 session id
 
     // 骨架屏组件
-    const LoadingSkeleton = () => (
-        <div className="space-y-8">
-            {/* 订阅列表骨架屏 - 更新为2列网格 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {[1, 2].map(item => (
-                    <div key={item} className="rounded-lg overflow-hidden border border-surface-200">
-                        {/* 顶部状态栏 */}
-                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-3">
-                            <Skeleton width="120px" height="20px" className="bg-white/20" />
-                        </div>
-                        
-                        {/* 教练信息 */}
+    const LoadingSkeleton = () => {
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4">
+                {[1, 2, 3, 4].map((item) => (
+                    <div
+                        key={item}
+                        className="bg-surface rounded-[24px] border border-surface-100 overflow-hidden"
+                    >
                         <div className="p-6">
-                            {/* 头像和基本信息 */}
-                            <div className="flex gap-6 mb-6">
-                                <Skeleton shape="circle" size="6rem" />
-                                <div className="flex-1">
-                                    <Skeleton width="60%" height="24px" className="mb-2" />
-                                    <Skeleton width="40%" height="16px" className="mb-3" />
-                                    <div className="flex gap-4">
-                                        <Skeleton width="60px" height="16px" />
-                                        <Skeleton width="60px" height="16px" />
-                                        <Skeleton width="60px" height="16px" />
+                            {/* 头部区域骨架 */}
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex gap-4">
+                                    {/* 头像预留 - 20px 圆角 */}
+                                    <Skeleton
+                                        width="4rem"
+                                        height="4rem"
+                                        className="rounded-[20px] bg-surface-50"
+                                    />
+
+                                    <div className="flex flex-col gap-2 mt-1">
+                                        {/* 名字 */}
+                                        <Skeleton width="120px" height="20px" className="bg-surface-100" />
+                                        {/* 称号 */}
+                                        <Skeleton width="80px" height="12px" className="bg-surface-50" />
                                     </div>
                                 </div>
+                                {/* 状态标签预留 */}
+                                <Skeleton width="60px" height="22px" borderRadius="11px" className="bg-surface-50" />
                             </div>
-                            
-                            {/* 专业领域 */}
-                            <div className="mb-4">
-                                <Skeleton width="80px" height="16px" className="mb-2" />
-                                <div className="flex gap-2">
-                                    <Skeleton width="70px" height="24px" borderRadius="1rem" />
-                                    <Skeleton width="80px" height="24px" borderRadius="1rem" />
-                                    <Skeleton width="60px" height="24px" borderRadius="1rem" />
-                                </div>
+
+                            {/* 数值指标卡骨架：模拟 3 列布局 */}
+                            <div className="grid grid-cols-3 gap-px bg-surface-100 border border-surface-100 rounded-2xl overflow-hidden mb-6">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="bg-surface p-3 flex flex-col items-center gap-2">
+                                        <Skeleton width="30px" height="10px" className="bg-surface-50" />
+                                        <Skeleton width="45px" height="18px" className="bg-surface-100" />
+                                    </div>
+                                ))}
                             </div>
-                            
-                            {/* 教学经验和案例 */}
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <Skeleton width="60%" height="16px" className="mb-1" />
-                                    <Skeleton width="80%" height="16px" />
-                                </div>
-                                <div>
-                                    <Skeleton width="60%" height="16px" className="mb-1" />
-                                    <Skeleton width="80%" height="16px" />
-                                </div>
+
+                            {/* 专业领域 Tag 骨架 */}
+                            <div className="flex flex-wrap gap-1.5 mb-5">
+                                <Skeleton width="50px" height="24px" borderRadius="8px" className="bg-surface-50" />
+                                <Skeleton width="65px" height="24px" borderRadius="8px" className="bg-surface-50" />
+                                <Skeleton width="55px" height="24px" borderRadius="8px" className="bg-surface-50" />
                             </div>
-                            
-                            {/* 简介 */}
-                            <div className="mb-4">
-                                <Skeleton width="60px" height="16px" className="mb-1" />
-                                <Skeleton width="100%" height="14px" className="mb-1" />
-                                <Skeleton width="90%" height="14px" />
+
+                            {/* 教练简介：两行约束 */}
+                            <div className="mb-6 space-y-2">
+                                <Skeleton width="100%" height="14px" className="bg-surface-50" />
+                                <Skeleton width="60%" height="14px" className="bg-surface-50" />
                             </div>
-                            
-                            {/* 按钮 */}
-                            <div className="flex gap-2 pt-4 border-t border-surface-200">
-                                <Skeleton width="50%" height="36px" />
-                                <Skeleton width="50%" height="36px" />
+
+                            {/* 操作区域：左小右大 */}
+                            <div className="flex gap-3">
+                                {/* 在线咨询图标按钮 */}
+                                <Skeleton
+                                    width="3rem"
+                                    height="3rem"
+                                    borderRadius="1rem"
+                                    className="bg-surface-50"
+                                />
+                                {/* 查看详情主按钮 */}
+                                <Skeleton
+                                    height="3rem"
+                                    borderRadius="1rem"
+                                    className="flex-1 bg-surface-100"
+                                />
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
-        </div>
-    );
+        );
+    };
 
     if (loading) {
         return <LoadingSkeleton />;
@@ -119,10 +127,10 @@ const SubscriptionDashboard = () => {
                 <h3 className="text-xl font-semibold mb-2">还没有订阅任何教练</h3>
                 <p className="text-surface-600 mb-6">选择专业教练，开始您的健身之旅</p>
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
-                    <Button 
-                        label="浏览教练" 
-                        className="p-button-primary px-6 py-3" 
-                        onClick={() => router.push('/coach/discovery')} 
+                    <Button
+                        label="浏览教练"
+                        className="p-button-primary px-6 py-3"
+                        onClick={() => router.push('/coach/discovery')}
                     />
                 </div>
             </div>
@@ -130,7 +138,7 @@ const SubscriptionDashboard = () => {
 
     return (
         <div>
-            <CoachList subscriptions={subscriptions}/>
+            <CoachList subscriptions={subscriptions} />
         </div>
     )
 }

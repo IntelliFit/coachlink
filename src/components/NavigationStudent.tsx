@@ -13,14 +13,15 @@ import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
-import { 
-    PlayCircle, 
-    Search, 
-    ClipboardList, 
-    TrendingUp, 
-    Bell, 
-    Moon, 
-    Sun, 
+import { subscriptionService } from '@/app/service/subscriptionService';
+import {
+    PlayCircle,
+    Search,
+    ClipboardList,
+    TrendingUp,
+    Bell,
+    Moon,
+    Sun,
     ArrowLeft,
     ChevronDown,
     LogIn,
@@ -38,6 +39,7 @@ export default function NavigationStudent() {
     const { data: session, status } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
+    const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
 
     useEffect(() => {
         setIsClient(true);
@@ -58,6 +60,32 @@ export default function NavigationStudent() {
             }
         }
     }, [session, status, openOnboardingModal, clearOnboardingSuppression]);
+
+    // Periodically check for subscription expiration (every 10 minutes)
+    useEffect(() => {
+        if (status !== 'authenticated' || !session?.user?.id) return;
+
+        const checkSubscriptions = async () => {
+            const now = Date.now();
+            // Only check if it's been at least 10 minutes since last check
+            if (now - lastSubscriptionCheck < 10 * 60 * 1000) return;
+
+            setLastSubscriptionCheck(now);
+            try {
+                await subscriptionService.checkExpiredSubscriptions();
+            } catch (error) {
+                console.error('Error checking expired subscriptions:', error);
+            }
+        };
+
+        // Check immediately on mount
+        checkSubscriptions();
+
+        // Then check periodically
+        const interval = setInterval(checkSubscriptions, 10 * 60 * 1000); // Every 10 minutes
+
+        return () => clearInterval(interval);
+    }, [status, session?.user?.id, lastSubscriptionCheck]);
 
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;

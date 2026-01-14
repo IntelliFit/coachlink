@@ -15,6 +15,8 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
+import WeixinzhifuIcon from '../icons/weixinzhifu';
+import ZhifubaoIcon from '../icons/zhifubao';
 
 // 中文语言包配置
 addLocale('zh-CN', {
@@ -99,7 +101,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [offlineNote, setOfflineNote] = useState('');
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
     const fileUploadRef = useRef<FileUpload>(null);
-    
+
     // 扫码支付凭证状态
     const [qrcodeReceiptUrl, setQrcodeReceiptUrl] = useState<string>('');
     const [uploadingQrcodeReceipt, setUploadingQrcodeReceipt] = useState(false);
@@ -115,7 +117,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         if (res) {
             setCoach(res.coach);
             setPaymentInfo(res.paymentInfo || null);
-            
+
             // 根据支付模式设置默认选项
             const mode = res.paymentInfo?.effectivePaymentMode || 'qrcode';
             if (mode === 'alipay_api') {
@@ -256,7 +258,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             setShowTermsDialog(false);
             showToast({ severity: 'success', summary: '请等待教练确认收款', detail: '支付后请联系教练，系统会通知教练确认收款' });
             // 传递扫码支付凭证信息（如果有）
-            const noteWithReceipt = qrcodeReceiptUrl 
+            const noteWithReceipt = qrcodeReceiptUrl
                 ? `${paymentNote ? paymentNote + '\n' : ''}付款凭证: ${qrcodeReceiptUrl}`
                 : paymentNote;
             onSuccess?.(noteWithReceipt);
@@ -287,7 +289,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
         setProcessingAlipay(true);
         const mobile = isMobile();
-        
+
         try {
             const res = await fetch('/api/payment/alipay/create', {
                 method: 'POST',
@@ -438,51 +440,79 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
     // 渲染支付方式选择（总是显示，包含线下支付选项）
     const renderPaymentMethodSelection = () => {
+        const methods = [
+            {
+                id: 'qrcode',
+                label: '扫码支付',
+                icon: (isActive: boolean) => <i className={`pi pi-qrcode ${isActive ? 'text-surface' : ''}`} />,
+                visible: hasQrCodes,
+                activeClass: 'bg-orange-50 border-orange-200 text-orange-600',
+                iconClass: 'bg-orange-500'
+            },
+            {
+                id: 'alipay_api',
+                label: '支付宝',
+                // 替换为 ZhifubaoIcon
+                icon: (isActive: boolean) => <ZhifubaoIcon width="18" height="18" fill={isActive ? "#FFFFFF" : "#64748b"} />,
+                visible: effectiveMode === 'alipay_api' || effectiveMode === 'both',
+                activeClass: 'bg-blue-500 border-blue-600 text-white', // 调整激活样式以适应支付宝蓝
+                iconClass: 'bg-blue-500'
+            },
+            {
+                id: 'offline',
+                label: '线下已付',
+                icon: 'pi pi-wallet',
+                visible: true,
+                activeClass: 'bg-surface-900 border-surface-900 text-surface',
+                iconClass: 'bg-surface-600'
+            }
+        ];
+
         return (
-            <div className="w-full mb-4 p-3 bg-surface-50 rounded-lg">
-                <div className="text-sm font-medium text-surface-700 mb-2">选择支付方式：</div>
-                <div className="flex flex-wrap gap-3">
-                    {hasQrCodes && (
-                        <div 
-                            className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'qrcode' ? 'bg-primary-100' : ''}`}
-                            onClick={() => setSelectedPaymentMethod('qrcode')}
-                        >
-                            <RadioButton
-                                inputId="method-qrcode"
-                                value="qrcode"
-                                checked={selectedPaymentMethod === 'qrcode'}
-                                onChange={() => setSelectedPaymentMethod('qrcode')}
-                            />
-                            <label htmlFor="method-qrcode" className="cursor-pointer">扫码支付</label>
-                        </div>
-                    )}
-                    {(effectiveMode === 'alipay_api' || effectiveMode === 'both') && (
-                        <div 
-                            className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'alipay_api' ? 'bg-primary-100' : ''}`}
-                            onClick={() => setSelectedPaymentMethod('alipay_api')}
-                        >
-                            <RadioButton
-                                inputId="method-alipay"
-                                value="alipay_api"
-                                checked={selectedPaymentMethod === 'alipay_api'}
-                                onChange={() => setSelectedPaymentMethod('alipay_api')}
-                            />
-                            <label htmlFor="method-alipay" className="cursor-pointer">平台支付宝</label>
-                        </div>
-                    )}
-                    {/* 线下已支付选项 - 始终显示 */}
-                    <div 
-                        className={`flex items-center gap-2 p-2 rounded cursor-pointer ${selectedPaymentMethod === 'offline' ? 'bg-primary-100' : ''}`}
-                        onClick={() => setSelectedPaymentMethod('offline')}
-                    >
-                        <RadioButton
-                            inputId="method-offline"
-                            value="offline"
-                            checked={selectedPaymentMethod === 'offline'}
-                            onChange={() => setSelectedPaymentMethod('offline')}
-                        />
-                        <label htmlFor="method-offline" className="cursor-pointer">已线下支付</label>
-                    </div>
+            <div className="w-full mb-6">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                    <span className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">
+                        结算方式
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                    {methods.filter(m => m.visible).map((method) => {
+                        const isActive = selectedPaymentMethod === method.id;
+                        return (
+                            <div
+                                key={method.id}
+                                onClick={() => setSelectedPaymentMethod(method.id as any)}
+                                className={`
+                                cursor-pointer relative overflow-hidden transition-all duration-300
+                                p-3 rounded-[16px] border flex flex-col items-center gap-2 active:scale-95
+                                ${isActive
+                                        ? `${method.activeClass} shadow-sm`
+                                        : 'border-surface-100 bg-surface-50/50 hover:bg-surface hover:border-surface-200'
+                                    }
+                            `}
+                            >
+                                {/* 选中状态的小勾选标记 */}
+                                {isActive && (
+                                    <div className="absolute top-2 right-2">
+                                        <i className="pi pi-check-circle text-[10px]" />
+                                    </div>
+                                )}
+
+                                {/* 图标容器 */}
+                                <div className={`
+                                    w-8 h-8 rounded-xl flex items-center justify-center transition-transform duration-500
+                                    ${isActive ? 'scale-110 ' + method.iconClass : 'bg-surface-200'}
+                                `}>
+                                    {typeof method.icon === 'function' ? method.icon(isActive) : <i className={`${method.icon} text-sm`} />}
+                                </div>
+
+                                <span className="text-[10px] font-black tracking-tight leading-none uppercase">
+                                    {method.label}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         );
@@ -503,28 +533,28 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             const qr = paymentInfo!.qrCodes[0];
             return (
                 <div className="flex flex-col items-center">
-                    <img 
-                        src={qr.url} 
-                        alt={qr.name} 
-                        className="max-w-[280px] h-auto object-contain mb-4 border rounded-lg shadow-sm" 
+                    <img
+                        src={qr.url}
+                        alt={qr.name}
+                        className="max-w-[280px] h-auto object-contain mb-4 border rounded-lg shadow-sm"
                     />
                     <div className="text-center mb-4">
                         <div className="font-bold text-lg text-surface-900">{coach?.name} - {qr.name}</div>
                         {amount && <div className="text-primary font-bold mt-2 text-xl">支付金额：¥{amount.toFixed(2)}</div>}
                     </div>
-                    
+
                     {/* 付款凭证上传区域 */}
                     <div className="w-full max-w-[280px] p-4 bg-surface-50 rounded-lg border border-surface-200">
                         <div className="text-sm font-medium text-surface-700 mb-2">
                             <i className="pi pi-camera mr-2" />
                             上传付款凭证
                         </div>
-                        
+
                         {qrcodeReceiptUrl ? (
                             <div className="flex flex-col items-center gap-2">
-                                <Image 
-                                    src={qrcodeReceiptUrl} 
-                                    alt="付款凭证" 
+                                <Image
+                                    src={qrcodeReceiptUrl}
+                                    alt="付款凭证"
                                     width="120"
                                     preview
                                     className="rounded border"
@@ -568,26 +598,31 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 </div>
 
                 <div className="text-sm text-surface-600 mb-3 text-center">请选择支付方式：</div>
-                
+
                 <div className="grid grid-cols-2 gap-4 mb-4">
                     {paymentInfo!.qrCodes.map((qr) => (
-                        <div 
+                        <div
                             key={qr.type}
-                            className={`border-2 rounded-lg p-3 cursor-pointer transition-all ${
-                                selectedQrCode?.type === qr.type 
-                                    ? 'border-primary bg-primary-50 dark:bg-primary-800' 
-                                    : 'border-surface-200 hover:border-surface-300'
-                            }`}
+                            className={`border-2 rounded-lg p-3 cursor-pointer transition-all ${selectedQrCode?.type === qr.type
+                                ? 'border-primary bg-primary-50'
+                                : 'border-surface-200 hover:border-surface-300'
+                                }`}
                             onClick={() => setSelectedQrCode(qr)}
                         >
                             <div className="flex items-center gap-2 mb-2">
-                                <RadioButton 
+                                <RadioButton
                                     inputId={qr.type}
                                     value={qr.type}
                                     checked={selectedQrCode?.type === qr.type}
                                     onChange={() => setSelectedQrCode(qr)}
                                 />
-                                <label htmlFor={qr.type} className="font-medium cursor-pointer">
+                                {/* 插入品牌图标 */}
+                                {qr.type === 'wechat' ? (
+                                    <WeixinzhifuIcon width="16" height="16" />
+                                ) : (
+                                    <ZhifubaoIcon width="16" height="16" fill="#1677FF" />
+                                )}
+                                <label htmlFor={qr.type} className="font-medium cursor-pointer text-sm">
                                     {qr.type === 'wechat' ? '微信支付' : '支付宝'}
                                 </label>
                             </div>
@@ -597,14 +632,14 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
                 {selectedQrCode && (
                     <div className="flex justify-center">
-                        <img 
-                            src={selectedQrCode.url} 
-                            alt={selectedQrCode.name} 
-                            className="max-w-[240px] h-auto object-contain border rounded-lg shadow-sm" 
+                        <img
+                            src={selectedQrCode.url}
+                            alt={selectedQrCode.name}
+                            className="max-w-[240px] h-auto object-contain border rounded-lg shadow-sm"
                         />
                     </div>
                 )}
-                
+
                 {/* 付款凭证上传区域 */}
                 {selectedQrCode && (
                     <div className="mt-4 p-4 bg-surface-50 rounded-lg border border-surface-200">
@@ -612,12 +647,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             <i className="pi pi-camera mr-2" />
                             上传付款凭证
                         </div>
-                        
+
                         {qrcodeReceiptUrl ? (
                             <div className="flex flex-col items-center gap-2">
-                                <Image 
-                                    src={qrcodeReceiptUrl} 
-                                    alt="付款凭证" 
+                                <Image
+                                    src={qrcodeReceiptUrl}
+                                    alt="付款凭证"
                                     width="120"
                                     preview
                                     className="rounded border"
@@ -657,8 +692,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const renderAlipayApiPayment = () => {
         return (
             <div className="flex flex-col items-center py-4">
-                <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-                    <i className="pi pi-credit-card text-white text-3xl"></i>
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                    {/* 替换原有的 pi-credit-card */}
+                    <ZhifubaoIcon width="40" height="40" fill="#1677FF" />
                 </div>
                 <div className="text-center mb-4">
                     <div className="font-bold text-lg text-surface-900">平台支付宝支付</div>
@@ -682,7 +718,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <div className="w-full space-y-4">
                 <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i className="pi pi-check-circle text-white text-3xl"></i>
+                        <i className="pi pi-check-circle text-surface text-3xl"></i>
                     </div>
                     <div className="font-bold text-lg text-surface-900">线下已支付</div>
                     <div className="text-sm text-surface-500 mt-1">请填写支付信息，教练确认后即可生效</div>
@@ -776,7 +812,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         return (
             <>
                 {renderPaymentMethodSelection()}
-                
+
                 {selectedPaymentMethod === 'qrcode' && (
                     <>
                         {renderQrCodePayment()}
@@ -809,8 +845,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <Dialog
                 id="guide-payment-options"
                 header={
-                    selectedPaymentMethod === 'alipay_api' ? '平台支付' : 
-                    selectedPaymentMethod === 'offline' ? '线下支付确认' : '扫码支付'
+                    selectedPaymentMethod === 'alipay_api' ? '平台支付' :
+                        selectedPaymentMethod === 'offline' ? '线下支付确认' : '扫码支付'
                 }
                 visible={visible}
                 onHide={onHide}
@@ -851,10 +887,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         </ul>
                     </div>
                     <div className="flex items-center mb-4">
-                        <Checkbox 
-                            inputId="agreement" 
-                            onChange={e => setAgreedToTerms(e.checked || false)} 
-                            checked={agreedToTerms} 
+                        <Checkbox
+                            inputId="agreement"
+                            onChange={e => setAgreedToTerms(e.checked || false)}
+                            checked={agreedToTerms}
                         />
                         <label htmlFor="agreement" className="ml-2 text-surface-900">
                             我已阅读并同意以上服务条款
