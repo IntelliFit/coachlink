@@ -14,6 +14,7 @@ import { smsService } from '../service/smsService';
 import { Phone, ShieldCheck, ArrowLeft, UserPlus, User, Lock, Dumbbell, KeyRound } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
 import { sesService } from '../service/sesService';
+import { signIn } from 'next-auth/react';
 
 const fetchMarkdown = async (filename: string) => {
     const md = new MarkdownIt({
@@ -134,8 +135,23 @@ export default function RegisterPage() {
                 invitationMode,
             });
             if (res) {
-                showToast({ severity: 'success', summary: '注册成功' });
-                router.push('/login');
+                showToast({ severity: 'success', summary: '注册成功，正在自动登录...' });
+
+                // Automatically sign in the user after registration
+                const signInResult = await signIn('credentials', {
+                    phoneOrEmail: phoneOrEmail.trim(),
+                    password: password.trim(),
+                    redirect: false, // Don't redirect automatically, we'll handle it
+                });
+
+                if (signInResult?.ok) {
+                    // If login succeeds, redirect to home page
+                    router.push('/');
+                    router.refresh(); // Refresh to update session state
+                } else {
+                    // If auto-login fails, redirect to login page
+                    router.push('/login');
+                }
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '注册失败', detail: error.message });

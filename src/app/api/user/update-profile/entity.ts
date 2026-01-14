@@ -11,7 +11,7 @@ export interface UpdateProileDto {
     avatar_url?: string | null;
     address?: string | null;
     gender?: string | null;
-    birth_date?: string | null;
+    birth_date?: Date | null;
     height?: number | null;
     weight?: number | null;
     fitness_goal?: string | null;

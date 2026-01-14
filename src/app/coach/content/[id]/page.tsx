@@ -18,7 +18,6 @@ const ContentPage = () => {
     const [loading, setLoading] = useState(true);
     const [accessTier, setAccessTier] = useState<number>(0);
     const [hasLiked, setHasLiked] = useState<boolean>(false);
-    const [isLiking, setIsLiking] = useState<boolean>(false);
 
     const params = useParams();
 
@@ -83,7 +82,17 @@ const ContentPage = () => {
             return;
         }
 
-        setIsLiking(true);
+        // Optimistically update UI
+        const previousHasLiked = hasLiked;
+        const previousLikesCount = content.likes_count;
+
+        // Update UI immediately
+        setHasLiked(!hasLiked);
+        setContent({
+            ...content,
+            likes_count: hasLiked ? content.likes_count - 1 : content.likes_count + 1
+        });
+
         try {
             const result = await coachService.interactWithContent({
                 contentId: content.id,
@@ -102,17 +111,37 @@ const ContentPage = () => {
                 // Toggle the hasLiked state based on the action
                 if (result.action === 'added') {
                     setHasLiked(true);
-                    showToast({ severity: 'success', summary: '成功', detail: '点赞成功' });
                 } else if (result.action === 'removed') {
                     setHasLiked(false);
-                    showToast({ severity: 'info', summary: '提示', detail: '已取消点赞' });
                 }
             }
         } catch (error) {
             console.error('Error liking content:', error);
+            // Revert the optimistic update on error
+            setHasLiked(previousHasLiked);
+            setContent({
+                ...content,
+                likes_count: previousLikesCount
+            });
             showToast({ severity: 'error', summary: '错误', detail: '操作失败' });
-        } finally {
-            setIsLiking(false);
+        }
+    };
+
+    const handleShare = async () => {
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            showToast({
+                severity: 'success',
+                summary: '链接已复制',
+                detail: '内容链接已复制到剪贴板'
+            });
+        } catch (error) {
+            console.error('Error sharing content:', error);
+            showToast({
+                severity: 'error',
+                summary: '复制失败',
+                detail: '无法复制链接到剪贴板'
+            });
         }
     };
 
@@ -166,15 +195,31 @@ const ContentPage = () => {
                                 <span className="text-xs text-surface-900">{content?.views_count?.toLocaleString()}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <Heart className="w-4 h-4 stroke-[1.5px]" />
-                                <span className="text-xs text-surface-900">{content?.likes_count}</span>
+                                <button
+                                    onClick={handleLike}
+                                    className={`flex items-center gap-1.5 transition-colors hover:text-red-500`}
+                                >
+                                    <Heart
+                                        className={`w-4 h-4 stroke-[1.5px] ${hasLiked ? 'fill-current text-red-500' : ''}`}
+                                    />
+                                    <span className="text-xs text-surface-900">{content?.likes_count}</span>
+                                </button>
                             </div>
                         </div>
-                        <span className="text-[11px]">
-                            {new Date(content?.created_at || '').toLocaleString('zh-CN', {
-                                month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
-                            }).replace(/\//g, '-')}
-                        </span>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={handleShare}
+                                className="flex items-center gap-1.5 hover:text-primary-500 transition-colors"
+                            >
+                                <Share2 className="w-4 h-4 stroke-[1.5px]" />
+                                <span className="text-xs text-surface-900">分享</span>
+                            </button>
+                            <span className="text-[11px]">
+                                {new Date(content?.created_at || '').toLocaleString('zh-CN', {
+                                    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+                                }).replace(/\//g, '-')}
+                            </span>
+                        </div>
                     </div>
                 </header>
 
@@ -233,24 +278,6 @@ const ContentPage = () => {
                     )}
                 </article>
 
-                {/* 底部操作条：物理按键风格优化 */}
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 bg-surface/80 backdrop-blur-xl border border-surface-200/50 rounded-full shadow-2xl z-50">
-                    <ActionButton
-                        icon={<Heart className={`w-5 h-5 ${hasLiked ? 'fill-current text-red-500' : ''}`} />}
-                        label="赞"
-                        count={content?.likes_count}
-                        onClick={handleLike}
-                        disabled={isLiking}
-                    />
-                    <div className="w-px h-4 bg-surface-200" />
-                    <ActionButton icon={<Bookmark className="w-5 h-5" />} label="收藏" onClick={() => {
-                        showToast({ severity: 'info', summary: '施工中🏗️' });
-                    }} />
-                    <div className="w-px h-4 bg-surface-200" />
-                    <ActionButton icon={<Share2 className="w-5 h-5" />} label="分享" onClick={() => {
-                        showToast({ severity: 'info', summary: '施工中🏗️' });
-                    }} />
-                </div>
             </div>
         </div>
     );

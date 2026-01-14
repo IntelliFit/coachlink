@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         // 验证码有效期（分钟）
-        const expireMinutes = 5;
+        const expireMinutes = 15;
 
         // 将验证码存入Redis，设置过期时间
         await redis.setEx(`email_verification_code:${email}`, expireMinutes * 60, verificationCode);
