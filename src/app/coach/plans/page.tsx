@@ -420,57 +420,60 @@ const TrainingPlansHome: React.FC = () => {
         const note = params.note;
 
         return (
-            <div className="flex flex-col py-3 px-3 bg-surface-50 rounded-xl hover:bg-surface-100 transition-colors gap-2 border border-surface-100">
-                <div className="flex items-start justify-between gap-2 w-full">
-                    <div className="min-w-0 flex-1">
+            <div className="rounded-2xl border border-surface-100 bg-white/70 backdrop-blur-sm px-3 py-3 hover:bg-white transition-colors">
+                <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
-                            <i className="pi pi-box text-sm text-surface-500 shrink-0" />
-                            <span className="font-black text-surface-900 truncate">
-                                {actionName}
-                            </span>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                            {renderPills()}
+                            <div className="w-7 h-7 rounded-xl bg-surface-100 border border-surface-200 flex items-center justify-center shrink-0">
+                                <i className="pi pi-box text-[12px] text-surface-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="font-black text-surface-900 truncate">{actionName}</div>
+                            </div>
                         </div>
 
-                        {/* 非力量类型：补充一行摘要文本（可两行但不竖排） */}
-                        {itemType !== 'STRENGTH' && (
-                            <div className="mt-2 text-[12px] text-surface-600 leading-snug line-clamp-2 break-words">
-                                {customData.content || customData.habit_name || action?.detail || ''}
-                            </div>
-                        )}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                            {renderPills()}
+                            {/* 非力量类型：补充一条摘要 pill（更像 App） */}
+                            {itemType !== 'STRENGTH' && (customData.content || customData.habit_name || action?.detail) && (
+                                <span className="inline-flex items-center max-w-full gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold truncate">
+                                    {String(customData.content || customData.habit_name || action?.detail)}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0 pt-0.5">
                         {hasVideo && (
                             <Button
                                 icon="pi pi-video"
-                                rounded
                                 text
+                                rounded
                                 size="small"
-                                className="text-primary"
-                                tooltip="查看动作视频"
-                                tooltipOptions={{ position: 'left' }}
+                                className="w-9 h-9 rounded-2xl text-primary hover:bg-primary-50"
+                                aria-label="查看动作视频"
                                 onClick={() => window.open(action?.url, '_blank')}
                             />
                         )}
                         {actionDetail && (
                             <Button
                                 icon="pi pi-info-circle"
-                                rounded
                                 text
+                                rounded
                                 size="small"
-                                className="text-info"
+                                className="w-9 h-9 rounded-2xl text-surface-500 hover:bg-surface-100"
+                                aria-label="查看动作说明"
                                 tooltip={actionDetail}
                                 tooltipOptions={{ position: 'left' }}
                             />
                         )}
                     </div>
                 </div>
+
                 {note && (
-                    <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded border border-amber-100 w-full">
-                        <i className="pi pi-info-circle text-xs" />
-                        <span>{note}</span>
+                    <div className="mt-2 flex items-center gap-2 text-[12px] text-amber-700 bg-amber-50 px-3 py-2 rounded-xl border border-amber-100 w-full">
+                        <i className="pi pi-info-circle text-[12px]" />
+                        <span className="line-clamp-2">{note}</span>
                     </div>
                 )}
             </div>
@@ -639,27 +642,33 @@ const TrainingPlansHome: React.FC = () => {
         const defaultOpen = day.dayIndex === currentDayIndex;
 
         return (
-            <details className="border border-surface-200 rounded-xl overflow-hidden bg-surface" open={defaultOpen}>
+            <details className="group border border-surface-200 rounded-2xl overflow-hidden bg-surface" open={defaultOpen}>
                 {/* 训练日头部 */}
                 <summary className="list-none cursor-pointer select-none">
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-surface-200">
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-surface-200 gap-2">
                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 bg-primary/20 rounded-2xl flex items-center justify-center shrink-0 border border-primary/20">
                                 <i className="pi pi-bolt text-primary" />
                             </div>
                             <div className="min-w-0">
-                                <h4 className="font-semibold text-surface-900 truncate">{getDayName(day.dayIndex)}</h4>
-                                <p className="text-sm text-surface-600 truncate">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <h4 className="font-black text-surface-900 whitespace-nowrap">{getDayName(day.dayIndex)}</h4>
+                                    {dayExecution && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[11px] font-bold">
+                                            已执行
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-surface-600 truncate">
                                     {getTrainingDate(day.dayIndex)} · {actionSets.length} 个动作
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                            {dayExecution && (
-                                <Badge value="已执行" severity="success" className="rounded-full" />
-                            )}
-                            <Badge value="训练日" severity="success" className="rounded-full" />
-                            <i className="pi pi-chevron-right text-surface-300 transition-transform duration-200 details-open:rotate-90" />
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-50 border border-primary-100 text-primary-700 text-[11px] font-bold">
+                                训练日
+                            </span>
+                            <i className="pi pi-chevron-right text-surface-300 transition-transform duration-200 group-open:rotate-90" />
                         </div>
                     </div>
                 </summary>
