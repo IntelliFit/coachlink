@@ -8,6 +8,8 @@ export interface RegisterDto {
     shareId?: string;
     /** 教练邀请码（通过教练分享链接注册时携带） */
     invitationCode?: string;
+    /** 通过教练邀请链接注册时可指定视野模式：exclusive/open（用于“专属/公开”两种海报） */
+    invitationMode?: "exclusive" | "open";
 }
 
 export interface RegisterResponseDto {

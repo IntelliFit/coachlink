@@ -97,31 +97,34 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
     }
 
     // 获取用户1RM：优先级 PlanConfig > AggregatedAPI > Questionnaire
+    // 注意：负数是有意义的，表示需要辅助的自重动作
     const getUserOneRM = useCallback(() => {
         if (!currentAction) {
-            return 1;
+            return null; // 改为返回 null 而不是 1
         }
 
         // 1. 优先使用计划层级的统一配置
-        if (planReference1RM && planReference1RM > 0) {
+        if (planReference1RM !== null && planReference1RM !== undefined) {
             return planReference1RM;
         }
 
         if (studentData && studentData.aggregated1RM) {
             let aggregatedValue = studentData.aggregated1RM[currentAction.id];
 
-            // 如果 ID 匹配失败或者值太小，尝试 Name 匹配 (fallback)
-            if ((!aggregatedValue || aggregatedValue <= 1) && currentAction.name) {
+            // 如果 ID 匹配失败，尝试 Name 匹配 (fallback)
+            if (aggregatedValue === undefined && currentAction.name) {
                 aggregatedValue = studentData.aggregated1RM[currentAction.name];
             }
-            if (aggregatedValue && aggregatedValue > 0) {
+            // 负数也是有效值（表示需要辅助）
+            if (aggregatedValue !== undefined && aggregatedValue !== null) {
                 return aggregatedValue;
             }
         }
 
 
         // 3. Fallback 到问卷数据
-        return questionnaireInput[currentAction.id] || 1;
+        const questVal = questionnaireInput[currentAction.id];
+        return questVal !== undefined ? questVal : null;
     }, [currentAction, studentData?.aggregated1RM, questionnaireInput, planReference1RM]);
 
     const considerBodyWeightActions = ['深蹲', '引体向上', '俯卧撑', '平板支撑'];
@@ -262,12 +265,14 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         let oneRm = manual1RM;
         if (studentData) {
             oneRm = getUserOneRM();
-        } else if (planReference1RM && planReference1RM > 0) {
+        } else if (planReference1RM !== null && planReference1RM !== undefined) {
             oneRm = planReference1RM;
         }
         const userBodyWeight = studentData?.profile?.weight;
 
-        if (!oneRm || oneRm <= 0 || !userBodyWeight || userBodyWeight <= 0) {
+        // 负数 1RM 是有意义的（表示需要辅助的自重动作）
+        // 只有 null/undefined 才表示未设置
+        if (oneRm === null || oneRm === undefined || !userBodyWeight || userBodyWeight <= 0) {
             // console.log('缺少1RM或体重数据，无法计算');
             return;
         }
@@ -523,7 +528,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     ) : (
                                         <span className="text-sm font-medium text-surface-400">
                                             {!studentData?.profile?.weight ? '缺少体重数据' : 
-                                             getUserOneRM() <= 1 ? '缺少1RM数据' : '待计算'}
+                                             getUserOneRM() === null ? '缺少1RM数据' : '待计算'}
                                         </span>
                                     )}
                                 </div>
@@ -542,8 +547,12 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             {/* 1RM 基准信息：极简展示 */}
                             {studentData && (
                                 <div className="text-[10px] text-surface-400 font-medium bg-white/50 px-2 py-0.5 rounded-md border border-surface-100">
-                                    {getUserOneRM() > 1 
-                                        ? `基准1RM: ${getUserOneRM()}kg` 
+                                    {getUserOneRM() !== null 
+                                        ? (
+                                            <span className={getUserOneRM() < 0 ? 'text-blue-500' : ''}>
+                                                基准1RM: {getUserOneRM()}kg{getUserOneRM() < 0 ? ' (需辅助)' : ''}
+                                            </span>
+                                        )
                                         : <span className="text-orange-500">需设置1RM</span>}
                                     {studentData?.profile?.weight 
                                         ? ` · 体重: ${studentData.profile.weight}kg`

@@ -174,31 +174,31 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         <Dialog
             visible={visible}
             onHide={onHide}
-            style={{ width: '880px', maxHeight: '90vh' }}
+            style={{ width: '96vw', maxWidth: '880px', height: '92vh' }}
             modal
             draggable={false}
             showHeader={false}
-            contentClassName="p-0 rounded-lg overflow-y-auto bg-surface"
+            contentClassName="p-0 rounded-2xl overflow-y-auto bg-surface"
         >
             {/* 1. Header & Quick Info Profile */}
             <div className="relative">
                 {/* 装饰背景 */}
                 <div className="absolute top-0 left-0 right-0 h-32" />
                 
-                <div className="relative pt-12 px-8 pb-6">
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="flex gap-6 items-end">
+                <div className="relative pt-4 sm:pt-12 px-4 sm:px-8 pb-4 sm:pb-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <div className="flex gap-4 sm:gap-6 items-end min-w-0">
                             <div className="relative">
                                 <Avatar
                                     image={profile?.avatar_url}
                                     label={!profile?.avatar_url ? profile?.nickname?.charAt(0) : undefined}
-                                    className="w-24 h-24 rounded-[28px] shadow-xl shadow-surface-200/50 border-4 border-surface text-3xl font-black bg-primary text-surface"
+                                    className="w-16 h-16 sm:w-24 sm:h-24 rounded-[22px] sm:rounded-[28px] shadow-xl shadow-surface-200/50 border-4 border-surface text-xl sm:text-3xl font-black bg-primary text-surface"
                                 />
                                 <div className="absolute -bottom-2 -right-2 bg-green-500 w-6 h-6 rounded-full border-4 border-surface shadow-sm" />
                             </div>
-                            <div className="pb-1">
-                                <div className="flex items-center gap-3 mb-1">
-                                    <h2 className="text-3xl font-black tracking-tighter text-surface-900">
+                            <div className="pb-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1 min-w-0">
+                                    <h2 className="text-xl sm:text-3xl font-black tracking-tighter text-surface-900 truncate">
                                         {profile?.nickname || '未命名学员'}
                                     </h2>
                                     <div className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${tierConfig.bg} ${tierConfig.color} ${tierConfig.border}`}>
@@ -210,12 +210,12 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                 </p>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap justify-end">
                             <Button
                                 label="评价"
                                 icon={<MessageSquare size={16} className="mr-2" />}
                                 text
-                                className="text-xs uppercase rounded-xl hover:bg-primary-50 transition-all active:scale-95"
+                                className="text-xs uppercase rounded-xl hover:bg-primary-50 transition-all active:scale-95 [&_.p-button-label]:hidden sm:[&_.p-button-label]:inline [&_.mr-2]:mr-0 sm:[&_.mr-2]:mr-2"
                                 onClick={() => {
                                     onShowReviewDialog?.();
                                     onHide();
@@ -225,7 +225,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                 label="交流"
                                 icon={<MessageSquare size={16} className="mr-2" />}
                                 outlined
-                                className="text-xs uppercase rounded-xl hover:bg-primary-50 transition-all active:scale-95"
+                                className="text-xs uppercase rounded-xl hover:bg-primary-50 transition-all active:scale-95 [&_.p-button-label]:hidden sm:[&_.p-button-label]:inline [&_.mr-2]:mr-0 sm:[&_.mr-2]:mr-2"
                                 onClick={() => {
                                     onShowChatDialog?.();
                                     onHide();
@@ -366,7 +366,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                 </div>
             </div>
 
-            <div className="p-8 space-y-12 bg-surface custom-scrollbar">
+            <div className="p-4 sm:p-8 space-y-8 sm:space-y-12 bg-surface custom-scrollbar">
                 {/* 2. Personal Profile Sections */}
                 <section className="space-y-6">
                     <div className="flex items-center gap-3 px-1">

@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     // 1. 获取用户的邀请来源教练
     const { data: userData } = await supabase
         .from("users")
-        .select("referrer_coach_id")
+        .select("referrer_coach_id, invited_visibility_mode")
         .eq("id", userId)
         .single();
 
@@ -62,7 +62,17 @@ export async function GET(req: NextRequest) {
             .eq("id", referrerCoachId)
             .single();
 
-        if (referrerCoach && referrerCoach.invitation_mode === "exclusive") {
+        const userOverride = (userData as any)?.invited_visibility_mode as
+            | "exclusive"
+            | "open"
+            | null
+            | undefined;
+        const effectiveMode =
+            userOverride === "exclusive" || userOverride === "open"
+                ? userOverride
+                : ((referrerCoach as any)?.invitation_mode as "exclusive" | "open" | null | undefined);
+
+        if (referrerCoach && effectiveMode === "exclusive") {
             // 通过专属模式教练邀请注册：启用专注模式（只看邀请教练）
             focusMode = true;
             focusCoachId = referrerCoach.id;

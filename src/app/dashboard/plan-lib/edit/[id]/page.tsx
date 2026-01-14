@@ -21,7 +21,7 @@ import { UpdateTemplateDto } from '@/app/api/plan-lib/update-template/entity';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
-import { checkTrainingDays } from '@/utils/template';
+import { checkTrainingDays, makeWeekDays } from '@/utils/template';
 import SmartImportDialog from '@/app/dashboard/plan-lib/components/SmartImportDialog';
 
 
@@ -67,14 +67,7 @@ const EditPlanPage = () => {
     const loadTemplate = async () => {
         try {
             // Load actions first
-            const reqData: ListActionsDto = {
-                page: 1,
-                limit: 100
-            };
-            const res = await actionLibService.listActions(reqData);
-            if (res) {
-                setActions(res.actions);
-            }
+            await loadActions();
 
             // Load template data
             const templateRes = await planLibService.getTemplate({
@@ -110,6 +103,17 @@ const EditPlanPage = () => {
             showToast({ severity: 'error', summary: '加载失败', detail: '无法加载训练计划模板' });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadActions = async () => {
+        const reqData: ListActionsDto = {
+            page: 1,
+            limit: 100
+        };
+        const res = await actionLibService.listActions(reqData);
+        if (res) {
+            setActions(res.actions);
         }
     };
 
@@ -373,14 +377,16 @@ const EditPlanPage = () => {
     }
 
     // 智能导入完成处理
-    const handleImportComplete = (importedDays: FormPlanTrainingDay[]) => {
+    const handleImportComplete = async (importedDays: FormPlanTrainingDay[]) => {
         setDays(importedDays);
+        // 导入会改变周结构，周训练日计数也需要同步更新（否则保存时可能还是旧的 weekDays）
+        setWeekDays(makeWeekDays(importedDays as any));
         if (importedDays.length > 0) {
             setSelectedDayIndex(importedDays[0].dayIndex);
         }
-        showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划` });
-        // 重新加载动作库以包含新创建的动作
-        loadTemplate();
+        showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划（记得点击「保存模板」以生效）` });
+        // 只刷新动作库以包含新创建的动作；不要 reload 模板，否则会把刚导入的数据覆盖回旧内容
+        await loadActions();
     };
 
     const handleSave = async () => {

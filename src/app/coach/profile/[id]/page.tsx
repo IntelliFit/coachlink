@@ -41,17 +41,44 @@ const CoachProfilePage: React.FC = () => {
     const goToSubscribeTab = useCallback(() => {
         setActiveTab(SUBSCRIBE_TAB_INDEX);
 
-        // 同步 URL，便于分享/刷新后保持在订阅价格
-        const nextParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-        nextParams.set('tab', String(SUBSCRIBE_TAB_INDEX));
-        router.replace(`/coach/profile/${coachId}?${nextParams.toString()}`);
+        // 同步 URL，便于分享/刷新后保持在订阅价格。
+        // IMPORTANT: 使用 history.replaceState 避免线上某些机型/环境下 router.replace 触发滚动恢复导致“滑下去又被拉回顶部”。
+        if (typeof window !== 'undefined') {
+            const nextParams = new URLSearchParams(window.location.search);
+            nextParams.set('tab', String(SUBSCRIBE_TAB_INDEX));
+            const nextUrl = `${window.location.pathname}?${nextParams.toString()}${window.location.hash || ''}`;
+            window.history.replaceState(null, '', nextUrl);
+        }
 
-        // 滚动到 Tab 区域（移动端避免“订阅价格需要右滑才看见”的问题）
-        setTimeout(() => {
-            const el = document.getElementById('coach-profile-tabs');
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 50);
-    }, [coachId, router]);
+        const isInView = (el: HTMLElement) => {
+            const rect = el.getBoundingClientRect();
+            // 已经在视窗上方 40% 以内，视作“已到达”，避免再次点击把用户拉回更上方
+            return rect.top >= 0 && rect.top <= window.innerHeight * 0.4;
+        };
+
+        // 优先滚动到价格锚点（订阅 Tab 顶部）。如果已经在订阅价格附近，则不做任何滚动。
+        const tryScroll = () => {
+            const anchor =
+                document.getElementById('choose-pricing') ||
+                document.getElementById('coach-profile-tabs');
+            if (!anchor) return false;
+
+            if (activeTab === SUBSCRIBE_TAB_INDEX && isInView(anchor)) return true;
+
+            anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return true;
+        };
+
+        let tries = 0;
+        const loop = () => {
+            if (tryScroll()) return;
+            if (tries++ > 12) return;
+            requestAnimationFrame(loop);
+        };
+
+        // 等待 TabView 切换后渲染订阅价格面板（PrimeReact 可能懒渲染）
+        setTimeout(loop, 0);
+    }, [activeTab, coachId]);
 
     // 初始化教练信息
     const initCoach = async () => {

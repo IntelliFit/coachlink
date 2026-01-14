@@ -328,7 +328,10 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'rm':
                 return (
                     <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的极限重量</label>
+                        <label className="block text-sm font-medium mb-2">Q{index + 1}. 请输入以下动作您的极限重量</label>
+                        <p className="text-xs text-surface-500 mb-4">
+                            💡 包含自重的动作（如引体向上）可填负数，表示需要辅助的重量
+                        </p>
                         {loadingActions ? (
                             <div className="flex flex-col gap-3">
                                 {[1, 2, 3].map((_, i) => (
@@ -340,26 +343,42 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                             </div>
                         ) : (autoComputeActions && autoComputeActions.length > 0) ? (
                             <div className="flex flex-col gap-4">
-                                {autoComputeActions.map((action, actionIndex) => (
-                                    <div key={actionIndex} className="flex flex-col">
-                                        <label className="block text-xs text-600 mb-1">{action.name}</label>
+                                {autoComputeActions.map((action, actionIndex) => {
+                                    const isBodyWeightAction = action.includesBodyWeight;
+                                    return (
+                                        <div key={actionIndex} className="flex flex-col">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <label className="block text-xs text-600">{action.name}</label>
+                                                {isBodyWeightAction && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">
+                                                        含自重
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                        <InputNumber
-                                            className='text-xs'
-                                            min={0}
-                                            suffix=' kg'
-                                            value={(question.userInputs || {})[action.id] || 0}
-                                            onValueChange={(e) => {
-                                                const currentUserInputs = question.userInputs || {};
-                                                const currentSelections = { ...currentUserInputs };
-                                                updateAnswer(index, {
-                                                    ...currentSelections,
-                                                    [action.id]: e.value
-                                                });
-                                            }}
-                                        />
-                                    </div>
-                                ))}
+                                            <InputNumber
+                                                className='text-xs'
+                                                min={isBodyWeightAction ? -500 : 0}
+                                                suffix=' kg'
+                                                value={(question.userInputs || {})[action.id] ?? null}
+                                                onValueChange={(e) => {
+                                                    const currentUserInputs = question.userInputs || {};
+                                                    const currentSelections = { ...currentUserInputs };
+                                                    updateAnswer(index, {
+                                                        ...currentSelections,
+                                                        [action.id]: e.value
+                                                    });
+                                                }}
+                                                placeholder={isBodyWeightAction ? '可填负数' : '请输入'}
+                                            />
+                                            {isBodyWeightAction && (
+                                                <span className="text-[10px] text-surface-400 mt-1">
+                                                    负数表示需要辅助，如 -10 表示需10kg辅助
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="text-center p-4 bg-surface-50 rounded-lg border border-surface-200 text-surface-500 text-sm">
@@ -439,6 +458,25 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             className="w-full max-w-3xl"
         >
             <div className="p-4">
+                {/* 问卷须知 */}
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center gap-2">
+                        <i className="pi pi-info-circle" />
+                        填写须知
+                    </h4>
+                    <ul className="text-xs text-amber-700 space-y-1.5 list-disc list-inside">
+                        <li>请如实填写您的训练情况，这将帮助教练为您制定更精准的计划</li>
+                        <li><strong>关于极限重量（1RM）</strong>：指您在该动作下能完成1次的最大重量</li>
+                        <li><strong>包含自重的动作</strong>（如引体向上、双杠臂屈伸等）：
+                            <ul className="ml-4 mt-1 space-y-0.5">
+                                <li>填写<strong>正数</strong>表示您能额外负重多少kg完成动作</li>
+                                <li>填写<strong>负数</strong>表示您需要多少kg辅助（如使用辅助带减轻自重）才能完成动作</li>
+                                <li>例如：填 <code className="bg-amber-100 px-1 rounded">-10</code> 表示需要10kg辅助</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
                 <div className="mb-4 p-3 bg-primary-50 border-l-4 border-primary-500 rounded-r">
                     <p className="text-sm text-primary-800">
                         您填写的这些数据将更好帮助教练了解您的情况，并制定对应的计划。不同教练有自己独家的不同问卷。
