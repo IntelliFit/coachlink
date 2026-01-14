@@ -21,6 +21,7 @@ import {
     Bell, 
     Moon, 
     Sun, 
+    ArrowLeft,
     ChevronDown,
     LogIn,
     User,
@@ -159,6 +160,25 @@ export default function NavigationStudent() {
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
     ], [session, openProfileSetupModal, router]);
 
+    // Mobile: 全局返回键（像 App 一样），二级页面自动出现
+    const studentTabRoots = useMemo(() => [
+        '/today-training',
+        '/coach/discovery',
+        '/me/profile',
+        '/ranking',
+        '/friends/activity',
+    ], []);
+
+    const shouldShowMobileBack = useMemo(() => {
+        return !studentTabRoots.includes(pathname);
+    }, [pathname, studentTabRoots]);
+
+    const fallbackRoot = useMemo(() => {
+        // Find best matching root by prefix; default to today-training
+        const match = studentTabRoots.find((r) => pathname.startsWith(r));
+        return match || '/today-training';
+    }, [pathname, studentTabRoots]);
+
     const start = (
         <Link href="/" className="flex items-center gap-3 mr-8 group transition-transform active:scale-95">
             <div className="relative">
@@ -233,8 +253,28 @@ export default function NavigationStudent() {
         <>
             {/* Mobile: 顶部轻量栏（减少 Menubar 横向溢出问题） */}
             <div className="md:hidden sticky top-0 z-50 w-full px-3 pt-3 pointer-events-none">
-                <div className="pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-4 py-2 flex items-center justify-between">
-                    {start}
+                <div className="pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-3xl px-3 py-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {shouldShowMobileBack && (
+                            <button
+                                type="button"
+                                className="shrink-0 w-9 h-9 rounded-2xl bg-surface/70 border border-surface/30 flex items-center justify-center text-surface-600 hover:bg-surface active:scale-[0.98]"
+                                onClick={() => {
+                                    // Prefer history back; fallback to the nearest tab root
+                                    if (typeof window !== 'undefined' && window.history.length > 1) {
+                                        router.back();
+                                    } else {
+                                        router.push(fallbackRoot);
+                                    }
+                                }}
+                                aria-label="返回"
+                                title="返回"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                        )}
+                        {start}
+                    </div>
                     {end}
                 </div>
             </div>

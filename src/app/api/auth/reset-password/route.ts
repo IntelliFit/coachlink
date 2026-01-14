@@ -59,17 +59,22 @@ export async function POST(req: NextRequest) {
     }
 
     // 检查用户是否存在
-    const { data: user, error: userError } = await supabase
+    const { data: users, error: userError } = await supabase
         .from("users")
         .select("id")
         .eq("phone", trimmedPhone)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(2);
 
-    if (userError || !user) {
+    if (userError || !users || users.length === 0) {
         return NextResponse.json({
             success: false,
             message: "该手机号未注册",
         }, { status: 200 });
+    }
+
+    if (users.length > 1) {
+        console.warn("[reset-password] duplicate users with same phone, using latest:", trimmedPhone);
     }
 
     // 更新密码
@@ -81,7 +86,7 @@ export async function POST(req: NextRequest) {
             password_hash,
             updated_at: new Date().toISOString(),
         })
-        .eq("id", user.id);
+        .eq("id", users[0].id);
 
     if (updateError) {
         return NextResponse.json({

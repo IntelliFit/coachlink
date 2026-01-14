@@ -91,6 +91,7 @@ function TrainingExecutionContent() {
     const [dietCalories, setDietCalories] = useState<number | null>(null);
     const [cardioDistance, setCardioDistance] = useState<number | null>(null); // km
     const [cardioDuration, setCardioDuration] = useState<number | null>(null); // minutes
+    const [editingSetKey, setEditingSetKey] = useState<string | null>(null);
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
@@ -133,9 +134,11 @@ function TrainingExecutionContent() {
             });
             
             // 只有当包含 "kg" 时才预填充重量（避免把 RM 值填进去）
+            // 注意：支持负数（辅助重量），例如 "-10kg"
             if (weightStr.includes('kg') && weight === null) {
-                const numericWeight = parseFloat(weightStr.replace(/[^0-9.]/g, ''));
-                if (numericWeight > 0) {
+                const match = weightStr.match(/-?\d+(\.\d+)?/);
+                const numericWeight = match ? parseFloat(match[0]) : NaN;
+                if (Number.isFinite(numericWeight) && numericWeight !== 0) {
                     setWeight(numericWeight);
                 }
             }
@@ -269,6 +272,7 @@ function TrainingExecutionContent() {
         try {
             const actionExecution = execution.action_executions[actionIndex];
             const setData = actionExecution.sets[setIndex];
+            const isEditing = setData.status === 'completed';
 
             // 1. Upload video first if selected (so API can retrieve video_url)
             let uploadedVideoUrl: string | undefined;
@@ -369,8 +373,13 @@ function TrainingExecutionContent() {
                     e1rm: res.data?.autoE1RM?.e1rm,
                     is_auto_pr: res.data?.autoE1RM?.isPR
                 };
-                updatedExecution.action_executions[actionIndex].completed_sets++;
-                updatedExecution.completed_sets = res.data?.completedSets || execution.completed_sets + 1;
+            // Recalculate completion counts (editing should not "++" counts)
+            updatedExecution.action_executions[actionIndex].completed_sets =
+                updatedExecution.action_executions[actionIndex].sets.filter((s: any) => s.status === 'completed').length;
+            updatedExecution.completed_sets = res.data?.completedSets ?? updatedExecution.action_executions.reduce(
+                (sum: number, ae: any) => sum + (ae.completed_sets || 0),
+                0
+            );
                 setExecution(updatedExecution);
 
                 // Reset form
@@ -381,15 +390,21 @@ function TrainingExecutionContent() {
                 setMarkAsPR(false);
                 setVideoFile(null);
                 setShowOptionalFields(false);
-                setExpandedSetKey(null);
+            setEditingSetKey(null);
+            // Keep details expanded for edited set so user can confirm changes
+            setExpandedSetKey(setKeyOf(actionIndex, setIndex));
 
+            // Editing a completed set should not trigger rest timer or auto-advance
+            if (!isEditing) {
                 // Start rest timer if configured
                 const restSeconds = setData.planned_rest_seconds || 90;
                 if (restSeconds > 0) {
                     setRestTimer(restSeconds);
                     setIsResting(true);
                 }
+            }
 
+            if (!isEditing) {
                 // Move to next set
                 const nextSetIndex = setIndex + 1;
                 if (nextSetIndex < actionExecution.sets.length) {
@@ -408,6 +423,7 @@ function TrainingExecutionContent() {
                         });
                     }
                 }
+            }
             }
         } catch (error) {
             console.error('Complete set failed:', error);
@@ -689,10 +705,13 @@ function TrainingExecutionContent() {
                                         // 力量训练：显示组列表
                                         actionExec.sets.map((setData: SetData, setIndex: number) => {
                                             const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
-                                            const isSetCompleted = setData.status === 'completed' || execution?.status === 'completed';
+                                            const isSetCompleted = setData.status === 'completed';
                                             const isSelectedSet = actionIndex === expandedAction && setIndex === currentSetIndex;
                                             const key = setKeyOf(actionIndex, setIndex);
                                             const isDetailsExpanded = expandedSetKey === key;
+                                            const isEditingThisSet = editingSetKey === key;
+                                            const showSetForm = isCurrentSet && (!isSetCompleted || isEditingThisSet);
+                                            const allowNegativeWeight = !!(action?.includesBodyWeight ?? (action as any)?.includes_body_weight);
                                             const plannedText = `${setData.planned_weight || '-'} × ${setData.planned_reps || '-'}次`;
                                             const actualText = `${setData.actual_weight ?? '-'}kg · ${setData.actual_reps ?? '-'}次`;
 
@@ -762,19 +781,27 @@ function TrainingExecutionContent() {
                                                     </button>
 
                                                     {/* 当前组才展示完整表单（减少单组占屏面积） */}
-                                                    {!isSetCompleted && isCurrentSet && (
+                                                    {showSetForm && (
                                                         <div className="px-4 pb-4">
                                                             {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
                                                             {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
                                                             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px_72px_52px] items-end gap-2">
                                                                 <div className="min-w-0">
-                                                                    <label className="text-xs text-surface-600 font-bold">重量(kg)</label>
+                                                                    <label className="text-xs text-surface-600 font-bold">
+                                                                        {allowNegativeWeight ? '外加重量(kg)' : '重量(kg)'}
+                                                                    </label>
                                                                     <InputNumber 
                                                                         value={weight}
                                                                         onValueChange={(e) => setWeight(e.value ?? null)}
+                                                                        min={allowNegativeWeight ? -300 : 0}
+                                                                        max={500}
                                                                         className="w-full"
                                                                         inputClassName="w-full text-center font-bold"
-                                                                        placeholder={isWeightRequiredForSet(setData) ? '必填' : '可选'}
+                                                                        placeholder={
+                                                                            allowNegativeWeight
+                                                                                ? (isWeightRequiredForSet(setData) ? '必填，可填负数=辅助' : '可选，可填负数=辅助')
+                                                                                : (isWeightRequiredForSet(setData) ? '必填' : '可选')
+                                                                        }
                                                                     />
                                                                 </div>
                                                                 <div className="min-w-0">
@@ -829,16 +856,16 @@ function TrainingExecutionContent() {
                                                                             setCompleting(false);
                                                                         }
                                                                     }}
-                                                                    aria-label="完成本组"
+                                                                    aria-label={isEditingThisSet ? "保存本组" : "完成本组"}
                                                                 >
-                                                                    <span className="text-[11px] font-bold text-surface-500">完成</span>
+                                                                    <span className="text-[11px] font-bold text-surface-500">{isEditingThisSet ? '保存' : '完成'}</span>
                                                                     <div
                                                                         className={`
                                                                             w-12 h-12 rounded-xl border-2 flex items-center justify-center
                                                                             transition-all active:scale-[0.98]
                                                                             ${completing || uploading ? 'bg-surface-50 border-surface-200 text-surface-300' : 'bg-surface border-surface-300 text-surface-400 hover:border-emerald-400 hover:text-emerald-600'}
                                                                         `}
-                                                                        title="勾选完成本组"
+                                                                        title={isEditingThisSet ? "保存本组修改" : "勾选完成本组"}
                                                                     >
                                                                         <Check className={`w-6 h-6 ${completing || uploading ? 'opacity-40' : ''}`} />
                                                                     </div>
@@ -914,6 +941,47 @@ function TrainingExecutionContent() {
                                                     {/* 已完成组的详情区域（可折叠） */}
                                                     {isSetCompleted && isDetailsExpanded && (
                                                         <div className="px-4 pb-4 pt-1 space-y-3">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <button
+                                                                    type="button"
+                                                                    className="px-3 py-2 rounded-xl bg-surface-50 border border-surface-200 text-surface-700 text-sm font-medium hover:bg-surface-100"
+                                                                    onClick={() => {
+                                                                        // Enter edit mode for this set (even if whole day is completed)
+                                                                        setExpandedAction(actionIndex);
+                                                                        setCurrentSetIndex(setIndex);
+                                                                        setExpandedSetKey(key);
+                                                                        setEditingSetKey(key);
+                                                                        setWeight(setData.actual_weight ?? null);
+                                                                        setReps(setData.actual_reps ?? null);
+                                                                        setRpe(setData.rpe ?? null);
+                                                                        setSetNotes(setData.notes ?? '');
+                                                                        setMarkAsPR(!!setData.is_pr);
+                                                                        setVideoFile(null);
+                                                                        setShowOptionalFields(true);
+                                                                    }}
+                                                                >
+                                                                    编辑本组
+                                                                </button>
+                                                                {isEditingThisSet && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100"
+                                                                        onClick={() => {
+                                                                            setEditingSetKey(null);
+                                                                            setWeight(null);
+                                                                            setReps(null);
+                                                                            setRpe(null);
+                                                                            setSetNotes('');
+                                                                            setMarkAsPR(false);
+                                                                            setVideoFile(null);
+                                                                            setShowOptionalFields(false);
+                                                                        }}
+                                                                    >
+                                                                        取消编辑
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
                                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                                 <div>
                                                                     <label className="text-xs text-surface-500">重量(kg)</label>

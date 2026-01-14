@@ -157,7 +157,7 @@ export default function InvitationSettingsPage() {
                         el.style.overflow = 'visible';
                     });
                 },
-            });
+            } as any);
             const filename = `coach-invite-${mode}-${data.invitationCode}.png`;
 
             // Prefer Blob download (more compatible than huge data URLs on some devices)
@@ -393,21 +393,30 @@ export default function InvitationSettingsPage() {
                                                 : '一起科学训练：动作要领、训练计划、逐步加量，带你更稳更强。'}
                                         </div>
 
-                                        <div className="mt-5 flex items-center gap-4 rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                                        <div
+                                            className="mt-5 flex items-center gap-4 rounded-2xl p-3 overflow-hidden"
+                                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
+                                        >
                                             <div className="p-2 rounded-xl" style={{ background: '#ffffff' }}>
                                                 <QRCodeSVG value={data?.inviteUrlExclusive || ''} size={84} level="M" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="text-white font-black text-base">扫码 · 立即注册</div>
-                                                <div className="text-[12px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
-                                                    注册后可查看教练主页、训练内容与计划
+                                                <div className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
+                                                    注册后可查看教练主页与训练计划
+                                                </div>
+                                                <div
+                                                    className="text-[9px] mt-2 leading-tight break-all"
+                                                    style={{ color: 'rgba(255,255,255,0.62)' }}
+                                                >
+                                                    官网：<span className="font-mono">coachlink.fit</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="px-6 py-4 text-[11px]" style={{ color: '#6b7280' }}>
-                                        * 海报仅用于邀请注册，具体服务内容以教练主页展示为准
+                                        * 海报仅用于邀请注册，具体服务内容以教练主页展示为准（官网：coachlink.fit）
                                     </div>
                                 </div>
                             </div>
@@ -535,21 +544,30 @@ export default function InvitationSettingsPage() {
                                                 : '一起科学训练：动作要领、训练计划、逐步加量，带你更稳更强。'}
                                         </div>
 
-                                        <div className="mt-5 flex items-center gap-4 rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                                        <div
+                                            className="mt-5 flex items-center gap-4 rounded-2xl p-3 overflow-hidden"
+                                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
+                                        >
                                             <div className="p-2 rounded-xl" style={{ background: '#ffffff' }}>
                                                 <QRCodeSVG value={data?.inviteUrlOpen || ''} size={84} level="M" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="text-white font-black text-base">扫码 · 立即注册</div>
-                                                <div className="text-[12px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
-                                                    注册后可查看教练主页、训练内容与计划
+                                                <div className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
+                                                    注册后可查看教练主页与训练计划
+                                                </div>
+                                                <div
+                                                    className="text-[9px] mt-2 leading-tight break-all"
+                                                    style={{ color: 'rgba(255,255,255,0.62)' }}
+                                                >
+                                                    官网：<span className="font-mono">coachlink.fit</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="px-6 py-4 text-[11px]" style={{ color: '#6b7280' }}>
-                                        * 海报仅用于邀请注册，具体服务内容以教练主页展示为准
+                                        * 海报仅用于邀请注册，具体服务内容以教练主页展示为准（官网：coachlink.fit）
                                     </div>
                                 </div>
                             </div>

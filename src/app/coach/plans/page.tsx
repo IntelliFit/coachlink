@@ -337,56 +337,80 @@ const TrainingPlansHome: React.FC = () => {
         const customData = params.custom_data || {};
 
         // 根据类型渲染不同的摘要信息
-        const renderSummary = () => {
+        const renderPills = () => {
             switch (itemType) {
                 case 'DIET':
                     return (
-                        <div className="flex items-center gap-2 text-green-600">
-                            <span className="text-sm">🥗 {customData.content || action?.detail || '饮食建议'}</span>
-                            {params.suggested_time && <span className="text-xs">· {params.suggested_time}</span>}
-                        </div>
+                        <>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-green-700 text-[11px] font-bold">
+                                🥗 饮食
+                            </span>
+                            {params.suggested_time && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                    ⏰ {params.suggested_time}
+                                </span>
+                            )}
+                        </>
                     );
                 case 'CARDIO':
                     return (
-                        <div className="flex items-center gap-2 text-blue-600">
-                            <span className="text-sm">
-                                🏃 {customData.duration ? `${(customData.duration / 60).toFixed(0)}分钟` : ''}
-                                {customData.distance ? ` · ${(customData.distance / 1000).toFixed(1)}km` : ''}
-                                {!customData.duration && !customData.distance && (action?.detail || '有氧运动')}
+                        <>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[11px] font-bold">
+                                🏃 有氧
                             </span>
-                        </div>
+                            {customData.duration ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                    ⏱ {(customData.duration / 60).toFixed(0)}分钟
+                                </span>
+                            ) : null}
+                            {customData.distance ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                    📏 {(customData.distance / 1000).toFixed(1)}km
+                                </span>
+                            ) : null}
+                        </>
                     );
                 case 'HABIT':
                     return (
-                        <div className="flex items-center gap-2 text-purple-600">
-                            <span className="text-sm">✅ {customData.habit_name || action?.detail || '习惯打卡'}</span>
-                            {customData.target_duration && <span className="text-xs">· {customData.target_duration}分钟</span>}
-                        </div>
+                        <>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 border border-purple-100 text-purple-700 text-[11px] font-bold">
+                                ✅ 习惯
+                            </span>
+                            {customData.target_duration && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                    ⏱ {customData.target_duration}分钟
+                                </span>
+                            )}
+                        </>
                     );
                 case 'STRENGTH':
                 default:
+                    const sets = params['组数'] || (actionSet as any).sets || 1;
+                    const reps = params['次数'] || (actionSet as any).reps || 1;
                     const load = params.load;
-                    const intensity = params['强度'] || actionSet.intensity;
+                    const intensity = params['强度'] || (actionSet as any).intensity;
+                    const restSec = params['休息时间'] || (actionSet as any).rest_seconds || 0;
+
                     return (
                         <>
-                            <div className="flex items-center gap-2 text-surface-500">
-                                <i className="pi pi-th-large text-sm" />
-                                <span className="text-sm">{params['组数'] || actionSet.sets || 1}组×{params['次数'] || actionSet.reps || 1}次</span>
-                            </div>
-                            {load && load > 0 ? (
-                                <div className="flex items-center gap-1 text-green-600">
-                                    <span className="text-sm">💪 {load}kg</span>
-                                </div>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-700 text-[11px] font-bold">
+                                ▦ {sets}组×{reps}次
+                            </span>
+                            {typeof load === 'number' ? (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold ${
+                                    load < 0 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                                }`}>
+                                    💪 {load < 0 ? `辅助 ${Math.abs(load)}kg` : `${load}kg`}
+                                </span>
                             ) : intensity ? (
-                                <div className="flex items-center gap-1 text-surface-600">
-                                    <span className="text-sm">💪 {intensity}RM</span>
-                                </div>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                    💪 {intensity}RM
+                                </span>
                             ) : null}
-                            {(params['休息时间'] || actionSet.rest_seconds) && (
-                                <div className="flex items-center gap-1 text-surface-500">
-                                    <i className="pi pi-clock text-xs" />
-                                    <span className="text-sm">休息{((params['休息时间'] || actionSet.rest_seconds) / 60).toFixed(1)}分钟</span>
-                                </div>
+                            {restSec > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                    ⏱ {((restSec) / 60).toFixed(1)}分
+                                </span>
                             )}
                         </>
                     );
@@ -396,16 +420,28 @@ const TrainingPlansHome: React.FC = () => {
         const note = params.note;
 
         return (
-            <div className="flex flex-col py-3 px-4 bg-surface-50 rounded-lg hover:bg-surface-100 transition-colors gap-2">
-                <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3 flex-1">
-                        {renderSummary()}
-                        <div className="flex items-center gap-2">
-                            <i className="pi pi-box text-sm text-surface-500" />
-                            <span className="font-medium text-surface-900">{actionName}</span>
+            <div className="flex flex-col py-3 px-3 bg-surface-50 rounded-xl hover:bg-surface-100 transition-colors gap-2 border border-surface-100">
+                <div className="flex items-start justify-between gap-2 w-full">
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <i className="pi pi-box text-sm text-surface-500 shrink-0" />
+                            <span className="font-black text-surface-900 truncate">
+                                {actionName}
+                            </span>
                         </div>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                            {renderPills()}
+                        </div>
+
+                        {/* 非力量类型：补充一行摘要文本（可两行但不竖排） */}
+                        {itemType !== 'STRENGTH' && (
+                            <div className="mt-2 text-[12px] text-surface-600 leading-snug line-clamp-2 break-words">
+                                {customData.content || customData.habit_name || action?.detail || ''}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-1 shrink-0">
                         {hasVideo && (
                             <Button
                                 icon="pi pi-video"
@@ -599,28 +635,34 @@ const TrainingPlansHome: React.FC = () => {
             );
         }
 
+        // Mobile: 默认折叠（像 App），当前执行日默认展开
+        const defaultOpen = day.dayIndex === currentDayIndex;
+
         return (
-            <div className="border border-surface-200 rounded-xl overflow-hidden">
+            <details className="border border-surface-200 rounded-xl overflow-hidden bg-surface" open={defaultOpen}>
                 {/* 训练日头部 */}
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-surface-200">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                            <i className="pi pi-bolt text-primary" />
+                <summary className="list-none cursor-pointer select-none">
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-surface-200">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center shrink-0">
+                                <i className="pi pi-bolt text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="font-semibold text-surface-900 truncate">{getDayName(day.dayIndex)}</h4>
+                                <p className="text-sm text-surface-600 truncate">
+                                    {getTrainingDate(day.dayIndex)} · {actionSets.length} 个动作
+                                </p>
+                            </div>
                         </div>
-                        <div className="flex-1">
-                            <h4 className="font-semibold text-surface-900">{getDayName(day.dayIndex)}</h4>
-                            <p className="text-sm text-surface-600">
-                                {getTrainingDate(day.dayIndex)} · {actionSets.length} 个动作
-                            </p>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {dayExecution && (
+                                <Badge value="已执行" severity="success" className="rounded-full" />
+                            )}
+                            <Badge value="训练日" severity="success" className="rounded-full" />
+                            <i className="pi pi-chevron-right text-surface-300 transition-transform duration-200 details-open:rotate-90" />
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {dayExecution && (
-                            <Badge value="已执行" severity="success" className="rounded-full" />
-                        )}
-                        <Badge value="训练日" severity="success" className="rounded-full" />
-                    </div>
-                </div>
+                </summary>
 
                 {/* 动作列表 */}
                 <div className="p-4 space-y-2">
@@ -658,7 +700,7 @@ const TrainingPlansHome: React.FC = () => {
                         <ExecutionDetailsSection execution={dayExecution} />
                     </div>
                 )}
-            </div>
+            </details>
         );
     };
 
