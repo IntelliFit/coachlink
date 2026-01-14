@@ -8,6 +8,7 @@ const PUBLIC_PATHS = new Set([
     "/register",
     "/api/auth",
     "/api/sms/send-verification-code",
+    "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/docs/agreement",

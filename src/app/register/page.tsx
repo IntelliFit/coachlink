@@ -11,8 +11,9 @@ import { Dialog } from 'primereact/dialog';
 import { useToastContext } from '@/context/ToastContext';
 import { authService } from '../service/authService';
 import { smsService } from '../service/smsService';
-import { Phone, ShieldCheck, ArrowLeft, UserPlus } from 'lucide-react';
+import { Phone, ShieldCheck, ArrowLeft, UserPlus, User, Lock, Dumbbell, KeyRound } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
+import { sesService } from '../service/sesService';
 
 const fetchMarkdown = async (filename: string) => {
     const md = new MarkdownIt({
@@ -33,10 +34,11 @@ const fetchMarkdown = async (filename: string) => {
 };
 
 export default function RegisterPage() {
-    const [phone, setPhone] = useState('');
+    const [phoneOrEmail, setPhoneOrEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
+    const [invitationCode, setInvitationCode] = useState('');
     const [countdown, setCountdown] = useState(0);
     const [agreed, setAgreed] = useState(false);
 
@@ -57,7 +59,7 @@ export default function RegisterPage() {
         if (share) {
             try {
                 localStorage.setItem('share_id', share);
-            } catch {}
+            } catch { }
         }
 
         // Also try cookie-based attribution if present
@@ -68,7 +70,7 @@ export default function RegisterPage() {
                 const obj = JSON.parse(decoded);
                 if (obj?.shareId) localStorage.setItem('share_id', obj.shareId);
             }
-        } catch {}
+        } catch { }
     }, [searchParams]);
 
     const loadDocs = async () => {
@@ -106,7 +108,8 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             const ref = searchParams.get('ref') || undefined;
-            const invitationCode = searchParams.get('invite') || undefined;
+            // Use local state value if available, otherwise check URL param
+            const finalInvitationCode = invitationCode.trim() || searchParams.get('invite') || undefined;
             const invitationModeRaw = searchParams.get('im') || searchParams.get('invitationMode') || undefined;
             const invitationMode =
                 invitationModeRaw === 'exclusive' || invitationModeRaw === 'open'
@@ -122,12 +125,12 @@ export default function RegisterPage() {
                     }
                 })();
             const res = await authService.register({
-                phone: phone.trim(),
+                phoneOrEmail: phoneOrEmail.trim(),
                 password: password.trim(),
                 verifyCode: verificationCode.trim(),
                 ref,
                 shareId,
-                invitationCode,
+                invitationCode: finalInvitationCode,
                 invitationMode,
             });
             if (res) {
@@ -142,13 +145,21 @@ export default function RegisterPage() {
     };
 
     const sendVerificationCode = async () => {
-        if (!/^1[3-9]\d{9}$/.test(phone)) {
-            showToast({ severity: 'warn', summary: '手机号格式错误' });
+        // Check if input is a valid phone number or email
+        const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
+
+        if (!isPhone && !isEmail) {
+            showToast({ severity: 'warn', summary: isPhone ? '手机号格式错误' : '邮箱格式错误' });
             return;
         }
         setSendingCode(true);
         try {
-            await smsService.sendVerificationCode({ phoneNumber: phone });
+            if (isEmail) {
+                await sesService.sendVerificationCode({ email: phoneOrEmail });
+            } else {
+                await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
+            }
             setCountdown(60);
             showToast({ severity: 'success', summary: '验证码已发送' });
         } catch (error: any) {
@@ -162,7 +173,7 @@ export default function RegisterPage() {
         /** * 使用 z-[100] 和 fixed inset-0 确保彻底遮盖全局 Header/Footer 
          * 这种方案不需要修改全局 layout，最适合独立注册页
          */
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden p-6 sm:p-10">
+        <div className="fixed inset-0 z-[100] bg-surface flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden p-6 sm:p-10">
 
             {/* 背景美化元素 */}
             <div className="absolute top-0 left-0 w-full h-full -z-10 pointer-events-none">
@@ -192,79 +203,129 @@ export default function RegisterPage() {
 
                 {/* Form Section */}
                 <form onSubmit={handleRegister} className="mb-2">
-                    <div className='mb-10'>
-                        <FloatLabel>
+                    <div className='space-y-2 mb-4'>
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">手机号或邮箱</label>
+                            <span></span>
+                        </div>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
+                                <User size={18} />
+                            </div>
                             <InputText
-                                id="phone"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                required
-                                className="w-full"
-                                placeholder=""
+                                value={phoneOrEmail}
+                                placeholder="手机号或邮箱"
+                                onChange={(e) => setPhoneOrEmail(e.target.value)}
+                                className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl shadow-primary-500"
                             />
-                            <label htmlFor="phone">手机号</label>
-                        </FloatLabel>
+                        </div>
                     </div>
 
-                    <div className='mb-10'>
-                        <FloatLabel>
+
+                    <div className="space-y-2 mb-4">
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">登录密码</label>
+                            <span></span>
+                        </div>
+
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                <Lock size={18} />
+                            </div>
                             <Password
-                                id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                required
-                                className="w-full"
-                                placeholder=" "
                                 toggleMask
+                                placeholder='请输入密码'
                                 promptLabel="请选择密码"
                                 weakLabel="密码太简单"
                                 mediumLabel="密码复杂度一般"
                                 strongLabel="密码复杂度较高"
                                 feedback={true}
+                                pt={{
+                                    root: { className: 'w-full' },
+                                    input: {
+                                        className: 'w-full pl-12 pr-12 py-4 bg-surface-50 rounded-2xl shadow-primary-500'
+                                    }
+                                }}
                             />
-                            <label htmlFor="password">密码</label>
-                        </FloatLabel>
+                        </div>
                     </div>
 
-                    <div className='mb-10'>
-                        <FloatLabel>
+                    <div className='sapce-y-4 mb-4'>
+                        <div>
+                            <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">确认密码</label>
+                            <span></span>
+                        </div>
+                        <div className='relative group'>
+                            <div className="absolute inset-y-0 left-4 flex items-center z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                <Lock size={18} />
+                            </div>
                             <Password
                                 id="confirmPassword"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
                                 className="w-full"
-                                placeholder=" "
+                                placeholder='请再次输入密码'
                                 toggleMask
                                 feedback={false}
+                                pt={{
+                                    root: { className: 'w-full' },
+                                    input: {
+                                        className: 'w-full pl-12 pr-12 py-4 bg-surface-50 rounded-2xl shadow-primary-500'
+                                    }
+                                }}
                             />
-                            <label htmlFor="confirmPassword">确认密码</label>
-                        </FloatLabel>
+                        </div>
+
                     </div>
 
-                    <div className='mb-10'>
-                        <FloatLabel>
-                            <div className="flex gap-2">
-                                <InputText
-                                    id="verificationCode"
-                                    value={verificationCode}
-                                    onChange={(e) => setVerificationCode(e.target.value)}
-                                    className="w-[50%]"
-                                    required
-                                />
-                                <Button
-                                    type="button"
-                                    label={countdown > 0 ? `${countdown}秒后重发` : "获取验证码"}
-                                    onClick={sendVerificationCode}
-                                    disabled={countdown > 0 || sendingCode || !phone.trim()}
-                                    loading={sendingCode}
-                                    outlined
-                                    className="w-40"
-                                />
+                    {/* Invitation Code Field */}
+                    <div className='space-y-2 mb-4'>
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">邀请码（可选）</label>
+                            <span></span>
+                        </div>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
+                                <KeyRound size={18} />
                             </div>
-                            <label htmlFor="verificationCode">验证码</label>
-                        </FloatLabel>
+                            <InputText
+                                value={invitationCode}
+                                onChange={(e) => setInvitationCode(e.target.value)}
+                                className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl shadow-primary-500"
+                                placeholder="请输入邀请码（可选）"
+                            />
+                        </div>
                     </div>
+
+                    <div className="flex gap-3 mb-4">
+                        <div className="relative flex-1 group">
+                            <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
+                                <ShieldCheck size={18} />
+                            </div>
+                            <InputText
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value)}
+                                placeholder="6位验证码"
+                                maxLength={6}
+                                className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={sendVerificationCode}
+                            disabled={countdown > 0 || sendingCode || !phoneOrEmail.trim()}
+                            className="px-6 rounded-2xl text-sm font-bold bg-surface border text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
+                        >
+                            {sendingCode ? '...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
+                        </button>
+                    </div>
+
+                    <br />
+                    <hr />
+                    <br />
 
                     {/* 用户协议 */}
                     <div className="flex items-center gap-3 mb-6">
@@ -300,11 +361,15 @@ export default function RegisterPage() {
 
                     <Button
                         type="submit"
-                        label='注册'
                         disabled={loading}
                         loading={loading}
-                        className="w-full bg-gradient-to-br from-[#FBB94D] to-[#EF793B] hover:bg-primary-100 text-surface font-medium py-3 rounded-lg transition"
-                    />
+                        className="w-full py-4 bg-primary-500 border-none rounded-2xl shadow-xl shadow-primary-500/20 hover:bg-primary-600 transition-all transform active:scale-[0.98]"
+                    >
+                        <div className="flex items-center justify-center gap-2 w-full">
+                            {!loading && <Dumbbell size={20} />}
+                            <span className="font-bold">注册</span>
+                        </div>
+                    </Button>
                 </form>
 
                 {/* 用户协议对话框 */}

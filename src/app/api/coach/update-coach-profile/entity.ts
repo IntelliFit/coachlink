@@ -1,5 +1,6 @@
 export interface UpdateCoachProfileDto {
-    id: string;
+    id?: string;
+    userId?: string;
     name?: string;
     title?: string | null;
     avatarUrl?: string | null;
@@ -15,10 +16,11 @@ export interface UpdateCoachProfileDto {
         contactPhone?: string | null;
         socialLinks?: Record<string, string>;
     };
+
+    invitationCode?: string;
+    invitationMode?: "exclusive" | "open";
 }
 
 export interface UpdateCoachProfileResponseDto {
-    success: boolean;
-    data?: any;
-    error?: string;
+
 }
