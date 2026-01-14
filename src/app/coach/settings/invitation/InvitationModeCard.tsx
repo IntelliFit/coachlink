@@ -1,5 +1,6 @@
+'use client';
+
 import React from 'react';
-import { Card } from 'primereact/card';
 import { InputSwitch } from 'primereact/inputswitch';
 
 interface Props {
@@ -12,44 +13,88 @@ export const InvitationModeCard: React.FC<Props> = ({ mode, updating, onModeChan
     const isExclusive = mode === 'exclusive';
 
     return (
-        <Card title="邀请模式" subTitle="控制通过您邀请码注册的学员在平台上的可见范围">
+        <div className="bg-white border border-surface-100 rounded-[24px] p-8 transition-all duration-500 shadow-sm hover:shadow-md">
+            {/* 头部：排版层级 */}
+            <div className="mb-8">
+                <h3 className="text-xl font-black text-surface-900 tracking-tighter italic">
+                    学员可见性模式 <span className="text-primary-500 not-italic">/ 权限</span>
+                </h3>
+                <p className="text-xs font-bold text-surface-400 mt-1 uppercase tracking-wider">
+                    自定义通过邀请码注册的学员在平台上的内容浏览范围
+                </p>
+            </div>
+
             <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-surface-50 rounded-lg">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <i className={`pi ${isExclusive ? 'pi-shield text-orange-500' : 'pi-globe text-blue-500'}`}></i>
-                            <span className="font-medium">
-                                {isExclusive ? '专属模式' : '开放模式'}
-                            </span>
-                        </div>
-                        <p className="text-sm text-surface-500 mt-1 max-w-md">
-                            {isExclusive
-                                ? '学员在订阅期内只能看到您的信息，有效防止学员流失'
-                                : '学员可以自由浏览平台所有教练，适合开放推广场景'
-                            }
-                        </p>
+                {/* 核心状态磁贴 */}
+                <div className={`
+                    relative overflow-hidden p-6 rounded-[20px] transition-all duration-500 
+                    flex items-center justify-between border
+                    ${isExclusive 
+                        ? 'bg-orange-50/40 border-orange-100/50' 
+                        : 'bg-blue-50/40 border-blue-100/50'}
+                `}>
+                    {/* 背景水印装饰 */}
+                    <div className={`absolute -right-4 -top-4 opacity-[0.03] transition-transform duration-1000`}>
+                        <i className={`pi ${isExclusive ? 'pi-shield' : 'pi-globe'} text-[120px]`} />
                     </div>
-                    <InputSwitch
-                        checked={isExclusive}
-                        onChange={(e) => onModeChange(e.value)}
-                        disabled={updating}
-                    />
+
+                    <div className="relative z-10 flex gap-4 items-center">
+                        {/* 状态图标 */}
+                        <div className={`
+                            w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500
+                            ${isExclusive ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-blue-500 text-white shadow-lg shadow-blue-200'}
+                        `}>
+                            <i className={`pi ${isExclusive ? 'pi-shield' : 'pi-globe'} text-2xl`} />
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-lg font-black tracking-tight ${isExclusive ? 'text-orange-900' : 'text-blue-900'}`}>
+                                    {isExclusive ? '专属隔离模式' : '全平台开放模式'}
+                                </span>
+                                {updating && <i className="pi pi-spin pi-spinner text-surface-400 text-xs" />}
+                            </div>
+                            <p className={`text-[13px] font-bold leading-relaxed max-w-[320px] ${isExclusive ? 'text-orange-700/60' : 'text-blue-700/60'}`}>
+                                {isExclusive
+                                    ? '学员仅能看到您的课程与计划，有效防止私域流量流失。'
+                                    : '学员可自由探索全站教练，适合开放式的品牌推广场景。'
+                                }
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="relative z-10 scale-125 mr-2">
+                        <InputSwitch
+                            checked={isExclusive}
+                            onChange={(e) => onModeChange(e.value)}
+                            disabled={updating}
+                        />
+                    </div>
                 </div>
 
-                <div className="p-4 bg-surface-100 rounded-lg">
-                    <h4 className="font-semibold text-surface-800 mb-3">模式说明</h4>
-                    <ul className="space-y-3 text-sm text-surface-600">
-                        <li className="flex items-start gap-2">
-                            <i className="pi pi-shield text-orange-500 mt-0.5"></i>
-                            <span><strong>专属模式</strong>：通过您邀请码注册的学员，在订阅期内只能看到您的内容、计划和信息。</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <i className="pi pi-globe text-blue-500 mt-0.5"></i>
-                            <span><strong>开放模式</strong>：学员可以自由浏览平台所有教练和内容。</span>
-                        </li>
-                    </ul>
+                {/* 说明磁贴：利用非对称排版 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-5 bg-surface-50/50 rounded-[18px] border border-surface-100/50">
+                        <div className="flex items-center gap-2 mb-2">
+                            <i className="pi pi-check-circle text-orange-500 text-[10px]" />
+                            <span className="text-[11px] font-black text-surface-400 uppercase tracking-widest">专属保护逻辑</span>
+                        </div>
+                        <p className="text-[12px] text-surface-600 font-bold leading-5">
+                            开启后，学员在订阅期间的首页发现流将锁定为您的发布内容。
+                        </p>
+                    </div>
+
+                    <div className="p-5 bg-surface-50/50 rounded-[18px] border border-surface-100/50">
+                        <div className="flex items-center gap-2 mb-2">
+                            <i className="pi pi-info-circle text-blue-500 text-[10px]" />
+                            <span className="text-[11px] font-black text-surface-400 uppercase tracking-widest">自由浏览权限</span>
+                        </div>
+                        <p className="text-[12px] text-surface-600 font-bold leading-5">
+                            默认模式下，学员可以通过您的邀请注册，但保留查看其他教练的权利。
+                        </p>
+                    </div>
                 </div>
             </div>
-        </Card>
+        </div>
     );
 };
