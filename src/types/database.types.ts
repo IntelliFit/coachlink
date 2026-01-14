@@ -112,6 +112,30 @@ export type Database = {
           },
         ]
       }
+      canonical_actions: {
+        Row: {
+          aliases: string[] | null
+          category: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          aliases?: string[] | null
+          category?: string | null
+          created_at?: string | null
+          id: string
+          name: string
+        }
+        Update: {
+          aliases?: string[] | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -251,6 +275,7 @@ export type Database = {
       coach_actions: {
         Row: {
           attrs: string[] | null
+          canonical_action_id: string | null
           coach_id: string
           created_at: string
           detail: string | null
@@ -267,6 +292,7 @@ export type Database = {
         }
         Insert: {
           attrs?: string[] | null
+          canonical_action_id?: string | null
           coach_id: string
           created_at?: string
           detail?: string | null
@@ -283,6 +309,7 @@ export type Database = {
         }
         Update: {
           attrs?: string[] | null
+          canonical_action_id?: string | null
           coach_id?: string
           created_at?: string
           detail?: string | null
@@ -298,6 +325,13 @@ export type Database = {
           url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "coach_actions_canonical_action_id_fkey"
+            columns: ["canonical_action_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_actions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "coach_actions_coach_id_fkey"
             columns: ["coach_id"]
@@ -818,9 +852,9 @@ export type Database = {
           last_payment_order_id: string | null
           monthly_price: number
           order_id: string | null
-          payment_data: Json | null
           payment_confirmed_at: string | null
           payment_confirmed_by: string | null
+          payment_data: Json | null
           payment_method: string | null
           prior_training_weeks: number | null
           product_id: string | null
@@ -846,9 +880,9 @@ export type Database = {
           last_payment_order_id?: string | null
           monthly_price: number
           order_id?: string | null
-          payment_data?: Json | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
+          payment_data?: Json | null
           payment_method?: string | null
           prior_training_weeks?: number | null
           product_id?: string | null
@@ -874,9 +908,9 @@ export type Database = {
           last_payment_order_id?: string | null
           monthly_price?: number
           order_id?: string | null
-          payment_data?: Json | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
+          payment_data?: Json | null
           payment_method?: string | null
           prior_training_weeks?: number | null
           product_id?: string | null
@@ -951,6 +985,8 @@ export type Database = {
           bio: string | null
           created_at: string | null
           id: string
+          invitation_code: string | null
+          invitation_mode: string | null
           is_featured: boolean | null
           name: string
           payment_mode: string | null
@@ -973,6 +1009,8 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id?: string
+          invitation_code?: string | null
+          invitation_mode?: string | null
           is_featured?: boolean | null
           name: string
           payment_mode?: string | null
@@ -995,6 +1033,8 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id?: string
+          invitation_code?: string | null
+          invitation_mode?: string | null
           is_featured?: boolean | null
           name?: string
           payment_mode?: string | null
@@ -1142,6 +1182,80 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      growth_share_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          meta: Json
+          share_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          meta?: Json
+          share_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          meta?: Json
+          share_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_share_events_share_id_fkey"
+            columns: ["share_id"]
+            isOneToOne: false
+            referencedRelation: "growth_share_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      growth_share_links: {
+        Row: {
+          created_at: string
+          creator_user_id: string
+          execution_id: string | null
+          expires_at: string | null
+          id: string
+          meta: Json
+        }
+        Insert: {
+          created_at?: string
+          creator_user_id: string
+          execution_id?: string | null
+          expires_at?: string | null
+          id?: string
+          meta?: Json
+        }
+        Update: {
+          created_at?: string
+          creator_user_id?: string
+          execution_id?: string | null
+          expires_at?: string | null
+          id?: string
+          meta?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_share_links_creator_user_id_fkey"
+            columns: ["creator_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "growth_share_links_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "plan_instance_executions"
             referencedColumns: ["id"]
           },
         ]
@@ -1608,6 +1722,8 @@ export type Database = {
           load_formula: string | null
           notes: string | null
           reps: number | null
+          source_coach_id: string | null
+          source_type: string | null
           user_id: string
           video_url: string | null
           weight: number | null
@@ -1627,6 +1743,8 @@ export type Database = {
           load_formula?: string | null
           notes?: string | null
           reps?: number | null
+          source_coach_id?: string | null
+          source_type?: string | null
           user_id: string
           video_url?: string | null
           weight?: number | null
@@ -1646,6 +1764,8 @@ export type Database = {
           load_formula?: string | null
           notes?: string | null
           reps?: number | null
+          source_coach_id?: string | null
+          source_type?: string | null
           user_id?: string
           video_url?: string | null
           weight?: number | null
@@ -2177,9 +2297,12 @@ export type Database = {
       student_actions: {
         Row: {
           attrs: string[] | null
+          canonical_action_id: string | null
           created_at: string | null
           detail: string | null
+          enableAutoWeightCompute: boolean | null
           id: string
+          includesBodyWeight: boolean | null
           item_schema: Json | null
           name: string
           positions: string[] | null
@@ -2191,9 +2314,12 @@ export type Database = {
         }
         Insert: {
           attrs?: string[] | null
+          canonical_action_id?: string | null
           created_at?: string | null
           detail?: string | null
+          enableAutoWeightCompute?: boolean | null
           id?: string
+          includesBodyWeight?: boolean | null
           item_schema?: Json | null
           name: string
           positions?: string[] | null
@@ -2205,9 +2331,12 @@ export type Database = {
         }
         Update: {
           attrs?: string[] | null
+          canonical_action_id?: string | null
           created_at?: string | null
           detail?: string | null
+          enableAutoWeightCompute?: boolean | null
           id?: string
+          includesBodyWeight?: boolean | null
           item_schema?: Json | null
           name?: string
           positions?: string[] | null
@@ -2218,6 +2347,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_actions_canonical_action_id_fkey"
+            columns: ["canonical_action_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_actions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_actions_user_id_fkey"
             columns: ["user_id"]
@@ -2994,6 +3130,7 @@ export type Database = {
           fitness_level: string | null
           full_name: string | null
           gender: string | null
+          guides_completed: Json | null
           height: number | null
           id: string
           lifestyle: string | null
@@ -3017,6 +3154,7 @@ export type Database = {
           fitness_level?: string | null
           full_name?: string | null
           gender?: string | null
+          guides_completed?: Json | null
           height?: number | null
           id?: string
           lifestyle?: string | null
@@ -3040,6 +3178,7 @@ export type Database = {
           fitness_level?: string | null
           full_name?: string | null
           gender?: string | null
+          guides_completed?: Json | null
           height?: number | null
           id?: string
           lifestyle?: string | null
@@ -3071,12 +3210,14 @@ export type Database = {
           email: string | null
           has_drawn: boolean | null
           id: string
+          invited_visibility_mode: string | null
           is_admin: boolean | null
           is_coach: boolean | null
           last_login_at: string | null
           password_hash: string
           phone: string | null
           primary_role: string | null
+          referrer_coach_id: string | null
           subscription_expires_at: string | null
           subscription_level: string | null
           updated_at: string | null
@@ -3089,12 +3230,14 @@ export type Database = {
           email?: string | null
           has_drawn?: boolean | null
           id?: string
+          invited_visibility_mode?: string | null
           is_admin?: boolean | null
           is_coach?: boolean | null
           last_login_at?: string | null
           password_hash: string
           phone?: string | null
           primary_role?: string | null
+          referrer_coach_id?: string | null
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
@@ -3107,17 +3250,27 @@ export type Database = {
           email?: string | null
           has_drawn?: boolean | null
           id?: string
+          invited_visibility_mode?: string | null
           is_admin?: boolean | null
           is_coach?: boolean | null
           last_login_at?: string | null
           password_hash?: string
           phone?: string | null
           primary_role?: string | null
+          referrer_coach_id?: string | null
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_referrer_coach_id_fkey"
+            columns: ["referrer_coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
@@ -3263,6 +3416,10 @@ export type Database = {
       calculate_training_progress: {
         Args: { record_id: string }
         Returns: number
+      }
+      cleanup_knowledge_book_files: {
+        Args: { p_book_id: string }
+        Returns: undefined
       }
       create_coach_rulepack: {
         Args: {

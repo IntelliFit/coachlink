@@ -1,5 +1,5 @@
 export interface RegisterDto {
-    phone: string;
+    phoneOrEmail: string;
     password: string;
     verifyCode: string;
     /** 邀请码（当前实现为 inviter 的 userId） */

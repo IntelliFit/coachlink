@@ -24,7 +24,7 @@ function safeDecodeAttribution(raw: string | undefined) {
 
 export async function POST(req: NextRequest) {
     const {
-        phone,
+        phoneOrEmail,
         password,
         verifyCode,
         ref,
@@ -33,14 +33,14 @@ export async function POST(req: NextRequest) {
         invitationMode,
     } = await req.json() as RegisterDto;
 
-    const trimmedPhone = phone?.trim();
+    const trimmedPhoneOrEmail = phoneOrEmail?.trim();
     const trimmedPassword = password?.trim();
     const trimmedVerifyCode = verifyCode?.trim();
 
-    if (!trimmedPhone || !trimmedPassword) {
+    if (!trimmedPhoneOrEmail || !trimmedPassword) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: "手机号和密码不能为空",
+            message: "手机号或邮箱和密码不能为空",
             data: null,
         });
     }
@@ -49,6 +49,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: "验证码不能为空",
+            data: null,
+        });
+    }
+
+    // Determine if input is phone or email
+    const isPhone = /^1[3-9]\d{9}$/.test(trimmedPhoneOrEmail);
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedPhoneOrEmail);
+
+    if (!isPhone && !isEmail) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "请输入正确的手机号或邮箱格式",
             data: null,
         });
     }
@@ -63,9 +75,12 @@ export async function POST(req: NextRequest) {
             throw new Error("验证服务不可用");
         }
 
-        const storedCode = await redis.get(
-            `sms_verification_code:${trimmedPhone}`,
-        );
+        // 根据是手机号还是邮箱来查询验证码
+        const verificationKey = isPhone
+            ? `sms_verification_code:${trimmedPhoneOrEmail}`
+            : `email_verification_code:${trimmedPhoneOrEmail}`;
+
+        const storedCode = await redis.get(verificationKey);
         if (!storedCode) {
             return NextResponse.json<ApiData<null>>({
                 success: false,
@@ -83,19 +98,31 @@ export async function POST(req: NextRequest) {
         }
 
         // 验证成功后删除验证码，防止重复使用
-        await redis.del(`sms_verification_code:${trimmedPhone}`);
+        await redis.del(verificationKey);
     }
 
-    const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("phone", trimmedPhone)
-        .single();
+    // Check if user already exists by phone or email
+    let existingUserQuery;
+    if (isPhone) {
+        existingUserQuery = supabase
+            .from("users")
+            .select("id")
+            .eq("phone", trimmedPhoneOrEmail)
+            .single();
+    } else {
+        existingUserQuery = supabase
+            .from("users")
+            .select("id")
+            .eq("email", trimmedPhoneOrEmail)
+            .single();
+    }
+
+    const { data: existingUser } = await existingUserQuery;
 
     if (existingUser) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: "手机号已注册",
+            message: isPhone ? "手机号已注册" : "邮箱已注册",
             data: null,
         });
     }
@@ -110,7 +137,6 @@ export async function POST(req: NextRequest) {
             .from("coaches")
             .select("id")
             .eq("invitation_code", trimmedInvitationCode)
-            // coaches.status 的真实值域是 pending/approved/rejected/suspended（无 active）
             .eq("status", "approved")
             .single();
 
@@ -133,7 +159,7 @@ export async function POST(req: NextRequest) {
     const { data: user } = await supabase
         .from("users")
         .insert({
-            phone: trimmedPhone,
+            ...(isPhone ? { phone: trimmedPhoneOrEmail } : { email: trimmedPhoneOrEmail }),
             password_hash,
             created_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
