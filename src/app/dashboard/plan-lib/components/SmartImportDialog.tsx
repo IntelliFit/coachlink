@@ -32,6 +32,22 @@ const steps: Step[] = [
     { label: '预览模板' },
 ];
 
+async function parseApiResponse<T>(response: Response): Promise<T> {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        const statusLabel = response.status ? ` (${response.status})` : '';
+        throw new Error(`接口返回非 JSON${statusLabel}`);
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+        const message = (data as any)?.message || `请求失败 (${response.status})`;
+        throw new Error(message);
+    }
+    return data as T;
+}
+
 // 可编辑的动作信息
 interface EditableAction extends ParsedActionInfo {
     // 用户选择：使用现有动作 or 创建新动作
@@ -101,7 +117,7 @@ export default function SmartImportDialog({
                 body: JSON.stringify({ text: inputText }),
             });
 
-            const result = await response.json();
+            const result = await parseApiResponse<any>(response);
 
             if (!result.success) {
                 throw new Error(result.message || '解析失败');
@@ -191,7 +207,7 @@ export default function SmartImportDialog({
                     body: JSON.stringify({ actions: actionsToCreate }),
                 });
 
-                const createResult = await createResponse.json();
+                const createResult = await parseApiResponse<any>(createResponse);
                 if (!createResult.success) {
                     throw new Error(createResult.message || '创建动作失败');
                 }
@@ -215,7 +231,7 @@ export default function SmartImportDialog({
                 }),
             });
 
-            const templateResult = await templateResponse.json();
+            const templateResult = await parseApiResponse<any>(templateResponse);
             if (!templateResult.success) {
                 throw new Error(templateResult.message || '解析模板失败');
             }

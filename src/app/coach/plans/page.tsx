@@ -342,11 +342,11 @@ const TrainingPlansHome: React.FC = () => {
                 case 'DIET':
                     return (
                         <>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-green-700 text-[11px] font-bold">
-                                🥗 饮食
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-[11px] font-bold">
+                                🥗 饮食建议
                             </span>
                             {params.suggested_time && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold">
                                     ⏰ {params.suggested_time}
                                 </span>
                             )}
@@ -355,16 +355,16 @@ const TrainingPlansHome: React.FC = () => {
                 case 'CARDIO':
                     return (
                         <>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-[11px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">
                                 🏃 有氧
                             </span>
                             {customData.duration ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold">
                                     ⏱ {(customData.duration / 60).toFixed(0)}分钟
                                 </span>
                             ) : null}
                             {customData.distance ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold">
                                     📏 {(customData.distance / 1000).toFixed(1)}km
                                 </span>
                             ) : null}
@@ -373,11 +373,11 @@ const TrainingPlansHome: React.FC = () => {
                 case 'HABIT':
                     return (
                         <>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 border border-purple-100 text-purple-700 text-[11px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[11px] font-bold">
                                 ✅ 习惯
                             </span>
                             {customData.target_duration && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold">
                                     ⏱ {customData.target_duration}分钟
                                 </span>
                             )}
@@ -393,22 +393,22 @@ const TrainingPlansHome: React.FC = () => {
 
                     return (
                         <>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-700 text-[11px] font-bold">
-                                ▦ {sets}组×{reps}次
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-700 text-[11px] font-bold">
+                                ▦ {sets}×{reps}
                             </span>
                             {typeof load === 'number' ? (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold ${
-                                    load < 0 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                    load < 0 ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'
                                 }`}>
                                     💪 {load < 0 ? `辅助 ${Math.abs(load)}kg` : `${load}kg`}
                                 </span>
                             ) : intensity ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold">
                                     💪 {intensity}RM
                                 </span>
                             ) : null}
                             {restSec > 0 && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold">
                                     ⏱ {((restSec) / 60).toFixed(1)}分
                                 </span>
                             )}
@@ -420,62 +420,59 @@ const TrainingPlansHome: React.FC = () => {
         const note = params.note;
 
         return (
-            <div className="rounded-2xl border border-surface-100 bg-white/70 backdrop-blur-sm px-3 py-3 hover:bg-white transition-colors">
-                <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-xl bg-surface-100 border border-surface-200 flex items-center justify-center shrink-0">
-                                <i className="pi pi-box text-[12px] text-surface-500" />
-                            </div>
-                            <div className="min-w-0">
-                                <div className="font-black text-surface-900 truncate">{actionName}</div>
+            <div className="rounded-xl border border-surface-100 bg-white/60 px-3 py-2 hover:bg-white transition-colors">
+                <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-surface-100 flex items-center justify-center shrink-0">
+                        <i className="pi pi-box text-[12px] text-surface-500" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="font-black text-surface-900 truncate">{actionName}</div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                {hasVideo && (
+                                    <Button
+                                        icon="pi pi-video"
+                                        text
+                                        rounded
+                                        size="small"
+                                        className="w-8 h-8 rounded-xl text-primary hover:bg-primary-50"
+                                        aria-label="查看动作视频"
+                                        onClick={() => window.open(action?.url, '_blank')}
+                                    />
+                                )}
+                                {actionDetail && (
+                                    <Button
+                                        icon="pi pi-info-circle"
+                                        text
+                                        rounded
+                                        size="small"
+                                        className="w-8 h-8 rounded-xl text-surface-500 hover:bg-surface-100"
+                                        aria-label="查看动作说明"
+                                        tooltip={actionDetail}
+                                        tooltipOptions={{ position: 'left' }}
+                                    />
+                                )}
                             </div>
                         </div>
 
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-1 flex flex-wrap gap-1.5">
                             {renderPills()}
-                            {/* 非力量类型：补充一条摘要 pill（更像 App） */}
                             {itemType !== 'STRENGTH' && (customData.content || customData.habit_name || action?.detail) && (
-                                <span className="inline-flex items-center max-w-full gap-1 px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 text-[11px] font-bold truncate">
+                                <span className="inline-flex items-center max-w-full gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-surface-600 text-[11px] font-bold truncate">
                                     {String(customData.content || customData.habit_name || action?.detail)}
                                 </span>
                             )}
                         </div>
-                    </div>
 
-                    <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                        {hasVideo && (
-                            <Button
-                                icon="pi pi-video"
-                                text
-                                rounded
-                                size="small"
-                                className="w-9 h-9 rounded-2xl text-primary hover:bg-primary-50"
-                                aria-label="查看动作视频"
-                                onClick={() => window.open(action?.url, '_blank')}
-                            />
-                        )}
-                        {actionDetail && (
-                            <Button
-                                icon="pi pi-info-circle"
-                                text
-                                rounded
-                                size="small"
-                                className="w-9 h-9 rounded-2xl text-surface-500 hover:bg-surface-100"
-                                aria-label="查看动作说明"
-                                tooltip={actionDetail}
-                                tooltipOptions={{ position: 'left' }}
-                            />
+                        {note && (
+                            <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg w-full">
+                                <i className="pi pi-info-circle text-[11px]" />
+                                <span className="line-clamp-2">{note}</span>
+                            </div>
                         )}
                     </div>
                 </div>
-
-                {note && (
-                    <div className="mt-2 flex items-center gap-2 text-[12px] text-amber-700 bg-amber-50 px-3 py-2 rounded-xl border border-amber-100 w-full">
-                        <i className="pi pi-info-circle text-[12px]" />
-                        <span className="line-clamp-2">{note}</span>
-                    </div>
-                )}
             </div>
         );
     };
@@ -661,6 +658,14 @@ const TrainingPlansHome: React.FC = () => {
                                 </div>
                                 <p className="text-xs text-surface-600 truncate">
                                     {getTrainingDate(day.dayIndex)} · {actionSets.length} 个动作
+                                </p>
+                                {/* 折叠态预览：直接给出动作名（更像 App 列表） */}
+                                <p className="mt-1 text-[11px] text-surface-500 truncate">
+                                    {actionSets.slice(0, 3).map((as: any) => {
+                                        const actionId = as.action_id || as.actionId;
+                                        return actions[actionId]?.name || as.actionName || as.set_name || '动作';
+                                    }).join(' · ')}
+                                    {actionSets.length > 3 ? ' · …' : ''}
                                 </p>
                             </div>
                         </div>

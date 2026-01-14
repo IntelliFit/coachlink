@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
-import { ScrollPanel } from 'primereact/scrollpanel';
+import { Dialog } from 'primereact/dialog';
+import { Calendar } from 'lucide-react';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
@@ -56,6 +57,8 @@ const EditPlanPage = () => {
     
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
+    // Mobile day picker
+    const [dayPickerVisible, setDayPickerVisible] = useState(false);
 
     // Load template data
     useEffect(() => {
@@ -550,7 +553,7 @@ const EditPlanPage = () => {
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-1 sticky top-20 self-start max-h-[70vh] md:max-h-[75vh] overflow-auto">
                         <WeekCalendar
                             days={days}
                             selectedDayIndex={selectedDayIndex}
@@ -618,6 +621,72 @@ const EditPlanPage = () => {
                 existingActions={actions}
                 onImportComplete={handleImportComplete}
             />
+
+            {/* 手机端：随时切换训练日（无需回到顶部） */}
+            <div className="lg:hidden fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40">
+                <button
+                    type="button"
+                    onClick={() => setDayPickerVisible(true)}
+                    className="
+                        flex items-center gap-2 px-4 py-3
+                        bg-surface/95 backdrop-blur-md border border-surface-200/70
+                        rounded-full shadow-[0_14px_36px_rgba(0,0,0,0.16)]
+                        text-[12px] font-black text-surface-800
+                        active:scale-[0.98] transition-transform
+                    "
+                >
+                    <Calendar size={16} />
+                    <span className="whitespace-nowrap">切换训练日</span>
+                </button>
+            </div>
+
+            <Dialog
+                visible={dayPickerVisible}
+                onHide={() => setDayPickerVisible(false)}
+                header={null}
+                modal
+                blockScroll
+                dismissableMask
+                draggable={false}
+                resizable={false}
+                style={{
+                    width: '100vw',
+                    maxWidth: '640px',
+                    position: 'fixed',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    bottom: '0',
+                    margin: 0
+                }}
+                contentClassName="p-0 pb-3 rounded-t-3xl overflow-hidden"
+            >
+                <div className="p-4 border-b border-surface-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-black text-surface-800">
+                        <Calendar size={16} />
+                        选择训练日
+                    </div>
+                    <button
+                        className="text-[12px] font-bold text-primary-600"
+                        onClick={() => setDayPickerVisible(false)}
+                    >
+                        关闭
+                    </button>
+                </div>
+                <div className="p-3 max-h-[70vh] overflow-auto">
+                    <WeekCalendar
+                        days={days}
+                        selectedDayIndex={selectedDayIndex}
+                        onSelectDay={(dayIdx) => {
+                            setSelectedDayIndex(dayIdx);
+                            setDayPickerVisible(false);
+                        }}
+                        onAddWeek={handleAddWeek}
+                        onAddWeekFromExisting={handleAddWeekFromExisting}
+                        onDeleteWeek={handleDeleteWeek}
+                        saving={saving}
+                    />
+                </div>
+            </Dialog>
         </div>
     );
 };
