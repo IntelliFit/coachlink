@@ -21,7 +21,6 @@ interface EditLeaderboardFormProps {
     onSuccess: () => void;
 }
 
-// 2. 定义中文配置
 addLocale('zh-CN', {
     firstDayOfWeek: 1,
     dayNames: ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'],

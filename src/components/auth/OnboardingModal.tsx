@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
@@ -11,24 +11,38 @@ import { FloatLabel } from 'primereact/floatlabel';
 import { ProgressBar } from 'primereact/progressbar';
 import { useToastContext } from '@/context/ToastContext';
 import { studentService } from '@/app/service/studentService';
-import { Dumbbell, User, Activity, Bike, Footprints } from 'lucide-react';
+import { Dumbbell, User, Activity, Bike, Footprints, CalendarIcon } from 'lucide-react';
 import { SportCards, getEmptySportCards, getPowerliftingTotal, getStreetliftingTotal, getWeightliftingTotal } from '@/types/sportCards';
 import { useOnboardingModal } from './OnboardingModalContext';
 import { useSession } from 'next-auth/react';
+import { Calendar } from 'primereact/calendar';
+import { addLocale, locale } from "primereact/api";
+
+addLocale('zh-CN', {
+    firstDayOfWeek: 1,
+    dayNames: ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'],
+    dayNamesShort: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+    dayNamesMin: ['日', '一', '二', '三', '四', '五', '六'],
+    monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
+    monthNamesShort: ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'],
+    today: '今天',
+    clear: '清除'
+});
 
 // 卡片类型配置 - 7 大类
 const CARD_TYPES = [
-    { key: 'powerlifting', label: '力量举', icon: Dumbbell, color: 'bg-orange-100 text-orange-600', active: 'bg-orange-500/20 border-orange-500', bgClass: 'bg-orange-50', borderClass: 'border-orange-200', textClass: 'text-orange-700' },
-    { key: 'streetlifting', label: '街头力量举', icon: Dumbbell, color: 'bg-lime-100 text-lime-600', active: 'bg-lime-500/20 border-lime-500', bgClass: 'bg-lime-50', borderClass: 'border-lime-200', textClass: 'text-lime-700' },
-    { key: 'calisthenics', label: '街头健身', icon: User, color: 'bg-green-100 text-green-600', active: 'bg-green-500/20 border-green-500', bgClass: 'bg-green-50', borderClass: 'border-green-200', textClass: 'text-green-700' },
-    { key: 'weightlifting', label: '举重', icon: Dumbbell, color: 'bg-red-100 text-red-600', active: 'bg-red-500/20 border-red-500', bgClass: 'bg-red-50', borderClass: 'border-red-200', textClass: 'text-red-700' },
-    { key: 'bodybuilding', label: '健美/形体', icon: User, color: 'bg-purple-100 text-purple-600', active: 'bg-purple-500/20 border-purple-500', bgClass: 'bg-purple-50', borderClass: 'border-purple-200', textClass: 'text-purple-700' },
-    { key: 'running', label: '跑步', icon: Footprints, color: 'bg-blue-100 text-blue-600', active: 'bg-blue-500/20 border-blue-500', bgClass: 'bg-blue-50', borderClass: 'border-blue-200', textClass: 'text-blue-700' },
-    { key: 'cycling', label: '骑行', icon: Bike, color: 'bg-cyan-100 text-cyan-600', active: 'bg-cyan-500/20 border-cyan-500', bgClass: 'bg-cyan-50', borderClass: 'border-cyan-200', textClass: 'text-cyan-700' },
+    { key: 'powerlifting', label: '力量举', icon: Dumbbell, color: 'text-primary-500', bg: 'bg-primary-50/50', border: 'border-primary-100', active: 'border-primary-500 ring-4 ring-primary-500/10' },
+    { key: 'streetlifting', label: '街头力量', icon: Dumbbell, color: 'text-lime-600', bg: 'bg-lime-50/50', border: 'border-lime-100', active: 'border-lime-500 ring-4 ring-lime-500/10' },
+    { key: 'calisthenics', label: '街头健身', icon: User, color: 'text-green-600', bg: 'bg-green-50/50', border: 'border-green-100', active: 'border-green-500 ring-4 ring-green-500/10' },
+    { key: 'weightlifting', label: '举重', icon: Dumbbell, color: 'text-red-600', bg: 'bg-red-50/50', border: 'border-red-100', active: 'border-red-500 ring-4 ring-red-500/10' },
+    { key: 'bodybuilding', label: '健美/形体', icon: User, color: 'text-purple-600', bg: 'bg-purple-50/50', border: 'border-purple-100', active: 'border-purple-500 ring-4 ring-purple-500/10' },
+    { key: 'running', label: '跑步', icon: Footprints, color: 'text-blue-600', bg: 'bg-blue-50/50', border: 'border-blue-100', active: 'border-blue-500 ring-4 ring-blue-500/10' },
+    { key: 'cycling', label: '骑行', icon: Bike, color: 'text-cyan-600', bg: 'bg-cyan-50/50', border: 'border-cyan-100', active: 'border-cyan-500 ring-4 ring-cyan-500/10' },
 ];
 
 interface FormData {
     nickname: string;
+    birthday: Date | null;
     age: number | null;
     gender: string;
     height: number | null;
@@ -57,6 +71,23 @@ const FITNESS_LEVEL_OPTIONS = [
     { label: '高级', value: 'advanced' },
 ];
 
+const fieldLabelMap: Record<string, string> = {
+    // 力量 / 举重 / 街力
+    squat: '深蹲', bench: '卧推', deadlift: '硬拉',
+    weightedPullup: '负重引体', weightedDip: '负重双杠', weightedMuscleUp: '负重暴力上杠',
+    snatch: '抓举', cleanAndJerk: '挺举',
+    // 街健
+    maxPullups: '极限引体', maxDips: '极限双杠', maxMuscleUps: '极限暴力上杠',
+    frontLever: '前水平', planche: '俄式挺身', humanFlag: '顺风旗',
+    // 健美/形体
+    weight: '体重', bodyfat: '体脂率', chest: '胸围', arm: '臂围',
+    waist: '腰围', hip: '臀围', thigh: '大腿围', calf: '小腿围',
+    // 跑步
+    fiveK: '5公里', tenK: '10公里', halfMarathon: '半程马拉松', marathon: '全程马拉松',
+    // 骑行
+    ftp: '功能阈值功率', maxPower: '峰值功率', maxDistance: '最长里程'
+};
+
 interface OnboardingModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -73,6 +104,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
     const [formData, setFormData] = useState<FormData>({
         nickname: '',
+        birthday: null,
         age: null,
         gender: '',
         height: null,
@@ -83,8 +115,17 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         sportCards: getEmptySportCards(),
     });
 
-    const totalSteps = 2;
-    const progress = (step / totalSteps) * 100;
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            const container = scrollContainerRef.current;
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }, [formData.sportCards.activeCards.length]);
 
     // 切换卡片选择
     const toggleCard = (cardKey: string) => {
@@ -125,13 +166,36 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         });
     };
 
+    const calculateAge = (birthDate: Date | null): number | null => {
+        if (!birthDate) return null;
+
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        // 如果还没到今年的生日月份，或者到了生日月份但还没到生日当天，则年龄减一
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+
+        return age;
+    };
+
     // 验证第一步
     const validateStep1 = () => {
         if (!formData.nickname.trim()) {
             showToast({ severity: 'warn', summary: '请填写昵称' });
             return false;
         }
-        if (!formData.age || formData.age < 10 || formData.age > 100) {
+        if (!formData.birthday) {
+            showToast({ severity: 'warn', summary: '请选择出生日期' });
+            return false;
+        }
+
+        // 计算出年龄
+        formData.age = calculateAge(formData.birthday);
+
+        if (!formData.age || formData.age < 10 || formData.age > 120) {
             showToast({ severity: 'warn', summary: '请填写有效的年龄' });
             return false;
         }
@@ -173,6 +237,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             const result = await studentService.updateProfile({
                 nickname: formData.nickname,
                 age: formData.age,
+                birth_date: formData.birthday,
                 gender: formData.gender,
                 height: formData.height,
                 weight: formData.weight,
@@ -226,144 +291,144 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             header={headerContent}
             visible={isOpen}
             onHide={onClose}
-            style={{ width: '700px', maxWidth: '95vw' }}
+            style={{ width: '640px' }}
             modal
             blockScroll
-            dismissableMask={false}
-            closable={true}
-            className="onboarding-modal"
+            closable={false}
+            pt={{
+                root: {
+                    className: 'shadow-none border-none bg-transparent'
+                },
+                header: {
+                    // 修改头部容器样式：增加内边距、背景色、去掉默认下划线
+                    className: 'p-8 pb-4 border-none bg-surface rounded-t-[24px]'
+                },
+                content: {
+                    className: 'text-xl font-black tracking-tight rounded-b-[24px]'
+                }
+            }}
         >
-            {/* 进度条 */}
-            <div className="mb-6">
-                <ProgressBar value={progress} showValue={false} style={{ height: '6px' }} />
-                <div className="flex justify-between mt-2 text-xs text-surface-500">
-                    <span>第 {step} 步 / 共 {totalSteps} 步</span>
-                    <span>{step === 1 ? '基本信息' : '运动数据'}</span>
+            {/* 进度导航：采用非线性平滑过渡 */}
+            <div className="mb-10 px-1">
+                <div className="flex justify-between items-end mb-3">
+                    <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.3em]">
+                        第 {step} 步 / 共 2 步
+                    </span>
+                    <span className="text-sm font-black text-surface-900 tracking-tight">
+                        {step === 1 ? '核心身份识别' : '运动资产配置'}
+                    </span>
                 </div>
+                <ProgressBar value={(step / 2) * 100} showValue={false} className="h-1.5 bg-surface-50" color="#F28631" />
             </div>
 
-            {/* Step 1: 基本信息 */}
+            {/* 环节一：基础信息采集 */}
             {step === 1 && (
-                <div className="space-y-6">
-                    <h3 className="text-lg font-semibold text-surface-800 flex items-center gap-2">
-                        <User className="w-5 h-5 text-blue-500" />
-                        基本信息
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2 mb-2">
-                            <FloatLabel>
-                                <InputText
-                                    id="nickname"
-                                    value={formData.nickname}
-                                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                                    className="w-full"
-                                />
-                                <label htmlFor="nickname">昵称 <span className="text-red-500">*</span></label>
-                            </FloatLabel>
-                            <small className="text-surface-400 text-xs mt-1 block">这将是您在平台上的主要显示名称</small>
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-8">
+                        {/* 昵称输入：信息约束设计 */}
+                        <div className="col-span-2">
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">显示昵称</label>
+                            <InputText
+                                value={formData.nickname}
+                                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                                className="w-full h-12 rounded-xl border-surface-100 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                placeholder="如何称呼您？"
+                            />
                         </div>
 
-                        <FloatLabel className='mb-2'>
-                            <InputNumber
-                                id="age"
-                                value={formData.age}
-                                onValueChange={(e) => setFormData({ ...formData, age: e.value ?? null })}
-                                className="w-full"
-                                suffix=" 岁"
-                                min={10}
-                                max={100}
+                        {/* 出生日期：精确数据维度 */}
+                        <div>
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">出生日期</label>
+                            <div className="relative group">
+                                <Calendar
+                                    value={formData.birthday}
+                                    onChange={(e) => setFormData({ ...formData, birthday: e.value as Date })}
+                                    className="w-full h-12 aero-calendar"
+                                    inputClassName="rounded-xl border-surface-100 bg-surface-50/30 font-bold"
+                                    placeholder="选择您的生日"
+                                    showIcon={false}
+                                    maxDate={new Date()}
+                                    locale="zh-CN"
+                                />
+                                <CalendarIcon className="absolute right-4 top-3.5 w-5 h-5 text-surface-300 pointer-events-none group-hover:text-primary-500 transition-colors" />
+                            </div>
+                        </div>
+
+                        {/* 生理性别：低饱和功能色下拉框 */}
+                        <div>
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">性别</label>
+                            <Dropdown
+                                value={formData.gender}
+                                options={GENDER_OPTIONS}
+                                onChange={(e) => setFormData({ ...formData, gender: e.value })}
+                                className="w-full h-12 rounded-xl border-surface-100 bg-surface-50/30 font-bold"
+                                placeholder="请选择"
                             />
-                            <label htmlFor="age">年龄 <span className="text-red-500">*</span></label>
-                        </FloatLabel>
+                        </div>
 
-                        <Dropdown
-                            id="gender"
-                            value={formData.gender}
-                            options={GENDER_OPTIONS}
-                            onChange={(e) => setFormData({ ...formData, gender: e.value })}
-                            className="w-full mb-2"
-                            placeholder="性别 *"
-                        />
-
-                        <FloatLabel className='mb-2'>
+                        {/* 核心体征指标 */}
+                        <div>
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">身高 (CM)</label>
                             <InputNumber
-                                id="height"
                                 value={formData.height}
                                 onValueChange={(e) => setFormData({ ...formData, height: e.value ?? null })}
-                                className="w-full"
-                                suffix=" cm"
-                                min={100}
-                                max={250}
+                                className="w-full h-12"
+                                inputClassName="rounded-xl border-surface-100 bg-surface-50/30 font-bold"
                             />
-                            <label htmlFor="height">身高 <span className="text-red-500">*</span></label>
-                        </FloatLabel>
+                        </div>
 
-                        <FloatLabel className='mb-2'>
+                        <div>
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">体重 (KG)</label>
                             <InputNumber
-                                id="weight"
                                 value={formData.weight}
                                 onValueChange={(e) => setFormData({ ...formData, weight: e.value ?? null })}
-                                className="w-full"
-                                suffix=" kg"
-                                min={30}
-                                max={300}
+                                className="w-full h-12"
+                                inputClassName="rounded-xl border-surface-100 bg-surface-50/30 font-bold"
                             />
-                            <label htmlFor="weight">体重 <span className="text-red-500">*</span></label>
-                        </FloatLabel>
+                        </div>
 
-                        <Dropdown
-                            id="fitnessGoal"
-                            value={formData.fitnessGoal}
-                            options={FITNESS_GOAL_OPTIONS}
-                            onChange={(e) => setFormData({ ...formData, fitnessGoal: e.value })}
-                            className="w-full mb-2"
-                            placeholder="健身目标 *"
-                        />
+                        {/* --- 健身目标 --- */}
+                        <div>
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">健身目标</label>
+                            <Dropdown
+                                value={formData.fitnessGoal}
+                                options={FITNESS_GOAL_OPTIONS}
+                                onChange={(e) => setFormData({ ...formData, fitnessGoal: e.value })}
+                                className="w-full h-12 rounded-xl border-surface-100 bg-surface-50/30 font-bold"
+                                placeholder="请选择目标"
+                            />
+                        </div>
 
-                        <Dropdown
-                            id="fitnessLevel"
-                            value={formData.fitnessLevel}
-                            options={FITNESS_LEVEL_OPTIONS}
-                            onChange={(e) => setFormData({ ...formData, fitnessLevel: e.value })}
-                            className="w-full mb-2"
-                            placeholder="当前水平 *"
-                        />
-
-                        <div className="col-span-2">
-                            <FloatLabel>
-                                <InputText
-                                    id="lifestyle"
-                                    value={formData.lifestyle}
-                                    onChange={(e) => setFormData({ ...formData, lifestyle: e.target.value })}
-                                    className="w-full"
-                                    placeholder="如：朝九晚五，久坐办公"
-                                />
-                                <label htmlFor="lifestyle">生活作息（选填）</label>
-                            </FloatLabel>
+                        {/* --- 当前水平 --- */}
+                        <div>
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">运动水平</label>
+                            <Dropdown
+                                value={formData.fitnessLevel}
+                                options={FITNESS_LEVEL_OPTIONS}
+                                onChange={(e) => setFormData({ ...formData, fitnessLevel: e.value })}
+                                className="w-full h-12 rounded-xl border-surface-100 bg-surface-50/30 font-bold"
+                                placeholder="请选择水平"
+                            />
                         </div>
                     </div>
 
-                    <Button
-                        label="下一步"
-                        icon="pi pi-arrow-right"
-                        iconPos="right"
-                        onClick={handleNext}
-                        className="w-full"
-                    />
+                    {/* 环节一底部：仅提供单一路径，确保流程极简 */}
+                    <div className="pt-2">
+                        <Button
+                            label="继续：配置运动数据"
+                            icon="pi pi-arrow-right"
+                            iconPos="right"
+                            onClick={handleNext}
+                            className="w-full h-14 rounded-2xl bg-surface-900 border-none font-black tracking-tight text-surface active:scale-[0.98] transition-all shadow-xl shadow-surface-200"
+                        />
+                    </div>
                 </div>
             )}
 
-            {/* Step 2: 运动数据卡片 */}
+            {/* 环节二：多维度运动卡片配置 */}
             {step === 2 && (
-                <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-                    <h3 className="text-lg font-semibold text-surface-800 flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-green-500" />
-                        运动数据卡片
-                    </h3>
-                    <p className="text-sm text-surface-500">选择您关注的运动类型，填写相关数据（可多选，全部选填）</p>
-
-                    {/* 卡片选择器 - 7 个类型 */}
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                    {/* 运动磁贴选择器：利用视觉本能引导 */}
                     <div className="grid grid-cols-4 gap-3">
                         {CARD_TYPES.map((card) => {
                             const Icon = card.icon;
@@ -372,253 +437,129 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 <div
                                     key={card.key}
                                     onClick={() => toggleCard(card.key)}
-                                    className={`cursor-pointer p-3 rounded-xl border-2 transition-all text-center ${isActive
-                                        ? `${card.active}`
-                                        : 'border-surface-200 hover:border-surface-300'
-                                    }`}
+                                    className={`
+                                        group cursor-pointer relative overflow-hidden transition-all duration-300
+                                        px-2 py-3 rounded-[16px] border text-center active:scale-[0.94]
+                                        ${isActive
+                                            ? `${card.active} shadow-sm shadow-current/5`
+                                            : 'border-surface-100/80 bg-surface-50/20 hover:bg-surface hover:border-surface-200'
+                                        }
+                                    `}
                                 >
-                                    <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center ${card.color}`}>
-                                        <Icon className="w-5 h-5" />
-                                    </div>
-                                    <div className="mt-2 text-xs font-medium text-surface-700">{card.label}</div>
+                                    {/* 状态指示：改为更加细腻的右上角呼吸点 */}
                                     {isActive && (
-                                        <i className="pi pi-check-circle text-primary-500 mt-1" />
+                                        <div className="absolute top-2 right-2 flex items-center justify-center">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ color: card.color }} />
+                                        </div>
                                     )}
+
+                                    <div className="flex flex-col items-center gap-2">
+                                        {/* 图标容器：缩小尺寸，强化背景色对比 */}
+                                        <div className={`
+                                            w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500 
+                                            group-hover:scale-110 group-active:rotate-12
+                                            ${card.bg} ${card.color}
+                                        `}>
+                                            <Icon size={16} strokeWidth={2.5} />
+                                        </div>
+
+                                        {/* 文字：进一步压缩字号与间距，使其看起来像一个标签 */}
+                                        <span className="text-[10px] font-black text-surface-700 tracking-tighter leading-none">
+                                            {card.label}
+                                        </span>
+                                    </div>
                                 </div>
                             );
                         })}
                     </div>
 
-                    {/* 1. 力量举卡片表单 */}
-                    {formData.sportCards.activeCards.includes('powerlifting') && (
-                        <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
-                            <h4 className="text-sm font-semibold text-orange-700 mb-3 flex items-center gap-2">
-                                <Dumbbell className="w-4 h-4" />
-                                力量举数据
-                            </h4>
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="pl_squat" value={formData.sportCards.powerlifting?.squat} onValueChange={(e) => updateCardData('powerlifting', 'squat', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="pl_squat">深蹲 1RM</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="pl_bench" value={formData.sportCards.powerlifting?.bench} onValueChange={(e) => updateCardData('powerlifting', 'bench', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="pl_bench">卧推 1RM</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="pl_deadlift" value={formData.sportCards.powerlifting?.deadlift} onValueChange={(e) => updateCardData('powerlifting', 'deadlift', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="pl_deadlift">硬拉 1RM</label>
-                                </FloatLabel>
-                                <div className="flex items-center justify-center bg-orange-100 rounded-lg p-2 mb-4">
-                                    <span className="text-sm text-orange-700">总和: <strong>{getPowerliftingTotal(formData.sportCards.powerlifting)} kg</strong></span>
+                    {/* 动态表单容器：修复颜色变量与渲染逻辑 */}
+                    <div
+                        ref={scrollContainerRef}
+                        className="max-h-[380px] overflow-y-auto pr-2 space-y-3 scrollbar-hide py-2"
+                    >
+                        {formData.sportCards.activeCards.map((cardKey) => {
+                            const config = CARD_TYPES.find(c => c.key === cardKey);
+                            if (!config) return null;
+
+                            const Icon = config.icon;
+                            const cardData = (formData.sportCards as any)[cardKey];
+
+                            return (
+                                <div
+                                    key={cardKey}
+                                    className={`p-5 rounded-[24px] border border-opacity-40 space-y-4 animate-in zoom-in-95 slide-in-from-top-2 duration-300 ${config.bg} ${config.border}`}
+                                >
+                                    {/* 头部：标题与数值展示 */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${config.color} shadow-sm`}>
+                                                <Icon size={16} strokeWidth={2.5} />
+                                            </div>
+                                            <h4 className={`text-xs font-black tracking-tight`}>
+                                                {config.label} 
+                                            </h4>
+                                        </div>
+
+                                        {/* 力量/举重/街力 特有总和展示 */}
+                                        {['powerlifting', 'weightlifting', 'streetlifting'].includes(cardKey) && (
+                                            <div className="px-3 py-1 rounded-full bg-surface-900 text-surface text-[10px] font-black italic shadow-md">
+                                                总计 : {
+                                                    cardKey === 'powerlifting' ? getPowerliftingTotal(cardData) :
+                                                        cardKey === 'weightlifting' ? getWeightliftingTotal(cardData) :
+                                                            getStreetliftingTotal(cardData)
+                                                } KG
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 紧凑型输入网格 */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                        {Object.keys(cardData || {}).map((field) => (
+                                            <div key={field}>
+                                                <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
+                                                    {fieldLabelMap[field] || field}
+                                                </label>
+                                                <InputNumber
+                                                    value={cardData[field]}
+                                                    onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
+                                                    inputClassName="w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                    placeholder="0"
+                                                    suffix={['best5k', 'totalDistance', 'maxDistance'].includes(field) ? "" : " kg"}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            );
+                        })}
 
-                    {/* 2. 街头力量举卡片表单 */}
-                    {formData.sportCards.activeCards.includes('streetlifting') && (
-                        <div className="p-4 bg-lime-50 rounded-xl border border-lime-200">
-                            <h4 className="text-sm font-semibold text-lime-700 mb-3 flex items-center gap-2">
-                                <Dumbbell className="w-4 h-4" />
-                                街头力量举数据
-                            </h4>
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="sl_pullup" value={formData.sportCards.streetlifting?.weightedPullup} onValueChange={(e) => updateCardData('streetlifting', 'weightedPullup', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="sl_pullup">负重引体 1RM</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="sl_dip" value={formData.sportCards.streetlifting?.weightedDip} onValueChange={(e) => updateCardData('streetlifting', 'weightedDip', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="sl_dip">负重双杠 1RM</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="sl_muscleup" value={formData.sportCards.streetlifting?.weightedMuscleUp} onValueChange={(e) => updateCardData('streetlifting', 'weightedMuscleUp', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="sl_muscleup">负重双力臂 1RM</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="sl_squat" value={formData.sportCards.streetlifting?.squat} onValueChange={(e) => updateCardData('streetlifting', 'squat', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="sl_squat">深蹲 1RM</label>
-                                </FloatLabel>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 3. 街头健身卡片表单 */}
-                    {formData.sportCards.activeCards.includes('calisthenics') && (
-                        <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                            <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
-                                <User className="w-4 h-4" />
-                                街头健身数据
-                            </h4>
-                            <div className="grid grid-cols-3 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cal_pullups" value={formData.sportCards.calisthenics?.maxPullups} onValueChange={(e) => updateCardData('calisthenics', 'maxPullups', e.value ?? null)} className="w-full" suffix=" 次" />
-                                    <label htmlFor="cal_pullups">最大引体</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cal_dips" value={formData.sportCards.calisthenics?.maxDips} onValueChange={(e) => updateCardData('calisthenics', 'maxDips', e.value ?? null)} className="w-full" suffix=" 次" />
-                                    <label htmlFor="cal_dips">最大双杠</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cal_muscleups" value={formData.sportCards.calisthenics?.maxMuscleUps} onValueChange={(e) => updateCardData('calisthenics', 'maxMuscleUps', e.value ?? null)} className="w-full" suffix=" 次" />
-                                    <label htmlFor="cal_muscleups">最大双力臂</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cal_frontlever" value={formData.sportCards.calisthenics?.frontLever} onValueChange={(e) => updateCardData('calisthenics', 'frontLever', e.value ?? null)} className="w-full" suffix=" 秒" />
-                                    <label htmlFor="cal_frontlever">前水平</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cal_planche" value={formData.sportCards.calisthenics?.planche} onValueChange={(e) => updateCardData('calisthenics', 'planche', e.value ?? null)} className="w-full" suffix=" 秒" />
-                                    <label htmlFor="cal_planche">俄式挺身</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cal_humanflag" value={formData.sportCards.calisthenics?.humanFlag} onValueChange={(e) => updateCardData('calisthenics', 'humanFlag', e.value ?? null)} className="w-full" suffix=" 秒" />
-                                    <label htmlFor="cal_humanflag">人体旗帜</label>
-                                </FloatLabel>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 4. 举重卡片表单 */}
-                    {formData.sportCards.activeCards.includes('weightlifting') && (
-                        <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-                            <h4 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-                                <Dumbbell className="w-4 h-4" />
-                                举重数据
-                            </h4>
-                            <div className="grid grid-cols-3 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="wl_snatch" value={formData.sportCards.weightlifting?.snatch} onValueChange={(e) => updateCardData('weightlifting', 'snatch', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="wl_snatch">抓举 1RM</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="wl_cj" value={formData.sportCards.weightlifting?.cleanAndJerk} onValueChange={(e) => updateCardData('weightlifting', 'cleanAndJerk', e.value ?? null)} className="w-full" suffix=" kg" />
-                                    <label htmlFor="wl_cj">挺举 1RM</label>
-                                </FloatLabel>
-                                <div className="flex items-center justify-center bg-red-100 rounded-lg p-2 mb-4">
-                                    <span className="text-sm text-red-700">总成绩: <strong>{getWeightliftingTotal(formData.sportCards.weightlifting)} kg</strong></span>
+                        {/* 空状态提示 */}
+                        {formData.sportCards.activeCards.length === 0 && (
+                            <div className="py-20 text-center rounded-[24px] border-2 border-dashed border-surface-100 bg-surface-50/20">
+                                <div className="w-12 h-12 bg-surface rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 border border-surface-50">
+                                    <Activity className="w-6 h-6 text-surface-200" />
                                 </div>
+                                <p className="text-[10px] font-black text-surface-400 tracking-[0.3em] uppercase">
+                                    点击上方磁贴以激活资产配置
+                                </p>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
-                    {/* 5. 健美卡片表单 */}
-                    {formData.sportCards.activeCards.includes('bodybuilding') && (
-                        <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
-                            <h4 className="text-sm font-semibold text-purple-700 mb-3 flex items-center gap-2">
-                                <User className="w-4 h-4" />
-                                健美/形体数据
-                            </h4>
-                            <div className="grid grid-cols-4 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_bodyfat" value={formData.sportCards.bodybuilding?.bodyfat} onValueChange={(e) => updateCardData('bodybuilding', 'bodyfat', e.value ?? null)} className="w-full" suffix=" %" minFractionDigits={1} />
-                                    <label htmlFor="bb_bodyfat">体脂率</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_chest" value={formData.sportCards.bodybuilding?.chest} onValueChange={(e) => updateCardData('bodybuilding', 'chest', e.value ?? null)} className="w-full" suffix=" cm" />
-                                    <label htmlFor="bb_chest">胸围</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_arm" value={formData.sportCards.bodybuilding?.arm} onValueChange={(e) => updateCardData('bodybuilding', 'arm', e.value ?? null)} className="w-full" suffix=" cm" />
-                                    <label htmlFor="bb_arm">臂围</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_waist" value={formData.sportCards.bodybuilding?.waist} onValueChange={(e) => updateCardData('bodybuilding', 'waist', e.value ?? null)} className="w-full" suffix=" cm" />
-                                    <label htmlFor="bb_waist">腰围</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_hip" value={formData.sportCards.bodybuilding?.hip} onValueChange={(e) => updateCardData('bodybuilding', 'hip', e.value ?? null)} className="w-full" suffix=" cm" />
-                                    <label htmlFor="bb_hip">臀围</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_thigh" value={formData.sportCards.bodybuilding?.thigh} onValueChange={(e) => updateCardData('bodybuilding', 'thigh', e.value ?? null)} className="w-full" suffix=" cm" />
-                                    <label htmlFor="bb_thigh">大腿围</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="bb_calf" value={formData.sportCards.bodybuilding?.calf} onValueChange={(e) => updateCardData('bodybuilding', 'calf', e.value ?? null)} className="w-full" suffix=" cm" />
-                                    <label htmlFor="bb_calf">小腿围</label>
-                                </FloatLabel>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 6. 跑步卡片表单 */}
-                    {formData.sportCards.activeCards.includes('running') && (
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                            <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                                <Footprints className="w-4 h-4" />
-                                跑步数据
-                            </h4>
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputText id="run_5k" value={formData.sportCards.running?.fiveK || ''} onChange={(e) => updateCardDataString('running', 'fiveK', e.target.value || null)} className="w-full" placeholder="如 25:30" />
-                                    <label htmlFor="run_5k">5公里用时</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputText id="run_10k" value={formData.sportCards.running?.tenK || ''} onChange={(e) => updateCardDataString('running', 'tenK', e.target.value || null)} className="w-full" placeholder="如 55:00" />
-                                    <label htmlFor="run_10k">10公里用时</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputText id="run_half" value={formData.sportCards.running?.halfMarathon || ''} onChange={(e) => updateCardDataString('running', 'halfMarathon', e.target.value || null)} className="w-full" placeholder="如 2:05:00" />
-                                    <label htmlFor="run_half">半马用时</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputText id="run_full" value={formData.sportCards.running?.marathon || ''} onChange={(e) => updateCardDataString('running', 'marathon', e.target.value || null)} className="w-full" placeholder="如 4:30:00" />
-                                    <label htmlFor="run_full">全马用时</label>
-                                </FloatLabel>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 7. 骑行卡片表单 */}
-                    {formData.sportCards.activeCards.includes('cycling') && (
-                        <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-200">
-                            <h4 className="text-sm font-semibold text-cyan-700 mb-3 flex items-center gap-2">
-                                <Bike className="w-4 h-4" />
-                                骑行数据
-                            </h4>
-                            <div className="grid grid-cols-3 gap-3 pt-2">
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cyc_ftp" value={formData.sportCards.cycling?.ftp} onValueChange={(e) => updateCardData('cycling', 'ftp', e.value ?? null)} className="w-full" suffix=" W" />
-                                    <label htmlFor="cyc_ftp">FTP功率</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cyc_maxpower" value={formData.sportCards.cycling?.maxPower} onValueChange={(e) => updateCardData('cycling', 'maxPower', e.value ?? null)} className="w-full" suffix=" W" />
-                                    <label htmlFor="cyc_maxpower">最大功率</label>
-                                </FloatLabel>
-                                <FloatLabel className='mb-4'>
-                                    <InputNumber id="cyc_distance" value={formData.sportCards.cycling?.maxDistance} onValueChange={(e) => updateCardData('cycling', 'maxDistance', e.value ?? null)} className="w-full" suffix=" km" />
-                                    <label htmlFor="cyc_distance">最长单骑</label>
-                                </FloatLabel>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 没有选择任何卡片的提示 */}
-                    {formData.sportCards.activeCards.length === 0 && (
-                        <div className="text-center py-6 text-surface-400">
-                            <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">点击上方卡片添加您的运动数据</p>
-                            <p className="text-xs mt-1">（可跳过此步骤）</p>
-                        </div>
-                    )}
-
-                    <div className="flex gap-3 sticky bottom-0 bg-white pt-4 pb-2">
+                    {/* 底部导航：非对称过渡反馈 */}
+                    <div className="flex gap-4 pt-6 border-t border-surface-100/50">
                         <Button
                             label="上一步"
-                            icon="pi pi-arrow-left"
                             onClick={handleBack}
-                            outlined
-                            className="flex-1"
+                            className="flex-1 h-14 rounded-2xl bg-surface-50 border-none text-surface-500 font-black active:scale-95 transition-all"
                         />
                         <Button
-                            label="完成"
-                            icon="pi pi-check"
-                            iconPos="right"
+                            label="开启数字化训练"
+                            icon="pi pi-bolt"
                             onClick={handleSubmit}
                             loading={loading}
-                            className="flex-1"
+                            className="flex-[2] h-14 rounded-2xl bg-primary-500 border-none text-surface font-black active:scale-[0.98] transition-all shadow-xl shadow-primary-100"
                         />
                     </div>
                 </div>

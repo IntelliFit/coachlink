@@ -3505,6 +3505,10 @@ export type Database = {
         Args: { p_plan_id: string; p_user_id: string }
         Returns: string
       }
+      toggle_content_like: {
+        Args: { p_content_id: string; p_user_id: string }
+        Returns: Json
+      }
       update_leaderboard_rankings: {
         Args: { challenge_uuid: string }
         Returns: undefined

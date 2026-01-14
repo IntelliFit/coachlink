@@ -16,4 +16,5 @@ export interface RegisterDto {
 
 export interface RegisterResponseDto {
     user: UsersRow;
+    token?: string; // JWT token for automatic login
 }

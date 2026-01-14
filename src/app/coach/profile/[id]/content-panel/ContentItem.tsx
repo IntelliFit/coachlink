@@ -25,7 +25,7 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
     // 渲染缩略图 - 遵循 16px 圆角与微妙光影逻辑
     const renderContentThumbnail = () => {
         const wrapperClass = "relative w-28 h-28 overflow-hidden rounded-2xl bg-surface-100/50 flex-shrink-0 group-hover:shadow-lg transition-all duration-500";
-
+        content.thumbnail_url = 'https://static.vecteezy.com/system/resources/thumbnails/050/472/389/small/highintensity-workout-scene-with-red-gym-equipment-including-barbells-kettlebells-and-resistance-bands-intense-training-concept-in-a-sleek-fitness-environment-photo.jpg';
         if (content.thumbnail_url) {
             return (
                 <div className={wrapperClass}>
