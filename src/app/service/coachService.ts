@@ -207,11 +207,7 @@ class CoachService extends BaseService {
 
     async updateCoachProfile(reqData: UpdateCoachProfileDto) {
         const res = await this.post<UpdateCoachProfileResponseDto>('update-coach-profile', reqData);
-        if (res.data && res.data.success) {
-            return res.data.data;
-        }
-
-        return null;
+        return res;
     }
 
     async getCoachRulepacks(reqData: GetCoachRulepacksDto) {

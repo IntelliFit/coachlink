@@ -3210,14 +3210,13 @@ export type Database = {
           email: string | null
           has_drawn: boolean | null
           id: string
-          invited_visibility_mode: string | null
+          invitation_coach_id: string | null
           is_admin: boolean | null
           is_coach: boolean | null
           last_login_at: string | null
           password_hash: string
           phone: string | null
           primary_role: string | null
-          referrer_coach_id: string | null
           subscription_expires_at: string | null
           subscription_level: string | null
           updated_at: string | null
@@ -3230,14 +3229,13 @@ export type Database = {
           email?: string | null
           has_drawn?: boolean | null
           id?: string
-          invited_visibility_mode?: string | null
+          invitation_coach_id?: string | null
           is_admin?: boolean | null
           is_coach?: boolean | null
           last_login_at?: string | null
           password_hash: string
           phone?: string | null
           primary_role?: string | null
-          referrer_coach_id?: string | null
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
@@ -3250,22 +3248,21 @@ export type Database = {
           email?: string | null
           has_drawn?: boolean | null
           id?: string
-          invited_visibility_mode?: string | null
+          invitation_coach_id?: string | null
           is_admin?: boolean | null
           is_coach?: boolean | null
           last_login_at?: string | null
           password_hash?: string
           phone?: string | null
           primary_role?: string | null
-          referrer_coach_id?: string | null
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "users_referrer_coach_id_fkey"
-            columns: ["referrer_coach_id"]
+            foreignKeyName: "users_invitation_coach_id_fkey"
+            columns: ["invitation_coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
             referencedColumns: ["id"]

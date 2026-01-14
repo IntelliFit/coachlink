@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
         ref,
         shareId,
         invitationCode,
-        invitationMode,
     } = await req.json() as RegisterDto;
 
     const trimmedPhoneOrEmail = phoneOrEmail?.trim();
@@ -65,41 +64,35 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    // 开发模式下接受模拟验证码 123456
-    const useMockSms = process.env.NODE_ENV === "development";
-    const isMockCode = useMockSms && trimmedVerifyCode === "123456";
-
-    if (!isMockCode) {
-        // 生产模式：验证真实验证码
-        if (!redis) {
-            throw new Error("验证服务不可用");
-        }
-
-        // 根据是手机号还是邮箱来查询验证码
-        const verificationKey = isPhone
-            ? `sms_verification_code:${trimmedPhoneOrEmail}`
-            : `email_verification_code:${trimmedPhoneOrEmail}`;
-
-        const storedCode = await redis.get(verificationKey);
-        if (!storedCode) {
-            return NextResponse.json<ApiData<null>>({
-                success: false,
-                message: "验证码已过期或不存在",
-                data: null,
-            });
-        }
-
-        if (storedCode !== trimmedVerifyCode) {
-            return NextResponse.json<ApiData<null>>({
-                success: false,
-                message: "验证码错误",
-                data: null,
-            });
-        }
-
-        // 验证成功后删除验证码，防止重复使用
-        await redis.del(verificationKey);
+    // 生产模式：验证真实验证码
+    if (!redis) {
+        throw new Error("验证服务不可用");
     }
+
+    // 根据是手机号还是邮箱来查询验证码
+    const verificationKey = isPhone
+        ? `sms_verification_code:${trimmedPhoneOrEmail}`
+        : `email_verification_code:${trimmedPhoneOrEmail}`;
+
+    const storedCode = await redis.get(verificationKey);
+    if (!storedCode) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "验证码已过期或不存在",
+            data: null,
+        });
+    }
+
+    if (storedCode !== trimmedVerifyCode) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "验证码错误",
+            data: null,
+        });
+    }
+
+    // 验证成功后删除验证码，防止重复使用
+    await redis.del(verificationKey);
 
     // Check if user already exists by phone or email
     let existingUserQuery;
@@ -131,12 +124,11 @@ export async function POST(req: NextRequest) {
 
     // 处理教练邀请码：查找对应的教练
     let referrerCoachId: string | null = null;
-    const trimmedInvitationCode = invitationCode?.trim().toUpperCase();
-    if (trimmedInvitationCode) {
+    if (invitationCode?.trim()) {
         const { data: coach } = await supabase
             .from("coaches")
             .select("id")
-            .eq("invitation_code", trimmedInvitationCode)
+            .eq("invitation_code", invitationCode?.trim())
             .eq("status", "approved")
             .single();
 
@@ -151,11 +143,6 @@ export async function POST(req: NextRequest) {
         referrerCoachId = coach.id;
     }
 
-    const normalizedInvitationMode =
-        invitationMode === "exclusive" || invitationMode === "open"
-            ? invitationMode
-            : null;
-
     const { data: user } = await supabase
         .from("users")
         .insert({
@@ -163,11 +150,8 @@ export async function POST(req: NextRequest) {
             password_hash,
             created_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
-            ...(referrerCoachId && { referrer_coach_id: referrerCoachId }),
-            ...(referrerCoachId && normalizedInvitationMode && {
-                invited_visibility_mode: normalizedInvitationMode,
-            }),
-        } as any)
+            ...(referrerCoachId && { invitation_coach_id: referrerCoachId }),
+        })
         .select("*")
         .single();
 
@@ -185,7 +169,7 @@ export async function POST(req: NextRequest) {
     //
     // Reward should never block registration.
     try {
-        const inviteeId = (user as any)?.id as string | undefined;
+        const inviteeId = user.id as string | undefined;
         if (!inviteeId) {
             // Shouldn't happen, but avoid throwing
             throw new Error("No inviteeId after registration");

@@ -11,7 +11,7 @@ import { Dialog } from 'primereact/dialog';
 import { useToastContext } from '@/context/ToastContext';
 import { authService } from '../service/authService';
 import { smsService } from '../service/smsService';
-import { Phone, ShieldCheck, ArrowLeft, UserPlus, User, Lock, Dumbbell } from 'lucide-react';
+import { Phone, ShieldCheck, ArrowLeft, UserPlus, User, Lock, Dumbbell, KeyRound } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
 import { sesService } from '../service/sesService';
 
@@ -38,6 +38,7 @@ export default function RegisterPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
+    const [invitationCode, setInvitationCode] = useState('');
     const [countdown, setCountdown] = useState(0);
     const [agreed, setAgreed] = useState(false);
 
@@ -107,7 +108,8 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             const ref = searchParams.get('ref') || undefined;
-            const invitationCode = searchParams.get('invite') || undefined;
+            // Use local state value if available, otherwise check URL param
+            const finalInvitationCode = invitationCode.trim() || searchParams.get('invite') || undefined;
             const invitationModeRaw = searchParams.get('im') || searchParams.get('invitationMode') || undefined;
             const invitationMode =
                 invitationModeRaw === 'exclusive' || invitationModeRaw === 'open'
@@ -128,7 +130,7 @@ export default function RegisterPage() {
                 verifyCode: verificationCode.trim(),
                 ref,
                 shareId,
-                invitationCode,
+                invitationCode: finalInvitationCode,
                 invitationMode,
             });
             if (res) {
@@ -212,11 +214,13 @@ export default function RegisterPage() {
                             </div>
                             <InputText
                                 value={phoneOrEmail}
+                                placeholder="手机号或邮箱"
                                 onChange={(e) => setPhoneOrEmail(e.target.value)}
                                 className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl shadow-primary-500"
                             />
                         </div>
                     </div>
+
 
                     <div className="space-y-2 mb-4">
                         <div className="flex justify-between items-center px-1">
@@ -232,6 +236,7 @@ export default function RegisterPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 toggleMask
+                                placeholder='请输入密码'
                                 promptLabel="请选择密码"
                                 weakLabel="密码太简单"
                                 mediumLabel="密码复杂度一般"
@@ -262,7 +267,7 @@ export default function RegisterPage() {
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
                                 className="w-full"
-                                placeholder=" "
+                                placeholder='请再次输入密码'
                                 toggleMask
                                 feedback={false}
                                 pt={{
@@ -274,6 +279,25 @@ export default function RegisterPage() {
                             />
                         </div>
 
+                    </div>
+
+                    {/* Invitation Code Field */}
+                    <div className='space-y-2 mb-4'>
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">邀请码（可选）</label>
+                            <span></span>
+                        </div>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center text-surface-400 group-focus-within:text-primary-500 transition-colors z-10">
+                                <KeyRound size={18} />
+                            </div>
+                            <InputText
+                                value={invitationCode}
+                                onChange={(e) => setInvitationCode(e.target.value)}
+                                className="w-full pl-12 pr-4 py-4 bg-surface-50 rounded-2xl shadow-primary-500"
+                                placeholder="请输入邀请码（可选）"
+                            />
+                        </div>
                     </div>
 
                     <div className="flex gap-3 mb-4">

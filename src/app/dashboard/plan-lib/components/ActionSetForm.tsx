@@ -381,7 +381,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             min={attr === '休息时间' ? 0.5 : 1}
                             step={attr === '休息时间' ? 0.5 : 1}
                             maxFractionDigits={attr === '休息时间' ? 1 : 0}
-                            showButtons
                             buttonLayout="stacked"
                         />
                     </div>
@@ -429,7 +428,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     max={36}
                                     disabled={saving}
                                     inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
-                                    showButtons
                                     buttonLayout="stacked"
                                 />
                                 <small className="text-500 text-xs ml-1 opacity-50">RM范围1-36，如5RM = 能做5次的最大重量</small>
@@ -448,7 +446,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     max={100}
                                     disabled={saving}
                                     inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
-                                    showButtons
                                     buttonLayout="stacked"
                                 />
                                 <small className="text-500 text-xs ml-1">如80% = 1RM的80%重量</small>
@@ -468,7 +465,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     min={0}
                                     maxFractionDigits={1}
                                     inputClassName='w-full border border-surface-200 rounded-2xl text-sm'
-                                    showButtons
                                     buttonLayout="stacked"
                                 />
                                 <Dropdown

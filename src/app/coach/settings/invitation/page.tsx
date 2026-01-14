@@ -11,46 +11,35 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { useToastContext } from '@/context/ToastContext';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
-
-interface InvitationData {
-    invitationCode: string;
-    invitationMode: 'exclusive' | 'open';
-    inviteUrl: string;
-    inviteUrlExclusive: string;
-    inviteUrlOpen: string;
-    coach: {
-        id: string;
-        name: string;
-        title: string | null;
-        bio: string | null;
-        avatarUrl: string | null;
-        specialties: string[] | null;
-        yearsExperience: number | null;
-        totalStudents: number | null;
-        rating: number | null;
-    };
-}
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { coachService } from '@/app/service/coachService';
+import { GetCoachResponseDto } from '@/app/api/coach/get-coach/entity';
 
 export default function InvitationSettingsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const { showToast } = useToastContext();
 
-    const [data, setData] = useState<InvitationData | null>(null);
+    const [coach, setCoach] = useState<GetCoachResponseDto | null>(null);
     const [loading, setLoading] = useState(true);
-    const [regenerating, setRegenerating] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [savingPoster, setSavingPoster] = useState<'exclusive' | 'open' | null>(null);
+    const [manualCode, setManualCode] = useState('');
+    const [showManualInput, setShowManualInput] = useState(false);
+    const [isSavingManualCode, setIsSavingManualCode] = useState(false);
 
     const posterRefExclusive = React.useRef<HTMLDivElement | null>(null);
     const posterRefOpen = React.useRef<HTMLDivElement | null>(null);
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch('/api/coach/invitation-code');
-            const json = await res.json();
-            if (json.success && json.data) {
-                setData(json.data);
+            const res = await coachService.getCoach({
+                userId: session.user.id,
+                needInvitationInfo: true
+            });
+
+            if (res) {
+                setCoach(res);
             }
         } catch (error) {
             console.error('获取邀请码失败:', error);
@@ -61,18 +50,21 @@ export default function InvitationSettingsPage() {
     }, [showToast]);
 
     useEffect(() => {
-        if (status === 'loading') return;
-        if (!session?.user?.id) {
-            router.push('/login');
+        if (status === 'loading') {
             return;
         }
+
+        if (!session?.user?.id) {
+            return;
+        }
+
         fetchData();
     }, [session, status, router, fetchData]);
 
     const handleCopyCode = async () => {
-        if (!data?.invitationCode) return;
+        if (!coach?.invitationInfo.invitationCode) return;
         try {
-            await navigator.clipboard.writeText(data.invitationCode);
+            await navigator.clipboard.writeText(coach?.invitationInfo.invitationCode);
             showToast({ severity: 'success', summary: '成功', detail: '邀请码已复制' });
         } catch {
             showToast({ severity: 'error', summary: '错误', detail: '复制失败' });
@@ -80,9 +72,9 @@ export default function InvitationSettingsPage() {
     };
 
     const handleCopyLink = async () => {
-        if (!data?.inviteUrl) return;
+        if (!coach?.invitationInfo.inviteUrl) return;
         try {
-            await navigator.clipboard.writeText(data.inviteUrl);
+            await navigator.clipboard.writeText(coach.invitationInfo.inviteUrl);
             showToast({ severity: 'success', summary: '成功', detail: '邀请链接已复制' });
         } catch {
             showToast({ severity: 'error', summary: '错误', detail: '复制失败' });
@@ -90,8 +82,10 @@ export default function InvitationSettingsPage() {
     };
 
     const handleCopyModeLink = async (mode: 'exclusive' | 'open') => {
-        if (!data) return;
-        const url = mode === 'exclusive' ? data.inviteUrlExclusive : data.inviteUrlOpen;
+        if (!coach) {
+            return;
+        }
+        const url = mode === 'exclusive' ? coach.invitationInfo.inviteUrlExclusive : coach.invitationInfo.inviteUrlOpen;
         try {
             await navigator.clipboard.writeText(url);
             showToast({ severity: 'success', summary: '成功', detail: `已复制${mode === 'exclusive' ? '专属' : '公开'}邀请链接` });
@@ -101,7 +95,7 @@ export default function InvitationSettingsPage() {
     };
 
     const savePoster = async (mode: 'exclusive' | 'open') => {
-        if (!data) return;
+        if (!coach) return;
         const target = mode === 'exclusive' ? posterRefExclusive.current : posterRefOpen.current;
         if (!target) return;
         setSavingPoster(mode);
@@ -111,54 +105,17 @@ export default function InvitationSettingsPage() {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const fontsReady = (document as any)?.fonts?.ready;
                 if (fontsReady) await fontsReady;
-            } catch {}
+            } catch { }
 
             const rect = target.getBoundingClientRect();
             const canvas = await html2canvas(target, {
-                backgroundColor: '#ffffff',
-                scale: 2,
+                background: '#ffffff',
                 useCORS: true,
                 logging: false,
-                removeContainer: true,
-                // Ensure correct capture when page is scrolled
-                scrollX: -window.scrollX,
-                scrollY: -window.scrollY,
-                // Fix some edge cases where html2canvas mis-measures bounds
                 width: Math.ceil(rect.width),
                 height: Math.ceil(rect.height),
-                onclone: (doc) => {
-                    try {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (doc.documentElement as any).style.webkitTextSizeAdjust = '100%';
-                    } catch {}
-
-                    const modeAttr = mode === 'exclusive' ? 'exclusive' : 'open';
-                    const clonedRoot = doc.querySelector(
-                        `[data-poster-root="${modeAttr}"]`,
-                    ) as HTMLElement | null;
-                    if (!clonedRoot) return;
-
-                    const safeTexts = clonedRoot.querySelectorAll(
-                        '[data-h2c-safe-text="1"]',
-                    ) as NodeListOf<HTMLElement>;
-                    safeTexts.forEach((el) => {
-                        // Avoid top-crop in some mobile webviews by making line box taller and nudging down
-                        el.style.display = 'inline-block';
-                        el.style.overflow = 'visible';
-                        el.style.lineHeight = '1.35';
-                        el.style.paddingTop = '3px';
-                        el.style.paddingBottom = '2px';
-                        el.style.transform = 'translateY(1px)';
-                    });
-
-                    // During export, relax truncation overflow (ellipsis is less important than not clipping)
-                    const truncs = clonedRoot.querySelectorAll('.truncate') as NodeListOf<HTMLElement>;
-                    truncs.forEach((el) => {
-                        el.style.overflow = 'visible';
-                    });
-                },
             });
-            const filename = `coach-invite-${mode}-${data.invitationCode}.png`;
+            const filename = `coach-invite-${mode}-${coach.invitationInfo.invitationCode}.png`;
 
             // Prefer Blob download (more compatible than huge data URLs on some devices)
             const blob: Blob | null = await new Promise((resolve) =>
@@ -181,44 +138,88 @@ export default function InvitationSettingsPage() {
             showToast({ severity: 'success', summary: '已保存', detail: '邀请海报已保存到本地' });
         } catch (e) {
             console.error(e);
-            showToast({ severity: 'error', summary: '保存失败', detail: '请重试或截图分享' });
+            showToast({ severity: 'error', summary: '保存失败', detail: '�������重试或截图分享' });
         } finally {
             setSavingPoster(null);
         }
     };
 
-    const handleRegenerate = async () => {
-        setRegenerating(true);
-        try {
-            const res = await fetch('/api/coach/invitation-code', { method: 'POST' });
-            const json = await res.json();
-            if (json.success && json.data) {
-                setData(prev => prev ? { ...prev, ...json.data } : json.data);
-                showToast({ severity: 'success', summary: '成功', detail: '邀请码已重新生成' });
-            } else {
-                showToast({ severity: 'error', summary: '错误', detail: json.message || '重新生成失败' });
-            }
-        } catch {
-            showToast({ severity: 'error', summary: '错误', detail: '重新生成失败' });
-        } finally {
-            setRegenerating(false);
+    const handleSaveManualCode = async () => {
+        // 1. 格式校验
+        if (!/^\d{3,8}$/.test(manualCode)) {
+            showToast({
+                severity: 'error',
+                summary: '格式错误',
+                detail: '邀请码必须是3-8位数字'
+            });
+            return;
         }
+
+        // 2. 触发 PrimeReact 确认弹窗
+        confirmDialog({
+            message: `确定要将邀请码设置为 "${manualCode}" 吗？设置后将无法更改！`,
+            header: '确认修改邀请码',
+            icon: 'pi pi-exclamation-triangle',
+            defaultFocus: 'accept',
+            acceptLabel: '确定设置',
+            rejectLabel: '取消',
+            acceptClassName: 'p-button-danger rounded-xl', // 延续你的圆角 UI 风格
+            rejectClassName: 'p-button-text text-surface-500 rounded-xl',
+            accept: async () => {
+                // 3. 用户点击“确定”后的执行逻辑
+                setIsSavingManualCode(true);
+                const res = await coachService.updateCoachProfile({
+                    userId: session.user.id,
+                    invitationCode: manualCode
+                });
+
+                if (res.data.success) {
+                    setCoach(prev => prev ? {
+                        ...prev,
+                        invitationInfo: {
+                            invitationCode: manualCode,
+                            invitationMode: prev.invitationInfo.invitationMode,
+                            inviteUrl: `${prev.invitationInfo.inviteUrl.split('?')[0]}?invite=${manualCode}`,
+                            inviteUrlExclusive: `${prev.invitationInfo.inviteUrlExclusive.split('?')[0]}?invite=${manualCode}&im=exclusive`,
+                            inviteUrlOpen: `${prev.invitationInfo.inviteUrlOpen.split('?')[0]}?invite=${manualCode}&im=open`,
+                        }
+                    } : null);
+
+                    setManualCode('');
+                    setShowManualInput(false);
+                    showToast({ severity: 'success', summary: '设置成功' });
+                } else {
+                    showToast({ severity: 'error', summary: '保存邀请码失败', detail: res.data.message });
+                }
+
+                setIsSavingManualCode(false);
+
+            }
+        });
     };
 
     const handleModeChange = async (isExclusive: boolean) => {
         setUpdating(true);
         try {
-            const res = await fetch('/api/coach/invitation-code', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ invitationMode: isExclusive ? 'exclusive' : 'open' }),
+            const res = await coachService.updateCoachProfile({
+                userId: session.user.id,
+                invitationMode: isExclusive ? 'exclusive' : 'open'
             });
-            const json = await res.json();
-            if (json.success) {
-                setData(prev => prev ? { ...prev, invitationMode: isExclusive ? 'exclusive' : 'open' } : null);
-                showToast({ severity: 'success', summary: '成功', detail: json.message });
+
+            if (res.data.success) {
+                setCoach(prev => prev ? {
+                    ...prev,
+                    invitationInfo: {
+                        invitationCode: prev.invitationInfo.invitationCode,
+                        invitationMode: isExclusive ? 'exclusive' : 'open',
+                        inviteUrl: prev.invitationInfo.inviteUrl,
+                        inviteUrlExclusive: prev.invitationInfo.inviteUrlExclusive,
+                        inviteUrlOpen: prev.invitationInfo.inviteUrlOpen
+                    }
+                } : null);
+                showToast({ severity: 'success', summary: '成功' });
             } else {
-                showToast({ severity: 'error', summary: '错误', detail: json.message || '更新失败' });
+                showToast({ severity: 'error', summary: '错误', detail: res.data.message });
             }
         } catch {
             showToast({ severity: 'error', summary: '错误', detail: '更新失败' });
@@ -237,6 +238,8 @@ export default function InvitationSettingsPage() {
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog />
+
             {/* 邀请码卡片 */}
             <Card title="我的邀请码" subTitle="分享此邀请码或链接，学员注册后将自动与您建立关联">
                 <div className="space-y-4">
@@ -245,7 +248,7 @@ export default function InvitationSettingsPage() {
                         <label className="block text-sm font-medium text-surface-700 mb-2">邀请码</label>
                         <div className="flex gap-2">
                             <InputText
-                                value={data?.invitationCode || ''}
+                                value={coach?.invitationInfo.invitationCode || ''}
                                 readOnly
                                 className="flex-1 text-center font-mono text-lg tracking-widest"
                             />
@@ -255,22 +258,63 @@ export default function InvitationSettingsPage() {
                                 onClick={handleCopyCode}
                                 tooltip="复制邀请码"
                             />
-                            <Button
-                                icon={regenerating ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'}
-                                className="p-button-outlined"
-                                onClick={handleRegenerate}
-                                disabled={regenerating}
-                                tooltip="重新生成"
-                            />
+                            {/* Show manual input button if invitation code is empty */}
+                            {!(coach?.invitationInfo.invitationCode) && (
+                                <Button
+                                    label="手动设置"
+                                    className="p-button-outlined"
+                                    onClick={() => setShowManualInput(true)}
+                                    tooltip="手动设置邀请码"
+                                />
+                            )}
+
                         </div>
                     </div>
+
+                    {/* Manual Invitation Code Input */}
+                    {showManualInput && (
+                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2 mb-3">
+                                <i className="pi pi-info-circle text-blue-500" />
+                                <span className="font-medium text-blue-800">手动设置邀请码</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <InputText
+                                    value={manualCode}
+                                    onChange={(e) => setManualCode(e.target.value.replace(/\D/g, '').substring(0, 8))}
+                                    placeholder="输入3-8位数字邀请码"
+                                    className="flex-1"
+                                    maxLength={8}
+                                />
+                                <Button
+                                    label="保存"
+                                    icon={isSavingManualCode ? 'pi pi-spin pi-spinner' : 'pi pi-save'}
+                                    className="p-button-success"
+                                    onClick={handleSaveManualCode}
+                                    disabled={isSavingManualCode || !manualCode.trim()}
+                                />
+                                <Button
+                                    icon="pi pi-times"
+                                    className="p-button-outlined p-button-secondary"
+                                    onClick={() => {
+                                        setManualCode('');
+                                        setShowManualInput(false);
+                                    }}
+                                    tooltip="取消"
+                                />
+                            </div>
+                            <p className="text-xs text-blue-600 mt-2">
+                                注意：邀请码只能设置一次，设置后将无法更改！邀请码必须是3-8位数字。
+                            </p>
+                        </div>
+                    )}
 
                     {/* 邀请链接 */}
                     <div>
                         <label className="block text-sm font-medium text-surface-700 mb-2">邀请链接</label>
                         <div className="flex gap-2">
                             <InputText
-                                value={data?.inviteUrl || ''}
+                                value={coach?.invitationInfo.inviteUrl || ''}
                                 readOnly
                                 className="flex-1 text-sm text-surface-500"
                             />
@@ -352,53 +396,53 @@ export default function InvitationSettingsPage() {
                                                     border: '1px solid rgba(255,255,255,0.15)',
                                                 }}
                                             >
-                                                {data?.coach?.avatarUrl ? (
+                                                {coach?.coach.avatar_url ? (
                                                     <img
-                                                        src={data.coach.avatarUrl}
+                                                        src={coach.coach.avatar_url}
                                                         alt="coach avatar"
                                                         className="w-full h-full object-cover"
                                                         crossOrigin="anonymous"
                                                     />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-white font-black text-xl">
-                                                        {(data?.coach?.name || 'C').charAt(0)}
+                                                    <div className="w-full h-full flex items-center justify-center text-surface font-black text-xl">
+                                                        {(coach?.coach?.name || 'C').charAt(0)}
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div
                                                     data-h2c-safe-text="1"
-                                                    className="text-white text-xl font-black tracking-tight leading-snug truncate"
+                                                    className="text-surface text-xl font-black tracking-tight leading-snug truncate"
                                                     style={{ paddingTop: '1px', lineHeight: '1.15' }}
                                                 >
-                                                    {data?.coach?.name || '教练'}
+                                                    {coach?.coach?.name || '教练'}
                                                 </div>
                                                 <div className="text-sm mt-1 truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>
-                                                    {data?.coach?.title || '私人训练 / 体能提升'}
+                                                    {coach?.coach?.title || '私人训练 / 体能提升'}
                                                 </div>
                                                 <div className="text-[12px] mt-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>
-                                                    {data?.coach?.yearsExperience != null ? `训练经验 ${data.coach.yearsExperience} 年` : '在线指导 · 训练计划 · 打卡监督'}
+                                                    {coach?.coach?.years_experience != null ? `训练经验 ${coach.coach.years_experience} 年` : '在线指导 · 训练计划 · 打卡监督'}
                                                 </div>
                                                 <div className="text-[11px] mt-2 truncate" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                                                    {(data?.coach?.specialties && data.coach.specialties.length > 0)
-                                                        ? data.coach.specialties.slice(0, 3).join(' · ')
+                                                    {(coach?.coach?.specialties && coach.coach.specialties.length > 0)
+                                                        ? coach.coach.specialties.slice(0, 3).join(' · ')
                                                         : '训练计划 · 饮食建议 · 监督打卡'}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="mt-4 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.80)' }}>
-                                            {data?.coach?.bio
-                                                ? data.coach.bio.slice(0, 52) + (data.coach.bio.length > 52 ? '…' : '')
+                                            {coach?.coach?.bio
+                                                ? coach.coach.bio.slice(0, 52) + (coach.coach.bio.length > 52 ? '…' : '')
                                                 : '一起科学训练：动作要领、训练计划、逐步加量，带你更稳更强。'}
                                         </div>
 
                                         <div className="mt-5 flex items-center gap-4 rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
                                             <div className="p-2 rounded-xl" style={{ background: '#ffffff' }}>
-                                                <QRCodeSVG value={data?.inviteUrlExclusive || ''} size={84} level="M" />
+                                                <QRCodeSVG value={coach?.invitationInfo.inviteUrlExclusive || ''} size={84} level="M" />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="text-white font-black text-base">扫码 · 立即注册</div>
+                                                <div className="text-surface font-black text-base">扫码 · 立即注册</div>
                                                 <div className="text-[12px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
                                                     注册后可查看教练主页、训练内容与计划
                                                 </div>
@@ -431,7 +475,7 @@ export default function InvitationSettingsPage() {
                             </div>
 
                             <div className="text-xs text-surface-500 break-all font-mono bg-surface-50 border border-surface-200 rounded-lg p-3">
-                                {data?.inviteUrlExclusive || ''}
+                                {coach?.invitationInfo.inviteUrlExclusive || ''}
                             </div>
                         </div>
                     </div>
@@ -494,53 +538,53 @@ export default function InvitationSettingsPage() {
                                                     border: '1px solid rgba(255,255,255,0.15)',
                                                 }}
                                             >
-                                                {data?.coach?.avatarUrl ? (
+                                                {coach?.coach?.avatar_url ? (
                                                     <img
-                                                        src={data.coach.avatarUrl}
+                                                        src={coach.coach.avatar_url}
                                                         alt="coach avatar"
                                                         className="w-full h-full object-cover"
                                                         crossOrigin="anonymous"
                                                     />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-white font-black text-xl">
-                                                        {(data?.coach?.name || 'C').charAt(0)}
+                                                    <div className="w-full h-full flex items-center justify-center text-surface font-black text-xl">
+                                                        {(coach?.coach?.name || 'C').charAt(0)}
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div
                                                     data-h2c-safe-text="1"
-                                                    className="text-white text-xl font-black tracking-tight leading-snug truncate"
+                                                    className="text-surface text-xl font-black tracking-tight leading-snug truncate"
                                                     style={{ paddingTop: '1px', lineHeight: '1.15' }}
                                                 >
-                                                    {data?.coach?.name || '教练'}
+                                                    {coach?.coach?.name || '教练'}
                                                 </div>
                                                 <div className="text-sm mt-1 truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>
-                                                    {data?.coach?.title || '训练陪伴 / 目标达成'}
+                                                    {coach?.coach?.title || '训练陪伴 / 目标达成'}
                                                 </div>
                                                 <div className="text-[12px] mt-1.5" style={{ color: 'rgba(255,255,255,0.70)' }}>
-                                                    {data?.coach?.yearsExperience != null ? `训练经验 ${data.coach.yearsExperience} 年` : '在线指导 · 训练计划 · 打卡监督'}
+                                                    {coach?.coach?.years_experience != null ? `训练经验 ${coach.coach.years_experience} 年` : '在线指导 · 训练计划 · 打卡监督'}
                                                 </div>
                                                 <div className="text-[11px] mt-2 truncate" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                                                    {(data?.coach?.specialties && data.coach.specialties.length > 0)
-                                                        ? data.coach.specialties.slice(0, 3).join(' · ')
+                                                    {(coach?.coach?.specialties && coach.coach.specialties.length > 0)
+                                                        ? coach.coach.specialties.slice(0, 3).join(' · ')
                                                         : '科学训练 · 习惯养成 · 自我提升'}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="mt-4 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.80)' }}>
-                                            {data?.coach?.bio
-                                                ? data.coach.bio.slice(0, 52) + (data.coach.bio.length > 52 ? '…' : '')
+                                            {coach?.coach?.bio
+                                                ? coach.coach.bio.slice(0, 52) + (coach.coach.bio.length > 52 ? '…' : '')
                                                 : '一起科学训练：动作要领、训练计划、逐步加量，带你更稳更强。'}
                                         </div>
 
                                         <div className="mt-5 flex items-center gap-4 rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
                                             <div className="p-2 rounded-xl" style={{ background: '#ffffff' }}>
-                                                <QRCodeSVG value={data?.inviteUrlOpen || ''} size={84} level="M" />
+                                                <QRCodeSVG value={coach?.invitationInfo.inviteUrlOpen || ''} size={84} level="M" />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="text-white font-black text-base">扫码 · 立即注册</div>
+                                                <div className="text-surface font-black text-base">扫码 · 立即注册</div>
                                                 <div className="text-[12px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
                                                     注册后可查看教练主页、训练内容与计划
                                                 </div>
@@ -573,7 +617,7 @@ export default function InvitationSettingsPage() {
                             </div>
 
                             <div className="text-xs text-surface-500 break-all font-mono bg-surface-50 border border-surface-200 rounded-lg p-3">
-                                {data?.inviteUrlOpen || ''}
+                                {coach?.invitationInfo.inviteUrlOpen || ''}
                             </div>
                         </div>
                     </div>
@@ -586,13 +630,13 @@ export default function InvitationSettingsPage() {
                     <div className="flex items-center justify-between p-4 bg-surface-50 rounded-lg">
                         <div>
                             <div className="flex items-center gap-2">
-                                <i className={`pi ${data?.invitationMode === 'exclusive' ? 'pi-shield text-orange-500' : 'pi-globe text-blue-500'}`}></i>
+                                <i className={`pi ${coach?.invitationInfo.invitationMode === 'exclusive' ? 'pi-shield text-orange-500' : 'pi-globe text-blue-500'}`}></i>
                                 <span className="font-medium">
-                                    {data?.invitationMode === 'exclusive' ? '专属模式' : '开放模式'}
+                                    {coach?.invitationInfo.invitationMode === 'exclusive' ? '专属模式' : '开放模式'}
                                 </span>
                             </div>
                             <p className="text-sm text-surface-500 mt-1 max-w-md">
-                                {data?.invitationMode === 'exclusive' 
+                                {coach?.invitationInfo.invitationMode === 'exclusive'
                                     ? '学员在订阅期内只能看到您的信息，有效防止学员流失'
                                     : '学员可以自由浏览平台所有教练，适合开放推广场景'
                                 }
@@ -602,7 +646,7 @@ export default function InvitationSettingsPage() {
                             </p>
                         </div>
                         <InputSwitch
-                            checked={data?.invitationMode === 'exclusive'}
+                            checked={coach?.invitationInfo.invitationMode === 'exclusive'}
                             onChange={(e) => handleModeChange(e.value)}
                             disabled={updating}
                         />
