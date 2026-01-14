@@ -1,3 +1,5 @@
+import { UsersRow } from "@/types";
+
 export interface RegisterDto {
     phoneOrEmail: string;
     password: string;
@@ -13,5 +15,5 @@ export interface RegisterDto {
 }
 
 export interface RegisterResponseDto {
-    user: any;
+    user: UsersRow;
 }

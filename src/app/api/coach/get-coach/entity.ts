@@ -5,6 +5,7 @@ export interface GetCoachDto {
     userId?: string;
     needQrCode?: boolean;
     needPaymentInfo?: boolean; // 是否需要支付相关信息
+    needInvitationInfo?: boolean;
 }
 
 export interface QrCodeItem {
@@ -19,5 +20,12 @@ export interface GetCoachResponseDto {
         effectivePaymentMode: "qrcode" | "alipay_api" | "both";
         allowPersonalQrcode: boolean;
         qrCodes: QrCodeItem[];
+    };
+    invitationInfo?: {
+        invitationCode: string;
+        invitationMode: "exclusive" | "open";
+        inviteUrl: string;
+        inviteUrlExclusive: string;
+        inviteUrlOpen: string;
     };
 }
