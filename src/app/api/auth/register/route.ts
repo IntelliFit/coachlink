@@ -86,13 +86,17 @@ export async function POST(req: NextRequest) {
         await redis.del(`sms_verification_code:${trimmedPhone}`);
     }
 
-    const { data: existingUser } = await supabase
+    const { data: existingUsers, error: existingUserError } = await supabase
         .from("users")
         .select("id")
         .eq("phone", trimmedPhone)
-        .single();
+        .limit(2);
 
-    if (existingUser) {
+    if (existingUserError) {
+        console.warn("[register] failed to check existing user:", existingUserError.message);
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: "手机号已注册",
@@ -106,13 +110,14 @@ export async function POST(req: NextRequest) {
     let referrerCoachId: string | null = null;
     const trimmedInvitationCode = invitationCode?.trim().toUpperCase();
     if (trimmedInvitationCode) {
-        const { data: coach } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: coach } = await (supabase as any)
             .from("coaches")
             .select("id")
             .eq("invitation_code", trimmedInvitationCode)
             // coaches.status 的真实值域是 pending/approved/rejected/suspended（无 active）
             .eq("status", "approved")
-            .single();
+            .maybeSingle();
 
         if (!coach?.id) {
             return NextResponse.json<ApiData<null>>({
@@ -130,20 +135,55 @@ export async function POST(req: NextRequest) {
             ? invitationMode
             : null;
 
-    const { data: user } = await supabase
-        .from("users")
-        .insert({
-            phone: trimmedPhone,
-            password_hash,
-            created_at: new Date().toISOString(),
-            last_login_at: new Date().toISOString(),
-            ...(referrerCoachId && { referrer_coach_id: referrerCoachId }),
-            ...(referrerCoachId && normalizedInvitationMode && {
-                invited_visibility_mode: normalizedInvitationMode,
-            }),
-        } as any)
-        .select("*")
-        .single();
+    // Use service role on the server to avoid RLS/returning issues causing "fake success" on mobile.
+    const nowIso = new Date().toISOString();
+    const baseInsert: any = {
+        phone: trimmedPhone,
+        password_hash,
+        created_at: nowIso,
+        last_login_at: nowIso,
+        ...(referrerCoachId && { referrer_coach_id: referrerCoachId }),
+    };
+
+    const insertWith = async (payload: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (serviceRoleSupabase as any)
+            .from("users")
+            .insert(payload)
+            .select("*")
+            .single();
+    };
+
+    // Try to write invited_visibility_mode when the schema supports it; otherwise gracefully retry.
+    let insertPayload: any = baseInsert;
+    if (referrerCoachId && normalizedInvitationMode) {
+        insertPayload = {
+            ...baseInsert,
+            invited_visibility_mode: normalizedInvitationMode,
+        };
+    }
+
+    let { data: user, error: insertError } = await insertWith(insertPayload);
+
+    // Backward-compatible fallback: environments that haven't applied the migration yet
+    // will error with PGRST204 about missing column in schema cache.
+    if (
+        insertError &&
+        typeof (insertError as any)?.message === "string" &&
+        (insertError as any).message.includes("invited_visibility_mode")
+    ) {
+        console.warn("[register] invited_visibility_mode not in schema, retry without it");
+        ({ data: user, error: insertError } = await insertWith(baseInsert));
+    }
+
+    if (insertError || !user) {
+        console.error("[register] failed to insert user:", insertError);
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: insertError?.message || "注册失败，请重试",
+            data: null,
+        }, { status: 200 });
+    }
 
     // --- Acquisition Rewards (MVP) ---
     // Two sources:

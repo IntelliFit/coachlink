@@ -60,15 +60,26 @@ export const authOptions: AuthOptions = {
                 }
 
                 // 查询用户（两种登录方式都需要）
-                const { data: user, error: userError } = await supabase
+                const { data: users, error: userError } = await supabase
                     .from("users")
                     .select("*")
                     .eq("phone", phone)
-                    .single();
+                    .order("created_at", { ascending: false })
+                    .limit(2);
 
-                if (userError || !user) {
-                    throw new Error("用户不存在\n" + userError?.message);
+                if (userError) {
+                    throw new Error("登录失败\n" + userError.message);
                 }
+
+                if (!users || users.length === 0) {
+                    throw new Error("用户不存在");
+                }
+
+                if (users.length > 1) {
+                    console.warn("[auth] duplicate users with same phone, using latest:", phone);
+                }
+
+                const user = users[0] as any;
 
                 // 方式 1：验证码登录（手机号 + 验证码）
                 if (verifyCode && !password) {
