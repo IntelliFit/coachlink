@@ -9,6 +9,7 @@ import { ProgressBar } from 'primereact/progressbar';
 import { Skeleton } from 'primereact/skeleton';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
@@ -92,6 +93,8 @@ function TrainingExecutionContent() {
     const [cardioDistance, setCardioDistance] = useState<number | null>(null); // km
     const [cardioDuration, setCardioDuration] = useState<number | null>(null); // minutes
     const [editingSetKey, setEditingSetKey] = useState<string | null>(null);
+    const [videoLink, setVideoLink] = useState<string>('');
+    const [linkedVideo, setLinkedVideo] = useState<{ id: string; url: string } | null>(null);
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
@@ -278,6 +281,40 @@ function TrainingExecutionContent() {
             let uploadedVideoUrl: string | undefined;
             let uploadedVideoId: string | undefined;
             let hasVideo = false;
+
+            // 1.0 If user pasted a link but didn't click "绑定链接", auto-bind on completion.
+            if (!linkedVideo?.url && videoLink.trim()) {
+                try {
+                    setUploading(true);
+                    const res = await executionService.addSetVideoLink({
+                        executionId: execution.id,
+                        actionId: actionExecution.action_id,
+                        setNumber: setIndex + 1,
+                        videoUrl: videoLink.trim(),
+                    });
+                    if (res.success && res.data?.id && res.data.video_url) {
+                        setLinkedVideo({ id: res.data.id, url: res.data.video_url });
+                        uploadedVideoUrl = res.data.video_url;
+                        uploadedVideoId = res.data.id;
+                        hasVideo = true;
+                    } else {
+                        showToast({
+                            severity: "warn",
+                            summary: "链接绑定失败",
+                            detail: res.message || "将继续保存本组，但不会附带视频链接",
+                        });
+                    }
+                } finally {
+                    setUploading(false);
+                }
+            }
+
+            // 1.1 If user pasted a link, use it as the attached video
+            if (linkedVideo?.url) {
+                uploadedVideoUrl = linkedVideo.url;
+                uploadedVideoId = linkedVideo.id;
+                hasVideo = true;
+            }
             if (videoFile) {
                 try {
                     setUploading(true);
@@ -390,6 +427,8 @@ function TrainingExecutionContent() {
                 setSetNotes('');
                 setMarkAsPR(false);
                 setVideoFile(null);
+            setVideoLink('');
+            setLinkedVideo(null);
                 setShowOptionalFields(false);
             setEditingSetKey(null);
             // Keep details expanded for edited set so user can confirm changes
@@ -931,7 +970,85 @@ function TrainingExecutionContent() {
                                                                         删除
                                                                     </button>
                                                                 )}
-                                                                        </div>
+                                                                </div>
+
+                                                                <div className="pt-2 border-t border-surface-100">
+                                                                    <div className="text-xs text-surface-500 font-medium mb-2">
+                                                                        或粘贴视频链接（不占用存储；建议 mp4 直链，外站可能无法内嵌播放）
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <InputText
+                                                                            value={videoLink}
+                                                                            onChange={(e) => setVideoLink(e.target.value)}
+                                                                            placeholder="粘贴视频链接（https://...）"
+                                                                            className="flex-1 min-w-[220px]"
+                                                                        />
+                                                                        <Button
+                                                                            label={linkedVideo ? "已绑定链接" : "绑定链接"}
+                                                                            size="small"
+                                                                            outlined
+                                                                            severity={linkedVideo ? "success" : "secondary"}
+                                                                            onClick={async () => {
+                                                                                if (!execution) return;
+                                                                                const url = videoLink.trim();
+                                                                                if (!url) {
+                                                                                    showToast({
+                                                                                        severity: "warn",
+                                                                                        summary: "还差一步",
+                                                                                        detail: "请先粘贴视频链接",
+                                                                                    });
+                                                                                    return;
+                                                                                }
+                                                                                try {
+                                                                                    setUploading(true);
+                                                                                    const res = await executionService.addSetVideoLink({
+                                                                                        executionId: execution.id,
+                                                                                        actionId: actionExecution.action_id,
+                                                                                        setNumber: setIndex + 1,
+                                                                                        videoUrl: url,
+                                                                                    });
+                                                                                    if (res.success && res.data?.id && res.data.video_url) {
+                                                                                        setLinkedVideo({ id: res.data.id, url: res.data.video_url });
+                                                                                        showToast({
+                                                                                            severity: "success",
+                                                                                            summary: "链接已绑定",
+                                                                                            detail: "已绑定视频链接，完成本组时会一并保存",
+                                                                                        });
+                                                                                    } else {
+                                                                                        showToast({
+                                                                                            severity: "error",
+                                                                                            summary: "绑定失败",
+                                                                                            detail: res.message || "无法绑定链接",
+                                                                                        });
+                                                                                    }
+                                                                                } finally {
+                                                                                    setUploading(false);
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        {!linkedVideo && videoLink.trim() && (
+                                                                            <span className="text-[11px] font-bold text-surface-500">
+                                                                                已填链接（点击完成时会自动绑定）
+                                                                            </span>
+                                                                        )}
+                                                                        {linkedVideo && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="text-xs text-red-400 hover:text-red-300"
+                                                                                onClick={() => {
+                                                                                    setLinkedVideo(null);
+                                                                                    showToast({
+                                                                                        severity: "info",
+                                                                                        summary: "已取消",
+                                                                                        detail: "已取消绑定的视频链接",
+                                                                                    });
+                                                                                }}
+                                                                            >
+                                                                                取消绑定
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                                     </div>
                                                                 )}
                                                             </div>
