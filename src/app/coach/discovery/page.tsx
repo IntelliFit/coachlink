@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -30,7 +30,7 @@ const CoachDiscoveryPage: React.FC = () => {
     const [first, setFirst] = useState(0);
     const coachesPerPage = 10;
     const router = useRouter();
-    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading, isInitialized: isGuideInitialized } = useGuideStore();
+    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading } = useGuideStore();
 
     // 视野状态
     const [visibilityStatus, setVisibilityStatus] = useState<VisibilityStatus | null>(null);
@@ -64,13 +64,13 @@ const CoachDiscoveryPage: React.FC = () => {
     useEffect(() => {
         if (isLoading) return;
         if (!coaches || coaches.length === 0) return;
-        if (isGuideLoading || !isGuideInitialized) return;
+        if (isGuideLoading) return;
         if (hasCompletedGuide('student_find_coach')) return;
         // 专注模式下不显示发现教练的引导
         if (visibilityStatus?.focusMode) return;
         const t = setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 600);
         return () => clearTimeout(t);
-    }, [isLoading, coaches, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized, visibilityStatus]);
+    }, [isLoading, coaches, hasCompletedGuide, startGuide, isGuideLoading, visibilityStatus]);
 
     const loadSpecialties = async () => {
         try {
@@ -174,7 +174,7 @@ const CoachDiscoveryPage: React.FC = () => {
                     <div className="flex items-center gap-4 text-surface-400 text-xs font-medium">
                         <div className="flex items-center gap-1">
                             <Users size={14} />
-                            <span>{coach.total_students || 0} 位学员</span>
+                            <span>{coach.studentCount || 0} 位学员</span>
                         </div>
                         <div className="flex items-center gap-1">
                             <Clock size={14} />
@@ -234,103 +234,132 @@ const CoachDiscoveryPage: React.FC = () => {
         );
     }
 
-    // 正常模式 - 发现教练
-    return (
-        <div className="min-h-screen bg-surface-50/50 py-8 px-4">
-            <div className="max-w-5xl mx-auto">
-                {/* 头部标题区 */}
-                <header className="mb-8">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
-                            <p className="text-surface-500 text-sm mt-1 font-medium">找到最适合你的专业健身伙伴</p>
-                        </div>
-                        <Button
-                            icon="pi pi-question-circle"
-                            label="新手引导"
-                            outlined
-                            size="small"
-                            onClick={() => startGuide('STUDENT_FIND_COACH_GUIDE')}
-                            className="shrink-0"
-                        />
+return (
+    <div className="min-h-screen bg-surface-50/50 py-4 md:py-8 px-4">
+        <div className="max-w-5xl mx-auto">
+            {/* 头部标题区 */}
+            <header className="mb-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-xl md:text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
+                        <p className="text-surface-500 text-sm mt-1">找到最适合你的专业健身伙伴</p>
                     </div>
-
-                    {/* 搜索与筛选区域 */}
-                    <div className="mt-6 flex flex-col md:flex-row gap-3 p-2 bg-surface-0 rounded-lg shadow-sm border border-surface-100">
-                        <div id="guide-discovery-search" className="flex-1 relative flex items-center">
-                            <Search className="absolute left-3 text-surface-400" size={18} />
-                            <InputText
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="搜索姓名或专长..."
-                                className="w-full pl-10 border-none shadow-none bg-transparent py-2.5 text-surface-700"
-                            />
-                        </div>
-                        
-                        <div className="flex gap-2">
-                            <div id="guide-discovery-filter">
-                                <Dropdown
-                                    value={selectedSpecialty}
-                                    options={specialties}
-                                    onChange={(e) => setSelectedSpecialty(e.value)}
-                                    // 核心修复：垂直居中问题
-                                    pt={{
-                                        root: { className: 'w-full md:w-44 bg-surface-50 border-none rounded-lg flex items-center' },
-                                        input: { className: 'flex items-center py-2 px-3 text-sm font-medium text-surface-600' },
-                                        trigger: { className: 'w-10 flex items-center justify-center' }
-                                    }}
-                                />
-                            </div>
-                            <Button
-                                onClick={onSearchOrFilter}
-                                label="搜索"
-                                className="bg-primary-500 border-none px-6 py-2.5 rounded-lg font-bold text-white shadow-sm hover:bg-primary-600"
-                            />
-                        </div>
-                    </div>
-                </header>
-
-                <div className="mb-4 flex items-center justify-between">
-                    <div className="text-xs font-bold text-surface-400 uppercase tracking-wider">
-                        共找到 {totalCount} 位教练
-                    </div>
+                    <Button
+                        icon="pi pi-question-circle"
+                        label={window.innerWidth < 768 ? "" : "新手引导"}
+                        outlined
+                        size="small"
+                        onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
+                        disabled={isGuideLoading}
+                        className="shrink-0 rounded-2xl border-primary-500 text-primary-500"
+                    />
                 </div>
 
-                {/* 列表内容 */}
-                {isLoading || visibilityLoading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-surface-0 rounded-lg p-6 border border-surface-100">
-                                <div className="flex gap-4">
-                                    <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
-                                    <div className="flex-1 space-y-3">
-                                        <Skeleton width="30%" height="1.2rem" />
-                                        <Skeleton width="100%" height="2rem" />
-                                    </div>
+                {/* 搜索与筛选区域 - 响应式单行布局 */}
+                <div className="mt-6 flex items-center gap-2 p-1.5 bg-white rounded-2xl md:rounded-2xl shadow-sm border border-surface-100">
+                    {/* 搜索输入框 */}
+                    <div id="guide-discovery-search" className="flex-1 relative flex items-center">
+                        <Search className="absolute left-3 text-surface-400" size={18} />
+                        <InputText
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="搜索姓名或专长..."
+                            className="w-full pl-10 border-none shadow-none bg-transparent py-2 text-surface-700"
+                        />
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        {/* 筛选区域 */}
+                        <div id="guide-discovery-filter">
+                            {/* PC端：保持文字显示 */}
+                            <Dropdown
+                                value={selectedSpecialty}
+                                options={specialties}
+                                onChange={(e) => setSelectedSpecialty(e.value)}
+                                className="hidden md:flex w-44 bg-surface-50 border-none rounded-lg items-center"
+                                pt={{
+                                    input: { className: 'py-2 px-3 text-sm font-medium text-surface-600' }
+                                }}
+                            />
+                            {/* 移动端：图标化筛选，宽度收缩 */}
+                            <Dropdown
+                                value={selectedSpecialty}
+                                options={specialties}
+                                onChange={(e) => setSelectedSpecialty(e.value)}
+                                className="flex md:hidden bg-surface-50 border-none rounded-xl w-10 h-10 items-center justify-center"
+                                dropdownIcon={() => <Filter size={16} className="text-surface-500" />}
+                                pt={{
+                                    input: { className: 'hidden' },
+                                    trigger: { className: 'w-full h-full' }
+                                }}
+                            />
+                        </div>
+
+                        {/* 搜索按钮 */}
+                        {/* PC端：文字按钮 */}
+                        <Button
+                            onClick={onSearchOrFilter}
+                            label="搜索"
+                            className="hidden md:flex bg-primary-500 border-none px-6 py-2 rounded-xl font-bold text-white shadow-sm"
+                        />
+                        {/* 移动端：图标按钮 */}
+                        <Button
+                            onClick={onSearchOrFilter}
+                            icon="pi pi-search"
+                            className="flex md:hidden bg-primary-500 border-none w-10 h-10 rounded-xl font-bold text-white shadow-sm active:scale-95"
+                        />
+                    </div>
+                </div>
+            </header>
+
+            <div className="mb-4 flex items-center justify-between">
+                <div className="text-xs font-bold text-surface-400 tracking-wider">
+                    共找到 {totalCount} 位教练
+                </div>
+            </div>
+
+            {/* 列表内容区 */}
+            {isLoading || visibilityLoading ? (
+                <div className="space-y-4">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="bg-white rounded-xl p-6 border border-surface-100">
+                            <div className="flex gap-4">
+                                <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
+                                <div className="flex-1 space-y-3">
+                                    <Skeleton width="30%" height="1.2rem" />
+                                    <Skeleton width="100%" height="2rem" />
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                ) : coaches.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-surface-0 rounded-lg border border-surface-100">
-                        <Eye size={40} className="text-surface-200 mb-3" />
-                        <p className="text-surface-500 font-bold">没有找到教练</p>
-                    </div>
-                ) : (
-                    <>
-                        {coaches.map((c, idx) => renderCoachCard(c as any, idx))}
-                        <Paginator
-                            first={first}
-                            rows={coachesPerPage}
-                            totalRecords={totalCount}
-                            onPageChange={(e) => { setFirst(e.first); loadCoaches(e.page + 1); }}
-                            className="bg-transparent border-none py-8"
-                        />
-                    </>
-                )}
-            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : coaches.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-surface-100">
+                    <Eye size={40} className="text-surface-200 mb-3" />
+                    <p className="text-surface-500 font-bold">没有找到相关教练</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {coaches.map((c, idx) => (
+                        <div key={idx} id={idx === 0 ? "guide-discovery-first-coach" : undefined}>
+                            {renderCoachCard(c as any, idx)}
+                        </div>
+                    ))}
+                    <Paginator
+                        first={first}
+                        rows={coachesPerPage}
+                        totalRecords={totalCount}
+                        onPageChange={(e) => { 
+                            setFirst(e.first); 
+                            loadCoaches(e.page + 1); 
+                        }}
+                        className="bg-transparent border-none py-8"
+                    />
+                </div>
+            )}
         </div>
-    );
+    </div>
+);
 };
 
 export default CoachDiscoveryPage;
