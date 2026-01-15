@@ -1517,6 +1517,7 @@ export type Database = {
           form_schema: Json | null
           id: string
           initiator: string | null
+          needReview: boolean | null
           rank_by_field: string
           remarks: string | null
           rules: Json | null
@@ -1524,6 +1525,9 @@ export type Database = {
           start_at: string | null
           title: string
           type: string | null
+          video_storage_bucket: string | null
+          video_storage_path: string | null
+          video_url: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1533,6 +1537,7 @@ export type Database = {
           form_schema?: Json | null
           id?: string
           initiator?: string | null
+          needReview?: boolean | null
           rank_by_field: string
           remarks?: string | null
           rules?: Json | null
@@ -1540,6 +1545,9 @@ export type Database = {
           start_at?: string | null
           title: string
           type?: string | null
+          video_storage_bucket?: string | null
+          video_storage_path?: string | null
+          video_url?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1549,6 +1557,7 @@ export type Database = {
           form_schema?: Json | null
           id?: string
           initiator?: string | null
+          needReview?: boolean | null
           rank_by_field?: string
           remarks?: string | null
           rules?: Json | null
@@ -1556,6 +1565,9 @@ export type Database = {
           start_at?: string | null
           title?: string
           type?: string | null
+          video_storage_bucket?: string | null
+          video_storage_path?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {

@@ -32,6 +32,8 @@ export async function POST(req: Request) {
         end_at,
         rank_by_field,
         sort_order,
+        initiator,
+        needReview,
         type,
         rules,
         form_schema,
@@ -50,6 +52,8 @@ export async function POST(req: Request) {
             sort_order: sort_order || null,
             type: type || null,
             rules: rules || null,
+            initiator: initiator || null,
+            needReview: needReview ?? true,
             form_schema: form_schema || null,
             remarks: remarks || null,
             creator_id: session.user.id

@@ -106,11 +106,21 @@ export async function POST(req: Request) {
         });
     }
 
-    if (data.user_id) {
-        await sendSystemMessage(data.user_id, {
-            content:
-                `你的排行榜条目已被更新，请前往 [我的排行榜](/ranking/${template.id}) 查看`,
-        });
+    if (data.user_id && body.status) {
+
+        switch (body.status) {
+            case "approved":
+                await sendSystemMessage(data.user_id, {
+                    content:
+                        `你的排行榜条目已被通过，请前往 [我的排行榜](/ranking/${template.id}) 查看`,
+                });
+                break;
+            case "rejected":
+                await sendSystemMessage(data.user_id, {
+                    content:
+                        `你的排行榜条目已被拒绝，拒绝理由：${body.note}`
+                });
+        }
     }
 
     return NextResponse.json<ApiData<UpdateEntryResponseDto>>({
