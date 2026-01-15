@@ -22,6 +22,8 @@ interface SubmissionDialogProps {
     formSchema: LeaderboardFormInput[];
     rankByField?: string; // 排序指标字段
     className?: string;
+    needReview: boolean;
+
 }
 
 export default function SubmissionDialog({
@@ -31,7 +33,8 @@ export default function SubmissionDialog({
     templateId,
     formSchema,
     rankByField = 'weight', // 默认按 weight 排序
-    className
+    className,
+    needReview
 }: SubmissionDialogProps) {
     const [formData, setFormData] = useState<any>({});
     const [loading, setLoading] = useState(false);
@@ -71,13 +74,46 @@ export default function SubmissionDialog({
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // 表单验证：检查重要数值字段是否为空
+        for (const field of formSchema) {
+            if (field.type === 'number' && field.required) {
+                const value = formData[field.name];
+                if (value === null || value === undefined || value === '' || isNaN(parseFloat(value))) {
+                    showToast({
+                        severity: 'error',
+                        summary: '验证失败',
+                        detail: `${field.name} 是必填的重要数值，不能为空`
+                    });
+                    return;
+                }
+            }
+        }
+
+        console.log(rankByField);
+        console.log(needReview);
+        
+        
+
+        // 验证排名字段是否存在且有效
+        console.log(formData);
+        
+        const rankFieldValue = formData[rankByField];
+        if (rankFieldValue === null || rankFieldValue === undefined || rankFieldValue === '' || isNaN(parseFloat(rankFieldValue))) {
+            showToast({
+                severity: 'error',
+                summary: '验证失败',
+                detail: `${rankByField} 是重要的排名数值，不能为空`
+            });
+            return;
+        }
+
         setLoading(true);
         setUploadProgress(0); // 重置进度
 
         try {
             // 创建一个副本用于最终提交
             const finalSubmitData = { ...formData };
-            console.log('enter');
 
 
             // 1. 遍历 schema，处理所有需要上传的视频文件
@@ -332,8 +368,9 @@ export default function SubmissionDialog({
                     <div className="flex flex-col gap-2">
                         <Button
                             type="submit"
-                            label={loading ? "正在处理..." : "立即提交审核"}
+                            label={needReview ? "提交审核" : "立即提交"}
                             loading={loading}
+                            disabled={loading}
                             className="w-full py-4 bg-primary-500 border-none rounded-[20px] font-black text-sm shadow-[0_10px_30px_rgba(var(--primary-500-rgb),0.3)] active:scale-95 transition-all"
                         />
                         <Button

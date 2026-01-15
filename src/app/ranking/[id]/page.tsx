@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Skeleton } from 'primereact/skeleton';
@@ -14,10 +14,13 @@ import RankingsTable from './RankingsTable';
 import LeaderboardHeader from './LeaderboardHeader';
 import SubmissionDialog from './SubmissionDialog';
 import { GetLeaderboardResponseDto } from '@/app/api/ranking/get-leaderboard/entity';
+import { Button } from 'primereact/button';
+import { Trophy, XCircle } from 'lucide-react';
 
 export default function RankingPage() {
     const params = useParams();
     const templateId = params.id as string;
+    const router = useRouter();
 
     // 状态管理
     const [leaderboard, setLeaderboard] = useState<GetLeaderboardResponseDto['leaderboard']>(null);
@@ -39,6 +42,8 @@ export default function RankingPage() {
                     sort_by: 'score'
                 })
             ]);
+
+            console.log(lbData.leaderboard);
 
             setLeaderboard(lbData.leaderboard);
             setEntries(entriesData?.entries || []);
@@ -169,8 +174,59 @@ export default function RankingPage() {
 
     if (!leaderboard) {
         return (
-            <div className="flex justify-center items-center h-64 text-gray-500">
-                <p>排行榜不存在或已被删除</p>
+            <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+                <div className="relative w-full max-w-md">
+                    {/* 背景装饰：延续 Header 的渐变光晕 */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-[80px]" />
+
+                    {/* 图标容器 */}
+                    <div className="relative z-10 mb-8 flex justify-center">
+                        <div className="w-24 h-24 rounded-[2rem] bg-white dark:bg-gray-800 shadow-2xl border border-slate-100 dark:border-gray-700 flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                            <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-gray-900 flex items-center justify-center">
+                                <Trophy className="w-8 h-8 text-slate-300" />
+                            </div>
+                            {/* 警告小图标 */}
+                            <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg border-4 border-white dark:border-gray-900">
+                                <XCircle className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 文字内容 */}
+                    <div className="relative z-10 space-y-4">
+                        <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tighter uppercase italic">
+                            Leaderboard Not Found
+                        </h2>
+                        <p className="text-slate-400 dark:text-slate-500 font-medium max-w-[280px] mx-auto leading-relaxed">
+                            该排行榜不存在，或者已被发起人移动至其他星系。
+                        </p>
+                    </div>
+
+                    {/* 行动按钮 */}
+                    <div className="relative z-10 mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <Button
+                            label="返回"
+                            icon="pi pi-home"
+                            className="p-button-rounded p-button-secondary p-button-outlined font-bold px-8 py-3"
+                            onClick={() => router.push('/ranking')}
+                        />
+                        <Button
+                            label="重新加载"
+                            icon="pi pi-refresh"
+                            className="p-button-rounded font-black px-8 py-3 bg-primary border-none shadow-lg shadow-primary/20"
+                            onClick={() => router.refresh()}
+                        />
+                    </div>
+                </div>
+
+                {/* 底部点缀：细微的网格感 */}
+                <div className="mt-20 opacity-20">
+                    <div className="flex gap-2">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="w-1 h-1 bg-slate-400 rounded-full" />
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
@@ -187,6 +243,8 @@ export default function RankingPage() {
                 endAt={leaderboard.end_at}
                 templateId={templateId}
                 formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
+                needReview={leaderboard.needReview}
+                onJoinClick={() => setShowDialog(true)}
             />
 
             <div className="">
@@ -208,17 +266,20 @@ export default function RankingPage() {
                 notice={leaderboard.remarks}
             />
 
-            {/* 提交弹窗 */}
-            <SubmissionDialog
-                visible={showDialog}
-                onHide={() => setShowDialog(false)}
-                templateId={templateId}
-                formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
-                onSuccess={() => {
-                    setShowDialog(false);
-                    loadData(); // 提交成功后自动刷新数据
-                }}
-            />
+            {leaderboard && (
+                <SubmissionDialog
+                    visible={showDialog}
+                    onHide={() => setShowDialog(false)}
+                    templateId={templateId}
+                    formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
+                    needReview={leaderboard.needReview}
+                    rankByField={leaderboard.rank_by_field}
+                    onSuccess={() => {
+                        setShowDialog(false);
+                        loadData();
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -118,7 +118,7 @@ export async function POST(req: Request) {
             case "rejected":
                 await sendSystemMessage(data.user_id, {
                     content:
-                        `你的排行榜条目已被拒绝，拒绝理由：${body.note}`
+                        `你的排行榜条目已被拒绝，拒绝理由：${body.note || "无"}`
                 });
         }
     }

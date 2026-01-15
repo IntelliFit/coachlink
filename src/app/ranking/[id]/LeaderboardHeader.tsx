@@ -3,8 +3,6 @@
 import React, { useState } from 'react';
 import { Trophy, Calendar, Users, User, ArrowUpRight, Zap } from 'lucide-react';
 import { Button } from 'primereact/button';
-import SubmissionDialog from './SubmissionDialog';
-
 interface LeaderboardHeaderProps {
     title: string;
     description: string;
@@ -14,6 +12,8 @@ interface LeaderboardHeaderProps {
     ownerName?: string;
     formSchema?: any[];
     templateId?: string;
+    needReview?: boolean;
+    onJoinClick: () => void;
 }
 
 export default function LeaderboardHeader({
@@ -24,7 +24,9 @@ export default function LeaderboardHeader({
     recordCount = 0,
     ownerName = '系统',
     formSchema,
-    templateId
+    templateId,
+    needReview = false,
+    onJoinClick
 }: LeaderboardHeaderProps) {
 
     const formatTimeRange = () => {
@@ -33,8 +35,6 @@ export default function LeaderboardHeader({
         const end = endAt ? new Date(endAt).toLocaleDateString() : '∞';
         return `${start} — ${end}`;
     };
-
-    const [showSubmissionDialog, setShowSubmissionDialog] = useState(false);
 
     return (
         <div className="relative w-full max-w-6xl mx-auto mb-10 group px-4">
@@ -70,15 +70,22 @@ export default function LeaderboardHeader({
                         </h1>
                         
                         {/* 描述：浅白色，增加易读性 */}
-                        <p className="text-lg md:text-xl text-white/80 max-w-xl leading-relaxed font-medium">
-                            {description}
-                        </p>
+                        <div className="flex items-center gap-4">
+                            <p className="text-lg md:text-xl text-white/80 max-w-xl leading-relaxed font-medium">
+                                {description}
+                            </p>
+                            {needReview === false && (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 text-emerald-200 text-xs font-bold tracking-wide">
+                                    无审核比赛
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex-shrink-0">
                         {/* 核心行动按钮：反转色 (白底黑字或深色字) 以产生最强对比 */}
                         <Button
-                            onClick={() => setShowSubmissionDialog(true)}
+                            onClick={() => onJoinClick()}
                             className="group/btn relative overflow-hidden bg-white hover:bg-slate-50 text-primary-700 border-none py-4 px-10 rounded-2xl font-black shadow-2xl transition-all duration-300 transform active:scale-95"
                         >
                             <div className="flex items-center gap-3">
@@ -90,7 +97,7 @@ export default function LeaderboardHeader({
                 </div>
 
                 {/* 底部属性区域：深色半透明玻璃化 */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full pt-10 border-t border-white/20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full pt-10 border-t border-white/20">
                     {[
                         {
                             icon: <Calendar className="w-5 h-5" />,
@@ -110,7 +117,7 @@ export default function LeaderboardHeader({
                     ].map((item, idx) => (
                         <div
                             key={idx}
-                            className="flex items-center space-x-5 rounded-2xl bg-white/10 backdrop-blur-md p-6 
+                            className="flex items-center space-x-5 rounded-2xl bg-white/10 backdrop-blur-md p-6
                                      border border-white/10 hover:border-white/40 hover:bg-white/20 transition-all duration-300"
                         >
                             <div className="p-3 rounded-xl bg-white text-primary-600 shadow-xl">
@@ -129,16 +136,6 @@ export default function LeaderboardHeader({
                     ))}
                 </div>
             </div>
-
-            {templateId && formSchema && (
-                <SubmissionDialog
-                    visible={showSubmissionDialog}
-                    onHide={() => setShowSubmissionDialog(false)}
-                    templateId={templateId}
-                    formSchema={formSchema}
-                    onSuccess={() => setShowSubmissionDialog(false)}
-                />
-            )}
         </div>
     );
 }
