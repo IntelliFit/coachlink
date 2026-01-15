@@ -9,6 +9,7 @@ import Tilt from 'react-parallax-tilt';
 interface InvitationPosterCardProps {
     coach: GetCoachResponseDto | null;
     posterRefExclusive: React.RefObject<HTMLDivElement | null>;
+    posterRefOpen?: React.RefObject<HTMLDivElement | null>;
     savingPoster: 'exclusive' | 'open' | null;
     savePoster: (mode: 'exclusive' | 'open') => void;
     handleCopyModeLink: (mode: 'exclusive' | 'open') => void;
