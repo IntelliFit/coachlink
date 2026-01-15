@@ -23,6 +23,7 @@ export interface LeaderboardOptionInput {
 export interface LeaderboardVideoInput {
     type: "video";
     // TODO: 完成这部分的实现
+    name: string;
 }
 
 export type LeaderboardFormInput =
