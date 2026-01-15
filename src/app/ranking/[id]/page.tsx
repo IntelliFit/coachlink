@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { ProgressSpinner } from 'primereact/progressspinner';
 import { Skeleton } from 'primereact/skeleton';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardFormInput } from '@/types/leaderboard';
@@ -77,9 +75,9 @@ export default function RankingPage() {
                             <Skeleton width="160px" height="60px" borderRadius="1rem" />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full pt-10 border-t border-white/20">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full pt-10 border-t border-surface/20">
                             {[1, 2, 3].map((item) => (
-                                <div key={item} className="flex items-center space-x-5 rounded-2xl bg-white/10 backdrop-blur-md p-6 border border-white/10">
+                                <div key={item} className="flex items-center space-x-5 rounded-2xl bg-surface/10 backdrop-blur-md p-6 border border-surface/10">
                                     <Skeleton shape="circle" size="48px" />
                                     <div className="text-left flex-1 min-w-0">
                                         <Skeleton width="80px" height="12px" borderRadius="0" className="mb-2" />
@@ -93,7 +91,7 @@ export default function RankingPage() {
 
                 {/* Activity Info Skeleton */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="relative overflow-hidden bg-white border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
+                    <div className="relative overflow-hidden bg-surface border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
                         <div className="absolute top-0 left-10 right-10 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
                         <div className="flex items-center gap-3 mb-5">
                             <Skeleton shape="circle" size="40px" />
@@ -106,7 +104,7 @@ export default function RankingPage() {
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden bg-white border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
+                    <div className="relative overflow-hidden bg-surface border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
                         <div className="absolute top-0 left-10 right-10 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
                         <div className="flex items-center gap-3 mb-5">
                             <Skeleton shape="circle" size="40px" />
@@ -124,7 +122,7 @@ export default function RankingPage() {
                 </div>
 
                 {/* Rankings Table Skeleton */}
-                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div className="bg-surface dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
                         <Skeleton width="120px" height="24px" borderRadius="0" />
                         <Skeleton width="100px" height="16px" borderRadius="0" />
@@ -144,7 +142,7 @@ export default function RankingPage() {
                 </div>
 
                 {/* Activity Notice Skeleton */}
-                <div className="relative overflow-hidden rounded-[2rem] bg-white border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
+                <div className="relative overflow-hidden rounded-[2rem] bg-surface border border-slate-100 dark:border-slate-500 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
                     <div className="absolute left-0 top-0 bottom-0 w-1 flex flex-col items-center justify-center py-8 z-20">
                         <div className="w-full h-full bg-gradient-to-b from-transparent via-primary/40 to-transparent rounded-full" />
                     </div>
@@ -181,12 +179,12 @@ export default function RankingPage() {
 
                     {/* 图标容器 */}
                     <div className="relative z-10 mb-8 flex justify-center">
-                        <div className="w-24 h-24 rounded-[2rem] bg-white dark:bg-gray-800 shadow-2xl border border-slate-100 dark:border-gray-700 flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                        <div className="w-24 h-24 rounded-[2rem] bg-surface dark:bg-gray-800 shadow-2xl border border-slate-100 dark:border-gray-700 flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform duration-500">
                             <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-gray-900 flex items-center justify-center">
                                 <Trophy className="w-8 h-8 text-slate-300" />
                             </div>
                             {/* 警告小图标 */}
-                            <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg border-4 border-white dark:border-gray-900">
+                            <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-rose-500 text-surface flex items-center justify-center shadow-lg border-4 border-surface dark:border-gray-900">
                                 <XCircle className="w-5 h-5" />
                             </div>
                         </div>
@@ -259,6 +257,7 @@ export default function RankingPage() {
                 <RankingsTable
                     entries={entries}
                     formSchema={leaderboard.form_schema as LeaderboardFormInput[]}
+                    rankByField={leaderboard.rank_by_field}
                 />
             </div>
 

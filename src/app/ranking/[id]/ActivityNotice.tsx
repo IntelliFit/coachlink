@@ -12,7 +12,7 @@ export default function ActivityNotice({ notice, className }: ActivityNoticeProp
     if (!notice) return null;
 
     return (
-        <div className={`relative overflow-hidden bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)] ${className || ''}`}>
+        <div className={`relative overflow-hidden bg-surface dark:bg-gray-800 border border-slate-100 dark:border-gray-700 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)] ${className || ''}`}>
             
             {/* 顶部修饰线：严格对齐 ActivityInfo 右侧 */}
             <div className="absolute top-0 left-10 right-10 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
