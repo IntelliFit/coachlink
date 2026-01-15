@@ -13,6 +13,7 @@ import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardRule, LeaderboardFormInput } from '@/types/leaderboard';
 import { Tag } from 'primereact/tag';
 import { Checkbox } from 'primereact/checkbox';
+import { Clock } from 'lucide-react';
 
 interface EditLeaderboardFormProps {
     leaderboardId: string;
@@ -105,8 +106,8 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
 
     const renderFooter = () => (
         <div className="flex justify-end gap-2">
-            <Button label="取消" icon="pi pi-times" onClick={onHide} className="p-button-text p-button-secondary" />
-            <Button label="保存更改" icon="pi pi-check" loading={submitting} onClick={handleSubmit} autoFocus />
+            <Button label="取消" icon="pi pi-times" onClick={onHide} className="p-button-text p-button-secondary rounded-2xl" />
+            <Button label="保存更改" icon="pi pi-check" loading={submitting} onClick={handleSubmit} className='rounded-2xl' />
         </div>
     );
 
@@ -263,279 +264,377 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
         >
             <div className="pt-2 text-surface-500">
                 <div className="grid p-5">
-                    {/* 其他字段保持不变... */}
-                    <div className="col-12 md:col-6 field mb-4">
-                        <label className="font-bold block mb-2">标题 *</label>
-                        <InputText name="title" value={formData.title} onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))} />
-                    </div>
-
-                    <div className="col-12 md:col-6 field mb-4">
-                        <label className="font-bold block mb-2">排名字段 *</label>
-                        <Dropdown
-                            value={formData.rank_by_field}
-                            options={rankFieldOptions}
-                            onChange={(e) =>
-                                setFormData(p => ({ ...p, rank_by_field: e.value }))
-                            }
-                            placeholder={
-                                rankFieldOptions.length
-                                    ? '请选择一个表单字段'
-                                    : '请先添加表单字段'
-                            }
-                            disabled={rankFieldOptions.length === 0}
-                        />
-
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 col-12 md:col-6 field mb-4">
-                        <div>
-                            <label htmlFor="start_at" className="font-bold block mb-2">开始时间</label>
-                            <Calendar
-                                id="start_at"
-                                value={formData.start_at}
-                                onChange={(e) => setFormData(p => ({ ...p, start_at: e.value as Date }))}
-                                showTime
-                                hourFormat="24"
-                                showIcon
-                                // 3. 应用中文语言包
-                                locale="zh-CN"
-                                dateFormat="yy-mm-dd"
-                                placeholder="选择开始时间"
+                    {/* 标题与排名字段组 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 col-12 mb-6">
+                        {/* 标题输入 */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">
+                                活动标题 <span className="text-primary-500">*</span>
+                            </label>
+                            <InputText
+                                name="title"
+                                value={formData.title}
+                                placeholder="为你的活动起一个吸引人的名字..."
+                                onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))}
+                                className="w-full rounded-xl py-3 px-4 text-sm font-bold focus:bg-surface transition-all shadow-inner"
                             />
                         </div>
-                        <div className="">
-                            <label htmlFor="end_at" className="font-bold block mb-2">结束时间</label>
-                            <Calendar
-                                id="end_at"
-                                value={formData.end_at}
-                                onChange={(e) => setFormData(p => ({ ...p, end_at: e.value as Date }))}
-                                showTime
-                                hourFormat="24"
-                                showIcon
-                                // 3. 应用中文语言包
-                                locale="zh-CN"
-                                dateFormat="yy-mm-dd"
-                                placeholder="选择结束时间"
+
+                        {/* 排名字段选择 */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">
+                                排名字段 <span className="text-primary-500">*</span>
+                            </label>
+                            <Dropdown
+                                value={formData.rank_by_field}
+                                options={rankFieldOptions}
+                                onChange={(e) => setFormData(p => ({ ...p, rank_by_field: e.value }))}
+                                placeholder={
+                                    rankFieldOptions.length ? '选择用于排名的表单字段' : '请先在下方添加表单字段'
+                                }
+                                disabled={rankFieldOptions.length === 0}
+
+                                // 基础容器样式：保持物理下沉感
+                                className={`w-full rounded-xl`}
+
+                                // 选项模板：数值中心化排版
+                                itemTemplate={(option) => (
+                                    <div className="flex items-center justify-between py-1">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-primary-400" />
+                                            <span className="text-sm font-bold text-surface-700">{option.label}</span>
+                                        </div>
+                                        <i className="pi pi-chevron-right text-[10px] text-surface-300" />
+                                    </div>
+                                )}
+
+                                pt={{
+                                    input: {
+                                        className: `text-sm font-bold px-4 ${!formData.rank_by_field ? 'text-surface-400' : 'text-primary-600'}`
+                                    },
+                                    trigger: { className: 'pr-3 text-surface-400' },
+                                    panel: {
+                                        className: 'border-none shadow-[0_20px_50px_rgba(0,0,0,0.12)] rounded-[20px] mt-2 overflow-hidden bg-surface/90 backdrop-blur-xl'
+                                    },
+                                    list: { className: 'p-2 flex flex-col gap-1' },
+                                    item: ({ context }) => ({
+                                        className: `
+                                    rounded-xl transition-all duration-200 px-4 py-3
+                                    ${context.selected
+                                                ? 'bg-primary-500/70 text-surface shadow-[0_4px_12px_rgba(var(--primary-500-rgb),0.3)]'
+                                                : 'hover:bg-surface-50 text-surface-600'}
+            `
+                                    }),
+                                    // 空状态样式优化
+                                    emptyMessage: {
+                                        className: 'p-6 text-center text-xs font-bold text-surface-400 tracking-tight'
+                                    }
+                                }}
                             />
                         </div>
                     </div>
 
-
-
-                    {/* 其他下拉框和备注... */}
-                    <div className="col-12 field mb-4">
-                        <label className="font-bold block mb-2">描述</label>
-                        <InputTextarea value={formData.description} onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))} rows={2} />
-                    </div>
-
-                    {/* Rules 部分 */}
-                    <div className="col-12 field mb-5 pt-6">
-                        <div className="flex justify-between items-center mb-3">
-                            <div>
-                                <label className="font-bold text-lg block">规则说明</label>
-                                <small className="text-600">定义用户参与时需要遵守的规则</small>
+                    {/* 时间范围组：采用卡片化聚合 */}
+                    <div className="col-12 mb-8">
+                        <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1 mb-2 block">
+                            有效时间范围
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* 开始时间 */}
+                            <div className="relative flex flex-col gap-1 bg-surface p-3 rounded-xl border border-surface-100 shadow-sm">
+                                <label htmlFor="start_at" className="text-[10px] font-bold text-surface-400 flex items-center gap-1">
+                                    <Clock size={10} /> 开始时间
+                                </label>
+                                <Calendar
+                                    id="start_at"
+                                    value={formData.start_at}
+                                    onChange={(e) => setFormData(p => ({ ...p, start_at: e.value as Date }))}
+                                    showTime
+                                    hourFormat="24"
+                                    locale="zh-CN"
+                                    dateFormat="yy-mm-dd"
+                                    placeholder="设置开始日期与时间"
+                                    className="aero-calendar"
+                                    inputClassName="border-none p-0 text-sm font-black text-surface-700 focus:shadow-none w-full"
+                                />
                             </div>
-                        </div>
 
-                        <div className="flex flex-col gap-2">
-                            {formData.rules.map((rule, index) => (
-                                <div key={index} className="p-inputgroup flex-1 shadow-sm">
-                                    <span className="p-inputgroup-addon bg-surface-50 text-xs font-bold">{index + 1}</span>
-                                    <Dropdown
-                                        value={rule.status}
-                                        options={ruleStatusOptions}
-                                        onChange={(e) => updateRule(index, 'status', e.value)}
-                                        valueTemplate={ruleStatusTemplate}
-                                        itemTemplate={ruleStatusTemplate}
-                                    />
-                                    <InputText
-                                        value={rule.detail}
-                                        onChange={(e) => updateRule(index, 'detail', e.target.value)}
-                                        placeholder="请输入规则明细内容..."
-                                    />
-                                    <Button
-                                        icon="pi pi-trash"
-                                        severity="danger"
-                                        outlined
-                                        onClick={() => removeRule(index)}
-                                    />
-                                </div>
-                            ))}
-                            {formData.rules.length === 0 && (
-                                <div className="text-center p-4 border-round border-1 border-dashed border-300 text-500 text-sm">
-                                    暂无规则，点击上方按钮添加
-                                </div>
-                            )}
-                            
-                            {/* 在列表底部添加加号按钮 */}
-                            <div className="flex justify-center pt-2">
-                                <Button
-                                    type="button"
-                                    icon="pi pi-plus"
-                                    size="small"
-                                    outlined
-                                    onClick={addRule}
-                                    label="添加规则"
+                            {/* 结束时间 */}
+                            <div className="relative flex flex-col gap-1 bg-surface p-3 rounded-xl border border-surface-100 shadow-sm">
+                                <label htmlFor="end_at" className="text-[10px] font-bold text-surface-400 flex items-center gap-1">
+                                    <Clock size={10} /> 结束时间
+                                </label>
+                                <Calendar
+                                    id="end_at"
+                                    value={formData.end_at}
+                                    onChange={(e) => setFormData(p => ({ ...p, end_at: e.value as Date }))}
+                                    showTime
+                                    hourFormat="24"
+                                    locale="zh-CN"
+                                    dateFormat="yy-mm-dd"
+                                    placeholder="设置结束日期与时间"
+                                    className="aero-calendar"
+                                    inputClassName="border-none p-0 text-sm font-black text-surface-700 focus:shadow-none w-full"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Form Schema 部分 */}
-                    <div className="col-12 field mb-5 pt-6">
-                        {/* Header：完全对齐 Rules */}
-                        <div className="flex justify-between items-center mb-3">
+
+
+                    {/* 描述部分：增强呼吸感 */}
+                    <div className="col-12 field mb-8">
+                        <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1 mb-2 block">
+                            详细描述
+                        </label>
+                        <InputTextarea
+                            value={formData.description}
+                            onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
+                            rows={3}
+                            autoResize
+                            className="w-full rounded-[20px] p-4 text-sm font-medium focus:bg-surface transition-all shadow-inner leading-relaxed"
+                            placeholder="请简要说明该活动的背景或参与要求..."
+                        />
+                    </div>
+
+                    {/* Rules 部分：规则说明 */}
+                    <div className="col-12 field mb-8 pt-4">
+                        {/* Header：对齐之前的表单结构配置风格 */}
+                        <div className="flex justify-between items-end mb-6">
                             <div>
-                                <label className="font-bold text-lg block">提交表单结构</label>
-                                <small className="text-600">定义用户参与时需要填写的字段</small>
+                                <h2 className="text-xl font-black text-surface-900 tracking-tight mb-1">规则说明</h2>
+                                <p className="text-surface-400 text-xs font-medium">定义用户参与时需要遵循的准则</p>
                             </div>
                         </div>
 
-                        {/* Content */}
                         <div className="flex flex-col gap-3">
+                            {formData.rules.map((rule, index) => (
+                                <div
+                                    key={index}
+                                    className="group flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-surface p-2 md:p-1.5 rounded-[22px] border border-surface-100 shadow-[0_2px_8px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_20px_rgb(0,0,0,0.04)] transition-all"
+                                >
+                                    {/* 编号：数值中心化 */}
+                                    <div className="hidden md:flex items-center justify-center w-8 h-8 ml-2 bg-surface-900 text-surface rounded-full text-[10px] font-black shrink-0">
+                                        {index + 1}
+                                    </div>
+
+                                    {/* 状态下拉：轻盈磁贴化 */}
+                                    <div className="w-full md:w-32 shrink-0">
+                                        <Dropdown
+                                            value={rule.status}
+                                            options={ruleStatusOptions}
+                                            onChange={(e) => updateRule(index, 'status', e.value)}
+                                            valueTemplate={ruleStatusTemplate}
+                                            itemTemplate={ruleStatusTemplate}
+                                            className="w-full bg-surface-50/80 border-none rounded-xl h-10 flex items-center"
+                                            pt={{
+                                                input: { className: 'text-xs font-bold px-3' },
+                                                trigger: { className: 'w-8' }
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* 内容输入：占据剩余空间 */}
+                                    <div className="flex-1">
+                                        <InputText
+                                            value={rule.detail}
+                                            onChange={(e) => updateRule(index, 'detail', e.target.value)}
+                                            placeholder="定义一条新的规则明细..."
+                                            className="w-full border-none bg-transparent shadow-none text-sm font-medium py-2 px-3 focus:ring-0"
+                                        />
+                                    </div>
+
+                                    {/* 删除操作：低饱和度降噪 */}
+                                    <Button
+                                        icon="pi pi-trash"
+                                        severity="danger"
+                                        text
+                                        className="w-10 h-10 p-0 transition-opacity"
+                                        onClick={() => removeRule(index)}
+                                    />
+                                </div>
+                            ))}
+
+                            {/* 空状态：骨架化占位 */}
+                            {formData.rules.length === 0 && (
+                                <div className="flex flex-col items-center justify-center p-8 bg-surface-50/30 border-2 border-dashed border-surface-200 rounded-[24px]">
+                                    <p className="text-surface-400 text-xs font-bold">暂无规则条目</p>
+                                </div>
+                            )}
+
+                            {/* 底部添加按钮：磁贴占位模式 */}
+                            <button
+                                type="button"
+                                onClick={addRule}
+                                className="w-full h-12 flex items-center justify-center gap-2 border-2 border-dashed border-surface-200 rounded-[22px] text-surface-400 hover:border-primary-300 hover:text-primary-500 hover:bg-primary-50/30 transition-all active:scale-[0.99]"
+                            >
+                                <i className="pi pi-plus text-xs" />
+                                <span className="text-xs font-bold tracking-tight">添加规则条目</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Form Schema 部分 */}
+                    <div className="col-12 field mb-8 pt-6">
+                        {/* Header：保持紧凑，主动作位于右侧 */}
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <h2 className="text-xl font-black text-surface-900 tracking-tight mb-1">表单结构配置</h2>
+                                <p className="text-surface-400 text-xs font-medium">定义用户参与时需要填写的核心数据字段</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-4">
                             {formData.form_schema.map((input, index) => (
                                 <div
                                     key={index}
-                                    className="border-1 border-200 border-round p-3 hover:border-primary transition-colors border border-surface-200 rounded-lg"
+                                    className="relative bg-surface rounded-[24px] p-5 border border-surface-100 shadow-[0_4px_20px_rgb(0,0,0,0.02)] transition-all hover:shadow-[0_12px_40px_rgb(0,0,0,0.04)]"
                                 >
-                                    {/* 顶部信息栏（类似 Rule inputgroup 的左侧编号） */}
-                                    <div className="flex justify-between items-center mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <span className="bg-primary-500 p-2 rounded-lg text-white text-xs font-bold">
-                                                INPUT {index + 1}
+                                    {/* 顶部状态栏 */}
+                                    <div className="flex justify-between items-center mb-5">
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex items-center justify-center bg-surface-900 text-surface w-6 h-6 rounded-lg text-[10px] font-black">
+                                                {index + 1}
                                             </span>
-
+                                            <div className="px-2 py-0.5 bg-primary-50 text-primary-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-primary-100/50">
+                                                {input.type || 'TEXT'}
+                                            </div>
                                         </div>
-
                                         <Button
                                             icon="pi pi-trash"
                                             severity="danger"
                                             text
+                                            className="p-button-rounded p-button-sm transition-opacity"
                                             onClick={() => removeFormInput(index)}
                                         />
                                     </div>
 
                                     {/* 基础配置区 */}
-                                    <div className="grid mb-3">
-                                        <div className="col-12 md:col-6 field">
-                                            <label className="text-xs font-bold block mb-1 text-500 uppercase">
-                                                字段名称
-                                            </label>
+                                    <div className="grid gap-4">
+                                        <div className="col-12 md:col-6 flex flex-col gap-1.5">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">字段名称</label>
                                             <InputText
                                                 value={input.name}
-                                                onChange={(e) =>
-                                                    updateFormInput(index, 'name', e.target.value)
-                                                }
-                                                placeholder="如：真实姓名 / 联系电话"
+                                                onChange={(e) => updateFormInput(index, 'name', e.target.value)}
+                                                placeholder="描述该字段的用途..."
+                                                className="w-full  rounded-xl py-2.5 px-4 text-sm font-medium focus:bg-surface transition-all shadow-inner"
                                             />
                                         </div>
 
-                                        <div className="col-12 md:col-6 field">
-                                            <label className="text-xs font-bold block mb-1 text-500 uppercase">
-                                                数据类型
-                                            </label>
+                                        <div className="col-12 md:col-6 flex flex-col gap-1.5">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">数据类型</label>
                                             <Dropdown
                                                 value={input.type}
                                                 options={[
-                                                    { label: '数字', value: 'number' },
-                                                    { label: '文本', value: 'text' },
-                                                    { label: '选项', value: 'option' }
+                                                    { label: '数字录入', value: 'number', icon: 'pi pi-hashtag' },
+                                                    { label: '文本描述', value: 'text', icon: 'pi pi-align-left' },
+                                                    { label: '单项选择', value: 'option', icon: 'pi pi-list' },
+                                                    { label: '视频上传', value: 'video', icon: 'pi pi-video' },
                                                 ]}
-                                                onChange={(e) =>
-                                                    updateFormInput(index, 'type', e.value)
-                                                }
+                                                onChange={(e) => updateFormInput(index, 'type', e.value)}
+                                                className="w-full bg-surface-50/50 border-none rounded-xl h-[46px] flex items-center shadow-inner transition-all focus:bg-surface"
+
+                                                // 自定义选项模板：增加图标和数值中心化排版
+                                                itemTemplate={(option) => (
+                                                    <div className="flex items-center gap-3 py-1">
+                                                        <i className={`${option.icon} text-surface-400 text-xs`} />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-bold text-surface-700">{option.label}</span>
+                                                            <span className="text-[9px] font-black text-surface-300 uppercase tracking-widest">{option.value}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                pt={{
+                                                    // 输入框部分
+                                                    input: { className: 'text-sm font-bold text-surface-600 px-4 py-2.5' },
+                                                    trigger: { className: 'pr-3' },
+
+                                                    // 核心：弹出面板优化
+                                                    panel: {
+                                                        className: 'border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[20px] mt-2 overflow-hidden bg-surface/80 backdrop-blur-xl'
+                                                    },
+                                                    list: { className: 'p-2 flex flex-col gap-1' },
+                                                    item: ({ context }) => ({
+                                                        className: `
+                                                            rounded-xl transition-all duration-200 px-3 py-2
+                                                            ${context.selected ? 'bg-primary-500/70 text-surface' : 'hover:bg-surface-100 text-surface-600'}
+                                                            ${context.focused && !context.selected ? 'bg-surface-50' : ''}
+            `
+                                                    })
+                                                }}
                                             />
                                         </div>
 
-                                        <div className="col-12 field flex align-items-center gap-2">
-                                            <Checkbox
-                                                inputId={`required-${index}`}
-                                                checked={!!input.required}
-                                                onChange={(e) => updateFormInput(index, 'required', e.checked)}
-                                            />
-                                            <label htmlFor={`required-${index}`} className="text-sm cursor-pointer select-none">
-                                                设为必填项 (Required)
-                                            </label>
+                                        <div className="col-12">
+                                            <div className="inline-flex items-center gap-3 bg-surface-50/50 p-2.5 pr-4 rounded-xl border border-surface-100/50">
+                                                <Checkbox
+                                                    inputId={`required-${index}`}
+                                                    checked={!!input.required}
+                                                    onChange={(e) => updateFormInput(index, 'required', e.checked)}
+                                                />
+                                                <label htmlFor={`required-${index}`} className="text-xs font-bold text-surface-500 cursor-pointer select-none">
+                                                    设定为必填项 (Required)
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Option 专属配置 */}
+                                    {/* Option 专属配置：采用列表结尾添加模式 */}
                                     {input.type === 'option' && (
-                                        <div className="border-top-1 border-200 pt-3">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="text-sm font-bold">
-                                                    选项配置
-                                                </label>
-                                                <Button
-                                                    icon="pi pi-plus"
-                                                    label="添加选项"
-                                                    size="small"
-                                                    className='w-[fit-content]'
-                                                    outlined
-                                                    onClick={() => addOption(index)}
-                                                />
-                                            </div>
+                                        <div className="mt-5 pt-5 border-t border-dashed border-surface-200">
+                                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1 mb-3 block">
+                                                可选项列表 (Options List)
+                                            </label>
 
-                                            <div className="grid">
-                                                {(input as any).options?.map(
-                                                    (option: string, optionIndex: number) => (
-                                                        <div
-                                                            key={optionIndex}
-                                                            className="col-12 md:col-6 py-1"
-                                                        >
-                                                            <div className="p-inputgroup">
-                                                                <InputText
-                                                                    value={option}
-                                                                    onChange={(e) =>
-                                                                        updateOption(
-                                                                            index,
-                                                                            optionIndex,
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                    placeholder={`选项 ${optionIndex + 1
-                                                                        }`}
-                                                                    className="p-inputtext-sm"
-                                                                />
-                                                                <Button
-                                                                    icon="pi pi-times"
-                                                                    severity="danger"
-                                                                    text
-                                                                    onClick={() =>
-                                                                        removeOption(
-                                                                            index,
-                                                                            optionIndex
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
+                                            <div className="grid gap-2">
+                                                {(input as any).options?.map((option: string, optionIndex: number) => (
+                                                    <div key={optionIndex} className="col-12 md:col-6">
+                                                        <div className="flex items-center gap-2 bg-surface-50 rounded-xl p-1 pr-2 border border-transparent hover:border-surface-200 transition-all">
+                                                            <InputText
+                                                                value={option}
+                                                                onChange={(e) => updateOption(index, optionIndex, e.target.value)}
+                                                                placeholder={`选项 ${optionIndex + 1}`}
+                                                                className="flex-1 border-none bg-transparent shadow-none text-xs font-medium py-2 px-3"
+                                                            />
+                                                            <Button
+                                                                icon="pi pi-times"
+                                                                severity="secondary"
+                                                                text
+                                                                className="p-button-sm p-0 w-6 h-6 min-w-0 opacity-50 hover:opacity-100"
+                                                                onClick={() => removeOption(index, optionIndex)}
+                                                            />
                                                         </div>
-                                                    )
-                                                )}
+                                                    </div>
+                                                ))}
+
+                                                {/* 增加选项按钮：作为列表的最后一个 Slot */}
+                                                <div className="col-12 md:col-6">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addOption(index)}
+                                                        className="w-full h-[38px] flex items-center justify-center gap-2 border-2 border-dashed border-surface-200 rounded-xl text-surface-400 hover:border-primary-300 hover:text-primary-500 hover:bg-primary-50/30 transition-all active:scale-[0.98]"
+                                                    >
+                                                        <i className="pi pi-plus text-xs" />
+                                                        <span className="text-xs font-bold">增加候选项</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             ))}
+                        </div>
 
-                            {/* 空状态 */}
-                            {formData.form_schema.length === 0 && (
-                                <div className="text-center p-4 border-round border-1 border-dashed border-300 text-500 text-sm">
-                                    暂无表单字段，点击下方按钮添加
-                                </div>
-                            )}
-                            
-                            {/* 在列表底部添加加号按钮 */}
-                            <div className="flex gap-2 pt-2">
-                                <Button
-                                    type="button"
-                                    icon="pi pi-plus"
-                                    size="small"
-                                    outlined
-                                    onClick={() => addFormInput(selectedNewType || 'text')}
-                                    label="添加字段"
-                                />
-                            </div>
+                        <div className='mt-5'>
+                            <button
+                                type="button"
+                                onClick={() => addFormInput(selectedNewType || 'text')}
+                                className="w-full h-12 flex items-center justify-center gap-2 border-2 border-dashed border-surface-200 rounded-[22px] text-surface-400 hover:border-primary-300 hover:text-primary-500 hover:bg-primary-50/30 transition-all active:scale-[0.99]"
+                            >
+                                <i className="pi pi-plus text-xs" />
+                                <span className="text-xs font-bold tracking-tight">新增字段</span>
+                            </button>
                         </div>
                     </div>
 

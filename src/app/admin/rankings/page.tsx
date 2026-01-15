@@ -68,17 +68,41 @@ export default function AdminRankingsPage() {
     const renderSkeleton = () => (
         <div className="flex flex-col gap-4">
             {[...Array(3)].map((_, idx) => (
-                <Card key={idx} className="border border-surface-200 shadow-none">
-                    <div className="flex justify-between items-center mb-4">
-                        <Skeleton width="30%" height="2rem" />
+                <div
+                    key={idx}
+                    className="bg-surface rounded-[24px] border border-surface-100 p-5 shadow-none flex flex-col"
+                >
+                    {/* Header: 模拟标题与状态 */}
+                    <div className="flex justify-between items-start mb-4">
+                        <Skeleton width="45%" height="1.5rem" borderRadius="12px" />
+                        <Skeleton width="60px" height="1.2rem" borderRadius="20px" />
+                    </div>
+
+                    {/* Description: 模拟多行文本 */}
+                    <div className="space-y-2 mb-6">
+                        <Skeleton width="90%" height="0.8rem" borderRadius="6px" />
+                        <Skeleton width="65%" height="0.8rem" borderRadius="6px" />
+                    </div>
+
+                    {/* Meta Info: 模拟 2x2 磁贴属性 */}
+                    <div className="grid grid-cols-2 gap-2 mb-6">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="p-2.5 bg-surface-50/50 rounded-xl border border-surface-100/30">
+                                <Skeleton width="40%" height="0.6rem" className="mb-2" borderRadius="4px" />
+                                <Skeleton width="70%" height="0.9rem" borderRadius="4px" />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Footer: 模拟底部操作栏 */}
+                    <div className="mt-auto pt-4 flex items-center justify-between border-t border-surface-50">
+                        <Skeleton shape="circle" size="2rem" /> {/* 模拟删除按钮 */}
                         <div className="flex gap-2">
-                            <Skeleton width="4rem" height="2rem" />
-                            <Skeleton width="4rem" height="2rem" />
+                            <Skeleton width="4rem" height="2rem" borderRadius="12px" />
+                            <Skeleton width="4rem" height="2rem" borderRadius="12px" />
                         </div>
                     </div>
-                    <Skeleton width="90%" className="mb-2" />
-                    <Skeleton width="60%" />
-                </Card>
+                </div>
             ))}
         </div>
     );
@@ -100,7 +124,7 @@ export default function AdminRankingsPage() {
                     <Button
                         label="创建新排行榜"
                         icon="pi pi-plus"
-                        className="p-button-primary shadow-sm"
+                        className="py-4 bg-primary-500 border-none rounded-2xl shadow-xl shadow-primary-500/20 hover:bg-primary-600 transition-all transform active:scale-[0.98] p-button p-component"
                         onClick={() => setShowCreateDialog(true)}
                     />
                 </div>
@@ -120,7 +144,7 @@ export default function AdminRankingsPage() {
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white border border-dashed border-surface-300 rounded-xl">
+                    <div className="flex flex-col items-center justify-center py-20 bg-surface border border-dashed border-surface-300 rounded-xl">
                         <i className="pi pi-inbox text-5xl text-surface-300 mb-4"></i>
                         <p className="text-surface-500 text-lg">暂无数据，点击上方按钮创建</p>
                     </div>

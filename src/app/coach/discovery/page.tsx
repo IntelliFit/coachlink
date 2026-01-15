@@ -119,72 +119,84 @@ const CoachDiscoveryPage: React.FC = () => {
         <div
             key={coach.id}
             id={idx === 0 ? "guide-discovery-first-coach" : undefined}
-            className="group bg-surface-0 rounded-lg p-5 mb-4 transition-all hover:shadow-md border border-surface-100 cursor-pointer"
+            className="group bg-white rounded-[24px] md:rounded-2xl p-4 md:p-5 mb-4 transition-all active:scale-[0.98] md:active:scale-100 md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-surface-100 cursor-pointer"
             onClick={() => router.push('/coach/profile/' + coach.id + '?from=discovery')}
         >
-            <div className="flex flex-col md:flex-row gap-5">
-                {/* 头像 */}
-                <div className="relative flex-shrink-0 mx-auto md:mx-0">
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-surface-50 border border-surface-100">
+            <div className="flex flex-row gap-4 md:gap-6">
+                {/* 头像区：移动端缩小，PC保持 */}
+                <div className="relative shrink-0">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-xl overflow-hidden bg-surface-50 border border-surface-100/50 shadow-inner">
                         {coach.avatar_url ? (
                             <img src={coach.avatar_url} alt={coach.name} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xl font-bold text-primary-500">
+                            <div className="w-full h-full flex items-center justify-center text-xl font-black text-primary-500 bg-primary-50/30">
                                 {coach.name.charAt(0)}
                             </div>
                         )}
                     </div>
                     {coach.is_featured && (
-                        <div className="absolute -top-2 -left-2 bg-amber-400 text-white p-1 rounded-md shadow-sm">
+                        <div className="absolute -top-1.5 -left-1.5 bg-amber-400 text-white p-1 rounded-lg shadow-sm">
                             <Crown size={12} fill="currentColor" />
                         </div>
                     )}
                 </div>
 
-                {/* 内容 */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold text-surface-900">{coach.name}</h3>
-                            <span className="flex items-center gap-1 text-amber-500 text-sm font-bold">
-                                <Star size={14} fill="currentColor" />
-                                {typeof coach.averageRating === 'number' ? coach.averageRating.toFixed(1) : (coach.rating ?? '0.0')}
-                            </span>
-                        </div>
-                        {typeof (coach as any).subscription_price_tier1 === 'number' && (
-                            <div className="text-right">
-                                <span className="text-xs text-surface-400 block">月度起价</span>
-                                <span className="text-lg font-bold text-primary-600">¥{(coach as any).subscription_price_tier1}</span>
+                {/* 内容区 */}
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-start justify-between">
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-base md:text-lg font-bold text-surface-900 tracking-tight truncate">
+                                        {coach.name}
+                                    </h3>
+                                    <div className="flex items-center gap-0.5 text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-md">
+                                        <Star size={12} fill="currentColor" />
+                                        <span className="text-xs font-black">
+                                            {typeof coach.averageRating === 'number' ? coach.averageRating.toFixed(1) : (coach.rating ?? '0.0')}
+                                        </span>
+                                    </div>
+                                </div>
+                                {/* 移动端显示的副标题/简介，精简信息 */}
+                                <p className="text-surface-400 text-xs md:text-sm font-medium line-clamp-1 mb-2">
+                                    {coach.bio || "专业健身教练"}
+                                </p>
                             </div>
-                        )}
-                    </div>
 
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {coach.specialties?.slice(0, 3).map((spec, i) => (
-                            <span key={i} className="px-2 py-0.5 bg-primary-50 text-primary-600 text-xs font-medium rounded border border-primary-100">
-                                {spec}
-                            </span>
-                        ))}
-                    </div>
-
-                    <p className="text-surface-500 text-sm mb-4 line-clamp-1">
-                        {coach.bio || "暂无教练简介"}
-                    </p>
-
-                    <div className="flex items-center gap-4 text-surface-400 text-xs font-medium">
-                        <div className="flex items-center gap-1">
-                            <Users size={14} />
-                            <span>{coach.studentCount || 0} 位学员</span>
+                            {/* 价格中心化：移动端显示更精简 */}
+                            {typeof (coach as any).subscription_price_tier1 === 'number' && (
+                                <div className="flex flex-col items-end shrink-0">
+                                    <span className="text-[10px] text-surface-400 font-bold uppercase tracking-wider">起价</span>
+                                    <span className="text-base md:text-xl font-black text-primary-600">
+                                        ¥{(coach as any).subscription_price_tier1}
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                        <div className="flex items-center gap-1">
-                            <Clock size={14} />
-                            <span>{coach.years_experience || 0} 年教学经验</span>
+
+                        {/* 标签组：移动端横向排列，不强制牺牲空间 */}
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                            {coach.specialties?.slice(0, 3).map((spec, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-surface-50 text-surface-600 text-[10px] md:text-xs font-bold rounded-md border border-surface-100">
+                                    {spec}
+                                </span>
+                            ))}
                         </div>
                     </div>
-                </div>
 
-                <div className="hidden md:flex items-center text-surface-300 group-hover:text-primary-500 transition-colors">
-                    <ArrowRight size={20} />
+                    {/* 底部数据：辅助信息弱化 */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-surface-400 text-[10px] md:text-xs font-bold uppercase tracking-wide">
+                            <div className="flex items-center gap-1">
+                                <Users size={12} className="opacity-70" />
+                                <span>{coach.studentCount || 0} 学员</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Clock size={12} className="opacity-70" />
+                                <span>{coach.years_experience || 0} 年经验</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -234,132 +246,131 @@ const CoachDiscoveryPage: React.FC = () => {
         );
     }
 
-return (
-    <div className="min-h-screen bg-surface-50/50 py-4 md:py-8 px-4">
-        <div className="max-w-5xl mx-auto">
-            {/* 头部标题区 */}
-            <header className="mb-6">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl md:text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
-                        <p className="text-surface-500 text-sm mt-1">找到最适合你的专业健身伙伴</p>
-                    </div>
-                    <Button
-                        icon="pi pi-question-circle"
-                        label={window.innerWidth < 768 ? "" : "新手引导"}
-                        outlined
-                        size="small"
-                        onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
-                        disabled={isGuideLoading}
-                        className="shrink-0 rounded-2xl border-primary-500 text-primary-500"
-                    />
-                </div>
-
-                {/* 搜索与筛选区域 - 响应式单行布局 */}
-                <div className="mt-6 flex items-center gap-2 p-1.5 bg-white rounded-2xl md:rounded-2xl shadow-sm border border-surface-100">
-                    {/* 搜索输入框 */}
-                    <div id="guide-discovery-search" className="flex-1 relative flex items-center">
-                        <Search className="absolute left-3 text-surface-400" size={18} />
-                        <InputText
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="搜索姓名或专长..."
-                            className="w-full pl-10 border-none shadow-none bg-transparent py-2 text-surface-700"
+    return (
+        <div className="min-h-screen bg-surface-50/50 py-4 md:py-8 px-4">
+            <div className="max-w-5xl mx-auto">
+                {/* 头部标题区 */}
+                <header className="mb-6">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
+                            <p className="text-surface-500 text-sm mt-1">找到最适合你的专业健身伙伴</p>
+                        </div>
+                        <Button
+                            icon="pi pi-question-circle"
+                            label={window.innerWidth < 768 ? "" : "新手引导"}
+                            outlined
+                            size="small"
+                            onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
+                            disabled={isGuideLoading}
+                            className="shrink-0 rounded-2xl border-primary-500 text-primary-500"
                         />
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                        {/* 筛选区域 */}
-                        <div id="guide-discovery-filter">
-                            {/* PC端：保持文字显示 */}
-                            <Dropdown
-                                value={selectedSpecialty}
-                                options={specialties}
-                                onChange={(e) => setSelectedSpecialty(e.value)}
-                                className="hidden md:flex w-44 bg-surface-50 border-none rounded-lg items-center"
-                                pt={{
-                                    input: { className: 'py-2 px-3 text-sm font-medium text-surface-600' }
-                                }}
-                            />
-                            {/* 移动端：图标化筛选，宽度收缩 */}
-                            <Dropdown
-                                value={selectedSpecialty}
-                                options={specialties}
-                                onChange={(e) => setSelectedSpecialty(e.value)}
-                                className="flex md:hidden bg-surface-50 border-none rounded-xl w-10 h-10 items-center justify-center"
-                                dropdownIcon={() => <Filter size={16} className="text-surface-500" />}
-                                pt={{
-                                    input: { className: 'hidden' },
-                                    trigger: { className: 'w-full h-full' }
-                                }}
+
+                    {/* 搜索与筛选区域 - 响应式单行布局 */}
+                    <div className="mt-6 flex items-center gap-2 p-1.5 bg-surface-0 dark:bg-surface-50 rounded-2xl md:rounded-2xl shadow-sm border border-surface-100">
+                        {/* 搜索输入框 */}
+                        <div id="guide-discovery-search" className="flex-1 relative flex items-center">
+                            <InputText
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="搜索姓名或专长..."
+                                className="w-full border-none shadow-none bg-transparent py-2 text-surface-700"
                             />
                         </div>
 
-                        {/* 搜索按钮 */}
-                        {/* PC端：文字按钮 */}
-                        <Button
-                            onClick={onSearchOrFilter}
-                            label="搜索"
-                            className="hidden md:flex bg-primary-500 border-none px-6 py-2 rounded-xl font-bold text-white shadow-sm"
-                        />
-                        {/* 移动端：图标按钮 */}
-                        <Button
-                            onClick={onSearchOrFilter}
-                            icon="pi pi-search"
-                            className="flex md:hidden bg-primary-500 border-none w-10 h-10 rounded-xl font-bold text-white shadow-sm active:scale-95"
-                        />
+                        <div className="flex items-center gap-2">
+                            {/* 筛选区域 */}
+                            <div id="guide-discovery-filter">
+                                {/* PC端：保持文字显示 */}
+                                <Dropdown
+                                    value={selectedSpecialty}
+                                    options={specialties}
+                                    onChange={(e) => setSelectedSpecialty(e.value)}
+                                    className="hidden md:flex w-44 bg-surface-50 border-none rounded-lg items-center"
+                                    pt={{
+                                        input: { className: 'py-2 px-3 text-sm font-medium text-surface-600' }
+                                    }}
+                                />
+                                {/* 移动端：图标化筛选，宽度收缩 */}
+                                <Dropdown
+                                    value={selectedSpecialty}
+                                    options={specialties}
+                                    onChange={(e) => setSelectedSpecialty(e.value)}
+                                    className="flex md:hidden bg-surface-50 border-none rounded-xl w-10 h-10 items-center justify-center"
+                                    dropdownIcon={() => <Filter size={16} className="text-surface-500" />}
+                                    pt={{
+                                        input: { className: 'hidden' },
+                                        trigger: { className: 'w-full h-full' }
+                                    }}
+                                />
+                            </div>
+
+                            {/* 搜索按钮 */}
+                            {/* PC端：文字按钮 */}
+                            <Button
+                                onClick={onSearchOrFilter}
+                                label="搜索"
+                                className="hidden md:flex bg-primary-500 border-none px-6 py-2 rounded-xl font-bold text-white shadow-sm"
+                            />
+                            {/* 移动端：图标按钮 */}
+                            <Button
+                                onClick={onSearchOrFilter}
+                                icon="pi pi-search"
+                                className="flex md:hidden bg-primary-500 border-none w-10 h-10 rounded-xl font-bold text-white shadow-sm active:scale-95"
+                            />
+                        </div>
+                    </div>
+                </header>
+
+                <div className="mb-4 flex items-center justify-between">
+                    <div className="text-xs font-bold text-surface-400 tracking-wider">
+                        共找到 {totalCount} 位教练
                     </div>
                 </div>
-            </header>
 
-            <div className="mb-4 flex items-center justify-between">
-                <div className="text-xs font-bold text-surface-400 tracking-wider">
-                    共找到 {totalCount} 位教练
-                </div>
-            </div>
-
-            {/* 列表内容区 */}
-            {isLoading || visibilityLoading ? (
-                <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white rounded-xl p-6 border border-surface-100">
-                            <div className="flex gap-4">
-                                <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
-                                <div className="flex-1 space-y-3">
-                                    <Skeleton width="30%" height="1.2rem" />
-                                    <Skeleton width="100%" height="2rem" />
+                {/* 列表内容区 */}
+                {isLoading || visibilityLoading ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="bg-white rounded-xl p-6 border border-surface-100">
+                                <div className="flex gap-4">
+                                    <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
+                                    <div className="flex-1 space-y-3">
+                                        <Skeleton width="30%" height="1.2rem" />
+                                        <Skeleton width="100%" height="2rem" />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            ) : coaches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-surface-100">
-                    <Eye size={40} className="text-surface-200 mb-3" />
-                    <p className="text-surface-500 font-bold">没有找到相关教练</p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {coaches.map((c, idx) => (
-                        <div key={idx} id={idx === 0 ? "guide-discovery-first-coach" : undefined}>
-                            {renderCoachCard(c as any, idx)}
-                        </div>
-                    ))}
-                    <Paginator
-                        first={first}
-                        rows={coachesPerPage}
-                        totalRecords={totalCount}
-                        onPageChange={(e) => { 
-                            setFirst(e.first); 
-                            loadCoaches(e.page + 1); 
-                        }}
-                        className="bg-transparent border-none py-8"
-                    />
-                </div>
-            )}
+                        ))}
+                    </div>
+                ) : coaches.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-surface-100">
+                        <Eye size={40} className="text-surface-200 mb-3" />
+                        <p className="text-surface-500 font-bold">没有找到相关教练</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {coaches.map((c, idx) => (
+                            <div key={idx} id={idx === 0 ? "guide-discovery-first-coach" : undefined}>
+                                {renderCoachCard(c as any, idx)}
+                            </div>
+                        ))}
+                        <Paginator
+                            first={first}
+                            rows={coachesPerPage}
+                            totalRecords={totalCount}
+                            onPageChange={(e) => {
+                                setFirst(e.first);
+                                loadCoaches(e.page + 1);
+                            }}
+                            className="bg-transparent border-none py-8"
+                        />
+                    </div>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
 };
 
 export default CoachDiscoveryPage;

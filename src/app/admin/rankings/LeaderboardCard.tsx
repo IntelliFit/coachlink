@@ -80,87 +80,84 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh })
 
     return (
         <>
-            <Card className="h-full flex flex-col border border-surface-200 rounded-xl shadow-sm hover:shadow-md transition-shadow p-0">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-surface-800 leading-tight">
+            <div className="group h-full flex flex-col bg-surface rounded-[24px] border border-surface-100 p-5 transition-all duration-300 hover:shadow-[0_12px_40px_rgb(0,0,0,0.06)] active:scale-[0.99] md:active:scale-100 relative overflow-hidden">
+                {/* 状态背景微弱装饰 - 可选，增加呼吸感 */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary-500/5 rounded-full -mr-12 -mt-12 blur-2xl pointer-events-none" />
+
+                {/* Header: 标题与状态 */}
+                <div className="flex justify-between items-start gap-4 mb-3">
+                    <h3 className="text-base md:text-lg font-black text-surface-900 leading-tight tracking-tight line-clamp-1">
                         {ranking.title}
                     </h3>
-                    {renderStatus(ranking)}
+                    <div className="shrink-0 scale-90 origin-right">
+                        {renderStatus(ranking)}
+                    </div>
                 </div>
 
-                {/* Description */}
-                <p className="text-sm text-surface-600 mb-4 line-clamp-2">
-                    {ranking.description || '暂无描述'}
+                {/* Description: 限制行数，保持整洁 */}
+                <p className="text-xs md:text-sm text-surface-400 font-medium mb-5 line-clamp-2 min-h-[2.5rem] leading-relaxed">
+                    {ranking.description || '暂无描述信息'}
                 </p>
 
-                {/* Meta Info */}
-                <div className="grid grid-cols-2 gap-y-2 text-xs text-surface-500 mb-4">
-                    <div className="flex items-center gap-2">
-                        <i className="pi pi-sort-amount-down text-surface-400" />
-                        <span>排名字段：</span>
-                        <span className="font-medium text-surface-700">
-                            {ranking.rank_by_field}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <i className="pi pi-tag text-surface-400" />
-                        <span>类型：</span>
-                        <span className="font-medium text-surface-700">
-                            {ranking.type || '未设置'}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <i className="pi pi-calendar text-surface-400" />
-                        <span>开始：</span>
-                        <span className="font-medium text-surface-700">
-                            {formatDate(ranking.start_at)}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <i className="pi pi-calendar-times text-surface-400" />
-                        <span>结束：</span>
-                        <span className="font-medium text-surface-700">
-                            {formatDate(ranking.end_at)}
-                        </span>
-                    </div>
+                {/* Meta Info: 属性磁贴化 */}
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                    {[
+                        { label: '排名字段', value: ranking.rank_by_field, icon: 'pi pi-sort-amount-down' },
+                        { label: '活动类型', value: ranking.type || '未设置', icon: 'pi pi-tag' },
+                        { label: '开始日期', value: formatDate(ranking.start_at), icon: 'pi pi-calendar' },
+                        { label: '截止日期', value: formatDate(ranking.end_at), icon: 'pi pi-calendar-times' }
+                    ].map((item, i) => (
+                        <div key={i} className="flex flex-col gap-1 p-2.5 bg-surface-50/50 rounded-xl border border-surface-100/30">
+                            <span className="text-[9px] font-black text-surface-300 uppercase tracking-widest flex items-center gap-1">
+                                <i className={`${item.icon} text-[8px]`} /> {item.label}
+                            </span>
+                            <span className="text-xs font-bold text-surface-700 truncate">
+                                {item.value}
+                            </span>
+                        </div>
+                    ))}
                 </div>
 
-                {/* Remarks */}
+                {/* Remarks: 气泡化备注 */}
                 {ranking.remarks && (
-                    <div className="text-xs text-surface-500 mb-4 italic">
-                        备注：{ranking.remarks}
+                    <div className="mb-6 p-2 px-3 bg-amber-50/50 border border-amber-100/50 rounded-lg">
+                        <p className="text-[10px] text-amber-700 font-medium italic">
+                            <span className="font-black not-italic mr-1">NOTE:</span> {ranking.remarks}
+                        </p>
                     </div>
                 )}
 
-                {/* Footer */}
-                <div className="mt-auto pt-3 flex justify-end gap-2 border-t border-surface-100">
-                    <Button
-                        icon="pi pi-eye"
-                        label="审核"
-                        size="small"
-                        badge={ranking.statusCount.toString()}
-                        onClick={() => window.location.href = `/admin/rankings/review/${ranking.id}`}
-                    />
-                    <Button
-                        icon="pi pi-pencil"
-                        label="编辑"
-                        size="small"
-                        onClick={() => setEditDialogVisible(true)}
-                    />
-                    <Button
-                        icon="pi pi-trash"
-                        label="删除"
-                        severity="danger"
-                        outlined
-                        size="small"
-                        onClick={confirmDelete}
-                    />
+                {/* Footer: 按钮组布局优化 */}
+                <div className="mt-auto pt-4 flex items-center justify-between border-t border-surface-50">
+                    <div className="flex items-center gap-1">
+                        <Button
+                            icon="pi pi-trash"
+                            severity="danger"
+                            text
+                            className="p-button-rounded w-8 h-8 opacity-20 hover:opacity-100 transition-opacity"
+                            onClick={confirmDelete}
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            label="编辑"
+                            icon="pi pi-pencil"
+                            text
+                            size="small"
+                            className="text-surface-500 font-bold hover:bg-surface-100 rounded-xl"
+                            onClick={() => setEditDialogVisible(true)}
+                        />
+                        <Button
+                            label="审核"
+                            icon="pi pi-eye"
+                            size="small"
+                            badge={ranking.statusCount.toString()}
+                            className="bg-primary-500 border-none rounded-xl font-black px-4 shadow-sm shadow-primary-200 active:scale-95 transition-all"
+                            onClick={() => window.location.href = `/admin/rankings/review/${ranking.id}`}
+                        />
+                    </div>
                 </div>
-            </Card>
+            </div>
 
             {/* Edit Dialog */}
             <EditLeaderboardForm

@@ -20,10 +20,17 @@ export interface LeaderboardOptionInput {
     userInput?: string;
 }
 
+export interface LeaderboardVideoInput {
+    type: "video";
+    // TODO: 完成这部分的实现
+}
+
 export type LeaderboardFormInput =
     | LeaderboardNumberInput
     | LeaderboardTextInput
-    | LeaderboardOptionInput;
+    | LeaderboardOptionInput
+    | LeaderboardVideoInput;
+
 export interface LeaderboardRule {
     detail: string;
     status: "success" | "warning" | "error";

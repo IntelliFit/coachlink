@@ -31,13 +31,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     return (
         <div className="min-h-screen bg-surface-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-surface-900 mb-4">管理后台</h1>
-                    <TabMenu 
-                        model={menuItems} 
-                        activeIndex={activeIndex >= 0 ? activeIndex : 0}
-                    />
-                </div>
                 <div>{children}</div>
             </div>
         </div>
