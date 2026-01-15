@@ -62,38 +62,49 @@ export async function POST(req: Request) {
     }
 
     // 获取所有涉及的用户信息
-    const userIds = Array.from(new Set(data?.map(entry => entry.user_id).filter(id => id) as string[]));
-    let userProfilesMap: { [userId: string]: { name: string; avatar: string } } = {};
-    
+    const userIds = Array.from(new Set(data?.map(entry => entry.user_id).filter(Boolean)));
+    let userProfilesMap: Record<string, { name: string; avatar: string }> = {};
+
     if (userIds.length > 0) {
         const { data: profiles, error: profileError } = await supabase
             .from('user_profiles')
-            .select('id, nickname, avatar_url, full_name')
+            .select('user_id, nickname, avatar_url, full_name') // 确保包含了 user_id 字段
             .in('user_id', userIds);
-        
-        if (profileError) {
-            console.error('获取用户资料失败:', profileError);
-        } else if (profiles) {
-            // 构建用户信息映射
-            for (let i = 0; i < profiles.length; i ++) {
-                const profile = profiles[i];
-                const userId = userIds[i];
-                userProfilesMap[userId] = {
-                    name: profile.nickname || profile.full_name || '',
-                    avatar: profile.avatar_url || ''
+
+        if (profiles) {
+            profiles.forEach(p => {
+                // 使用 user_id 作为唯一的 Key
+                userProfilesMap[p.user_id] = {
+                    name: p.nickname || p.full_name || '匿名用户',
+                    avatar: p.avatar_url || ''
                 };
-            }
+            });
         }
     }
 
-    // 将用户信息注入到每个条目中
-    const entriesWithProfile: LeaderboardEntryWithProfile[] = (data || []).map(entry => ({
-        ...entry,
-        userProfile: userProfilesMap[entry.user_id] || {
-            name: '',
-            avatar: ''
-        }
-    }));
+    // 将用户信息注入
+    const entriesWithProfile: LeaderboardEntryWithProfile[] = (data || []).map(entry => {
+        // 1. 尝试从映射表获取 profile
+        const profile = userProfilesMap[entry.user_id];
+
+        // 2. 解析 extra_data 里的抖音昵称 (安全处理 JSONB)
+        const extraData = entry.extra_data as any;
+        const douyinNickname = extraData?.douyin_nickname;
+        const douyinAvatar = extraData?.douyin_avatar; // 如果 extra_data 里也有头像的话
+
+        // 3. 确定最终显示的名字
+        // 优先级：Profile 昵称 > Profile 全名 > 抖音昵称 > 未知用户
+        const finalName = profile?.name || douyinNickname || '未知用户';
+        const finalAvatar = profile?.avatar || douyinAvatar || '';
+
+        return {
+            ...entry,
+            userProfile: {
+                name: finalName,
+                avatar: finalAvatar
+            }
+        };
+    });
 
     return NextResponse.json<ApiData<ListEntriesResponseDto>>({
         success: true,

@@ -156,6 +156,10 @@ export default function SubmissionDialog({
                                 onChange={(e) => handleFieldChange(field.name, e.value)}
                                 required={!!field.required}
                             />
+                        ) : field.type === 'video' ? (
+                            <div>
+                                
+                            </div>
                         ) : (
                             <InputText
                                 placeholder={`请输入${field.name}`}
@@ -167,22 +171,20 @@ export default function SubmissionDialog({
                     </div>
                 ))}
 
-
-
                 <div className="flex flex-col gap-3 mt-4">
                     <Button
                         type="submit"
                         label="立即提交记录"
                         icon="pi pi-check"
                         loading={loading}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold"
+                        className="w-full py-3 bg-primary-500 border-none rounded-2xl shadow-xl shadow-primary-500/20 hover:bg-primary-600 transition-all transform active:scale-[0.98] p-button p-component"
                     />
                     <Button
                         type="button"
                         label="取消"
                         onClick={onHide}
                         text
-                        className="w-full text-gray-500"
+                        className="w-full text-gray-500 rounded-2xl"
                     />
                 </div>
             </form>
