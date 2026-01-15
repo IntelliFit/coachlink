@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Star, Target, CheckCircle2, XCircle, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Star, Target, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 interface ActivityInfoProps {
     description: string;
@@ -21,22 +21,20 @@ export default function ActivityInfo({ description, rules }: ActivityInfoProps) 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 左侧：活动介绍 */}
-            <div className="relative overflow-hidden bg-white border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
-                {/* 顶部微弱装饰线 */}
-                <div className="absolute top-0 left-10 right-10 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-                
+            <div className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-50 dark:border-gray-700 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
                 <div className="flex items-center gap-3 mb-5">
-                    <div className="p-2 rounded-xl bg-amber-50 text-amber-500">
+                    <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900 text-amber-500">
                         <Star className="w-5 h-5 fill-amber-500" />
                     </div>
-                    <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">
+                    <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight uppercase">
                         活动介绍 <span className="text-slate-300 ml-1 text-sm font-bold tracking-widest">/ INTRO</span>
                     </h2>
                 </div>
 
                 <div className="relative">
+                    {/* 标志性引导线 */}
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/10 rounded-full" />
-                    <div className="pl-5 text-slate-600 text-base leading-relaxed font-medium antialiased">
+                    <div className="pl-5 text-slate-600 dark:text-slate-100 text-base leading-relaxed font-medium antialiased">
                         {description ? (
                             <p>{description}</p>
                         ) : (
@@ -48,41 +46,40 @@ export default function ActivityInfo({ description, rules }: ActivityInfoProps) 
                 </div>
             </div>
 
-            {/* 右侧：评判标准 */}
-            <div className="relative overflow-hidden bg-white border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
-                <div className="absolute top-0 left-10 right-10 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-
+            {/* 右侧：评判标准 (已修改为与左侧完全一致) */}
+            <div className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-50 dark:border-gray-700 rounded-[2rem] p-6 md:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
                 <div className="flex items-center gap-3 mb-5">
-                    <div className="p-2 rounded-xl bg-primary/5 text-primary">
+                    <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900 text-blue-500">
                         <Target className="w-5 h-5" />
                     </div>
-                    <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">
+                    <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight uppercase">
                         评判标准 <span className="text-slate-300 ml-1 text-sm font-bold tracking-widest">/ RULES</span>
                     </h2>
                 </div>
 
-                {/* 降低了间距从 gap-4 变为 gap-2 */}
-                <div className="flex flex-col gap-2">
-                    {displayRules.map((rule, idx) => (
-                        <div 
-                            key={idx} 
-                            className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 border border-transparent hover:border-slate-100 hover:bg-white transition-all duration-200 group"
-                        >
-                            <div className="flex-shrink-0">
-                                {rule.status === 'success' ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                ) : rule.status === 'warning' ? (
-                                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                                ) : (
-                                    <XCircle className="w-4 h-4 text-rose-500" />
-                                )}
+                <div className="relative">
+                    {/* 标志性引导线 - 保持一致 */}
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/10 rounded-full" />
+                    
+                    {/* 规则列表 */}
+                    <div className="pl-5 flex flex-col gap-3">
+                        {displayRules.map((rule, idx) => (
+                            <div key={idx} className="flex items-start gap-3 group">
+                                <div className="mt-1 flex-shrink-0">
+                                    {rule.status === 'success' ? (
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                    ) : rule.status === 'warning' ? (
+                                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                    ) : (
+                                        <XCircle className="w-4 h-4 text-rose-500" />
+                                    )}
+                                </div>
+                                <p className="text-slate-600 dark:text-slate-100 text-sm font-bold leading-tight flex-1">
+                                    {rule.detail}
+                                </p>
                             </div>
-                            <p className="text-slate-700 text-sm font-bold leading-tight flex-1">
-                                {rule.detail}
-                            </p>
-                            <ChevronRight className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

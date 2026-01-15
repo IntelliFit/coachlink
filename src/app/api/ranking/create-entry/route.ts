@@ -4,10 +4,7 @@ import supabase from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
 import type { CreateEntryDto, CreateEntryResponseDto } from "./entity";
-import { randomUUID } from "crypto";
 import { LeaderboardFormInput } from "@/types/leaderboard";
-import fs from "fs";
-import path from "path";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -31,14 +28,6 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
 
-    // 先删除 userId, template_id, pending 下的所有数据
-    await supabase
-        .from("leaderboard_entries")
-        .delete()
-        .eq("user_id", userId)
-        .eq("template_id", body.template_id)
-        .eq('status', 'pending');
-
     const { data: template } = await supabase
         .from("leaderboard_templates")
         .select("*")
@@ -54,6 +43,24 @@ export async function POST(req: Request) {
         }
     }
 
+    const needReview = template?.needReview ?? true;
+    if (needReview) {
+        // 先删除 userId, template_id, pending 下的所有数据
+        await supabase
+            .from("leaderboard_entries")
+            .delete()
+            .eq("user_id", userId)
+            .eq("template_id", body.template_id)
+            .eq('status', 'pending');
+    } else {
+        // 先删除 userId, template_id, pending 下的所有数据
+        await supabase
+            .from("leaderboard_entries")
+            .delete()
+            .eq("user_id", userId)
+            .eq("template_id", body.template_id);
+    }
+
     const { data, error } = await supabase
         .from("leaderboard_entries")
         .insert({
@@ -61,7 +68,7 @@ export async function POST(req: Request) {
             form_data: body.form_data,
             score: body.score,
             evidence_url: body.evidence_url,
-            status: "pending",
+            status: needReview ? "pending" : "approved",
             user_id: userId,
         })
         .select()
