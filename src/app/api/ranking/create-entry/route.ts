@@ -9,18 +9,6 @@ import { LeaderboardFormInput } from "@/types/leaderboard";
 import fs from "fs";
 import path from "path";
 
-function logDebug(message: string, data?: any) {
-    try {
-        const timestamp = new Date().toISOString();
-        const logPath = path.join(process.cwd(), "debug_log.txt");
-        const content = `\n[${timestamp}] ${message}\n${data ? JSON.stringify(data, null, 2) : ""
-            }\n-------------------`;
-        fs.appendFileSync(logPath, content);
-    } catch (e) {
-        console.error("LOGGING FAILED", e);
-    }
-}
-
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -81,7 +69,6 @@ export async function POST(req: Request) {
 
     if (error) {
         console.error("操作排行榜条目失败:", error);
-        logDebug("Supabase Error", error);
         return NextResponse.json<ApiData<CreateEntryResponseDto>>({
             success: false,
             message: error.message,

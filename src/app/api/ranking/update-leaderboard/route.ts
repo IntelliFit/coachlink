@@ -36,7 +36,9 @@ export async function POST(req: Request) {
         type,
         rules,
         form_schema,
-        remarks
+        remarks,
+        initiator,
+        needReview
     } = await req.json() as UpdateLeaderboardDto;
 
     // 更新排行榜模板
@@ -51,6 +53,8 @@ export async function POST(req: Request) {
             ...(sort_order !== undefined && { sort_order: sort_order || null }),
             ...(type !== undefined && { type: type || null }),
             ...(rules !== undefined && { rules: rules || null }),
+            ...(initiator !== undefined && { initiator: initiator || null }),
+            ...(needReview !== undefined && { needReview: needReview ?? true }),
             ...(form_schema !== undefined && { form_schema: form_schema || null }),
             ...(remarks !== undefined && { remarks: remarks || null })
         })

@@ -182,7 +182,7 @@ export default function RankingPage() {
                 title={leaderboard.title}
                 description={'月度排行榜挑战赛'}
                 recordCount={total}
-                ownerName={leaderboard.initiator}
+                ownerName={leaderboard.initiator || '教链'}
                 startAt={leaderboard.start_at}
                 endAt={leaderboard.end_at}
                 templateId={templateId}

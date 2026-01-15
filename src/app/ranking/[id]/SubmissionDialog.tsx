@@ -133,7 +133,7 @@ export default function SubmissionDialog({
             };
 
             // 6. 调用 API 提交
-            const result = await rankingService.createEntry(payload as any);
+            const result = await rankingService.createEntry(payload);
 
             if (result) {
                 showToast({

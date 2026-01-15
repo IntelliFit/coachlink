@@ -12,8 +12,8 @@ import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardRule, LeaderboardFormInput } from '@/types/leaderboard';
 import { Tag } from 'primereact/tag';
-import { Checkbox } from 'primereact/checkbox';
 import { Clock } from 'lucide-react';
+import { InputSwitch } from 'primereact/inputswitch';
 
 interface EditLeaderboardFormProps {
     leaderboardId: string;
@@ -46,6 +46,8 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
         sort_order: 'desc',
         type: 'score',
         remarks: '',
+        initiator: '',
+        needReview: true,
         rules: [] as LeaderboardRule[],
         form_schema: [] as LeaderboardFormInput[]
     });
@@ -280,6 +282,19 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                             />
                         </div>
 
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">
+                                发起人 <span className="text-primary-500">*</span>
+                            </label>
+                            <InputText
+                                name="initiator"
+                                value={formData.initiator}
+                                placeholder="输入发起部门或姓名..."
+                                onChange={(e) => setFormData(p => ({ ...p, initiator: e.target.value }))}
+                                className="w-full rounded-xl py-3 px-4 text-sm font-bold transition-all bg-surface-50 border border-surface-200/60 focus:bg-surface focus:border-primary-400 transform-gpu will-change-contents"
+                            />
+                        </div>
+
                         {/* 排名字段选择 */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">
@@ -331,6 +346,21 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                                     }
                                 }}
                             />
+                        </div>
+
+                        {/* 是否审核 (磁贴切换风格) */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest ml-1">
+                                审核流程
+                            </label>
+                            <div className="flex items-center justify-between bg-surface-50 border border-surface-200/60 rounded-xl h-[46px] px-4">
+                                <span className="text-sm font-bold text-surface-600">需要管理员审核</span>
+                                <InputSwitch
+                                    checked={formData.needReview}
+                                    onChange={(e) => setFormData(p => ({ ...p, needReview: e.value }))}
+                                    className="scale-90"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -564,19 +594,6 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
                                                     })
                                                 }}
                                             />
-                                        </div>
-
-                                        <div className="col-12">
-                                            <div className="inline-flex items-center gap-3 bg-surface-50/50 p-2.5 pr-4 rounded-xl border border-surface-100/50">
-                                                <Checkbox
-                                                    inputId={`required-${index}`}
-                                                    checked={!!input.required}
-                                                    onChange={(e) => updateFormInput(index, 'required', e.checked)}
-                                                />
-                                                <label htmlFor={`required-${index}`} className="text-xs font-bold text-surface-500 cursor-pointer select-none">
-                                                    设定为必填项 (Required)
-                                                </label>
-                                            </div>
                                         </div>
                                     </div>
 

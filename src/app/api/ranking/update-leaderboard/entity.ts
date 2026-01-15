@@ -10,6 +10,8 @@ export interface UpdateLeaderboardDto {
     rules?: any;
     form_schema?: any;
     remarks?: string;
+    initiator?: string;
+    needReview?: boolean;
 }
 
 export interface UpdateLeaderboardResponseDto {

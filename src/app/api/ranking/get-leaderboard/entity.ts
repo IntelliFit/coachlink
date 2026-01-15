@@ -20,5 +20,6 @@ export interface GetLeaderboardResponseDto {
         created_at: string | null;
         creator_id: string | null;
         initiator: string | null;
+        needReview: boolean;
     } | null;
 }
