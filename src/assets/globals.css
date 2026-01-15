@@ -268,3 +268,96 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .inner-img-object-fit > img {
     object-fit: cover;
 }
+
+/* Aero-Productivity Guide Styles */
+
+/* 1. 核心容器：采用非线性大圆角与呼吸感边框 */
+.driver-popover.aero-guide-popover {
+  background-color: rgba(255, 255, 255, 1) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  
+  /* 呼吸感边框：利用极细的半透明边框勾勒轮廓 */
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 20px !important; /* 非线性大圆角 */
+  
+  /* 光影逻辑：使用 Spread=0 的多层微弱投影，模拟物体浮起 */
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.05),
+    0 4px 6px -2px rgba(0, 0, 0, 0.03) !important;
+    
+  padding: 24px !important;
+  max-width: 340px !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; /* 非对称过渡 */
+}
+
+/* 2. 标题排版：紧凑型字间距与数值中心化风格 */
+.aero-guide-popover .driver-popover-title {
+  color: #0f172a !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important; /* 紧凑型字间距 tracking-tight */
+  margin-bottom: 10px !important;
+  line-height: 1.2 !important;
+}
+
+/* 3. 描述文本：信息约束与低饱和色彩 */
+.aero-guide-popover .driver-popover-description {
+  color: #64748b !important; /* 低饱和度 Slate-500 */
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  font-weight: 400 !important;
+  /* 模拟信息约束的呼吸感 */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 4. 进度标识：数值中心化 */
+.aero-guide-popover .driver-popover-progress-text {
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* 5. 交互反馈：物理缩放与强调色联动 */
+.aero-guide-popover .driver-popover-btn {
+  /* 基础物理反馈 */
+  transition: all 0.2s ease !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  background: #f1f5f9 !important;
+  border: none !important;
+  color: #475569 !important;
+  text-shadow: none !important;
+}
+
+.aero-guide-popover .driver-popover-btn:active {
+  transform: scale(0.96) !important; /* 物理缩放反馈 */
+}
+
+/* 强调色联动：下一步/完成按钮 */
+.aero-guide-popover .driver-popover-next-btn,
+.aero-guide-popover .driver-popover-done-btn {
+  background: #0f172a !important; /* 纯深色作为强调 */
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important;
+}
+
+/* 6. 引导光圈样式：呼吸引导动效 */
+.driver-stage-no-animation, .driver-stage-with-animation {
+  border: 2px solid rgba(99, 102, 241, 0.5) !important; /* 强调色微弱描边 */
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+
+/* 隐藏 Driver.js 默认阴影以符合极简层级逻辑 */
+.driver-popover-arrow {
+  display: none !important; /* 弃用三角形箭头，改用层级深度表达指向 */
+}
