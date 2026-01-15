@@ -6,6 +6,7 @@ import { Skeleton } from 'primereact/skeleton'; // 替换 Spinner 为骨架屏
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
+import { ogService } from '@/app/service/ogService';
 import { GetCoachResponseDto } from '@/app/api/coach/get-coach/entity';
 import html2canvas from 'html2canvas';
 
@@ -55,66 +56,54 @@ export default function InvitationSettingsPage() {
     };
 
     const savePoster = async (mode: 'exclusive' | 'open') => {
-        const target = mode === 'exclusive' ? posterRefExclusive.current : posterRefOpen.current;
-        if (!target || !coach) return;
+        if (!coach) return;
         setSavingPoster(mode);
 
         try {
-            const rect = target.getBoundingClientRect();
-            const canvas = await html2canvas(target, {
-                background: undefined,
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                removeContainer: true,
-                // Ensure correct capture when page is scrolled
-                scrollX: -window.scrollX,
-                scrollY: -window.scrollY,
-                // Fix some edge cases where html2canvas mis-measures bounds
-                width: Math.ceil(rect.width),
-                height: Math.ceil(rect.height),
-                onclone: (doc) => {
-                    try {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (doc.documentElement as any).style.webkitTextSizeAdjust = '100%';
-                    } catch { }
+            // Prepare data for the OG image generation
+            const qrCodeUrl = mode === 'exclusive'
+                ? coach.invitationInfo.inviteUrlExclusive
+                : coach.invitationInfo.inviteUrlOpen;
 
-                    const modeAttr = mode === 'exclusive' ? 'exclusive' : 'open';
-                    const clonedRoot = doc.querySelector(
-                        `[data-poster-root="${modeAttr}"]`,
-                    ) as HTMLElement | null;
-                    if (!clonedRoot) return;
+            const postData = {
+                name: coach.coach.name,
+                title: coach.coach.title || '专业健身指导',
+                experience: coach.coach.years_experience ? `${coach.coach.years_experience}年经验` : undefined,
+                avatar: coach.coach.avatar_url,
+                qrCode: qrCodeUrl
+            };
 
-                    const safeTexts = clonedRoot.querySelectorAll(
-                        '[data-h2c-safe-text="1"]',
-                    ) as NodeListOf<HTMLElement>;
-                    safeTexts.forEach((el) => {
-                        // Avoid top-crop in some mobile webviews by making line box taller and nudging down
-                        el.style.display = 'inline-block';
-                        el.style.overflow = 'visible';
-                        el.style.lineHeight = '1.35';
-                        el.style.paddingTop = '3px';
-                        el.style.paddingBottom = '2px';
-                        el.style.transform = 'translateY(1px)';
-                    });
+            // Use ogService to get the image URL
+            const result = await ogService.generateInvitationOgImage(postData);
 
-                    // During export, relax truncation overflow (ellipsis is less important than not clipping)
-                    const truncs = clonedRoot.querySelectorAll('.truncate') as NodeListOf<HTMLElement>;
-                    truncs.forEach((el) => {
-                        el.style.overflow = 'visible';
-                    });
-                },
-            });
 
-            const link = document.createElement('a');
-            link.href = canvas.toDataURL('image/png');
-            link.download = `CoachLink-邀请海报-${mode}-${coach.invitationInfo.invitationCode}.png`;
-            link.click();
+            if (result && result.imageUrl) {
+                // Fetch the image as a blob and create a downloadable URL
+                const response = await fetch(result.imageUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
 
-            showToast({ severity: 'success', summary: '保存成功', detail: '邀请海报已存入相册' });
+                // Create a temporary link to trigger download
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `CoachLink-邀请海报-${mode}-${coach.invitationInfo.invitationCode}.png`;
+                link.rel = 'noopener noreferrer';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Clean up the blob URL to free memory
+                URL.revokeObjectURL(blobUrl);
+
+                showToast({ severity: 'success', summary: '保存成功', detail: '邀请海报已存入相册' });
+            } else {
+                throw new Error('海报生成失败');
+            }
         } catch (e) {
-            console.log(e);
-
+            console.error('Error generating invitation poster:', e);
             showToast({ severity: 'error', summary: '生成失败', detail: '海报渲染异常，请重试' });
         } finally {
             setSavingPoster(null);
@@ -190,8 +179,6 @@ export default function InvitationSettingsPage() {
             <section className="relative transition-all duration-300">
                 <InvitationPosterCard
                     coach={coach}
-                    posterRefExclusive={posterRefExclusive}
-                    posterRefOpen={posterRefOpen}
                     savingPoster={savingPoster}
                     savePoster={savePoster}
                     handleCopyModeLink={(mode) => handleCopyText(
