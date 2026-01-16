@@ -33,12 +33,12 @@ export default function SubscribePage() {
             const res = await studentMembershipService.createOrder({
                 productKey,
                 paymentMethod: 'alipay'
-            });
+            });            
             
-            if (res?.data?.paymentHtml) {
+            if (res?.paymentHtml) {
                 // Render the Alipay form and auto-submit
                 const div = document.createElement('div');
-                div.innerHTML = res.data.paymentHtml;
+                div.innerHTML = res.paymentHtml;
                 document.body.appendChild(div);
                 const form = div.querySelector('form');
                 if (form) {

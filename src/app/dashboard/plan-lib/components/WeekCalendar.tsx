@@ -140,7 +140,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     return (
         <div className="flex flex-col gap-6">
             {/* 头部：数值中心化与简洁操作 */}
-            <div className="flex justify-between items-end px-1">
+            <div className="flex justify-between items-start px-1 flex-col gap-2 md:items-end md:flex-row">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-baseline gap-2">
                         <h3 className="text-2xl font-black text-surface-900 tracking-tighter">训练计划排期</h3>

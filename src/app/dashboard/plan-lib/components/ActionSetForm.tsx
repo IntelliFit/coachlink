@@ -374,36 +374,44 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 />
             </div>
 
-            {/* 核心参数：移动端压缩成紧凑网格，避免“stacked”按钮占满屏 */}
             {baseAttrs.length > 0 && (
                 <div className="md:col-span-2">
+                    {/* 使用 gap-2 紧凑布局，并为移动端微调外边距 */}
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
                         {baseAttrs.map(attr => (
-                            <div key={attr} className="min-w-0">
-                                <label className="block text-900 text-[11px] mb-1 truncate">{attr}</label>
-                                <AeroInputNumber
-                                    value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
-                                    onValueChange={e => {
-                                        const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
-                                        updateParams({ [attr]: value });
-                                    }}
-                                    suffix={getUnit(attr)}
-                                    inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
-                                    disabled={saving}
-                                    min={attr === '休息时间' ? 0.5 : 1}
-                                    step={attr === '休息时间' ? 0.5 : 1}
-                                    maxFractionDigits={attr === '休息时间' ? 1 : 0}
-                                    showButtons
-                                    buttonLayout="stacked"
-                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
-                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
-                                    pt={{
-                                        root: { className: 'w-full' },
-                                        buttonGroup: { className: '!w-7 !ml-1' }
-                                    }}
-                                />
+                            <div key={attr} className="min-w-0 flex flex-col">
+                                {/* 标签与单位：在上方水平排列，保持输入框纯粹 */}
+                                <div className="flex justify-between items-end mb-1 px-0.5">
+                                    <label className="text-surface-500 text-[10px] font-bold truncate leading-none">
+                                        {attr}
+                                    </label>
+                                    {/* 这里的 getUnit 会直接显示，不再作为后缀挤占 Input 内部空间 */}
+                                    <span className="text-surface-400 text-[9px] font-medium leading-none ml-1 flex-shrink-0">
+                                        {getUnit(attr)}
+                                    </span>
+                                </div>
+
+                                <div className="relative group">
+                                    <AeroInputNumber
+                                        value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
+                                        onValueChange={e => {
+                                            const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
+                                            updateParams({ [attr]: value });
+                                        }}
+                                        // 保持 inputClassName 不变
+                                        inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
+                                        disabled={saving}
+                                        min={attr === '休息时间' ? 0.5 : 1}
+                                        step={attr === '休息时间' ? 0.5 : 1}
+                                        maxFractionDigits={attr === '休息时间' ? 1 : 0}
+                                        // 移动端隐藏按钮可获得更纯粹的数字化观感，且避免误触
+                                        // 如果业务必须保留，可设为 true
+                                        showButtons={false}
+                                    />
+
+                                    {/* 交互增强层：不改变 Input 样式，但在外部包裹一层 Focus 指示线条 */}
+                                    <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-focus-within:border-orange-400/30 pointer-events-none transition-all" />
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -461,15 +469,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     disabled={saving}
                                     inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                     showButtons
-                                    buttonLayout="stacked"
-                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
-                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
-                                    pt={{
-                                        root: { className: 'w-full' },
-                                        buttonGroup: { className: '!w-7 !ml-1' }
-                                    }}
                                 />
                                 {advancedOpen && (
                                     <small className="text-500 text-xs ml-1 opacity-50">RM范围1-36，如5RM=能做5次的最大重量</small>
@@ -490,15 +489,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     disabled={saving}
                                     inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                     showButtons
-                                    buttonLayout="stacked"
-                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
-                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
-                                    pt={{
-                                        root: { className: 'w-full' },
-                                        buttonGroup: { className: '!w-7 !ml-1' }
-                                    }}
                                 />
                                 {advancedOpen && (
                                     <small className="text-500 text-xs ml-1 opacity-50">如80%=1RM的80%重量</small>
@@ -520,15 +510,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     maxFractionDigits={1}
                                     inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                     showButtons
-                                    buttonLayout="stacked"
-                                    incrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    decrementButtonClassName="!w-7 !h-5 !p-0 !bg-surface-100 !text-surface-700 !border-0 hover:!bg-surface-200"
-                                    incrementButtonIcon="pi pi-chevron-up text-[10px]"
-                                    decrementButtonIcon="pi pi-chevron-down text-[10px]"
-                                    pt={{
-                                        root: { className: 'w-full' },
-                                        buttonGroup: { className: '!w-7 !ml-1' }
-                                    }}
                                 />
                                 <Dropdown
                                     value={recommendedUnit}
@@ -578,52 +559,52 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                     <label className="block text-surface-400 text-[11px] font-bold ml-1">计算预览</label>
 
                                     <div className="flex items-center justify-between p-3 bg-surface-50 rounded-[14px] border border-surface-100/50">
-                            <div className="flex items-center gap-3">
-                                {/* 结果数值：保持清晰但尺寸适中 */}
-                                <div className="flex items-baseline gap-1">
-                                    {set.params?.load !== null && set.params?.load !== undefined ? (
-                                        <>
-                                            <span className={`text-base font-black ${set.params.load < 0 ? 'text-red-500' : 'text-primary-600'}`}>
-                                                {set.params.load < 0 ? '辅助 ' : ''}{Math.abs(Number(set.params.load)).toFixed(1)}
-                                            </span>
-                                            <span className={`text-[10px] font-bold uppercase ${set.params.load < 0 ? 'text-red-400' : 'text-primary-500'}`}>
-                                                {set.params?.loadUnit || 'kg'}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <span className="text-sm font-medium text-surface-400">
-                                            {!studentData?.profile?.weight ? '缺少体重数据' : 
-                                             getUserOneRM() === null ? '缺少1RM数据' : '待计算'}
-                                        </span>
-                                    )}
-                                </div>
+                                        <div className="flex items-center gap-3">
+                                            {/* 结果数值：保持清晰但尺寸适中 */}
+                                            <div className="flex items-baseline gap-1">
+                                                {set.params?.load !== null && set.params?.load !== undefined ? (
+                                                    <>
+                                                        <span className={`text-base font-black ${set.params.load < 0 ? 'text-red-500' : 'text-primary-600'}`}>
+                                                            {set.params.load < 0 ? '辅助 ' : ''}{Math.abs(Number(set.params.load)).toFixed(1)}
+                                                        </span>
+                                                        <span className={`text-[10px] font-bold uppercase ${set.params.load < 0 ? 'text-red-400' : 'text-primary-500'}`}>
+                                                            {set.params?.loadUnit || 'kg'}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-sm font-medium text-surface-400">
+                                                        {!studentData?.profile?.weight ? '缺少体重数据' :
+                                                            getUserOneRM() === null ? '缺少1RM数据' : '待计算'}
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                {/* 强度详情：辅助信息 */}
-                                <div className="flex items-center gap-2 text-[12px] text-surface-500 font-medium border-l border-surface-200 pl-3">
-                                    {intensityType === 'rm' && set.params?.['强度'] && (
-                                        <span>{set.params?.['强度']}RM</span>
-                                    )}
-                                    {intensityType === 'percentage' && (
-                                        <span>{percentageValue}%</span>
-                                    )}
-                                </div>
-                            </div>
+                                            {/* 强度详情：辅助信息 */}
+                                            <div className="flex items-center gap-2 text-[12px] text-surface-500 font-medium border-l border-surface-200 pl-3">
+                                                {intensityType === 'rm' && set.params?.['强度'] && (
+                                                    <span>{set.params?.['强度']}RM</span>
+                                                )}
+                                                {intensityType === 'percentage' && (
+                                                    <span>{percentageValue}%</span>
+                                                )}
+                                            </div>
+                                        </div>
 
-                            {/* 1RM 基准信息：极简展示 */}
-                            {studentData && (
-                                <div className="text-[10px] text-surface-400 font-medium bg-white/50 px-2 py-0.5 rounded-md border border-surface-100">
-                                    {getUserOneRM() !== null 
-                                        ? (
-                                            <span className={getUserOneRM() < 0 ? 'text-blue-500' : ''}>
-                                                基准1RM: {getUserOneRM()}kg{getUserOneRM() < 0 ? ' (需辅助)' : ''}
-                                            </span>
-                                        )
-                                        : <span className="text-orange-500">需设置1RM</span>}
-                                    {studentData?.profile?.weight 
-                                        ? ` · 体重: ${studentData.profile.weight}kg`
-                                        : <span className="text-orange-500 ml-1">· 需设置体重</span>}
-                                </div>
-                            )}
+                                        {/* 1RM 基准信息：极简展示 */}
+                                        {studentData && (
+                                            <div className="text-[10px] text-surface-400 font-medium bg-white/50 px-2 py-0.5 rounded-md border border-surface-100">
+                                                {getUserOneRM() !== null
+                                                    ? (
+                                                        <span className={getUserOneRM() < 0 ? 'text-blue-500' : ''}>
+                                                            基准1RM: {getUserOneRM()}kg{getUserOneRM() < 0 ? ' (需辅助)' : ''}
+                                                        </span>
+                                                    )
+                                                    : <span className="text-orange-500">需设置1RM</span>}
+                                                {studentData?.profile?.weight
+                                                    ? ` · 体重: ${studentData.profile.weight}kg`
+                                                    : <span className="text-orange-500 ml-1">· 需设置体重</span>}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
