@@ -10,13 +10,14 @@ import { Calendar } from 'primereact/calendar';
 import { addLocale } from 'primereact/api';
 import { FileUpload, FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Image } from 'primereact/image';
-import { ProgressSpinner } from 'primereact/progressspinner';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
 import WeixinzhifuIcon from '../icons/weixinzhifu';
 import ZhifubaoIcon from '../icons/zhifubao';
 import { AeroInputNumber } from '../AeroInputNumber';
+import PaymentSkeleton from './PaymentSkeleton';
+import TermDialog from './TermDialog';
 
 // 中文语言包配置
 addLocale('zh-CN', {
@@ -705,9 +706,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         ¥{amount.toFixed(2)}
                     </div>
                 )}
-                <div className="text-xs text-surface-400 text-center">
-                    支付将通过平台支付宝接口完成，款项由平台代收
-                </div>
             </div>
         );
     };
@@ -919,46 +917,19 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             >
                 <div className="p-4 flex flex-col items-center">
                     {loading ? (
-                        <div className="py-8">
-                            <ProgressSpinner style={{ width: '50px', height: '50px' }} />
-                        </div>
+                        <PaymentSkeleton />
                     ) : (
                         renderPaymentContent()
                     )}
                 </div>
             </Dialog>
 
-            <Dialog
-                header="服务条款确认"
-                visible={showTermsDialog}
+            <TermDialog
+                showTermsDialog={showTermsDialog}
                 onHide={() => setShowTermsDialog(false)}
-                footer={termsFooterContent}
-                modal
-                draggable={false}
-                resizable={false}
-                style={{ width: '90%', maxWidth: '500px' }}
-            >
-                <div className="p-4">
-                    <div className="mb-4 text-surface-900">
-                        <h3 className="font-bold text-lg mb-2">请仔细阅读以下服务条款：</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>未来我们很快会支持全链路的支付，不再需要您点击确认，当前只是过度方案。</li>
-                            <li>支付完成后，请主动联系教练确认收款</li>
-                            <li>教练确认收款后，服务即生效</li>
-                        </ul>
-                    </div>
-                    <div className="flex items-center mb-4">
-                        <Checkbox
-                            inputId="agreement"
-                            onChange={e => setAgreedToTerms(e.checked || false)}
-                            checked={agreedToTerms}
-                        />
-                        <label htmlFor="agreement" className="ml-2 text-surface-900">
-                            我已阅读并同意以上服务条款
-                        </label>
-                    </div>
-                </div>
-            </Dialog>
+                onAccept={handleTermsAccept}
+                onCancel={handleQrCodePaymentConfirmation}
+            />
         </>
     );
 };
