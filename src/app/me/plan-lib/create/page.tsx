@@ -50,7 +50,7 @@ const CreatePlanPage = () => {
 
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
-    
+
     // 学生数据状态，用于自动计算重量
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
 
@@ -86,9 +86,9 @@ const CreatePlanPage = () => {
 
     const fetchProfile = async () => {
         try {
-             if (!session?.user?.id) return;
-             const profileRes = await studentService.getStudentProfile(session.user.id);
-             if (profileRes?.profile) {
+            if (!session?.user?.id) return;
+            const profileRes = await studentService.getStudentProfile(session.user.id);
+            if (profileRes?.profile) {
                 setStudentData({
                     id: session.user.id,
                     student_id: session.user.id,
@@ -111,7 +111,7 @@ const CreatePlanPage = () => {
 
     useEffect(() => {
         if (!session?.user?.id) return;
-        
+
         setLoading(true);
         Promise.all([loadActions(), fetchProfile()])
             .finally(() => setLoading(false));
@@ -151,7 +151,7 @@ const CreatePlanPage = () => {
     const handleDeleteWeek = (weekStartIndex: number) => {
         const weekStart = weekStartIndex * 7;
         const newDays = days.filter((_, index) => index < weekStart || index >= weekStart + 7);
-        
+
         // 重新编号
         const reindexedDays = newDays.map((day, index) => ({
             ...day,
@@ -159,7 +159,7 @@ const CreatePlanPage = () => {
         }));
 
         setDays(reindexedDays);
-        
+
         if (selectedDayIndex !== null) {
             if (selectedDayIndex > weekStart && selectedDayIndex <= weekStart + 7) {
                 setSelectedDayIndex(null);
@@ -172,7 +172,7 @@ const CreatePlanPage = () => {
     const handleRemoveDay = (index: number) => {
         const dayToRemove = days[index];
         const newDays = [...days];
-        
+
         // 将该天设为休息日而不是删除
         newDays[index] = {
             ...dayToRemove,
@@ -180,14 +180,14 @@ const CreatePlanPage = () => {
             actionSets: [],
             actionSetsCount: 0
         };
-        
+
         setDays(newDays);
     };
 
     const handleDayTypeChange = (index: number, type: 'training' | 'rest') => {
         const newDays = [...days];
-        newDays[index] = { 
-            ...newDays[index], 
+        newDays[index] = {
+            ...newDays[index],
             type,
             actionSets: type === 'rest' ? [] : newDays[index].actionSets,
             actionSetsCount: type === 'rest' ? 0 : newDays[index].actionSetsCount
@@ -201,7 +201,7 @@ const CreatePlanPage = () => {
         // 或者如果 dayIndexVal 是数组索引，这里也能兼容（如果 dayIndex 正好等于数组索引+1）
         // 更安全的方式是查找对应的 dayIndex
         const arrayIndex = newDays.findIndex(d => d.dayIndex === dayIndexVal);
-        
+
         if (arrayIndex === -1) {
             console.error('Cannot find day with dayIndex:', dayIndexVal);
             return;
@@ -263,14 +263,14 @@ const CreatePlanPage = () => {
     const handleCopyFromDay = (targetDayIndex: number, sourceDayIndex: number) => {
         const newDays = [...days];
         const sourceDay = days[sourceDayIndex];
-        
+
         newDays[targetDayIndex] = {
             ...newDays[targetDayIndex],
             type: 'training',
             actionSets: sourceDay.actionSets.map(set => ({ ...set, params: { ...set.params } })),
             actionSetsCount: sourceDay.actionSets.length
         };
-        
+
         setDays(newDays);
     };
 
@@ -325,7 +325,7 @@ const CreatePlanPage = () => {
         }));
 
         setDays(convertedDays);
-        
+
         // 选中第一个训练日
         const firstTrainingDay = convertedDays.find(d => d.type === 'training');
         if (firstTrainingDay) {
@@ -354,10 +354,15 @@ const CreatePlanPage = () => {
         }));
 
     return (
-        <div className="mx-auto p-4">
-            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
+        <div className="mx-auto p-0 md:p-4">
+            <Card className="
+                bg-transparent border-none p-0 shadow-none
+                sm:bg-surface-0 sm:border sm:border-surface-200/70 sm:rounded-[24px] sm:shadow-sm sm:p-6
+            "
+                
+            >
                 {/* 顶部区域 */}
-                <div className="border-b border-surface-200 p-4 md:p-6">
+                <div className="border-surface-200 p-0 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-bold text-900">创建训练计划</h1>
@@ -367,26 +372,22 @@ const CreatePlanPage = () => {
                             <Button
                                 label="智能导入"
                                 icon="pi pi-bolt"
-                                className="p-button-outlined p-button-secondary"
+                                className="rounded-2xl flex-1 md:flex-none"
+                                outlined
                                 onClick={() => setShowImportDialog(true)}
-                            />
-                            <Button
-                                label="取消"
-                                icon="pi pi-times"
-                                className="p-button-text"
-                                onClick={() => router.back()}
                             />
                             <Button
                                 label="保存计划"
                                 icon="pi pi-check"
                                 loading={saving}
                                 onClick={handleSave}
+                                className='rounded-2xl bg-surface-800 border-none flex-1 md:flex-none'
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 md:p-6">
+                <div className="p-0 py-4 md:p-6 sm:p-0">
                     {/* 基本信息 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <div>
@@ -395,7 +396,7 @@ const CreatePlanPage = () => {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="例如：每周三练增肌计划"
-                                className="w-full"
+                                className="w-full rounded-xl"
                             />
                         </div>
                         <div>
@@ -406,13 +407,13 @@ const CreatePlanPage = () => {
                                 placeholder="描述这个计划的目标和特点..."
                                 rows={1}
                                 autoResize
-                                className="w-full"
+                                className="w-full rounded-xl"
                             />
                         </div>
                     </div>
 
                     {/* Global 1RM Configuration Panel */}
-                    <OneRMConfigPanel 
+                    <OneRMConfigPanel
                         days={days}
                         actions={actions}
                         value={planReference1RMs}

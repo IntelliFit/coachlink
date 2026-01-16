@@ -372,7 +372,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             onCancel?.();
                             onHide();
                         }}
-                        className="p-button-text"
+                        className="p-button-text rounded-2xl"
                         disabled={loading || processingAlipay}
                     />
                     <Button
@@ -382,7 +382,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         disabled={!amount || processingAlipay}
                         loading={processingAlipay}
                         autoFocus
-                        className="p-button-primary"
+                        className="p-button-primary rounded-2xl"
                     />
                 </div>
             );

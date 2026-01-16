@@ -315,7 +315,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     };
 
     return (
-        <div className="flex flex-col gap-5 p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col gap-5 p-0 sm:p-4 md:p-6">
             {/* 顶部操作区：吸顶（避免每次回到最上面） */}
             <div className="sticky top-2 z-20 bg-surface/95 backdrop-blur-md rounded-[20px] border border-surface-100/60 p-3 flex flex-col gap-3">
                 {/* 头部：生产力字重与非线性圆角操作区 */}
@@ -372,7 +372,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
 
             {day.type === 'training' ? (
                 <ScrollPanel className="flex-grow" style={{ height: 'calc(100vh - 300px)' }}>
-                    <div className="flex flex-col gap-4 p-2">
+                    <div className="flex flex-col gap-4 p-0 md:p-2">
                         {day.actionSets.map((set, setIndex) => {
                             const itemType = getItemType(set);
                             const isStrength = itemType === 'STRENGTH';
@@ -381,7 +381,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         return (
                             <div
                                 key={setIndex}
-                                className="group relative bg-surface border border-surface-100 rounded-[24px] p-4 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                                className="group relative bg-surface border border-surface-100 rounded-[24px] p-4 md:p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
                             >
                                 {/* 动作头部：数值中心化 */}
                                 <div className="flex justify-between items-start mb-4 md:mb-6">
@@ -445,7 +445,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                     )}
 
                                 {/* 动态表单区域：利用层级去线化 */}
-                                <div className="md:bg-surface-50/30 md:rounded-[20px] p-0 md:p-5 md:border md:border-surface-100/50">
+                                <div className="md:bg-surface-50/30 md:rounded-[20px] p-0 md:p-0 md:border md:border-surface-100/50">
                                     {/* 1. 力量训练 (STRENGTH) */}
                                     {itemType === 'STRENGTH' && (
                                         <ActionSetForm
