@@ -3,16 +3,16 @@ import { ApiData } from '@/types/api';
 
 // OG Image related interfaces
 import type {
-    GenerateInvitationOgImageDto,
-    GenerateInvitationOgImageResponseDto
+    OgInvitationDto,
+    OgInvitationResponseDto
 } from '@/app/api/og/invitation/entity';
 
 class OgService extends BaseService {
     /**
      * Generate invitation Open Graph image
      */
-    async generateInvitationOgImage(reqData: GenerateInvitationOgImageDto) {
-        const res = await this.post<GenerateInvitationOgImageResponseDto>('og/invitation', reqData);
+    async generateInvitationOgImage(reqData: OgInvitationDto) {
+        const res = await this.post<OgInvitationResponseDto>('og/invitation', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

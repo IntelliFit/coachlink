@@ -27,9 +27,6 @@ export default function InvitationSettingsPage() {
     const [showManualInput, setShowManualInput] = useState(false);
     const [isSavingManualCode, setIsSavingManualCode] = useState(false);
 
-    const posterRefExclusive = useRef<HTMLDivElement>(null);
-    const posterRefOpen = useRef<HTMLDivElement>(null);
-
     const fetchData = useCallback(async () => {
         if (!session?.user?.id) return;
         try {
@@ -52,61 +49,6 @@ export default function InvitationSettingsPage() {
             showToast({ severity: 'success', summary: '已复制', detail: msg });
         } catch {
             showToast({ severity: 'error', summary: '操作失败', detail: '浏览器暂不支持剪贴板访问' });
-        }
-    };
-
-    const savePoster = async (mode: 'exclusive' | 'open') => {
-        if (!coach) return;
-        setSavingPoster(mode);
-
-        try {
-            // Prepare data for the OG image generation
-            const qrCodeUrl = mode === 'exclusive'
-                ? coach.invitationInfo.inviteUrlExclusive
-                : coach.invitationInfo.inviteUrlOpen;
-
-            const postData = {
-                name: coach.coach.name,
-                title: coach.coach.title || '专业健身指导',
-                experience: coach.coach.years_experience ? `${coach.coach.years_experience}年经验` : undefined,
-                avatar: coach.coach.avatar_url,
-                qrCode: qrCodeUrl
-            };
-
-            // Use ogService to get the image URL
-            const result = await ogService.generateInvitationOgImage(postData);
-
-
-            if (result && result.imageUrl) {
-                // Fetch the image as a blob and create a downloadable URL
-                const response = await fetch(result.imageUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-
-                // Create a temporary link to trigger download
-                const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = `CoachLink-邀请海报-${mode}-${coach.invitationInfo.invitationCode}.png`;
-                link.rel = 'noopener noreferrer';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                // Clean up the blob URL to free memory
-                URL.revokeObjectURL(blobUrl);
-
-                showToast({ severity: 'success', summary: '保存成功', detail: '邀请海报已存入相册' });
-            } else {
-                throw new Error('海报生成失败');
-            }
-        } catch (e) {
-            console.error('Error generating invitation poster:', e);
-            showToast({ severity: 'error', summary: '生成失败', detail: '海报渲染异常，请重试' });
-        } finally {
-            setSavingPoster(null);
         }
     };
 
@@ -180,7 +122,6 @@ export default function InvitationSettingsPage() {
                 <InvitationPosterCard
                     coach={coach}
                     savingPoster={savingPoster}
-                    savePoster={savePoster}
                     handleCopyModeLink={(mode) => handleCopyText(
                         mode === 'exclusive' ? coach?.invitationInfo.inviteUrlExclusive! : coach?.invitationInfo.inviteUrlOpen!,
                         '特定模式链接已复制'
