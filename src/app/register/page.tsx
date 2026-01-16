@@ -6,7 +6,6 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
 import { Checkbox } from 'primereact/checkbox';
-import { FloatLabel } from 'primereact/floatlabel';
 import { Dialog } from 'primereact/dialog';
 import { useToastContext } from '@/context/ToastContext';
 import { authService } from '../service/authService';
@@ -14,7 +13,7 @@ import { smsService } from '../service/smsService';
 import { Phone, ShieldCheck, ArrowLeft, UserPlus, User, Lock, Dumbbell, KeyRound } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
 import { sesService } from '../service/sesService';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 
 const fetchMarkdown = async (filename: string) => {
     const md = new MarkdownIt({
@@ -54,6 +53,19 @@ export default function RegisterPage() {
     const searchParams = useSearchParams();
     const { showToast } = useToastContext();
 
+    const { data: session } = useSession();
+
+    useEffect(() => {
+        const share = searchParams.get('share');
+        const invitation = invitationCode.trim() || searchParams.get('invite') || undefined;
+
+        if ((share || invitation) && session) {
+            console.log(session);
+            router.push('/');
+            showToast({ severity: 'warn', summary: '您已登录，如需注册新账号，请先登出。' });
+        }
+    }, [session]);
+
     // Persist share attribution for embedded browsers that may drop query params/cookies during navigation.
     useEffect(() => {
         const share = searchParams.get('share');
@@ -72,6 +84,8 @@ export default function RegisterPage() {
                 if (obj?.shareId) localStorage.setItem('share_id', obj.shareId);
             }
         } catch { }
+
+
     }, [searchParams]);
 
     const loadDocs = async () => {
