@@ -5,7 +5,7 @@ import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { AlipaySdk } from 'alipay-sdk';
 
 import type { ApiData } from '@/types/api';
-import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto } from './entity';
+import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
 import { sendSystemMessage } from '@/lib/chat';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
@@ -45,10 +45,30 @@ export async function POST(req: Request) {
         }
     });
 
+    console.log('debug 2.0');
+    
     console.log(response);
-    const result = response.alipay_trade_query_response;
+    /*
+response 成功输出
+{
+    code: '10000',
+    msg: 'Success',
+    buyerLogonId: '135******18',
+    buyerPayAmount: '0.00',
+    invoiceAmount: '0.00',
+    outTradeNo: '7d8711cc-ea1f-42b9-97a6-8293908eaca1',
+    pointAmount: '0.00',
+    receiptAmount: '0.00',
+    sendPayDate: '2026-01-16 22:50:47',
+    totalAmount: '0.01',
+    tradeNo: '2026011622001420201419924360',
+    tradeStatus: 'TRADE_SUCCESS',
+    buyerOpenId: '02055P9mYaqtYOsLTnozQBxheELa2otJrK_rNmTzSXKMfA3',
+    traceId: '21d6638e17685751514775668e7bd0'
+}
 
-    const tradeStatus = result?.trade_status as string | undefined;
+    */
+    const tradeStatus = response?.tradeStatus as string | undefined;
 
     let orderStatus: 'pending' | 'paid' | 'cancelled' = 'pending';
     if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
@@ -63,7 +83,7 @@ export async function POST(req: Request) {
         .update({
             status: orderStatus,
             trade_status: tradeStatus || null,
-            alipay_trade_no: result?.trade_no || null,
+            alipay_trade_no: response?.tradeNo || null,
             updated_at: new Date().toISOString()
         })
         .eq('id', orderId)
@@ -150,7 +170,8 @@ export async function POST(req: Request) {
         success: true,
         message: '支付状态',
         data: {
-            order: order as any
+            order: order,
+            tradeStatus: tradeStatus as TradeStatus
         }
     });
 }
