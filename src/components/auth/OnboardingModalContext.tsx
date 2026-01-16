@@ -26,7 +26,7 @@ export function OnboardingModalProvider({ children }: { children: ReactNode }) {
         setIsOnboardingModalOpen(true);
     };
 
-    const closeOnboardingModal = () => {
+    const closeOnboardingModal = () => {        
         setIsOnboardingModalOpen(false);
     };
 

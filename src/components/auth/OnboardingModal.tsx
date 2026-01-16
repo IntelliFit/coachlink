@@ -11,12 +11,15 @@ import { ProgressBar } from 'primereact/progressbar';
 import { useToastContext } from '@/context/ToastContext';
 import { studentService } from '@/app/service/studentService';
 import { Dumbbell, User, Activity, Bike, Footprints, CalendarIcon } from 'lucide-react';
-import { SportCards, getEmptySportCards, getPowerliftingTotal, getStreetliftingTotal, getWeightliftingTotal } from '@/types/sportCards';
+import { SportCards } from '@/types/sportCards';
+import { getEmptySportCards, getPowerliftingTotal, getStreetliftingTotal, getTotalWeight, getWeightliftingTotal } from '@/lib/sportsCollections';
 import { useOnboardingModal } from './OnboardingModalContext';
 import { useSession } from 'next-auth/react';
 import { Calendar } from 'primereact/calendar';
 import { addLocale, locale } from "primereact/api";
 import { AeroInputNumber } from '../AeroInputNumber';
+import { AeroTimePicker } from '../AeroTimePicker';
+import { showTotalWeight, SportTypes, typicalActionMaps } from '@/lib/sportsCollections';
 
 addLocale('zh-CN', {
     firstDayOfWeek: 1,
@@ -29,16 +32,6 @@ addLocale('zh-CN', {
     clear: '清除'
 });
 
-// 卡片类型配置 - 7 大类
-const CARD_TYPES = [
-    { key: 'powerlifting', label: '力量举', icon: Dumbbell, color: 'text-primary-500', bg: 'bg-primary-50/50', border: 'border-primary-100', active: 'border-primary-500 ring-4 ring-primary-500/10' },
-    { key: 'streetlifting', label: '街头力量', icon: Dumbbell, color: 'text-lime-600', bg: 'bg-lime-50/50', border: 'border-lime-100', active: 'border-lime-500 ring-4 ring-lime-500/10' },
-    { key: 'calisthenics', label: '街头健身', icon: User, color: 'text-green-600', bg: 'bg-green-50/50', border: 'border-green-100', active: 'border-green-500 ring-4 ring-green-500/10' },
-    { key: 'weightlifting', label: '举重', icon: Dumbbell, color: 'text-red-600', bg: 'bg-red-50/50', border: 'border-red-100', active: 'border-red-500 ring-4 ring-red-500/10' },
-    { key: 'bodybuilding', label: '健美/形体', icon: User, color: 'text-purple-600', bg: 'bg-purple-50/50', border: 'border-purple-100', active: 'border-purple-500 ring-4 ring-purple-500/10' },
-    { key: 'running', label: '跑步', icon: Footprints, color: 'text-blue-600', bg: 'bg-blue-50/50', border: 'border-blue-100', active: 'border-blue-500 ring-4 ring-blue-500/10' },
-    { key: 'cycling', label: '骑行', icon: Bike, color: 'text-cyan-600', bg: 'bg-cyan-50/50', border: 'border-cyan-100', active: 'border-cyan-500 ring-4 ring-cyan-500/10' },
-];
 
 interface FormData {
     nickname: string;
@@ -70,23 +63,6 @@ const FITNESS_LEVEL_OPTIONS = [
     { label: '中级', value: 'intermediate' },
     { label: '高级', value: 'advanced' },
 ];
-
-const fieldLabelMap: Record<string, string> = {
-    // 力量 / 举重 / 街力
-    squat: '深蹲', bench: '卧推', deadlift: '硬拉',
-    weightedPullup: '负重引体', weightedDip: '负重双杠', weightedMuscleUp: '负重暴力上杠',
-    snatch: '抓举', cleanAndJerk: '挺举',
-    // 街健
-    maxPullups: '极限引体', maxDips: '极限双杠', maxMuscleUps: '极限暴力上杠',
-    frontLever: '前水平', planche: '俄式挺身', humanFlag: '顺风旗',
-    // 健美/形体
-    weight: '体重', bodyfat: '体脂率', chest: '胸围', arm: '臂围',
-    waist: '腰围', hip: '臀围', thigh: '大腿围', calf: '小腿围',
-    // 跑步
-    fiveK: '5公里', tenK: '10公里', halfMarathon: '半程马拉松', marathon: '全程马拉松',
-    // 骑行
-    ftp: '功能阈值功率', maxPower: '峰值功率', maxDistance: '最长里程'
-};
 
 interface OnboardingModalProps {
     isOpen: boolean;
@@ -292,19 +268,78 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             visible={isOpen}
             onHide={onClose}
             style={{ width: '640px' }}
+            footer={
+                <div className="w-full">
+                    {step === 1 && (
+                        /* 环节一底部：使用 w-full 确保在移动端拥有极佳的触控面积 */
+                        <div className="flex pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500 gap-12">
+                            <div className='flex-1 w-20'></div>
+                            <Button
+                                label="下一步"
+                                icon="pi pi-arrow-right"
+                                iconPos="right"
+                                onClick={handleNext}
+                                className="flex-1 h-14 rounded-2xl bg-surface-900 border-none font-black tracking-tight text-white active:scale-[0.98] transition-all shadow-xl shadow-surface-200"
+                            />
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        /* 环节一底部：使用 w-full 确保在移动端拥有极佳的触控面积 */
+                        <div className="pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500 flex">
+                            <Button
+                                label="上一步"
+                                icon="pi pi-chevron-left"
+                                onClick={handleBack}
+                                className="flex-1 h-14 rounded-2xl bg-surface-100/50 border-none text-surface-600 font-bold active:scale-95 transition-all"
+                            />
+                            <Button
+                                label="下一步"
+                                icon="pi pi-arrow-right"
+                                iconPos="right"
+                                onClick={handleNext}
+                                className="flex-1 h-14 rounded-2xl bg-surface-900 border-none font-black tracking-tight text-white active:scale-[0.98] transition-all shadow-xl shadow-surface-200"
+                            />
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        /* 环节二底部：通过 flex-1 和 flex-[2] 实现主次动作的视觉权重分配 */
+                        <div className="flex items-center gap-3 pt-6 border-t border-surface-100/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <Button
+                                label="返回"
+                                icon="pi pi-chevron-left"
+                                onClick={handleBack}
+                                className="flex-1 h-14 rounded-2xl bg-surface-100/50 border-none text-surface-600 font-bold active:scale-95 transition-all"
+                            />
+                            <Button
+                                label="开启数字化训练"
+                                icon="pi pi-bolt"
+                                onClick={handleSubmit}
+                                loading={loading}
+                                // 使用你定义的主题色 #F28631 或 primary-500
+                                className="flex-[2.5] h-14 rounded-2xl bg-[#F28631] border-none text-white font-black tracking-tight active:scale-[0.98] transition-all shadow-xl shadow-orange-200/50"
+                            />
+                        </div>
+                    )}
+                </div>
+            }
             modal
             blockScroll
             closable={false}
             pt={{
                 root: {
-                    className: 'shadow-none border-none bg-transparent'
+                    className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
                 },
                 header: {
                     // 修改头部容器样式：增加内边距、背景色、去掉默认下划线
-                    className: 'p-8 pb-4 border-none bg-surface rounded-t-[24px]'
+                    className: 'p-8 pb-4 border-none bg-surface md:rounded-t-[24px] rounded-t-none'
                 },
                 content: {
-                    className: 'text-xl font-black tracking-tight rounded-b-[24px]'
+                    className: 'text-xl font-black tracking-tight'
+                },
+                footer: {
+                    className: 'md:rounded-b-[24px] rounded-b-none'
                 }
             }}
         >
@@ -315,10 +350,10 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                         第 {step} 步 / 共 2 步
                     </span>
                     <span className="text-sm font-black text-surface-900 tracking-tight">
-                        {step === 1 ? '核心身份识别' : '运动资产配置'}
+                        {step === 1 ? '基本信息' : step === 2 ? '练习领域' : '历史成绩'}
                     </span>
                 </div>
-                <ProgressBar value={(step / 2) * 100} showValue={false} className="h-1.5 bg-surface-50" color="#F28631" />
+                <ProgressBar value={(step / 3) * 100} showValue={false} className="h-1.5 bg-surface-50" color="#F28631" />
             </div>
 
             {/* 环节一：基础信息采集 */}
@@ -336,7 +371,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             />
                         </div>
 
-                        {/* 出生日期：精确数据维度 */}
+                        {/* 出���日期：精确数据维度 */}
                         <div>
                             <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">出生日期</label>
                             <div className="relative group">
@@ -411,26 +446,16 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             />
                         </div>
                     </div>
-
-                    {/* 环节一底部：仅提供单一路径，确保流程极简 */}
-                    <div className="pt-2">
-                        <Button
-                            label="继续：配置运动数据"
-                            icon="pi pi-arrow-right"
-                            iconPos="right"
-                            onClick={handleNext}
-                            className="w-full h-14 rounded-2xl bg-surface-900 border-none font-black tracking-tight text-surface active:scale-[0.98] transition-all shadow-xl shadow-surface-200"
-                        />
-                    </div>
                 </div>
             )}
 
             {/* 环节二：多维度运动卡片配置 */}
             {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className='text-xl'>选择您感兴趣或正在练习的领域</div>
                     {/* 运动磁贴选择器：利用视觉本能引导 */}
-                    <div className="grid grid-cols-4 gap-3">
-                        {CARD_TYPES.map((card) => {
+                    <div className="grid grid-cols-2 gap-3">
+                        {SportTypes.map((card) => {
                             const Icon = card.icon;
                             const isActive = formData.sportCards.activeCards.includes(card.key);
                             return (
@@ -442,7 +467,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                         px-2 py-3 rounded-[16px] border text-center active:scale-[0.94]
                                         ${isActive
                                             ? `${card.active} shadow-sm shadow-current/5`
-                                            : 'border-surface-100/80 bg-surface-50/20 hover:bg-surface hover:border-surface-200'
+                                            : 'border-surface-200 bg-surface-50/50 hover:bg-surface hover:border-surface-200'
                                         }
                                     `}
                                 >
@@ -463,7 +488,6 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                             <Icon size={16} strokeWidth={2.5} />
                                         </div>
 
-                                        {/* 文字：进一步压缩字号与间距，使其看起来像一个标签 */}
                                         <span className="text-[10px] font-black text-surface-700 tracking-tighter leading-none">
                                             {card.label}
                                         </span>
@@ -472,14 +496,20 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                             );
                         })}
                     </div>
+                </div>
 
+
+            )}
+
+            {step === 3 && (
+                <div>
                     {/* 动态表单容器：修复颜色变量与渲染逻辑 */}
                     <div
                         ref={scrollContainerRef}
-                        className="max-h-[380px] overflow-y-auto pr-2 space-y-3 scrollbar-hide py-2"
+                        className="overflow-y-auto pr-2 space-y-3 py-2"
                     >
                         {formData.sportCards.activeCards.map((cardKey) => {
-                            const config = CARD_TYPES.find(c => c.key === cardKey);
+                            const config = SportTypes.find(c => c.key === cardKey);
                             if (!config) return null;
 
                             const Icon = config.icon;
@@ -497,38 +527,48 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                                 <Icon size={16} strokeWidth={2.5} />
                                             </div>
                                             <h4 className={`text-xs font-black tracking-tight`}>
-                                                {config.label} 
+                                                {config.label}
                                             </h4>
                                         </div>
 
                                         {/* 力量/举重/街力 特有总和展示 */}
-                                        {['powerlifting', 'weightlifting', 'streetlifting'].includes(cardKey) && (
+                                        {showTotalWeight(cardKey) && (
                                             <div className="px-3 py-1 rounded-full bg-surface-900 text-surface text-[10px] font-black italic shadow-md">
-                                                总计 : {
-                                                    cardKey === 'powerlifting' ? getPowerliftingTotal(cardData) :
-                                                        cardKey === 'weightlifting' ? getWeightliftingTotal(cardData) :
-                                                            getStreetliftingTotal(cardData)
-                                                } KG
+                                                总计 : {getTotalWeight(cardKey, cardData)} KG
                                             </div>
                                         )}
                                     </div>
 
                                     {/* 紧凑型输入网格 */}
-                                    <div className="grid grid-cols-3 gap-4">
-                                        {Object.keys(cardData || {}).map((field) => (
-                                            <div key={field}>
-                                                <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
-                                                    {fieldLabelMap[field] || field}
-                                                </label>
-                                                <AeroInputNumber
-                                                    value={cardData[field]}
-                                                    onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
-                                                    inputClassName="w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
-                                                    placeholder="0"
-                                                    suffix={['best5k', 'totalDistance', 'maxDistance'].includes(field) ? "" : " kg"}
-                                                />
-                                            </div>
-                                        ))}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        {Object.keys(cardData || {}).map((field) => {
+                                            const fieldConfig = typicalActionMaps[field];
+                                            const isTimeField = fieldConfig?.unit === 'sec';
+
+                                            return (
+                                                <div key={field}>
+                                                    <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
+                                                        {fieldConfig?.nameCn || field}
+                                                    </label>
+                                                    {isTimeField ? (
+                                                        <AeroTimePicker
+                                                            value={cardData[field] || 0}
+                                                            onValueChange={(e) => updateCardData(cardKey as any, field, e.value)}
+                                                            className="w-full sm:w-32"
+                                                            inputClassName="h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                        />
+                                                    ) : (
+                                                        <AeroInputNumber
+                                                            value={cardData[field]}
+                                                            onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
+                                                            inputClassName="w-full sm:w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                            placeholder="0"
+                                                            suffix={fieldConfig.unit}
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
@@ -545,22 +585,6 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                 </p>
                             </div>
                         )}
-                    </div>
-
-                    {/* 底部导航：非对称过渡反馈 */}
-                    <div className="flex gap-4 pt-6 border-t border-surface-100/50">
-                        <Button
-                            label="上一步"
-                            onClick={handleBack}
-                            className="flex-1 h-14 rounded-2xl bg-surface-50 border-none text-surface-500 font-black active:scale-95 transition-all"
-                        />
-                        <Button
-                            label="开启数字化训练"
-                            icon="pi pi-bolt"
-                            onClick={handleSubmit}
-                            loading={loading}
-                            className="flex-[2] h-14 rounded-2xl bg-primary-500 border-none text-surface font-black active:scale-[0.98] transition-all shadow-xl shadow-primary-100"
-                        />
                     </div>
                 </div>
             )}
