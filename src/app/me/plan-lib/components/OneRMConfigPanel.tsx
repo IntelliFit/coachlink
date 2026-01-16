@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from 'primereact/card';
-import { InputNumber } from 'primereact/inputnumber';
 import { CoachActionRow } from '@/types';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface OneRMConfigPanelProps {
     days: FormPlanTrainingDay[];
@@ -64,7 +64,7 @@ const OneRMConfigPanel: React.FC<OneRMConfigPanelProps> = ({ days, actions, valu
                             {action.name}
                         </label>
                         <div className="p-inputgroup h-9">
-                            <InputNumber
+                            <AeroInputNumber
                                 value={value[action.id] || null}
                                 onValueChange={(e) => handleValueChange(action.id, e.value || 0)}
                                 placeholder="输入 1RM"

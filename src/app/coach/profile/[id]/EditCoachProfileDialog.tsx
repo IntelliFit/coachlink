@@ -5,7 +5,6 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import Image from 'next/image';
 import { coachService } from '@/app/service/coachService';
@@ -13,6 +12,7 @@ import { CoachesRow } from '@/types';
 import { Chip } from 'primereact/chip';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface EditCoachProfileDialogProps {
     visible: boolean;
@@ -398,7 +398,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                         <label className="block text-sm font-medium text-surface-900 mb-2">
                             教学年限（年）
                         </label>
-                        <InputNumber
+                        <AeroInputNumber
                             value={yearsExperience}
                             onValueChange={(e) => setYearsExperience((e.value as number) || 0)}
                             min={0}

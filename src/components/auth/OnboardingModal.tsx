@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { FloatLabel } from 'primereact/floatlabel';
 import { ProgressBar } from 'primereact/progressbar';
@@ -17,6 +16,7 @@ import { useOnboardingModal } from './OnboardingModalContext';
 import { useSession } from 'next-auth/react';
 import { Calendar } from 'primereact/calendar';
 import { addLocale, locale } from "primereact/api";
+import { AeroInputNumber } from '../AeroInputNumber';
 
 addLocale('zh-CN', {
     firstDayOfWeek: 1,
@@ -369,7 +369,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                         {/* 核心体征指标 */}
                         <div>
                             <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">身高 (CM)</label>
-                            <InputNumber
+                            <AeroInputNumber
                                 value={formData.height}
                                 onValueChange={(e) => setFormData({ ...formData, height: e.value ?? null })}
                                 className="w-full h-12"
@@ -379,7 +379,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
                         <div>
                             <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">体重 (KG)</label>
-                            <InputNumber
+                            <AeroInputNumber
                                 value={formData.weight}
                                 onValueChange={(e) => setFormData({ ...formData, weight: e.value ?? null })}
                                 className="w-full h-12"
@@ -520,7 +520,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                                 <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
                                                     {fieldLabelMap[field] || field}
                                                 </label>
-                                                <InputNumber
+                                                <AeroInputNumber
                                                     value={cardData[field]}
                                                     onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
                                                     inputClassName="w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"

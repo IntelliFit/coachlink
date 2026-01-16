@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { InputNumber } from 'primereact/inputnumber';
 import { Checkbox } from 'primereact/checkbox';
 import { RadioButton } from 'primereact/radiobutton';
 import { Calendar } from 'primereact/calendar';
@@ -17,6 +16,7 @@ import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
 import WeixinzhifuIcon from '../icons/weixinzhifu';
 import ZhifubaoIcon from '../icons/zhifubao';
+import { AeroInputNumber } from '../AeroInputNumber';
 
 // 中文语言包配置
 addLocale('zh-CN', {
@@ -744,14 +744,19 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 {/* 已支付金额（选填） */}
                 <div className="flex flex-col gap-2">
                     <label className="font-medium text-surface-700">已支付金额，最后1次支付（选填）</label>
-                    <InputNumber
+                    <AeroInputNumber
                         value={offlineAmount}
                         onValueChange={(e) => setOfflineAmount(e.value ?? null)}
-                        mode="currency"
-                        currency="CNY"
-                        locale="zh-CN"
+                        // 1. 将货币逻辑映射为前缀和精度
+                        minFractionDigits={2}
+                        maxFractionDigits={2}
+
+                        // 2. 保持原有交互属性
                         placeholder="输入支付金额"
                         className="w-full"
+
+                        // 3. 符合 Aero UI 的微调（可选，根据金额输入场景通常不需要步进按钮）
+                        showButtons={false}
                     />
                 </div>
 

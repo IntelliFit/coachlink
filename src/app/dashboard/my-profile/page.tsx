@@ -6,7 +6,6 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { FloatLabel } from 'primereact/floatlabel';
 import { Skeleton } from 'primereact/skeleton';
@@ -17,6 +16,7 @@ import { User, Activity, Edit, TrendingUp, Users, MessageSquare, Calendar } from
 import { useSession } from 'next-auth/react';
 import { SportCards } from '@/types/sportCards';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface ProfileData {
     id: string;
@@ -293,7 +293,7 @@ export default function MyProfilePage() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <FloatLabel>
-                            <InputNumber
+                            <AeroInputNumber
                                 id="edit_age"
                                 value={editForm.age}
                                 onValueChange={(e) => setEditForm({ ...editForm, age: e.value })}
@@ -316,7 +316,7 @@ export default function MyProfilePage() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <FloatLabel>
-                            <InputNumber
+                            <AeroInputNumber
                                 id="edit_height"
                                 value={editForm.height}
                                 onValueChange={(e) => setEditForm({ ...editForm, height: e.value })}
@@ -326,7 +326,7 @@ export default function MyProfilePage() {
                             <label htmlFor="edit_height">身高</label>
                         </FloatLabel>
                         <FloatLabel>
-                            <InputNumber
+                            <AeroInputNumber
                                 id="edit_weight"
                                 value={editForm.weight}
                                 onValueChange={(e) => setEditForm({ ...editForm, weight: e.value })}

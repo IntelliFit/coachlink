@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from 'primereact/skeleton';
 import { Button } from 'primereact/button';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Checkbox } from 'primereact/checkbox';
@@ -24,6 +23,7 @@ import {
 } from 'lucide-react';
 import { coachService } from '../service/coachService';
 import VideoUploader from '@/components/video/VideoUploader';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface FormField {
     name: string;
@@ -382,7 +382,7 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
-                        <InputNumber
+                        <AeroInputNumber
                             value={value || null}
                             onValueChange={(e) => {
                                 setFormData({ ...formData, [field.name]: e.value });

@@ -10,12 +10,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Check, X, Video, TrendingUp, Edit2, Trash2, Award, Star, Upload, ExternalLink } from 'lucide-react';
 import { Button } from 'primereact/button';
-import { InputNumber } from 'primereact/inputnumber';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { trainingService } from '@/app/service/trainingService';
 import { useToastContext } from '@/context/ToastContext';
 import SetVideoUploader from './SetVideoUploader';
 import type { SetItemProps, SetRecord } from '@/types/training-execution';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 const parseMinReps = (plannedReps: string | number | undefined): number => {
     if (!plannedReps) return 5;
@@ -186,7 +186,7 @@ const SetItem: React.FC<SetItemProps> = ({
         if (isEditing) {
             return (
                 <div className="flex align-items-center gap-2">
-                    <InputNumber
+                    <AeroInputNumber
                         inputRef={weightInputRef}
                         value={weight}
                         onValueChange={(e) => setWeight(e.value ?? 0)}
@@ -196,7 +196,7 @@ const SetItem: React.FC<SetItemProps> = ({
                         className="w-5rem"
                     />
                     <span className="text-surface-foreground">×</span>
-                    <InputNumber
+                    <AeroInputNumber
                         value={reps}
                         onValueChange={(e) => setReps(e.value ?? 0)}
                         min={0}

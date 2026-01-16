@@ -11,13 +11,13 @@ import React, { useState, forwardRef } from 'react';
 import { ChevronDown, ChevronUp, Plus, StickyNote, Trophy } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { InputNumber } from 'primereact/inputnumber';
 import { Card } from 'primereact/card';
 import { ProgressBar } from 'primereact/progressbar';
 import { Toast } from 'primereact/toast';
 import { trainingService } from '@/app/service/trainingService';
 import SetItem from './SetItem';
 import type { ExerciseItemProps } from '@/types/training-execution';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
     userId,
@@ -261,7 +261,7 @@ const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-xs text-600 mb-1">重量 (kg)</label>
-                                            <InputNumber
+                                            <AeroInputNumber
                                                 value={rm1Weight}
                                                 onValueChange={(e) => setRm1Weight(e.value)}
                                                 mode="decimal"
@@ -275,7 +275,7 @@ const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
                                         </div>
                                         <div>
                                             <label className="block text-xs text-600 mb-1">次数</label>
-                                            <InputNumber
+                                            <AeroInputNumber
                                                 value={rm1Reps}
                                                 onValueChange={(e) => setRm1Reps(e.value || 1)}
                                                 mode="decimal"

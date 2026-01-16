@@ -1,7 +1,7 @@
 import React from 'react';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface CardioItemFormProps {
     item: CoachPlanAction;
@@ -57,7 +57,7 @@ export const CardioItemForm: React.FC<CardioItemFormProps> = ({
 
             <div>
                 <label className="block text-900 text-xs mb-1">目标距离 (km)</label>
-                <InputNumber
+                <AeroInputNumber
                     value={distance ? distance / 1000 : null}
                     onValueChange={(e) => updateCustomData({ distance: (e.value || 0) * 1000 })}
                     suffix=" km"
@@ -70,7 +70,7 @@ export const CardioItemForm: React.FC<CardioItemFormProps> = ({
 
             <div>
                 <label className="block text-900 text-xs mb-1">目标时长 (分钟)</label>
-                <InputNumber
+                <AeroInputNumber
                     value={duration}
                     onValueChange={(e) => updateCustomData({ duration: (e.value || 0) * 60 })} // convert to seconds
                     suffix=" min"
@@ -81,7 +81,7 @@ export const CardioItemForm: React.FC<CardioItemFormProps> = ({
 
              <div>
                 <label className="block text-900 text-xs mb-1">建议配速</label>
-                <InputNumber
+                <AeroInputNumber
                     value={customData.pace}
                     onValueChange={(e) => updateCustomData({ pace: e.value })}
                     prefix="约 "

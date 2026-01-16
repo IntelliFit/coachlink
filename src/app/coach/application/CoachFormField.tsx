@@ -1,7 +1,8 @@
 import React from 'react';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { InputNumber, InputNumberValueChangeEvent } from 'primereact/inputnumber';
+import { InputNumberValueChangeEvent } from 'primereact/inputnumber';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface CoachFormFieldProps {
     id: string;
@@ -50,7 +51,7 @@ const CoachFormField: React.FC<CoachFormFieldProps> = ({
                 );
             case 'number':
                 return (
-                    <InputNumber
+                    <AeroInputNumber
                         id={id}
                         name={name}
                         showButtons={showButtons}

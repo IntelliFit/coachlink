@@ -7,7 +7,6 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { ProgressBar } from 'primereact/progressbar';
 import { Skeleton } from 'primereact/skeleton';
-import { InputNumber } from 'primereact/inputnumber';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
@@ -16,6 +15,7 @@ import { executionService } from '@/app/service/executionService';
 import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface SetData {
     set_number: number;
@@ -830,7 +830,7 @@ function TrainingExecutionContent() {
                                                                     <label className="text-xs text-surface-600 font-bold">
                                                                         {allowNegativeWeight ? '外加重量(kg)' : '重量(kg)'}
                                                                     </label>
-                                                                    <InputNumber 
+                                                                    <AeroInputNumber
                                                                         value={weight}
                                                                         onValueChange={(e) => setWeight(e.value ?? null)}
                                                                         min={allowNegativeWeight ? -300 : 0}
@@ -846,7 +846,7 @@ function TrainingExecutionContent() {
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <label className="text-xs text-surface-600 font-bold">次数</label>
-                                                                    <InputNumber 
+                                                                    <AeroInputNumber 
                                                                         value={reps}
                                                                         onValueChange={(e) => setReps(e.value ?? null)}
                                                                         className="w-full"
@@ -855,7 +855,7 @@ function TrainingExecutionContent() {
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <label className="text-xs text-surface-600 font-bold">RPE</label>
-                                                                    <InputNumber 
+                                                                    <AeroInputNumber 
                                                                         value={rpe}
                                                                         onValueChange={(e) => setRpe(e.value ?? null)}
                                                                         min={1}
@@ -1211,7 +1211,7 @@ function TrainingExecutionContent() {
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div>
                                                                 <label className="text-sm font-medium">距离 (km)</label>
-                                                                <InputNumber 
+                                                                <AeroInputNumber 
                                                                     value={cardioDistance}
                                                                     onValueChange={(e) => setCardioDistance(e.value ?? null)}
                                                                     min={0}
@@ -1223,7 +1223,7 @@ function TrainingExecutionContent() {
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium">时长 (分钟)</label>
-                                                                <InputNumber 
+                                                                <AeroInputNumber 
                                                                     value={cardioDuration}
                                                                     onValueChange={(e) => setCardioDuration(e.value ?? null)}
                                                                     min={0}
