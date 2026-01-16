@@ -91,18 +91,6 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         sportCards: getEmptySportCards(),
     });
 
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (scrollContainerRef.current) {
-            const container = scrollContainerRef.current;
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: 'smooth'
-            });
-        }
-    }, [formData.sportCards.activeCards.length]);
-
     // 切换卡片选择
     const toggleCard = (cardKey: string) => {
         const activeCards = formData.sportCards.activeCards.includes(cardKey)
@@ -455,18 +443,18 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                     <div className='text-xl'>选择您感兴趣或正在练习的领域</div>
                     {/* 运动磁贴选择器：利用视觉本能引导 */}
                     <div className="grid grid-cols-2 gap-3">
-                        {SportTypes.map((card) => {
-                            const Icon = card.icon;
-                            const isActive = formData.sportCards.activeCards.includes(card.key);
+                        {SportTypes.map((sport) => {
+                            const Icon = sport.icon;
+                            const isActive = formData.sportCards.activeCards.includes(sport.key);
                             return (
                                 <div
-                                    key={card.key}
-                                    onClick={() => toggleCard(card.key)}
+                                    key={sport.key}
+                                    onClick={() => toggleCard(sport.key)}
                                     className={`
                                         group cursor-pointer relative overflow-hidden transition-all duration-300
                                         px-2 py-3 rounded-[16px] border text-center active:scale-[0.94]
                                         ${isActive
-                                            ? `${card.active} shadow-sm shadow-current/5`
+                                            ? `${sport.active} shadow-sm shadow-current/5`
                                             : 'border-surface-200 bg-surface-50/50 hover:bg-surface hover:border-surface-200'
                                         }
                                     `}
@@ -474,7 +462,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                     {/* 状态指示：改为更加细腻的右上角呼吸点 */}
                                     {isActive && (
                                         <div className="absolute top-2 right-2 flex items-center justify-center">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ color: card.color }} />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ color: sport.color }} />
                                         </div>
                                     )}
 
@@ -483,13 +471,13 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                                         <div className={`
                                             w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500 
                                             group-hover:scale-110 group-active:rotate-12
-                                            ${card.bg} ${card.color}
+                                            ${sport.bg} ${sport.color}
                                         `}>
                                             <Icon size={16} strokeWidth={2.5} />
                                         </div>
 
                                         <span className="text-[10px] font-black text-surface-700 tracking-tighter leading-none">
-                                            {card.label}
+                                            {sport.label}
                                         </span>
                                     </div>
                                 </div>
@@ -502,90 +490,87 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             )}
 
             {step === 3 && (
-                <div>
+                <div
+                    className="overflow-y-auto pr-2 space-y-3 py-2"
+                >
                     {/* 动态表单容器：修复颜色变量与渲染逻辑 */}
-                    <div
-                        ref={scrollContainerRef}
-                        className="overflow-y-auto pr-2 space-y-3 py-2"
-                    >
-                        {formData.sportCards.activeCards.map((cardKey) => {
-                            const config = SportTypes.find(c => c.key === cardKey);
-                            if (!config) return null;
+                    {formData.sportCards.activeCards.map((cardKey) => {
+                        const config = SportTypes.find(c => c.key === cardKey);
+                        if (!config) return null;
 
-                            const Icon = config.icon;
-                            const cardData = (formData.sportCards as any)[cardKey];
+                        const Icon = config.icon;
+                        const cardData = (formData.sportCards as any)[cardKey];
 
-                            return (
-                                <div
-                                    key={cardKey}
-                                    className={`p-5 rounded-[24px] border border-opacity-40 space-y-4 animate-in zoom-in-95 slide-in-from-top-2 duration-300 ${config.bg} ${config.border}`}
-                                >
-                                    {/* 头部：标题与数值展示 */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${config.color} shadow-sm`}>
-                                                <Icon size={16} strokeWidth={2.5} />
-                                            </div>
-                                            <h4 className={`text-xs font-black tracking-tight`}>
-                                                {config.label}
-                                            </h4>
+                        return (
+                            <div
+                                key={cardKey}
+                                className={`p-5 rounded-[24px] border border-opacity-40 space-y-4 animate-in zoom-in-95 slide-in-from-top-2 duration-300 ${config.bg} ${config.border}`}
+                            >
+                                {/* 头部：标题与数值展示 */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${config.color} shadow-sm`}>
+                                            <Icon size={20} strokeWidth={2.5} />
                                         </div>
+                                        <h4 className={`text-xs font-black tracking-tight`}>
+                                            {config.label}
+                                        </h4>
+                                    </div>
 
-                                        {/* 力量/举重/街力 特有总和展示 */}
-                                        {showTotalWeight(cardKey) && (
-                                            <div className="px-3 py-1 rounded-full bg-surface-900 text-surface text-[10px] font-black italic shadow-md">
-                                                总计 : {getTotalWeight(cardKey, cardData)} KG
+                                    {/* 力量/举重/街力 特有总和展示 */}
+                                    {showTotalWeight(cardKey) && (
+                                        <div className="px-3 py-1 rounded-full bg-surface-900 text-surface text-[10px] font-black italic shadow-md">
+                                            总计 : {getTotalWeight(cardKey, cardData)} KG
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 紧凑型输入网格 */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {Object.keys(cardData || {}).map((field) => {
+                                        const fieldConfig = typicalActionMaps[field];
+                                        const isTimeField = fieldConfig?.unit === 'sec';
+
+                                        return (
+                                            <div key={field}>
+                                                <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
+                                                    {fieldConfig?.nameCn || field}
+                                                </label>
+                                                {isTimeField ? (
+                                                    <AeroTimePicker
+                                                        value={cardData[field] || 0}
+                                                        onValueChange={(e) => updateCardData(cardKey as any, field, e.value)}
+                                                        className="w-full sm:w-32"
+                                                        inputClassName="h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                    />
+                                                ) : (
+                                                    <AeroInputNumber
+                                                        value={cardData[field]}
+                                                        onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
+                                                        inputClassName="w-full sm:w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                        placeholder="0"
+                                                        suffix={fieldConfig.unit}
+                                                    />
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-
-                                    {/* 紧凑型输入网格 */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        {Object.keys(cardData || {}).map((field) => {
-                                            const fieldConfig = typicalActionMaps[field];
-                                            const isTimeField = fieldConfig?.unit === 'sec';
-
-                                            return (
-                                                <div key={field}>
-                                                    <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
-                                                        {fieldConfig?.nameCn || field}
-                                                    </label>
-                                                    {isTimeField ? (
-                                                        <AeroTimePicker
-                                                            value={cardData[field] || 0}
-                                                            onValueChange={(e) => updateCardData(cardKey as any, field, e.value)}
-                                                            className="w-full sm:w-32"
-                                                            inputClassName="h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
-                                                        />
-                                                    ) : (
-                                                        <AeroInputNumber
-                                                            value={cardData[field]}
-                                                            onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
-                                                            inputClassName="w-full sm:w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
-                                                            placeholder="0"
-                                                            suffix={fieldConfig.unit}
-                                                        />
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })}
-
-                        {/* 空状态提示 */}
-                        {formData.sportCards.activeCards.length === 0 && (
-                            <div className="py-20 text-center rounded-[24px] border-2 border-dashed border-surface-100 bg-surface-50/20">
-                                <div className="w-12 h-12 bg-surface rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 border border-surface-50">
-                                    <Activity className="w-6 h-6 text-surface-200" />
-                                </div>
-                                <p className="text-[10px] font-black text-surface-400 tracking-[0.3em] uppercase">
-                                    点击上方磁贴以激活资产配置
-                                </p>
                             </div>
-                        )}
-                    </div>
+                        );
+                    })}
+
+                    {/* 空状态提示 */}
+                    {formData.sportCards.activeCards.length === 0 && (
+                        <div className="py-20 text-center rounded-[24px] border-2 border-dashed border-surface-100 bg-surface-50/20">
+                            <div className="w-12 h-12 bg-surface rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 border border-surface-50">
+                                <Activity className="w-6 h-6 text-surface-200" />
+                            </div>
+                            <p className="text-[10px] font-black text-surface-400 tracking-[0.3em] uppercase">
+                                点击上方磁贴以激活资产配置
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
         </Dialog>

@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Video, User, Trophy, Medal, Clock, Activity, Zap } from 'lucide-react';
+import { Video, User, Trophy, Medal, Clock, Activity, Zap, ChevronRight, Play } from 'lucide-react';
 import { LeaderboardFormInput } from '@/types/leaderboard';
 import { LeaderboardEntryWithProfile } from '@/app/api/ranking/list-entries/entity';
-import { Avatar } from 'primereact/avatar';
+import { RankingsTableItem } from './RankingsTableItem';
 
 interface RankingsTableProps {
     entries: LeaderboardEntryWithProfile[];
@@ -52,12 +52,27 @@ const RankingsTable = ({ entries, formSchema, rankByField }: RankingsTableProps)
                     const coreValue = coreField?.userInput ?? entry.score;
 
                     // 2. 链接去重 (Map 保证唯一性)
+                    // 2. 链接去重 (Map 保证唯一性)
                     const uniqueLinks = Array.from(
                         new Map<string, string>([
                             ...formData
-                                .filter(f => typeof f.userInput === 'string' && f.userInput.trim().startsWith('http'))
+                                .filter(f => {
+                                    const val = f.userInput?.toString().trim();
+                                    // 严格校验：必须以 http 开头，且能被解析为合法 URL
+                                    if (!val || !val.startsWith('http')) return false;
+                                    try {
+                                        new URL(val);
+                                        return true;
+                                    } catch {
+                                        return false;
+                                    }
+                                })
                                 .map(f => [f.userInput!.toString().trim(), 'VIDEO'] as [string, string]),
-                            ...(entry.evidence_url ? [[entry.evidence_url.trim(), 'VIDEO'] as [string, string]] : [])
+
+                            // 同样对 evidence_url 进行安全检查
+                            ...(entry.evidence_url?.trim().startsWith('http')
+                                ? [[entry.evidence_url.trim(), 'VIDEO'] as [string, string]]
+                                : [])
                         ])
                     );
 
@@ -68,96 +83,16 @@ const RankingsTable = ({ entries, formSchema, rankByField }: RankingsTableProps)
                     );
 
                     return (
-                        <div
+                        <RankingsTableItem
                             key={entry.id}
-                            className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 md:px-6 md:py-3.5 shadow-sm transition-all hover:border-primary/30 overflow-hidden"
-                        >
-                            {/* 第一行：核心竞技数据 */}
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2.5 md:gap-6 flex-1 min-w-0">
-                                    {/* 排名 */}
-                                    <div className="flex flex-col items-start min-w-[1.4rem] md:min-w-[2.8rem]">
-                                        <span className={`text-2xl md:text-4xl font-black italic tracking-tighter leading-none ${rankColor}`}>
-                                            {(index + 1).toString().padStart(2, '0')}
-                                        </span>
-                                    </div>
-
-                                    {/* 用户信息 */}
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Avatar
-                                            image={entry.userProfile?.avatar || undefined}
-                                            label={
-                                                entry.userProfile?.avatar
-                                                    ? undefined
-                                                    : (entry.userProfile?.name || (entry.extra_data as any)?.douyin_nickname)?.charAt(0) ||
-                                                    'C'
-                                            }
-                                            shape="circle"
-                                            className="bg-primary-500 text-surface font-bold flex-shrink-0"
-                                            size="normal"
-                                        />
-                                        <h3 className="text-sm md:text-xl font-black text-slate-800 dark:text-white tracking-tight uppercase italic leading-none">
-                                            {entry.userProfile?.name || (entry.extra_data as any)?.douyin_nickname || '匿名挑战者'}
-                                        </h3>
-                                    </div>
-                                </div>
-
-                                {/* 核心成绩展现 */}
-                                <div className="flex flex-col items-end leading-none">
-                                    <span className="text-[7px] md:text-[8px] font-black uppercase tracking-tighter text-primary italic">
-                                        {rankByField || 'RESULT'}
-                                    </span>
-                                    <div className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic leading-none mt-0.5">
-                                        {coreValue}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 第二行：功能与属性填充 */}
-                            <div className="mt-2.5 pt-2.5 border-t border-slate-50 dark:border-gray-800/50 flex items-center justify-between gap-4">
-
-                                {/* 左侧：视频按钮 + 时间 */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {/* 时间戳 */}
-                                    <div className="flex items-center gap-1 text-[7px] md:text-[8px] font-black text-slate-400 bg-slate-50 dark:bg-gray-800 px-1.5 py-0.5 rounded uppercase">
-                                        <Clock size={8} />
-                                        {new Date(entry.created_at).toLocaleString('zh-CN', {
-                                            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                                        }).replace(/\//g, '-')}
-                                    </div>
-
-                                    {/* 视频按钮渲染 */}
-                                    {uniqueLinks.map(([url, label], i) => (
-                                        <a
-                                            key={i}
-                                            href={url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 dark:bg-primary text-white active:scale-95 transition-all shadow-sm"
-                                        >
-                                            <Video size={9} fill="currentColor" />
-                                            <span className="text-[7px] md:text-[8px] font-black uppercase tracking-widest leading-none">
-                                                {label}
-                                            </span>
-                                        </a>
-                                    ))}
-                                </div>
-
-                                {/* 右侧：业务字段填充 */}
-                                <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 overflow-hidden px-1">
-                                    {metaData.slice(0, 2).map((item, i) => (
-                                        <div key={i} className="flex items-baseline gap-1">
-                                            <span className="text-[7px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-tighter">
-                                                {item.name}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 italic leading-none whitespace-nowrap">
-                                                {item.userInput || '-'}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                            entry={entry}
+                            index={index}
+                            rankColor={rankColor}
+                            rankByField={rankByField}
+                            coreValue={coreValue}
+                            uniqueLinks={uniqueLinks}
+                            metaData={metaData as any}
+                        />
                     );
                 })}
             </div>

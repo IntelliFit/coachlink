@@ -1,130 +1,185 @@
 'use client';
 
-import React from 'react';
-import { Dumbbell, User, Bike, Footprints } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Chart } from 'primereact/chart';
+import { ChevronDown } from 'lucide-react'; // 引入折叠图标
 import { SportCards } from '@/types/sportCards';
-import { getPowerliftingTotal, getStreetliftingTotal, getWeightliftingTotal } from '@/lib/sportsCollections';
+import {
+    typicalActionMaps,
+    SportTypes,
+    getTotalWeight,
+    showTotalWeight
+} from '@/lib/sportsCollections';
 
 interface SportCardsDisplayProps {
     sportCards: SportCards | null;
 }
 
-const MetricPill = ({ label, value, unit, highlight }: { label: string; value: string | number | null; unit?: string; highlight?: boolean }) => (
-    <span
-        className={[
-            'inline-flex items-baseline gap-1 rounded-xl border px-2.5 py-1.5',
-            highlight ? 'bg-surface-100 border-surface-200' : 'bg-surface-50 border-surface-200'
-        ].join(' ')}
-    >
-        <span className="text-[11px] font-bold text-surface-600">{label}</span>
-        <span className={highlight ? 'text-sm font-black text-surface-900' : 'text-sm font-black text-primary'}>
-            {value ?? '-'}
-        </span>
-        {unit ? <span className="text-[11px] text-surface-500">{unit}</span> : null}
-    </span>
-);
-
-const RowLine = ({ title, icon: Icon, iconClass, children }: {
-    title: string; 
-    icon: React.ElementType; 
+const SportChartDisplay = ({
+    title,
+    icon: Icon,
+    iconClass,
+    data,
+    sportKey
+}: {
+    title: string;
+    icon: React.ElementType;
     iconClass: string;
-    children: React.ReactNode;
-}) => (
-    <div className="bg-surface rounded-2xl shadow-sm border border-surface-200 px-3 py-2">
-        <div className="flex items-start gap-2">
-            <div className="flex items-center gap-2 shrink-0 pt-0.5">
-                <Icon className={`w-4 h-4 ${iconClass}`} />
-                <span className="text-sm font-black text-surface-900">{title}</span>
+    data: Record<string, any>;
+    sportKey: string;
+}) => {
+    // 状态控制：默认展开第一个，或者全部折叠
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const sportFields = useMemo(() => {
+        return Object.entries(typicalActionMaps).filter(([key]) => {
+            if (sportKey === 'powerlifting') return ['squat', 'bench', 'deadlift'].includes(key);
+            if (sportKey === 'streetlifting') return ['weightedPullup', 'weightedDip', 'weightedMuscleUp', 'squat'].includes(key);
+            if (sportKey === 'calisthenics') return ['maxPullups', 'maxDips', 'maxMuscleUps', 'frontLever', 'planche', 'humanFlag'].includes(key);
+            if (sportKey === 'weightlifting') return ['snatch', 'cleanAndJerk'].includes(key);
+            if (sportKey === 'bodybuilding') return ['bodyfat', 'chest', 'arm', 'waist', 'hip', 'thigh', 'calf'].includes(key);
+            if (sportKey === 'running') return ['fiveK', 'tenK', 'halfMarathon', 'marathon'].includes(key);
+            if (sportKey === 'cycling') return ['ftp', 'maxPower', 'maxDistance'].includes(key);
+            return false;
+        });
+    }, [sportKey]);
+
+    const chartData = useMemo(() => {
+        const labels = sportFields.map(([, config]) => config.nameCn);
+        const values = sportFields.map(([fieldKey]) => data?.[fieldKey] || 0);
+        const primaryColor = '#F28631';
+
+        return {
+            labels: labels,
+            datasets: [{
+                label: '当前表现',
+                backgroundColor: primaryColor,
+                borderColor: primaryColor,
+                borderRadius: 8,
+                barThickness: 12,
+                data: values
+            }]
+        };
+    }, [sportFields, data]);
+
+    const chartOptions = useMemo(() => ({
+        indexAxis: 'y' as const,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+        },
+        scales: {
+            x: { display: false, beginAtZero: true },
+            y: {
+                grid: { display: false },
+                border: { display: false },
+                ticks: { color: '#64748b', font: { size: 11, weight: '700' } }
+            }
+        },
+        layout: { padding: { right: 45 } }
+    }), []);
+
+    const chartHeight = `${sportFields.length * 42 + 10}px`;
+
+    return (
+        <div className={`
+            bg-white rounded-[24px] border border-surface-100 mb-3 transition-all duration-300
+            ${isExpanded ? 'shadow-[0_12px_40px_rgba(0,0,0,0.08)]' : 'shadow-sm'}
+        `}>
+            {/* 可点击的 Header */}
+            <div 
+                className="flex items-center justify-between p-5 cursor-pointer select-none"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl bg-surface-50 ${iconClass} transition-transform ${isExpanded ? 'scale-110' : ''}`}>
+                        <Icon size={20} strokeWidth={3} />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-base font-black text-surface-900 italic tracking-tight uppercase leading-none">
+                            {title}
+                        </span>
+                        {!isExpanded && (
+                             <span className="text-[10px] font-bold text-surface-400 mt-1">
+                                点击查看详情数据
+                             </span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {showTotalWeight(sportKey) && data && (
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] font-black text-surface-400 uppercase tracking-widest leading-none mb-1">Total</span>
+                            <span className={`text-lg font-black leading-none transition-colors ${isExpanded ? 'text-[#F28631]' : 'text-surface-900'}`}>
+                                {getTotalWeight(sportKey, data)}<small className="text-[10px] ml-0.5 font-bold">kg</small>
+                            </span>
+                        </div>
+                    )}
+                    <ChevronDown 
+                        size={18} 
+                        className={`text-surface-300 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-primary' : ''}`} 
+                    />
+                </div>
             </div>
-            <div className="flex-1 min-w-0 overflow-x-auto">
-                <div className="flex gap-2 whitespace-nowrap pb-0.5">
-                    {children}
+
+            {/* 折叠动画容器 */}
+            <div className={`
+                grid transition-all duration-300 ease-in-out
+                ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}
+            `}>
+                <div className="overflow-hidden">
+                    <div className="px-5 pb-5 pt-0">
+                        {/* 分割线 */}
+                        <div className="h-[1px] bg-surface-50 w-full mb-5" />
+                        
+                        <div className="relative" style={{ height: chartHeight }}>
+                            <Chart type="bar" data={chartData} options={chartOptions} style={{ height: '100%' }} />
+                            
+                            {/* 数值叠加层 */}
+                            <div className="absolute top-0 right-0 h-full flex flex-col justify-around pointer-events-none py-[10px]">
+                                {sportFields.map(([fieldKey, fieldConfig]) => (
+                                    <div key={fieldKey} className="text-right">
+                                        <span className="text-sm font-black text-surface-900">
+                                            {data?.[fieldKey] ?? '-'}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-surface-400 ml-1">
+                                            {fieldConfig.unit}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const SportCardsDisplay: React.FC<SportCardsDisplayProps> = ({ sportCards }) => {
-    if (!sportCards?.activeCards || sportCards.activeCards.length === 0) {
-        return null;
-    }
+    if (!sportCards?.activeCards || sportCards.activeCards.length === 0) return null;
 
     return (
-        <div className="space-y-2">
-            {/* 1. 力量举 */}
-            {sportCards.activeCards.includes('powerlifting') && sportCards.powerlifting && (
-                <RowLine title="力量举" icon={Dumbbell} iconClass="text-orange-500">
-                    <MetricPill label="深蹲" value={sportCards.powerlifting.squat} unit="kg" />
-                    <MetricPill label="卧推" value={sportCards.powerlifting.bench} unit="kg" />
-                    <MetricPill label="硬拉" value={sportCards.powerlifting.deadlift} unit="kg" />
-                    <MetricPill label="总和" value={getPowerliftingTotal(sportCards.powerlifting)} unit="kg" highlight />
-                </RowLine>
-            )}
+        <div className="space-y-1 pb-4">
+            {sportCards.activeCards.map((sportKey) => {
+                const sportType = SportTypes.find(type => type.key === sportKey);
+                if (!sportType) return null;
+                const sportData = sportCards[sportKey as keyof typeof sportCards];
+                if (!sportData || typeof sportData !== 'object') return null;
 
-            {/* 2. 街头力量举 */}
-            {sportCards.activeCards.includes('streetlifting') && sportCards.streetlifting && (
-                <RowLine title="街头力量举" icon={Dumbbell} iconClass="text-lime-600">
-                    <MetricPill label="引体" value={sportCards.streetlifting.weightedPullup} unit="kg" />
-                    <MetricPill label="双杠" value={sportCards.streetlifting.weightedDip} unit="kg" />
-                    <MetricPill label="双力臂" value={sportCards.streetlifting.weightedMuscleUp} unit="kg" />
-                    <MetricPill label="深蹲" value={sportCards.streetlifting.squat} unit="kg" />
-                    <MetricPill label="总和" value={getStreetliftingTotal(sportCards.streetlifting)} unit="kg" highlight />
-                </RowLine>
-            )}
-
-            {/* 3. 街头健身 */}
-            {sportCards.activeCards.includes('calisthenics') && sportCards.calisthenics && (
-                <RowLine title="街头健身" icon={User} iconClass="text-green-600">
-                    <MetricPill label="引体" value={sportCards.calisthenics.maxPullups} unit="次" />
-                    <MetricPill label="双杠" value={sportCards.calisthenics.maxDips} unit="次" />
-                    <MetricPill label="双力臂" value={sportCards.calisthenics.maxMuscleUps} unit="次" />
-                    <MetricPill label="前水平" value={sportCards.calisthenics.frontLever} unit="秒" />
-                    <MetricPill label="俄式" value={sportCards.calisthenics.planche} unit="秒" />
-                    <MetricPill label="旗帜" value={sportCards.calisthenics.humanFlag} unit="秒" />
-                </RowLine>
-            )}
-
-            {/* 4. 举重 */}
-            {sportCards.activeCards.includes('weightlifting') && sportCards.weightlifting && (
-                <RowLine title="举重" icon={Dumbbell} iconClass="text-red-600">
-                    <MetricPill label="抓举" value={sportCards.weightlifting.snatch} unit="kg" />
-                    <MetricPill label="挺举" value={sportCards.weightlifting.cleanAndJerk} unit="kg" />
-                    <MetricPill label="总和" value={getWeightliftingTotal(sportCards.weightlifting)} unit="kg" highlight />
-                </RowLine>
-            )}
-
-            {/* 5. 健美/形体 */}
-            {sportCards.activeCards.includes('bodybuilding') && sportCards.bodybuilding && (
-                <RowLine title="健美/形体" icon={User} iconClass="text-purple-600">
-                    <MetricPill label="体脂" value={sportCards.bodybuilding.bodyfat} unit="%" />
-                    <MetricPill label="胸" value={sportCards.bodybuilding.chest} unit="cm" />
-                    <MetricPill label="臂" value={sportCards.bodybuilding.arm} unit="cm" />
-                    <MetricPill label="腰" value={sportCards.bodybuilding.waist} unit="cm" />
-                    <MetricPill label="臀" value={sportCards.bodybuilding.hip} unit="cm" />
-                    <MetricPill label="大腿" value={sportCards.bodybuilding.thigh} unit="cm" />
-                    <MetricPill label="小腿" value={sportCards.bodybuilding.calf} unit="cm" />
-                </RowLine>
-            )}
-
-            {/* 6. 跑步 */}
-            {sportCards.activeCards.includes('running') && sportCards.running && (
-                <RowLine title="跑步" icon={Footprints} iconClass="text-blue-600">
-                    <MetricPill label="5km" value={sportCards.running.fiveK} />
-                    <MetricPill label="10km" value={sportCards.running.tenK} />
-                    <MetricPill label="半马" value={sportCards.running.halfMarathon} />
-                    <MetricPill label="全马" value={sportCards.running.marathon} />
-                </RowLine>
-            )}
-
-            {/* 7. 骑行 */}
-            {sportCards.activeCards.includes('cycling') && sportCards.cycling && (
-                <RowLine title="骑行" icon={Bike} iconClass="text-cyan-600">
-                    <MetricPill label="FTP" value={sportCards.cycling.ftp} unit="W" />
-                    <MetricPill label="最大功率" value={sportCards.cycling.maxPower} unit="W" />
-                    <MetricPill label="最长" value={sportCards.cycling.maxDistance} unit="km" />
-                </RowLine>
-            )}
+                return (
+                    <SportChartDisplay
+                        key={sportKey}
+                        title={sportType.label}
+                        icon={sportType.icon}
+                        iconClass={sportType.color}
+                        data={sportData as Record<string, any>}
+                        sportKey={sportKey}
+                    />
+                );
+            })}
         </div>
     );
 };
