@@ -1,247 +1,176 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { Button } from 'primereact/button';
-import { Skeleton } from 'primereact/skeleton';
 import { Toast } from 'primereact/toast';
-import { useRef } from 'react';
 import { alipayService } from '@/app/service/alipayService';
 
 const PaymentPage = () => {
     const router = useRouter();
     const params = useParams();
-    const toast = useRef(null);
-    const { data: session } = useSession();
-    
+    const toast = useRef<Toast>(null);
+
     const [loading, setLoading] = useState(true);
-    const [qrCodeUrl, setQrCodeUrl] = useState('');
     const [paymentId, setPaymentId] = useState('');
     const [amount, setAmount] = useState(0);
     const [orderId, setOrderId] = useState('');
-    const [description, setDescription] = useState('');
     const [status, setStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+    const [isMobile, setIsMobile] = useState(false);
 
-    // 从路由参数中获取支付ID
+    // 1. 设备环境检测
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // 2. 初始化与支付详情获取
     useEffect(() => {
         const id = params.id;
         if (!id || Array.isArray(id)) {
-            toast.current?.show({
-                severity: 'error',
-                summary: '错误',
-                detail: '无效的支付ID',
-                life: 3000
-            });
+            toast.current?.show({ severity: 'error', summary: '错误', detail: '无效的支付ID' });
             router.back();
             return;
         }
-        
         setPaymentId(id);
-        // 获取支付订单详情
         fetchPaymentDetails(id);
     }, [params]);
 
-    const fetchPaymentDetails = async (id: string) => {
+    // 3. 轮询逻辑：每5秒自动同步状态
+    useEffect(() => {
+        if (!paymentId || status !== 'pending') return;
+        const interval = setInterval(() => fetchPaymentDetails(paymentId, true), 5000);
+        return () => clearInterval(interval);
+    }, [paymentId, status]);
+
+    const fetchPaymentDetails = async (id: string, isSilent = false) => {
         try {
-            setLoading(true);
-            
-            // 调用支付服务获取支付订单详情
-            const response = await alipayService.queryOrder({
-                // backward compat: API accepts paymentId too, but type wants orderId
-                orderId: id as any
-            } as any);
-            
-            if (response) {
-                const order = (response as any).order || response;
-                setQrCodeUrl(order.qr_code || '');
+            if (!isSilent) setLoading(true);
+            const res = await alipayService.queryOrder({ orderId: id as any } as any);
+
+            if (res) {
+                const order = res.order;
                 setAmount(Number(order.total_amount || 0));
                 setOrderId(order.id || '');
-                setDescription(order.subject || '');
 
-                const ts = order.trade_status;
+                const ts = res.tradeStatus;
                 if (order.status === 'paid' || ts === 'TRADE_SUCCESS' || ts === 'TRADE_FINISHED') {
                     setStatus('success');
                 } else if (order.status === 'cancelled' || ts === 'TRADE_CLOSED') {
                     setStatus('failed');
-                } else {
-                    setStatus('pending');
                 }
-            } else {
-                throw new Error('获取支付订单详情失败');
             }
         } catch (error) {
-            console.error('获取支付订单详情失败:', error);
-            toast.current?.show({
-                severity: 'error',
-                summary: '错误',
-                detail: '获取支付订单详情失败',
-                life: 3000
-            });
-            router.back();
+            console.error('Fetch error:', error);
+            if (!isSilent) toast.current?.show({ severity: 'error', summary: '查询失败', detail: '无法同步支付状态' });
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
 
-    // 定期检查支付状态
-    useEffect(() => {
-        if (!paymentId || status !== 'pending') return;
-        
-        const interval = setInterval(() => {
-            fetchPaymentDetails(paymentId);
-        }, 5000); // 每5秒检查一次支付状态
-        
-        return () => clearInterval(interval);
-    }, [paymentId, status]);
-
-    // 骨架屏组件
-    const LoadingSkeleton = () => (
-        <div className="max-w-md mx-auto p-6">
-            <div className="text-center mb-8">
-                <Skeleton width="60%" height="2rem" className="mb-4 mx-auto" />
-                <Skeleton width="100%" height="1.5rem" className="mb-2" />
-                <Skeleton width="80%" height="1.5rem" className="mx-auto" />
-            </div>
-            
-            <div className="flex justify-center mb-8">
-                <Skeleton width="200px" height="200px" borderRadius="12px" />
-            </div>
-            
-            <div className="text-center mb-6">
-                <Skeleton width="50%" height="2rem" className="mx-auto mb-4" />
-                <Skeleton width="100%" height="3rem" borderRadius="6px" />
-            </div>
-            
-            <div className="flex justify-center">
-                <Skeleton width="100px" height="2.5rem" borderRadius="6px" />
-            </div>
-        </div>
-    );
-
-    // 处理支付完成
     const handlePaymentComplete = () => {
         router.push('/coach/subscription');
-        toast.current?.show({
-            severity: 'success',
-            summary: '支付成功',
-            detail: '支付已完成，正在跳转...',
-            life: 3000
-        });
     };
 
-    if (loading) {
-        return <LoadingSkeleton />;
-    }
-
     return (
-        <div className="max-w-md mx-auto p-6">
+        <div className="max-w-md mx-auto p-8 space-y-8 animate-in fade-in duration-700">
             <Toast ref={toast} />
-            
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold mb-2">扫码支付</h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                    订单金额: ¥{amount.toFixed(2)}
-                </p>
-                <p className="text-gray-600 dark:text-gray-400">
-                    订单号: {orderId}
-                </p>
-                {description && (
-                    <p className="text-gray-600 dark:text-gray-400">
-                        描述: {description}
-                    </p>
-                )}
-                <div className="mt-2">
-                    {status === 'pending' && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                            <span className="animate-pulse w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
-                            等待支付
-                        </span>
-                    )}
-                    {status === 'success' && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                            支付成功
-                        </span>
-                    )}
-                    {status === 'failed' && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                            <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                            支付失败
-                        </span>
-                    )}
+
+            {/* 头部：数值中心化排版 (规范 2) */}
+            <div className="text-center space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-surface-400">支付确认中</div>
+                <div className="flex items-baseline justify-center gap-1 text-surface-900">
+                    <span className="text-2xl font-bold">¥</span>
+                    <span className="text-5xl font-black tracking-tighter">{amount.toFixed(2)}</span>
                 </div>
+                <p className="text-xs text-surface-400 font-medium pt-1">订单号: {orderId}</p>
             </div>
-            
-            {status === 'pending' && qrCodeUrl ? (
-                <div className="flex justify-center mb-8">
-                    <img 
-                        src={qrCodeUrl} 
-                        alt="支付二维码" 
-                        className="border rounded-xl p-4 shadow-md"
-                        width={200}
-                        height={200}
-                    />
-                </div>
-            ) : status === 'pending' && !qrCodeUrl ? (
-                <div className="text-center text-red-500 mb-8">
-                    无法生成支付二维码，请稍后重试
-                </div>
-            ) : null}
-            
-            {status === 'success' && (
-                <div className="text-center mb-8">
-                    <div className="text-green-500 text-5xl mb-4">✓</div>
-                    <p className="font-medium">支付成功！</p>
+
+            {/* 核心状态显示区 */}
+            <div className="relative">
+                {status === 'pending' ? (
+                    <div className="bg-surface-0 dark:bg-surface-900 rounded-3xl p-8 border border-surface-100/50 shadow-[0_8px_30px_rgba(0,0,0,0.02)] flex flex-col items-center text-center space-y-6">
+                        {/* 动态呼吸图标 */}
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-primary-500/10 rounded-full animate-ping scale-75"></div>
+                            <div className="relative w-16 h-16 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-2xl flex items-center justify-center">
+                                <i className="pi pi-sync animate-spin text-2xl" style={{ animationDuration: '3s' }}></i>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <h2 className="text-lg font-bold tracking-tight text-surface-800">正在等待支付结果...</h2>
+                            <p className="text-sm text-surface-500 px-4 leading-relaxed">
+                                {isMobile ? "请在弹出的支付页面完成操作" : "请在您的手机设备上完成支付"}
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    /* 成功/失败状态 */
+                    <div className="py-8 text-center animate-in zoom-in-95 duration-500">
+                        <div className={`w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center border ${
+                            status === 'success' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+                        }`}>
+                            <i className={`pi ${status === 'success' ? 'pi-check' : 'pi-times'} text-3xl font-bold`}></i>
+                        </div>
+                        <h2 className="text-xl font-bold text-surface-900 tracking-tight">
+                            {status === 'success' ? '支付已成功' : '支付未成功'}
+                        </h2>
+                    </div>
+                )}
+            </div>
+
+            {/* 安全提示：规范 4 - 周期性动效引导 */}
+            {status === 'pending' && (
+                <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100/50 rounded-2xl p-5 flex items-start gap-4 transition-all">
+                    <i className="pi pi-exclamation-circle text-amber-500 mt-0.5 animate-pulse text-lg"></i>
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">安全提醒</p>
+                        <p className="text-xs text-amber-600/80 leading-relaxed font-medium">
+                            支付过程中 <span className="text-amber-700 underline underline-offset-4 decoration-2 decoration-amber-200">请勿关闭当前窗口</span> 或刷新页面，系统正在实时同步您的支付结果。
+                        </p>
+                    </div>
                 </div>
             )}
-            
-            {status === 'failed' && (
-                <div className="text-center text-red-500 mb-8">
-                    <div className="text-red-500 text-5xl mb-4">✗</div>
-                    <p className="font-medium">支付失败，请重试</p>
-                </div>
-            )}
-            
-            <div className="text-center mb-6">
+
+            {/* 操作区 */}
+            <div className="space-y-4 pt-4">
                 {status === 'pending' && (
-                    <>
-                        <p className="font-medium mb-4">请使用微信或支付宝扫描上方二维码完成支付</p>
-                        <Button 
-                            label="已完成支付" 
-                            icon="pi pi-check"
-                            className="w-full py-3"
-                            onClick={() => fetchPaymentDetails(paymentId)}
-                        />
-                    </>
+                    <Button 
+                        label="我已完成支付" 
+                        loading={loading}
+                        className="w-full py-4 rounded-2xl font-bold tracking-tight bg-surface-900 border-none transition-transform active:scale-[0.98]"
+                        onClick={() => fetchPaymentDetails(paymentId)}
+                    />
                 )}
                 
                 {status === 'success' && (
                     <Button 
                         label="继续" 
                         icon="pi pi-arrow-right"
-                        className="w-full py-3"
+                        className="w-full py-4 rounded-2xl font-bold bg-primary-600 border-none transition-transform active:scale-[0.98]"
                         onClick={handlePaymentComplete}
                     />
                 )}
-                
+
                 {status === 'failed' && (
                     <Button 
-                        label="重新支付" 
+                        label="重新尝试" 
                         icon="pi pi-refresh"
-                        className="w-full py-3 p-button-danger"
+                        className="w-full py-4 rounded-2xl font-bold bg-red-500 border-none transition-transform active:scale-[0.98]"
                         onClick={() => router.push('/coach/subscription')}
                     />
                 )}
-            </div>
-            
-            <div className="text-center">
-                <Button 
-                    label="返回上一页" 
-                    icon="pi pi-arrow-left"
-                    className="p-button-text"
+
+                <button 
+                    className="w-full py-2 text-xs text-surface-400 font-bold uppercase tracking-widest hover:text-surface-600 transition-colors"
                     onClick={() => router.back()}
-                />
+                >
+                    <i className="pi pi-angle-left mr-1"></i>
+                    返回
+                </button>
             </div>
         </div>
     );
