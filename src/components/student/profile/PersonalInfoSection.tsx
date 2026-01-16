@@ -9,8 +9,9 @@ import { Checkbox } from 'primereact/checkbox';
 import { ProfileData } from './types';
 import { studentService } from '@/app/service/studentService';
 import { useToastContext } from '@/context/ToastContext';
-import { SportCards, getEmptySportCards } from '@/types/sportCards';
+import { SportCards } from '@/types/sportCards';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { getEmptySportCards } from '@/lib/sportsCollections';
 
 interface PersonalInfoSectionProps {
     data: ProfileData;

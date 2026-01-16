@@ -14,7 +14,7 @@ export default function SubscribePage() {
     const { showToast } = useToastContext();
     const [loading, setLoading] = useState(false);
     const [currentTier, setCurrentTier] = useState<string>('free');
-    
+
     const initialIndex = searchParams.get('tab') === 'addon' ? 1 : 0;
     const [activeIndex, setActiveIndex] = useState(initialIndex);
 
@@ -33,8 +33,8 @@ export default function SubscribePage() {
             const res = await studentMembershipService.createOrder({
                 productKey,
                 paymentMethod: 'alipay'
-            });            
-            
+            });
+
             if (res?.paymentHtml) {
                 // Render the Alipay form and auto-submit
                 const div = document.createElement('div');
@@ -97,12 +97,36 @@ export default function SubscribePage() {
                                 <p className="text-sm text-surface-500">适合自主训练的爱好者</p>
                                 <div className="text-3xl font-bold mt-2 text-blue-700">¥19.9<span className="text-sm font-normal text-surface-500"> /月</span></div>
                             </div>
-                            <ul className="space-y-3 text-sm flex-grow mb-6">
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />**全部** 基础+个人动作库</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />每月 **10 次** 智能计划生成</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />**无限** 历史数据查询</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" />30 条/月 视频存储</li>
+                            <ul className="space-y-3 mb-6">
+                                <li className="flex items-center text-surface-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="mr-2 h-4 w-4 text-green-500">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span><strong className="font-bold">全部</strong> 基础+个人动作库</span>
+                                </li>
+
+                                <li className="flex items-center text-surface-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="mr-2 h-4 w-4 text-green-500">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span>每月 <strong className="font-bold">10 次</strong> 智能计划生成</span>
+                                </li>
+
+                                <li className="flex items-center text-surface-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="mr-2 h-4 w-4 text-green-500">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span><strong className="font-bold">无限</strong> 历史数据查询</span>
+                                </li>
+
+                                <li className="flex items-center text-surface-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="mr-2 h-4 w-4 text-green-500">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span>30 条/月 视频存储</span>
+                                </li>
                             </ul>
+
                             {currentTier === 'basic' ? (
                                 <Button label="当前计划" outlined disabled className="w-full" />
                             ) : (
@@ -119,11 +143,36 @@ export default function SubscribePage() {
                                 <div className="text-3xl font-bold mt-2 text-purple-700">¥39.9<span className="text-sm font-normal text-surface-500"> /月</span></div>
                             </div>
                             <ul className="space-y-3 text-sm font-medium flex-grow mb-6">
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />**无限次** 智能计划生成</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />**智能深度洞察报告**</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />优先使用新功能模板</li>
-                                <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-purple-600" />100 条/月 视频存储</li>
-                                <li className="flex items-center text-purple-800"><Check className="mr-2 h-4 w-4" />订阅真人教练享 **9折**</li>
+                                <li className="flex items-center text-surface-700">
+                                    <Check className="mr-2 h-4 w-4 text-purple-600 flex-shrink-0" />
+                                    <span>
+                                        <strong className="font-bold text-surface-900">无限次</strong> 智能计划生成
+                                    </span>
+                                </li>
+
+                                <li className="flex items-center text-surface-700">
+                                    <Check className="mr-2 h-4 w-4 text-purple-600 flex-shrink-0" />
+                                    <span>
+                                        <strong className="font-bold text-surface-900">智能深度洞察报告</strong>
+                                    </span>
+                                </li>
+
+                                <li className="flex items-center text-surface-700">
+                                    <Check className="mr-2 h-4 w-4 text-purple-600 flex-shrink-0" />
+                                    <span>优先使用新功能模板</span>
+                                </li>
+
+                                <li className="flex items-center text-surface-700">
+                                    <Check className="mr-2 h-4 w-4 text-purple-600 flex-shrink-0" />
+                                    <span>100 条/月 视频存储</span>
+                                </li>
+
+                                <li className="flex items-center text-purple-800">
+                                    <Check className="mr-2 h-4 w-4 flex-shrink-0" />
+                                    <span>
+                                        订阅真人教练享 <strong className="font-black italic">9折</strong>
+                                    </span>
+                                </li>
                             </ul>
                             {currentTier === 'premium' ? (
                                 <Button label="当前计划" outlined disabled className="w-full" />
@@ -138,7 +187,7 @@ export default function SubscribePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
                         <div className="border border-surface-200 rounded-xl p-6 bg-surface-0 shadow-sm flex flex-col">
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 bg-yellow-100 rounded-lg"><Sparkles className="w-6 h-6 text-yellow-600"/></div>
+                                <div className="p-2 bg-yellow-100 rounded-lg"><Sparkles className="w-6 h-6 text-yellow-600" /></div>
                                 <h3 className="text-xl font-bold text-surface-900">智能导入加油包</h3>
                             </div>
                             <p className="text-sm text-surface-500 mb-4">单次购买，永不过期</p>
@@ -149,7 +198,7 @@ export default function SubscribePage() {
 
                         <div className="border border-surface-200 rounded-xl p-6 bg-surface-0 shadow-sm flex flex-col">
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 bg-blue-100 rounded-lg"><Database className="w-6 h-6 text-blue-600"/></div>
+                                <div className="p-2 bg-blue-100 rounded-lg"><Database className="w-6 h-6 text-blue-600" /></div>
                                 <h3 className="text-xl font-bold text-surface-900">存储扩容包</h3>
                             </div>
                             <p className="text-sm text-surface-500 mb-4">永久增加云存储空间</p>

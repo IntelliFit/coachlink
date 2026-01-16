@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Dumbbell, User, Bike, Footprints } from 'lucide-react';
-import { SportCards, getPowerliftingTotal, getStreetliftingTotal, getWeightliftingTotal } from '@/types/sportCards';
+import { SportCards } from '@/types/sportCards';
+import { getPowerliftingTotal, getStreetliftingTotal, getWeightliftingTotal } from '@/lib/sportsCollections';
 
 interface SportCardsDisplayProps {
     sportCards: SportCards | null;
