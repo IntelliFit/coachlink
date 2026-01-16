@@ -6,12 +6,14 @@ import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { Skeleton } from 'primereact/skeleton';
 import { Checkbox } from 'primereact/checkbox';
+import { ProgressBar } from 'primereact/progressbar';
 import { ProfileData } from './types';
 import { studentService } from '@/app/service/studentService';
 import { useToastContext } from '@/context/ToastContext';
 import { SportCards } from '@/types/sportCards';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
-import { getEmptySportCards } from '@/lib/sportsCollections';
+import { AeroTimePicker } from '@/components/AeroTimePicker';
+import { getEmptySportCards, getTotalWeight, showTotalWeight, SportTypes, typicalActionMaps } from '@/lib/sportsCollections';
 
 interface PersonalInfoSectionProps {
     data: ProfileData;
@@ -66,6 +68,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [step, setStep] = useState(1);
     const { showToast } = useToastContext();
 
     // Form state
@@ -85,9 +88,9 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     // 初始化表单数据
     const initFormData = () => {
         console.log('enter');
-        
+
         const sportCards = (profile?.sport_cards as unknown as SportCards) || getEmptySportCards();
-        
+
         setFormData({
             nickname: profile?.nickname || '',
             avatar_url: profile?.avatar_url || '',
@@ -122,6 +125,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
             });
             showToast({ severity: 'success', summary: '保存成功', detail: '个人信息已更新' });
             setIsEditing(false);
+            setStep(1); // Reset to first step when closing
             onUpdate();
         } catch (error) {
             showToast({ severity: 'error', summary: '保存失败', detail: '无法更新个人信息，请重试' });
@@ -176,22 +180,22 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         });
     };
 
-    // 更新卡片数据 (字符串类型)
-    const updateCardDataString = (cardKey: string, field: string, value: string | null) => {
-        setFormData({
-            ...formData,
-            sport_cards: {
-                ...formData.sport_cards,
-                [cardKey]: {
-                    ...(formData.sport_cards[cardKey as keyof SportCards] as object),
-                    [field]: value,
-                },
-            },
-        });
+    // 处理下一步
+    const handleNext = () => {
+        if (step < 3) {
+            setStep(step + 1);
+        }
+    };
+
+    // 处理上一步
+    const handleBack = () => {
+        if (step > 1) {
+            setStep(step - 1);
+        }
     };
 
     const InfoItem = ({ label, value }: { label: string, value: string | number | null }) => (
-        <div className="px-2.5 py-1.5 bg-surface-50 rounded-xl border border-surface-100 text-xs">
+        <div className="px-2.5 py-1.5 bg-surface-50 rounded-xl border border-surface-200 text-xs">
             <span className="text-[11px] font-bold text-surface-500">{label}</span>
             <span className="mx-1 text-surface-300">·</span>
             <span className="font-black text-surface-900">{value || '未填写'}</span>
@@ -199,7 +203,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     );
 
     const InfoItemSkeleton = () => (
-        <div className="px-2.5 py-1.5 bg-surface-50 rounded-xl border border-surface-100">
+        <div className="px-2.5 py-1.5 bg-surface-50 rounded-xl border border-surface-200">
             <Skeleton width="120px" height="0.9rem" />
         </div>
     );
@@ -211,12 +215,16 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                     <User className="text-primary" size={20} />
                     个人信息
                 </h2>
-                <Button 
+                <Button
                     aria-label="编辑资料"
-                    icon={<Edit size={16} />} 
-                    text 
-                    onClick={() => { initFormData(); setIsEditing(true); }}
-                    className="p-2"
+                    icon={<Edit size={16} />}
+                    text
+                    onClick={() => {
+                        initFormData();
+                        setIsEditing(true);
+                        setStep(1); // Reset to first step when opening
+                    }}
+                    className="p-2 rounded-2xl"
                 />
             </div>
 
@@ -234,31 +242,103 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                 </div>
             )}
 
-            <Dialog 
-                header="编辑个人资料" 
-                visible={isEditing} 
-                style={{ width: '95vw', maxWidth: '950px' }} 
-                onHide={() => setIsEditing(false)}
+            <Dialog
+                header="编辑个人资料"
+                visible={isEditing}                
+                style={{ width: '640px' }}
+                onHide={() => {
+                    setIsEditing(false);
+                    setStep(1);
+                }}
                 footer={
-                    <div className="flex justify-end gap-2">
-                        <Button label="取消" text onClick={() => setIsEditing(false)} />
-                        <Button label="保存" loading={loading} onClick={handleSave} />
+                    <div className="flex gap-2 pt-6 border-t border-surface-200/50">
+                        {step === 1 ? (
+                            <Button
+                                label="取消"
+                                onClick={() => setIsEditing(false)}
+                                className="flex-1 h-14 rounded-2xl bg-surface-50 border-none text-surface-500 font-black active:scale-95 transition-all"
+                            />
+                        ) : (
+                            <Button
+                                label="上一步"
+                                icon="pi pi-arrow-left"
+                                onClick={handleBack}
+                                className="flex-1 h-14 rounded-2xl bg-surface-50 border-none text-surface-500 font-black active:scale-95 transition-all"
+                            />
+                        )}
+
+                        {step < 3 ? (
+                            <Button
+                                label="下一步"
+                                icon="pi pi-arrow-right"
+                                onClick={handleNext}
+                                className="flex-1 h-14 rounded-2xl bg-primary-500 border-none text-surface font-black active:scale-[0.98] transition-all shadow-xl shadow-primary-100"
+                            />
+                        ) : (
+                            <Button
+                                label="保存"
+                                icon="pi pi-check"
+                                onClick={handleSave}
+                                loading={loading}
+                                className="flex-1 h-14 rounded-2xl bg-primary-500 border-none text-surface font-black active:scale-[0.98] transition-all shadow-xl shadow-primary-100"
+                            />
+                        )}
                     </div>
                 }
+                pt={{
+                    root: {
+                        className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
+                    },
+                    header: {
+                        className: 'p-8 pb-4 border-none bg-surface md:rounded-t-[24px] rounded-t-none'
+                    },
+                    content: {
+                        className: 'text-xl font-black tracking-tight md:overflow-y-auto md:max-h-[calc(100vh-300px)]'
+                    },
+                    footer: {
+                        className: 'p-8 md:rounded-b-[24px] rounded-b-none'
+                    }
+                }}
             >
-                <div className="flex flex-col gap-6 py-4 max-h-[70vh]">
-                    {/* 基本信息 */}
-                    <div>
-                        <h3 className="text-md font-semibold mb-4 text-surface-700">基本信息</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="nickname" className="text-sm font-medium">昵称</label>
-                                <InputText id="nickname" value={formData.nickname} onChange={(e) => setFormData({...formData, nickname: e.target.value})} />
+                {/* 进度导航：采用非线性平滑过渡 */}
+                <div className="mb-10 px-1">
+                    <div className="flex justify-between items-end mb-3">
+                        <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.3em]">
+                            第 {step} 步 / 共 3 步
+                        </span>
+                        <span className="text-sm font-black text-surface-900 tracking-tight">
+                            {step === 1 ? '基本信息' : step === 2 ? '练习领域' : '历史成绩'}
+                        </span>
+                    </div>
+                    <ProgressBar value={(step / 3) * 100} showValue={false} className="h-1.5 bg-surface-50" color="#F28631" />
+                </div>
+
+                {/* 步骤内容 */}
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* 步骤1：基本信息 */}
+                    {step === 1 && (
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-8">
+                            {/* 昵称输入：信息约束设计 */}
+                            <div className="col-span-2">
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">显示昵称</label>
+                                <InputText
+                                    value={formData.nickname}
+                                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                                    className="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                    placeholder="如何称呼您？"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="avatar" className="text-sm font-medium">头像</label>
+
+                            {/* 头像上传：视觉资产配置 */}
+                            <div className="col-span-2">
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">头像</label>
                                 <div className="flex items-center gap-3">
-                                    <InputText id="avatar" value={formData.avatar_url} onChange={(e) => setFormData({...formData, avatar_url: e.target.value})} placeholder="粘贴图片URL" className="flex-1" />
+                                    <InputText
+                                        value={formData.avatar_url}
+                                        onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                                        placeholder="粘贴图片URL"
+                                        className="flex-1 h-12 rounded-xl border-surface-200 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                    />
                                     {formData.avatar_url ? (
                                         <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-100 border">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -268,7 +348,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                         <div className="w-12 h-12 rounded-full bg-surface-100 border flex items-center justify-center text-surface-400 text-xs">无</div>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 mt-2">
                                     <label className="px-3 py-2 border border-surface-200 rounded-lg text-sm cursor-pointer hover:bg-surface-50">
                                         <input
                                             type="file"
@@ -284,207 +364,231 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                                     <Button label="清空" text size="small" onClick={() => setFormData({ ...formData, avatar_url: '' })} type="button" />
                                     {uploading && <span className="text-xs text-surface-500">上传中...</span>}
                                 </div>
-                                <p className="text-xs text-surface-500">支持 PNG/JPG/WEBP，≤2MB。</p>
+                                <p className="text-xs text-surface-500 mt-1">支持 PNG/JPG/WEBP，≤2MB。</p>
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="age" className="text-sm font-medium">年龄</label>
-                                <AeroInputNumber id="age" value={formData.age} onValueChange={(e) => {                                    
-                                    setFormData({...formData, age: e.value ?? null})
-                                }} min={10} max={100} suffix=" 岁" className="w-full" />
+
+                            {/* 年龄输入：精确数据维度 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">年龄</label>
+                                <AeroInputNumber
+                                    value={formData.age}
+                                    onValueChange={(e) => setFormData({ ...formData, age: e.value ?? null })}
+                                    min={10}
+                                    max={100}
+                                    suffix=" 岁"
+                                    inputClassName="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="gender" className="text-sm font-medium">性别</label>
-                                <Dropdown id="gender" value={formData.gender} options={GENDER_OPTIONS} onChange={(e) => setFormData({...formData, gender: e.value})} placeholder="选择性别" className="w-full" />
+
+                            {/* 生理性别：低饱和功能色下拉框 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">性别</label>
+                                <Dropdown
+                                    value={formData.gender}
+                                    options={GENDER_OPTIONS}
+                                    onChange={(e) => setFormData({ ...formData, gender: e.value })}
+                                    className="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 font-bold"
+                                    placeholder="请选择"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="height" className="text-sm font-medium">身高 (cm)</label>
-                                <AeroInputNumber id="height" value={formData.height} onValueChange={(e) => setFormData({...formData, height: e.value ?? null})} min={100} max={250} className="w-full" />
+
+                            {/* 身高输入：精确数据维度 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">身高 (cm)</label>
+                                <AeroInputNumber
+                                    value={formData.height}
+                                    onValueChange={(e) => setFormData({ ...formData, height: e.value ?? null })}
+                                    min={100}
+                                    max={250}
+                                    inputClassName="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="weight" className="text-sm font-medium">体重 (kg)</label>
-                                <AeroInputNumber id="weight" value={formData.weight} onValueChange={(e) => setFormData({...formData, weight: e.value ?? null})} min={30} max={300} mode="decimal" minFractionDigits={1} className="w-full" />
+
+                            {/* 体重输入：精确数据维度 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">体重 (kg)</label>
+                                <AeroInputNumber
+                                    value={formData.weight}
+                                    onValueChange={(e) => setFormData({ ...formData, weight: e.value ?? null })}
+                                    min={30}
+                                    max={300}
+                                    mode="decimal"
+                                    minFractionDigits={1}
+                                    inputClassName="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="fitness_goal" className="text-sm font-medium">健身目标</label>
-                                <Dropdown id="fitness_goal" value={formData.fitness_goal} options={FITNESS_GOAL_OPTIONS} onChange={(e) => setFormData({...formData, fitness_goal: e.value})} placeholder="选择健身目标" className="w-full" />
+
+                            {/* 健身目标：低饱和功能色下拉框 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">健身目标</label>
+                                <Dropdown
+                                    value={formData.fitness_goal}
+                                    options={FITNESS_GOAL_OPTIONS}
+                                    onChange={(e) => setFormData({ ...formData, fitness_goal: e.value })}
+                                    className="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 font-bold"
+                                    placeholder="请选择"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="fitness_level" className="text-sm font-medium">当前水平</label>
-                                <Dropdown id="fitness_level" value={formData.fitness_level} options={FITNESS_LEVEL_OPTIONS} onChange={(e) => setFormData({...formData, fitness_level: e.value})} placeholder="选择健身水平" className="w-full" />
+
+                            {/* 当前水平：低饱和功能色下拉框 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">当前水平</label>
+                                <Dropdown
+                                    value={formData.fitness_level}
+                                    options={FITNESS_LEVEL_OPTIONS}
+                                    onChange={(e) => setFormData({ ...formData, fitness_level: e.value })}
+                                    className="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 font-bold"
+                                    placeholder="请选择"
+                                />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="lifestyle" className="text-sm font-medium">生活作息</label>
-                                <InputText id="lifestyle" value={formData.lifestyle} onChange={(e) => setFormData({...formData, lifestyle: e.target.value})} placeholder="如：朝九晚五" />
+
+                            {/* 生活作息 */}
+                            <div>
+                                <label className="text-[10px] font-black text-surface-400 uppercase tracking-widest mb-2 block px-1">生活作息</label>
+                                <InputText
+                                    value={formData.lifestyle}
+                                    onChange={(e) => setFormData({ ...formData, lifestyle: e.target.value })}
+                                    placeholder="如：朝九晚五"
+                                    className="w-full h-12 rounded-xl border-surface-200 bg-surface-50/30 focus:bg-surface transition-all font-bold"
+                                />
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* 运动卡片 */}
-                    <div>
-                        <h3 className="text-md font-semibold mb-4 text-surface-700">运动数据卡片</h3>
-                        <p className="text-sm text-surface-500 mb-4">选择您参与的运动类型，记录您的训练数据（全部选填）</p>
-                        
-                        {/* 卡片选择 - 7 个类型 */}
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            {CARD_TYPES.map((card) => {
-                                const isActive = formData.sport_cards.activeCards.includes(card.key);
-                                const Icon = card.icon;
+                    {/* 步骤2：身体数据 */}
+                    {step === 2 && (
+                        <div className='space-y-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                            <div className='text-xl'>选择您感兴趣或正在练习的领域</div>
+                            <div className='grid grid-cols-2 gap-3'>
+                                {SportTypes.map((sport) => {
+                                    const Icon = sport.icon;
+                                    const isActive = formData.sport_cards.activeCards.includes(sport.key);
+                                    return (
+                                        <div
+                                            key={sport.key}
+                                            onClick={() => toggleCard(sport.key)}
+                                            className={`
+                                                group cursor-pointer relative overflow-hidden transition-all duration-300
+                                                px-2 py-3 rounded-[16px] border text-center active:scale-[0.94]
+                                                ${isActive
+                                                    ? `${sport.active} shadow-sm shadow-current/5`
+                                                    : 'border-surface-200 bg-surface-50/50 hover:bg-surface hover:border-surface-200'
+                                                }
+                                    `}
+                                        >
+                                            {/* 状态指示：改为更加细腻的右上角呼吸点 */}
+                                            {isActive && (
+                                                <div className="absolute top-2 right-2 flex items-center justify-center">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ color: sport.color }} />
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col items-center gap-2">
+                                                {/* 图标容器：缩小尺寸，强化背景色对比 */}
+                                                <div className={`
+                                                    w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500 
+                                                    group-hover:scale-110 group-active:rotate-12
+                                                    ${sport.bg} ${sport.color}
+                                                `}>
+                                                    <Icon size={20} strokeWidth={2.5} />
+                                                </div>
+
+                                                <span className="text-[10px] font-black text-surface-700 tracking-tighter leading-none">
+                                                    {sport.label}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 步骤3：生活方式与运动资产 */}
+                    {step === 3 && (
+                        <div
+                            className="overflow-y-auto pr-2 space-y-3 py-2"
+                        >
+                            {/* 动态表单容器：修复颜色变量与渲染逻辑 */}
+                            {formData.sport_cards.activeCards.map((cardKey) => {
+                                const config = SportTypes.find(c => c.key === cardKey);
+                                if (!config) return null;
+
+                                const Icon = config.icon;
+                                const cardData = (formData.sport_cards as any)[cardKey];
+
                                 return (
-                                    <div 
-                                        key={card.key}
-                                        onClick={() => toggleCard(card.key)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-all ${
-                                            isActive ? 'border-primary bg-primary/10 text-primary' : 'border-surface-200 bg-surface-50 text-surface-600 hover:border-surface-300'
-                                        }`}
+                                    <div
+                                        key={cardKey}
+                                        className={`p-5 rounded-[24px] border border-opacity-40 space-y-4 animate-in zoom-in-95 slide-in-from-top-2 duration-300 ${config.bg} ${config.border}`}
                                     >
-                                        <Checkbox checked={isActive} onChange={() => toggleCard(card.key)} />
-                                        <Icon size={18} />
-                                        <span className="font-medium">{card.label}</span>
+                                        {/* 头部：标题与数值展示 */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${config.color} shadow-sm`}>
+                                                    <Icon size={20} strokeWidth={2.5} />
+                                                </div>
+                                                <h4 className={`text-xs font-black tracking-tight`}>
+                                                    {config.label}
+                                                </h4>
+                                            </div>
+
+                                            {/* 力量/举重/街力 特有总和展示 */}
+                                            {showTotalWeight(cardKey) && (
+                                                <div className="px-3 py-1 rounded-full bg-surface-900 text-surface text-[10px] font-black italic shadow-md">
+                                                    总计 : {getTotalWeight(cardKey, cardData)} KG
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* 紧凑型输入网格 */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            {Object.keys(cardData || {}).map((field) => {
+                                                const fieldConfig = typicalActionMaps[field];
+                                                const isTimeField = fieldConfig?.unit === 'sec';
+
+                                                return (
+                                                    <div key={field}>
+                                                        <label className="text-[9px] font-black text-surface-400 uppercase tracking-widest mb-1.5 block px-1">
+                                                            {fieldConfig?.nameCn || field}
+                                                        </label>
+                                                        {isTimeField ? (
+                                                            <AeroTimePicker
+                                                                value={cardData[field] || 0}
+                                                                onValueChange={(e) => updateCardData(cardKey as any, field, e.value)}
+                                                                className="w-full sm:w-32"
+                                                                inputClassName="h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                            />
+                                                        ) : (
+                                                            <AeroInputNumber
+                                                                value={cardData[field]}
+                                                                onValueChange={(e) => updateCardData(cardKey as any, field, e.value ?? null)}
+                                                                inputClassName="w-full sm:w-32 h-10 rounded-xl border-none bg-surface font-black text-center text-xs shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                                                placeholder="0"
+                                                                suffix={fieldConfig.unit}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 );
                             })}
+
+                            {/* 空状态提示 */}
+                            {formData.sport_cards.activeCards.length === 0 && (
+                                <div className="py-20 text-center rounded-[24px] border-2 border-dashed border-surface-100 bg-surface-50/20">
+                                    <div className="w-12 h-12 bg-surface rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 border border-surface-50">
+                                        <Activity className="w-6 h-6 text-surface-200" />
+                                    </div>
+                                    <p className="text-[10px] font-black text-surface-400 tracking-[0.3em] uppercase">
+                                        点击上方磁贴以激活资产配置
+                                    </p>
+                                </div>
+                            )}
                         </div>
-
-                        {/* 1. 力量举 */}
-                        {formData.sport_cards.activeCards.includes('powerlifting') && (
-                            <div className="p-4 bg-orange-50 rounded-xl border border-orange-200 mb-4">
-                                <h4 className="font-semibold text-orange-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 力量举数据</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-orange-600 leading-tight">深蹲 1RM</label>
-                                        <AeroInputNumber
-                                            value={formData.sport_cards.powerlifting?.squat}
-                                            onValueChange={(e) => updateCardData('powerlifting', 'squat', e.value ?? null)}
-                                            min={0}
-                                            max={500}
-                                            className="w-full"
-                                            inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-orange-600 leading-tight">卧推 1RM</label>
-                                        <AeroInputNumber
-                                            value={formData.sport_cards.powerlifting?.bench}
-                                            onValueChange={(e) => updateCardData('powerlifting', 'bench', e.value ?? null)}
-                                            min={0}
-                                            max={500}
-                                            className="w-full"
-                                            inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-orange-600 leading-tight">硬拉 1RM</label>
-                                        <AeroInputNumber
-                                            value={formData.sport_cards.powerlifting?.deadlift}
-                                            onValueChange={(e) => updateCardData('powerlifting', 'deadlift', e.value ?? null)}
-                                            min={0}
-                                            max={500}
-                                            className="w-full"
-                                            inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 2. 街头力量举 */}
-                        {formData.sport_cards.activeCards.includes('streetlifting') && (
-                            <div className="p-4 bg-lime-50 rounded-xl border border-lime-200 mb-4">
-                                <h4 className="font-semibold text-lime-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 街头力量举数据</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">负重引体</label>
-                                        <AeroInputNumber value={formData.sport_cards.streetlifting?.weightedPullup} onValueChange={(e) => updateCardData('streetlifting', 'weightedPullup', e.value ?? null)} min={0} max={200} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">负重双杠</label>
-                                        <AeroInputNumber value={formData.sport_cards.streetlifting?.weightedDip} onValueChange={(e) => updateCardData('streetlifting', 'weightedDip', e.value ?? null)} min={0} max={200} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">负重双力臂</label>
-                                        <AeroInputNumber value={formData.sport_cards.streetlifting?.weightedMuscleUp} onValueChange={(e) => updateCardData('streetlifting', 'weightedMuscleUp', e.value ?? null)} min={0} max={200} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-lime-700 leading-tight">深蹲</label>
-                                        <AeroInputNumber value={formData.sport_cards.streetlifting?.squat} onValueChange={(e) => updateCardData('streetlifting', 'squat', e.value ?? null)} min={0} max={500} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 3. 街头健身 */}
-                        {formData.sport_cards.activeCards.includes('calisthenics') && (
-                            <div className="p-4 bg-green-50 rounded-xl border border-green-200 mb-4">
-                                <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2"><User size={18} /> 街头健身数据</h4>
-                                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">最大引体 (次)</label><AeroInputNumber value={formData.sport_cards.calisthenics?.maxPullups} onValueChange={(e) => updateCardData('calisthenics', 'maxPullups', e.value ?? null)} min={0} max={100} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">最大双杠 (次)</label><AeroInputNumber value={formData.sport_cards.calisthenics?.maxDips} onValueChange={(e) => updateCardData('calisthenics', 'maxDips', e.value ?? null)} min={0} max={100} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">双力臂 (次)</label><AeroInputNumber value={formData.sport_cards.calisthenics?.maxMuscleUps} onValueChange={(e) => updateCardData('calisthenics', 'maxMuscleUps', e.value ?? null)} min={0} max={50} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">前水平 (秒)</label><AeroInputNumber value={formData.sport_cards.calisthenics?.frontLever} onValueChange={(e) => updateCardData('calisthenics', 'frontLever', e.value ?? null)} min={0} max={120} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">俄挺 (秒)</label><AeroInputNumber value={formData.sport_cards.calisthenics?.planche} onValueChange={(e) => updateCardData('calisthenics', 'planche', e.value ?? null)} min={0} max={120} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-green-600">人旗 (秒)</label><AeroInputNumber value={formData.sport_cards.calisthenics?.humanFlag} onValueChange={(e) => updateCardData('calisthenics', 'humanFlag', e.value ?? null)} min={0} max={120} className="w-full" /></div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 4. 举重 */}
-                        {formData.sport_cards.activeCards.includes('weightlifting') && (
-                            <div className="p-4 bg-red-50 rounded-xl border border-red-200 mb-4">
-                                <h4 className="font-semibold text-red-700 mb-3 flex items-center gap-2"><Dumbbell size={18} /> 举重数据</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-red-700 leading-tight">抓举 1RM</label>
-                                        <AeroInputNumber value={formData.sport_cards.weightlifting?.snatch} onValueChange={(e) => updateCardData('weightlifting', 'snatch', e.value ?? null)} min={0} max={300} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 w-[92px]">
-                                        <label className="text-[11px] font-bold text-red-700 leading-tight">挺举 1RM</label>
-                                        <AeroInputNumber value={formData.sport_cards.weightlifting?.cleanAndJerk} onValueChange={(e) => updateCardData('weightlifting', 'cleanAndJerk', e.value ?? null)} min={0} max={400} className="w-full" inputClassName="p-inputtext-sm !py-1.5 !px-2 !text-sm !w-full" />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 5. 健美 */}
-                        {formData.sport_cards.activeCards.includes('bodybuilding') && (
-                            <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 mb-4">
-                                <h4 className="font-semibold text-purple-700 mb-3 flex items-center gap-2"><User size={18} /> 健美数据</h4>
-                                <div className="grid grid-cols-4 md:grid-cols-7 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">体脂率 (%)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.bodyfat} onValueChange={(e) => updateCardData('bodybuilding', 'bodyfat', e.value ?? null)} min={0} max={50} mode="decimal" minFractionDigits={1} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">胸围 (cm)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.chest} onValueChange={(e) => updateCardData('bodybuilding', 'chest', e.value ?? null)} min={0} max={200} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">臂围 (cm)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.arm} onValueChange={(e) => updateCardData('bodybuilding', 'arm', e.value ?? null)} min={0} max={80} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">腰围 (cm)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.waist} onValueChange={(e) => updateCardData('bodybuilding', 'waist', e.value ?? null)} min={0} max={150} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">臀围 (cm)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.hip} onValueChange={(e) => updateCardData('bodybuilding', 'hip', e.value ?? null)} min={0} max={150} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">大腿 (cm)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.thigh} onValueChange={(e) => updateCardData('bodybuilding', 'thigh', e.value ?? null)} min={0} max={100} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-purple-600">小腿 (cm)</label><AeroInputNumber value={formData.sport_cards.bodybuilding?.calf} onValueChange={(e) => updateCardData('bodybuilding', 'calf', e.value ?? null)} min={0} max={80} className="w-full" /></div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 6. 跑步 */}
-                        {formData.sport_cards.activeCards.includes('running') && (
-                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 mb-4">
-                                <h4 className="font-semibold text-blue-700 mb-3 flex items-center gap-2"><Footprints size={18} /> 跑步数据</h4>
-                                <div className="grid grid-cols-4 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">5公里用时</label><InputText value={formData.sport_cards.running?.fiveK || ''} onChange={(e) => updateCardDataString('running', 'fiveK', e.target.value || null)} placeholder="如 25:30" className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">10公里用时</label><InputText value={formData.sport_cards.running?.tenK || ''} onChange={(e) => updateCardDataString('running', 'tenK', e.target.value || null)} placeholder="如 55:00" className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">半马用时</label><InputText value={formData.sport_cards.running?.halfMarathon || ''} onChange={(e) => updateCardDataString('running', 'halfMarathon', e.target.value || null)} placeholder="如 2:05:00" className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-blue-600">全马用时</label><InputText value={formData.sport_cards.running?.marathon || ''} onChange={(e) => updateCardDataString('running', 'marathon', e.target.value || null)} placeholder="如 4:30:00" className="w-full" /></div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 7. 骑行 */}
-                        {formData.sport_cards.activeCards.includes('cycling') && (
-                            <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-200 mb-4">
-                                <h4 className="font-semibold text-cyan-700 mb-3 flex items-center gap-2"><Bike size={18} /> 骑行数据</h4>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-cyan-600">FTP功率 (W)</label><AeroInputNumber value={formData.sport_cards.cycling?.ftp} onValueChange={(e) => updateCardData('cycling', 'ftp', e.value ?? null)} min={0} max={500} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-cyan-600">最大功率 (W)</label><AeroInputNumber value={formData.sport_cards.cycling?.maxPower} onValueChange={(e) => updateCardData('cycling', 'maxPower', e.value ?? null)} min={0} max={2000} className="w-full" /></div>
-                                    <div className="flex flex-col gap-1"><label className="text-xs text-cyan-600">最长单骑 (km)</label><AeroInputNumber value={formData.sport_cards.cycling?.maxDistance} onValueChange={(e) => updateCardData('cycling', 'maxDistance', e.value ?? null)} min={0} max={500} className="w-full" /></div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    )}
                 </div>
             </Dialog>
         </div>

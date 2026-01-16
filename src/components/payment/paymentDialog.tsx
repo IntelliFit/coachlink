@@ -715,98 +715,140 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     // 渲染线下支付表单
     const renderOfflinePaymentForm = () => {
         return (
-            <div className="w-full space-y-4">
-                <div className="text-center mb-4">
-                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i className="pi pi-check-circle text-surface text-3xl"></i>
+            <div className="w-full space-y-8 animate-in fade-in duration-500">
+                {/* 1. 头部状态：采用低饱和功能色 & 视觉呼吸感 */}
+                <div className="text-center py-4">
+                    <div className="relative inline-block group">
+                        {/* 1. 呼引导：规范 4 - 极其微弱的扩散光晕，模拟物理指示灯 */}
+                        <div className="absolute -inset-3 bg-green-500/5 rounded-full blur-2xl animate-pulse"></div>
+
+                        {/* 2. 外层容器：对应 activeClass 的逻辑 (Surface 自动化 + 呼吸感边框) */}
+                        <div className={`
+                            relative w-20 h-20 mx-auto mb-4
+                            bg-surface-0 dark:bg-surface-800 
+                            rounded-2xl /* 规范 1：统一采用 16px-24px 大圆角 */
+                            flex items-center justify-center 
+                            border border-surface-200/30
+                            shadow-[0_8px_30px_rgb(0,0,0,0.04)]
+                            transition-all duration-500
+                        `}>
+                            {/* 3. 内层图标背景：对应 iconClass 的逻辑 (低饱和功能色 + 非线性嵌套) */}
+                            <div className={`
+                                w-14 h-14
+                                bg-green-50 dark:bg-green-900/20 
+                                text-green-600 dark:text-green-400
+                                rounded-xl /* 嵌套略小的圆角，模拟硬件精密感 */
+                                flex items-center justify-center
+                                transition-transform duration-500 group-hover:scale-110
+                            `}>
+                                {/* 4. 核心符号：规范 3 - 强调色作为视觉火花 */}
+                                <i className="pi pi-check-circle text-3xl"></i>
+                            </div>
+
+                            {/* 5. 装饰层：规范 1 - 微妙的视觉差，模拟物理表面的微弱高光 */}
+                            <div className="absolute inset-0 rounded-2xl border border-white/40 dark:border-white/5 pointer-events-none"></div>
+                        </div>
                     </div>
-                    <div className="font-bold text-lg text-surface-900">线下已支付</div>
-                    <div className="text-sm text-surface-500 mt-1">请填写支付信息，教练确认后即可生效</div>
+                    {/* 规范 2：紧凑型字间距 tracking-tight */}
+                    <h3 className="font-bold text-2xl text-surface-900 tracking-tight">线下已支付</h3>
+                    <p className="text-sm text-surface-500 mt-2 tracking-wide opacity-80">
+                        请填写支付信息，教练确认后即可生效
+                    </p>
                 </div>
 
-                {/* 到期日期（必填） */}
-                <div className="flex flex-col gap-2">
-                    <label className="font-medium text-surface-700">
-                        订阅有效期至 <span className="text-red-500">*</span>
-                    </label>
-                    <Calendar
-                        value={offlineExpiresAt}
-                        onChange={(e) => setOfflineExpiresAt(e.value as Date)}
-                        dateFormat="yy-mm-dd"
-                        placeholder="选择到期日期"
-                        minDate={new Date()}
-                        showIcon
-                        locale="zh-CN"
-                        className="w-full"
-                    />
-                </div>
+                {/* 2. 表单主体：移除硬分割，利用间距形成天然布局 */}
+                <div className="space-y-6">
+                    {/* 订阅有效期：引入数值中心化逻辑 */}
+                    <div className="flex flex-col gap-2.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-surface-500 ml-1">
+                            订阅有效期至 <span className="text-red-400/80">*</span>
+                        </label>
+                        <Calendar
+                            value={offlineExpiresAt}
+                            onChange={(e) => setOfflineExpiresAt(e.value)}
+                            dateFormat="yy-mm-dd"
+                            placeholder="选择日期"
+                            locale='zh-CN'
+                            minDate={new Date()}
+                            pt={{
+                                root: { className: 'rounded-2xl border-surface-200/50 hover:border-primary-400 transition-all duration-300' },
+                            }}
+                            className="w-full aero-input-container"
+                        />
+                    </div>
 
-                {/* 已支付金额（选填） */}
-                <div className="flex flex-col gap-2">
-                    <label className="font-medium text-surface-700">已支付金额，最后1次支付（选填）</label>
-                    <AeroInputNumber
-                        value={offlineAmount}
-                        onValueChange={(e) => setOfflineAmount(e.value ?? null)}
-                        // 1. 将货币逻辑映射为前缀和精度
-                        minFractionDigits={2}
-                        maxFractionDigits={2}
-
-                        // 2. 保持原有交互属性
-                        placeholder="输入支付金额"
-                        className="w-full"
-
-                        // 3. 符合 Aero UI 的微调（可选，根据金额输入场景通常不需要步进按钮）
-                        showButtons={false}
-                    />
-                </div>
-
-                {/* 支付凭证（必填） */}
-                <div className="flex flex-col gap-2">
-                    <label className="font-medium text-surface-700">
-                        支付凭证（最后一次支付） <span className="text-red-500">*</span>
-                    </label>
-                    {offlineReceiptUrl ? (
-                        <div className="relative inline-block">
-                            <Image
-                                src={offlineReceiptUrl}
-                                alt="支付凭证"
-                                width="200"
-                                preview
-                                className="border rounded-lg"
-                            />
-                            <Button
-                                icon="pi pi-times"
-                                className="p-button-rounded p-button-danger p-button-sm absolute top-0 right-0 -mt-2 -mr-2"
-                                onClick={() => setOfflineReceiptUrl('')}
+                    {/* 支付金额：数值中心化排版 (规范 2) */}
+                    <div className="flex flex-col gap-2.5 bg-surface-50/30 p-4 rounded-2xl border border-surface-100/50">
+                        <label className="text-xs font-bold uppercase tracking-widest text-surface-500">
+                            本次支付金额 (CNY)
+                        </label>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-surface-400">¥</span>
+                            <AeroInputNumber
+                                value={offlineAmount}
+                                onValueChange={(e) => setOfflineAmount(e.value ?? null)}
+                                minFractionDigits={2}
+                                placeholder="0.00"
+                                // 规范 2：核心指标加粗并增大字号
+                                inputClassName="text-3xl font-black tracking-tight bg-transparent border-none p-0 focus:shadow-none w-full"
+                                className="w-full"
                             />
                         </div>
-                    ) : (
-                        <FileUpload
-                            ref={fileUploadRef}
-                            mode="basic"
-                            name="file"
-                            accept="image/*"
-                            maxFileSize={5000000}
-                            customUpload
-                            uploadHandler={handleReceiptUpload}
-                            auto
-                            chooseLabel={uploadingReceipt ? "上传中..." : "上传凭证截图"}
-                            disabled={uploadingReceipt}
-                            className="w-full"
-                        />
-                    )}
-                    <p className="text-xs text-surface-500">支持 JPG、PNG 格式，最大 5MB</p>
-                </div>
+                    </div>
 
-                {/* 备注说明（选填） */}
-                <div className="flex flex-col gap-2">
-                    <label className="font-medium text-surface-700">备注说明（选填）</label>
-                    <InputText
-                        value={offlineNote}
-                        onChange={(e) => setOfflineNote(e.target.value)}
-                        placeholder="如：微信转账、线下现金等"
-                        className="w-full"
-                    />
+                    {/* 支付凭证：模拟物理硬件的顺滑感 (规范 1) */}
+                    <div className="flex flex-col gap-2.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-surface-500 ml-1">
+                            支付凭证 <span className="text-red-400/80">*</span>
+                        </label>
+
+                        {offlineReceiptUrl ? (
+                            <div className="group relative rounded-2xl overflow-hidden border-2 border-dashed border-surface-200 aspect-video flex items-center justify-center bg-surface-50 transition-all active:scale-[0.98]">
+                                <Image
+                                    src={offlineReceiptUrl}
+                                    alt="支付凭证"
+                                    width="100%"
+                                    preview
+                                    className="object-cover"
+                                />
+                                {/* 悬浮删除：符合微交互逻辑 */}
+                                <button
+                                    className="absolute top-3 right-3 p-2 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md"
+                                    onClick={() => setOfflineReceiptUrl('')}
+                                >
+                                    <i className="pi pi-trash text-xs"></i>
+                                </button>
+                            </div>
+                        ) : (
+                            <FileUpload
+                                mode="basic"
+                                chooseLabel={uploadingReceipt ? "正在同步..." : "点击上传截图"}
+                                className="w-full aero-upload-button"
+                                pt={{
+                                    chooseButton: {
+                                        // 规范 4：物理缩放反馈 active:scale-95
+                                        className: 'w-full py-8 rounded-2xl border-2 border-dashed border-surface-200 bg-surface-50 hover:bg-surface-100/50 text-surface-600 transition-all active:scale-[0.98]'
+                                    }
+                                }}
+                                auto
+                                customUpload
+                                uploadHandler={handleReceiptUpload}
+                            />
+                        )}
+                    </div>
+
+                    {/* 备注说明 */}
+                    <div className="flex flex-col gap-2.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-surface-500 ml-1">
+                            备注说明
+                        </label>
+                        <InputText
+                            value={offlineNote}
+                            onChange={(e) => setOfflineNote(e.target.value)}
+                            placeholder="如：微信转账、线下现金等"
+                            className="w-full p-3 rounded-2xl border bg-surface-50/50 focus:bg-surface-0 transition-colors"
+                        />
+                    </div>
                 </div>
             </div>
         );
@@ -859,7 +901,21 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 modal
                 draggable={false}
                 resizable={false}
-                style={{ width: '90%', maxWidth: '500px' }}
+                style={{ width: '450px' }}
+                pt={{
+                    root: {
+                        className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
+                    },
+                    header: {
+                        className: 'p-8 pb-4 border-none bg-surface md:rounded-t-[24px] rounded-t-none'
+                    },
+                    content: {
+                        className: 'text-xl font-black tracking-tight md:overflow-y-auto md:max-h-[calc(100vh-300px)]'
+                    },
+                    footer: {
+                        className: 'p-8 md:rounded-b-[24px] rounded-b-none'
+                    }
+                }}
             >
                 <div className="p-4 flex flex-col items-center">
                     {loading ? (

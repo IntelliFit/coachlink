@@ -36,9 +36,21 @@ export default function SubmissionDialog({
     needReview
 }: SubmissionDialogProps) {
     const [formData, setFormData] = useState<any>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
     const { showToast } = useToastContext();
     const [uploadProgress, setUploadProgress] = useState<number>(0);
+
+    // URL validation function
+    const isValidUrl = (urlString: string): boolean => {
+        if (!urlString) return true; // Allow empty values
+        try {
+            const url = new URL(urlString);
+            return ['http:', 'https:'].includes(url.protocol);
+        } catch (e) {
+            return false;
+        }
+    };
 
     // 初始化表单数据
     useEffect(() => {
@@ -55,6 +67,23 @@ export default function SubmissionDialog({
 
     const handleFieldChange = (name: string, value: any) => {
         setFormData((p: any) => ({ ...p, [name]: value }));
+
+        // Check if this field is a video URL field and validate it
+        const fieldSchema = formSchema.find(f => f.name === name);
+        if (fieldSchema?.type === 'video' && formData[name + '_mode'] === 'url') {
+            if (value && !isValidUrl(value)) {
+                setErrors(prev => ({
+                    ...prev,
+                    [name]: '请输入有效的视频链接 (以 http:// 或 https:// 开头)'
+                }));
+            } else {
+                setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors[name];
+                    return newErrors;
+                });
+            }
+        }
     };
 
     const handleModeChange = (fieldName: string, newMode: string) => {
@@ -87,16 +116,29 @@ export default function SubmissionDialog({
                     return;
                 }
             }
+
+            // 表单验证：检查视频链接字段是否有效
+            if (field.type === 'video' && formData[field.name + '_mode'] === 'url') {
+                const urlValue = formData[field.name];
+                if (urlValue && !isValidUrl(urlValue)) {
+                    showToast({
+                        severity: 'error',
+                        summary: '验证失败',
+                        detail: `${field.name} 不是有效的视频链接`
+                    });
+                    return;
+                }
+            }
         }
 
         console.log(rankByField);
         console.log(needReview);
-        
-        
+
+
 
         // 验证排名字段是否存在且有效
         console.log(formData);
-        
+
         const rankFieldValue = formData[rankByField];
         if (rankFieldValue === null || rankFieldValue === undefined || rankFieldValue === '' || isNaN(parseFloat(rankFieldValue))) {
             showToast({
@@ -194,18 +236,49 @@ export default function SubmissionDialog({
 
     return (
         <Dialog
-            header={<div className="text-xl font-black tracking-tight text-surface-900">提交挑战成绩</div>}
+            header='提交挑战成绩'
             visible={visible}
             onHide={onHide}
-            style={{ width: '95vw', maxWidth: '480px' }}
-            className="aero-dialog"
+            style={{ width: '450px' }}
             pt={{
-                root: { className: 'rounded-[32px] border-none shadow-2xl overflow-hidden' },
-                header: { className: 'bg-surface pt-8 px-8 border-none' },
-                content: { className: 'bg-surface px-8 pb-8 pt-2' }
+                root: {
+                    className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
+                },
+                header: {
+                    className: 'p-8 pb-4 border-none bg-surface md:rounded-t-[24px] rounded-t-none'
+                },
+                content: {
+                    className: 'text-xl font-black tracking-tight md:overflow-y-auto md:max-h-[calc(100vh-300px)]'
+                },
+                footer: {
+                    className: 'p-8 md:rounded-b-[24px] rounded-b-none'
+                }
             }}
+            footer={
+                <div className="mt-4 flex flex-col gap-4">
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between text-[10px] font-black text-primary-500 uppercase tracking-widest">
+                                <span>视频上传中...</span>
+                                <span>{uploadProgress}%</span>
+                            </div>
+                            <ProgressBar value={uploadProgress} showValue={false} style={{ height: '6px' }} className="rounded-full overflow-hidden bg-surface-100" />
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-2">
+                        <Button
+                            type="submit"
+                            label={needReview ? "提交审核" : "立即提交"}
+                            loading={loading}
+                            disabled={loading}
+                            className="w-full py-4 bg-primary-500 border-none rounded-[20px] font-black text-sm shadow-[0_10px_30px_rgba(var(--primary-500-rgb),0.3)] active:scale-95 transition-all"
+                        />
+                    </div>
+                </div>
+            }
         >
-            <form onSubmit={onSubmit} className="flex flex-col gap-6 mt-2">
+            <div className="flex flex-col gap-6 mt-2">
                 {formSchema.map((field) => (
                     <div key={field.name} className="flex flex-col gap-2">
                         <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest ml-1 flex items-center gap-1">
@@ -333,12 +406,27 @@ export default function SubmissionDialog({
                                         )}
                                     </div>
                                 ) : (
-                                    <InputText
-                                        value={formData[field.name] || ''}
-                                        onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                                        placeholder="粘贴视频链接..."
-                                        className="rounded-xl py-3 px-4 text-sm font-medium shadow-inner"
-                                    />
+                                    <div className="relative">
+                                        <InputText
+                                            value={formData[field.name] || ''}
+                                            onChange={(e) => {
+                                                handleFieldChange(field.name, e.target.value);
+                                                // Clear error when user starts typing
+                                                if (errors[field.name]) {
+                                                    setErrors(prev => {
+                                                        const newErrors = { ...prev };
+                                                        delete newErrors[field.name];
+                                                        return newErrors;
+                                                    });
+                                                }
+                                            }}
+                                            placeholder="粘贴视频链接..."
+                                            className={`rounded-xl py-3 px-4 text-sm font-medium shadow-inner ${errors[field.name] ? 'p-invalid' : ''}`}
+                                        />
+                                        {errors[field.name] && (
+                                            <small className="p-error absolute block mt-1 text-xs">{errors[field.name]}</small>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         ) : (
@@ -351,37 +439,7 @@ export default function SubmissionDialog({
                         )}
                     </div>
                 ))}
-
-                {/* 提交反馈区 */}
-                <div className="mt-4 flex flex-col gap-4">
-                    {uploadProgress > 0 && uploadProgress < 100 && (
-                        <div className="flex flex-col gap-2">
-                            <div className="flex justify-between text-[10px] font-black text-primary-500 uppercase tracking-widest">
-                                <span>视频上传中...</span>
-                                <span>{uploadProgress}%</span>
-                            </div>
-                            <ProgressBar value={uploadProgress} showValue={false} style={{ height: '6px' }} className="rounded-full overflow-hidden bg-surface-100" />
-                        </div>
-                    )}
-
-                    <div className="flex flex-col gap-2">
-                        <Button
-                            type="submit"
-                            label={needReview ? "提交审核" : "立即提交"}
-                            loading={loading}
-                            disabled={loading}
-                            className="w-full py-4 bg-primary-500 border-none rounded-[20px] font-black text-sm shadow-[0_10px_30px_rgba(var(--primary-500-rgb),0.3)] active:scale-95 transition-all"
-                        />
-                        <Button
-                            type="button"
-                            label="放弃提交"
-                            onClick={onHide}
-                            text
-                            className="text-surface-400 font-bold text-xs"
-                        />
-                    </div>
-                </div>
-            </form>
+            </div>
         </Dialog>
     );
 }

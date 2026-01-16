@@ -361,3 +361,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .driver-popover-arrow {
   display: none !important; /* 弃用三角形箭头，改用层级深度表达指向 */
 }
+
+
+.aero-input-container input {
+    @apply rounded-2xl rounded-2xl py-3 border bg-surface-50/50;
+}

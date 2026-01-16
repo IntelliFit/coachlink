@@ -455,9 +455,24 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             draggable={false}
             resizable={false}
             modal
+            style={{ width: '650px' }}
+                pt={{
+                    root: {
+                        className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
+                    },
+                    header: {
+                        className: 'p-8 pb-4 border-none bg-surface md:rounded-t-[24px] rounded-t-none'
+                    },
+                    content: {
+                        className: 'text-xl font-black tracking-tight md:overflow-y-auto md:max-h-[calc(100vh-300px)]'
+                    },
+                    footer: {
+                        className: 'p-8 md:rounded-b-[24px] rounded-b-none'
+                    }
+                }}
             className="w-full max-w-3xl"
         >
-            <div className="p-4">
+            <div className="p-1 md:p-4">
                 {/* 问卷须知 */}
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                     <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center gap-2">
