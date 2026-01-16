@@ -1,8 +1,8 @@
 import React from 'react';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface DietItemFormProps {
     item: CoachPlanAction; // 使用通用类型，但在内部处理 custom_data
@@ -79,7 +79,7 @@ export const DietItemForm: React.FC<DietItemFormProps> = ({
             <div className="grid grid-cols-2 gap-3">
                 <div>
                     <label className="block text-900 text-xs mb-1">参考热量 (kcal)</label>
-                    <InputNumber
+                    <AeroInputNumber
                         value={calories}
                         onValueChange={(e) => updateCustomData({ calories: e.value })}
                         suffix=" kcal"

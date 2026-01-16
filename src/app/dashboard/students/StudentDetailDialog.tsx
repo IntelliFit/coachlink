@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
-import { InputNumber } from 'primereact/inputnumber';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import {
@@ -24,6 +23,7 @@ import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { useToastContext } from '@/context/ToastContext';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 
 interface StudentDetailDialogProps {
@@ -326,7 +326,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             <div className="flex items-center gap-2">
                                 {isEditingPriorWeeks ? (
                                     <>
-                                        <InputNumber
+                                        <AeroInputNumber
                                             value={priorWeeksValue}
                                             onValueChange={(e) => setPriorWeeksValue(e.value ?? 0)}
                                             min={0}

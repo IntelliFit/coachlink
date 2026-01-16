@@ -1,8 +1,8 @@
 import React from 'react';
 import { InputText } from 'primereact/inputtext';
-import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface HabitItemFormProps {
     item: CoachPlanAction;
@@ -66,7 +66,7 @@ export const HabitItemForm: React.FC<HabitItemFormProps> = ({
 
             <div>
                 <label className="block text-900 text-xs mb-1">目标时长 (可选)</label>
-                <InputNumber
+                <AeroInputNumber
                     value={targetDuration}
                     onValueChange={(e) => updateCustomData({ target_duration: e.value })}
                     suffix=" 分钟"

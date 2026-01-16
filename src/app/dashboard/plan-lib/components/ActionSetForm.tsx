@@ -6,10 +6,10 @@ import { RadioButton } from 'primereact/radiobutton';
 import { CoachActionRow, CoachSubscriptionRow, IntensityConfig, WeightUnit } from '@/types';
 import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
 import { CoachPlanAction, CoachPlanActionWithOneFilter } from '@/app/api/plan-lib/create-template/entity';
-import { InputNumber } from 'primereact/inputnumber';
 import { calcRecommendedLoad, LambdaModel, normalizeIntensityConfig } from '@/lib/rmCaculator';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { TrainingItem } from '@/types/questionnaires';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 
 interface ActionSetFormProps {
@@ -381,7 +381,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         {baseAttrs.map(attr => (
                             <div key={attr} className="min-w-0">
                                 <label className="block text-900 text-[11px] mb-1 truncate">{attr}</label>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
                                     onValueChange={e => {
                                         const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
@@ -452,7 +452,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         {intensityType === 'rm' && (
                             <div className="flex flex-col gap-1.5">
                                 <label className="block text-900 text-xs ml-1">RM 值</label>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={set.params?.['强度'] || 5}
                                     onValueChange={e => handleRmChange(e.value)}
                                     suffix="RM"
@@ -481,7 +481,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         {intensityType === 'percentage' && (
                             <div className="flex flex-col gap-1.5">
                                 <label className="block text-900 text-xs ml-1">1RM 百分比</label>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={percentageValue}
                                     onValueChange={e => handlePercentageChange(e.value)}
                                     suffix="%"
@@ -512,7 +512,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                 {intensityType === 'none' ? '固定重量' : '推荐数值（备选）'}
                             </label>
                             <div className="flex gap-2">
-                                <InputNumber
+                                <AeroInputNumber
                                     value={recommendedValue}
                                     onValueChange={e => handleRecommendedChange(e.value)}
                                     disabled={saving}

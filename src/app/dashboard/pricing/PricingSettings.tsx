@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
-import { InputNumber } from 'primereact/inputnumber';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
@@ -13,6 +12,7 @@ import { Divider } from 'primereact/divider';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
 import type { Product, PricingTier, DurationOption } from '@/app/api/coach/get-pricing/entity';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface PricingSettingsProps {
     coachId: string;
@@ -287,7 +287,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                             <div className="space-y-3">
                                 {currentProduct.duration_options.map((opt, idx) => (
                                     <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-xl border border-surface-100 shadow-sm">
-                                        <InputNumber
+                                        <AeroInputNumber
                                             value={opt.months}
                                             onValueChange={(e) => updateDurationOption(idx, 'months', e.value || 1)}
                                             min={1}
@@ -295,7 +295,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                             className="w-1/3"
                                             inputClassName="border-none w-full"
                                         />
-                                        <InputNumber
+                                        <AeroInputNumber
                                             value={opt.price}
                                             onValueChange={(e) => updateDurationOption(idx, 'price', e.value || 0)}
                                             min={0}

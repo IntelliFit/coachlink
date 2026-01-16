@@ -7,7 +7,6 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { RadioButton } from 'primereact/radiobutton';
 import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
-import { InputNumber } from 'primereact/inputnumber';
 import { planLibService } from '@/app/service/planLibService';
 import { actionLibService } from '@/app/service/actionLibService';
 import { useToastContext } from '@/context/ToastContext';
@@ -16,6 +15,7 @@ import { CoachesRow, CoachSubscriptionRow, CoachActionRow } from '@/types';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useSession } from 'next-auth/react';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface QuestionnaireFormProps {
     coach: CoachesRow;
@@ -356,7 +356,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                                 )}
                                             </div>
 
-                                            <InputNumber
+                                            <AeroInputNumber
                                                 className='text-xs'
                                                 min={isBodyWeightAction ? -500 : 0}
                                                 suffix=' kg'

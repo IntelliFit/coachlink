@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
-import { InputNumber } from 'primereact/inputnumber';
-import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { rankingService } from '@/app/service/rankingService';
 import { useToastContext } from '@/context/ToastContext';
@@ -13,6 +11,7 @@ import { LeaderboardFormInput } from '@/types/leaderboard';
 import { videoService } from '@/app/service/videoService';
 import { FileUpload } from 'primereact/fileupload';
 import { ProgressBar } from 'primereact/progressbar';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface SubmissionDialogProps {
     visible: boolean;
@@ -214,7 +213,7 @@ export default function SubmissionDialog({
                         </label>
 
                         {field.type === 'number' ? (
-                            <InputNumber
+                            <AeroInputNumber
                                 value={formData[field.name]}
                                 onValueChange={(e) => handleFieldChange(field.name, e.value)}
                                 placeholder="0.00"

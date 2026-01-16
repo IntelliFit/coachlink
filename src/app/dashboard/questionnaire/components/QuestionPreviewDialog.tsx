@@ -8,11 +8,11 @@ import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
 import { planLibService } from '@/app/service/planLibService';
 import type { TrainingItem } from '@/types/questionnaires';
-import { InputNumber } from 'primereact/inputnumber';
 import { actionLibService } from '@/app/service/actionLibService';
 import { CoachActionRow } from '@/types';
 import { FloatLabel } from 'primereact/floatlabel';
 import { useSession } from 'next-auth/react';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 interface QuestionPreviewDialogProps {
     visible: boolean;
@@ -174,7 +174,7 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                                     <div key={actionIndex} className="flex flex-col">
                                         <label className="block text-xs text-600 mb-1">{action.name}</label>
                                         
-                                        <InputNumber
+                                        <AeroInputNumber
                                             className='text-xs'
                                             showButtons
                                             min={0}

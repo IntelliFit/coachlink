@@ -46,6 +46,7 @@ export default function NavigationStudent() {
     }, []);
 
     useEffect(() => {
+        // openOnboardingModal();
         if (status === 'loading') return;
         if (session?.user) {
             const profile = session.profile as any;
