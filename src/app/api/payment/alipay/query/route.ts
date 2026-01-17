@@ -32,20 +32,18 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const alipaySdk = new AlipaySdk({
-        appId: process.env.ALIPAY_APP_ID,
-        privateKey: process.env.ALIPAY_PRIVATE_KEY,
-        alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
-        gateway: process.env.ALIPAY_GATEWAY
-    });
+const alipaySdk = new AlipaySdk({
+    appId: process.env.ALIPAY_APP_ID,
+    privateKey: process.env.ALIPAY_PRIVATE_KEY,
+    alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
+    gateway: process.env.ALIPAY_GATEWAY
+});
 
-    const response = await alipaySdk.exec('alipay.trade.query', {
-        bizContent: {
-            out_trade_no: orderId
-        }
-    });
-
-    console.log('debug 2.0');
+const response = await alipaySdk.exec('alipay.trade.query', {
+    bizContent: {
+        out_trade_no: orderId
+    }
+});
     
     console.log(response);
     /*
