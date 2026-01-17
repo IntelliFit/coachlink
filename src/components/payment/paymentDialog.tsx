@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { Checkbox } from 'primereact/checkbox';
 import { RadioButton } from 'primereact/radiobutton';
 import { Calendar } from 'primereact/calendar';
 import { addLocale } from 'primereact/api';
@@ -90,7 +89,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [paymentNote, setPaymentNote] = useState('');
     const [showTermsDialog, setShowTermsDialog] = useState(false);
-    const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [selectedQrCode, setSelectedQrCode] = useState<QrCodeItem | null>(null);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>('qrcode');
     const [processingAlipay, setProcessingAlipay] = useState(false);
@@ -151,7 +149,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             setCoach(null);
             setPaymentInfo(null);
             setPaymentNote('');
-            setAgreedToTerms(false);
             // 重置线下支付状态
             setOfflineExpiresAt(null);
             setOfflineAmount(null);
@@ -255,16 +252,15 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     };
 
     const handleTermsAccept = () => {
-        if (agreedToTerms) {
-            setShowTermsDialog(false);
-            showToast({ severity: 'success', summary: '请等待教练确认收款', detail: '支付后请联系教练，系统会通知教练确认收款' });
-            // 传递扫码支付凭证信息（如果有）
-            const noteWithReceipt = qrcodeReceiptUrl
-                ? `${paymentNote ? paymentNote + '\n' : ''}付款凭证: ${qrcodeReceiptUrl}`
-                : paymentNote;
-            onSuccess?.(noteWithReceipt);
-            onHide();
-        }
+        // 勾选同意条款的 gating 在 TermDialog 内部完成；这里直接执行确认逻辑。
+        setShowTermsDialog(false);
+        showToast({ severity: 'success', summary: '请等待教练确认收款', detail: '支付后请联系教练，系统会通知教练确认收款' });
+        // 传递扫码支付凭证信息（如果有）
+        const noteWithReceipt = qrcodeReceiptUrl
+            ? `${paymentNote ? paymentNote + '\n' : ''}付款凭证: ${qrcodeReceiptUrl}`
+            : paymentNote;
+        onSuccess?.(noteWithReceipt);
+        onHide();
     };
 
     const handleTermsReject = () => {
@@ -343,24 +339,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
     const hasQrCodes = paymentInfo?.qrCodes && paymentInfo.qrCodes.length > 0;
     const effectiveMode = paymentInfo?.effectivePaymentMode || 'qrcode';
-
-    const termsFooterContent = (
-        <div className="flex justify-end gap-2">
-            <Button
-                label="取消"
-                icon="pi pi-times"
-                onClick={handleTermsReject}
-                className="p-button-text rounded-2xl"
-            />
-            <Button
-                label="我已知晓"
-                icon="pi pi-check"
-                onClick={handleTermsAccept}
-                disabled={!agreedToTerms}
-                className="p-button-primary rounded-2xl"
-            />
-        </div>
-    );
 
     const getFooterContent = () => {
         if (selectedPaymentMethod === 'alipay_api') {
@@ -928,7 +906,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 showTermsDialog={showTermsDialog}
                 onHide={() => setShowTermsDialog(false)}
                 onAccept={handleTermsAccept}
-                onCancel={handleQrCodePaymentConfirmation}
+                onCancel={handleTermsReject}
             />
         </>
     );

@@ -12,6 +12,10 @@ import type {
     ListStudentsResponseDto
 } from '@/app/api/coach/list-students/entity';
 import type {
+    BroadcastMessageDto,
+    BroadcastMessageResponseDto,
+} from '@/app/api/coach/broadcast-message/entity';
+import type {
     GetAllCoachesDto,
     GetAllCoachesResponseDto
 } from '@/app/api/coach/get-all-coaches/entity';
@@ -138,6 +142,17 @@ class CoachService extends BaseService {
             return res.data.data;
         }
 
+        return null;
+    }
+
+    async broadcastMessage(reqData: BroadcastMessageDto) {
+        const res = await this.post<BroadcastMessageResponseDto>(
+            'broadcast-message',
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
         return null;
     }
 

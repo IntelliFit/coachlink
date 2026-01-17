@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { v4 as uuidv4 } from "uuid";
 
 import type { ApiData } from "@/types/api";
 import type { UploadDemoVideoResponseDto } from "./entity";
+
+function getRequestId(req: Request) {
+    return (
+        req.headers.get("x-request-id") ||
+        req.headers.get("x-vercel-id") ||
+        crypto.randomUUID()
+    );
+}
 
 // 运行在 Node.js，以避免 Edge 运行时的流式限制
 export const runtime = "nodejs";
@@ -12,6 +20,7 @@ export const maxDuration = 300;
 export const preferredRegion = "auto";
 
 export async function POST(req: Request) {
+    const requestId = getRequestId(req);
     try {
         const session = await getServerSession();
         const userId = session?.user?.id || null;
@@ -27,6 +36,24 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "Forbidden", data: null },
                 { status: 403 },
+            );
+        }
+
+        if (
+            !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
+            !process.env.SUPABASE_SERVICE_ROLE_KEY
+        ) {
+            console.error(
+                `[upload-demo-video][${requestId}] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.`,
+            );
+            return NextResponse.json<ApiData<null>>(
+                {
+                    success: false,
+                    message:
+                        "服务器配置缺失：未设置 Supabase Service Role Key，无法上传视频",
+                    data: null,
+                },
+                { status: 500 },
             );
         }
 
@@ -76,7 +103,11 @@ export async function POST(req: Request) {
         if (uploadError) {
             console.error("上传教练动作演示视频失败:", uploadError);
             return NextResponse.json<ApiData<null>>(
-                { success: false, message: "上传失败", data: null },
+                {
+                    success: false,
+                    message: uploadError.message || "上传失败",
+                    data: null,
+                },
                 { status: 500 },
             );
         }

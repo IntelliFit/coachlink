@@ -38,7 +38,9 @@ function copyFolderSync(from, to) {
     });
 }
 
-const nextBuild = crossSpawn('npx', ['next', 'build'], {
+// Next.js 16 uses Turbopack by default. Force Webpack build to avoid Turbopack/font internal module
+// resolution issues (e.g. next/font/google -> @vercel/turbopack-next/internal/...).
+const nextBuild = crossSpawn('npx', ['next', 'build', '--webpack'], {
     env: { ...process.env, NODE_ENV: 'production' }
 });
 

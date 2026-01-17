@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     },
     experimental: {
         // 训练执行视频上传需要超过默认 10MB 的 Request Body 限制
-        middlewareClientMaxBodySize: '50mb',
+        proxyClientMaxBodySize: '50mb',
     },
     images: {
         remotePatterns: [

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
         }, { status: 401 });
     }
 
-    const { videoUrl, context } = await request.json() as SubmitVideoUrlDto;
+    const { videoUrl, context, fileSizeBytes, metadata } = await request.json() as SubmitVideoUrlDto;
 
     const userId = session.user.id;
 
@@ -51,11 +51,31 @@ export async function POST(request: Request) {
         }, { status: 400 });
     }
 
+    // If this is our own Storage upload, do quota accounting here (to avoid charging for failed uploads).
+    if (fileSizeBytes && fileSizeBytes > 0) {
+        const { checkStorageAvailable, incrementStorageUsage } = await import(
+            "@/lib/membershipLimit"
+        );
+        const quotaCheck = await checkStorageAvailable(userId, fileSizeBytes);
+        if (!quotaCheck.success) {
+            return NextResponse.json({
+                success: false,
+                message: quotaCheck.message || "存储空间不足",
+                data: null,
+            }, { status: 403 });
+        }
+        await incrementStorageUsage(userId, fileSizeBytes).catch((e) =>
+            console.error("Failed to update storage usage for direct upload", e)
+        );
+    }
+
     const videoRecord = await createTrainingVideoRecord({
         userId,
         videoUrl,
         context,
-        submissionSource: 'url_submission'
+        submissionSource: fileSizeBytes && fileSizeBytes > 0 ? 'file_upload' : 'url_submission',
+        fileSize: fileSizeBytes && fileSizeBytes > 0 ? fileSizeBytes : undefined,
+        metadata: metadata || undefined,
     });
 
     return NextResponse.json({

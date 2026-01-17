@@ -1,4 +1,4 @@
-import supabase from '@/lib/supabaseClient';
+import { serviceRoleSupabase as supabase } from '@/lib/supabaseClient';
 import type { VideoUploadContext, ReviewStatus } from '@/types/video';
 import type { Database } from '@/types/database.types';
 
