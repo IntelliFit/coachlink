@@ -14,6 +14,13 @@ export interface CreateInstanceDto {
     startDate?: string | null;
     endDate?: string | null;
     status?: string | null;
+
+    /**
+     * Optional: if the student is migrating mid-cycle, specify where they should start.
+     * startExecutionDay will be computed as (startWeek - 1) * 7 + startDay.
+     */
+    startWeek?: number;
+    startDay?: number;
     trainingDays: Json;
 }
 

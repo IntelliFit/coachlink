@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
             .eq("instance_id", instanceId)
             .eq("status", "completed");
 
-        // 提取已完成的 dayIndex 列表
-        const completedDays = (executions || []).map((e) => e.day_index);
+        // 5. 获取起始执行天数（默认为1）
+        const startExecutionDay = (instance as any).start_execution_day || 1;
 
         // 3. 构建完成日期历史 { dayIndex: ISO日期字符串 }
         const completionDates: Record<number, string> = {};
@@ -88,9 +88,6 @@ export async function GET(req: NextRequest) {
         const todayCompleted = !!todayExecution;
         const todayExecutionId = todayExecution?.id;
 
-        // 5. 获取起始执行天数（默认为1）
-        const startExecutionDay = (instance as any).start_execution_day || 1;
-
         // 6. 解析训练日
         const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
         const trainingDays = (instance.training_days as any[] || [])
@@ -101,6 +98,12 @@ export async function GET(req: NextRequest) {
         const trainingOnlyDays = trainingDays.filter((d) =>
             d.type === "training" && getDayIndex(d) >= startExecutionDay
         );
+
+        // 提取已完成的 dayIndex 列表（只计入有效范围内的“训练日”，避免 start_execution_day 前的历史影响完成度）
+        const trainingOnlyDayIndexSet = new Set(trainingOnlyDays.map((d) => getDayIndex(d)));
+        const completedDays = (executions || [])
+            .map((e) => e.day_index)
+            .filter((di) => di >= startExecutionDay && trainingOnlyDayIndexSet.has(di));
 
         for (const day of trainingOnlyDays) {
             const di = getDayIndex(day);

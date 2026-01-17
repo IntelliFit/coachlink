@@ -175,36 +175,73 @@ export function calcIntensityDisplay(
         includesBodyWeight,
     } = options;
 
+    const hasOneRM =
+        oneRM !== undefined &&
+        oneRM !== null &&
+        Number.isFinite(oneRM) &&
+        oneRM !== 0;
+
     // 1. 优先使用 intensityConfig
     if (intensityConfig?.relativeIntensity) {
         const ri = intensityConfig.relativeIntensity;
 
-        if (oneRM && oneRM > 0 && bodyWeight > 0) {
-            // 有1RM，计算具体重量
-            let displayWeight: number;
+        // With % intensity, we can compute with 1RM alone.
+        if (ri.type === "percentage" && hasOneRM) {
+            const p = ri.value / 100;
 
-            if (ri.type === "percentage") {
-                // 百分比模式：直接 1RM × 百分比，不考虑体重
-                // 用户的 1RM 就是额外负重，百分比直接乘即可
-                displayWeight = oneRM * (ri.value / 100);
-            } else {
-                // RM模式：使用公式转换，需要考虑体重
-                const percentage = rmToPercentage(ri.value);
-                const targetLoad = oneRM * percentage;
+            // NOTE:
+            // - oneRM in this product is "external load 1RM" (不含自重) even for pull-ups/dips.
+            // - For includesBodyWeight actions, % should be applied to TOTAL (bw + external) then subtract bw.
+            if (includesBodyWeight) {
+                if (bodyWeight <= 0) {
+                    // can't compute external load without body weight
+                    if (intensityConfig.recommendedLoad) {
+                        return {
+                            displayWeight: intensityConfig.recommendedLoad.value,
+                            displayUnit: intensityConfig.recommendedLoad.unit,
+                            displayText: `${ri.value}%`,
+                            source: "recommended",
+                        };
+                    }
+                    return { displayText: `${ri.value}%`, source: "relative-text" };
+                }
 
-                // 如果动作含体重，需要减去体重得到外挂重量
-                // 负数表示需要辅助训练（如引体向上用辅助带）
-                displayWeight = includesBodyWeight
-                    ? targetLoad - bodyWeight
-                    : targetLoad;
+                const total1RM = oneRM + bodyWeight;
+                const totalTarget = total1RM * p;
+                const displayWeight = totalTarget - bodyWeight;
+                return {
+                    displayWeight: Math.round(displayWeight * 10) / 10,
+                    displayUnit: "kg",
+                    source: "calculated",
+                };
             }
+
+            // normal actions: % applies to external 1RM directly
+            const displayWeight = oneRM * p;
+            return {
+                displayWeight: Math.round(displayWeight * 10) / 10,
+                displayUnit: "kg",
+                source: "calculated",
+            };
+        }
+
+        // With RM intensity, body weight is only required for bodyweight-including movements.
+        if (ri.type === "rm" && hasOneRM && (!includesBodyWeight || bodyWeight > 0)) {
+            const percentage = rmToPercentage(ri.value);
+
+            // See note above: for includesBodyWeight, compute on TOTAL weight.
+            const displayWeight = includesBodyWeight
+                ? ((oneRM + bodyWeight) * percentage - bodyWeight)
+                : (oneRM * percentage);
 
             return {
                 displayWeight: Math.round(displayWeight * 10) / 10,
                 displayUnit: "kg",
                 source: "calculated",
             };
-        } else {
+        }
+
+        {
             // 无1RM，显示相对强度文字
             const text = ri.type === "rm" ? `${ri.value}RM` : `${ri.value}%`;
 
@@ -238,23 +275,37 @@ export function calcIntensityDisplay(
 
     // 3. 旧格式兼容：使用 legacyRm（原 params.强度）
     if (legacyRm && legacyRm > 0) {
-        if (oneRM && oneRM > 0 && bodyWeight > 0) {
-            // 使用现有的 calcRecommendedLoad 函数
-            const alpha = includesBodyWeight ? 1 : 0;
-            const calculatedWeight = calcRecommendedLoad(
-                oneRM,
-                bodyWeight,
-                legacyRm,
-                alpha,
-                "average",
-            );
+        if (hasOneRM) {
+            // For non-bodyweight actions, compute without requiring bodyWeight.
+            if (!includesBodyWeight) {
+                const percentage = rmToPercentage(legacyRm);
+                const calculatedWeight = oneRM * percentage;
+                return {
+                    displayWeight: Math.round(calculatedWeight * 10) / 10,
+                    displayUnit: "kg",
+                    source: "calculated",
+                };
+            }
 
-            return {
-                displayWeight: calculatedWeight,
-                displayUnit: "kg",
-                source: "calculated",
-            };
-        } else {
+            // For bodyweight actions, need body weight to compute external load correctly.
+            if (bodyWeight > 0) {
+                const calculatedWeight = calcRecommendedLoad(
+                    oneRM,
+                    bodyWeight,
+                    legacyRm,
+                    1,
+                    "average",
+                );
+
+                return {
+                    displayWeight: calculatedWeight,
+                    displayUnit: "kg",
+                    source: "calculated",
+                };
+            }
+        }
+
+        {
             return {
                 displayText: `${legacyRm}RM`,
                 source: "relative-text",

@@ -52,6 +52,10 @@ import {
     CreateAiInstanceDto,
     CreateAiInstanceResponseDto,
 } from "../api/plan-lib/create-ai-instance/entity";
+import type {
+    BulkCreateAiInstancesDto,
+    BulkCreateAiInstancesResponseDto,
+} from "../api/plan-lib/bulk-create-ai-instances/entity";
 
 export class PlanLibService extends BaseService {
     async listTemplates(reqData: ListTemplatesDto) {
@@ -151,6 +155,17 @@ export class PlanLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to create ai instance");
+        }
+        return res.data.data;
+    }
+
+    async bulkCreateAiInstances(reqData: BulkCreateAiInstancesDto) {
+        const res = await this.post<BulkCreateAiInstancesResponseDto>(
+            "bulk-create-ai-instances",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to bulk create ai instances");
         }
         return res.data.data;
     }

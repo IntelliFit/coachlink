@@ -3,6 +3,9 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
+import { normalizeToKg } from "@/types/intensity";
+import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 
 export async function POST(req: Request) {
     // Check if user is logged in
@@ -198,6 +201,89 @@ export async function POST(req: Request) {
                 }
             }
         }
+    }
+
+    // --------------------
+    // Student-visible auto load compute (server-side, non-persistent)
+    // Ensures student "plan view" shows kg even if only RM/% configured.
+    // --------------------
+    try {
+        const targetStudentId: string | null =
+            (instance.student_id as string | null) ||
+            (instance.coach_subscription_id
+                ? (
+                    await supabase
+                        .from("coach_subscriptions")
+                        .select("student_id")
+                        .eq("id", instance.coach_subscription_id)
+                        .maybeSingle()
+                ).data?.student_id || null
+                : null);
+
+        if (targetStudentId && Array.isArray(instance.training_days)) {
+            const { data: profile } = await supabase
+                .from("user_profiles")
+                .select("weight")
+                .eq("user_id", targetStudentId)
+                .maybeSingle();
+
+            const bodyWeight = Number(profile?.weight || 0);
+
+            // Build a 1RM map (ID + Name) for fast lookup
+            const records = await getCurrent1RMRecords(userId, { targetUserId: targetStudentId });
+            const rmMap: Record<string, number> = {};
+            for (const r of records || []) {
+                if (r.actionId) rmMap[r.actionId] = Math.max(rmMap[r.actionId] || 0, r.current1RM);
+                if (r.actionName) rmMap[r.actionName] = Math.max(rmMap[r.actionName] || 0, r.current1RM);
+            }
+
+            const days = instance.training_days as any[];
+            for (const day of days) {
+                if (!Array.isArray(day.actionSets)) continue;
+                for (const set of day.actionSets) {
+                    const actionId = set.action_id || set.actionId;
+                    if (!actionId) continue;
+
+                    const params = set.params || {};
+                    const existingLoad = params.load;
+                    if (existingLoad !== null && existingLoad !== undefined) continue; // don't override explicit loads
+
+                    const intensityConfig = normalizeIntensityConfig(params);
+                    const legacyRm = params["强度"] ?? set.intensity;
+                    const oneRM = rmMap[actionId] ?? rmMap[actionsMap[actionId]?.name] ?? rmMap[set.actionName] ?? undefined;
+
+                    // resolve includesBodyWeight from action row if present
+                    const includesBodyWeight =
+                        !!(actionsMap[actionId]?.includesBodyWeight ?? actionsMap[actionId]?.includes_body_weight);
+
+                    const result = calcIntensityDisplay({
+                        intensityConfig,
+                        legacyRm,
+                        oneRM,
+                        bodyWeight,
+                        includesBodyWeight,
+                    });
+
+                    if (result.displayWeight !== null && result.displayWeight !== undefined) {
+                        const kg = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
+                        set.params = {
+                            ...params,
+                            load: kg,
+                            loadUnit: "kg",
+                            loadSource: result.source,
+                            loadDisplayText: result.displayText,
+                            loadCalculated: result.source === "calculated",
+                        };
+                    }
+                }
+            }
+
+            // Re-assign so it shows up in response JSON (mutating instance from Supabase is fine here)
+            (instance as any).training_days = days;
+        }
+    } catch (e) {
+        // best-effort; never block plan rendering
+        console.warn("[get-instance] auto load compute skipped:", e);
     }
 
     // 加载执行记录

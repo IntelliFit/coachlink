@@ -89,13 +89,9 @@ export async function POST(req: Request) {
         if (productId) updateData.product_id = productId;
         if (productName) updateData.product_name = productName;
         if (productTier) updateData.product_tier = productTier;
-        if (subscribedWeeks) {
-            updateData.subscribed_weeks = subscribedWeeks;
-            // 重新计算结束日期
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() + (subscribedWeeks * 7));
-            updateData.end_date = endDate.toISOString();
-        }
+        // NOTE: do NOT recompute end_date here. Duration changes/renewals should be handled by
+        // payment callbacks or dedicated renewal/admin flows to avoid "reset from now" bugs.
+        if (subscribedWeeks) updateData.subscribed_weeks = subscribedWeeks;
 
         const { data: subscriptionEdit, error: subscriptionEditError } =
             await supabase
@@ -114,13 +110,9 @@ export async function POST(req: Request) {
         });
     }
 
-    // 计算结束日期（如果提供了订阅周数）
-    let endDate: string | null = null;
-    if (subscribedWeeks && subscribedWeeks > 0) {
-        const end = new Date();
-        end.setDate(end.getDate() + (subscribedWeeks * 7));
-        endDate = end.toISOString();
-    }
+    // NOTE: we intentionally do NOT set end_date on creation for status=inactive/waiting/active(before plan).
+    // Subscription time should start counting only when the coach actually assigns the first plan.
+    // end_date will be set at that time based on subscribed_weeks.
 
     // 构建插入数据
     const insertData: Record<string, unknown> = {
@@ -131,7 +123,7 @@ export async function POST(req: Request) {
         status,
         subscribe_data: subscribeData as unknown as Json,
         start_date: new Date().toISOString(),
-        end_date: endDate,
+        end_date: null,
     };
 
     // 添加产品字段（如果提供）

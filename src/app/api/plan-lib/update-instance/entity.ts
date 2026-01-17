@@ -15,6 +15,12 @@ export interface UpdateInstanceDto {
     startDate?: string | null;
     endDate?: string | null;
     status?: string | null;
+
+    /**
+     * Optional: student migrated mid-cycle. 1-based day index in the plan.
+     * If provided, days before it will be treated as "already completed" for navigation/unlock.
+     */
+    startExecutionDay?: number | null;
     trainingDays?: Json;
 }
 

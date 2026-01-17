@@ -18,6 +18,8 @@ export async function POST(req: Request) {
         suitableFor,
         tags,
         trainingDays,
+        startWeek,
+        startDay,
     } = await req.json() as CreateInstanceDto;
 
     // Check if user is logged in
@@ -51,7 +53,29 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // Calculate start_execution_day if backdated
+    // Calculate start_execution_day if provided (migration mid-cycle)
+    const normalizedStartWeek = Number(startWeek ?? 1);
+    const normalizedStartDay = Number(startDay ?? 1);
+    const hasStartPosition =
+        Number.isFinite(normalizedStartWeek) &&
+        Number.isFinite(normalizedStartDay) &&
+        normalizedStartWeek >= 1 &&
+        normalizedStartDay >= 1 &&
+        normalizedStartDay <= 7;
+
+    const startExecutionDay = hasStartPosition
+        ? (normalizedStartWeek - 1) * 7 + normalizedStartDay
+        : 1;
+
+    if (hasStartPosition && Array.isArray(trainingDays)) {
+        const totalDays = (trainingDays as any[]).length;
+        if (startExecutionDay > totalDays) {
+            return NextResponse.json({
+                success: false,
+                message: `起始位置(第${normalizedStartWeek}周第${normalizedStartDay}天)超出计划总天数(${totalDays}天)`,
+            }, { status: 400 });
+        }
+    }
 
     // 创建计划实例
     const { data: instance, error } = await supabase
@@ -70,6 +94,7 @@ export async function POST(req: Request) {
             suitable_for: suitableFor || null,
             status: status || "active",
             training_days: trainingDays,
+            start_execution_day: startExecutionDay > 1 ? startExecutionDay : 1,
         })
         .select()
         .single();

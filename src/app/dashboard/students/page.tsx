@@ -11,6 +11,7 @@ import { OverlayPanel } from 'primereact/overlaypanel';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import { Checkbox } from 'primereact/checkbox';
 import { StudentDetailDialog } from './StudentDetailDialog';
 import { Tag } from 'primereact/tag';
 import { CoachReviewDialog } from './CoachReviewDialog';
@@ -29,6 +30,9 @@ import { ProgressBar } from 'primereact/progressbar';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
+    const [selectedStudents, setSelectedStudents] = useState<StudentSubscription[]>([]);
+    // 手机端/桌面端：默认全选“未配置计划”的学员；用户可手动取消勾选（记录在 excludedNoPlanIds）
+    const [excludedNoPlanIds, setExcludedNoPlanIds] = useState<string[]>([]);
     const [manualPaymentSubscriptions, setManualPaymentSubscriptions] = useState<GetPaymentWaitingStudentsResponseDto['manualSubscriptions']>([]);
     const [systemPaymentSubscriptions, setSystemPaymentSubscriptions] = useState<GetPaymentWaitingStudentsResponseDto['systemSubscriptions']>([]);
     const [coach, setCoach] = useState<CoachesRow | null>(null);
@@ -42,6 +46,8 @@ export default function StudentsPage() {
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
     const [aiConfigDialogVisible, setAiConfigDialogVisible] = useState(false);
     const [aiGenerating, setAiGenerating] = useState(false);
+    const [bulkAiConfigDialogVisible, setBulkAiConfigDialogVisible] = useState(false);
+    const [bulkAiGenerating, setBulkAiGenerating] = useState(false);
     const [pricingMap, setPricingMap] = useState<Record<number, { is_ai_plan: boolean }>>({});
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [selectedChatroom, setSelectedChatroom] = useState<ChatroomDetail | null>(null);
@@ -153,9 +159,17 @@ export default function StudentsPage() {
         setRows(event.rows);
         setLoading(true);
         setStudents([]);
+        setSelectedStudents([]);
 
         loadStudents(event.page, event.rows);
     };
+
+    // 当前页默认选中“未配置计划”的学员；跨页取消通过 excludedNoPlanIds 生效
+    useEffect(() => {
+        const noPlan = (students || []).filter(s => s.plan === null);
+        const excludeSet = new Set(excludedNoPlanIds || []);
+        setSelectedStudents(noPlan.filter(s => !excludeSet.has(s.id)));
+    }, [students, excludedNoPlanIds]);
 
     /** 打开AI生成配置对话框 */
     const openAiConfigDialog = (student: StudentSubscription) => {
@@ -211,6 +225,64 @@ export default function StudentsPage() {
             setAiGenerating(false);
         }
     }
+
+    /** 批量执行AI生成（失败容错：失败项跳过） */
+    const makeAiInstancesBulk = async (_targets: StudentSubscription[], config: AiInstanceConfig) => {
+        setBulkAiGenerating(true);
+        showToast({
+            severity: 'info',
+            summary: '批量生成中',
+            detail: `正在为所有未配置计划的学员批量快速生成（失败会自动跳过）`,
+        });
+
+        try {
+            const res = await planLibService.bulkCreateAiInstances({
+                mode: 'no_plan',
+                excludedSubscriptionIds: excludedNoPlanIds,
+                startWeek: config.startWeek,
+                startDay: config.startDay,
+                keepOriginalIndex: config.keepOriginalIndex,
+            });
+
+            const successMap = new Map<string, any>();
+            (res?.results || []).forEach((r: any) => {
+                if (r?.success) successMap.set(r.subscriptionId, r.template);
+            });
+
+            if (successMap.size > 0) {
+                setStudents(prev => prev.map(s => {
+                    if (!successMap.has(s.id)) return s;
+                    const tpl = successMap.get(s.id);
+                    return {
+                        ...s,
+                        plan: {
+                            name: tpl?.name || `${s.profile?.nickname || '学员'}的计划`,
+                            description: tpl?.description || '暂无描述',
+                            status: tpl?.status || 'active',
+                        },
+                    };
+                }));
+            }
+
+            const successCount = res?.successCount ?? successMap.size;
+            const failedCount = res?.failedCount ?? 0;
+
+            showToast({
+                severity: failedCount > 0 ? 'warn' : 'success',
+                summary: '批量生成完成',
+                detail: failedCount > 0
+                    ? `成功 ${successCount}，失败 ${failedCount}（已跳过失败项）`
+                    : `成功生成 ${successCount} 个计划`,
+            });
+
+            setBulkAiConfigDialogVisible(false);
+            // 不清空 excludedNoPlanIds：用户跨页的“取消勾选”应继续生效
+        } catch (e: any) {
+            showToast({ severity: 'error', summary: '批量生成失败', detail: e?.message || '请稍后重试' });
+        } finally {
+            setBulkAiGenerating(false);
+        }
+    };
 
     /** 获取产品��称 */
     const getProductName = (tier: number) => {
@@ -625,13 +697,15 @@ export default function StudentsPage() {
             </div>
 
             {/* Mobile: 卡片列表（避免 DataTable 横向溢出导致“只显示一小块”） */}
-            <div className="md:hidden space-y-2">
+            <div className={`md:hidden space-y-2 pb-24`}>
                 {students.map((student) => {
                     const nick = student.profile?.nickname || '未知学员';
                     const unreviewed = (student.uploaded || 0) - (student.reviewed || 0);
                     const plan = student.plan;
                     const isCompleted = plan?.status === 'completed';
                     const isActive = !!plan && !isCompleted;
+                    const isSelected = selectedStudents.some(s => s.id === student.id);
+                    const canSelect = student.plan === null;
 
                     const completedDays = student.progress?.completed || 0;
                     const totalDays = student.progress?.total || 0;
@@ -649,6 +723,32 @@ export default function StudentsPage() {
                         >
                             <summary className="list-none cursor-pointer select-none px-3 py-3 active:bg-surface-50">
                                 <div className="flex items-center gap-3 min-w-0">
+                                    {/* 批量选择（点击不展开） */}
+                                    <div
+                                        className="shrink-0"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                    >
+                                        {canSelect ? (
+                                            <Checkbox
+                                                inputId={`bulk_select_${student.id}`}
+                                                checked={isSelected}
+                                                onChange={(e) => {
+                                                    const checked = !!e.checked;
+                                                    setExcludedNoPlanIds(prev => {
+                                                        const set = new Set(prev || []);
+                                                        if (!checked) set.add(student.id);
+                                                        else set.delete(student.id);
+                                                        return Array.from(set);
+                                                    });
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="w-5 h-5 rounded-md border border-surface-200 bg-surface-50 opacity-40" />
+                                        )}
+                                    </div>
                                     <Avatar
                                         image={student.profile?.avatar_url || undefined}
                                         label={!student.profile?.avatar_url ? nick.charAt(0) : undefined}
@@ -809,10 +909,66 @@ export default function StudentsPage() {
                         }}
                     />
                 </div>
+
+                {/* Mobile: 批量操作浮动条 */}
+                <div className="fixed left-0 right-0 bottom-[88px] z-50 md:hidden">
+                        <div className="mx-auto max-w-[1400px] px-3 pb-3">
+                            <div className="rounded-2xl border border-surface-100 bg-surface shadow-[0_-10px_30px_rgba(0,0,0,0.06)] p-3 flex items-center justify-between gap-3">
+                                <div className="text-sm font-black text-surface-800">
+                                    将为所有未配置计划学员生成
+                                    {excludedNoPlanIds.length > 0 ? `（已排除 ${excludedNoPlanIds.length} 位）` : ''}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        label="批量生成"
+                                        icon={<Sparkles size={16} />}
+                                        className="rounded-2xl"
+                                        onClick={() => setBulkAiConfigDialogVisible(true)}
+                                        disabled={bulkAiGenerating}
+                                    />
+                                    <Button
+                                        label="清空"
+                                        icon="pi pi-times"
+                                        className="p-button-text rounded-2xl"
+                                        onClick={() => {
+                                            // 清空=把本页“未配置计划的人”全排除（跨页不可知，下一页可继续手动排除）
+                                            const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
+                                            setExcludedNoPlanIds(prev => Array.from(new Set([...(prev || []), ...noPlanIds])));
+                                        }}
+                                        disabled={bulkAiGenerating}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                </div>
             </div>
 
             {/* Desktop: DataTable */}
             <div className="hidden md:block bg-surface rounded-[32px] border border-surface-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-surface-100 flex items-center justify-between">
+                    <div className="text-sm font-bold text-surface-700">
+                        批量操作：已选择 {selectedStudents.length} 位学员
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            label="批量快速生成"
+                            icon={<Sparkles size={16} />}
+                            className="rounded-xl"
+                            disabled={selectedStudents.length === 0 || bulkAiGenerating}
+                            onClick={() => setBulkAiConfigDialogVisible(true)}
+                        />
+                        <Button
+                            label="清空选择"
+                            icon="pi pi-times"
+                            className="p-button-text rounded-xl"
+                            disabled={selectedStudents.length === 0 || bulkAiGenerating}
+                            onClick={() => {
+                                const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
+                                setExcludedNoPlanIds(noPlanIds);
+                            }}
+                        />
+                    </div>
+                </div>
                 <DataTable
                     value={students}
                     paginator
@@ -825,6 +981,21 @@ export default function StudentsPage() {
                     breakpoint="960px"
                     className="p-datatable-custom"
                     rowClassName={() => 'hover:bg-primary-50/20 transition-colors border-b border-surface-50 last:border-0'}
+                    dataKey="id"
+                    selection={selectedStudents}
+                    onSelectionChange={(e) => {
+                        // 桌面端：只允许选择“未配置计划”的学员；并把用户的选择转换成 excludedNoPlanIds
+                        const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
+                        const selectedIds = new Set(((e.value || []) as StudentSubscription[]).map(s => s.id));
+                        setExcludedNoPlanIds(prev => {
+                            const set = new Set(prev || []);
+                            noPlanIds.forEach((id) => {
+                                if (selectedIds.has(id)) set.delete(id);
+                                else set.add(id);
+                            });
+                            return Array.from(set);
+                        });
+                    }}
                     pt={{
                         headerRow: { className: 'bg-surface-50/50' },
                         column: {
@@ -833,6 +1004,7 @@ export default function StudentsPage() {
                         }
                     }}
                 >
+                    <Column selectionMode="multiple" headerStyle={{ width: '3.25rem' }} />
                     <Column header="学员信息" body={studentTemplate} style={{ width: '20%' }} />
                     <Column header="订阅状态" body={subscribeTemplate} style={{ width: '12%' }} />
                     <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '23%' }} />
@@ -880,6 +1052,14 @@ export default function StudentsPage() {
                 onConfirm={() => { loadWaitingStudents(); loadStudents(0, rows); }}
             />
             <AiInstanceConfigDialog visible={aiConfigDialogVisible} studentName={selectedStudent?.profile?.nickname} totalWeeks={12} loading={aiGenerating} onHide={() => setAiConfigDialogVisible(false)} onConfirm={(config) => selectedStudent && makeAiInstance(selectedStudent, config)} />
+            <AiInstanceConfigDialog
+                visible={bulkAiConfigDialogVisible}
+                studentName={selectedStudents.length > 0 ? `${selectedStudents.length}位学员` : undefined}
+                totalWeeks={12}
+                loading={bulkAiGenerating}
+                onHide={() => setBulkAiConfigDialogVisible(false)}
+                onConfirm={(config) => makeAiInstancesBulk(selectedStudents, config)}
+            />
         </div>
     );
 }

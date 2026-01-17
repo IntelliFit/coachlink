@@ -132,10 +132,13 @@ export async function PUT(req: Request) {
         // 检查所有已过期的订阅并更新状态
         const now = new Date().toISOString();
 
-        const { data: expiredSubscriptions, error } = await supabase
+        // NOTE: coach subscription end_date is "pause-aware" (auto-extended on gap days).
+        // Here we first fetch candidates by stored end_date < now, then recompute effective end_date.
+        // If effective end_date is still < now => expire; otherwise => refresh end_date.
+        const { data: candidates, error } = await supabase
             .from("coach_subscriptions")
-            .select("*")
-            .lt("end_date", now)  // 结束日期小于当前时间
+            .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks")
+            .lt("end_date", now)  // 结束日期小于当前时间（候选）
             .neq("status", "expired")  // 状态还不是过期
             .neq("status", "cancelled")  // 排除已取消的订阅
 
@@ -148,47 +151,126 @@ export async function PUT(req: Request) {
             }, { status: 500 });
         }
 
-        if (expiredSubscriptions && expiredSubscriptions.length > 0) {
-            // 批量更新过期订阅的状态
-            const subscriptionIds = expiredSubscriptions.map(sub => sub.id);
-            const studentIds = expiredSubscriptions.map(sub => sub.student_id);
+        if (candidates && candidates.length > 0) {
+            const now0 = new Date();
+            now0.setHours(0, 0, 0, 0);
 
-            const { error: updateError } = await supabase
-                .from("coach_subscriptions")
-                .update({
-                    status: "expired",
-                    updated_at: now,
-                })
-                .in("id", subscriptionIds);
+            const candidateIds = candidates.map((c: any) => c.id);
+            const { data: instances } = await supabase
+                .from("coach_plan_instances")
+                .select("id, coach_subscription_id")
+                .in("coach_subscription_id", candidateIds);
 
-            if (updateError) {
-                console.error("更新过期订阅状态失败:", updateError);
-                return NextResponse.json({
-                    success: false,
-                    message: "更新过期订阅状态失败",
-                    data: null,
-                }, { status: 500 });
+            const instanceToSub = new Map<string, string>();
+            (instances || []).forEach((r: any) => {
+                if (r?.id && r?.coach_subscription_id) instanceToSub.set(r.id, r.coach_subscription_id);
+            });
+
+            const allInstanceIds = Array.from(new Set((instances || []).map((r: any) => r.id).filter(Boolean)));
+            const subToActiveDayKeys = new Map<string, Set<string>>();
+
+            if (allInstanceIds.length > 0) {
+                const { data: execs } = await supabase
+                    .from("plan_instance_executions")
+                    .select("instance_id, started_at, status")
+                    .in("instance_id", allInstanceIds)
+                    .neq("status", "abandoned");
+
+                (execs || []).forEach((e: any) => {
+                    const subId = instanceToSub.get(e.instance_id);
+                    if (!subId) return;
+                    const startedAt = e.started_at ? new Date(e.started_at) : null;
+                    if (!startedAt) return;
+                    startedAt.setHours(0, 0, 0, 0);
+                    const key = startedAt.toISOString().slice(0, 10);
+                    const set = subToActiveDayKeys.get(subId) || new Set<string>();
+                    set.add(key);
+                    subToActiveDayKeys.set(subId, set);
+                });
             }
 
-            // 同时清空这些学生的 invitation_coach_id
-            const { error: userUpdateError } = await supabase
-                .from("users")
-                .update({
-                    invitation_coach_id: null,
-                })
-                .in("id", studentIds);
+            const toExpire: string[] = [];
+            const toRefresh: Array<{ id: string; end_date: string }> = [];
 
-            if (userUpdateError) {
-                console.error("更新用户邀请教练ID失败:", userUpdateError);
-                // 注意：即使更新用户表失败，订阅状态更新已经成功，所以仍然返回成功
+            for (const sub of candidates as any[]) {
+                if (!sub?.start_date || !sub?.subscribed_weeks) {
+                    // no pause-aware window → fall back to expire
+                    toExpire.push(sub.id);
+                    continue;
+                }
+
+                const start0 = new Date(sub.start_date);
+                start0.setHours(0, 0, 0, 0);
+                const totalDays = Number(sub.subscribed_weeks) * 7;
+                const diffDays = Math.floor((now0.getTime() - start0.getTime()) / (1000 * 60 * 60 * 24));
+                const daysSinceStart = Math.max(1, diffDays + 1);
+                const activeDays = (subToActiveDayKeys.get(sub.id) || new Set<string>()).size;
+                const pausedDays = Math.max(0, daysSinceStart - activeDays);
+
+                const effectiveEnd = new Date(start0);
+                effectiveEnd.setDate(effectiveEnd.getDate() + totalDays + pausedDays);
+
+                if (effectiveEnd.getTime() < new Date().getTime()) {
+                    toExpire.push(sub.id);
+                } else {
+                    toRefresh.push({ id: sub.id, end_date: effectiveEnd.toISOString() });
+                }
+            }
+
+            if (toRefresh.length > 0) {
+                // best-effort refresh end_date to effective one, to avoid false expirations later
+                await Promise.all(
+                    toRefresh.map((r) =>
+                        supabase
+                            .from("coach_subscriptions")
+                            .update({ end_date: r.end_date, updated_at: now })
+                            .eq("id", r.id),
+                    ),
+                );
+            }
+
+            if (toExpire.length > 0) {
+                const { error: updateError } = await supabase
+                    .from("coach_subscriptions")
+                    .update({
+                        status: "expired",
+                        updated_at: now,
+                    })
+                    .in("id", toExpire);
+
+                if (updateError) {
+                    console.error("更新过期订阅状态失败:", updateError);
+                    return NextResponse.json({
+                        success: false,
+                        message: "更新过期订阅状态失败",
+                        data: null,
+                    }, { status: 500 });
+                }
+
+                const studentIds = (candidates as any[])
+                    .filter((c) => toExpire.includes(c.id))
+                    .map((c) => c.student_id);
+
+                // 同时清空这些学生的 invitation_coach_id
+                const { error: userUpdateError } = await supabase
+                    .from("users")
+                    .update({
+                        invitation_coach_id: null,
+                    })
+                    .in("id", studentIds);
+
+                if (userUpdateError) {
+                    console.error("更新用户邀请教练ID失败:", userUpdateError);
+                }
             }
 
             return NextResponse.json({
                 success: true,
-                message: `成功处理了 ${expiredSubscriptions.length} 个过期订阅`,
+                message: `成功处理了 ${toExpire.length} 个过期订阅（刷新 ${toRefresh.length} 个订阅到期日）`,
                 data: {
-                    processedCount: expiredSubscriptions.length,
-                    subscriptionIds,
+                    expiredCount: toExpire.length,
+                    refreshedCount: toRefresh.length,
+                    expiredSubscriptionIds: toExpire,
                 },
             });
         }

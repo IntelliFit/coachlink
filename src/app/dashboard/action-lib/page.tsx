@@ -154,7 +154,7 @@ const ActionLib = () => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-2 duration-1000">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-6 sm:py-10 animate-in fade-in slide-in-from-bottom-2 duration-1000">
             <ConfirmDialog />
             <ActionEditDialog
                 visible={dialogVisible}
@@ -164,7 +164,7 @@ const ActionLib = () => {
             />
 
             {/* Header: 数值中心化 */}
-            <header className="flex items-center justify-between mb-10 px-2">
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-10 px-1 sm:px-2">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-surface-900">动作库管理</h1>
                     <div className="flex items-center gap-3 mt-2">
@@ -174,12 +174,16 @@ const ActionLib = () => {
                         <span className="text-sm text-surface-500 font-medium">定制您的标准动作教学体系</span>
                     </div>
                 </div>
-                <Button label="添加动作" icon="pi pi-plus" onClick={() => { setEditingAction(null); setDialogVisible(true); }}
-                    className="p-button-primary shadow-lg shadow-primary-100 rounded-2xl px-6 active:scale-95 transition-transform" />
+                <Button
+                    label="添加动作"
+                    icon="pi pi-plus"
+                    onClick={() => { setEditingAction(null); setDialogVisible(true); }}
+                    className="w-full sm:w-auto p-button-primary shadow-lg shadow-primary-100 rounded-2xl px-6 active:scale-95 transition-transform"
+                />
             </header>
 
             {/* Search: 呼吸感交互 */}
-            <section className="flex gap-3 mb-8 px-2">
+            <section className="flex flex-col sm:flex-row gap-3 mb-6 sm:mb-8 px-1 sm:px-2">
                 <IconField iconPosition="left" className="flex-1">
                     <InputIcon className="pi pi-search text-surface-400" />
                     <InputText
@@ -198,8 +202,13 @@ const ActionLib = () => {
                         className="w-full border-surface-200 bg-surface-50/50 focus:bg-white focus:border-primary rounded-2xl py-3 transition-all"
                     />
                 </IconField>
-                <Button icon="pi pi-search" onClick={handleSearch} loading={searching}
-                    className="p-button-primary p-button-outlined rounded-2xl px-6 active:scale-95 transition-transform" />
+                <Button
+                    icon="pi pi-search"
+                    label="搜索"
+                    onClick={handleSearch}
+                    loading={searching}
+                    className="w-full sm:w-auto p-button-primary p-button-outlined rounded-2xl px-6 active:scale-95 transition-transform"
+                />
             </section>
 
             <main>

@@ -109,7 +109,8 @@ const ActionCard: React.FC<ActionCardProps> = ({
             </div>
 
             {/* 操作区 (逻辑保持不变) */}
-            <div className="flex items-center gap-1 opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto">
+            {/* 移动端没有 hover：小屏常显操作按钮，避免不可用 */}
+            <div className="flex items-center gap-1 opacity-100 translate-x-0 pointer-events-auto sm:opacity-0 sm:translate-x-2 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:translate-x-0 sm:group-hover:pointer-events-auto transition-all duration-300">
                 <Button icon="pi pi-pencil" text rounded className="w-9 h-9 text-surface-500 hover:bg-surface-100" onClick={() => onEditAction(action)} />
                 <Button icon="pi pi-trash" text rounded severity="danger" className="w-9 h-9 hover:bg-red-50" onClick={() => onDeleteAction(action)} />
             </div>

@@ -18,6 +18,7 @@ export async function POST(req: Request) {
         startDate,
         endDate,
         status,
+        startExecutionDay,
         trainingDays,
     } = await req.json() as UpdateInstanceDto;
 
@@ -39,10 +40,10 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 首先获取现有的计划实例以检查权限
+    // 首先获取现有的计划实例以检查权限 & 用于校验 start_execution_day
     const { data: existingInstance, error: fetchError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_id, student_id")
+        .select("coach_id, student_id, training_days")
         .eq("id", id)
         .single();
 
@@ -73,6 +74,33 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    // Normalize & validate start_execution_day if provided
+    let normalizedStartExecutionDay: number | undefined = undefined;
+    if (startExecutionDay !== undefined) {
+        const n = Number(startExecutionDay);
+        if (!Number.isFinite(n) || n < 1) {
+            return NextResponse.json({
+                success: false,
+                message: "startExecutionDay 必须是 >= 1 的数字",
+            }, { status: 400 });
+        }
+
+        // Determine total days: prefer incoming trainingDays; fallback to existing training_days
+        const incomingDays = Array.isArray(trainingDays) ? (trainingDays as any[]) : null;
+        const existingDays = Array.isArray((existingInstance as any).training_days)
+            ? ((existingInstance as any).training_days as any[])
+            : null;
+        const totalDays = (incomingDays || existingDays || []).length;
+        if (totalDays > 0 && n > totalDays) {
+            return NextResponse.json({
+                success: false,
+                message: `startExecutionDay(${n}) 超出计划总天数(${totalDays})`,
+            }, { status: 400 });
+        }
+
+        normalizedStartExecutionDay = Math.floor(n);
+    }
+
     // 更新计划实例
     const { data: instance, error } = await supabase
         .from("coach_plan_instances")
@@ -90,6 +118,7 @@ export async function POST(req: Request) {
             ...(suitableFor !== undefined && { suitable_for: suitableFor }),
             ...(tags !== undefined && { tags }),
             ...(trainingDays !== undefined && { training_days: trainingDays }),
+            ...(normalizedStartExecutionDay !== undefined && { start_execution_day: normalizedStartExecutionDay }),
         })
         .eq("id", id)
         .select()

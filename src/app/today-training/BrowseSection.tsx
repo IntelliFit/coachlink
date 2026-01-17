@@ -6,6 +6,7 @@ import { Button } from 'primereact/button';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Check, Play, Eye } from 'lucide-react';
 import { calculateCurrentWeek, isDayUnlocked, getDayWeekNumber, formatUnlockDate, getUnlockDate } from '@/lib/weekUnlock';
+import { formatKgValueForGym } from '@/lib/weightQuantize';
 
 interface BrowseSectionProps {
     instance: any;
@@ -41,8 +42,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     
     // 🔒 计算已解锁的周次（基于计划开始日期）
     const unlockedWeek = useMemo(() => {
-        return calculateCurrentWeek(instance?.start_date);
-    }, [instance?.start_date]);
+        const byDate = calculateCurrentWeek(instance?.start_date);
+        // For migrated students, start_execution_day should unlock to that week even if start_date is null/too recent.
+        const byStartExecution = getDayWeekNumber(startExecutionDay || 1);
+        return Math.max(byDate, byStartExecution);
+    }, [instance?.start_date, startExecutionDay]);
     
     // 计算当前周的训练日范围
     const weekDays = useMemo(() => {
@@ -274,11 +278,31 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                                     <span>
                                                                         {params['组数'] || actionSet.sets || 1}组 × {params['次数'] || actionSet.reps || 1}次
                                                                     </span>
-                                                                    {load && load > 0 ? (
-                                                                        <span className="text-green-600 font-medium">💪 {load}kg</span>
-                                                                    ) : intensity ? (
-                                                                        <span>· {intensity}</span>
-                                                                    ) : null}
+                                                                    {(() => {
+                                                                        if (load !== null && load !== undefined) {
+                                                                            const numericLoad = Number(load);
+                                                                            if (!Number.isFinite(numericLoad)) return null;
+
+                                                                            if (numericLoad < 0) {
+                                                                                return (
+                                                                                    <span className="text-red-500 font-medium">
+                                                                                        💪 辅助{formatKgValueForGym(Math.abs(numericLoad))}kg
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            if (numericLoad > 0) {
+                                                                                return (
+                                                                                    <span className="text-green-600 font-medium">
+                                                                                        💪 {formatKgValueForGym(numericLoad)}kg
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            // numericLoad === 0 => don't show
+                                                                            return null;
+                                                                        }
+                                                                        if (intensity) return <span>· {intensity}</span>;
+                                                                        return null;
+                                                                    })()}
                                                                 </>
                                                             );
                                                     }

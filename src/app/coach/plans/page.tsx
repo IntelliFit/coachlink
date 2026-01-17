@@ -725,7 +725,11 @@ const TrainingPlansHome: React.FC = () => {
             .sort((a, b) => a.dayIndex - b.dayIndex);
         
         // 🔒 计算已解锁的周次
-        const unlockedWeek = calculateCurrentWeek(instance.start_date);
+        const startExecutionDay = (instance as any).start_execution_day || 1;
+        const unlockedWeek = Math.max(
+            calculateCurrentWeek(instance.start_date),
+            getDayWeekNumber(startExecutionDay),
+        );
 
         return (
             <div className="space-y-8">

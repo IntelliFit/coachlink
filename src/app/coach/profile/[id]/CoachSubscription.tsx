@@ -53,6 +53,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
     const [coachSubscription, setCoachSubscription] = useState<CoachSubscriptionRow | null>(null);
+    const [renewMode, setRenewMode] = useState(false);
 
     // 风格配置 (对应 PricingSettings)
     const tierConfig = {
@@ -93,8 +94,31 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         }
     }, [paymentDialogVisible, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized]);
 
-    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-    const isRenew = searchParams.get('renew') === 'true' || searchParams.get('extend') === 'true';
+    const searchParams = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+    const isRenewFromUrl = searchParams.get('renew') === 'true' || searchParams.get('extend') === 'true';
+
+    // Derive the active subscription for this coach (used by renewal flow)
+    const activeSub = mySubscriptions.find(
+        (sub) => sub.coach_id === coach?.id && sub.status === 'active',
+    );
+
+    useEffect(() => {
+        if (isRenewFromUrl) setRenewMode(true);
+    }, [isRenewFromUrl]);
+
+    const enterRenewMode = () => {
+        setRenewMode(true);
+        // Ensure URL is shareable / consistent with existing deep links
+        router.push(`/coach/profile/${coach.id}?renew=true`);
+        // Optional: scroll to pricing selector
+        setTimeout(() => {
+            try {
+                document.getElementById('choose-pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch { }
+        }, 50);
+    };
 
     // 订阅流程处理
     const handleSelectProduct = async (product: Product, duration: DurationOption) => {
@@ -103,14 +127,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         
         try {
             setSubscribing(true);
-            const activeSub = mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active');
 
-            if (activeSub && !isRenew) {
-                showToast({ severity: 'info', summary: '您已订阅该教练', detail: '如需续费，请从"我的教练"页发起' });
+            if (activeSub && !renewMode) {
+                showToast({ severity: 'info', summary: '您已订阅该教练', detail: '点击上方【续费】即可延长订阅' });
                 return;
             }
 
-            if (isRenew || activeSub) {
+            if (renewMode || activeSub) {
                 setPaymentDialogVisible(true);
                 return;
             }
@@ -121,7 +144,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 setQuestionnaireVisible(true);
             } else {
                 // 无问卷时，也必须先创建订阅记录（否则平台支付无法绑定 subscriptionId，且后续无法自动确认）
-                if (!isRenew) {
+                if (!renewMode) {
                     const res = await subscriptionService.createSubscription({
                         coachId: coach.id,
                         tier: selectedProduct?.tier === 'basic' ? 1 : selectedProduct?.tier === 'standard' ? 2 : 3,
@@ -151,10 +174,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         if (!selectedProduct || !selectedDuration) return;
         
         const additionalWeeks = selectedDuration.months * 4;
-        const activeSub = isRenew
-            ? mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active')
-            : null;
-        const targetSubscriptionId = isRenew ? activeSub?.id : coachSubscription?.id;
+        const targetSubscriptionId = renewMode ? activeSub?.id : coachSubscription?.id;
 
         if (!targetSubscriptionId) return;
 
@@ -163,7 +183,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
         // 支付相关信息统一写入 payment_data（不要污染 subscribe_data，避免覆盖问卷/档案数据）
         const nowIso = new Date().toISOString();
-        const currentPaymentData = (isRenew ? (activeSub as any)?.payment_data : coachSubscription?.payment_data) as any;
+        const currentPaymentData = (renewMode ? (activeSub as any)?.payment_data : coachSubscription?.payment_data) as any;
         const basePaymentData =
             currentPaymentData && typeof currentPaymentData === 'object' && !Array.isArray(currentPaymentData)
                 ? currentPaymentData
@@ -172,7 +192,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         const nextPaymentData: any = {
             ...basePaymentData,
             offline_payment: offlinePaymentData || null,
-            pending_renew: isRenew
+            pending_renew: renewMode
                 ? {
                       additional_weeks: additionalWeeks,
                       amount: selectedDuration.price,
@@ -286,6 +306,43 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         <div className="max-w-7xl mx-auto px-4 py-12">
             {/* Anchor for "scroll to pricing" behaviors (mobile CTA / content lock CTA) */}
             <div id="choose-pricing" className="scroll-mt-24" />
+
+            {/* Renewal entry: keep it primarily on coach profile page */}
+            {activeSub && (
+                <div className="mb-6 rounded-3xl border border-surface-200 bg-surface-50/60 p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="text-xs font-black uppercase tracking-widest text-surface-500">订阅管理</div>
+                        <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
+                            您已订阅该教练
+                        </div>
+                        <div className="text-sm text-surface-500 mt-1">
+                            {renewMode ? '续费模式已开启：请选择任意方案与时长完成续费。' : '如需延长订阅，请点击右侧【续费】。'}
+                        </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                        {!renewMode ? (
+                            <Button
+                                label="续费"
+                                icon="pi pi-refresh"
+                                className="rounded-2xl"
+                                onClick={enterRenewMode}
+                            />
+                        ) : (
+                            <Button
+                                label="已开启续费"
+                                icon="pi pi-check"
+                                outlined
+                                className="rounded-2xl"
+                                onClick={() => {
+                                    // keep user in renewal mode; this is just an affordance
+                                    enterRenewMode();
+                                }}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-end mb-4">
                 <Button
                     icon="pi pi-question-circle"
@@ -343,12 +400,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 onHide={() => setPaymentDialogVisible(false)}
                 amount={selectedDuration?.price || 0}
                 coachId={coach.id}
-                subscriptionId={isRenew
-                    ? (mySubscriptions.find(sub => sub.coach_id === coach?.id && sub.status === 'active')?.id || undefined)
-                    : (coachSubscription?.id || undefined)
-                }
-                subscriptionFlow={isRenew ? 'renew' : 'subscribe'}
-                renewAdditionalWeeks={isRenew ? (selectedDuration?.months || 1) * 4 : undefined}
+                subscriptionId={renewMode ? (activeSub?.id || undefined) : (coachSubscription?.id || undefined)}
+                subscriptionFlow={renewMode ? 'renew' : 'subscribe'}
+                renewAdditionalWeeks={renewMode ? (selectedDuration?.months || 1) * 4 : undefined}
                 onSuccess={handlePaymentSuccess}
                 onCancel={() => setPaymentDialogVisible(false)}
             />
