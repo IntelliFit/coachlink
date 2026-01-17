@@ -1,4 +1,6 @@
 import { BaseService } from "@/lib/baseService";
+import axios from "axios";
+import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 
 // 导入视频服务相关的类型定义
 import type { UploadVideoDto, UploadVideoResponseDto, VideoUploadContext, VideoUploadProgress } from "../api/user/upload-video/entity";
@@ -13,6 +15,16 @@ import type { AddVideoToCollectionDto, AddVideoToCollectionResponseDto } from ".
 import type { ListVideoCollectionsDto, ListVideoCollectionsResponseDto } from "../api/user/list-video-collections/entity";
 import type { UpdateVideoCollectionDto, UpdateVideoCollectionResponseDto } from "../api/user/update-video-collection/entity";
 import type { DeleteVideoCollectionDto, DeleteVideoCollectionResponseDto } from "../api/user/delete-video-collection/entity";
+import type { CreateVideoUploadUrlResponseDto } from "../api/user/create-video-upload-url/entity";
+
+function getApiErrorMessage(err: unknown): string | null {
+    if (axios.isAxiosError(err)) {
+        const data: any = err.response?.data;
+        return data?.message || err.message || null;
+    }
+    if (err instanceof Error) return err.message;
+    return null;
+}
 
 class VideoService extends BaseService {
 
@@ -32,28 +44,66 @@ class VideoService extends BaseService {
         context: VideoUploadContext,
         onUploadProgress?: (progress: VideoUploadProgress) => void
     ) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('context', JSON.stringify(context));
+        try {
+            // 直传方案：
+            // 1) 先向服务端申请 signed upload token（小请求，不承载视频数据）
+            // 2) 直接把视频上传到 Supabase Storage（绕开宝塔/Nginx/Next 的大文件限制）
+            // 3) 再调用 submit-video-url 写入数据库记录（并更新配额）
 
-        const res = await this.post<UploadVideoResponseDto>('upload-video', formData, {
-            onUploadProgress: (progressEvent) => {
-                if (onUploadProgress && progressEvent.lengthComputable && progressEvent.total) {
-                    const progress: VideoUploadProgress = {
-                        loaded: progressEvent.loaded,
-                        total: progressEvent.total,
-                        percentage: Math.round((progressEvent.loaded / progressEvent.total) * 100)
-                    };
-                    onUploadProgress(progress);
-                }
+            if (!supabaseBrowser) {
+                throw new Error("Supabase 客户端未初始化（缺少 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY）");
             }
-        });
 
-        if (res.data && res.data.success) {
-            return res.data.data;
+            // best-effort progress for UI (no chunk progress with signed upload in SDK)
+            onUploadProgress?.({ loaded: 0, total: file.size, percentage: 0 });
+
+            const signRes = await this.post<CreateVideoUploadUrlResponseDto>(
+                "create-video-upload-url",
+                {
+                    originalFilename: file.name,
+                    contentType: file.type || "application/octet-stream",
+                    fileSizeBytes: file.size,
+                },
+            );
+
+            if (!signRes.data?.success || !signRes.data?.data?.token) {
+                throw new Error(signRes.data?.message || "创建上传链接失败");
+            }
+
+            const { path, token, publicUrl } = signRes.data.data;
+
+            const { error: uploadErr } = await supabaseBrowser.storage
+                .from("videos")
+                // @ts-expect-error: SDK typing differs across versions; runtime method exists in supabase-js v2
+                .uploadToSignedUrl(path, token, file, {
+                    contentType: file.type || "application/octet-stream",
+                    upsert: false,
+                });
+
+            if (uploadErr) {
+                throw new Error(uploadErr.message || "直传失败");
+            }
+
+            onUploadProgress?.({ loaded: file.size, total: file.size, percentage: 100 });
+
+            // 写入数据库记录（并进行配额扣减/记录元数据）
+            const record = await this.submitVideoUrl({
+                videoUrl: publicUrl,
+                context,
+                fileSizeBytes: file.size,
+                metadata: {
+                    storage_bucket: "videos",
+                    storage_path: path,
+                    original_filename: file.name,
+                    mime_type: file.type || "application/octet-stream",
+                    submission_source: "direct_signed_upload",
+                },
+            } satisfies SubmitVideoUrlDto);
+
+            return record as any;
+        } catch (err) {
+            throw new Error(getApiErrorMessage(err) || "上传失败");
         }
-        
-        return null;
     }
     
     // 提交视频URL
