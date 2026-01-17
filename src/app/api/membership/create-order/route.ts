@@ -8,13 +8,33 @@ import {
 } from "@/app/service/studentMembershipService";
 import { AlipaySdk } from "alipay-sdk";
 
-// Product configurations - TESTING PRICES
-const PRODUCTS: Record<string, { price: number; name: string }> = {
-    "monthly_basic": { price: 0.01, name: "基础会员 (月) - Test" },
-    "monthly_premium": { price: 0.02, name: "高级会员 (月) - Test" },
-    "ai_pack_basic": { price: 0.01, name: "AI 导入加油包 (Test)" },
-    "storage_pack_basic": { price: 0.01, name: "存储扩容包 (Test)" },
+/**
+ * Product configurations
+ *
+ * IMPORTANT:
+ * - Prices here MUST be the real prices used for payment.
+ * - If you need to test with "1 cent", set `PAYMENT_TEST_PRICING=true` in dev only.
+ *   Production will NEVER enable test pricing (hard guardrail).
+ */
+const REAL_PRODUCTS: Record<string, { price: number; name: string }> = {
+    monthly_basic: { price: 19.9, name: "基础会员 (月)" },
+    monthly_premium: { price: 39.9, name: "高级会员 (月)" },
+    ai_pack_basic: { price: 2.0, name: "AI 导入加油包 (3次)" },
+    storage_pack_basic: { price: 9.9, name: "存储扩容包 (1GB)" },
 };
+
+// Use 1-cent pricing ONLY for local/dev verification.
+const TEST_PRODUCTS: Record<string, { price: number; name: string }> = {
+    monthly_basic: { price: 0.01, name: "基础会员 (月) - Test" },
+    monthly_premium: { price: 0.02, name: "高级会员 (月) - Test" },
+    ai_pack_basic: { price: 0.01, name: "AI 导入加油包 (Test)" },
+    storage_pack_basic: { price: 0.01, name: "存储扩容包 (Test)" },
+};
+
+const TEST_PRICING_ENABLED =
+    process.env.NODE_ENV !== "production" &&
+    process.env.PAYMENT_TEST_PRICING === "true";
+const PRODUCTS = TEST_PRICING_ENABLED ? TEST_PRODUCTS : REAL_PRODUCTS;
 
 export async function POST(request: Request) {
     const session = await getServerSession();
@@ -44,6 +64,15 @@ export async function POST(request: Request) {
 
     const product = PRODUCTS[productKey];
     const amount = product.price;
+
+    // Guardrail: prevent accidentally deploying 1-cent pricing to production.
+    if (!TEST_PRICING_ENABLED && process.env.NODE_ENV === "production" && amount < 1) {
+        return NextResponse.json({
+            success: false,
+            message: "支付金额配置异常，请联系管理员",
+            data: null,
+        }, { status: 500 });
+    }
 
     // 1. Create Internal Order Record
     const { data: order, error } = await (supabase
@@ -99,6 +128,13 @@ export async function POST(request: Request) {
         gateway: ALIPAY_GATEWAY,
     });
 
+    // Build callback URLs from request headers (works for prod/ngrok, avoids hardcoding).
+    const xfProto = request.headers.get("x-forwarded-proto");
+    const xfHost = request.headers.get("x-forwarded-host");
+    const host = request.headers.get("host");
+    const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
+    const baseUrl = `${proto}://${xfHost || host}`;
+
     // Create alipay_orders record to track this transaction for callback
     // We store the `student_membership_orders.id` in `order_data` or use it as `out_trade_no`?
     // Using `student_membership_orders.id` as logic ID is cleaner.
@@ -138,11 +174,12 @@ export async function POST(request: Request) {
     const result = alipaySdk.pageExec(
         isMobile ? "alipay.trade.wap.pay" : "alipay.trade.page.pay",
         {
-            notifyUrl:
-                "https://kristan-billowy-prejudicedly.ngrok-free.dev/api/payment/alipay/notify",
+            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
+            returnUrl: `${baseUrl}/api/payment/alipay/return`,
             bizContent: {
                 out_trade_no: alipayOrder.id, // Use Alipay Order ID for tracking in Notify
-                total_amount: amount.toString(),
+                // Alipay expects a string with up to 2 decimal places.
+                total_amount: amount.toFixed(2),
                 subject: product.name,
                 product_code: isMobile
                     ? "QUICK_WAP_WAY"

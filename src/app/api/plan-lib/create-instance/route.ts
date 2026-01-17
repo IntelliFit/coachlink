@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 import { CreateInstanceDto, CreateInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { sendDirectMessage } from "@/lib/chat";
 
 export async function POST(req: Request) {
     const {
@@ -79,6 +80,30 @@ export async function POST(req: Request) {
             success: false,
             message: "Failed to create instance",
         }, { status: 500 });
+    }
+
+    // best-effort: notify student via chat message
+    try {
+        const studentId = subscription.student_id as string | null;
+        if (studentId) {
+            const planName = name?.trim() || "训练计划";
+            const content =
+                `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
+                `请点击 [今日训练](/today-training) 查看并开始训练。`;
+
+            await sendDirectMessage({
+                fromUserId: userId,
+                toUserId: studentId,
+                content,
+                contentMetadata: {
+                    kind: "plan_instance_created",
+                    instance_id: instance.id,
+                    link: "/today-training",
+                },
+            });
+        }
+    } catch (e) {
+        console.error("[create-instance] Failed to notify student:", e);
     }
 
     // Backfill executions if backdated

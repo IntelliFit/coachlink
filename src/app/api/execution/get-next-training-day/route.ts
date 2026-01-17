@@ -92,18 +92,20 @@ export async function GET(req: NextRequest) {
         const startExecutionDay = (instance as any).start_execution_day || 1;
 
         // 6. 解析训练日
+        const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
         const trainingDays = (instance.training_days as any[] || [])
-            .sort((a, b) => a.dayIndex - b.dayIndex);
+            .sort((a, b) => getDayIndex(a) - getDayIndex(b));
 
         // 7. 找到第一个未完成的训练日（跳过休息日和 start_execution_day 之前的天）
         let nextDayIndex = startExecutionDay; // 从起始执行天开始
         const trainingOnlyDays = trainingDays.filter((d) =>
-            d.type === "training" && d.dayIndex >= startExecutionDay
+            d.type === "training" && getDayIndex(d) >= startExecutionDay
         );
 
         for (const day of trainingOnlyDays) {
-            if (!completedDays.includes(day.dayIndex)) {
-                nextDayIndex = day.dayIndex;
+            const di = getDayIndex(day);
+            if (!completedDays.includes(di)) {
+                nextDayIndex = di;
                 break;
             }
         }
@@ -111,9 +113,9 @@ export async function GET(req: NextRequest) {
         // 如果所有有效训练日都完成了，返回第一个有效训练日（循环）
         if (
             trainingOnlyDays.length > 0 &&
-            trainingOnlyDays.every((d) => completedDays.includes(d.dayIndex))
+            trainingOnlyDays.every((d) => completedDays.includes(getDayIndex(d)))
         ) {
-            nextDayIndex = trainingOnlyDays[0].dayIndex;
+            nextDayIndex = getDayIndex(trainingOnlyDays[0]);
         }
 
         // 如果没有任何有效训练日，回退到起始执行天

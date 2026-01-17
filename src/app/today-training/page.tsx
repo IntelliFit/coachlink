@@ -73,16 +73,37 @@ const TodayTrainingPage: React.FC = () => {
                 studentId: session?.user?.id || '',
             });
 
-            const activeSub = subsResponse?.subscriptions?.[0] || null;
-            setSubscription(activeSub);
+            const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
 
-            // 2. 并行加载教练计划和自建计划
-            const [coachRes, selfRes] = await Promise.all([
-                activeSub
-                    ? planLibService.getInstance({ subscriptionId: activeSub.id })
-                    : Promise.resolve(null),
-                planLibService.getInstance({ fetchSelf: true })
-            ]);
+            // 2. 加载教练计划：遍历所有活跃订阅，找到第一个有计划的订阅（避免“取第一个订阅但该订阅无计划”）
+            let coachRes: any = null;
+            let coachSub: any = null;
+            if (activeSubs.length > 0) {
+                const settled = await Promise.allSettled(
+                    activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id })),
+                );
+
+                for (let i = 0; i < settled.length; i++) {
+                    const r = settled[i];
+                    if (r.status === 'fulfilled' && r.value?.instance) {
+                        coachRes = r.value;
+                        coachSub = activeSubs[i];
+                        break;
+                    }
+                }
+            }
+
+            // 3. 加载自建计划：独立 try/catch，避免任意一个请求失败导致两个都丢失
+            let selfRes: any = null;
+            try {
+                selfRes = await planLibService.getInstance({ fetchSelf: true });
+            } catch (e) {
+                console.error('[today-training] Failed to load self plan:', e);
+                selfRes = null;
+            }
+
+            // 订阅信息用于顶部教练卡片/后续跳转：优先使用“有计划的订阅”，否则回退到第一个活跃订阅
+            setSubscription(coachSub || activeSubs[0] || null);
 
             // 处理教练计划
             if (coachRes?.instance) {
@@ -281,6 +302,62 @@ const TodayTrainingPage: React.FC = () => {
     const hasBothPlans = coachInstance && selfInstance;
 
     if (!hasAnyPlan) {
+        const subscribedCoachName =
+            subscription?.coach?.name ||
+            subscription?.coach?.title ||
+            subscription?.coach_id ||
+            '';
+        const hasActiveSubscription = !!subscription?.id;
+
+        // 有订阅但暂无计划：展示“教练制定中”的等待页
+        if (hasActiveSubscription) {
+            return (
+                <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
+                    <Card className="rounded-3xl bg-transparent shadow-none overflow-hidden">
+                        <div className="text-center py-16 px-4">
+                            <div className="relative inline-block mb-6">
+                                <div className="absolute inset-0 animate-ping opacity-20 bg-primary-400 rounded-full" />
+                                <div className="relative bg-surface-50 p-6 rounded-full border border-surface-100">
+                                    <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
+                                </div>
+                            </div>
+
+                            <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
+                                计划正在制定中
+                            </h3>
+                            <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
+                                {subscribedCoachName
+                                    ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
+                                    : '您的教练正在为您制定训练计划，请耐心等待。'}
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                                <Button
+                                    label="联系教练"
+                                    icon="pi pi-comments"
+                                    onClick={() => {
+                                        // messages page supports deep link via coachId (coaches.id)
+                                        if (subscription?.coach_id) {
+                                            router.push(`/messages?coachId=${subscription.coach_id}`);
+                                        } else {
+                                            router.push('/messages');
+                                        }
+                                    }}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-95 duration-200 ease-out"
+                                />
+                                <Button
+                                    label="我的计划库"
+                                    icon="pi pi-bookmark"
+                                    onClick={() => router.push('/me/plan-lib')}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-95 duration-200 ease-out hover:bg-surface-100 shadow-none"
+                                />
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
         return (
             <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
                 {/* 1. 容器与深度：使用 surface 背景与极浅边框，摒弃阴影 */}

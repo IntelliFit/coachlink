@@ -95,6 +95,9 @@ export function VideoRefPicker({ visible, onHide, studentId, onSelect }: VideoRe
                 videoUrl: v.videoUrl,
                 thumbnailUrl: v.thumbnailUrl,
                 actionName: v.actionName,
+                description: (v as any).description ?? null,
+                tags: (v as any).tags ?? null,
+                sourceType: (v as any).sourceType ?? null,
                 setNumber: v.setNumber,
                 weight: v.weight,
                 reps: v.reps,
@@ -257,15 +260,37 @@ export function VideoRefPicker({ visible, onHide, studentId, onSelect }: VideoRe
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-surface-100 text-surface-500 rounded-full">
-                                                    SET {video.setNumber}
-                                                </span>
+                                                {((video.weight ?? null) === null && (video.reps ?? null) === null) ? (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-surface-100 text-surface-500 rounded-full">
+                                                        个人视频
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-surface-100 text-surface-500 rounded-full">
+                                                        SET {video.setNumber}
+                                                    </span>
+                                                )}
                                                 {(video.weight || video.reps) && (
                                                     <span className="text-[11px] font-black text-primary-600/70 tracking-tight">
                                                         {video.weight}kg <span className="text-[9px] opacity-60">×</span> {video.reps}
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {/* 个人上传视频：显示描述/标签 */}
+                                            {((video.weight ?? null) === null && (video.reps ?? null) === null) && (
+                                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                                    {(video as any).description && (
+                                                        <span className="text-[10px] font-bold text-surface-500 line-clamp-1">
+                                                            {(video as any).description}
+                                                        </span>
+                                                    )}
+                                                    {Array.isArray((video as any).tags) && (video as any).tags.length > 0 && (
+                                                        <span className="text-[10px] font-bold text-surface-400">
+                                                            #{(video as any).tags.slice(0, 3).join(' #')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* 3. 右侧：辅助信息流（上下布局） */}
