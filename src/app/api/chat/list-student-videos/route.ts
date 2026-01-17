@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type {
     ListStudentVideosDto,
     ListStudentVideosResponseDto,
@@ -70,7 +70,10 @@ export async function POST(req: Request) {
         }
     }
 
-    let queryBuilder = supabase
+    // -----------------------------
+    // 1) execution_set_videos (计划执行中上传的组视频)
+    // -----------------------------
+    let execQueryBuilder = supabase
         .from("execution_set_videos")
         .select(
             `
@@ -88,36 +91,85 @@ export async function POST(req: Request) {
         );
 
     // 核心修改：使用 .in 过滤多个学员
-    queryBuilder = queryBuilder.in(
+    execQueryBuilder = execQueryBuilder.in(
         "plan_instance_executions.student_id",
         targetStudentIds,
     );
 
     if (query) {
-        queryBuilder = queryBuilder.ilike("exercise_name", `%${query}%`);
+        execQueryBuilder = execQueryBuilder.ilike("exercise_name", `%${query}%`);
     }
 
     const offset = (page - 1) * pageSize;
-    queryBuilder = queryBuilder
+    // NOTE: to support merging with training_videos, we fetch enough rows up to current page.
+    execQueryBuilder = execQueryBuilder
         .order("created_at", { ascending: false })
-        .range(offset, offset + pageSize - 1);
+        .range(0, offset + pageSize - 1);
 
-    const { data: videos, error, count } = await queryBuilder;
+    const { data: execVideos, error: execError, count: execCount } = await execQueryBuilder;
 
-    if (error) {
-        console.error("查询视频失败:", error);
+    if (execError) {
+        console.error("查询执行视频失败:", execError);
         return NextResponse.json<ApiData<ListStudentVideosResponseDto>>({
             success: false,
-            message: `查询视频失败: ${error.message}`,
+            message: `查询视频失败: ${execError.message}`,
+            data: null,
+        }, { status: 500 });
+    }
+
+    // -----------------------------
+    // 2) student_video_collections (视频集/视频管理：含描述、标签)
+    // -----------------------------
+    let vcQueryBuilder = supabase
+        .from("student_video_collections")
+        .select(
+            `
+            id,
+            video_url,
+            thumbnail_url,
+            created_at,
+            duration_seconds,
+            user_id,
+            title,
+            description,
+            tags,
+            source,
+            deleted_at
+        `,
+            { count: "exact" },
+        )
+        .in("user_id", targetStudentIds)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .range(0, offset + pageSize - 1);
+
+    if (query) {
+        const keyword = `%${query}%`;
+        vcQueryBuilder = vcQueryBuilder.or(
+            `description.ilike.${keyword},title.ilike.${keyword}`,
+        );
+    }
+
+    const { data: collections, error: vcError, count: vcCount } = await vcQueryBuilder;
+
+    if (vcError) {
+        console.error("查询视频集失败:", vcError);
+        return NextResponse.json<ApiData<ListStudentVideosResponseDto>>({
+            success: false,
+            message: `查询视频失败: ${vcError.message}`,
             data: null,
         }, { status: 500 });
     }
 
     // 获取所有涉及的学生ID，用于批量查询用户信息
-    const studentIds = Array.from(new Set((videos || [])
-        .filter(v => v.plan_instance_executions?.student_id)
-        .map(v => v.plan_instance_executions.student_id)
-    ));
+    const studentIds = Array.from(
+        new Set([
+            ...(execVideos || [])
+                .filter((v: any) => v.plan_instance_executions?.student_id)
+                .map((v: any) => v.plan_instance_executions.student_id),
+            ...(collections || []).map((v: any) => v.user_id),
+        ]),
+    );
 
     // 批量查询学生用户信息
     let studentProfiles: any[] = [];
@@ -145,8 +197,8 @@ export async function POST(req: Request) {
         });
     });
 
-    // 转换为返回格式
-    const videoItems: VideoItem[] = (videos || []).map((v: any) => {
+    // 转换：execution_set_videos -> VideoItem
+    const execItems: VideoItem[] = (execVideos || []).map((v: any) => {
         // 从执行记录的 action_executions 中补充动作名、计划/实际重量次数
         let actionName = v.exercise_name || "未命名动作";
         let weight: number | null | undefined = undefined;
@@ -177,6 +229,7 @@ export async function POST(req: Request) {
             videoUrl: v.video_url,
             thumbnailUrl: v.thumbnail_url,
             actionName,
+            sourceType: "execution_set",
             setNumber: v.set_number || 1,
             weight,
             reps,
@@ -188,7 +241,51 @@ export async function POST(req: Request) {
         };
     });
 
-    const total = count || 0;
+    // 转换：student_video_collections -> VideoItem（个人上传/视频集）
+    const vcItems: VideoItem[] = (collections || []).map((v: any) => {
+        const studentInfo = v.user_id ? profileMap.get(v.user_id) : undefined;
+        const title = (v.title || "").trim();
+        const desc = (v.description || "").trim();
+        const actionName = title || desc || "个人上传视频";
+        const tags = Array.isArray(v.tags) ? v.tags : [];
+        return {
+            id: `vc:${v.id}`,
+            videoUrl: v.video_url,
+            thumbnailUrl: v.thumbnail_url,
+            actionName,
+            description: desc || null,
+            tags,
+            sourceType: "video_collection",
+            setNumber: 1,
+            weight: null,
+            reps: null,
+            isProgress: v.source === "progress_set",
+            createdAt: v.created_at,
+            duration: v.duration_seconds,
+            dayIndex: null,
+            studentInfo,
+        };
+    });
+
+    // 合并两类视频并分页
+    // 合并：优先视频集（带描述/标签），再执行视频
+    const mergedRaw = [...vcItems, ...execItems].sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    // 去重：同一个 videoUrl 只保留一条（优先在 mergedRaw 前面的：视频集 > 执行视频）
+    const byUrl = new Map<string, VideoItem>();
+    for (const item of mergedRaw) {
+        if (!item.videoUrl) continue;
+        if (!byUrl.has(item.videoUrl)) byUrl.set(item.videoUrl, item);
+    }
+    const merged = Array.from(byUrl.values()).sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    const videoItems = merged.slice(offset, offset + pageSize);
+
+    const total = (execCount || 0) + (vcCount || 0);
     const hasMore = offset + videoItems.length < total;
 
     return NextResponse.json<ApiData<ListStudentVideosResponseDto>>({

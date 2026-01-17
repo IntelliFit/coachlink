@@ -104,3 +104,88 @@ export async function sendSystemMessage(
 
     return true;
 }
+
+export async function getOrCreatePrivateChatroom(members: string[]) {
+    const { data: existing, error: findError } = await supabase
+        .from("chat_rooms")
+        .select("id")
+        .eq("type", "private")
+        .contains("members", members)
+        .maybeSingle();
+
+    if (findError) {
+        console.error(findError);
+        return null;
+    }
+
+    if (existing?.id) return existing.id as string;
+
+    const now = new Date().toISOString();
+    const { data: created, error: createError } = await supabase
+        .from("chat_rooms")
+        .insert({
+            members,
+            type: "private",
+            unread_members: [],
+            is_archived: false,
+            created_at: now,
+            updated_at: now,
+        })
+        .select("id")
+        .single();
+
+    if (createError) {
+        console.error(createError);
+        return null;
+    }
+
+    return (created?.id as string) || null;
+}
+
+export async function sendDirectMessage(opts: {
+    fromUserId: string;
+    toUserId: string;
+    content: string;
+    contentMetadata?: Record<string, unknown>;
+}) {
+    const { fromUserId, toUserId, content, contentMetadata } = opts;
+    if (!fromUserId || !toUserId || !content) return false;
+
+    const roomId = await getOrCreatePrivateChatroom([fromUserId, toUserId]);
+    if (!roomId) return false;
+
+    const createdAt = new Date().toISOString();
+
+    const { error: insertErr } = await supabase
+        .from("chat_messages")
+        .insert({
+            room_id: roomId,
+            sender_id: fromUserId,
+            message_type: "text",
+            content,
+            created_at: createdAt,
+            content_metadata: contentMetadata || null,
+        } as any);
+
+    if (insertErr) {
+        console.error(insertErr);
+        return false;
+    }
+
+    const { error: updateRoomErr } = await supabase
+        .from("chat_rooms")
+        .update({
+            last_message: content,
+            last_message_at: createdAt,
+            unread_members: [toUserId],
+            updated_at: createdAt,
+        })
+        .eq("id", roomId);
+
+    if (updateRoomErr) {
+        console.error(updateRoomErr);
+        // message inserted already; still return true
+    }
+
+    return true;
+}

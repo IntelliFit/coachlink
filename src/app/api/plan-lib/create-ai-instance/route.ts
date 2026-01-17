@@ -5,6 +5,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { TrainingItem } from "@/types/questionnaires";
 import { CreateAiInstanceDto, CreateAiInstanceResponseDto } from "./entity";
 import { fillTemplate, matchPlan } from "./match";
+import { sendDirectMessage } from "@/lib/chat";
 
 export async function POST(req: Request) {
     const {
@@ -170,6 +171,31 @@ export async function POST(req: Request) {
                 success: false,
                 message: updateError.message,
             }, { status: 500 });
+        }
+
+        // best-effort: notify student via chat message
+        try {
+            const studentId = subscription.student_id as string | null;
+            if (studentId) {
+                const planName = (planName || "训练计划").trim();
+                const content =
+                    `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
+                    `请点击 [今日训练](/today-training) 查看并开始训练。`;
+
+                await sendDirectMessage({
+                    fromUserId: userId,
+                    toUserId: studentId,
+                    content,
+                    contentMetadata: {
+                        kind: "plan_instance_created",
+                        instance_id: template.id,
+                        link: "/today-training",
+                        ai_generated: true,
+                    },
+                });
+            }
+        } catch (e) {
+            console.error("[create-ai-instance] Failed to notify student:", e);
         }
 
         return NextResponse.json<ApiData<CreateAiInstanceResponseDto>>({

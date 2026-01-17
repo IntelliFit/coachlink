@@ -4,6 +4,10 @@ export interface VideoReferenceItem {
     videoUrl: string;
     thumbnailUrl: string | null;
     actionName: string;
+    /** For personal videos / collections */
+    description?: string | null;
+    tags?: string[] | null;
+    sourceType?: "execution_set" | "training_video" | "video_collection";
     setNumber: number;
     weight: number | null;
     reps: number | null;

@@ -28,6 +28,10 @@ export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
         window.open(videoUrl, '_blank');
     };
 
+    const hasTrainingStats = (video: VideoReferenceItem) => {
+        return !(video.weight === null && video.reps === null);
+    };
+
     // 公用训练数据组件：体现“数值中心化”
     const TrainingStats = ({ video, light = false }: { video: VideoReferenceItem, light?: boolean }) => (
         <div className={`flex items-baseline gap-1 mt-1.5 ${light ? 'opacity-80' : ''}`}>
@@ -88,7 +92,21 @@ export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
                     <div className="font-black text-sm tracking-tight leading-snug line-clamp-2">
                         {video.actionName}
                     </div>
-                    <TrainingStats video={video} light={isMine} />
+                    {video.description && video.description !== video.actionName && (
+                        <div className={`mt-1 text-[11px] font-bold leading-snug ${isMine ? 'text-surface/80' : 'text-surface-600'}`}>
+                            {video.description}
+                        </div>
+                    )}
+                    {Array.isArray(video.tags) && video.tags.length > 0 && (
+                        <div className={`mt-2 flex flex-wrap gap-1 ${isMine ? 'text-surface/70' : 'text-surface-500'}`}>
+                            {video.tags.slice(0, 4).map((t) => (
+                                <span key={t} className={`text-[9px] font-black px-2 py-0.5 rounded-full ${isMine ? 'bg-surface/15' : 'bg-surface-100'}`}>
+                                    #{t}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {hasTrainingStats(video) && <TrainingStats video={video} light={isMine} />}
                     <div className={`mt-3 flex items-center gap-2 text-[10px] font-bold ${isMine ? 'text-surface/60' : 'text-slate-400'}`}>
                         <Calendar size={10} />
                         <span>{formatDate(video.createdAt)} {formatDayIndex(video.dayIndex)}</span>
@@ -135,7 +153,7 @@ export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
                             <div className="text-[11px] font-black tracking-tighter leading-tight line-clamp-2">
                                 {video.actionName}
                             </div>
-                            <TrainingStats video={video} light={isMine} />
+                            {hasTrainingStats(video) && <TrainingStats video={video} light={isMine} />}
                             <div className={`text-[9px] mt-2 font-bold opacity-50`}>
                                 {formatDate(video.createdAt)}
                             </div>

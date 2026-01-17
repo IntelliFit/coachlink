@@ -47,6 +47,72 @@ export async function POST(req: Request) {
         );
     }
 
+    // Guardrail: prevent 1-cent undercharge in production unless explicitly enabled for testing.
+    // This endpoint is used for coach subscription payments; amounts should never be test values online.
+    const testPricingEnabled =
+        process.env.NODE_ENV !== "production" &&
+        process.env.PAYMENT_TEST_PRICING === "true";
+    if (
+        process.env.NODE_ENV === "production" &&
+        !testPricingEnabled &&
+        Number(totalAmount) < 1
+    ) {
+        return NextResponse.json(
+            { success: false, message: "支付金额异常，请联系管理员", data: null },
+            { status: 400 },
+        );
+    }
+
+    // For subscription payments, never trust client-provided totalAmount.
+    // We validate ownership/coaching relation and, for initial subscription, override amount from DB.
+    const od: any = orderData || {};
+    const subscriptionId = od.subscriptionId as string | undefined;
+    const coachId = od.coachId as string | undefined;
+
+    let resolvedTotalAmount = Number(totalAmount);
+
+    if (orderType === "subscription" || orderType === "subscription_renew") {
+        if (!subscriptionId) {
+            return NextResponse.json(
+                { success: false, message: "缺少订阅ID，无法创建平台支付订单", data: null },
+                { status: 400 },
+            );
+        }
+
+        const { data: sub, error: subErr } = await serviceRoleSupabase
+            .from("coach_subscriptions")
+            .select("id, student_id, coach_id, monthly_price")
+            .eq("id", subscriptionId)
+            .single();
+
+        if (subErr || !sub) {
+            return NextResponse.json(
+                { success: false, message: "订阅不存在，无法创建平台支付订单", data: null },
+                { status: 400 },
+            );
+        }
+
+        if (sub.student_id !== userId) {
+            return NextResponse.json(
+                { success: false, message: "无权为该订阅创建支付订单", data: null },
+                { status: 403 },
+            );
+        }
+
+        if (coachId && sub.coach_id !== coachId) {
+            return NextResponse.json(
+                { success: false, message: "订阅与教练不匹配，无法创建支付订单", data: null },
+                { status: 400 },
+            );
+        }
+
+        // Initial subscription must use server-stored price.
+        // Renewals may have different tiered discounts; we keep client-provided totalAmount but still guard against abnormal small values above.
+        if (orderType === "subscription") {
+            resolvedTotalAmount = Number(sub.monthly_price);
+        }
+    }
+
     // 读取支付宝配置
     const {
         ALIPAY_APP_ID,
@@ -75,7 +141,7 @@ export async function POST(req: Request) {
         .from("alipay_orders")
         .insert({
             subject,
-            total_amount: totalAmount,
+            total_amount: resolvedTotalAmount,
             order_type: orderType,
             order_data: orderData,
             user_id: userId,
@@ -95,41 +161,10 @@ export async function POST(req: Request) {
 
     // Bind platform payment order to subscription (so notify can auto-confirm/renew)
     try {
-        const od: any = orderData || {};
-        const subscriptionId = od.subscriptionId as string | undefined;
-        const coachId = od.coachId as string | undefined;
-
         if (
             subscriptionId &&
             (orderType === "subscription" || orderType === "subscription_renew")
         ) {
-            const { data: sub, error: subErr } = await serviceRoleSupabase
-                .from("coach_subscriptions")
-                .select("id, student_id, coach_id")
-                .eq("id", subscriptionId)
-                .single();
-
-            if (subErr || !sub) {
-                return NextResponse.json(
-                    { success: false, message: "订阅不存在，无法创建平台支付订单", data: null },
-                    { status: 400 },
-                );
-            }
-
-            if (sub.student_id !== userId) {
-                return NextResponse.json(
-                    { success: false, message: "无权为该订阅创建支付订单", data: null },
-                    { status: 403 },
-                );
-            }
-
-            if (coachId && sub.coach_id !== coachId) {
-                return NextResponse.json(
-                    { success: false, message: "订阅与教练不匹配，无法创建支付订单", data: null },
-                    { status: 400 },
-                );
-            }
-
             await serviceRoleSupabase
                 .from("coach_subscriptions")
                 .update({
@@ -152,7 +187,7 @@ export async function POST(req: Request) {
             returnUrl: `${baseUrl}/api/payment/alipay/return`,
             bizContent: {
                 out_trade_no: order.id,
-                total_amount: totalAmount.toString(),
+                total_amount: resolvedTotalAmount.toFixed(2),
                 subject,
                 product_code: "QUICK_WAP_WAY",
             },
@@ -164,7 +199,7 @@ export async function POST(req: Request) {
             returnUrl: `${baseUrl}/api/payment/alipay/return`,
             bizContent: {
                 out_trade_no: order.id,
-                total_amount: totalAmount.toString(),
+                total_amount: resolvedTotalAmount.toFixed(2),
                 subject,
                 product_code: "FAST_INSTANT_TRADE_PAY",
                 qr_pay_mode: "0",
@@ -204,7 +239,8 @@ export async function POST(req: Request) {
         data: {
             order: {
                 id: order.id.toString(),
-                out_trade_no: order.out_trade_no,
+                // `alipay_orders` table uses `id` as out_trade_no for Alipay tracking
+                out_trade_no: order.id.toString(),
                 subject: order.subject,
                 total_amount: order.total_amount,
                 status: order.status,
