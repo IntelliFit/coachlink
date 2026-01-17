@@ -11,7 +11,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { useTheme } from '@/context/ThemeContext';
 import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut, getSession } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import {
@@ -44,6 +44,21 @@ export default function NavigationStudent() {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // 当页面从后台切回前台或熄屏唤醒时，强制更新 session
+                // 传入 true 会向后端发起请求验证 cookie
+                getSession();
+            }
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
+
+    // TODO: 移动端下，导航栏仿照小红书设计。
 
     useEffect(() => {
         // openOnboardingModal();
@@ -91,13 +106,13 @@ export default function NavigationStudent() {
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;
         return (
-            <div 
+            <div
                 id={item.guideId}
                 onClick={item.command}
                 className={`
                     flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-all duration-300 group
-                    ${isActive 
-                        ? 'bg-primary-50 text-primary-600' 
+                    ${isActive
+                        ? 'bg-primary-50 text-primary-600'
                         : 'text-surface-600 hover:text-primary-600'}
                 `}
             >
@@ -239,9 +254,9 @@ export default function NavigationStudent() {
                             className={`
                                 p-2 rounded-xl transition-all pi 
                                 ${theme === 'light'
-                                                        ? 'pi-moon text-surface-500 hover:text-indigo-600' // 亮色时显月亮，悬浮变靛蓝
-                                                        : 'pi-sun text-yellow-500 hover:text-yellow-400'  // 暗色时显太阳，悬浮变浅黄
-                                                    } 
+                                    ? 'pi-moon text-surface-500 hover:text-indigo-600' // 亮色时显月亮，悬浮变靛蓝
+                                    : 'pi-sun text-yellow-500 hover:text-yellow-400'  // 暗色时显太阳，悬浮变浅黄
+                                } 
                                 hover:bg-surface
                             `}
                         />
@@ -267,7 +282,7 @@ export default function NavigationStudent() {
                     </div>
                 </>
             ) : (
-                <button 
+                <button
                     onClick={() => router.push('/login')}
                     className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-primary-500 text-surface font-bold text-sm shadow-md shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all active:scale-95"
                 >
@@ -334,9 +349,8 @@ export default function NavigationStudent() {
                                 key={item.key}
                                 type="button"
                                 onClick={item.onClick}
-                                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-all active:scale-[0.98] ${
-                                    item.active ? 'bg-primary-50 text-primary-600' : 'text-surface-600 hover:bg-surface-50'
-                                }`}
+                                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-2xl transition-all active:scale-[0.98] ${item.active ? 'bg-primary-50 text-primary-600' : 'text-surface-600 hover:bg-surface-50'
+                                    }`}
                             >
                                 <item.icon size={20} strokeWidth={item.active ? 2.5 : 2} />
                                 <span className={`text-[11px] ${item.active ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
