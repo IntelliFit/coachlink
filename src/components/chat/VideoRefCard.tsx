@@ -57,7 +57,7 @@ export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
             <div
                 onClick={() => handleClick(video.videoUrl)}
                 className={`
-                    group relative w-[85vw] max-w-[360px] sm:max-w-[320px] rounded-[24px] overflow-hidden cursor-pointer
+                    group relative w-[min(360px,calc(100vw-120px))] max-w-full rounded-[24px] overflow-hidden cursor-pointer
                     transition-all duration-300 active:scale-[0.98] border border-transparent
                     ${isMine
                         ? 'bg-primary-600 shadow-lg shadow-primary-600/20'
@@ -118,7 +118,7 @@ export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
 
     // --- 多个视频滚动展示 ---
     return (
-        <div className="w-[92vw] max-w-md">
+        <div className="w-[min(448px,calc(100vw-120px))] max-w-full">
             <div className="flex items-center justify-between px-1 mb-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     {videos.length} 个训练视频

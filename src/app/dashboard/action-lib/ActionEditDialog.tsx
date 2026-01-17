@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -51,6 +51,16 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
 
     const [uploadingDemoVideo, setUploadingDemoVideo] = useState(false);
     const demoVideoInputRef = React.useRef<HTMLInputElement>(null);
+
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 640px)');
+        const update = () => setIsMobile(mql.matches);
+        update();
+        mql.addEventListener?.('change', update);
+        return () => mql.removeEventListener?.('change', update);
+    }, []);
 
     const itemTypeOptions = [
         { label: '力量训练', value: 'STRENGTH', icon: 'pi-sliders-h', color: 'text-orange-500' },
@@ -170,12 +180,40 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     };
 
     const footerContent = (
-        <div className="flex justify-end items-center gap-3 pt-4 border-t border-surface-100">
-            <Button label="取消" text onClick={onCancel} className="p-button-secondary font-bold" disabled={loading} />
-            <Button label="确认保存" icon="pi pi-check" onClick={handleSave} loading={loading}
-                className="p-button-primary rounded-xl px-6 shadow-lg shadow-primary-100" />
+        <div className={`flex items-center gap-3 pt-4 border-t border-surface-100 ${isMobile ? 'justify-between w-full' : 'justify-end'}`}>
+            <Button
+                label="取消"
+                text
+                onClick={onCancel}
+                className={`p-button-secondary font-bold ${isMobile ? 'flex-1' : ''}`}
+                disabled={loading}
+            />
+            <Button
+                label="确认保存"
+                icon="pi pi-check"
+                onClick={handleSave}
+                loading={loading}
+                className={`p-button-primary rounded-xl px-6 shadow-lg shadow-primary-100 ${isMobile ? 'flex-1' : ''}`}
+            />
         </div>
     );
+
+    const dialogPt = useMemo(() => {
+        if (isMobile) {
+            return {
+                root: { className: 'm-0 p-0 rounded-none overflow-hidden' },
+                header: { className: 'px-4 py-3 border-b border-surface-200 bg-surface sticky top-0 z-10' },
+                content: { className: 'px-4 py-4 bg-surface overflow-auto' },
+                footer: { className: 'px-4 py-3 border-t border-surface-200 bg-surface sticky bottom-0 z-10' },
+            };
+        }
+        return {
+            root: { className: 'rounded-2xl overflow-hidden' },
+            header: { className: 'px-6 py-4 border-b border-surface-200 bg-surface' },
+            content: { className: 'px-6 py-5 bg-surface' },
+            footer: { className: 'px-6 py-4 border-t border-surface-200 bg-surface' },
+        };
+    }, [isMobile]);
 
     return (
         <Dialog
@@ -186,11 +224,17 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 <span className="font-black text-xl tracking-tight text-surface-900">{action ? "编辑动作" : "添加动作"}</span>
             </div>}
             visible={visible}
-            style={{ width: '600px' }}
+            modal
+            draggable={false}
+            resizable={false}
+            dismissableMask
+            style={isMobile ? { width: '100vw', height: '100dvh', margin: 0 } : { width: '600px', maxWidth: '95vw' }}
+            position={isMobile ? 'bottom' : 'center'}
             onHide={onCancel}
             footer={footerContent}
-            className="aero-dialog"
+            className="aero-dialog p-fluid"
             maskClassName="backdrop-blur-sm"
+            pt={dialogPt as any}
         >
             <div className="flex flex-col gap-6 py-2">
 
@@ -254,7 +298,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
 
                     {/* 饮食字段 */}
                     {itemType === 'DIET' && (
-                        <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95 duration-300">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in zoom-in-95 duration-300">
                             <div className="flex flex-col gap-2">
                                 <label className="text-[11px] font-bold text-surface-500 ml-1">热量估算 (kcal)</label>
                                 <InputText type="number" value={calories !== null ? String(calories) : ''}
@@ -270,7 +314,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
 
                     {/* 有氧字段 */}
                     {itemType === 'CARDIO' && (
-                        <div className="grid grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className="flex flex-col gap-2">
                                 <label className="text-[11px] font-bold text-surface-500 ml-1 text-center">距离 (km)</label>
                                 <InputText type="number" value={distance !== null ? String(distance) : ''} onChange={(e) => setDistance(Number(e.target.value))} className="rounded-xl text-center" />
@@ -321,12 +365,12 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                             <div className="flex flex-col gap-2">
                                 <label className="text-[11px] font-bold text-surface-500">训练部位</label>
                                 <MultiSelect value={positions} options={actionTypes} onChange={(e) => setPositions(e.value)}
-                                    placeholder="请选择" display="chip" className="rounded-xl" />
+                                    placeholder="请选择" display={isMobile ? 'comma' : 'chip'} className="rounded-xl w-full" />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="text-[11px] font-bold text-surface-500">动作属性</label>
                                 <MultiSelect value={attrs} options={actionAttrs} onChange={(e) => setAttrs(e.value)}
-                                    placeholder="请选择" display="chip" className="rounded-xl" />
+                                    placeholder="请选择" display={isMobile ? 'comma' : 'chip'} className="rounded-xl w-full" />
                             </div>
                         </div>
                     )}
@@ -358,7 +402,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 className="rounded-r-xl border-surface-200"
                             />
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <input
                                 ref={demoVideoInputRef}
                                 type="file"
@@ -385,7 +429,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 onClick={() => setUrl('')}
                                 disabled={uploadingDemoVideo}
                             />
-                            <span className="text-xs text-surface-500">
+                            <span className="text-xs text-surface-500 hidden sm:inline">
                                 支持 MP4/WEBM，≤100MB。上传后会自动回填到 URL。
                             </span>
                         </div>

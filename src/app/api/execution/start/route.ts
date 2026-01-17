@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { StartExecutionDto, StartExecutionResponseDto } from "../entity";
+import { formatKgForGym } from "@/lib/weightQuantize";
+import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
+import { normalizeToKg } from "@/types/intensity";
+import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 
 /**
  * POST /api/execution/start
@@ -93,11 +98,10 @@ export async function POST(request: NextRequest) {
                                 masterActionSet.sets || 1;
 
                             // 计算母版的计划重量
-                            const masterPlannedWeight = masterLoad
-                                ? `${Math.round(masterLoad * 10) / 10}kg`
-                                : (masterIntensity
-                                    ? `${masterIntensity}RM`
-                                    : null);
+                            const masterPlannedWeight =
+                                masterLoad !== null && masterLoad !== undefined
+                                    ? formatKgForGym(Number(masterLoad))
+                                    : (masterIntensity ? `${masterIntensity}RM` : null);
                             const masterPlannedReps = masterReps
                                 ? `${masterReps}`
                                 : null;
@@ -237,10 +241,35 @@ export async function POST(request: NextRequest) {
             .filter((id: string) => id);
 
         let actionsMap: Record<string, any> = {};
+        let bodyWeight = 0;
+        const oneRMMap: Record<string, number> = {};
+
+        // Preload student body weight + 1RM map (best-effort) so we can compute kg even when plan stores only RM/%.
+        try {
+            const { data: profile } = await supabase
+                .from("user_profiles")
+                .select("weight")
+                .eq("user_id", userId)
+                .maybeSingle();
+            bodyWeight = Number(profile?.weight || 0);
+        } catch (e) {
+            bodyWeight = 0;
+        }
+
+        try {
+            const records = await getCurrent1RMRecords(userId, { actionIds });
+            for (const r of records || []) {
+                if (r.actionId) oneRMMap[r.actionId] = Math.max(oneRMMap[r.actionId] || 0, r.current1RM);
+                if (r.actionName) oneRMMap[r.actionName] = Math.max(oneRMMap[r.actionName] || 0, r.current1RM);
+            }
+        } catch (e) {
+            // ignore
+        }
+
         if (actionIds.length > 0) {
             const { data: actionsData } = await supabase
                 .from("coach_actions")
-                .select("id, name")
+                .select('id, name, "includesBodyWeight"')
                 .in("id", actionIds);
 
             if (actionsData) {
@@ -262,14 +291,39 @@ export async function POST(request: NextRequest) {
             const sets = actionSet.params?.["组数"] || actionSet.sets || 1;
             const reps = actionSet.params?.["次数"] || actionSet.reps;
             const intensity = actionSet.params?.["强度"] || actionSet.intensity;
-            const load = actionSet.params?.load; // 自动计算的实际重量
+
+            // Compute a concrete load (kg) if not already present
+            let load = actionSet.params?.load; // 自动计算的实际重量
+            if (load === null || load === undefined) {
+                const params = actionSet.params || {};
+                const intensityConfig = normalizeIntensityConfig(params);
+                const legacyRm = params["强度"] ?? intensity;
+
+                const actionIdForLookup = actionId;
+                const actionNameForLookup = actionsMap[actionIdForLookup]?.name || actionSet.actionName || actionSet.set_name;
+                const oneRM = oneRMMap[actionIdForLookup] ?? oneRMMap[actionNameForLookup] ?? undefined;
+                const includesBodyWeight = !!(actionsMap[actionIdForLookup]?.includesBodyWeight);
+
+                const result = calcIntensityDisplay({
+                    intensityConfig,
+                    legacyRm,
+                    oneRM,
+                    bodyWeight,
+                    includesBodyWeight,
+                });
+
+                if (result.displayWeight !== null && result.displayWeight !== undefined) {
+                    load = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
+                }
+            }
             const restSeconds = actionSet.params?.["休息时间"] ||
                 actionSet.rest_seconds || 90;
 
             // 优先使用自动计算的重量(load)，否则显示RM值
-            const plannedWeight = load
-                ? `${Math.round(load * 10) / 10}kg`
-                : (intensity ? `${intensity}RM` : null);
+            const plannedWeight =
+                load !== null && load !== undefined
+                    ? formatKgForGym(Number(load))
+                    : (intensity ? `${intensity}RM` : null);
 
             return {
                 action_id: actionId,
@@ -316,6 +370,38 @@ export async function POST(request: NextRequest) {
                 { success: false, message: "创建训练记录失败" },
                 { status: 500 },
             );
+        }
+
+        // Start subscription countdown when the student actually begins training (best-effort).
+        // This implements "auto postpone": if student receives a plan but never starts, remaining time won't decrease.
+        try {
+            const subscriptionId = (instance as any).coach_subscription_id as string | null;
+            if (subscriptionId) {
+                const { data: subRow } = await serviceRoleSupabase
+                    .from("coach_subscriptions")
+                    .select("id, status, end_date, subscribed_weeks")
+                    .eq("id", subscriptionId)
+                    .maybeSingle();
+
+                if (subRow && subRow.status === "active" && !subRow.end_date) {
+                    const weeks = Number(subRow.subscribed_weeks || 0);
+                    if (weeks > 0) {
+                        const nowIso = new Date().toISOString();
+                        const end = new Date();
+                        end.setDate(end.getDate() + weeks * 7);
+                        await serviceRoleSupabase
+                            .from("coach_subscriptions")
+                            .update({
+                                start_date: nowIso,
+                                end_date: end.toISOString(),
+                                updated_at: nowIso,
+                            } as any)
+                            .eq("id", subscriptionId);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("[execution/start] Failed to start subscription window:", e);
         }
 
         return NextResponse.json<StartExecutionResponseDto>({

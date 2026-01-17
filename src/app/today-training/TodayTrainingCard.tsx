@@ -5,6 +5,7 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { useRouter } from 'next/navigation';
 import { Play, Video, Info, CheckCircle, RotateCcw } from 'lucide-react';
+import { formatKgValueForGym } from '@/lib/weightQuantize';
 
 interface TodayTrainingCardProps {
     day: any; // training_day from instance
@@ -174,17 +175,20 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                                     
                                                                     // 有计算后的重量（包括负数表示辅助训练）
                                                                     if (load !== null && load !== undefined) {
-                                                                        if (load < 0) {
+                                                                        const numericLoad = Number(load);
+                                                                        if (!Number.isFinite(numericLoad)) return null;
+
+                                                                        if (numericLoad < 0) {
                                                                             // 负数表示需要辅助训练
                                                                             return (
                                                                                 <span className="text-red-500 font-medium">
-                                                                                    💪 辅助{Math.abs(load).toFixed(1)}kg
+                                                                                    💪 辅助{formatKgValueForGym(Math.abs(numericLoad))}kg
                                                                                 </span>
                                                                             );
-                                                                        } else if (load > 0) {
+                                                                        } else if (numericLoad > 0) {
                                                                             return (
                                                                                 <span className="text-green-600 font-medium">
-                                                                                    💪 {Number(load).toFixed(1)}kg
+                                                                                    💪 {formatKgValueForGym(numericLoad)}kg
                                                                                 </span>
                                                                             );
                                                                         }

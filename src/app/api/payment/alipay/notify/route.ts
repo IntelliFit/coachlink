@@ -149,7 +149,7 @@ export async function POST(req: Request) {
             ) {
                 const { data: sub, error: subErr } = await serviceRoleSupabase
                     .from("coach_subscriptions")
-                    .select("id, student_id, coach_id, status, end_date, last_payment_order_id")
+                    .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks, last_payment_order_id")
                     .eq("id", subscriptionId)
                     .single();
 
@@ -169,16 +169,21 @@ export async function POST(req: Request) {
 
                             if (orderType === "subscription") {
                                 update.status = "active";
+                                // Do not set end_date here. We start counting only when the coach assigns the first plan.
                             }
 
                             if (orderType === "subscription_renew") {
                                 const weeks = Number(orderData?.renewAdditionalWeeks || 0);
                                 if (weeks > 0) {
-                                    const base = sub.end_date ? new Date(sub.end_date) : new Date();
-                                    const now = new Date();
-                                    const effectiveBase = base.getTime() < now.getTime() ? now : base;
-                                    effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
-                                    update.end_date = effectiveBase.toISOString();
+                                    // Always accumulate purchased duration
+                                    update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
+                                    if (sub.end_date) {
+                                        const base = new Date(sub.end_date);
+                                        const now = new Date();
+                                        const effectiveBase = base.getTime() < now.getTime() ? now : base;
+                                        effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
+                                        update.end_date = effectiveBase.toISOString();
+                                    }
                                 }
                             }
 

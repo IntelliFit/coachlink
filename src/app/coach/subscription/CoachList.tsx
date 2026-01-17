@@ -8,6 +8,7 @@ import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-inf
 
 const STATUS_THEME: Record<string, { bg: string, text: string, label: string }> = {
     active: { bg: 'bg-emerald-50', text: 'text-emerald-600', label: '已激活' },
+    preparing: { bg: 'bg-primary-50', text: 'text-primary-600', label: '制定中' },
     expired: { bg: 'bg-slate-100', text: 'text-slate-500', label: '已过期' },
     expiring: { bg: 'bg-amber-50', text: 'text-amber-600', label: '即将到期' },
     waiting: { bg: 'bg-primary-50', text: 'text-primary-600', label: '待确认' },
@@ -39,6 +40,8 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
     const getStatusKey = (sub: QueryCoachSubscription) => {
         if (sub.status === 'inactive') return 'inactive';
         if (sub.status === 'waiting') return 'waiting';
+        // Paid/active but coach hasn't started the plan yet → do not show countdown
+        if (sub.status === 'active' && !sub.end_date) return 'preparing';
         if (!sub.end_date) return 'active';
         const days = Math.ceil((new Date(sub.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
         if (days <= 0) return 'expired';

@@ -18,6 +18,7 @@ interface PlanInstance {
     status: string;
     start_date: string | null;
     end_date: string | null;
+    start_execution_day?: number | null;
     training_days: any[];
     created_at: string;
     updated_at: string;
@@ -191,7 +192,10 @@ export default function PlanHistoryDetailPage() {
                 {(() => {
                     // 🔒 计算已解锁的周次（仅对进行中的计划生效）
                     const unlockedWeek = instance.status === 'active' 
-                        ? calculateCurrentWeek(instance.start_date) 
+                        ? Math.max(
+                            calculateCurrentWeek(instance.start_date),
+                            getDayWeekNumber(instance.start_execution_day || 1),
+                        )
                         : Infinity; // 已完成/归档的计划显示全部
                     
                     return (

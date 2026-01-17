@@ -84,6 +84,7 @@ const StudentPlanPage = () => {
     const [planStartConfigVisible, setPlanStartConfigVisible] = useState(false);
     const [pendingTemplate, setPendingTemplate] = useState<GetTemplateResponseDto | null>(null);
     const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
+    const [importStartConfig, setImportStartConfig] = useState<PlanStartConfig | null>(null);
 
     // Load instance data
     useEffect(() => {
@@ -492,11 +493,16 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 trainingDays: daysData,
+                startExecutionDay: importStartConfig ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay) : undefined,
             });
 
             if (res) {
                 setAutoSaveStatus('saved');
                 setHasUnsavedChanges(false);
+                // If this autosave includes an import start config, clear it after first successful persist
+                if (importStartConfig) {
+                    setImportStartConfig(null);
+                }
                 // 3秒后恢复空闲状态
                 setTimeout(() => setAutoSaveStatus('idle'), 3000);
             } else {
@@ -559,10 +565,12 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 trainingDays: daysData,
+                startExecutionDay: importStartConfig ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay) : undefined,
             });
 
             if (res) {
                 showToast({ severity: 'success', summary: '保存成功', detail: '训练计划已更新' });
+                if (importStartConfig) setImportStartConfig(null);
             } else {
                 showToast({ severity: 'error', summary: '保存失败', detail: '无法更新训练计划' });
             }
@@ -579,7 +587,9 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 trainingDays: daysData,
-                startDate: customStartDate ? customStartDate.toISOString() : undefined
+                startDate: customStartDate ? customStartDate.toISOString() : undefined,
+                startWeek: importStartConfig?.startWeek,
+                startDay: importStartConfig?.startDay,
             });
 
             if (res) {
@@ -617,6 +627,10 @@ const StudentPlanPage = () => {
         if (!pendingTemplate) return;
 
         setPlanStartConfigVisible(false);
+        setImportStartConfig(config);
+        // Show "开始" marker immediately in coach UI
+        const startExecutionDay = (config.startWeek - 1) * 7 + config.startDay;
+        setStartExecutionDay(startExecutionDay > 1 ? startExecutionDay : undefined);
 
         // 1. 计算回推的开始日期
         // 如果选择从第W周第D天开始，说明前 (W-1)*7 + (D-1) 天已经过去了
