@@ -120,25 +120,19 @@ export default function NavigationStudent() {
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [
-<<<<<<< HEAD
         // 统一入口：当前计划（替代“训练计划”）
-        { label: '当前计划', icon: 'pi pi-clipboard', command: () => router.push('/coach/plans') },
-        { label: '我的教练', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
-        { label: '我的会员', icon: 'pi pi-crown', command: () => router.push('/me/membership') },
+        { label: '当前计划', icon: 'pi pi-clipboard', command: () => { router.push('/coach/plans'); setVisibleLeft(false); } },
+        { label: '我的教练', icon: 'pi pi-star', command: () => { router.push('/coach/subscription'); setVisibleLeft(false); } },
+        { label: '我的会员', icon: 'pi pi-crown', command: () => { router.push('/me/membership'); setVisibleLeft(false); } },
         ...(STUDENT_TOOLBOX_LINKS.length
             ? [
                 {
                     label: '工具箱',
                     icon: 'pi pi-briefcase',
-                    command: () => router.push('/me/toolbox'),
+                    command: () => { router.push('/me/toolbox'); setVisibleLeft(false); },
                 },
             ]
             : []),
-=======
-        { label: '当前计划', icon: 'pi pi-clipboard', command: () => { router.push('/coach/plans'); setVisibleLeft(false); } },
-        { label: '我的教练', icon: 'pi pi-star', command: () => { router.push('/coach/subscription'); setVisibleLeft(false); } },
-        { label: '我的会员', icon: 'pi pi-crown', command: () => { router.push('/me/membership'); setVisibleLeft(false); } },
->>>>>>> 3ddb9ddd686c57e34b76b8e7bb4115f01a4c5664
         { separator: true },
         { label: '我的好友', icon: 'pi pi-users', command: () => { router.push('/friends'); setVisibleLeft(false); } },
         { label: '我的动作库', icon: 'pi pi-list', command: () => { router.push('/me/action-lib'); setVisibleLeft(false); } },
