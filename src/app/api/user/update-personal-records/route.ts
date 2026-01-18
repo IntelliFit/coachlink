@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import type {
     UpdatePersonalRecordsDto,
@@ -12,16 +13,28 @@ import {
 } from "@/lib/e1rmCalculator";
 
 export async function POST(req: Request) {
+    // 优先使用原有的session鉴权（保持向后兼容）
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    let userId: string | null = null;
+
+    if (session?.user?.id) {
+        // 网页端：使用session
+        userId = session.user.id;
+    } else {
+        // 小程序端：尝试从token获取
+        const auth = await getAuthUser(req);
+        if (auth.isAuthenticated && auth.userId) {
+            userId = auth.userId;
+        }
+    }
+
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
             data: null,
         }, { status: 401 });
     }
-
-    const userId = session.user.id;
 
     const {
         exercises,

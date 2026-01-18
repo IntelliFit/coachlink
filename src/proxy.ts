@@ -7,6 +7,7 @@ const PUBLIC_PATHS = new Set([
     "/login",
     "/register",
     "/api/auth",
+    "/api/miniapp/login", // 小程序登录接口
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
@@ -35,25 +36,23 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
-    // E2E helper endpoints (dev/test only): allow bypassing auth when secret matches.
-    // This keeps Playwright E2E close-to-real while avoiding redirects to /login for API calls.
-    if (pathname.startsWith("/api/test/e2e/")) {
-        const env = process.env.NODE_ENV || "development";
-        const secret = process.env.E2E_SECRET;
-        const provided = request.headers.get("x-e2e-secret");
-        if ((env === "development" || env === "test") && (!secret || provided === secret)) {
-            return NextResponse.next();
-        }
-    }
 
-    // 公共路由 或者 鉴权路由直接放行
-    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
-        return NextResponse.next();
-    }
 
     // 仅当访问受保护资源时才解码 token
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
+    
+    // 公共路由 或者 鉴权路由直接放行
+    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+        if (pathname === "/") {
+            const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+            const isAuthenticated = !!token;
+            if (isAuthenticated) {
+                return NextResponse.redirect(`${origin}/today-training`);
+            }
+        }
+        return NextResponse.next();
+    }
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {
