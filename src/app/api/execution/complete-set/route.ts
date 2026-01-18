@@ -7,6 +7,7 @@ import {
     calculateE1RM,
     isNewPR,
     requiresBodyWeightFallback,
+    PR_THRESHOLD_KG,
 } from "@/lib/e1rmCalculator";
 
 /**
@@ -31,8 +32,8 @@ async function handleAutoE1RMCheck(params: {
         setNumber,
     } = params;
 
-    // Skip if weight or reps is invalid
-    if (!weight || weight <= 0 || !reps || reps <= 0) {
+    // Basic guard: reps must be present; weight may be negative for bodyweight-including actions (assistance)
+    if (weight === null || weight === undefined || !Number.isFinite(weight) || !reps || reps <= 0) {
         return null;
     }
 
@@ -64,6 +65,15 @@ async function handleAutoE1RMCheck(params: {
         bodyWeight = profile?.weight || 0;
     }
 
+    // Validate weight according to action type
+    if (!includeBodyWeight) {
+        if (weight <= 0) return null;
+    } else {
+        // allow negative/zero external load as long as totalWeight > 0
+        if (!bodyWeight || bodyWeight <= 0) return null;
+        if (weight + bodyWeight <= 0) return null;
+    }
+
     // 3. Calculate e1RM using 3-formula average
     const result = calculateE1RM({
         weight,
@@ -73,6 +83,89 @@ async function handleAutoE1RMCheck(params: {
     });
 
     const { e1rm, epley, brzycki, lombardi } = result;
+
+    // ------------------------------------------------------------
+    // 3.5 Update "current state" snapshot (AUTO_STATE) when change >= 2kg
+    // This allows current 1RM to go up OR down based on recent performance,
+    // while PR logic remains "only goes up" for achievements.
+    // ------------------------------------------------------------
+    try {
+        const today = new Date().toISOString().split("T")[0];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: latestState } = await (supabase as any)
+            .from("personal_records_history")
+            .select("id, e1rm, date_achieved, created_at")
+            .eq("user_id", userId)
+            .eq("action_id", actionId)
+            .eq("notes", "AUTO_STATE")
+            .order("date_achieved", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        const prev = latestState?.e1rm;
+        const shouldUpdate =
+            prev === undefined || prev === null
+                ? true
+                : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
+
+        if (shouldUpdate) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: todayState } = await (supabase as any)
+                .from("personal_records_history")
+                .select("id, e1rm")
+                .eq("user_id", userId)
+                .eq("action_id", actionId)
+                .eq("notes", "AUTO_STATE")
+                .eq("date_achieved", today)
+                .maybeSingle();
+
+            const estimatedFrom = {
+                weight,
+                reps,
+                bodyWeight: includeBodyWeight ? bodyWeight : undefined,
+                epley,
+                brzycki,
+                lombardi,
+            };
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const q: any = (supabase as any).from("personal_records_history");
+            if (todayState?.id) {
+                await q
+                    .update({
+                        weight,
+                        reps,
+                        e1rm,
+                        estimated_from: estimatedFrom,
+                        execution_id: executionId,
+                        execution_set_number: setNumber,
+                        load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                    })
+                    .eq("id", todayState.id);
+            } else {
+                await q.insert({
+                    user_id: userId,
+                    action_id: actionId,
+                    exercise_name: actionName,
+                    weight,
+                    reps,
+                    e1rm,
+                    load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                    execution_id: executionId,
+                    execution_set_number: setNumber,
+                    date_achieved: today,
+                    is_auto_calculated: true,
+                    estimated_from: estimatedFrom,
+                    notes: "AUTO_STATE",
+                    is_verified: false,
+                });
+            }
+        }
+    } catch (e) {
+        // best-effort
+        console.warn("[e1RM] Failed to update AUTO_STATE:", e);
+    }
 
     // 4. Get current highest PR for this action (prefer action_id match)
     // Use e1rm column (the calculated estimated 1RM)

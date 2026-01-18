@@ -32,12 +32,26 @@ export async function POST(req: Request) {
         query = query.contains("specialties", [specialty]);
     }
 
-    // 排序和分页
-    query = query
-        .order("rating", { ascending: false })
-        .range(from, to);
+    /**
+     * 发现页希望按“水平”展示（而不是仅按 coaches.rating）。
+     *
+     * 这里的水平暂定为一个稳定、可解释的默认排序：
+     * 1) is_featured（置顶/推荐）优先
+     * 2) 学员数（活跃订阅数）降序
+     * 3) 平均评分降序
+     * 4) years_experience 降序
+     * 5) updated_at 降序
+     * 6) id 升序兜底（保证排序稳定）
+     *
+     * 注意：studentCount / averageRating 需要聚合 coach_subscriptions / student_comments，
+     * 为保证“跨页顺序稳定”，必须先聚合排序再分页。
+     *
+     * 为避免大数据量下拉取过多，这里加一个上限；超过上限则退化为旧逻辑（按 rating DB 排序分页）。
+     */
+    const MAX_RANKING_FETCH = 500;
 
-    const { data: coaches, error, count } = await query;
+    // 先取所有候选教练（带 count），后续在内存里聚合排序再分页
+    const { data: coachesAll, error, count } = await query.range(0, MAX_RANKING_FETCH - 1);
 
     if (error) {
         return NextResponse.json({
@@ -46,38 +60,162 @@ export async function POST(req: Request) {
         });
     }
 
-    // 并发获取每个教练的学员数量和平均评分
-    const coachesWithStats = await Promise.all(
-        (coaches || []).map(async (coach) => {
-            // 学员数量
-            const { count: studentCount } = await supabase
+    // 超过上限：退化为旧逻辑（DB 按 rating 排序分页），避免拉取过多数据导致慢查询/高内存
+    if ((count || 0) > MAX_RANKING_FETCH) {
+        let fallbackQuery = supabase
+            .from("coaches")
+            .select("*", { count: "exact" })
+            .eq("status", "approved");
+
+        if (search.trim()) {
+            fallbackQuery = fallbackQuery.or(
+                `name.ilike.%${search}%,title.ilike.%${search}%`
+            );
+        }
+        if (specialty.trim() && specialty.trim() !== 'all') {
+            fallbackQuery = fallbackQuery.contains("specialties", [specialty]);
+        }
+
+        const { data: coaches, error: fallbackError, count: fallbackCount } = await fallbackQuery
+            .order("rating", { ascending: false })
+            .range(from, to);
+
+        if (fallbackError) {
+            return NextResponse.json({
+                success: false,
+                message: fallbackError.message
+            });
+        }
+
+        // 批量补充 stats（避免 N+1）
+        const ids = (coaches || []).map((c: any) => c.id).filter(Boolean);
+        const studentCountMap = new Map<string, number>();
+        const avgRatingMap = new Map<string, number>();
+
+        if (ids.length > 0) {
+            const { data: subs } = await supabase
                 .from('coach_subscriptions')
-                .select('*', { count: 'exact', head: true })
-                .eq('coach_id', coach.id)
+                .select('coach_id')
+                .in('coach_id', ids)
                 .eq('status', 'active');
-            // 平均评分
+            for (const s of (subs || []) as any[]) {
+                const id = s.coach_id as string;
+                studentCountMap.set(id, (studentCountMap.get(id) || 0) + 1);
+            }
+
             const { data: reviews } = await supabase
                 .from('student_comments')
-                .select('rating')
-                .eq('coach_id', coach.id);
-            let averageRating = 0;
-            if (reviews && reviews.length > 0) {
-                const total = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
-                averageRating = parseFloat((total / reviews.length).toFixed(1));
+                .select('coach_id,rating')
+                .in('coach_id', ids);
+            const sumMap = new Map<string, number>();
+            const cntMap = new Map<string, number>();
+            for (const r of (reviews || []) as any[]) {
+                const id = r.coach_id as string;
+                const rating = Number(r.rating || 0);
+                sumMap.set(id, (sumMap.get(id) || 0) + rating);
+                cntMap.set(id, (cntMap.get(id) || 0) + 1);
             }
-            return {
-                ...coach,
-                studentCount: studentCount || 0,
-                averageRating
-            };
-        })
-    );
+            for (const id of ids) {
+                const c = cntMap.get(id) || 0;
+                const s = sumMap.get(id) || 0;
+                avgRatingMap.set(id, c > 0 ? parseFloat((s / c).toFixed(1)) : 0);
+            }
+        }
+
+        const coachesWithStats = (coaches || []).map((coach: any) => ({
+            ...coach,
+            studentCount: studentCountMap.get(coach.id) || 0,
+            averageRating: avgRatingMap.get(coach.id) || 0,
+        }));
+
+        return NextResponse.json({
+            success: true,
+            message: "获取成功",
+            data: {
+                coaches: coachesWithStats,
+                count: fallbackCount || 0,
+                pagination: { page, limit }
+            }
+        });
+    }
+
+    const coaches = coachesAll || [];
+    const ids = coaches.map((c: any) => c.id).filter(Boolean);
+
+    // 批量聚合：学员数量（活跃订阅数）
+    const studentCountMap = new Map<string, number>();
+    if (ids.length > 0) {
+        const { data: subs } = await supabase
+            .from('coach_subscriptions')
+            .select('coach_id')
+            .in('coach_id', ids)
+            .eq('status', 'active');
+        for (const s of (subs || []) as any[]) {
+            const id = s.coach_id as string;
+            studentCountMap.set(id, (studentCountMap.get(id) || 0) + 1);
+        }
+    }
+
+    // 批量聚合：平均评分
+    const avgRatingMap = new Map<string, number>();
+    if (ids.length > 0) {
+        const { data: reviews } = await supabase
+            .from('student_comments')
+            .select('coach_id,rating')
+            .in('coach_id', ids);
+        const sumMap = new Map<string, number>();
+        const cntMap = new Map<string, number>();
+        for (const r of (reviews || []) as any[]) {
+            const id = r.coach_id as string;
+            const rating = Number(r.rating || 0);
+            sumMap.set(id, (sumMap.get(id) || 0) + rating);
+            cntMap.set(id, (cntMap.get(id) || 0) + 1);
+        }
+        for (const id of ids) {
+            const c = cntMap.get(id) || 0;
+            const s = sumMap.get(id) || 0;
+            avgRatingMap.set(id, c > 0 ? parseFloat((s / c).toFixed(1)) : 0);
+        }
+    }
+
+    const coachesWithStats = coaches.map((coach: any) => ({
+        ...coach,
+        studentCount: studentCountMap.get(coach.id) || 0,
+        averageRating: avgRatingMap.get(coach.id) || 0,
+    }));
+
+    // 排序：先“水平”后分页（保证跨页顺序稳定）
+    const sorted = coachesWithStats.sort((a: any, b: any) => {
+        const af = a.is_featured ? 1 : 0;
+        const bf = b.is_featured ? 1 : 0;
+        if (bf !== af) return bf - af;
+
+        const as = Number(a.studentCount || 0);
+        const bs = Number(b.studentCount || 0);
+        if (bs !== as) return bs - as;
+
+        const ar = Number(a.averageRating ?? a.rating ?? 0);
+        const br = Number(b.averageRating ?? b.rating ?? 0);
+        if (br !== ar) return br - ar;
+
+        const ay = Number(a.years_experience || 0);
+        const by = Number(b.years_experience || 0);
+        if (by !== ay) return by - ay;
+
+        const au = a.updated_at ? Date.parse(a.updated_at) : 0;
+        const bu = b.updated_at ? Date.parse(b.updated_at) : 0;
+        if (bu !== au) return bu - au;
+
+        return String(a.id).localeCompare(String(b.id));
+    });
+
+    const paged = sorted.slice(from, to + 1);
 
     return NextResponse.json({
         success: true,
         message: "获取成功",
         data: {
-            coaches: coachesWithStats,
+            coaches: paged,
             count,
             pagination: { page, limit }
         }

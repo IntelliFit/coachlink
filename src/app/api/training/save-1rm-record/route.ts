@@ -21,8 +21,8 @@ export async function POST(req: Request) {
     const userId = session.user.id;
     const body = await req.json() as Save1RMRecordDto;
 
-    // 验证输入
-    if (!body.exercise_name || !body.weight || body.weight <= 0) {
+    // 验证输入（weight 可为负数：仅对 includesBodyWeight=true 的动作表示“辅助重量”）
+    if (!body.exercise_name || body.weight === null || body.weight === undefined || !Number.isFinite(body.weight)) {
         return NextResponse.json({
             success: false,
             message: "请输入有效的动作名称和重量",
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const weight = body.weight;
+    const weight = Number(body.weight);
     const reps = body.reps || 1;
 
     try {
@@ -59,6 +59,33 @@ export async function POST(req: Request) {
                 .eq("user_id", userId)
                 .single();
             userBodyWeight = profile?.weight || 0;
+        }
+
+        // Validate weight according to action type
+        if (!includeBodyWeight) {
+            if (weight <= 0) {
+                return NextResponse.json({
+                    success: false,
+                    message: "请输入有效的重量（>0）",
+                    data: null,
+                }, { status: 400 });
+            }
+        } else {
+            // allow negative/zero external as long as total > 0
+            if (!userBodyWeight || userBodyWeight <= 0) {
+                return NextResponse.json({
+                    success: false,
+                    message: "缺少体重数据，无法为包含自重动作计算",
+                    data: null,
+                }, { status: 400 });
+            }
+            if (weight + userBodyWeight <= 0) {
+                return NextResponse.json({
+                    success: false,
+                    message: "辅助重量过大（外加重量 + 体重 必须 > 0）",
+                    data: null,
+                }, { status: 400 });
+            }
         }
 
         // 3. Calculate e1RM

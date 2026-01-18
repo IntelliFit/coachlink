@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
         const requestedUserId = searchParams.get("userId");
         const limit = parseInt(searchParams.get("limit") || "20");
         const offset = parseInt(searchParams.get("offset") || "0");
+        const includeState = searchParams.get("includeState") === "1";
 
         let targetUserId = session.user.id;
 
@@ -91,12 +92,21 @@ export async function GET(request: NextRequest) {
 
         // Get PR records using new column names
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: records, error, count } = await (supabase as any)
+        let query = (supabase as any)
             .from("personal_records_history")
             .select("*", { count: "exact" })
             .eq("user_id", targetUserId)
             .order("date_achieved", { ascending: false })
             .range(offset, offset + limit - 1);
+
+        // Hide internal AUTO_STATE snapshots by default
+        if (!includeState) {
+            // IMPORTANT: `.neq()` will exclude NULLs too, so we must explicitly keep notes IS NULL.
+            // Keep: notes IS NULL OR notes != 'AUTO_STATE'
+            query = query.or("notes.is.null,notes.neq.AUTO_STATE");
+        }
+
+        const { data: records, error, count } = await query;
 
         if (error) {
             console.error("获取PR记录失败:", error);

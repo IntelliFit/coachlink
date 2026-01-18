@@ -1,0 +1,62 @@
+Progress Log - CoachLink
+========================
+
+Date: 2026-01-18
+
+Context
+-------
+We added:
+- A UI "Delete" button for PR records in the progress timeline (student + coach views).
+- A backend filter to hide internal AUTO_STATE snapshot rows from the PR list by default.
+
+Issue #1: "进步足迹" suddenly shows NOTHING (timeline empty)
+---------------------------------------------------------
+Symptom:
+- Student/Coach "进步足迹" list became empty.
+- Therefore the delete button was also not visible (because list had no items).
+
+Root cause:
+- In GET /api/execution/get-pr-records we tried to hide AUTO_STATE rows using:
+    query = query.neq("notes", "AUTO_STATE");
+- In Supabase/PostgREST, `.neq()` also excludes NULL values.
+- Many normal PR rows have `notes = NULL`.
+- So this filter removed BOTH:
+  - notes == "AUTO_STATE" (intended)
+  - notes == NULL (NOT intended)  <-- broke normal PR list
+
+Fix:
+- Change filter to explicitly keep NULL notes:
+    query = query.or("notes.is.null,notes.neq.AUTO_STATE");
+- Result: Normal PR rows (notes NULL) show again; AUTO_STATE stays hidden by default.
+
+Files changed:
+- src/app/api/execution/get-pr-records/route.ts
+  - Replaced `.neq("notes","AUTO_STATE")` with `.or("notes.is.null,notes.neq.AUTO_STATE")`
+
+Issue #2: Delete should also remove the wrong PR's influence on current 1RM
+--------------------------------------------------------------------------
+Requirement:
+- After deleting a wrong PR, the "current 1RM" used for plan calculations should revert to the previous correct value.
+
+Implementation:
+- delete-pr-record now cascade-deletes the matching AUTO_STATE snapshot from the same set:
+  match by (user_id, action_id, execution_id, execution_set_number, notes="AUTO_STATE")
+- This removes the "current state snapshot" derived from the wrong input immediately.
+
+Files changed:
+- src/app/api/execution/delete-pr-record/route.ts
+
+UI Added:
+---------
+- Student timeline:
+  - src/components/student/profile/ProgressTimeline.tsx
+  - Added a "删除" button on PR items, calls POST /api/execution/delete-pr-record, then refreshes list.
+- Coach timeline:
+  - src/components/student/profile/CoachViewProgressTimeline.tsx
+  - Added a "Delete" button similarly.
+
+Notes / Pitfalls:
+-----------------
+- Supabase `.neq(column, value)` will exclude NULLs too.
+  When you want “not equal OR is null”, you must use an `.or()` condition including `is.null`.
+

@@ -43,10 +43,12 @@ export async function getCurrent1RMRecords(
     // 2. 并行获取 PR 历史和问卷数据
     const prQuery = supabase
         .from("personal_records_history")
-        .select("action_id, exercise_name, e1rm, date_achieved, is_auto_calculated")
+        .select("action_id, exercise_name, e1rm, date_achieved, created_at, is_auto_calculated, notes")
         .eq("user_id", queryUserId)
         .not("e1rm", "is", null)
-        .order("e1rm", { ascending: false });
+        // For "current state", we want the latest record, not the max.
+        .order("date_achieved", { ascending: false })
+        .order("created_at", { ascending: false });
 
     if (actionIds?.length) prQuery.in("action_id", actionIds);
     if (actionNames?.length) prQuery.in("exercise_name", actionNames);
@@ -75,31 +77,47 @@ export async function getCurrent1RMRecords(
     }
 
     // 4. 数据聚合 (聚合 PR 历史与问卷)
-    const recordsMap = new Map<string, Current1RMRecord>();
+    // Strategy:
+    // - Prefer latest "AUTO_STATE" snapshots (notes === "AUTO_STATE") when available.
+    // - Otherwise fallback to latest record (by date_achieved desc).
+    // - If no record exists for an action, initialize from questionnaire RM (if present).
+    const stateMap = new Map<string, Current1RMRecord>();
+    const latestMap = new Map<string, Current1RMRecord>();
 
-    // 处理 PR 记录 (由于 SQL order by desc，第一条出现的记录就是该动作最高值)
-    (prResult.data || []).forEach((record) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (prResult.data || []).forEach((record: any) => {
         const key = record.action_id || record.exercise_name;
-        if (!recordsMap.has(key)) {
-            recordsMap.set(key, {
-                actionId: record.action_id,
-                actionName: record.exercise_name,
-                current1RM: record.e1rm,
-                lastUpdated: record.date_achieved,
-                isAutoCalculated: !!record.is_auto_calculated,
-            });
+        if (!key) return;
+
+        const item: Current1RMRecord = {
+            actionId: record.action_id,
+            actionName: record.exercise_name,
+            current1RM: record.e1rm,
+            lastUpdated: record.date_achieved || record.created_at || new Date().toISOString(),
+            isAutoCalculated: !!record.is_auto_calculated,
+        };
+
+        // Prefer latest AUTO_STATE (query is ordered desc, first hit is latest)
+        if (record.notes === "AUTO_STATE") {
+            if (!stateMap.has(key)) stateMap.set(key, item);
+        } else {
+            if (!latestMap.has(key)) latestMap.set(key, item);
         }
     });
 
-    // 合并问卷数据 (取两者中的最大值)
+    // Merge: state overrides latest for the same key
+    const recordsMap = new Map<string, Current1RMRecord>();
+    for (const [k, v] of latestMap.entries()) recordsMap.set(k, v);
+    for (const [k, v] of stateMap.entries()) recordsMap.set(k, v);
+
+    // 合并问卷数据（初始化基线：只在没有任何记录时使用）
     Object.entries(questionnaireRMMap).forEach(([id, rmValue]) => {
-        const existing = recordsMap.get(id);
-        if (!existing || rmValue > existing.current1RM) {
+        if (!recordsMap.has(id)) {
             recordsMap.set(id, {
                 actionId: id,
-                actionName: existing?.actionName || id,
+                actionName: id,
                 current1RM: rmValue,
-                lastUpdated: existing?.lastUpdated || new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
                 isAutoCalculated: false,
             });
         }
