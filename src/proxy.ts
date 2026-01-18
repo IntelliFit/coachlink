@@ -36,14 +36,23 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
-    // 公共路由 或者 鉴权路由直接放行
-    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
-        return NextResponse.next();
-    }
+
 
     // 仅当访问受保护资源时才解码 token
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
+    
+    // 公共路由 或者 鉴权路由直接放行
+    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+        if (pathname === "/") {
+            const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+            const isAuthenticated = !!token;
+            if (isAuthenticated) {
+                return NextResponse.redirect(`${origin}/today-training`);
+            }
+        }
+        return NextResponse.next();
+    }
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {

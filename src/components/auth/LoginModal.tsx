@@ -139,10 +139,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
             } else {
                 // Close modal and redirect to dashboard/home after successful login
-                onClose(true);
+                onClose(false);
+
                 // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
                 if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                    router.push('/');
+                    router.push('/today-training');
                 } else {
                     router.refresh();
                 }
@@ -179,8 +180,19 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             onHide={() => onClose(true)}
             showHeader={false}
             className="border-none shadow-2xl rounded-3xl overflow-hidden"
-            style={{ width: '850px', maxWidth: '95vw' }}
+            style={{ width: '850px' }}
             contentClassName="p-0"
+            pt={{
+                root: {
+                    className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
+                },
+                header: {
+                    className: 'p-8 pb-4 border-none bg-surface sm:rounded-t-[24px] rounded-t-none'
+                },
+                content: {
+                    className: 'text-xl font-black tracking-tight sm:rounded-b-[24px] rounded-b-none'
+                }
+            }}
         >
             <div className="flex flex-col md:flex-row min-h-[550px] bg-surface">
                 {/* 左侧品牌区域 - 延续导航栏风格 */}
@@ -235,7 +247,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
 
                 {/* 右侧表单区域 */}
-                <div className="flex-1 p-8 md:p-14 flex flex-col justify-center relative">
+                <div className="flex-1 p-8 md:p-14 flex flex-col justify-center relative min-h-screen sm:min-h-[unset]">
                     <button
                         onClick={() => onClose(true)}
                         className="absolute top-6 right-6 p-2 text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-surface-50 rounded-full transition-all"
