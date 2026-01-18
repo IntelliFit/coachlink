@@ -7,6 +7,7 @@ const PUBLIC_PATHS = new Set([
     "/login",
     "/register",
     "/api/auth",
+    "/api/miniapp/login", // 小程序登录接口
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
