@@ -43,7 +43,7 @@ const StatCard = ({
     if (variant === 'row') {
         return (
             <CardWrapper>
-                <div className="bg-white border border-surface-200 rounded-2xl px-3 py-2.5 transition-all duration-300 hover:border-primary-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.99]">
+                <div className="bg-white dark:bg-surface-50 border border-surface-200 rounded-2xl px-3 py-2.5 transition-all duration-300 hover:border-primary-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.99]">
                     <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-xl ${colorClass} transition-colors shrink-0`}>
                             <Icon className="w-4 h-4" />
@@ -85,7 +85,7 @@ const StatCard = ({
 
     return (
         <CardWrapper>
-            <div className="relative h-full bg-white border border-surface-200 p-3 sm:p-5 rounded-2xl transition-all duration-300 hover:border-primary-500 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.99]">
+            <div className="relative h-full bg-white dark:bg-surface-50 border border-surface-200 p-3 sm:p-5 rounded-2xl transition-all duration-300 hover:border-primary-500 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.99]">
                 <div className="flex justify-between items-start mb-2 sm:mb-4">
                     <div className={`p-2 rounded-xl ${colorClass} transition-colors`}>
                         <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
