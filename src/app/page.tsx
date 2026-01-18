@@ -94,14 +94,10 @@ export default function Home() {
             </div>
 
             {/* Hero 主体 */}
-            <section className="relative z-10 text-center max-w-4xl mb-12 sm:mb-24 mt-4 sm:mt-10">
-                {/* 顶部小标：使用 surface-600 */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 border border-orange-100 text-orange-600 text-sm font-bold mb-6 sm:mb-10 shadow-sm">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                    </span>
-                    连接运动梦想 · 成就专业价值
+            <section className="relative z-10 text-center max-w-4xl mb-20 pt-20 sm:pt-auto sm:mb-24 mt-4 sm:mt-10">
+
+                <div>
+                    <img src="/favicon.jpg" alt="" className="sm:hidden w-[150px] rounded-2xl mx-auto mb-4" />
                 </div>
 
                 {/* 主标题：使用最深的 surface-900 */}
@@ -109,45 +105,20 @@ export default function Home() {
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600">
                         CoachLink 教链
                     </span>
-                    <br />
-                    <span className="text-3xl sm:text-4xl md:text-6xl text-surface-800 mt-4 sm:mt-6 block font-bold tracking-tight">
-                        教练与学员的智能连接平台
-                    </span>
+
                 </h1>
 
                 {/* 副标题：使用中性的 surface-500 和强调的 surface-900 */}
-                <p className="text-base sm:text-lg md:text-xl text-surface-500 leading-relaxed mb-8 sm:mb-12 max-w-2xl mx-auto font-medium">
-                    不仅仅是训练工具，更是您的专属运动管家。
+                <p className="text-sm sm:text-lg md:text-xl text-surface-500 leading-relaxed mb-8 sm:mb-12 max-w-2xl mx-auto font-medium">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600">教链</span> 不仅仅是训练工具，更是您的专属运动管家。
                     <br />
                     我们将专业的 <span className="text-surface-900 font-bold underline decoration-orange-200 underline-offset-4">教练指导</span> 与 <span className="text-surface-900 font-bold underline decoration-orange-200 underline-offset-4">智能化数据分析</span> 完美融合。
                 </p>
 
-                {/* Mobile: 核心卖点一行（自动滚动）放在 CTA 上方 */}
-                <div className="sm:hidden mb-6">
-                    <div className="overflow-hidden -mx-4 px-4">
-                        <div className="marquee-track flex gap-3 w-max">
-                            {featureMarquee.map((feature, idx) => (
-                                <div
-                                    key={idx}
-                                    aria-hidden={idx >= features.length}
-                                    className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-surface border border-surface-100 shadow-sm"
-                                >
-                                    <div className={`w-9 h-9 ${feature.color} text-surface rounded-xl flex items-center justify-center shadow-md shadow-surface-100`}>
-                                        <feature.icon size={18} strokeWidth={2.5} />
-                                    </div>
-                                    <div className="text-sm font-black text-surface-900 tracking-tight whitespace-nowrap">
-                                        {feature.title}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
                 {/* Mobile: 不要被 flex-col 默认 stretch 拉满导致“看起来被放大” */}
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-5">
+                <div className="flex flex-row justify-center items-center gap-4 sm:gap-5">
                     <Button
-                        className="group font-bold w-[82vw] max-w-[320px] sm:w-auto px-7 sm:px-10 py-3 sm:py-4 bg-orange-500 border-none rounded-2xl shadow-xl shadow-orange-200 dark:shadow-orange-700 hover:bg-orange-600 transition-all active:scale-95 text-white text-base sm:text-lg"
+                        className="group font-bold w-auto sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 bg-orange-500 border-none rounded-2xl shadow-xl shadow-orange-200 dark:shadow-orange-700 hover:bg-orange-600 transition-all active:scale-95 text-white text-sm sm:text-lg"
                         onClick={handleStartTraining}
                     >
                         <span className="flex items-center justify-center gap-2">
@@ -158,7 +129,7 @@ export default function Home() {
                     {/* 次要按钮：文字使用 surface-700 */}
                     <Button
                         outlined
-                        className="font-bold w-[82vw] max-w-[320px] sm:w-auto px-7 sm:px-10 py-3 sm:py-4 rounded-2xl transition-all active:scale-95 text-base sm:text-lg"
+                        className="font-bold w-auto sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 rounded-2xl transition-all active:scale-95 text-sm sm:text-lg"
                         onClick={() => router.push('/coach/application')}
                     >
                         入驻成为教练
@@ -166,39 +137,108 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* 核心亮点网格 */}
-            <section className="relative z-10 max-w-7xl w-full px-4 mb-16 sm:mb-32">
-                <div className="text-center mb-8 sm:mb-16">
-                    <h2 className="text-3xl sm:text-4xl font-black mb-3 sm:mb-4 tracking-tight text-surface-900">
-                        重新定义你的训练体验
+            <br />
+            <br />
+
+            {/* 核心亮点网格 (Aero-Productivity 优化版) */}
+            <section className="relative z-10 max-w-7xl w-full px-4 mt-20 mb-12 sm:mb-40 transition-all">
+                {/* 头部排版：紧凑型字间距与呼吸感控制 */}
+                <div className="text-center mb-12 sm:mb-24 px-6">
+                    <h2 className="text-3xl sm:text-5xl font-black mb-4 tracking-tighter text-surface-900 leading-tight">
+                        重新定义 <span className="text-primary-500">训练体验</span>
                     </h2>
-                    <p className="text-surface-500 font-medium text-base sm:text-lg">
+                    <p className="text-surface-500 font-medium text-base sm:text-xl tracking-tight max-w-2xl mx-auto opacity-80">
                         每一个细节，都为了更高效、更科学、更强大的你
                     </p>
                 </div>
 
-                {/* Mobile 端卖点条已放到 CTA 上方，这里不重复展示 */}
+                {/* Mobile: 跑马灯组件优化 - 强化边缘消失感与物理质感 */}
+                <div className="sm:hidden mb-12 relative">
+                    {/* 左右渐变边缘：利用 surface 背景色实现呼吸感过渡 */}
+                    <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-surface to-transparent z-10 pointer-events-none" />
+                    <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-surface to-transparent z-10 pointer-events-none" />
 
-                {/* Desktop/Pad: 网格展示 */}
-                <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="overflow-hidden">
+                        <div className="marquee-track flex gap-4 w-max py-2">
+                            {featureMarquee.map((feature, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-surface border border-surface-100/50 shadow-sm active:scale-[0.96] transition-transform duration-200"
+                                >
+                                    {/* 低饱和功能色图标背景：50级底色 + 600级深字 */}
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-inner
+                                        ${feature.color.replace('bg-', 'bg-').replace('-500', '-50')} 
+                                        ${feature.color.replace('bg-', 'text-').replace('-500', '-600')}`}
+                                    >
+                                        <feature.icon size={20} strokeWidth={2.5} />
+                                    </div>
+                                    <span className="text-[15px] font-bold text-surface-900 tracking-tight whitespace-nowrap">
+                                        {feature.title}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Desktop/Pad: 网格展示 - 物理反馈与层次深度 */}
+                <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                     {features.map((feature, idx) => (
                         <div
                             key={idx}
-                            className="group p-6 lg:p-8 rounded-[2rem] bg-surface border border-surface-100 shadow-sm hover:shadow-xl hover:shadow-surface-200/50 transition-all duration-300 hover:-translate-y-1"
+                            className={`
+                                group relative p-8 rounded-[2rem] bg-surface 
+                                border border-surface-200/30 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]
+                                hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] 
+                                hover:-translate-y-2 active:scale-[0.98]
+                                transition-all duration-500 ease-out
+                            `}
                         >
-                            <div className={`w-12 h-12 ${feature.color} text-surface rounded-xl flex items-center justify-center mb-6 shadow-md shadow-surface-100 group-hover:scale-110 transition-transform duration-300`}>
-                                <feature.icon size={24} strokeWidth={2.5} />
+                            {/* 图标区域：物理缩放与色相映射 */}
+                            <div className={`
+                                w-14 h-14 rounded-2xl flex items-center justify-center mb-8
+                                shadow-sm group-hover:shadow-md group-hover:scale-110 
+                                transition-all duration-500 ease-out rotate-3 group-hover:rotate-0
+                                ${feature.color.replace('bg-', 'bg-').replace('-500', '-50')} 
+                                ${feature.color.replace('bg-', 'text-').replace('-500', '-600')}
+                            `}>
+                                <feature.icon size={28} strokeWidth={2.2} />
                             </div>
-                            <h3 className="text-xl font-bold text-surface-900 mb-3 tracking-tight leading-snug line-clamp-2">
+
+                            {/* 标题：数值中心化视觉逻辑 */}
+                            <h3 className="text-xl font-black text-surface-900 mb-3 tracking-tighter leading-snug">
                                 {feature.title}
                             </h3>
-                            <p className="text-surface-500 text-sm leading-relaxed font-medium line-clamp-2">
+
+                            {/* 描述：信息约束与低对比度辅助色 */}
+                            <p className="text-surface-500 text-[15px] leading-relaxed font-medium line-clamp-2 opacity-80 group-hover:opacity-100 transition-opacity">
                                 {feature.desc}
                             </p>
+
+                            {/* 底部微动效装饰线 */}
+                            <div className={`
+                                absolute bottom-6 left-8 right-8 h-1 rounded-full scale-x-0 group-hover:scale-x-100 
+                                transition-transform duration-700 origin-left opacity-20
+                                ${feature.color}
+                            `} />
                         </div>
                     ))}
                 </div>
             </section>
+
+            {/* 自定义滚动动画逻辑 */}
+            <style jsx global>{`
+                @keyframes marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+                .marquee-track {
+                    animation: marquee 25s linear infinite;
+                }
+                .marquee-track:active {
+                    animation-play-state: paused;
+                }
+            `}</style>
 
             {/* 未来工具箱预告 */}
             {/* 未来工具箱预告 - 仿照 Ranking 样式的深度改造 */}
@@ -243,9 +283,9 @@ export default function Home() {
                             <div className="hidden sm:flex flex-wrap justify-center gap-4">
                                 {['体态分析', '极限估算'].map((item, i) => (
                                     <span key={`more-${i}`} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm font-medium backdrop-blur-sm">
-                                    {item}
-                                </span>
-                            ))}
+                                        {item}
+                                    </span>
+                                ))}
                             </div>
                         </div>
 

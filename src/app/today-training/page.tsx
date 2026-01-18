@@ -18,6 +18,7 @@ import RestDayCard from './RestDayCard';
 import BrowseSection from './BrowseSection';
 
 import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
+import { Avatar } from 'primereact/avatar';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -76,40 +77,41 @@ const TodayTrainingPage: React.FC = () => {
 
             const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
 
-            // 2. 加载教练计划：批量请求，一次拿到第一个可用计划（更快，且不依赖“第一个订阅一定有计划”）
+            // --- 1. 定义并行请求任务 ---
+            // 将教练计划的探测逻辑与自建计划的获取逻辑放在同一个并行队列中
+            const [coachPlanResults, selfPlanResult] = await Promise.allSettled([
+                // 教练计划任务：如果是活跃订阅，则批量探测
+                activeSubs.length > 0
+                    ? Promise.allSettled(activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id })))
+                    : Promise.resolve([]),
+
+                // 自建计划任务
+                planLibService.getInstance({ fetchSelf: true })
+            ]);
+
+            // --- 2. 处理并行回填数据 ---
             let coachRes: any = null;
             let coachSub: any = null;
-            if (activeSubs.length > 0) {
-                try {
-                    coachRes = await planLibService.getInstance({
-                        subscriptionIds: activeSubs.map((s: any) => s.id),
-                    } as any);
-                    const matchedSubId = (coachRes as any)?.matchedSubscriptionId;
-                    coachSub = matchedSubId
-                        ? activeSubs.find((s: any) => s.id === matchedSubId) || null
-                        : null;
-                } catch (e) {
-                    // fallback: old behavior (per-subscription probing)
-                    const settled = await Promise.allSettled(
-                        activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id })),
-                    );
-                    for (let i = 0; i < settled.length; i++) {
-                        const r = settled[i];
-                        if (r.status === 'fulfilled' && r.value?.instance) {
-                            coachRes = r.value;
-                            coachSub = activeSubs[i];
-                            break;
-                        }
+            let selfRes: any = null;
+
+            // 解析教练计划逻辑 (从 allSettled 的第一个结果中提取)
+            if (coachPlanResults.status === 'fulfilled' && Array.isArray(coachPlanResults.value)) {
+                const settledSubTasks = coachPlanResults.value;
+                for (let i = 0; i < settledSubTasks.length; i++) {
+                    const r = settledSubTasks[i];
+                    if (r.status === 'fulfilled' && r.value?.instance) {
+                        coachRes = r.value;
+                        coachSub = activeSubs[i];
+                        break; // 找到第一个有内容的计划即停止
                     }
                 }
             }
 
-            // 3. 加载自建计划：独立 try/catch，避免任意一个请求失败导致两个都丢失
-            let selfRes: any = null;
-            try {
-                selfRes = await planLibService.getInstance({ fetchSelf: true });
-            } catch (e) {
-                console.error('[today-training] Failed to load self plan:', e);
+            // 解析自建计划逻辑 (从 allSettled 的第二个结果中提取)
+            if (selfPlanResult.status === 'fulfilled') {
+                selfRes = selfPlanResult.value;
+            } else {
+                console.error('[today-training] 自建计划加载失败:', selfPlanResult.reason);
                 selfRes = null;
             }
 
@@ -304,34 +306,66 @@ const TodayTrainingPage: React.FC = () => {
     const handleViewHistory = () => {
         router.push('/me/plan-history');
     };
-
     if (loading) {
         return (
-            <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
-                {/* 教练卡片骨架 */}
-                <div className="h-24 bg-gray-200 rounded-2xl mb-8"></div>
-
-                {/* 今日训练标题骨架 */}
-                <div className="flex justify-between items-center mb-6">
-                    <div className="h-8 bg-gray-200 w-48 rounded-lg"></div>
-                    <div className="h-6 bg-gray-200 w-24 rounded-lg"></div>
-                </div>
-
-                {/* 主卡片骨架 */}
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex gap-4 mb-6">
-                        <div className="w-20 h-20 bg-gray-100 rounded-2xl"></div>
-                        <div className="flex-1 space-y-3">
-                            <div className="h-6 bg-gray-100 w-1/3 rounded"></div>
-                            <div className="h-4 bg-gray-100 w-1/2 rounded"></div>
+            <div className="max-w-6xl mx-auto px-4 py-8">
+                {/* 1. 教练卡片骨架：模拟大圆角硬件感 */}
+                <div className="p-4 bg-surface border border-surface-100/50 rounded-2xl mb-8 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <Skeleton shape="circle" size="3.5rem" className="bg-surface-100/50" />
+                        <div className="flex-1 space-y-2">
+                            <Skeleton width="30%" height="1.25rem" className="bg-surface-100/50 rounded-lg" />
+                            <Skeleton width="50%" height="0.75rem" className="bg-surface-100/50 rounded-lg" />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="h-20 bg-gray-50 rounded-xl"></div>
-                        <div className="h-20 bg-gray-50 rounded-xl"></div>
-                        <div className="h-20 bg-gray-50 rounded-xl"></div>
+                </div>
+
+                {/* 2. 标题区：保持紧凑型布局预占位 */}
+                <div className="flex justify-between items-end mb-8 px-1">
+                    <div className="space-y-2">
+                        <Skeleton width="120px" height="2rem" className="bg-surface-200/30 rounded-lg" />
+                        <Skeleton width="180px" height="0.75rem" className="bg-surface-100/50 rounded-lg" />
+                    </div>
+                    <Skeleton width="80px" height="2.5rem" className="bg-surface-100/50 rounded-xl" />
+                </div>
+
+                {/* 3. 主训练卡片：核心指标中心化布局预占位 */}
+                <div className="bg-surface rounded-[2rem] p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] border border-surface-100/50">
+                    <div className="flex flex-col sm:flex-row gap-6 mb-10">
+                        {/* 模拟动作缩略图 */}
+                        <Skeleton width="100px" height="100px" className="bg-surface-100/50 rounded-2xl shrink-0" />
+
+                        <div className="flex-1 space-y-4 py-2">
+                            {/* 模拟动作名称（Black/Bold 风格） */}
+                            <Skeleton width="40%" height="1.75rem" className="bg-surface-200/40 rounded-lg" />
+                            <div className="flex gap-2">
+                                <Skeleton width="60px" height="1.25rem" className="bg-primary-50/50 rounded-full" />
+                                <Skeleton width="80px" height="1.25rem" className="bg-surface-100/50 rounded-full" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 4. 核心指标网格：3列等高预占 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="p-6 rounded-2xl bg-surface-50/50 border border-surface-100/30 flex flex-col items-center gap-3">
+                                <Skeleton width="40px" height="0.75rem" className="bg-surface-200/30 rounded" />
+                                <Skeleton width="60%" height="1.5rem" className="bg-surface-200/50 rounded-lg" />
+                            </div>
+                        ))}
                     </div>
                 </div>
+
+                {/* 微弱的周期性动画：Aero-Productivity 风格不需要剧烈的闪烁 */}
+                <style jsx global>{`
+                .p-skeleton::after {
+                    background: linear-gradient(90deg, 
+                        rgba(var(--surface-100-rgb), 0), 
+                        rgba(var(--surface-200-rgb), 0.3), 
+                        rgba(var(--surface-100-rgb), 0)
+                    ) !important;
+                }
+            `}</style>
             </div>
         );
     }
@@ -445,7 +479,7 @@ const TodayTrainingPage: React.FC = () => {
     const todayTraining = trainingDays.find(d => d.dayIndex === todayDayIndex);
 
     return (
-        <div className="min-h-screen bg-surface-50 pb-12">
+        <div className="min-h-screen bg-surface pb-12">
             {/* 确认对话框 */}
             <ConfirmDialog />
 
@@ -465,10 +499,10 @@ const TodayTrainingPage: React.FC = () => {
             <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
                 {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
                 {hasBothPlans && (
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl mb-6 w-full sm:w-fit">
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit">
                         <button
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${planMode === 'coach'
-                                ? 'bg-white text-slate-900 shadow-sm'
+                                ? 'bg-surface text-slate-900 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                             onClick={() => setPlanMode('coach')}
@@ -478,7 +512,7 @@ const TodayTrainingPage: React.FC = () => {
                         </button>
                         <button
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${planMode === 'self'
-                                ? 'bg-white text-slate-900 shadow-sm'
+                                ? 'bg-surface text-slate-900 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                             onClick={() => setPlanMode('self')}
@@ -490,7 +524,7 @@ const TodayTrainingPage: React.FC = () => {
                 )}
                 {/* --- 顶部教练信息卡片 (仅当有订阅且当前计划不是自建时显示，或者即使是自建也可以不显示教练卡片) --- */}
                 {subscription?.coach && instance?.source !== 'self' && (
-                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
+                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-surface shadow-2xl shadow-surface-100 dark:shadow-slate-700">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-blue-500/10 rounded-full blur-2xl"></div>
@@ -498,11 +532,12 @@ const TodayTrainingPage: React.FC = () => {
                         <div className="relative z-10 flex items-center justify-between">
                             <div className="flex items-center space-x-5">
                                 <div className="relative">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
-                                        <span className="text-2xl font-black italic">
-                                            {subscription.coach.name?.charAt(0) || 'C'}
-                                        </span>
-                                    </div>
+                                    <Avatar
+                                        label={subscription.coach.name?.charAt(0) || 'C'}
+                                        image={subscription.coach.avatar_url}
+                                        shape="circle"
+                                        className="w-16 h-16 bg-white text-primary-500 font-bold"
+                                    ></Avatar>
                                     {/* 在线状态点 */}
                                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-slate-900 rounded-full"></div>
                                 </div>
@@ -512,7 +547,7 @@ const TodayTrainingPage: React.FC = () => {
                                         <span className="px-2 py-0.5 bg-primary-500/20 text-primary-300 text-[10px] font-bold uppercase tracking-wider rounded">PRO COACH</span>
                                         <span className="text-slate-400 text-xs font-medium italic">Assigning your path</span>
                                     </div>
-                                    <h2 className="text-2xl font-bold tracking-tight">
+                                    <h2 className="text-2xl text-surface-50 font-bold tracking-tight">
                                         {subscription.coach.name || '未知教练'}
                                     </h2>
                                     <p className="text-slate-400 text-sm font-medium">
@@ -521,7 +556,7 @@ const TodayTrainingPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="hidden md:block text-right border-l border-white/10 pl-8">
+                            <div className="hidden md:block text-right border-l border-surface/10 pl-8">
                                 <div className="text-slate-400 text-xs uppercase mb-1">训练累计</div>
                                 <div className="text-xl font-mono font-bold">128 <span className="text-sm font-normal text-slate-500">Days</span></div>
                             </div>
@@ -532,7 +567,7 @@ const TodayTrainingPage: React.FC = () => {
 
                 {/* 自建计划顶部卡片 - 带移除按钮 */}
                 {instance?.source === 'self' && (
-                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
+                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-surface shadow-2xl shadow-surface-100 dark:shadow-slate-800">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-pink-500/10 rounded-full blur-2xl"></div>
@@ -636,11 +671,11 @@ const TodayTrainingPage: React.FC = () => {
                     {/* --- 浏览区域 --- */}
                     <section className="pt-4">
                         <div className="flex items-center gap-3 mb-6 px-2">
-                            <div className="h-px flex-1 bg-slate-200"></div>
+                            <div className="h-px flex-1 bg-surface-100"></div>
                             <h4 className="text-slate-400 text-xs font-bold uppercase tracking-widest">
                                 Explore Schedule
                             </h4>
-                            <div className="h-px flex-1 bg-slate-200"></div>
+                            <div className="h-px flex-1 bg-surface-100"></div>
                         </div>
 
                         <BrowseSection
