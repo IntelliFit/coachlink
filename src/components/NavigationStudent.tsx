@@ -14,6 +14,7 @@ import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useSession, signOut, getSession } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 import {
     PlayCircle,
     Search,
@@ -175,6 +176,15 @@ export default function NavigationStudent() {
         { label: '当前计划', icon: 'pi pi-clipboard', command: () => router.push('/coach/plans') },
         { label: '我的教练', icon: 'pi pi-star', command: () => router.push('/coach/subscription') },
         { label: '我的会员', icon: 'pi pi-crown', command: () => router.push('/me/membership') },
+        ...(STUDENT_TOOLBOX_LINKS.length
+            ? [
+                {
+                    label: '工具箱',
+                    icon: 'pi pi-briefcase',
+                    command: () => router.push('/me/toolbox'),
+                },
+            ]
+            : []),
         { separator: true },
         { label: '我的好友', icon: 'pi pi-users', command: () => router.push('/friends') },
         { label: '我的动作库', icon: 'pi pi-list', command: () => router.push('/me/action-lib') },

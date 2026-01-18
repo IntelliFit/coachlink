@@ -143,10 +143,15 @@ export const MyCoachesList: React.FC<MyCoachesListProps> = ({}) => {
                             </div>
                             <div className={`px-2 py-1 rounded text-xs font-medium ${
                                 coach.status === 'active' 
-                                    ? 'bg-green-100 text-green-700' 
+                                    ? (!coach.has_plan_instance ? 'bg-primary-100 text-primary-700'
+                                        : (!coach.start_date ? 'bg-surface-100 text-surface-700'
+                                            : 'bg-green-100 text-green-700'))
                                     : 'bg-surface-100 text-surface-600'
                             }`}>
-                                {coach.status === 'active' ? '服务中' : '已过期'}
+                                {coach.status === 'active'
+                                    ? (!coach.has_plan_instance ? '制定中'
+                                        : (!coach.start_date ? '未开始' : '服务中'))
+                                    : '已过期'}
                             </div>
                         </div>
 
@@ -167,6 +172,12 @@ export const MyCoachesList: React.FC<MyCoachesListProps> = ({}) => {
                                 {(() => {
                                     if (coach.status === 'completed') {
                                         return '已完成';
+                                    }
+                                    if (coach.status === 'active' && !coach.has_plan_instance) {
+                                        return '教练正在制定计划';
+                                    }
+                                    if (coach.status === 'active' && coach.has_plan_instance && !coach.start_date) {
+                                        return '计划已下发，等待开始训练';
                                     }
                                     if (coach.end_date) {
                                         const endDate = new Date(coach.end_date);

@@ -6,6 +6,7 @@ import type {
     CheckSubscriptionDto,
     CheckSubscriptionResponseDto,
 } from "./entity";
+import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from "@/lib/subscriptionCredits";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -129,18 +130,18 @@ export async function PUT(req: Request) {
     const action = url.searchParams.get('action');
 
     if (action === 'check-expired') {
-        // 检查所有已过期的订阅并更新状态
-        const now = new Date().toISOString();
+        // B1: 按“训练日次数 credits”判断订阅是否到期（次数用完才过期）。
+        // end_date 仅用于 UI 显示的“预计完成日”，不是硬日历到期。
+        const nowIso = new Date().toISOString();
 
-        // NOTE: coach subscription end_date is "pause-aware" (auto-extended on gap days).
-        // Here we first fetch candidates by stored end_date < now, then recompute effective end_date.
-        // If effective end_date is still < now => expire; otherwise => refresh end_date.
+        // Fetch active candidates (started only); cancelled/expired ignored.
+        // NOTE: start_date is set at first execution start.
         const { data: candidates, error } = await supabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks")
-            .lt("end_date", now)  // 结束日期小于当前时间（候选）
-            .neq("status", "expired")  // 状态还不是过期
-            .neq("status", "cancelled")  // 排除已取消的订阅
+            .select("id, student_id, coach_id, status, start_date, subscribed_weeks")
+            .eq("status", "active")
+            .not("start_date", "is", null)
+            .gt("subscribed_weeks", 0);
 
         if (error) {
             console.error("检查过期订阅失败:", error);
@@ -152,97 +153,111 @@ export async function PUT(req: Request) {
         }
 
         if (candidates && candidates.length > 0) {
-            const now0 = new Date();
-            now0.setHours(0, 0, 0, 0);
-
             const candidateIds = candidates.map((c: any) => c.id);
-            const { data: instances } = await supabase
-                .from("coach_plan_instances")
-                .select("id, coach_subscription_id")
-                .in("coach_subscription_id", candidateIds);
-
-            const instanceToSub = new Map<string, string>();
-            (instances || []).forEach((r: any) => {
-                if (r?.id && r?.coach_subscription_id) instanceToSub.set(r.id, r.coach_subscription_id);
-            });
-
-            const allInstanceIds = Array.from(new Set((instances || []).map((r: any) => r.id).filter(Boolean)));
-            const subToActiveDayKeys = new Map<string, Set<string>>();
-
-            if (allInstanceIds.length > 0) {
-                const { data: execs } = await supabase
-                    .from("plan_instance_executions")
-                    .select("instance_id, started_at, status")
-                    .in("instance_id", allInstanceIds)
-                    .neq("status", "abandoned");
-
-                (execs || []).forEach((e: any) => {
-                    const subId = instanceToSub.get(e.instance_id);
-                    if (!subId) return;
-                    const startedAt = e.started_at ? new Date(e.started_at) : null;
-                    if (!startedAt) return;
-                    startedAt.setHours(0, 0, 0, 0);
-                    const key = startedAt.toISOString().slice(0, 10);
-                    const set = subToActiveDayKeys.get(subId) || new Set<string>();
-                    set.add(key);
-                    subToActiveDayKeys.set(subId, set);
-                });
-            }
-
             const toExpire: string[] = [];
             const toRefresh: Array<{ id: string; end_date: string }> = [];
 
+            // Load latest plan instance per subscription (needed for credit scope)
+            const { data: instances } = await supabase
+                .from("coach_plan_instances")
+                .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status")
+                .in("coach_subscription_id", candidateIds)
+                .order("created_at", { ascending: false });
+
+            const latestInstanceBySub = new Map<string, any>();
+            for (const inst of (instances || []) as any[]) {
+                const sid = inst?.coach_subscription_id;
+                if (!sid) continue;
+                if (!latestInstanceBySub.has(sid)) latestInstanceBySub.set(sid, inst);
+            }
+
+            const instanceIds = Array.from(latestInstanceBySub.values()).map((i: any) => i.id).filter(Boolean);
+            const { data: completedExecs } = instanceIds.length > 0
+                ? await supabase
+                    .from("plan_instance_executions")
+                    .select("instance_id, day_index, status")
+                    .in("instance_id", instanceIds)
+                    .eq("status", "completed")
+                : { data: [] as any[] };
+
+            const execsByInstance = new Map<string, any[]>();
+            (completedExecs || []).forEach((e: any) => {
+                const arr = execsByInstance.get(e.instance_id) || [];
+                arr.push(e);
+                execsByInstance.set(e.instance_id, arr);
+            });
+
             for (const sub of candidates as any[]) {
-                if (!sub?.start_date || !sub?.subscribed_weeks) {
-                    // no pause-aware window → fall back to expire
+                const weeks = Number(sub?.subscribed_weeks || 0);
+                if (!weeks || weeks <= 0) continue;
+
+                const inst = latestInstanceBySub.get(sub.id);
+                if (!inst?.training_days) continue;
+
+                const scope = computeCreditsScope({
+                    trainingDays: (inst.training_days as any[]) || [],
+                    startExecutionDay: Number(inst.start_execution_day || 1),
+                    subscribedWeeks: weeks,
+                });
+
+                const totalCredits = scope.totalCredits;
+                if (totalCredits <= 0) {
+                    // Nothing to consume; do not expire.
+                    continue;
+                }
+
+                const usedCredits = computeUsedCredits({
+                    eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
+                    executions: ((execsByInstance.get(inst.id) || []) as any[]).map((e) => ({
+                        day_index: e.day_index,
+                        status: e.status,
+                    })),
+                });
+
+                const remainingCredits = Math.max(0, totalCredits - usedCredits);
+                if (remainingCredits === 0) {
                     toExpire.push(sub.id);
                     continue;
                 }
 
-                const start0 = new Date(sub.start_date);
-                start0.setHours(0, 0, 0, 0);
-                const totalDays = Number(sub.subscribed_weeks) * 7;
-                const diffDays = Math.floor((now0.getTime() - start0.getTime()) / (1000 * 60 * 60 * 24));
-                const daysSinceStart = Math.max(1, diffDays + 1);
-                const activeDays = (subToActiveDayKeys.get(sub.id) || new Set<string>()).size;
-                const pausedDays = Math.max(0, daysSinceStart - activeDays);
-
-                const effectiveEnd = new Date(start0);
-                effectiveEnd.setDate(effectiveEnd.getDate() + totalDays + pausedDays);
-
-                if (effectiveEnd.getTime() < new Date().getTime()) {
-                    toExpire.push(sub.id);
-                } else {
-                    toRefresh.push({ id: sub.id, end_date: effectiveEnd.toISOString() });
-                }
+                // Estimate end_date for friendly UI “剩余X天” display
+                const remainingDaysEstimate = estimateRemainingDays({
+                    subscribedWeeks: weeks,
+                    totalCredits,
+                    remainingCredits,
+                    fallbackCreditsPerWeek: 3,
+                });
+                const end = new Date();
+                end.setDate(end.getDate() + remainingDaysEstimate);
+                toRefresh.push({ id: sub.id, end_date: end.toISOString() });
             }
 
             if (toRefresh.length > 0) {
-                // best-effort refresh end_date to effective one, to avoid false expirations later
                 await Promise.all(
                     toRefresh.map((r) =>
                         supabase
                             .from("coach_subscriptions")
-                            .update({ end_date: r.end_date, updated_at: now })
+                            .update({ end_date: r.end_date, updated_at: nowIso })
                             .eq("id", r.id),
                     ),
                 );
             }
 
             if (toExpire.length > 0) {
+                // Do not update status (DB constraint). Instead, set end_date to now so UI shows “已到期/已结束”.
                 const { error: updateError } = await supabase
                     .from("coach_subscriptions")
                     .update({
-                        status: "expired",
-                        updated_at: now,
+                        end_date: nowIso,
+                        updated_at: nowIso,
                     })
                     .in("id", toExpire);
 
                 if (updateError) {
-                    console.error("更新过期订阅状态失败:", updateError);
+                    console.error("更新订阅结束时间失败:", updateError);
                     return NextResponse.json({
                         success: false,
-                        message: "更新过期订阅状态失败",
+                        message: "更新订阅结束时间失败",
                         data: null,
                     }, { status: 500 });
                 }
@@ -266,7 +281,7 @@ export async function PUT(req: Request) {
 
             return NextResponse.json({
                 success: true,
-                message: `成功处理了 ${toExpire.length} 个过期订阅（刷新 ${toRefresh.length} 个订阅到期日）`,
+                message: `成功处理了 ${toExpire.length} 个订阅（结束 ${toExpire.length}，刷新 ${toRefresh.length} 个预计完成日）`,
                 data: {
                     expiredCount: toExpire.length,
                     refreshedCount: toRefresh.length,

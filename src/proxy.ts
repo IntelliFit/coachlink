@@ -35,6 +35,17 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
+    // E2E helper endpoints (dev/test only): allow bypassing auth when secret matches.
+    // This keeps Playwright E2E close-to-real while avoiding redirects to /login for API calls.
+    if (pathname.startsWith("/api/test/e2e/")) {
+        const env = process.env.NODE_ENV || "development";
+        const secret = process.env.E2E_SECRET;
+        const provided = request.headers.get("x-e2e-secret");
+        if ((env === "development" || env === "test") && (!secret || provided === secret)) {
+            return NextResponse.next();
+        }
+    }
+
     // 公共路由 或者 鉴权路由直接放行
     if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
         return NextResponse.next();

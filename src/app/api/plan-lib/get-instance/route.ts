@@ -22,28 +22,11 @@ export async function POST(req: Request) {
     const {
         id,
         subscriptionId,
+        subscriptionIds,
         fetchSelf,
     } = await req.json() as GetInstanceDto;
 
-    // --- DEBUGGING START ---
-    try {
-        const { data: debugPlans } = await supabase
-            .from("coach_plan_instances")
-            .select("id, status, source, updated_at, name")
-            .eq("student_id", userId)
-            .order("updated_at", { ascending: false })
-            .limit(5);
-
-        console.log(
-            `[get-instance DEBUG] Plans for user ${userId}:`,
-            JSON.stringify(debugPlans, null, 2),
-        );
-    } catch (e) {
-        console.error("[get-instance DEBUG] Error listing plans:", e);
-    }
-    // --- DEBUGGING END ---
-
-    if (!id && !subscriptionId && !fetchSelf) {
+    if (!id && !subscriptionId && !(subscriptionIds && subscriptionIds.length > 0) && !fetchSelf) {
         return NextResponse.json({
             success: false,
             message: "Invalid parameters",
@@ -61,11 +44,15 @@ export async function POST(req: Request) {
             .eq("coach_subscription_id", subscriptionId)
             .order("created_at", { ascending: false })
             .limit(1);
+    } else if (subscriptionIds && subscriptionIds.length > 0) {
+        // Batch mode: pick the most recently created instance among given subscription IDs.
+        // This matches today-training's "first available plan" behavior but in one request.
+        query = query
+            .in("coach_subscription_id", subscriptionIds)
+            .order("created_at", { ascending: false })
+            .limit(1);
     } else if (fetchSelf) {
         // 仅获取学员自建的计划 (source='self')
-        console.log(
-            `[get-instance] Fetching self-created plan for user: ${userId}`,
-        );
         query = query
             .eq("student_id", userId)
             .eq("source", "self") // 必须筛选 source='self'，否则会返回教练计划
@@ -76,13 +63,6 @@ export async function POST(req: Request) {
 
     // 获取计划实例
     const { data: instance, error } = await query.maybeSingle();
-
-    console.log(`[get-instance] Query Result:`, {
-        found: !!instance,
-        id: instance?.id,
-        source: instance?.source,
-        error: error?.message,
-    });
 
     if (!instance) {
         return NextResponse.json({
@@ -101,6 +81,12 @@ export async function POST(req: Request) {
             message: "Failed to fetch instance",
         }, { status: 500 });
     }
+
+    // Track which subscription matched in batch mode
+    const matchedSubscriptionId: string | undefined =
+        (subscriptionIds && subscriptionIds.length > 0)
+            ? ((instance as any).coach_subscription_id as string | undefined)
+            : undefined;
 
     // 检查用户权限（用户可能同时是教练和学员，需要检查两种身份）
     let hasPermission = false;
@@ -318,15 +304,107 @@ export async function POST(req: Request) {
         }));
     }
 
+    // Build executions map by dayIndex (pick the most recent started_at per day)
+    const executionsByDayIndex: Record<number, any> = {};
+    for (const exec of executionsList || []) {
+        const di = Number(exec?.day_index ?? 0);
+        if (!di) continue;
+        const prev = executionsByDayIndex[di];
+        if (!prev) {
+            executionsByDayIndex[di] = exec;
+            continue;
+        }
+        const prevTime = prev?.started_at ? new Date(prev.started_at).getTime() : 0;
+        const curTime = exec?.started_at ? new Date(exec.started_at).getTime() : 0;
+        if (curTime >= prevTime) {
+            executionsByDayIndex[di] = exec;
+        }
+    }
+
+    // Derive next training day info (compatible with /api/execution/get-next-training-day)
+    const startExecutionDay = Number((instance as any).start_execution_day || 1);
+    const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
+    const trainingDays = (Array.isArray(instance.training_days) ? (instance.training_days as any[]) : [])
+        .slice()
+        .sort((a, b) => getDayIndex(a) - getDayIndex(b));
+
+    const trainingOnlyDays = trainingDays.filter((d) =>
+        d?.type === "training" && getDayIndex(d) >= startExecutionDay
+    );
+    const trainingOnlyDayIndexSet = new Set(trainingOnlyDays.map((d) => getDayIndex(d)));
+
+    const completedExecs = (executionsList || []).filter((e) =>
+        e?.status === "completed" &&
+        Number(e?.day_index ?? 0) >= startExecutionDay &&
+        trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
+    );
+
+    const completionDates: Record<number, string> = {};
+    const completedDaySet = new Set<number>();
+    for (const e of completedExecs) {
+        const di = Number(e.day_index);
+        completedDaySet.add(di);
+        if (e.completed_at) {
+            // keep latest completion date if multiple
+            const prev = completionDates[di];
+            if (!prev || new Date(e.completed_at).getTime() >= new Date(prev).getTime()) {
+                completionDates[di] = e.completed_at;
+            }
+        }
+    }
+    const completedDays = Array.from(completedDaySet.values()).sort((a, b) => a - b);
+
+    // todayCompleted + todayExecutionId
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayExecution = completedExecs.find((e) => {
+        if (!e?.completed_at) return false;
+        const dt = new Date(e.completed_at);
+        return dt >= today && dt < tomorrow;
+    });
+    const todayCompleted = !!todayExecution;
+    const todayExecutionId = todayExecution?.id;
+
+    // nextDayIndex
+    let nextDayIndex = startExecutionDay;
+    for (const day of trainingOnlyDays) {
+        const di = getDayIndex(day);
+        if (!completedDaySet.has(di)) {
+            nextDayIndex = di;
+            break;
+        }
+    }
+    if (
+        trainingOnlyDays.length > 0 &&
+        trainingOnlyDays.every((d) => completedDaySet.has(getDayIndex(d)))
+    ) {
+        nextDayIndex = getDayIndex(trainingOnlyDays[0]);
+    }
+    if (trainingOnlyDays.length === 0) {
+        nextDayIndex = startExecutionDay;
+    }
+
     return NextResponse.json<ApiData<any>>({
         success: true,
         message: "获取训练计划实例成功",
         data: {
             instance,
+            matchedSubscriptionId,
             actions: Object.keys(actionsMap).length > 0
                 ? actionsMap
                 : undefined,
             executions: executionsList.length > 0 ? executionsList : undefined,
+            executionsByDayIndex: Object.keys(executionsByDayIndex).length > 0
+                ? executionsByDayIndex
+                : undefined,
+            nextDayIndex,
+            completedDays,
+            totalTrainingDays: trainingOnlyDays.length,
+            todayCompleted,
+            todayExecutionId,
+            completionDates,
         },
     });
 }

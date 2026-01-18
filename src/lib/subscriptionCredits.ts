@@ -1,0 +1,111 @@
+export type TrainingDayLike = {
+  dayIndex?: number;
+  day_index?: number;
+  type?: string | null;
+};
+
+export type ExecutionLike = {
+  day_index: number;
+  status?: string | null;
+  completed_at?: string | null;
+};
+
+export function getDayIndex(day: TrainingDayLike): number {
+  const di = Number((day as any)?.dayIndex ?? (day as any)?.day_index ?? 0);
+  return Number.isFinite(di) ? di : 0;
+}
+
+export function isTrainingDay(day: TrainingDayLike): boolean {
+  const t = (day as any)?.type;
+  // historical data sometimes omitted type; treat as training by default
+  return t === "training" || t === undefined || t === null || t === "";
+}
+
+export type CreditsScope = {
+  scopeStartDayIndex: number;
+  scopeEndDayIndex: number;
+  eligibleTrainingDayIndexSet: Set<number>;
+  totalCredits: number;
+};
+
+/**
+ * B1: “4周计划”对外口径，但内部按“训练日次数”扣减。
+ * 我们把 subscribedWeeks 转换为一个“训练日配额”，配额范围从 startExecutionDay 起算：
+ *   [startExecutionDay, startExecutionDay + subscribedWeeks*7 - 1]
+ */
+export function computeCreditsScope(params: {
+  trainingDays: TrainingDayLike[];
+  startExecutionDay?: number | null;
+  subscribedWeeks?: number | null;
+}): CreditsScope {
+  const { trainingDays } = params;
+  const startExecutionDay = Math.max(1, Number(params.startExecutionDay || 1));
+  const weeks = Math.max(0, Number(params.subscribedWeeks || 0));
+  const scopeLenDays = weeks * 7;
+  const rawScopeEnd = startExecutionDay + Math.max(0, scopeLenDays - 1);
+
+  // cap by plan max dayIndex (calendar span)
+  const maxDayIndex = Math.max(
+    0,
+    ...(trainingDays || []).map((d) => getDayIndex(d)).filter((n) => n > 0),
+  );
+  const scopeEndDayIndex = Math.min(rawScopeEnd, maxDayIndex || rawScopeEnd);
+
+  const eligibleTrainingDayIndexSet = new Set<number>();
+  for (const d of trainingDays || []) {
+    const di = getDayIndex(d);
+    if (!di) continue;
+    if (di < startExecutionDay) continue;
+    if (scopeLenDays > 0 && di > scopeEndDayIndex) continue;
+    if (isTrainingDay(d)) eligibleTrainingDayIndexSet.add(di);
+  }
+
+  return {
+    scopeStartDayIndex: startExecutionDay,
+    scopeEndDayIndex,
+    eligibleTrainingDayIndexSet,
+    totalCredits: eligibleTrainingDayIndexSet.size,
+  };
+}
+
+export function computeUsedCredits(params: {
+  eligibleTrainingDayIndexSet: Set<number>;
+  executions: ExecutionLike[];
+}): number {
+  const used = new Set<number>();
+  for (const e of params.executions || []) {
+    if (e?.status !== "completed") continue;
+    const di = Number(e.day_index);
+    if (!Number.isFinite(di)) continue;
+    if (!params.eligibleTrainingDayIndexSet.has(di)) continue;
+    used.add(di);
+  }
+  return used.size;
+}
+
+/**
+ * 将 remainingCredits 转换为“预计还需要多少自然日”用于 UI 展示。
+ * 逻辑：按计划节奏（平均每周训练次数）推算。
+ * - plannedCreditsPerWeek = totalCredits / subscribedWeeks
+ * - remainingDays ≈ remainingCredits / plannedCreditsPerWeek * 7
+ * - 如果无法推算，用 fallbackCreditsPerWeek（默认 3 次/周）
+ */
+export function estimateRemainingDays(params: {
+  subscribedWeeks: number;
+  totalCredits: number;
+  remainingCredits: number;
+  fallbackCreditsPerWeek?: number;
+}): number {
+  const weeks = Number(params.subscribedWeeks || 0);
+  const total = Number(params.totalCredits || 0);
+  const remaining = Number(params.remainingCredits || 0);
+  const fallback = Number(params.fallbackCreditsPerWeek || 3);
+
+  if (!Number.isFinite(weeks) || weeks <= 0) return 0;
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  if (!Number.isFinite(remaining) || remaining <= 0) return 0;
+
+  const plannedCreditsPerWeek = total / weeks;
+  const effectiveCreditsPerWeek = plannedCreditsPerWeek > 0 ? plannedCreditsPerWeek : (fallback > 0 ? fallback : 3);
+  return Math.max(0, Math.ceil((remaining / effectiveCreditsPerWeek) * 7));
+}

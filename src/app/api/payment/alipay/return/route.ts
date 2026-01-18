@@ -51,13 +51,7 @@ async function tryAutoConfirmSubscriptionByOrderId(orderId: string) {
         const weeks = Number(orderData?.renewAdditionalWeeks || 0);
         if (weeks > 0) {
             update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
-            if (sub.end_date) {
-                const base = new Date(sub.end_date);
-                const now = new Date();
-                const effectiveBase = base.getTime() < now.getTime() ? now : base;
-                effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
-                update.end_date = effectiveBase.toISOString();
-            }
+            // B1: end_date is estimated completion date, refreshed elsewhere.
         }
     }
 

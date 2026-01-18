@@ -110,9 +110,8 @@ export async function POST(req: Request) {
         });
     }
 
-    // NOTE: we intentionally do NOT set end_date on creation for status=inactive/waiting/active(before plan).
-    // Subscription time should start counting only when the coach actually assigns the first plan.
-    // end_date will be set at that time based on subscribed_weeks.
+    // NOTE (B1): 对外售卖“4周计划”，对内按“训练日次数(credits)”消耗。
+    // 有效期从学员第一次实际开始训练（产生第一条 execution）那天开始算，所以创建订阅时不写 start_date / end_date。
 
     // 构建插入数据
     const insertData: Record<string, unknown> = {
@@ -122,7 +121,7 @@ export async function POST(req: Request) {
         monthly_price: monthlyPrice,
         status,
         subscribe_data: subscribeData as unknown as Json,
-        start_date: new Date().toISOString(),
+        start_date: null,
         end_date: null,
     };
 
