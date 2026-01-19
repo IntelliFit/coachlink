@@ -104,7 +104,9 @@ export const authOptions: AuthOptions = {
             id: "wechat",
             name: "WeChat",
             type: "oauth",
-            wellKnown: undefined, // WeChat doesn't have a standard .well-known configuration
+            wellKnown: undefined,
+            clientId: process.env.WECHAT_APP_ID,
+            clientSecret: process.env.WECHAT_APP_SECRET,
             authorization: {
                 url: "https://open.weixin.qq.com/connect/qrconnect",
                 params: {
@@ -163,7 +165,7 @@ export const authOptions: AuthOptions = {
             profile(profile) {
                 // Map WeChat user data to NextAuth user object
                 console.log(profile);
-                
+
                 return {
                     id: profile.openid,
                     name: profile.nickname,
@@ -273,7 +275,7 @@ export const authOptions: AuthOptions = {
 
             return token;
         },
-        
+
         async session({ session, token }) {
             const user = token.user;
             if (!user) {
