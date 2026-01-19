@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { History, Trophy, Play, Calendar, Star, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
 import { Skeleton } from 'primereact/skeleton';
+import { executionService } from '@/app/service/executionService';
 
 interface PRRecord {
     id: string;
     exercise_name: string;
-    // 与 /api/execution/get-pr-records 返回保持一致
+    // 与 get-pr-records 返回保持一致
     weight: number;
     reps: number;
     e1rm?: number;
@@ -57,10 +58,16 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
     const fetchPRRecords = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/execution/get-pr-records?userId=${studentId}&limit=${limit}`);
-            const result = await res.json();
-            setPrRecords(result.success ? result.data.records : []);
-        } catch (err) { setPrRecords([]); } finally { setLoading(false); }
+            const result = await executionService.getPRRecords({
+                userId: studentId,
+                limit: limit,
+            });
+            setPrRecords(result?.records || []);
+        } catch (err) { 
+            setPrRecords([]); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
     const handleDeleteRecord = async (recordId: string) => {
