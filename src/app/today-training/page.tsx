@@ -11,6 +11,7 @@ import { Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
+import { executionService } from '@/app/service/executionService';
 import { useToastContext } from '@/context/ToastContext';
 
 import TodayTrainingCard from './TodayTrainingCard';
@@ -137,16 +138,17 @@ const TodayTrainingPage: React.FC = () => {
                 } else {
                     // fallback: legacy API
                     try {
-                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
-                        const nextDayData = await nextDayRes.json();
-                        if (nextDayData.success && nextDayData.data) {
-                            setCoachDayIndex(nextDayData.data.nextDayIndex);
-                            setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
-                            setCoachCompletionDates(nextDayData.data.completionDates || {});
+                        const nextDayData = await executionService.getNextTrainingDay({
+                            instanceId: coachRes.instance.id
+                        });
+                        if (nextDayData) {
+                            setCoachDayIndex(nextDayData.nextDayIndex);
+                            setCoachTodayCompleted(nextDayData.todayCompleted || false);
+                            setCoachCompletionDates(nextDayData.completionDates || {});
 
                             // 检查是否完成所有计划
-                            const completedCount = nextDayData.data.completedDays.length;
-                            const totalCount = nextDayData.data.totalTrainingDays;
+                            const completedCount = nextDayData.completedDays.length;
+                            const totalCount = nextDayData.totalTrainingDays;
 
                             if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
                                 // 自动标记为完成
@@ -179,16 +181,17 @@ const TodayTrainingPage: React.FC = () => {
                 } else {
                     // fallback: legacy API
                     try {
-                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
-                        const nextDayData = await nextDayRes.json();
-                        if (nextDayData.success && nextDayData.data) {
-                            setSelfDayIndex(nextDayData.data.nextDayIndex);
-                            setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
-                            setSelfCompletionDates(nextDayData.data.completionDates || {});
+                        const nextDayData = await executionService.getNextTrainingDay({
+                            instanceId: selfRes.instance.id
+                        });
+                        if (nextDayData) {
+                            setSelfDayIndex(nextDayData.nextDayIndex);
+                            setSelfTodayCompleted(nextDayData.todayCompleted || false);
+                            setSelfCompletionDates(nextDayData.completionDates || {});
 
                             // 检查是否完成所有计划
-                            const completedCount = nextDayData.data.completedDays.length;
-                            const totalCount = nextDayData.data.totalTrainingDays;
+                            const completedCount = nextDayData.completedDays.length;
+                            const totalCount = nextDayData.totalTrainingDays;
 
                             if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
                                 // 自动标记为完成

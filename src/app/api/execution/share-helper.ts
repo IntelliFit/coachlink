@@ -1,5 +1,6 @@
 import supabase from "@/lib/supabaseClient";
 import { differenceInMinutes, endOfMonth, format, startOfMonth } from "date-fns";
+import type { ApiData } from "@/types/api";
 import type { ShareInfoResponseDto } from "./entity";
 
 const SHARE_SELECT_FIELDS = `
@@ -19,7 +20,7 @@ const SHARE_SELECT_FIELDS = `
 
 type ShareInfoResult = {
     status: number;
-    body: ShareInfoResponseDto;
+    body: ApiData<ShareInfoResponseDto>;
 };
 
 function normalizeActions(raw: any): any[] {

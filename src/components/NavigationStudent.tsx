@@ -465,7 +465,7 @@ export default function NavigationStudent() {
                                     <div className="relative">
                                         <item.icon size={24} strokeWidth={item.active ? 2.5 : 2} />
                                         {item.isMessage && (
-                                            <MessageBadge className="absolute -top-1 -right-1 border-2 border-surface" />
+                                            <MessageBadge className="absolute -top-2.5 -right-2.5 border-2 border-surface" />
                                         )}
                                     </div>
                                     <span className={`text-[10px] mt-1 ${item.active ? 'font-bold' : 'font-medium'}`}>
