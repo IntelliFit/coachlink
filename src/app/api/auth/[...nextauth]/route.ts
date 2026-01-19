@@ -82,7 +82,18 @@ export const authOptions: AuthOptions = {
                     }
 
                     (user as any).password_hash = undefined;
-                    return user;
+                    
+                    // 同时获取用户档案，避免在 jwt/session callback 中访问数据库
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .single();
+                    
+                    return {
+                        ...user,
+                        profile: profile || undefined,
+                    };
                 }
 
                 // 方式 2：密码登录（手机号/邮箱 + 密码）
@@ -93,7 +104,18 @@ export const authOptions: AuthOptions = {
                     }
 
                     (user as any).password_hash = undefined;
-                    return user;
+                    
+                    // 同时获取用户档案，避免在 jwt/session callback 中访问数据库
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .single();
+                    
+                    return {
+                        ...user,
+                        profile: profile || undefined,
+                    };
                 }
 
                 // 不允许“什么都不填”或“两种都填”（避免歧义，前端也只会传一种）
@@ -212,71 +234,120 @@ export const authOptions: AuthOptions = {
                         return false;
                     }
 
+                    // Create user profile (合并到一个 insert 操作)
                     const { data: UserProfile, error: createUserProfileError } = await supabase
                         .from("user_profiles")
                         .insert({
                             user_id: newUser.id,
                             nickname: user.name || `微信用户_${user.id.slice(-4) || 'unknown'}`,
                             avatar_url: user.image,
+                            bio: "通过微信登录的用户",
                             is_active: true,
                         })
                         .select()
                         .single();
 
-                    // Create user profile
-                    await supabase
+                    if (createUserProfileError) {
+                        console.error("创建用户档案失败:", createUserProfileError);
+                    }
+
+                    // 将 profile 附加到 user 对象上，以便在 jwt callback 中使用
+                    if (UserProfile) {
+                        (user as any).profile = UserProfile;
+                        (user as any).dbUserId = newUser.id; // 保存数据库中的 user id
+                    }
+                } else {
+                    // 如果用户已存在，获取 profile 并附加到 user 对象上
+                    const { data: existingProfile } = await supabase
                         .from("user_profiles")
-                        .insert({
-                            user_id: newUser.id,
-                            bio: "通过微信登录的用户",
-                            created_at: new Date().toISOString(),
-                        });
+                        .select("*")
+                        .eq("user_id", existingUser.id)
+                        .single();
+                    
+                    if (existingProfile) {
+                        (user as any).profile = existingProfile;
+                    }
+                    (user as any).dbUserId = existingUser.id; // 保存数据库中的 user id
                 }
             }
 
             return true;
         },
-        async jwt({ token, user, account }) {
-            // If signing in with WeChat, update token with user info from DB
-            if (account?.provider === 'wechat' && user.id) {
-                // Find user by WeChat openid
-                const { data: dbUser, error } = await supabase
-                    .from("users")
-                    .select("*")
-                    .eq("wechat_openid", user.id)
-                    .single();
+        async jwt({ token, user, account }) {            
+            // 如果用户首次登录，将 user 和 profile 信息存储到 token 中
+            if (user) {
+                if (account?.provider === 'wechat' && user.id) {
+                    // 微信登录：从 signIn callback 中已经获取了 user 和 profile
+                    // 需要通过 dbUserId 或 wechat_openid 查找数据库中的用户
+                    const dbUserId = (user as any).dbUserId;
+                    if (dbUserId) {
+                        // 从数据库获取完整的用户信息（仅在首次登录时）
+                        const { data: dbUser } = await supabase
+                            .from("users")
+                            .select("*")
+                            .eq("id", dbUserId)
+                            .single();
 
-                if (dbUser) {
-                    (dbUser as any).password_hash = undefined;
-                    token.user = dbUser;
+                        if (dbUser) {
+                            dbUser.password_hash = undefined;
+                            token.user = dbUser;
+                            // 如果 signIn callback 中已经获取了 profile，直接使用
+                            // 确保 profile 总是被设置（即使为 undefined）
+                            token.profile = (user as any).profile;
+                        } else {
+                            // 如果查询失败，仍然设置 profile（从 signIn callback 中获取）
+                            token.profile = (user as any).profile;
+                        }
+                    } else {
+                        // 如果 signIn callback 中没有设置 dbUserId，回退到原来的逻辑（向后兼容）
+                        const { data: dbUser } = await supabase
+                            .from("users")
+                            .select("*")
+                            .eq("wechat_openid", user.id)
+                            .single();
+
+                        if (dbUser) {
+                            (dbUser as any).password_hash = undefined;
+                            token.user = dbUser;
+                            
+                            // 获取 profile（回退逻辑，应该不会执行到这里）
+                            const { data: profile } = await supabase
+                                .from("user_profiles")
+                                .select("*")
+                                .eq("user_id", dbUser.id)
+                                .single();
+                            
+                            // 确保 profile 总是被设置
+                            token.profile = profile || undefined;
+                        }
+                    }
+                } else {
+                    // 普通登录（手机号/邮箱）：user 对象中已经包含了 profile
+                    // 先提取 profile，避免它被包含在 token.user 中
+                    const profile = (user as any).profile;
+                    const { profile: _, ...userWithoutProfile } = user as any;                                        
+                    token.user = user;
+
+                    // 如果没有 profile 请求获取
+                    if (!profile) {
+                        const { data } = await supabase
+                            .from("user_profiles")
+                            .select("*")
+                            .eq("user_id", user.id)
+                            .single();
+
+                        token.profile = data;
+                    } else {
+
+                        token.profile = profile;
+                    }
                 }
-            } else if (user) {
-                token.user = {
-                    ...user,
-                    admin_permissions: user.admin_permissions || [],
-                    admin_role: user.admin_role || '',
-                    is_admin: user.is_admin ?? false,
-                    is_coach: user.is_coach ?? false,
-                    coach_status: user.coach_status || '',
-                    created_at: user.created_at || '',
-                    updated_at: user.updated_at || '',
-                    email: user.email || '',
-                    has_drawn: user.has_drawn ?? false,
-                    invitation_coach_id: user.invitation_coach_id || null,
-                    last_login_at: user.last_login_at || null,
-                    password_hash: user.password_hash || '',
-                    phone: user.phone || '',
-                    primary_role: user.primary_role || 'student',
-                    subscription_expires_at: user.subscription_expires_at || null,
-                    subscription_level: user.subscription_level || null,
-                    wechat_openid: user.wechat_openid || '',
-                };
             }
 
             return token;
         },
 
-        async session({ session, token }) {
+        async session({ session, token }) {            
             const user = token.user;
             if (!user) {
                 // 说明此时没有登陆
@@ -286,45 +357,9 @@ export const authOptions: AuthOptions = {
             (user as any).password_hash = undefined;
             session.user = token.user;
 
-            // 统一以 coaches 表为教练资格真源；users 仅同��� is_admin / primary_role
-            // 有一条 coaches.status='approved' 且 user_id 匹配，则视为具备教练资格
-            const { data: coachRow } = await supabase
-                .from("coaches")
-                .select("id, status")
-                .eq("user_id", user.id)
-                .eq("status", "approved")
-                .maybeSingle();
-
-            const isCoach = !!coachRow;
-
-            // is_admin / primary_role 仍从 users 读取，避免影响后台权限与用户主动切换的角色偏好
-            const { data: currentUser } = await supabase
-                .from("users")
-                .select("is_admin, primary_role")
-                .eq("id", user.id)
-                .single();
-
-            session.user.is_coach = isCoach;
-            session.user.is_admin = currentUser?.is_admin ?? false;
-            session.user.coach_status = isCoach ? "approved" : "none";
-            // 若用户已具备教练资格但主动切换到学员端，应尊重 users.primary_role
-            // 默认优先使用 users.primary_role；缺省时才根据 isCoach 兜底
-            session.user.primary_role = currentUser?.primary_role
-                ?? (isCoach ? "coach" : "student");
-
-            const { data: profile, error } = await supabase
-                .from("user_profiles")
-                .select("*")
-                .eq("user_id", user.id)
-                .single();
-
-            if (error) {
-                console.error("获取用户档案失败：", error);
-            }
-
-            if (profile) {
-                session.profile = profile;
-            }
+            // 直接从 token 中获取 profile，避免访问数据库
+            // token.profile 应该总是被设置（即使为 undefined）
+            session.profile = token.profile as any;
 
             return session;
         },

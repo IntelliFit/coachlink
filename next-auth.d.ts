@@ -10,6 +10,7 @@ declare module 'next-auth' {
      */
     interface User extends DefaultUser, Partial<UsersRow> {
         id: string; // 确保 id 是必须的
+        profile?: UserProfilesRow; // 用户档案信息，在 authorize 中获取
     }
 
     /**
@@ -38,6 +39,7 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
     interface JWT {
         user: UsersRow
+        profile?: UserProfilesRow // 用户档案信息，避免在 session callback 中访问数据库
     }
 }
 

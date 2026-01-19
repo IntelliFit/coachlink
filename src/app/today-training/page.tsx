@@ -61,166 +61,211 @@ const TodayTrainingPage: React.FC = () => {
     const completionDates = planMode === 'coach' ? coachCompletionDates : selfCompletionDates;
 
     useEffect(() => {
-        if (session?.user?.id) {
-            loadData();
-        }
+        if (!session?.user?.id) return;
+
+        // 并行加载所有数据
+        const loadAllData = async () => {
+            try {
+                setLoading(true);
+
+                // 1. 先加载订阅信息（其他数据依赖此信息）
+                const activeSubs = await loadSubscriptions();
+
+                // 2. 并行加载教练计划和自建计划
+                const [coachPlanData, selfPlanData] = await Promise.allSettled([
+                    loadCoachPlan(activeSubs),
+                    loadSelfPlan(),
+                ]);
+
+                // 3. 处理加载结果
+                const coachResult = coachPlanData.status === 'fulfilled' ? coachPlanData.value : null;
+                const selfResult = selfPlanData.status === 'fulfilled' ? selfPlanData.value : null;
+
+                // 4. 并行处理计划数据（可以独立处理）
+                await Promise.all([
+                    processCoachPlan(coachResult, activeSubs),
+                    processSelfPlan(selfResult),
+                ]);
+
+                // 5. 设置默认显示模式（依赖两个计划的结果）
+                setDefaultPlanMode(coachResult, selfResult);
+
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast({
+                    severity: 'error',
+                    summary: '加载失败',
+                    detail: '无法加载训练数据，请稍后重试',
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAllData();
     }, [session?.user?.id]);
 
-    const loadData = async () => {
+    // 1. 加载订阅信息
+    const loadSubscriptions = async () => {
+        const subsResponse = await subscriptionService.getCoachSubscriptions({
+            studentId: session?.user?.id || '',
+            computePauseAwareEndDate: false,
+        });
+
+        const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
+        return activeSubs;
+    };
+
+    // 2. 加载教练计划
+    const loadCoachPlan = async (activeSubs: any[]) => {
+        if (activeSubs.length === 0) {
+            return null;
+        }
+
+        const coachPlanResults = await Promise.allSettled(
+            activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id }))
+        );
+
+        // 找到第一个有内容的计划
+        for (let i = 0; i < coachPlanResults.length; i++) {
+            const r = coachPlanResults[i];
+            if (r.status === 'fulfilled' && r.value?.instance) {
+                return {
+                    planData: r.value,
+                    subscription: activeSubs[i],
+                    allSubs: activeSubs,
+                };
+            }
+        }
+
+        return {
+            planData: null,
+            subscription: null,
+            allSubs: activeSubs,
+        };
+    };
+
+    // 3. 加载自建计划
+    const loadSelfPlan = async () => {
         try {
-            setLoading(true);
+            const selfRes = await planLibService.getInstance({ fetchSelf: true });
+            return selfRes;
+        } catch (error) {
+            console.error('[today-training] 自建计划加载失败:', error);
+            return null;
+        }
+    };
 
-            // 1. 获取订阅
-            const subsResponse = await subscriptionService.getCoachSubscriptions({
-                studentId: session?.user?.id || '',
-                computePauseAwareEndDate: false,
-            });
-
-            const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
-
-            // --- 1. 定义并行请求任务 ---
-            // 将教练计划的探测逻辑与自建计划的获取逻辑放在同一个并行队列中
-            const [coachPlanResults, selfPlanResult] = await Promise.allSettled([
-                // 教练计划任务：如果是活跃订阅，则批量探测
-                activeSubs.length > 0
-                    ? Promise.allSettled(activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id })))
-                    : Promise.resolve([]),
-
-                // 自建计划任务
-                planLibService.getInstance({ fetchSelf: true })
-            ]);
-
-            // --- 2. 处理并行回填数据 ---
-            let coachRes: any = null;
-            let coachSub: any = null;
-            let selfRes: any = null;
-
-            // 解析教练计划逻辑 (从 allSettled 的第一个结果中提取)
-            if (coachPlanResults.status === 'fulfilled' && Array.isArray(coachPlanResults.value)) {
-                const settledSubTasks = coachPlanResults.value;
-                for (let i = 0; i < settledSubTasks.length; i++) {
-                    const r = settledSubTasks[i];
-                    if (r.status === 'fulfilled' && r.value?.instance) {
-                        coachRes = r.value;
-                        coachSub = activeSubs[i];
-                        break; // 找到第一个有内容的计划即停止
-                    }
-                }
+    // 4. 处理教练计划数据
+    const processCoachPlan = async (coachResult: any, activeSubs: any[]) => {
+        if (!coachResult) {
+            // 设置订阅信息（即使没有计划）
+            if (activeSubs.length > 0) {
+                setSubscription(activeSubs[0]);
             }
+            return;
+        }
 
-            // 解析自建计划逻辑 (从 allSettled 的第二个结果中提取)
-            if (selfPlanResult.status === 'fulfilled') {
-                selfRes = selfPlanResult.value;
-            } else {
-                console.error('[today-training] 自建计划加载失败:', selfPlanResult.reason);
-                selfRes = null;
+        const { planData: coachRes, subscription: coachSub, allSubs } = coachResult;
+
+        // 设置订阅信息：优先使用"有计划的订阅"，否则回退到第一个活跃订阅
+        setSubscription(coachSub || allSubs[0] || null);
+
+        if (!coachRes?.instance) {
+            return;
+        }
+
+        setCoachInstance(coachRes.instance);
+        setCoachActions(coachRes.actions || {});
+
+        const derived = coachRes as any;
+        if (typeof derived.nextDayIndex === 'number') {
+            setCoachDayIndex(derived.nextDayIndex);
+            setCoachTodayCompleted(derived.todayCompleted || false);
+            setCoachCompletionDates(derived.completionDates || {});
+
+            const completedCount = (derived.completedDays || []).length;
+            const totalCount = derived.totalTrainingDays || 0;
+            if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
+                await handleCompletePlan(coachRes.instance);
             }
+        } else {
+            // fallback: legacy API
+            try {
+                const nextDayData = await executionService.getNextTrainingDay({
+                    instanceId: coachRes.instance.id
+                });
+                if (nextDayData) {
+                    setCoachDayIndex(nextDayData.nextDayIndex);
+                    setCoachTodayCompleted(nextDayData.todayCompleted || false);
+                    setCoachCompletionDates(nextDayData.completionDates || {});
 
-            // 订阅信息用于顶部教练卡片/后续跳转：优先使用“有计划的订阅”，否则回退到第一个活跃订阅
-            setSubscription(coachSub || activeSubs[0] || null);
+                    const completedCount = nextDayData.completedDays.length;
+                    const totalCount = nextDayData.totalTrainingDays;
 
-            // 处理教练计划
-            if (coachRes?.instance) {
-                setCoachInstance(coachRes.instance);
-                setCoachActions(coachRes.actions || {});
-
-                const derived = coachRes as any;
-                if (typeof derived.nextDayIndex === 'number') {
-                    setCoachDayIndex(derived.nextDayIndex);
-                    setCoachTodayCompleted(derived.todayCompleted || false);
-                    setCoachCompletionDates(derived.completionDates || {});
-
-                    const completedCount = (derived.completedDays || []).length;
-                    const totalCount = derived.totalTrainingDays || 0;
                     if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
                         await handleCompletePlan(coachRes.instance);
                     }
-                } else {
-                    // fallback: legacy API
-                    try {
-                        const nextDayData = await executionService.getNextTrainingDay({
-                            instanceId: coachRes.instance.id
-                        });
-                        if (nextDayData) {
-                            setCoachDayIndex(nextDayData.nextDayIndex);
-                            setCoachTodayCompleted(nextDayData.todayCompleted || false);
-                            setCoachCompletionDates(nextDayData.completionDates || {});
-
-                            // 检查是否完成所有计划
-                            const completedCount = nextDayData.completedDays.length;
-                            const totalCount = nextDayData.totalTrainingDays;
-
-                            if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
-                                // 自动标记为完成
-                                await handleCompletePlan(coachRes.instance);
-                            }
-                        }
-                    } catch (e) {
-                        const startDay = (coachRes.instance as any).start_execution_day || 1;
-                        setCoachDayIndex(startDay);
-                    }
                 }
+            } catch (e) {
+                const startDay = (coachRes.instance as any).start_execution_day || 1;
+                setCoachDayIndex(startDay);
             }
+        }
+    };
 
-            // 处理自建计划
-            if (selfRes?.instance) {
-                setSelfInstance(selfRes.instance);
-                setSelfActions(selfRes.actions || {});
+    // 5. 处理自建计划数据
+    const processSelfPlan = async (selfRes: any) => {
+        if (!selfRes?.instance) {
+            return;
+        }
 
-                const derived = selfRes as any;
-                if (typeof derived.nextDayIndex === 'number') {
-                    setSelfDayIndex(derived.nextDayIndex);
-                    setSelfTodayCompleted(derived.todayCompleted || false);
-                    setSelfCompletionDates(derived.completionDates || {});
+        setSelfInstance(selfRes.instance);
+        setSelfActions(selfRes.actions || {});
 
-                    const completedCount = (derived.completedDays || []).length;
-                    const totalCount = derived.totalTrainingDays || 0;
+        const derived = selfRes as any;
+        if (typeof derived.nextDayIndex === 'number') {
+            setSelfDayIndex(derived.nextDayIndex);
+            setSelfTodayCompleted(derived.todayCompleted || false);
+            setSelfCompletionDates(derived.completionDates || {});
+
+            const completedCount = (derived.completedDays || []).length;
+            const totalCount = derived.totalTrainingDays || 0;
+            if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
+                await handleCompletePlan(selfRes.instance);
+            }
+        } else {
+            // fallback: legacy API
+            try {
+                const nextDayData = await executionService.getNextTrainingDay({
+                    instanceId: selfRes.instance.id
+                });
+                if (nextDayData) {
+                    setSelfDayIndex(nextDayData.nextDayIndex);
+                    setSelfTodayCompleted(nextDayData.todayCompleted || false);
+                    setSelfCompletionDates(nextDayData.completionDates || {});
+
+                    const completedCount = nextDayData.completedDays.length;
+                    const totalCount = nextDayData.totalTrainingDays;
+
                     if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
                         await handleCompletePlan(selfRes.instance);
                     }
-                } else {
-                    // fallback: legacy API
-                    try {
-                        const nextDayData = await executionService.getNextTrainingDay({
-                            instanceId: selfRes.instance.id
-                        });
-                        if (nextDayData) {
-                            setSelfDayIndex(nextDayData.nextDayIndex);
-                            setSelfTodayCompleted(nextDayData.todayCompleted || false);
-                            setSelfCompletionDates(nextDayData.completionDates || {});
-
-                            // 检查是否完成所有计划
-                            const completedCount = nextDayData.completedDays.length;
-                            const totalCount = nextDayData.totalTrainingDays;
-
-                            if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
-                                // 自动标记为完成
-                                await handleCompletePlan(selfRes.instance);
-                            }
-                        }
-                    } catch (e) {
-                        const startDay = (selfRes.instance as any).start_execution_day || 1;
-                        setSelfDayIndex(startDay);
-                    }
                 }
+            } catch (e) {
+                const startDay = (selfRes.instance as any).start_execution_day || 1;
+                setSelfDayIndex(startDay);
             }
+        }
+    };
 
-            // 设置默认显示模式：优先教练计划，没有则显示自建计划
-            if (coachRes?.instance) {
-                setPlanMode('coach');
-            } else if (selfRes?.instance) {
-                setPlanMode('self');
-            }
-
-        } catch (error) {
-            console.error('加载数据失败:', error);
-            showToast({
-                severity: 'error',
-                summary: '加载失败',
-                detail: '无法加载训练数据，请稍后重试',
-            });
-        } finally {
-            setLoading(false);
+    // 6. 设置默认显示模式
+    const setDefaultPlanMode = (coachResult: any, selfResult: any) => {
+        const coachRes = coachResult?.planData;
+        if (coachRes?.instance) {
+            setPlanMode('coach');
+        } else if (selfResult?.instance) {
+            setPlanMode('self');
         }
     };
 
