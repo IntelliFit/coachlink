@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { History, Trophy, Video, Play, Calendar, Star, Loader2 } from 'lucide-react';
+import { History, Trophy, Play, Calendar, Star, Loader2, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
 import { ProfileData, TimelineItem, PRRecord } from './types';
 
@@ -14,6 +14,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
     const [prRecords, setPrRecords] = useState<PRRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchPRRecords();
@@ -35,6 +36,32 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
             setError('获取记录失败');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteRecord = async (recordId: string) => {
+        const ok = window.confirm('确定要删除这条进步记录吗？删除后将恢复到上一个正确的极限值（如果存在）。');
+        if (!ok) return;
+
+        try {
+            setDeletingId(recordId);
+            const res = await fetch('/api/execution/delete-pr-record', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recordId }),
+            });
+            const result = await res.json();
+            if (!result?.success) {
+                alert(result?.message || '删除失败');
+                return;
+            }
+            // Refresh list. "current 1RM" aggregation will fall back automatically server-side.
+            await fetchPRRecords();
+        } catch (e) {
+            console.error('删除PR记录失败:', e);
+            alert('删除失败');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -126,6 +153,18 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
                                             <Star size={10} className="fill-yellow-500" />
                                             新纪录
                                         </span>
+                                    )}
+                                    {item.type === 'pr' && (
+                                        <button
+                                            type="button"
+                                            className="ml-auto text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            onClick={() => handleDeleteRecord(item.id)}
+                                            disabled={deletingId === item.id}
+                                            title="删除该记录"
+                                        >
+                                            <Trash2 size={12} />
+                                            删除
+                                        </button>
                                     )}
                                 </div>
                                 <h3 className="text-base font-semibold text-surface-900">{item.title}</h3>

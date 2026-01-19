@@ -372,32 +372,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Start subscription countdown when the student actually begins training (best-effort).
-        // This implements "auto postpone": if student receives a plan but never starts, remaining time won't decrease.
+        // B1: Subscription starts when the student actually begins training (first execution).
+        // We set start_date on first start. Expiry is driven by credits consumption, not calendar days.
         try {
             const subscriptionId = (instance as any).coach_subscription_id as string | null;
             if (subscriptionId) {
                 const { data: subRow } = await serviceRoleSupabase
                     .from("coach_subscriptions")
-                    .select("id, status, end_date, subscribed_weeks")
+                    .select("id, status, start_date, subscribed_weeks")
                     .eq("id", subscriptionId)
                     .maybeSingle();
 
-                if (subRow && subRow.status === "active" && !subRow.end_date) {
-                    const weeks = Number(subRow.subscribed_weeks || 0);
-                    if (weeks > 0) {
-                        const nowIso = new Date().toISOString();
-                        const end = new Date();
-                        end.setDate(end.getDate() + weeks * 7);
-                        await serviceRoleSupabase
-                            .from("coach_subscriptions")
-                            .update({
-                                start_date: nowIso,
-                                end_date: end.toISOString(),
-                                updated_at: nowIso,
-                            } as any)
-                            .eq("id", subscriptionId);
-                    }
+                if (subRow && subRow.status === "active" && !subRow.start_date) {
+                    const nowIso = new Date().toISOString();
+                    await serviceRoleSupabase
+                        .from("coach_subscriptions")
+                        .update({
+                            start_date: nowIso,
+                            updated_at: nowIso,
+                        } as any)
+                        .eq("id", subscriptionId);
                 }
             }
         } catch (e) {
