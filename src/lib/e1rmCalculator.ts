@@ -50,9 +50,28 @@ export function calculateE1RM(params: E1RMCalculationParams): E1RMResult {
         };
     }
 
-    // Edge case: if reps <= 0 or weight <= 0, return 0
-    if (reps <= 0 || weight <= 0) {
+    // Edge case: invalid reps
+    if (reps <= 0 || !Number.isFinite(reps)) {
         return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
+    }
+
+    // For non-bodyweight actions: external weight must be > 0.
+    // For bodyweight-including actions: external weight may be negative (assistance),
+    // as long as total system weight (bw + external) stays > 0.
+    if (!Number.isFinite(weight)) {
+        return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
+    }
+
+    if (!includeBodyWeight) {
+        if (weight <= 0) return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
+    } else {
+        if (!Number.isFinite(bodyWeight) || bodyWeight <= 0) {
+            return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
+        }
+        const totalWeight = weight + bodyWeight;
+        if (totalWeight <= 0) {
+            return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
+        }
     }
 
     // Prevent Brzycki formula division by zero (reps >= 37)

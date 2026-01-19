@@ -72,6 +72,7 @@ const TodayTrainingPage: React.FC = () => {
             // 1. 获取订阅
             const subsResponse = await subscriptionService.getCoachSubscriptions({
                 studentId: session?.user?.id || '',
+                computePauseAwareEndDate: false,
             });
 
             const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
@@ -122,26 +123,40 @@ const TodayTrainingPage: React.FC = () => {
                 setCoachInstance(coachRes.instance);
                 setCoachActions(coachRes.actions || {});
 
-                try {
-                    const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
-                    const nextDayData = await nextDayRes.json();
-                    if (nextDayData.success && nextDayData.data) {
-                        setCoachDayIndex(nextDayData.data.nextDayIndex);
-                        setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
-                        setCoachCompletionDates(nextDayData.data.completionDates || {});
+                const derived = coachRes as any;
+                if (typeof derived.nextDayIndex === 'number') {
+                    setCoachDayIndex(derived.nextDayIndex);
+                    setCoachTodayCompleted(derived.todayCompleted || false);
+                    setCoachCompletionDates(derived.completionDates || {});
 
-                        // 检查是否完成所有计划
-                        const completedCount = nextDayData.data.completedDays.length;
-                        const totalCount = nextDayData.data.totalTrainingDays;
-
-                        if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
-                            // 自动标记为完成
-                            await handleCompletePlan(coachRes.instance);
-                        }
+                    const completedCount = (derived.completedDays || []).length;
+                    const totalCount = derived.totalTrainingDays || 0;
+                    if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
+                        await handleCompletePlan(coachRes.instance);
                     }
-                } catch (e) {
-                    const startDay = (coachRes.instance as any).start_execution_day || 1;
-                    setCoachDayIndex(startDay);
+                } else {
+                    // fallback: legacy API
+                    try {
+                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
+                        const nextDayData = await nextDayRes.json();
+                        if (nextDayData.success && nextDayData.data) {
+                            setCoachDayIndex(nextDayData.data.nextDayIndex);
+                            setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
+                            setCoachCompletionDates(nextDayData.data.completionDates || {});
+
+                            // 检查是否完成所有计划
+                            const completedCount = nextDayData.data.completedDays.length;
+                            const totalCount = nextDayData.data.totalTrainingDays;
+
+                            if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
+                                // 自动标记为完成
+                                await handleCompletePlan(coachRes.instance);
+                            }
+                        }
+                    } catch (e) {
+                        const startDay = (coachRes.instance as any).start_execution_day || 1;
+                        setCoachDayIndex(startDay);
+                    }
                 }
             }
 
@@ -150,26 +165,40 @@ const TodayTrainingPage: React.FC = () => {
                 setSelfInstance(selfRes.instance);
                 setSelfActions(selfRes.actions || {});
 
-                try {
-                    const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
-                    const nextDayData = await nextDayRes.json();
-                    if (nextDayData.success && nextDayData.data) {
-                        setSelfDayIndex(nextDayData.data.nextDayIndex);
-                        setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
-                        setSelfCompletionDates(nextDayData.data.completionDates || {});
+                const derived = selfRes as any;
+                if (typeof derived.nextDayIndex === 'number') {
+                    setSelfDayIndex(derived.nextDayIndex);
+                    setSelfTodayCompleted(derived.todayCompleted || false);
+                    setSelfCompletionDates(derived.completionDates || {});
 
-                        // 检查是否完成所有计划
-                        const completedCount = nextDayData.data.completedDays.length;
-                        const totalCount = nextDayData.data.totalTrainingDays;
-
-                        if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
-                            // 自动标记为完成
-                            await handleCompletePlan(selfRes.instance);
-                        }
+                    const completedCount = (derived.completedDays || []).length;
+                    const totalCount = derived.totalTrainingDays || 0;
+                    if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
+                        await handleCompletePlan(selfRes.instance);
                     }
-                } catch (e) {
-                    const startDay = (selfRes.instance as any).start_execution_day || 1;
-                    setSelfDayIndex(startDay);
+                } else {
+                    // fallback: legacy API
+                    try {
+                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
+                        const nextDayData = await nextDayRes.json();
+                        if (nextDayData.success && nextDayData.data) {
+                            setSelfDayIndex(nextDayData.data.nextDayIndex);
+                            setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
+                            setSelfCompletionDates(nextDayData.data.completionDates || {});
+
+                            // 检查是否完成所有计划
+                            const completedCount = nextDayData.data.completedDays.length;
+                            const totalCount = nextDayData.data.totalTrainingDays;
+
+                            if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
+                                // 自动标记为完成
+                                await handleCompletePlan(selfRes.instance);
+                            }
+                        }
+                    } catch (e) {
+                        const startDay = (selfRes.instance as any).start_execution_day || 1;
+                        setSelfDayIndex(startDay);
+                    }
                 }
             }
 

@@ -3232,6 +3232,7 @@ export type Database = {
           subscription_expires_at: string | null
           subscription_level: string | null
           updated_at: string | null
+          wechat_openid: string | null
         }
         Insert: {
           admin_permissions?: string[] | null
@@ -3251,6 +3252,7 @@ export type Database = {
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
+          wechat_openid?: string | null
         }
         Update: {
           admin_permissions?: string[] | null
@@ -3270,6 +3272,7 @@ export type Database = {
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
+          wechat_openid?: string | null
         }
         Relationships: [
           {
