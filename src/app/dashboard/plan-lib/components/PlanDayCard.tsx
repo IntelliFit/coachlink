@@ -381,7 +381,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                         return (
                             <div
                                 key={setIndex}
-                                className="group relative bg-surface border border-surface-100 rounded-[24px] p-4 md:p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                                className="group relative bg-surface border border-surface-100 rounded-[24px] md:p-4 p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
                             >
                                 {/* 动作头部：数值中心化 */}
                                 <div className="flex justify-between items-start mb-4 md:mb-6">

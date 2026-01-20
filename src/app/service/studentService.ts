@@ -40,6 +40,10 @@ import type {
     GetCurrent1RMDto,
     GetCurrent1RMResponseDto,
 } from "../api/student/get-current-1rm/entity";
+import type {
+    GetStudentStatsDto,
+    GetStudentStatsResponseDto,
+} from "../api/student/get-stats/entity";
 
 class StudentService extends BaseService {
     /**
@@ -213,6 +217,30 @@ class StudentService extends BaseService {
             return null;
         } catch (error) {
             console.error("Failed to fetch current 1RM:", error);
+            return null;
+        }
+    }
+
+    /**
+     * @description 获取学生统计数据（订阅数量、进行中计划数量、已完成训练数量）
+     * @param reqData
+     * @returns
+     */
+    async getStudentStats(reqData?: GetStudentStatsDto) {
+        try {
+            const response = await fetch("/api/student/get-stats", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(reqData || {}),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                return result.data;
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to fetch student stats:", error);
             return null;
         }
     }

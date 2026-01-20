@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import type { AddSetVideoLinkDto, AddSetVideoLinkResponseDto } from "../entity";
+import type { ApiData } from "@/types/api";
+import type { AddSetVideoLinkDto, AddSetVideoLinkResponseDto } from "./entity";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,10 +25,11 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<AddSetVideoLinkResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         if (
@@ -37,14 +39,12 @@ export async function POST(req: Request) {
             console.error(
                 "[add-set-video-link] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.",
             );
-            return NextResponse.json<AddSetVideoLinkResponseDto>(
-                {
-                    success: false,
-                    message:
-                        "服务器配置缺失：未设置 Supabase Service Role Key，无法保存视频链接",
-                },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+                success: false,
+                message:
+                    "服务器配置缺失：未设置 Supabase Service Role Key，无法保存视频链接",
+                data: null,
+            }, { status: 500 });
         }
 
         const userId = session.user.id;
@@ -53,16 +53,18 @@ export async function POST(req: Request) {
         const { executionId, actionId, setNumber, videoUrl } = body;
 
         if (!executionId || !actionId || !setNumber || !videoUrl) {
-            return NextResponse.json<AddSetVideoLinkResponseDto>(
-                { success: false, message: "缺少参数" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+                success: false,
+                message: "缺少参数",
+                data: null,
+            }, { status: 400 });
         }
         if (!isProbablyUrl(videoUrl)) {
-            return NextResponse.json<AddSetVideoLinkResponseDto>(
-                { success: false, message: "链接格式不正确" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+                success: false,
+                message: "链接格式不正确",
+                data: null,
+            }, { status: 400 });
         }
 
         // Verify permission and infer exercise_name from action_executions
@@ -73,10 +75,11 @@ export async function POST(req: Request) {
             .single();
 
         if (!execution || execution.student_id !== userId) {
-            return NextResponse.json<AddSetVideoLinkResponseDto>(
-                { success: false, message: "无权限" },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+                success: false,
+                message: "无权限",
+                data: null,
+            }, { status: 403 });
         }
 
         let exerciseName: string | null = null;
@@ -123,14 +126,16 @@ export async function POST(req: Request) {
 
         if (error || !data) {
             console.error("[add-set-video-link] upsert failed:", error);
-            return NextResponse.json<AddSetVideoLinkResponseDto>(
-                { success: false, message: "保存失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+                success: false,
+                message: "保存失败",
+                data: null,
+            }, { status: 500 });
         }
 
-        return NextResponse.json<AddSetVideoLinkResponseDto>({
+        return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
             success: true,
+            message: "添加视频链接成功",
             data: {
                 id: data.id,
                 execution_id: data.execution_id,
@@ -142,10 +147,11 @@ export async function POST(req: Request) {
         });
     } catch (error) {
         console.error("[add-set-video-link] error:", error);
-        return NextResponse.json<AddSetVideoLinkResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }
 

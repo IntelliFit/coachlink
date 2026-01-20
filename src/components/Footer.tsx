@@ -21,7 +21,7 @@ const Footer: React.FC<FooterProps> = ({
     ],
 }) => {
     return (
-        <footer className="bg-surface-0 border-t border-surface-100 py-10">
+        <footer className="bg-surface-0 border-t border-surface-100 py-10 pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-10">
             <div className="max-w-6xl mx-auto px-6 lg:px-8">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                     

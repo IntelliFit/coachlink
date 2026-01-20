@@ -111,7 +111,6 @@ const SportChartDisplay = ({
                 <div className="flex items-center gap-4">
                     {showTotalWeight(sportKey) && data && (
                         <div className="flex flex-col items-end">
-                            <span className="text-[9px] font-black text-surface-400 uppercase tracking-widest leading-none mb-1">Total</span>
                             <span className={`text-lg font-black leading-none transition-colors ${isExpanded ? 'text-[#F28631]' : 'text-surface-900'}`}>
                                 {getTotalWeight(sportKey, data)}<small className="text-[10px] ml-0.5 font-bold">kg</small>
                             </span>

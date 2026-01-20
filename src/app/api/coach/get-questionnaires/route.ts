@@ -67,15 +67,39 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    // 默认训练项目选项库：来自 training_items（避免误用模板 tags）
+    let defaultTrainingItemNames: string[] = [];
+    try {
+        const { data: trainingItems, error: trainingItemsError } = await supabase
+            .from("training_items")
+            .select("name")
+            .order("name");
+        if (!trainingItemsError && Array.isArray(trainingItems)) {
+            defaultTrainingItemNames = trainingItems.map((it: any) => String(it.name)).filter(Boolean);
+        }
+    } catch (e) {
+        // ignore and fall back to static
+    }
+
     // 默认问题列表：包含用户极限（1RM）问题
     const defaultQuestions = [
-        { type: "tags" }, // 训练项目偏好
+        {
+            type: "tags",
+            // 默认训练项目选项库：来自 training_items（若为空则给一个兜底）
+            options: defaultTrainingItemNames.length > 0
+                ? defaultTrainingItemNames
+                : ["胸", "背", "腿", "肩", "手臂", "核心", "全身", "体能", "灵活性", "康复/矫正"],
+        }, // 训练项目偏好
         {
             type: "times",
             question: "您希望每周训练几次？",
             options: [1, 2, 3, 4, 5, 6, 7],
         }, // 每周训练次数（可配置）
-        { type: "rm" }, // 用户极限（1RM）
+        {
+            type: "rm",
+            // 由教练在问卷里选择需要填写 1RM 的动作；默认不强制任何动作
+            actionIds: [],
+        }, // 用户极限（1RM）
     ];
 
     const questionnairesData = questionnaire ?? {

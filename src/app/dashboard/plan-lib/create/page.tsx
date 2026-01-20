@@ -466,7 +466,15 @@ const CreatePlanPage = () => {
                 globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
                 globalAnswers={globalAnswers}
                 onGlobalAnswerChange={(question, answerIndex) => {
-                    setGlobalAnswers({ ...globalAnswers, [question]: answerIndex });
+                    setGlobalAnswers(prev => {
+                        const next = { ...prev };
+                        if (answerIndex === null) {
+                            delete next[question];
+                            return next;
+                        }
+                        next[question] = answerIndex;
+                        return next;
+                    });
                 }}
             />
 

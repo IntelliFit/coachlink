@@ -24,6 +24,15 @@ export interface CoachPlanTrainingDay {
     type: 'training' | 'rest';
     note?: string;
     actionSets?: (CoachPlanAction | CoachPlanActionWithOneFilter)[];
+    dayIndex: number;
+    [key: string]: Json | undefined
+}
+
+export interface CoachPlanTrainingImplementationDay {
+    type: 'training' | 'rest';
+    note?: string;
+    actionSets?: CoachPlanAction[];
+    dayIndex: number;
     [key: string]: Json | undefined
 }
 

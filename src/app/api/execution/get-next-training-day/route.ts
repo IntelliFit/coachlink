@@ -1,44 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 
-interface GetNextTrainingDayResponse {
-    nextDayIndex: number;
-    completedDays: number[];
-    totalTrainingDays: number;
-    startExecutionDay?: number;
-    todayCompleted: boolean; // 今天是否已有完成的训练
-    todayExecutionId?: string; // 今天完成的执行记录ID（如果有）
-    completionDates: Record<number, string>; // 每个训练日的完成日期 { dayIndex: ISO日期字符串 }
-}
+// 重要！必须以 import type 引入接口类型
+import type {
+    GetNextTrainingDayDto,
+    GetNextTrainingDayResponseDto,
+} from "./entity";
 
 /**
- * GET /api/execution/get-next-training-day
+ * POST /api/execution/get-next-training-day
  *
  * 获取学员下一个待执行的训练日
  * 逻辑：
  * 1. 如果计划有 start_execution_day，则该天之前的训练日视为已完成
  * 2. 找到第一个未完成的训练日（跳过休息日）
  */
-export async function GET(req: NextRequest) {
+export async function POST(req: Request) {
     try {
         const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: "未登录", data: null },
-                { status: 401 },
-            );
+            return NextResponse.json({
+                success: false,
+                message: "用户未登录",
+                data: null,
+            }, { status: 401 });
         }
 
-        const { searchParams } = new URL(req.url);
-        const instanceId = searchParams.get("instanceId");
+        // 重点！通过 session 获取用户 ID
+        const userId = session.user.id;
+
+        const {
+            instanceId,
+        } = await req.json() as GetNextTrainingDayDto;
 
         if (!instanceId) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: "缺少 instanceId 参数", data: null },
-                { status: 400 },
-            );
+            return NextResponse.json({
+                success: false,
+                message: "缺少 instanceId 参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 1. 获取计划实例（包含 start_execution_day）
@@ -49,10 +51,11 @@ export async function GET(req: NextRequest) {
             .single();
 
         if (instanceError || !instance) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: "计划不存在", data: null },
-                { status: 404 },
-            );
+            return NextResponse.json({
+                success: false,
+                message: "计划不存在",
+                data: null,
+            }, { status: 404 });
         }
 
         // 2. 获取所有已完成的执行记录（包含完成日期）
@@ -126,9 +129,11 @@ export async function GET(req: NextRequest) {
             nextDayIndex = startExecutionDay;
         }
 
-        return NextResponse.json<ApiData<GetNextTrainingDayResponse>>({
+        // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
+        return NextResponse.json<ApiData<GetNextTrainingDayResponseDto>>({
             success: true,
             message: "获取成功",
+            // GetNextTrainingDayResponseDto 反应的就是这个地方 data 的数据结构
             data: {
                 nextDayIndex,
                 completedDays,
@@ -143,9 +148,10 @@ export async function GET(req: NextRequest) {
         });
     } catch (error) {
         console.error("获取下一个训练日失败:", error);
-        return NextResponse.json<ApiData<null>>(
-            { success: false, message: "服务器错误", data: null },
-            { status: 500 },
-        );
+        return NextResponse.json({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

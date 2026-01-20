@@ -60,27 +60,15 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // 计算新的结束日期
-    // 如果当前有 end_date 且未过期，在其基础上延长
-    // 否则从今天开始计算
-    const now = new Date();
-    let baseDate = now;
-
-    if (subscription.end_date) {
-        const currentEndDate = new Date(subscription.end_date);
-        if (currentEndDate > now) {
-            baseDate = currentEndDate;
-        }
-    }
-
-    const newEndDate = new Date(baseDate);
-    newEndDate.setDate(newEndDate.getDate() + (additionalWeeks * 7));
+    // B1: 续费只增加“购买范围 weeks”（用于计算训练日 credits 范围），
+    // end_date 只是预计完成日，会在训练完成/订阅列表接口里动态刷新，不在这里直接叠加天数。
+    const newSubscribedWeeks = Number(subscription.subscribed_weeks || 0) + Number(additionalWeeks || 0);
 
     // 更新订阅
     const { data: updatedSubscription, error: updateError } = await supabase
         .from("coach_subscriptions")
         .update({
-            end_date: newEndDate.toISOString(),
+            subscribed_weeks: newSubscribedWeeks,
             status: "active", // 续费后确保状态为活跃
             updated_at: new Date().toISOString(),
         })
@@ -101,9 +89,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json<ApiData<RenewSubscriptionResponseDto>>({
         success: true,
-        message: `续费成功，新到期日期：${
-            newEndDate.toLocaleDateString("zh-CN")
-        }`,
+        message: `续费成功，已增加 ${additionalWeeks} 周（按训练日次数消耗）`,
         data: {
             subscription: updatedSubscription,
         },

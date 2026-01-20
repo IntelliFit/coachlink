@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import type { CreatePRDto, CreatePRResponseDto } from "../entity";
+import type { ApiData } from "@/types/api";
+import type { CreatePRDto, CreatePRResponseDto } from "./entity";
 import {
     calculateE1RM,
     requiresBodyWeightFallback,
@@ -15,12 +15,13 @@ import {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<CreatePRResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<CreatePRResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         const userId = session.user.id;
@@ -41,10 +42,11 @@ export async function POST(request: NextRequest) {
             !executionId || !actionId || !actionName || !setNumber ||
             weight === undefined || reps === undefined
         ) {
-            return NextResponse.json<CreatePRResponseDto>(
-                { success: false, message: "缺少必填参数" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<CreatePRResponseDto>>({
+                success: false,
+                message: "缺少必填参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 验证执行记录权限
@@ -56,10 +58,11 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (!execution || execution.student_id !== userId) {
-            return NextResponse.json<CreatePRResponseDto>(
-                { success: false, message: "无权限" },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<CreatePRResponseDto>>({
+                success: false,
+                message: "无权限",
+                data: null,
+            }, { status: 403 });
         }
 
         // 获取视频URL（如果有）
@@ -186,14 +189,16 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error("创建PR失败:", error);
-            return NextResponse.json<CreatePRResponseDto>(
-                { success: false, message: "创建失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<CreatePRResponseDto>>({
+                success: false,
+                message: "创建失败",
+                data: null,
+            }, { status: 500 });
         }
 
-        return NextResponse.json<CreatePRResponseDto>({
+        return NextResponse.json<ApiData<CreatePRResponseDto>>({
             success: true,
+            message: "创建PR成功",
             data: {
                 id: data.id,
                 user_id: data.user_id,
@@ -207,9 +212,10 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("创建PR失败:", error);
-        return NextResponse.json<CreatePRResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<CreatePRResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

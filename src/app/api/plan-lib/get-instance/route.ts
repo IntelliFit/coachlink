@@ -8,9 +8,14 @@ import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 
 export async function POST(req: Request) {
+    const startTime = performance.now();
+    const timings: Record<string, number> = {};
+
     // Check if user is logged in
+    const sessionStart = performance.now();
     const session = await getServerSession();
     const userId = session?.user?.id || null;
+    timings['1_auth'] = performance.now() - sessionStart;
 
     if (!userId) {
         return NextResponse.json({
@@ -19,37 +24,24 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
+    const paramStart = performance.now();
     const {
         id,
         subscriptionId,
+        subscriptionIds,
         fetchSelf,
     } = await req.json() as GetInstanceDto;
 
-    // --- DEBUGGING START ---
-    try {
-        const { data: debugPlans } = await supabase
-            .from("coach_plan_instances")
-            .select("id, status, source, updated_at, name")
-            .eq("student_id", userId)
-            .order("updated_at", { ascending: false })
-            .limit(5);
-
-        console.log(
-            `[get-instance DEBUG] Plans for user ${userId}:`,
-            JSON.stringify(debugPlans, null, 2),
-        );
-    } catch (e) {
-        console.error("[get-instance DEBUG] Error listing plans:", e);
-    }
-    // --- DEBUGGING END ---
-
-    if (!id && !subscriptionId && !fetchSelf) {
+    if (!id && !subscriptionId && !(subscriptionIds && subscriptionIds.length > 0) && !fetchSelf) {
         return NextResponse.json({
             success: false,
             message: "Invalid parameters",
         });
     }
+    timings['1_params'] = performance.now() - paramStart;
 
+    // 2. 查询计划实例
+    const queryStart = performance.now();
     let query = supabase
         .from("coach_plan_instances")
         .select("*");
@@ -59,13 +51,20 @@ export async function POST(req: Request) {
     } else if (subscriptionId) {
         query = query
             .eq("coach_subscription_id", subscriptionId)
+            // keep consistent with "current plan" semantics used elsewhere (e.g. get-with-executions)
+            .in("status", ["active", "paused"])
+            .order("created_at", { ascending: false })
+            .limit(1);
+    } else if (subscriptionIds && subscriptionIds.length > 0) {
+        // Batch mode: pick the most recently created instance among given subscription IDs.
+        // This matches today-training's "first available plan" behavior but in one request.
+        query = query
+            .in("coach_subscription_id", subscriptionIds)
+            .in("status", ["active", "paused"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (fetchSelf) {
         // 仅获取学员自建的计划 (source='self')
-        console.log(
-            `[get-instance] Fetching self-created plan for user: ${userId}`,
-        );
         query = query
             .eq("student_id", userId)
             .eq("source", "self") // 必须筛选 source='self'，否则会返回教练计划
@@ -76,13 +75,7 @@ export async function POST(req: Request) {
 
     // 获取计划实例
     const { data: instance, error } = await query.maybeSingle();
-
-    console.log(`[get-instance] Query Result:`, {
-        found: !!instance,
-        id: instance?.id,
-        source: instance?.source,
-        error: error?.message,
-    });
+    timings['2_query_instance'] = performance.now() - queryStart;
 
     if (!instance) {
         return NextResponse.json({
@@ -102,16 +95,25 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 检查用户权限（用户可能同时是教练和学员，需要检查两种身份）
+    // Track which subscription matched in batch mode
+    const matchedSubscriptionId: string | undefined =
+        (subscriptionIds && subscriptionIds.length > 0)
+            ? ((instance as any).coach_subscription_id as string | undefined)
+            : undefined;
+
+    // 3. 检查用户权限（用户可能同时是教练和学员，需要检查两种身份）
+    const permissionStart = performance.now();
     let hasPermission = false;
 
     // 1. 检查是否作为教练有权限（如果用户是教练且该计划属于他创建的）
     if (session.user.is_coach && instance.coach_id) {
+        const coachCheckStart = performance.now();
         const { data: coach } = await supabase
             .from("coaches")
             .select("user_id")
             .eq("id", instance.coach_id)
             .single();
+        timings['3a_coach_check'] = performance.now() - coachCheckStart;
 
         if (coach && coach.user_id === userId) {
             hasPermission = true;
@@ -127,17 +129,20 @@ export async function POST(req: Request) {
             }
         } else if (instance.coach_subscription_id) {
             // 通过 subscription 验证学员权限
+            const studentCheckStart = performance.now();
             const { data: subscription } = await supabase
                 .from("coach_subscriptions")
                 .select("student_id")
                 .eq("id", instance.coach_subscription_id)
                 .single();
+            timings['3b_student_check'] = performance.now() - studentCheckStart;
 
             if (subscription && subscription.student_id === userId) {
                 hasPermission = true;
             }
         }
     }
+    timings['3_permission'] = performance.now() - permissionStart;
 
     // 如果两种身份都没有权限，返回403
     if (!hasPermission) {
@@ -147,7 +152,8 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // 加载动作详情（教练和学员都需要）
+    // 4. 加载动作详情（教练和学员都需要）
+    const actionsStart = performance.now();
     let actionsMap: Record<string, any> = {};
     if (instance.training_days) {
         const trainingDays = instance.training_days as any[];
@@ -169,10 +175,12 @@ export async function POST(req: Request) {
             const idsList = Array.from(actionIds);
 
             // 1. 查教练动作库
+            const coachActionsStart = performance.now();
             const { data: coachActions } = await supabase
                 .from("coach_actions")
                 .select("*")
                 .in("id", idsList);
+            timings['4a_coach_actions'] = performance.now() - coachActionsStart;
 
             if (coachActions) {
                 coachActions.forEach((action) => {
@@ -184,10 +192,12 @@ export async function POST(req: Request) {
             const remainingIds = idsList.filter((id) => !actionsMap[id]);
 
             if (remainingIds.length > 0) {
+                const studentActionsStart = performance.now();
                 const { data: studentActions } = await supabase
                     .from("student_actions")
                     .select("*")
                     .in("id", remainingIds);
+                timings['4b_student_actions'] = performance.now() - studentActionsStart;
 
                 if (studentActions) {
                     studentActions.forEach((action) => {
@@ -202,12 +212,13 @@ export async function POST(req: Request) {
             }
         }
     }
+    timings['4_actions'] = performance.now() - actionsStart;
 
-    // --------------------
-    // Student-visible auto load compute (server-side, non-persistent)
+    // 5. Student-visible auto load compute (server-side, non-persistent)
     // Ensures student "plan view" shows kg even if only RM/% configured.
-    // --------------------
+    const autoLoadStart = performance.now();
     try {
+        const targetStudentStart = performance.now();
         const targetStudentId: string | null =
             (instance.student_id as string | null) ||
             (instance.coach_subscription_id
@@ -219,24 +230,31 @@ export async function POST(req: Request) {
                         .maybeSingle()
                 ).data?.student_id || null
                 : null);
+        timings['5a_target_student'] = performance.now() - targetStudentStart;
 
         if (targetStudentId && Array.isArray(instance.training_days)) {
+            const profileStart = performance.now();
             const { data: profile } = await supabase
                 .from("user_profiles")
                 .select("weight")
                 .eq("user_id", targetStudentId)
                 .maybeSingle();
+            timings['5b_profile'] = performance.now() - profileStart;
 
             const bodyWeight = Number(profile?.weight || 0);
 
             // Build a 1RM map (ID + Name) for fast lookup
+            const rmRecordsStart = performance.now();
             const records = await getCurrent1RMRecords(userId, { targetUserId: targetStudentId });
+            timings['5c_rm_records'] = performance.now() - rmRecordsStart;
+
             const rmMap: Record<string, number> = {};
             for (const r of records || []) {
                 if (r.actionId) rmMap[r.actionId] = Math.max(rmMap[r.actionId] || 0, r.current1RM);
                 if (r.actionName) rmMap[r.actionName] = Math.max(rmMap[r.actionName] || 0, r.current1RM);
             }
 
+            const calcStart = performance.now();
             const days = instance.training_days as any[];
             for (const day of days) {
                 if (!Array.isArray(day.actionSets)) continue;
@@ -277,6 +295,7 @@ export async function POST(req: Request) {
                     }
                 }
             }
+            timings['5d_calc_load'] = performance.now() - calcStart;
 
             // Re-assign so it shows up in response JSON (mutating instance from Supabase is fine here)
             (instance as any).training_days = days;
@@ -285,10 +304,14 @@ export async function POST(req: Request) {
         // best-effort; never block plan rendering
         console.warn("[get-instance] auto load compute skipped:", e);
     }
+    timings['5_auto_load'] = performance.now() - autoLoadStart;
 
-    // 加载执行记录
+    // 6. 加载执行记录
     let executionsList: any[] = [];
-    const { data: executions } = await supabase
+    // NOTE: plan_instance_executions uses `instance_id` (not `plan_instance_id`).
+    // Also some environments may not have relational tables for action_executions/execution_sets,
+    // so we do a best-effort query with relations, then fallback to a simple select.
+    const { data: executions, error: executionsError } = await supabase
         .from("plan_instance_executions")
         .select(`
             *,
@@ -300,12 +323,23 @@ export async function POST(req: Request) {
                 )
             )
         `)
-        .eq("plan_instance_id", instance.id)
+        .eq("instance_id", instance.id)
         .order("day_index", { ascending: true });
 
-    if (executions) {
+    let effectiveExecutions: any[] | null = executions as any[] | null;
+    if (executionsError) {
+        // Fallback: get minimal fields we need for nextDayIndex/completionDates.
+        const { data: fallbackExecs } = await supabase
+            .from("plan_instance_executions")
+            .select("id, instance_id, student_id, day_index, status, started_at, completed_at, action_executions")
+            .eq("instance_id", instance.id)
+            .order("day_index", { ascending: true });
+        effectiveExecutions = (fallbackExecs as any[]) || [];
+    }
+
+    if (effectiveExecutions) {
         // 处理执行记录，格式化 sets 数据
-        executionsList = executions.map((exec: any) => ({
+        executionsList = effectiveExecutions.map((exec: any) => ({
             ...exec,
             action_executions: exec.action_executions?.map((ae: any) => ({
                 ...ae,
@@ -318,15 +352,115 @@ export async function POST(req: Request) {
         }));
     }
 
-    return NextResponse.json<ApiData<any>>({
+    // Build executions map by dayIndex (pick the most recent started_at per day)
+    const executionsByDayIndex: Record<number, any> = {};
+    for (const exec of executionsList || []) {
+        const di = Number(exec?.day_index ?? 0);
+        if (!di) continue;
+        const prev = executionsByDayIndex[di];
+        if (!prev) {
+            executionsByDayIndex[di] = exec;
+            continue;
+        }
+        const prevTime = prev?.started_at ? new Date(prev.started_at).getTime() : 0;
+        const curTime = exec?.started_at ? new Date(exec.started_at).getTime() : 0;
+        if (curTime >= prevTime) {
+            executionsByDayIndex[di] = exec;
+        }
+    }
+
+    // 7. Derive next training day info (compatible with /api/execution/get-next-training-day)
+    const nextDayStart = performance.now();
+    const startExecutionDay = Number((instance as any).start_execution_day || 1);
+    const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
+    const trainingDays = (Array.isArray(instance.training_days) ? (instance.training_days as any[]) : [])
+        .slice()
+        .sort((a, b) => getDayIndex(a) - getDayIndex(b));
+
+    const trainingOnlyDays = trainingDays.filter((d) =>
+        d?.type === "training" && getDayIndex(d) >= startExecutionDay
+    );
+    const trainingOnlyDayIndexSet = new Set(trainingOnlyDays.map((d) => getDayIndex(d)));
+
+    const completedExecs = (executionsList || []).filter((e) =>
+        e?.status === "completed" &&
+        Number(e?.day_index ?? 0) >= startExecutionDay &&
+        trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
+    );
+
+    const completionDates: Record<number, string> = {};
+    const completedDaySet = new Set<number>();
+    for (const e of completedExecs) {
+        const di = Number(e.day_index);
+        completedDaySet.add(di);
+        if (e.completed_at) {
+            // keep latest completion date if multiple
+            const prev = completionDates[di];
+            if (!prev || new Date(e.completed_at).getTime() >= new Date(prev).getTime()) {
+                completionDates[di] = e.completed_at;
+            }
+        }
+    }
+    const completedDays = Array.from(completedDaySet.values()).sort((a, b) => a - b);
+
+    // todayCompleted + todayExecutionId
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayExecution = completedExecs.find((e) => {
+        if (!e?.completed_at) return false;
+        const dt = new Date(e.completed_at);
+        return dt >= today && dt < tomorrow;
+    });
+    const todayCompleted = !!todayExecution;
+    const todayExecutionId = todayExecution?.id;
+
+    // nextDayIndex
+    let nextDayIndex = startExecutionDay;
+    for (const day of trainingOnlyDays) {
+        const di = getDayIndex(day);
+        if (!completedDaySet.has(di)) {
+            nextDayIndex = di;
+            break;
+        }
+    }
+    if (
+        trainingOnlyDays.length > 0 &&
+        trainingOnlyDays.every((d) => completedDaySet.has(getDayIndex(d)))
+    ) {
+        nextDayIndex = getDayIndex(trainingOnlyDays[0]);
+    }
+    if (trainingOnlyDays.length === 0) {
+        nextDayIndex = startExecutionDay;
+    }
+    timings['7_next_day'] = performance.now() - nextDayStart;
+
+    // 计算总耗时
+    timings['total'] = performance.now() - startTime;
+
+    // 输出性能日志
+    console.log('[get-instance] Performance timings:', JSON.stringify(timings, null, 2));
+
+    return NextResponse.json<ApiData<GetInstanceResponseDto>>({
         success: true,
         message: "获取训练计划实例成功",
         data: {
             instance,
+            matchedSubscriptionId,
             actions: Object.keys(actionsMap).length > 0
                 ? actionsMap
                 : undefined,
             executions: executionsList.length > 0 ? executionsList : undefined,
+            executionsByDayIndex: Object.keys(executionsByDayIndex).length > 0
+                ? executionsByDayIndex
+                : undefined,
+            nextDayIndex,
+            completedDays,
+            totalTrainingDays: trainingOnlyDays.length,
+            todayCompleted,
+            todayExecutionId,
+            completionDates,
         },
     });
 }

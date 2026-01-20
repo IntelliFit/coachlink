@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { History, Trophy, Video, Play, Calendar, Star, Loader2 } from 'lucide-react';
+import { History, Trophy, Play, Calendar, Star, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
 import { Skeleton } from 'primereact/skeleton';
+import { executionService } from '@/app/service/executionService';
 
 interface PRRecord {
     id: string;
     exercise_name: string;
-    // 与 /api/execution/get-pr-records 返回保持一致
+    // 与 get-pr-records 返回保持一致
     weight: number;
     reps: number;
     e1rm?: number;
@@ -48,6 +49,7 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
     const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
     const [prRecords, setPrRecords] = useState<PRRecord[]>([]);
     const [loading, setLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (studentId) fetchPRRecords();
@@ -56,10 +58,41 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
     const fetchPRRecords = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/execution/get-pr-records?userId=${studentId}&limit=${limit}`);
+            const result = await executionService.getPRRecords({
+                userId: studentId,
+                limit: limit,
+            });
+            setPrRecords(result?.records || []);
+        } catch (err) { 
+            setPrRecords([]); 
+        } finally { 
+            setLoading(false); 
+        }
+    };
+
+    const handleDeleteRecord = async (recordId: string) => {
+        const ok = window.confirm('确定要删除这条进步记录吗？删除后将恢复到上一个正确的极限值（如果存在）。');
+        if (!ok) return;
+
+        try {
+            setDeletingId(recordId);
+            const res = await fetch('/api/execution/delete-pr-record', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recordId }),
+            });
             const result = await res.json();
-            setPrRecords(result.success ? result.data.records : []);
-        } catch (err) { setPrRecords([]); } finally { setLoading(false); }
+            if (!result?.success) {
+                alert(result?.message || '删除失败');
+                return;
+            }
+            await fetchPRRecords();
+        } catch (e) {
+            console.error('删除PR记录失败:', e);
+            alert('删除失败');
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     if (loading) {
@@ -116,6 +149,16 @@ export const CoachViewProgressTimeline: React.FC<CoachViewProgressTimelineProps>
                                     <Star size={10} className="fill-amber-500" />
                                     New PR
                                 </span>
+                                <button
+                                    type="button"
+                                    className="ml-auto text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-red-100/50 flex items-center gap-1 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => handleDeleteRecord(pr.id)}
+                                    disabled={deletingId === pr.id}
+                                    title="删除该记录"
+                                >
+                                    <Trash2 size={10} />
+                                    Delete
+                                </button>
                             </div>
 
                             {/* 第二行：核心标题与备注 */}
