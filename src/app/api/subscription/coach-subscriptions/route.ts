@@ -50,7 +50,7 @@ function isoDateKey(date: Date) {
 }
 
 export async function POST(req: Request) {
-    // 使用统一鉴权函数,支持session和token两种方式
+    // 使用统一鉴权函数,支持session和token两种方式 （add）
     const { getAuthUser } = await import('@/lib/auth');
     const authResult = await getAuthUser(req);
 
