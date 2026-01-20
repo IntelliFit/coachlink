@@ -27,7 +27,7 @@ import {
     ChevronDown,
     LogIn,
     Menu as MenuIcon,
-    Headphones,
+    MessageSquare,
     Moon,
     Sun,
     Bell,
@@ -246,9 +246,9 @@ export default function NavigationCoach() {
                             <button onClick={toggleTheme} className="w-10 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 flex items-center justify-center">
                                 {theme === 'light' ? <Moon size={18} className="text-indigo-600" /> : <Sun size={18} className="text-yellow-500" />}
                             </button>
-                            <button onClick={() => { router.push('/support'); setVisibleLeft(false); }} className="flex items-center gap-2 px-4 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-700">
-                                <Headphones size={18} />
-                                <span className="text-xs font-bold">客服</span>
+                            <button onClick={() => { router.push('/feedback'); setVisibleLeft(false); }} className="flex items-center gap-2 px-4 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-700">
+                                <MessageSquare size={18} />
+                                <span className="text-xs font-bold">反馈</span>
                             </button>
                         </div>
                         <span className="text-[10px] text-surface-300 font-black italic">V0.0.1</span>

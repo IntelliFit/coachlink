@@ -17,9 +17,12 @@ async function getSingleInstance(
         fetchSelf?: boolean;
     }
 ): Promise<GetInstanceResponseDto | null> {
+    const startTime = performance.now();
+    const timings: Record<string, number> = {};
     const { subscriptionIds, fetchSelf } = options;
 
     // 查询计划实例
+    const t0 = performance.now();
     let query = supabase
         .from("coach_plan_instances")
         .select("*");
@@ -43,16 +46,38 @@ async function getSingleInstance(
     }
 
     const { data: instance, error } = await query.maybeSingle();
+    timings['1_query_instance'] = performance.now() - t0;
 
     if (error || !instance) {
         return null;
     }
 
-    // 检查权限
+    // 检查权限（优化：大部分用户是学员，先检查学员权限）
+    const t1 = performance.now();
     let hasPermission = false;
+    let subscriptionStudentId: string | null = null;
 
-    // 检查教练权限
-    if (session.user.is_coach && instance.coach_id) {
+    // 优先检查学员权限（更常见的情况）
+    if (instance.student_id) {
+        if (instance.student_id === userId) {
+            hasPermission = true;
+        }
+    } else if (instance.coach_subscription_id) {
+        // 如果通过订阅关联，查询订阅信息（同时获取 student_id 供后续使用）
+        const { data: subscription } = await supabase
+            .from("coach_subscriptions")
+            .select("student_id")
+            .eq("id", instance.coach_subscription_id)
+            .single();
+
+        subscriptionStudentId = subscription?.student_id || null;
+        if (subscription && subscription.student_id === userId) {
+            hasPermission = true;
+        }
+    }
+
+    // 仅当用户是教练且尚未有权限时，才检查教练权限（少数情况）
+    if (!hasPermission && session.user.is_coach && instance.coach_id) {
         const { data: coach } = await supabase
             .from("coaches")
             .select("user_id")
@@ -64,30 +89,14 @@ async function getSingleInstance(
         }
     }
 
-    // 检查学员权限
-    if (!hasPermission) {
-        if (instance.student_id) {
-            if (instance.student_id === userId) {
-                hasPermission = true;
-            }
-        } else if (instance.coach_subscription_id) {
-            const { data: subscription } = await supabase
-                .from("coach_subscriptions")
-                .select("student_id")
-                .eq("id", instance.coach_subscription_id)
-                .single();
-
-            if (subscription && subscription.student_id === userId) {
-                hasPermission = true;
-            }
-        }
-    }
+    timings['2_check_permission'] = performance.now() - t1;
 
     if (!hasPermission) {
         return null;
     }
 
     // 加载动作详情
+    const t2 = performance.now();
     let actionsMap: Record<string, any> = {};
     if (instance.training_days) {
         const trainingDays = instance.training_days as any[];
@@ -137,20 +146,14 @@ async function getSingleInstance(
             }
         }
     }
+    timings['3_load_actions'] = performance.now() - t2;
 
     // Auto load compute (计算训练负荷)
+    const t3 = performance.now();
     try {
+        // 使用权限检查时已获取的 subscriptionStudentId，避免重复查询
         const targetStudentId: string | null =
-            (instance.student_id as string | null) ||
-            (instance.coach_subscription_id
-                ? (
-                    await supabase
-                        .from("coach_subscriptions")
-                        .select("student_id")
-                        .eq("id", instance.coach_subscription_id)
-                        .maybeSingle()
-                ).data?.student_id || null
-                : null);
+            (instance.student_id as string | null) || subscriptionStudentId;
 
         if (targetStudentId && Array.isArray(instance.training_days)) {
             const { data: profile } = await supabase
@@ -179,7 +182,7 @@ async function getSingleInstance(
 
                     const params = set.params || {};
                     const existingLoad = params.load;
-                    if (existingLoad !== null && existingLoad !== undefined) continue; // don't override explicit loads
+                    if (existingLoad !== null && existingLoad !== undefined) continue;
 
                     const intensityConfig = normalizeIntensityConfig(params);
                     const legacyRm = params["强度"] ?? set.intensity;
@@ -217,9 +220,12 @@ async function getSingleInstance(
     } catch (e) {
         // best-effort; never block plan rendering
         console.warn("[get-today-training-instance] auto load compute skipped:", e);
+    } finally {
+        timings['4_compute_load'] = performance.now() - t3;
     }
 
-    // 加载执行记录
+    // 加载执行记录（修复字段名：使用 instance_id 而不是 plan_instance_id）
+    const t4 = performance.now();
     let executionsList: any[] = [];
     const { data: executions } = await supabase
         .from("plan_instance_executions")
@@ -233,7 +239,7 @@ async function getSingleInstance(
                 )
             )
         `)
-        .eq("plan_instance_id", instance.id)
+        .eq("instance_id", instance.id)
         .order("day_index", { ascending: true });
 
     if (executions) {
@@ -249,8 +255,10 @@ async function getSingleInstance(
             })),
         }));
     }
+    timings['5_load_executions'] = performance.now() - t4;
 
     // 构建执行记录映射
+    const t5 = performance.now();
     const executionsByDayIndex: Record<number, any> = {};
     for (const exec of executionsList || []) {
         const di = Number(exec?.day_index ?? 0);
@@ -266,8 +274,10 @@ async function getSingleInstance(
             executionsByDayIndex[di] = exec;
         }
     }
+    timings['6_build_execution_map'] = performance.now() - t5;
 
     // 计算下一个训练日信息
+    const t6 = performance.now();
     const startExecutionDay = Number((instance as any).start_execution_day || 1);
     const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
     const trainingDays = (Array.isArray(instance.training_days) ? (instance.training_days as any[]) : [])
@@ -330,11 +340,20 @@ async function getSingleInstance(
     if (trainingOnlyDays.length === 0) {
         nextDayIndex = startExecutionDay;
     }
+    timings['7_calculate_next_day'] = performance.now() - t6;
 
     const matchedSubscriptionId: string | undefined =
         (subscriptionIds && subscriptionIds.length > 0)
             ? ((instance as any).coach_subscription_id as string | undefined)
             : undefined;
+
+    const totalTime = performance.now() - startTime;
+    timings['_total'] = totalTime;
+
+    // 输出性能日志（仅在开发环境或超过阈值时）
+    if (process.env.NODE_ENV === 'development' || totalTime > 1000) {
+        console.log(`[get-today-training-instance] Performance timings (${totalTime.toFixed(2)}ms):`, timings);
+    }
 
     return {
         instance,
@@ -352,7 +371,13 @@ async function getSingleInstance(
 }
 
 export async function POST(req: Request) {
+    const apiStartTime = performance.now();
+    const apiTimings: Record<string, number> = {};
+
+    const t0 = performance.now();
     const session = await getServerSession();
+    apiTimings['0_get_session'] = performance.now() - t0;
+
     const userId = session?.user?.id || null;
 
     if (!userId) {
@@ -362,18 +387,30 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
+    const t1 = performance.now();
     const { subscriptionIds } = await req.json() as GetTodayTrainingInstanceDto;
+    apiTimings['1_parse_request'] = performance.now() - t1;
 
     // 并行查询教练计划和自建计划
+    const t2 = performance.now();
     const [coachPlanResult, selfPlanResult] = await Promise.allSettled([
         subscriptionIds && subscriptionIds.length > 0
             ? getSingleInstance(userId, session, { subscriptionIds })
             : Promise.resolve(null),
         getSingleInstance(userId, session, { fetchSelf: true }),
     ]);
+    apiTimings['2_fetch_plans'] = performance.now() - t2;
 
     const coachPlan = coachPlanResult.status === 'fulfilled' ? coachPlanResult.value : null;
     const selfPlan = selfPlanResult.status === 'fulfilled' ? selfPlanResult.value : null;
+
+    const totalTime = performance.now() - apiStartTime;
+    apiTimings['_total'] = totalTime;
+
+    // 输出性能日志（仅在开发环境或超过阈值时）
+    if (process.env.NODE_ENV === 'development' || totalTime > 1500) {
+        console.log(`[get-today-training-instance API] Performance timings (${totalTime.toFixed(2)}ms):`, apiTimings);
+    }
 
     return NextResponse.json<ApiData<GetTodayTrainingInstanceResponseDto>>({
         success: true,

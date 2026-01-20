@@ -1186,6 +1186,36 @@ export type Database = {
           },
         ]
       }
+      feedbacks: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          related_question: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          related_question?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          related_question?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       growth_share_events: {
         Row: {
           created_at: string

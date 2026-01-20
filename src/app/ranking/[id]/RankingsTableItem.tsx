@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, Clock, ChevronRight, Play, Trophy, Medal, Award } from 'lucide-react';
 import { Avatar } from 'primereact/avatar';
+import { Dialog } from 'primereact/dialog';
 
 interface RankingsTableItemProps {
     entry: any;
@@ -25,6 +26,7 @@ export const RankingsTableItem: React.FC<RankingsTableItemProps> = ({
     metaData
 }) => {
     const [isActionsOpen, setIsActionsOpen] = useState(false);
+    const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
 
     // --- 核心：极致丝滑的非线性惯性动画配置 ---
     const inertialSpring = {
@@ -45,6 +47,21 @@ export const RankingsTableItem: React.FC<RankingsTableItemProps> = ({
             case 1: return <Medal size={14} className="mt-1 text-slate-400" />;
             case 2: return <Award size={14} className="mt-1 text-orange-700" />;
             default: return null;
+        }
+    };
+
+    // 处理视频链接点击
+    const handleVideoClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        // 检查是否是 mp4 文件
+        if (url.toLowerCase().endsWith('.mp4')) {
+            // 如果是 mp4，打开预览对话框
+            setPreviewVideoUrl(url);
+        } else {
+            // 如果不是 mp4，保持原有行为（新窗口打开）
+            window.open(url, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -69,7 +86,7 @@ export const RankingsTableItem: React.FC<RankingsTableItemProps> = ({
                                         href={url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
+                                        onClick={(e) => handleVideoClick(e, url)}
                                         className="flex flex-col items-center justify-center bg-[#F28631] h-14 w-16 rounded-2xl text-white shadow-[0_8px_20px_rgba(242,134,49,0.3)] active:scale-90 transition-transform"
                                     >
                                         <Play size={20} fill="currentColor" />
@@ -178,6 +195,34 @@ export const RankingsTableItem: React.FC<RankingsTableItemProps> = ({
                     )}
                 </div>
             </motion.div>
+
+            {/* 视频预览对话框 */}
+            <Dialog
+                visible={!!previewVideoUrl}
+                onHide={() => setPreviewVideoUrl(null)}
+                header="视频预览"
+                style={{ width: '90vw', maxWidth: '800px' }}
+                pt={{
+                    root: { className: 'rounded-[24px] overflow-hidden border-none shadow-2xl' },
+                    header: { className: 'p-4 pb-0' },
+                    content: { className: 'p-4' }
+                }}
+                modal
+                dismissableMask
+            >
+                {previewVideoUrl && (
+                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                        <video
+                            src={previewVideoUrl}
+                            controls
+                            className="w-full h-full"
+                            autoPlay
+                        >
+                            您的浏览器不支持视频播放
+                        </video>
+                    </div>
+                )}
+            </Dialog>
         </div>
     );
 };

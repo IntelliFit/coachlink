@@ -224,6 +224,98 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     @apply rounded-lg;
 }
 
+/* 移动端 Toast：居中、无滑动动画、透明黑底 */
+@media (max-width: 640px) {
+    .app-toast.p-toast,
+    .p-toast {
+        left: 50% !important;
+        top: 50% !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translate(-50%, -50%) !important;
+        width: auto !important;
+        max-width: 80vw !important;
+        pointer-events: none;
+    }
+
+    .app-toast .p-toast-message,
+    .p-toast .p-toast-message {
+        background: rgba(0, 0, 0, 0.72) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        opacity: 0;
+        animation: toast-fade-in 0.15s ease-out !important;
+        animation-fill-mode: both !important;
+        transition: none !important;
+        transform: none !important;
+    }
+
+    .app-toast .p-toast-message-content,
+    .p-toast .p-toast-message-content {
+        padding: 10px 16px !important;
+        justify-content: center;
+        text-align: center;
+        gap: 8px;
+    }
+
+    .app-toast .p-toast-summary,
+    .app-toast .p-toast-detail,
+    .p-toast .p-toast-summary,
+    .p-toast .p-toast-detail {
+        color: inherit !important;
+        text-align: center;
+        word-break: break-word;
+    }
+
+    .app-toast .p-toast-message-icon,
+    .app-toast .p-toast-icon-close,
+    .p-toast .p-toast-message-icon,
+    .p-toast .p-toast-icon-close {
+        display: none !important;
+    }
+
+    .app-toast .p-toast-message-enter,
+    .app-toast .p-toast-message-enter-active,
+    .app-toast .p-toast-message-exit,
+    .app-toast .p-toast-message-exit-active,
+    .p-toast .p-toast-message-enter,
+    .p-toast .p-toast-message-enter-active,
+    .p-toast .p-toast-message-exit,
+    .p-toast .p-toast-message-exit-active {
+        transition: none !important;
+        transform: none !important;
+    }
+
+    .app-toast .p-toast-message-exit,
+    .app-toast .p-toast-message-exit-active,
+    .p-toast .p-toast-message-exit,
+    .p-toast .p-toast-message-exit-active {
+        animation: toast-fade-out 0.15s ease-in !important;
+        animation-fill-mode: both !important;
+    }
+}
+
+@keyframes toast-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes toast-fade-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
 /* 引导框主体 */
 .aero-guide-popover.driver-popover-item {
   @apply bg-surface border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-6 rounded-[24px] !important;
