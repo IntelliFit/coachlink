@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 
@@ -19,12 +20,24 @@ interface VisibilityStatus {
 
 // GET - 获取当前用户的视野状态
 export async function GET(req: NextRequest) {
+    // 优先使用原有的session鉴权（保持向后兼容）
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ message: "未登录" }, { status: 401 });
+    let userId: string | null = null;
+
+    if (session?.user?.id) {
+        // 网页端：使用session
+        userId = session.user.id;
+    } else {
+        // 小程序端：尝试从token获取
+        const auth = await getAuthUser(req);
+        if (auth.isAuthenticated && auth.userId) {
+            userId = auth.userId;
+        }
     }
 
-    const userId = session.user.id;
+    if (!userId) {
+        return NextResponse.json({ message: "未登录" }, { status: 401 });
+    }
 
     // 1. 获取用户的邀请来源教练
     let userData: any = null;
