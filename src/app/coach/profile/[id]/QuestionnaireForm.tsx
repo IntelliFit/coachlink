@@ -7,8 +7,8 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { RadioButton } from 'primereact/radiobutton';
 import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
-import { planLibService } from '@/app/service/planLibService';
 import { actionLibService } from '@/app/service/actionLibService';
+import { trainingItemService } from '@/app/service/trainingItemService';
 import { useToastContext } from '@/context/ToastContext';
 import type { TrainingItem } from '@/types/questionnaires';
 import { CoachesRow, CoachSubscriptionRow, CoachActionRow } from '@/types';
@@ -38,11 +38,11 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 }) => {
     const { showToast } = useToastContext();
     const [answers, setAnswers] = useState<TrainingItem[]>(questions);
-    const [tags, setTags] = useState<string[]>([]);
-    const [loadingTags, setLoadingTags] = useState<boolean>(true);
     const [coachSubscription, setCoachSubscription] = useState<QueryCoachSubscription | null>(null);
     const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(true);
+    const [trainingItemNames, setTrainingItemNames] = useState<string[]>([]);
+    const [loadingTrainingItems, setLoadingTrainingItems] = useState<boolean>(true);
     const { data: session } = useSession()
 
     useEffect(() => {
@@ -65,20 +65,17 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             return;
         }
 
-        const fetchTags = async () => {
-            setLoadingTags(true);
+        const fetchTrainingItems = async () => {
+            setLoadingTrainingItems(true);
             try {
-                const res = await planLibService.getUniqueTemplateTags({
-                    coachId: coach.id
-                });
-                if (res && res.tags) {
-                    setTags(res.tags);
-                }
-            } catch (error) {
-                console.error('获取训练标签失败:', error);
-                setTags(['胸部训练', '背部训练', '腿部训练', '肩部训练', '手臂训练']);
+                const res = await trainingItemService.listTrainingItems();
+                const names = (res.trainingItems || []).map(it => it.name).filter(Boolean);
+                setTrainingItemNames(names);
+            } catch (e) {
+                console.error('获取训练项目库失败:', e);
+                setTrainingItemNames([]);
             } finally {
-                setLoadingTags(false);
+                setLoadingTrainingItems(false);
             }
         };
 
@@ -99,7 +96,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         };
 
         if (visible) {
-            fetchTags();
+            fetchTrainingItems();
             fetchAutoComputeActions();
         }
     }, [visible, coach]);
@@ -234,9 +231,14 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
         for (let i = 0; i < questions.length; i++) {
             const q = answers[i];
-            if (q.type === 'tags' && (!q.userSelections || q.userSelections.length === 0)) {
-                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
-                return;
+            if (q.type === 'tags') {
+                const configured = Array.isArray((q as any).options) && (q as any).options.length > 0;
+                const fallbackReady = trainingItemNames.length > 0;
+                // 只有当“有可选项”时才强制要求选择；否则不阻塞提交（避免老数据/异常配置卡死）
+                if ((configured || fallbackReady) && (!q.userSelections || q.userSelections.length === 0)) {
+                    showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                    return;
+                }
             }
             if (q.type === 'times' && (![1, 2, 3, 4, 5, 6, 7].includes(q.userSelection))) {
                 showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
@@ -260,21 +262,25 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     const renderQuestion = (question: TrainingItem, index: number) => {
         switch (question.type) {
             case 'tags':
+                // 训练项目偏好选项库：优先使用问卷里配置的 options；缺失时兜底 training_items
+                const tagOptions: string[] = Array.isArray((question as any).options) && (question as any).options.length > 0
+                    ? (question as any).options
+                    : trainingItemNames;
                 return (
                     <div className="mb-8" key={index}>
                         <label className="block text-sm font-medium mb-4">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
-                        {loadingTags ? (
+                        {loadingTrainingItems && (!Array.isArray((question as any).options) || (question as any).options.length === 0) ? (
                             <div className="flex flex-col gap-2">
                                 {[1, 2, 3, 4, 5].map((_, i) => (
                                     <div key={i} className="flex align-items-center">
                                         <Skeleton width="20px" height="20px" className="mr-2" />
-                                        <Skeleton width="100px" height="1rem" />
+                                        <Skeleton width="120px" height="1rem" />
                                     </div>
                                 ))}
                             </div>
-                        ) : (
+                        ) : tagOptions.length > 0 ? (
                             <div className="flex flex-col gap-4">
-                                {tags.map((tag, tagIndex) => (
+                                {tagOptions.map((tag, tagIndex) => (
                                     <div key={tagIndex} className="flex align-items-center">
                                         <Checkbox
                                             inputId={`tag${index}-${tagIndex}`}
@@ -293,6 +299,10 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                         <label htmlFor={`tag${index}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
                                     </div>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="text-center p-4 bg-surface-50 rounded-lg border border-surface-200 text-surface-500 text-sm">
+                                教练暂未配置训练项目选项
                             </div>
                         )}
                     </div>
@@ -326,11 +336,13 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 );
 
             case 'rm':
+                const selectedActionIds: string[] = Array.isArray((question as any).actionIds) ? (question as any).actionIds : [];
+                const rmActions = (autoComputeActions || []).filter(a => selectedActionIds.includes(a.id));
                 return (
                     <div className="mb-8" key={index}>
                         <label className="block text-sm font-medium mb-2">Q{index + 1}. 请输入以下动作您的极限重量</label>
                         <p className="text-xs text-surface-500 mb-4">
-                            💡 包含自重的动作（如引体向上）可填负数，表示需要辅助的重量
+                            💡 自重类动作（如引体向上）：这里填写<strong>额外负重</strong>（不含自重），可填负数表示需要辅助的重量
                         </p>
                         {loadingActions ? (
                             <div className="flex flex-col gap-3">
@@ -341,19 +353,14 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                     </div>
                                 ))}
                             </div>
-                        ) : (autoComputeActions && autoComputeActions.length > 0) ? (
+                        ) : (rmActions && rmActions.length > 0) ? (
                             <div className="flex flex-col gap-4">
-                                {autoComputeActions.map((action, actionIndex) => {
+                                {rmActions.map((action, actionIndex) => {
                                     const isBodyWeightAction = action.includesBodyWeight;
                                     return (
                                         <div key={actionIndex} className="flex flex-col">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <label className="block text-xs text-600">{action.name}</label>
-                                                {isBodyWeightAction && (
-                                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">
-                                                        含自重
-                                                    </span>
-                                                )}
                                             </div>
 
                                             <AeroInputNumber
@@ -373,7 +380,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                             />
                                             {isBodyWeightAction && (
                                                 <span className="text-[10px] text-surface-400 mt-1">
-                                                    负数表示需要辅助，如 -10 表示需10kg辅助
+                                                    填写额外负重（不含自重）；负数表示需要辅助，如 -10 表示需10kg辅助
                                                 </span>
                                             )}
                                         </div>
@@ -482,9 +489,9 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                     <ul className="text-xs text-amber-700 space-y-1.5 list-disc list-inside">
                         <li>请如实填写您的训练情况，这将帮助教练为您制定更精准的计划</li>
                         <li><strong>关于极限重量（1RM）</strong>：指您在该动作下能完成1次的最大重量</li>
-                        <li><strong>包含自重的动作</strong>（如引体向上、双杠臂屈伸等）：
+                        <li><strong>自重类动作</strong>（如引体向上、双杠臂屈伸等）：
                             <ul className="ml-4 mt-1 space-y-0.5">
-                                <li>填写<strong>正数</strong>表示您能额外负重多少kg完成动作</li>
+                                <li>填写<strong>正数</strong>表示您能额外负重多少kg完成动作（不含自重）</li>
                                 <li>填写<strong>负数</strong>表示您需要多少kg辅助（如使用辅助带减轻自重）才能完成动作</li>
                                 <li>例如：填 <code className="bg-amber-100 px-1 rounded">-10</code> 表示需要10kg辅助</li>
                             </ul>

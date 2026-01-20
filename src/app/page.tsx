@@ -3,19 +3,20 @@
 // 强制动态渲染，禁用静态生成和缓存
 export const dynamic = 'force-dynamic';
 
+import { useState } from "react";
 import { Button } from "primereact/button";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-    BrainCircuit, Activity, Zap, ArrowRight,
+    BrainCircuit, Zap, ArrowRight,
     ShieldCheck, TrendingUp, Video, Trophy,
-    BookOpen, Layers, Sparkles, Lock
+    BookOpen, Layers, Sparkles, Lock, QrCode, Users, Gift
 } from 'lucide-react';
-import { Tag } from "primereact/tag";
 
 export default function Home() {
     const router = useRouter();
     const { data: session } = useSession();
+    const [qrFailed, setQrFailed] = useState(false);
 
     const handleStartTraining = () => {
         if (session?.user) {
@@ -137,8 +138,80 @@ export default function Home() {
                 </div>
             </section>
 
-            <br />
-            <br />
+            {/* 小程序内测群招募 */}
+            <section className="relative z-10 max-w-6xl w-full px-4 -mt-6 sm:-mt-10 mb-16 sm:mb-20">
+                <div className="relative overflow-hidden rounded-[2.5rem] bg-surface border border-surface-200/40 shadow-[0_14px_60px_-30px_rgba(0,0,0,0.25)]">
+                    {/* 装饰性光晕 */}
+                    <div className="absolute -top-28 -right-28 w-[420px] h-[420px] bg-orange-500/12 rounded-full blur-[90px]" />
+                    <div className="absolute -bottom-28 -left-28 w-[420px] h-[420px] bg-amber-500/10 rounded-full blur-[100px]" />
+
+                    <div className="relative p-6 sm:p-10 md:p-12 grid grid-cols-1 md:grid-cols-[1fr_280px] gap-8 items-center">
+                        <div className="text-left">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 text-orange-700 border border-orange-500/20 text-sm font-bold">
+                                <Users className="w-4 h-4" />
+                                小程序内测招募
+                            </div>
+
+                            <h2 className="mt-4 text-2xl sm:text-4xl font-black tracking-tight text-surface-900 leading-tight">
+                                小程序版本正在持续制作中，欢迎加入内测群
+                            </h2>
+
+                            <p className="mt-3 text-surface-600 text-sm sm:text-lg leading-relaxed font-medium max-w-2xl">
+                                我们会持续迭代功能与体验。欢迎你在内测群提出宝贵建议；对积极反馈的用户，我们将提供专属权益（例如终身会员等）。
+                            </p>
+
+                            <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-x-6 gap-y-3 text-sm sm:text-base">
+                                <div className="flex items-center gap-2 text-surface-700 font-semibold">
+                                    <Zap size={18} className="text-orange-600" />
+                                    优先体验新功能
+                                </div>
+                                <div className="flex items-center gap-2 text-surface-700 font-semibold">
+                                    <Sparkles size={18} className="text-orange-600" />
+                                    参与产品共创与讨论
+                                </div>
+                                <div className="flex items-center gap-2 text-surface-700 font-semibold">
+                                    <Gift size={18} className="text-orange-600" />
+                                    反馈奖励（终身会员等）
+                                </div>
+                            </div>
+
+                            <p className="mt-4 text-xs sm:text-sm text-surface-500">
+                                提示：可长按/扫码识别右侧二维码加入微信群。
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="w-[220px] h-[220px] rounded-3xl bg-white shadow-lg border border-surface-200/40 flex items-center justify-center overflow-hidden">
+                                {!qrFailed ? (
+                                    <img
+                                        src="/images/wechat-beta-group-qr.png"
+                                        alt="加入内测群微信二维码"
+                                        className="w-full h-full object-cover"
+                                        onError={() => setQrFailed(true)}
+                                    />
+                                ) : (
+                                    <div className="p-6 text-center">
+                                        <div className="mx-auto w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-700 mb-3">
+                                            <QrCode className="w-6 h-6" />
+                                        </div>
+                                        <div className="text-surface-900 font-black">二维码暂未配置</div>
+                                        <div className="mt-1 text-xs text-surface-500 leading-relaxed">
+                                            请稍后再试，或联系官方获取入群方式
+                                        </div>
+                                        {process.env.NODE_ENV !== 'production' && (
+                                            <div className="mt-2 text-[11px] text-surface-400 font-mono">
+                                                public/images/wechat-beta-group-qr.png
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-3 text-sm font-black text-surface-900">加入内测群</div>
+                            <div className="text-xs text-surface-500">获取新功能优先体验与反馈奖励</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {/* 核心亮点网格 (Aero-Productivity 优化版) */}
             <section className="relative z-10 max-w-7xl w-full px-4 mt-20 mb-12 sm:mb-40 transition-all">

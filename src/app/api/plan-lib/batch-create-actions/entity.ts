@@ -6,6 +6,10 @@ export interface BatchCreateActionsDto {
         name: string;
         needsAutoCompute: boolean;
         includesBodyWeight: boolean;
+        attrs?: string[];
+        positions?: string[];
+        detail?: string;
+        url?: string;
     }[];
 }
 

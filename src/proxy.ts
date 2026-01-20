@@ -36,6 +36,19 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
+    // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
+    // This lets Playwright seed/cleanup data without being redirected to `/login`.
+    if (pathname.startsWith("/api/test/e2e/")) {
+        if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
+            const expected = process.env.E2E_SECRET;
+            // If E2E_SECRET is configured, require it. Otherwise allow (local dev convenience).
+            if (!expected) return NextResponse.next();
+            const provided = request.headers.get("x-e2e-secret");
+            if (provided && provided === expected) return NextResponse.next();
+        }
+        // In non-dev/test, or with missing/invalid secret, fall through to normal auth checks.
+    }
+
 
 
     // 仅当访问受保护资源时才解码 token

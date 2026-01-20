@@ -66,7 +66,8 @@ export function calcRecommendedLoad(
     // 负数 1RM 是有效的，表示需要辅助的自重动作
     // 例如：-10 表示需要 10kg 辅助才能完成引体向上
     if (oneRM === 0) throw new Error("1RM 不能为 0");
-    if (weight <= 0) throw new Error("体重必须大于 0");
+    // alpha=0 表示不考虑体重项（纯外加重量动作），此时允许 weight<=0
+    if (alpha !== 0 && weight <= 0) throw new Error("体重必须大于 0");
 
     let lambda: number;
 
@@ -191,32 +192,7 @@ export function calcIntensityDisplay(
 
             // NOTE:
             // - oneRM in this product is "external load 1RM" (不含自重) even for pull-ups/dips.
-            // - For includesBodyWeight actions, % should be applied to TOTAL (bw + external) then subtract bw.
-            if (includesBodyWeight) {
-                if (bodyWeight <= 0) {
-                    // can't compute external load without body weight
-                    if (intensityConfig.recommendedLoad) {
-                        return {
-                            displayWeight: intensityConfig.recommendedLoad.value,
-                            displayUnit: intensityConfig.recommendedLoad.unit,
-                            displayText: `${ri.value}%`,
-                            source: "recommended",
-                        };
-                    }
-                    return { displayText: `${ri.value}%`, source: "relative-text" };
-                }
-
-                const total1RM = oneRM + bodyWeight;
-                const totalTarget = total1RM * p;
-                const displayWeight = totalTarget - bodyWeight;
-                return {
-                    displayWeight: Math.round(displayWeight * 10) / 10,
-                    displayUnit: "kg",
-                    source: "calculated",
-                };
-            }
-
-            // normal actions: % applies to external 1RM directly
+            // - Product rule: percentage mode uses external 1RM directly (no body-weight subtraction).
             const displayWeight = oneRM * p;
             return {
                 displayWeight: Math.round(displayWeight * 10) / 10,

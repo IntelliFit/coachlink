@@ -4,6 +4,10 @@ export interface BatchCreateStudentActionsDto {
         name: string;
         needsAutoCompute?: boolean;
         includesBodyWeight?: boolean;
+        attrs?: string[];
+        positions?: string[];
+        detail?: string;
+        url?: string;
     }[];
 }
 

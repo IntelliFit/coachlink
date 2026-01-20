@@ -27,7 +27,10 @@ interface BasicInfoFormProps {
     onWeekDaysChange?: (days: number[]) => void;
     globalQuestions?: TrainingOptionQuestion[];
     globalAnswers?: Record<string, number>;
-    onGlobalAnswerChange?: (question: string, answerIndex: number) => void;
+    /**
+     * Pass `null` to clear (unanswer) a question.
+     */
+    onGlobalAnswerChange?: (question: string, answerIndex: number | null) => void;
 }
 
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
@@ -189,7 +192,7 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                                             return (
                                                 <div
                                                     key={i}
-                                                    onClick={() => onGlobalAnswerChange?.(question.question, i)}
+                                                    onClick={() => onGlobalAnswerChange?.(question.question, selected ? null : i)}
                                                     className={`
                                                         p-3 rounded-[16px] border transition-all duration-300 cursor-pointer text-center
                                                         ${selected 
@@ -202,6 +205,9 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                    <div className="text-[11px] text-surface-400 px-1">
+                                        可不选；再次点击已选项可取消。
                                     </div>
                                 </div>
                             ))}

@@ -40,6 +40,10 @@ import type {
     DeleteInstanceDto,
     DeleteInstanceResponseDto,
 } from "@/app/api/plan-lib/delete-instance/entity";
+import type {
+    ArchiveInstanceDto,
+    ArchiveInstanceResponseDto,
+} from "@/app/api/plan-lib/archive-instance/entity";
 import {
     GetWithExecutionsDto,
     GetWithExecutionsResponseDto,
@@ -188,6 +192,17 @@ export class PlanLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete instance");
+        }
+        return res.data.data;
+    }
+
+    async archiveInstance(reqData: ArchiveInstanceDto) {
+        const res = await this.post<ArchiveInstanceResponseDto>(
+            "archive-instance",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to archive instance");
         }
         return res.data.data;
     }
