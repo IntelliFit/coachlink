@@ -34,7 +34,8 @@ import {
     Activity,
     Users,
     Menu as MenuIcon, // 引入菜单图标
-    Headphones
+    Headphones,
+    MessageSquare
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -392,13 +393,13 @@ export default function NavigationStudent() {
                             <button
                                 onClick={() => {
                                     // 这里填写你的客服逻辑，比如跳转路由或打开第三方聊天
-                                    router.push('/support');
+                                    router.push('/feedback');
                                     setVisibleLeft(false);
                                 }}
                                 className="flex items-center gap-2 px-3 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-600 active:scale-90 transition-transform"
                             >
-                                <Headphones size={18} />
-                                <span className="text-xs font-bold">客服</span>
+                                <MessageSquare size={18} />
+                                <span className="text-xs font-bold">反馈</span>
                             </button>
                         </div>
 
