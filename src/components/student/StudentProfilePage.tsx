@@ -78,9 +78,13 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     user: session.user as any, // Type assertion needed as session user might differ slightly
                     profile: profileRes.profile,
                     stats: {
+                        // 订阅
                         subscriptionCount: 0,
+                        // 进行中
                         activePlanCount: 0,
+                        // 已完成训练计划
                         completedWorkouts: 0,
+                        // 总训练时间
                         totalTrainingTime: 0
                     },
                     subscriptionLevel: (session.user.subscription_level as any) || 'basic',

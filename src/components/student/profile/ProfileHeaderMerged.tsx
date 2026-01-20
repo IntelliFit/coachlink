@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Crown, Users, Edit, Mars, Venus, Ruler, Weight, Target, Activity, MoreVertical, UserPlus } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Crown, Users, Edit, Mars, Venus, Ruler, Weight, Target, Activity, MoreVertical } from 'lucide-react';
 import { Button } from 'primereact/button';
+import { Menu } from 'primereact/menu';
 import { ProfileHeaderProps } from './types';
 import { friendService } from '@/app/service/friendService';
 import { useToastContext } from '@/context/ToastContext';
@@ -26,26 +27,8 @@ export const ProfileHeaderMerged: React.FC<ProfileHeaderMergedProps> = ({ data, 
     const { user, profile, subscriptionLevel } = data;
     const { showToast } = useToastContext();
     const { data: session } = useSession();
-    const menuRef = useRef<HTMLDivElement>(null);
-    const [menuVisible, setMenuVisible] = useState(false);
+    const menuRef = useRef<Menu>(null);
     const [addingFriend, setAddingFriend] = useState(false);
-
-    // 点击外部关闭菜单
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setMenuVisible(false);
-            }
-        };
-
-        if (menuVisible) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [menuVisible]);
     
     const getLevelLabel = (level: string) => {
         switch(level) {
@@ -117,10 +100,19 @@ export const ProfileHeaderMerged: React.FC<ProfileHeaderMergedProps> = ({ data, 
         }
     };
 
+    // 菜单项
+    const menuItems = [
+        {
+            label: '添加好友',
+            icon: 'pi pi-user-plus',
+            command: handleAddFriend,
+            disabled: addingFriend || !session?.user?.id || session.user.id === user.id,
+        },
+    ];
 
     return (
-        <div className="bg-surface rounded-3xl shadow-sm border border-surface-100 mb-4 sm:mb-6 overflow-hidden">
-            <div className="p-5 sm:p-6">
+        <div className="rounded-3xl mb-4 sm:mb-6 overflow-hidden">
+            <div className="p-2 sm:p-6">
                 {/* 顶部：头像和基本信息区 */}
                 <div className="flex items-start gap-4 mb-5">
                     {/* 左侧：头像 */}
@@ -212,9 +204,9 @@ export const ProfileHeaderMerged: React.FC<ProfileHeaderMergedProps> = ({ data, 
                         {[
                             { label: '订阅', value: data.stats.subscriptionCount },
                             { label: '进行中', value: data.stats.activePlanCount },
-                            { label: '已完成训练', value: data.stats.completedWorkouts }
+                            { label: '已完成', value: data.stats.completedWorkouts }
                         ].map((stat, i) => (
-                            <div key={i} className="flex flex-col cursor-pointer group">
+                            <div key={i} className="flex flex-col items-center cursor-pointer group">
                                 <div className="text-lg font-bold text-surface-900 group-hover:text-primary transition-colors">
                                     {stat.value}
                                 </div>
@@ -239,6 +231,13 @@ export const ProfileHeaderMerged: React.FC<ProfileHeaderMergedProps> = ({ data, 
                             model={menuItems}
                             popup
                             className="min-w-[160px]"
+                            pt={{
+                                root: { className: 'border-none shadow-xl rounded-[20px] p-2 bg-surface/90 backdrop-blur-md' },
+                                menuitem: { className: 'rounded-[12px] overflow-hidden mb-1' },
+                                action: { className: 'hover:bg-surface-50 p-3 transition-all' },
+                                label: { className: 'text-[13px] font-bold text-surface-700 tracking-tight' },
+                                icon: { className: 'text-primary-500 mr-3 text-sm' }
+                            }}
                         />
                     </div>
                 </div>

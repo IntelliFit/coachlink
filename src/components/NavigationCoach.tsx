@@ -40,7 +40,7 @@ export default function NavigationCoach() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
-    const { data: session, status } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const [visibleLeft, setVisibleLeft] = useState(false);
@@ -139,6 +139,7 @@ export default function NavigationCoach() {
         { label: '我的主页', icon: 'pi pi-home', command: () => { gotoCoachDisplayPage(); setVisibleLeft(false); } },
         { label: '我的钱包', icon: 'pi pi-wallet', command: () => { router.push('/dashboard/wallet'); setVisibleLeft(false); } },
         { label: '动作库', icon: 'pi pi-database', command: () => { router.push('/dashboard/action-lib'); setVisibleLeft(false); } },
+        { separator: true },
         { label: '订阅设置', icon: 'pi pi-tags', command: () => { router.push('/dashboard/pricing'); setVisibleLeft(false); } },
         { label: '邀请学员', icon: 'pi pi-user-plus', command: () => { router.push('/coach/settings/invitation'); setVisibleLeft(false); } },
         { label: '学员问卷', icon: 'pi pi-file', command: () => { router.push('/dashboard/questionnaire'); setVisibleLeft(false); } },
@@ -152,7 +153,15 @@ export default function NavigationCoach() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ role: 'student' })
                     });
-                    if (res.ok) window.location.href = '/';
+                    if (res.ok) {
+                        // 刷新 session 以更新 JWT 中的用户数据
+                        try {
+                            await updateSession();
+                        } catch (e) {
+                            console.warn('刷新 session 失败:', e);
+                        }
+                        window.location.href = '/';
+                    }
                 } catch (e) { console.error(e); }
             }
         },
