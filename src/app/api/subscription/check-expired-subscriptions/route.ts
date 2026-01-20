@@ -168,14 +168,14 @@ export async function POST(req: Request) {
     // 8. 更新刷新订阅
     const updateRefreshStart = performance.now();
     if (toRefresh.length > 0) {
-        await Promise.all(
-            toRefresh.map((r) =>
-                supabase
-                    .from("coach_subscriptions")
-                    .update({ end_date: r.end_date, updated_at: nowIso })
-                    .eq("id", r.id),
-            ),
-        );
+        const refreshPayload = toRefresh.map((r) => ({
+            id: r.id,
+            end_date: r.end_date,
+            updated_at: nowIso,
+        }));
+        await supabase
+            .from("coach_subscriptions")
+            .upsert(refreshPayload as any, { onConflict: "id" });
     }
     timings['8_update_refresh'] = performance.now() - updateRefreshStart;
 

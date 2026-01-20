@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Edit, Dumbbell, Activity, Bike, Footprints } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -18,6 +18,9 @@ import { getEmptySportCards, getTotalWeight, showTotalWeight, SportTypes, typica
 interface PersonalInfoSectionProps {
     data: ProfileData;
     onUpdate: () => void;
+    editingVisible?: boolean;
+    onEditingChange?: (visible: boolean) => void;
+    hideDisplay?: boolean; // 隐藏显示区域，只保留编辑对话框
 }
 
 // 性别选项
@@ -63,9 +66,25 @@ const getFitnessLevelDisplay = (level: string | null) => {
     return map[level] || level;
 };
 
-export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, onUpdate }) => {
+export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ 
+    data, 
+    onUpdate, 
+    editingVisible,
+    onEditingChange,
+    hideDisplay = false
+}) => {
     const { profile } = data;
     const [isEditing, setIsEditing] = useState(false);
+    
+    // 如果外部控制可见性，使用外部状态
+    const editingState = editingVisible !== undefined ? editingVisible : isEditing;
+    const setEditingState = (visible: boolean) => {
+        if (onEditingChange) {
+            onEditingChange(visible);
+        } else {
+            setIsEditing(visible);
+        }
+    };
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [step, setStep] = useState(1);
@@ -87,8 +106,6 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
 
     // 初始化表单数据
     const initFormData = () => {
-        console.log('enter');
-
         const sportCards = (profile?.sport_cards as unknown as SportCards) || getEmptySportCards();
 
         setFormData({
@@ -108,6 +125,30 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
         });
     };
 
+    // 当编辑对话框打开时，自动初始化表单数据
+    useEffect(() => {
+        if (editingState && profile) {
+            const sportCards = (profile?.sport_cards as unknown as SportCards) || getEmptySportCards();
+            
+            setFormData({
+                nickname: profile?.nickname || '',
+                avatar_url: profile?.avatar_url || '',
+                age: profile?.age || null,
+                gender: profile?.gender || '',
+                height: profile?.height || null,
+                weight: profile?.weight || null,
+                lifestyle: profile?.lifestyle || '',
+                fitness_goal: profile?.fitness_goal || '',
+                fitness_level: profile?.fitness_level || '',
+                sport_cards: {
+                    ...getEmptySportCards(),
+                    ...sportCards
+                }
+            });
+            setStep(1); // 重置到第一步
+        }
+    }, [editingState, profile]);
+
     const handleSave = async () => {
         try {
             setLoading(true);
@@ -124,7 +165,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                 sport_cards: formData.sport_cards
             });
             showToast({ severity: 'success', summary: '保存成功', detail: '个人信息已更新' });
-            setIsEditing(false);
+            setEditingState(false);
             setStep(1); // Reset to first step when closing
             onUpdate();
         } catch (error) {
@@ -209,45 +250,49 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
     );
 
     return (
-        <div className="bg-surface rounded-2xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
-            <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm sm:text-lg font-black text-surface-900 flex items-center gap-2">
-                    <User className="text-primary" size={20} />
-                    个人信息
-                </h2>
-                <Button
-                    aria-label="编辑资料"
-                    icon={<Edit size={16} />}
-                    text
-                    onClick={() => {
-                        initFormData();
-                        setIsEditing(true);
-                        setStep(1); // Reset to first step when opening
-                    }}
-                    className="p-2 rounded-2xl"
-                />
-            </div>
+        <>
+            {!hideDisplay && (
+                <div className="bg-surface rounded-2xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-sm sm:text-lg font-black text-surface-900 flex items-center gap-2">
+                            <User className="text-primary" size={20} />
+                            个人信息
+                        </h2>
+                        <Button
+                            aria-label="编辑资料"
+                            icon={<Edit size={16} />}
+                            text
+                            onClick={() => {
+                                initFormData();
+                                setEditingState(true);
+                                setStep(1); // Reset to first step when opening
+                            }}
+                            className="p-2 rounded-2xl"
+                        />
+                    </div>
 
-            {!profile ? (
-                <div className="flex flex-wrap gap-2">
-                    {[...Array(6)].map((_, index) => (<InfoItemSkeleton key={index} />))}
-                </div>
-            ) : (
-                <div className="flex flex-wrap gap-2">
-                    <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
-                    <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
-                    <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
-                    <InfoItem label="健身水平" value={getFitnessLevelDisplay(profile?.fitness_level)} />
-                    <InfoItem label="生活作息" value={profile?.lifestyle || null} />
+                    {!profile ? (
+                        <div className="flex flex-wrap gap-2">
+                            {[...Array(6)].map((_, index) => (<InfoItemSkeleton key={index} />))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            <InfoItem label="身高" value={profile?.height ? `${profile.height} cm` : null} />
+                            <InfoItem label="体重" value={profile?.weight ? `${profile.weight} kg` : null} />
+                            <InfoItem label="健身目标" value={profile?.fitness_goal || null} />
+                            <InfoItem label="健身水平" value={getFitnessLevelDisplay(profile?.fitness_level)} />
+                            <InfoItem label="生活作息" value={profile?.lifestyle || null} />
+                        </div>
+                    )}
                 </div>
             )}
 
             <Dialog
                 header="编辑个人资料"
-                visible={isEditing}                
+                visible={editingState}                
                 style={{ width: '640px' }}
                 onHide={() => {
-                    setIsEditing(false);
+                    setEditingState(false);
                     setStep(1);
                 }}
                 footer={
@@ -255,7 +300,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                         {step === 1 ? (
                             <Button
                                 label="取消"
-                                onClick={() => setIsEditing(false)}
+                                onClick={() => setEditingState(false)}
                                 className="flex-1 h-14 rounded-2xl bg-surface-50 border-none text-surface-500 font-black active:scale-95 transition-all"
                             />
                         ) : (
@@ -591,6 +636,6 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ data, 
                     )}
                 </div>
             </Dialog>
-        </div>
+        </>
     );
 };
