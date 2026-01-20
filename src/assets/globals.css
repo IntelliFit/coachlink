@@ -316,6 +316,87 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     }
 }
 
+/* Aero Dialog */
+.aero-dialog.p-dialog {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-radius: 24px !important;
+    box-shadow:
+        0 10px 25px rgba(15, 23, 42, 0.08),
+        0 24px 60px rgba(15, 23, 42, 0.12) !important;
+    backdrop-filter: blur(18px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+    overflow: hidden;
+}
+
+.aero-dialog .p-dialog-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+    padding: 20px 24px !important;
+}
+
+.aero-dialog .p-dialog-title {
+    font-weight: 800;
+    font-size: 1.125rem;
+    letter-spacing: -0.01em;
+}
+
+.aero-dialog .p-dialog-content {
+    background: transparent !important;
+    padding: 20px 24px 24px !important;
+}
+
+.aero-dialog .p-dialog-footer {
+    background: transparent !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+    padding: 16px 24px 20px !important;
+}
+
+.dark .aero-dialog.p-dialog {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.2),
+        0 24px 60px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .aero-dialog .p-dialog-header,
+.dark .aero-dialog .p-dialog-footer {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* PC 端 */
+@media (min-width: 641px) {
+    .aero-dialog.p-dialog {
+        border-radius: 24px !important;
+    }
+}
+
+/* 移动端 */
+@media (max-width: 640px) {
+    .aero-dialog.p-dialog {
+        width: 92vw !important;
+        max-width: 92vw !important;
+        border-radius: 18px !important;
+    }
+
+    .aero-dialog .p-dialog-header {
+        padding: 16px 18px !important;
+    }
+
+    .aero-dialog .p-dialog-title {
+        font-size: 1rem;
+    }
+
+    .aero-dialog .p-dialog-content {
+        padding: 16px 18px 18px !important;
+    }
+
+    .aero-dialog .p-dialog-footer {
+        padding: 14px 18px 18px !important;
+    }
+}
+
 /* 引导框主体 */
 .aero-guide-popover.driver-popover-item {
   @apply bg-surface border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-6 rounded-[24px] !important;
