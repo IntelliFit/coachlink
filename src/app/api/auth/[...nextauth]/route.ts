@@ -306,7 +306,7 @@ export const authOptions: AuthOptions = {
                         }
                     }
                 } else {                                    
-                    token.user = user;
+                    (token.user as any) = user;
                 }
             }
 

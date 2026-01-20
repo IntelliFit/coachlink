@@ -202,6 +202,7 @@ export async function POST(req: Request) {
                             day_index: e.day_index,
                             status: e.status,
                         })),
+                        startExecutionDay: Number(inst.start_execution_day || 1),
                     });
 
                     const remainingCredits = Math.max(0, totalCredits - usedCredits);

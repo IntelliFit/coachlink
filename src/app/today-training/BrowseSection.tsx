@@ -3,8 +3,9 @@
 import React, { useState, useMemo } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Check, Play, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Play, Eye, Info } from 'lucide-react';
 import { calculateCurrentWeek, isDayUnlocked, getDayWeekNumber, formatUnlockDate, getUnlockDate } from '@/lib/weekUnlock';
 import { formatKgValueForGym } from '@/lib/weightQuantize';
 
@@ -27,6 +28,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 }) => {
     const router = useRouter();
     const [selectedDayIndex, setSelectedDayIndex] = useState(currentDayIndex);
+    const [infoDialog, setInfoDialog] = useState<{ title: string; detail: string } | null>(null);
     
     const trainingDays = (instance?.training_days || []) as any[];
     const startExecutionDay = instance?.start_execution_day || 1;
@@ -237,11 +239,27 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     const action = actions[actionId];
                                     const load = actionSet.params?.load;
                                     const intensity = actionSet.params?.['强度'] || actionSet.intensity;
+                                    const noteText = String(actionSet?.params?.note || actionSet?.note || '').trim();
                                     
                                     return (
                                         <div key={idx} className="bg-gray-50 rounded p-3 text-sm">
-                                            <div className="font-medium">
-                                                {idx + 1}. {action?.name || actionSet.set_name}
+                                            <div className="font-medium flex items-center justify-between gap-2">
+                                                <div className="min-w-0 truncate">
+                                                    {idx + 1}. {action?.name || actionSet.set_name}
+                                                </div>
+                                                {action?.detail && (
+                                                    <button
+                                                        type="button"
+                                                        className="p-1.5 rounded-lg text-surface-600 hover:bg-white/80 transition-colors"
+                                                        title="查看动作说明"
+                                                        onClick={() => setInfoDialog({
+                                                            title: action?.name || actionSet.set_name || '动作说明',
+                                                            detail: String(action.detail || '').trim(),
+                                                        })}
+                                                    >
+                                                        <Info className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                             <div className="text-gray-600 flex flex-wrap gap-2">
                                                 {/* 根据动作类型显示不同的摘要信息 */}
@@ -276,7 +294,22 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                             return (
                                                                 <>
                                                                     <span>
-                                                                        {params['组数'] || actionSet.sets || 1}组 × {params['次数'] || actionSet.reps || 1}次
+                                                                        {(() => {
+                                                                            const parsePositiveIntOrNull = (v: any) => {
+                                                                                if (v === null || v === undefined || v === '') return null;
+                                                                                const n = Number(v);
+                                                                                if (!Number.isFinite(n) || n <= 0) return null;
+                                                                                return Math.floor(n);
+                                                                            };
+                                                                            const sets = parsePositiveIntOrNull(params['组数'] ?? actionSet.sets) ?? 1;
+                                                                            const reps = parsePositiveIntOrNull(params['次数'] ?? actionSet.reps);
+                                                                            const durationSeconds = parsePositiveIntOrNull(params['持续时间'] ?? actionSet.durationSeconds);
+                                                                            return `${sets}组 × ${
+                                                                                durationSeconds !== null
+                                                                                    ? `${durationSeconds}秒`
+                                                                                    : (reps !== null ? `${reps}次` : '自选')
+                                                                            }`;
+                                                                        })()}
                                                                     </span>
                                                                     {(() => {
                                                                         if (load !== null && load !== undefined) {
@@ -303,11 +336,36 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                                         if (intensity) return <span>· {intensity}</span>;
                                                                         return null;
                                                                     })()}
+                                                                    {(() => {
+                                                                        const restSeconds =
+                                                                            params['休息时间'] ??
+                                                                            params['组间休息'] ??
+                                                                            params.restSeconds ??
+                                                                            params.rest_seconds ??
+                                                                            actionSet.rest_seconds;
+                                                                        const n = Number(restSeconds);
+                                                                        if (!Number.isFinite(n) || n <= 0) return null;
+                                                                        const minutes = Math.round((n / 60) * 10) / 10;
+                                                                        const text = String(minutes).endsWith('.0')
+                                                                            ? String(minutes).slice(0, -2)
+                                                                            : String(minutes);
+                                                                        return <span>⏱️ 休息{text}分钟</span>;
+                                                                    })()}
                                                                 </>
                                                             );
                                                     }
                                                 })()}
                                             </div>
+
+                                            {/* 教练备注：在浏览训练日预览中也优先展示 */}
+                                            {noteText && (
+                                                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-800">
+                                                    <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                                                    <div className="text-xs leading-relaxed line-clamp-2">
+                                                        {noteText}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -362,6 +420,19 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                     </div>
                 )}
             </Card>
+
+            <Dialog
+                header={infoDialog?.title || '动作说明'}
+                visible={!!infoDialog}
+                onHide={() => setInfoDialog(null)}
+                draggable={false}
+                resizable={false}
+                className="w-[min(92vw,520px)]"
+            >
+                <div className="text-sm text-surface-700 leading-relaxed whitespace-pre-wrap">
+                    {infoDialog?.detail || ''}
+                </div>
+            </Dialog>
         </div>
     );
 };

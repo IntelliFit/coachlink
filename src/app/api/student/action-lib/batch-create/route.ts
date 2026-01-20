@@ -6,6 +6,7 @@ import {
 } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { normalizeActionNameForMatch } from "@/lib/planImportText";
 
 /**
  * 批量创建学员动作
@@ -33,36 +34,74 @@ export async function POST(req: Request) {
     }
 
     try {
+        // 防重复：如果动作名称已经存在于学员动作库，则跳过创建
+        const { data: existing, error: existingError } = await serviceRoleSupabase
+            .from("student_actions")
+            .select("id,name")
+            .eq("user_id", userId);
+
+        if (existingError) {
+            console.error("Error fetching existing student actions:", existingError);
+            return NextResponse.json({
+                success: false,
+                message: "获取动作库失败: " + existingError.message,
+            }, { status: 500 });
+        }
+
+        const existingNameSet = new Set<string>(
+            (existing || []).map((a: any) => normalizeActionNameForMatch(a.name)),
+        );
+
+        const uniqueToCreate = actions.filter((a) => {
+            const key = normalizeActionNameForMatch(a.name);
+            return key && !existingNameSet.has(key);
+        });
+
         // 批量插入学员动作（学员动作表不包含自动计算相关字段）
-        const actionsToInsert = actions.map((action) => ({
+        const actionsToInsert = uniqueToCreate.map((action) => ({
             user_id: userId,
             name: action.name,
-            detail: `智能导入创建的动作: ${action.name}`,
-            positions: ["全身"], // 默认位置
-            attrs: ["组数", "次数", "强度", "休息时间"], // 默认属性
+            detail: (action as any).detail?.trim()
+                ? (action as any).detail
+                : null,
+            positions: (action as any).positions?.length
+                ? (action as any).positions
+                : ["全身"], // 默认位置
+            attrs: (action as any).attrs?.length
+                ? (action as any).attrs
+                : ["组数", "次数", "强度", "休息时间"], // 默认属性
+            url: (action as any).url?.trim() ? (action as any).url : null,
             enableAutoWeightCompute: action.needsAutoCompute,
             includesBodyWeight: action.includesBodyWeight,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         }));
 
-        const { data: createdActions, error } = await serviceRoleSupabase
-            .from("student_actions")
-            .insert(actionsToInsert)
-            .select();
+        const createdActions: any[] = [];
+        if (actionsToInsert.length > 0) {
+            const { data, error } = await serviceRoleSupabase
+                .from("student_actions")
+                .insert(actionsToInsert)
+                .select();
 
-        if (error) {
-            console.error("Error creating student actions:", error);
-            return NextResponse.json({
-                success: false,
-                message: "创建动作失败: " + error.message,
-            }, { status: 500 });
+            if (error) {
+                console.error("Error creating student actions:", error);
+                return NextResponse.json({
+                    success: false,
+                    message: "创建动作失败: " + error.message,
+                }, { status: 500 });
+            }
+            createdActions.push(...(data || []));
         }
+
+        const skipped = actions.length - uniqueToCreate.length;
 
         return NextResponse.json<ApiData<BatchCreateStudentActionsResponseDto>>(
             {
                 success: true,
-                message: `成功创建 ${createdActions?.length || 0} 个动作`,
+                message: `成功创建 ${createdActions?.length || 0} 个动作${
+                    skipped > 0 ? `（已跳过 ${skipped} 个同名重复动作）` : ""
+                }`,
                 data: {
                     createdActions: createdActions || [],
                 },

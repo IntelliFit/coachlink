@@ -21,6 +21,11 @@ import { CoachesRow } from '@/types';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from "uuid";
 import { Checkbox } from 'primereact/checkbox';
+import { actionLibService } from '@/app/service/actionLibService';
+import { CoachActionRow } from '@/types';
+import { MultiSelect } from 'primereact/multiselect';
+import { trainingItemService } from '@/app/service/trainingItemService';
+import type { TrainingItemRow } from '@/types';
 
 const QuestionarePage = () => {
     const { data: session } = useSession();
@@ -35,6 +40,16 @@ const QuestionarePage = () => {
     const [newQuestionType, setNewQuestionType] = useState<QuestionType | null>(null);
 
     const [coach, setCoach] = useState<CoachesRow>(null);
+
+    // 训练项目库（training_items）
+    const [trainingItems, setTrainingItems] = useState<TrainingItemRow[]>([]);
+    const [trainingItemOptions, setTrainingItemOptions] = useState<{ label: string; value: string }[]>([]);
+    const [loadingTrainingItems, setLoadingTrainingItems] = useState<boolean>(false);
+
+    // 1RM 动作可选库：来自动作库（当前复用“可自动计算重量”的动作）
+    const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
+    const [loadingActions, setLoadingActions] = useState<boolean>(false);
+    const [rmFilter, setRmFilter] = useState<string>('');
 
     // 新问题状态
     const [newTextQuestion, setNewTextQuestion] = useState<string>('');
@@ -71,7 +86,9 @@ const QuestionarePage = () => {
                 switch (item.type) {
                     case 'tags':
                         trainingQuestions.push({
-                            type: 'tags'
+                            type: 'tags',
+                            // 兼容旧数据：options 仍然存 string[]（训练项目 name）
+                            options: Array.isArray((item as any).options) ? (item as any).options : []
                         });
                         break;
                     case 'times':
@@ -84,7 +101,8 @@ const QuestionarePage = () => {
                         break;
                     case 'rm':
                         trainingQuestions.push({
-                            type: 'rm'
+                            type: 'rm',
+                            actionIds: Array.isArray((item as any).actionIds) ? (item as any).actionIds : []
                         });
                         break;
                     case 'option':
@@ -112,7 +130,7 @@ const QuestionarePage = () => {
             }
             // 确保始终包含用户极限（1RM）问题
             if (!trainingQuestions.some(q => q.type === 'rm')) {
-                trainingQuestions.push({ type: 'rm' });
+                trainingQuestions.push({ type: 'rm', actionIds: [] });
             }
 
             setQuestions(trainingQuestions.map(item => ({
@@ -134,6 +152,56 @@ const QuestionarePage = () => {
             loadQuestions();
         }
     }, [coach]);
+
+    // 加载 training_items（训练项目库）
+    useEffect(() => {
+        const loadTrainingItems = async () => {
+            setLoadingTrainingItems(true);
+            try {
+                const res = await trainingItemService.listTrainingItems();
+                const items = res.trainingItems || [];
+                setTrainingItems(items);
+                setTrainingItemOptions(items.map(it => ({ label: it.name, value: it.name })));
+            } catch (e) {
+                console.error('获取训练项目库失败:', e);
+                setTrainingItems([]);
+                setTrainingItemOptions([]);
+            } finally {
+                setLoadingTrainingItems(false);
+            }
+        };
+        loadTrainingItems();
+    }, []);
+
+    // 若 tags 题没有配置 options，则默认填充为 training_items（避免学员端无选项导致无法提交）
+    useEffect(() => {
+        if (trainingItemOptions.length === 0) return;
+        setQuestions(prev => prev.map(q => {
+            if (q.type !== 'tags') return q;
+            const opts = Array.isArray((q as any).options) ? (q as any).options : [];
+            if (opts.length > 0) return q;
+            return { ...q, options: trainingItemOptions.map(o => o.value) } as any;
+        }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trainingItemOptions.length]);
+
+    // 加载 1RM 动作库（用于配置 rm.actionIds）
+    useEffect(() => {
+        const loadAutoComputeActions = async () => {
+            if (!coach?.user_id) return;
+            setLoadingActions(true);
+            try {
+                const res = await actionLibService.listAutoComputeActions({ coachId: coach.user_id });
+                setAutoComputeActions(res.actions || []);
+            } catch (e) {
+                console.error('加载自动计算动作失败:', e);
+                setAutoComputeActions([]);
+            } finally {
+                setLoadingActions(false);
+            }
+        };
+        loadAutoComputeActions();
+    }, [coach?.user_id]);
 
     const saveQuestions = async () => {
         setSaving(true);
@@ -162,7 +230,7 @@ const QuestionarePage = () => {
     const addTagsQuestion = () => {
         const hasTags = questions.some(q => q.type === 'tags');
         if (!hasTags) {
-            setQuestions([...questions, { type: 'tags', id: uuidv4() }]);
+            setQuestions([...questions, { type: 'tags', options: trainingItemOptions.map(o => o.value), id: uuidv4() }]);
         }
         overlayPanel.current?.hide();
     };
@@ -215,7 +283,7 @@ const QuestionarePage = () => {
     const addRmQuestion = () => {
         const hasRm = questions.some(q => q.type === 'rm');
         if (!hasRm) {
-            setQuestions([...questions, { type: 'rm', id: uuidv4() }]);
+            setQuestions([...questions, { type: 'rm', actionIds: [], id: uuidv4() }]);
         }
         overlayPanel.current?.hide();
     };
@@ -315,7 +383,42 @@ const QuestionarePage = () => {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h4 className="font-medium">训练项目偏好</h4>
-                                <p className="text-sm text-surface-500">学员可以选择偏好的训练项目（智能计划将会自动根据这个项目进行匹配）</p>
+                                <p className="text-sm text-surface-500">
+                                    学员可以选择偏好的训练项目（智能计划将会根据这些偏好进行匹配）。
+                                    <strong>选项来源为训练项目库（training_items）</strong>，不依赖训练模板，模板删光也不会影响问卷。
+                                </p>
+                                <div className="mt-3">
+                                    <label className="block text-xs font-bold text-surface-600 mb-2">可选训练项目（来自训练项目库）</label>
+                                    {loadingTrainingItems ? (
+                                        <div className="space-y-2">
+                                            <Skeleton height="2.25rem" />
+                                            <Skeleton height="2.25rem" />
+                                        </div>
+                                    ) : trainingItemOptions.length > 0 ? (
+                                        <MultiSelect
+                                            value={Array.isArray((question as any).options) ? (question as any).options : []}
+                                            options={trainingItemOptions}
+                                            onChange={(e) => {
+                                                const newQuestions = [...questions];
+                                                const q = newQuestions[index];
+                                                if (q.type !== 'tags') return;
+                                                (q as any).options = e.value;
+                                                setQuestions(newQuestions);
+                                            }}
+                                            placeholder="选择训练项目（可多选）"
+                                            className="aero-multiselect w-full"
+                                            display="chip"
+                                            filter
+                                        />
+                                    ) : (
+                                        <div className="text-sm text-surface-500">
+                                            训练项目库为空。请先去「计划模板」的训练项目库添加（training_items），再回来配置问卷。
+                                        </div>
+                                    )}
+                                    <div className="mt-2 text-[11px] text-surface-500">
+                                        提示：建议配置 6–15 个选项；学员端可多选。这里配置的是“学员可选范围”，不是学员已选结果。
+                                    </div>
+                                </div>
                             </div>
                             <Button
                                 icon="pi pi-trash"
@@ -394,9 +497,92 @@ const QuestionarePage = () => {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h4 className="font-medium">用户极限（1RM）</h4>
-                                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">必须</span>
+                                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">可配置</span>
                                 </div>
-                                <p className="text-sm text-surface-500">学员填写各动作的极限重量，用于智能计划自动计算训练负重</p>
+                                <p className="text-sm text-surface-500">
+                                    选择学员需要填写 1RM 的动作（建议 3–8 个即可），不再强制把动作库里所有“自动算重量动作”都塞进问卷。
+                                </p>
+
+                                <div className="mt-3 space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-surface-600 mb-1">筛选（按动作名）</label>
+                                        <InputText
+                                            value={rmFilter}
+                                            onChange={(e) => setRmFilter(e.target.value)}
+                                            placeholder="例如：深蹲 / 卧推 / 引体"
+                                            className="w-full"
+                                            onMouseDown={stopDndEvent as any}
+                                            onTouchStart={stopDndEvent as any}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-surface-600 mb-2">选择动作（来自动作库：已开启自动算重量）</label>
+                                        {loadingActions ? (
+                                            <div className="space-y-2">
+                                                <Skeleton height="2rem" />
+                                                <Skeleton height="2rem" />
+                                                <Skeleton height="2rem" />
+                                            </div>
+                                        ) : (
+                                            <div className="max-h-[260px] overflow-auto rounded-lg border border-green-200 bg-white p-3 space-y-2">
+                                                {autoComputeActions
+                                                    .filter(a => {
+                                                        const k = rmFilter.trim().toLowerCase();
+                                                        if (!k) return true;
+                                                        return (a.name || '').toLowerCase().includes(k);
+                                                    })
+                                                    .map((a) => {
+                                                        const selectedIds: string[] = Array.isArray((question as any).actionIds) ? (question as any).actionIds : [];
+                                                        const checked = selectedIds.includes(a.id);
+                                                        return (
+                                                            <div
+                                                                key={a.id}
+                                                                className="flex items-center gap-2"
+                                                                onMouseDown={stopDndEvent}
+                                                                onTouchStart={stopDndEvent}
+                                                            >
+                                                                <Checkbox
+                                                                    inputId={`rm-action-${index}-${a.id}`}
+                                                                    checked={checked}
+                                                                    onChange={(e) => {
+                                                                        const newQuestions = [...questions];
+                                                                        const q = newQuestions[index];
+                                                                        if (q.type !== 'rm') return;
+                                                                        const current: string[] = Array.isArray((q as any).actionIds) ? [...(q as any).actionIds] : [];
+                                                                        const next = Boolean(e.checked)
+                                                                            ? Array.from(new Set([...current, a.id]))
+                                                                            : current.filter(id => id !== a.id);
+                                                                        (q as any).actionIds = next;
+                                                                        setQuestions(newQuestions);
+                                                                    }}
+                                                                    onMouseDown={stopDndEvent as any}
+                                                                    onTouchStart={stopDndEvent as any}
+                                                                />
+                                                                <label htmlFor={`rm-action-${index}-${a.id}`} className="text-sm text-surface-700">
+                                                                    {a.name}
+                                                                </label>
+                                                                {a.includesBodyWeight && (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded ml-1">
+                                                                        自重类
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                {autoComputeActions.length === 0 && (
+                                                    <div className="text-sm text-surface-500">
+                                                        你的动作库里还没有开启“自动算重量”的动作。你可以先去「动作库」开启后再来选择。
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="mt-2 text-[11px] text-surface-500">
+                                            学员端只会显示你勾选的动作；没勾选则此题不会要求填写任何动作。
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

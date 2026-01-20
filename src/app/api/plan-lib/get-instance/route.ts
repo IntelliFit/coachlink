@@ -51,6 +51,8 @@ export async function POST(req: Request) {
     } else if (subscriptionId) {
         query = query
             .eq("coach_subscription_id", subscriptionId)
+            // keep consistent with "current plan" semantics used elsewhere (e.g. get-with-executions)
+            .in("status", ["active", "paused"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (subscriptionIds && subscriptionIds.length > 0) {
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
         // This matches today-training's "first available plan" behavior but in one request.
         query = query
             .in("coach_subscription_id", subscriptionIds)
+            .in("status", ["active", "paused"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (fetchSelf) {
@@ -305,9 +308,10 @@ export async function POST(req: Request) {
 
     // 6. 加载执行记录
     let executionsList: any[] = [];
-    const execQueryStart = performance.now();
-    // @ts-expect-error - Supabase type inference issue with nested selects
-    const { data: executions } = await supabase
+    // NOTE: plan_instance_executions uses `instance_id` (not `plan_instance_id`).
+    // Also some environments may not have relational tables for action_executions/execution_sets,
+    // so we do a best-effort query with relations, then fallback to a simple select.
+    const { data: executions, error: executionsError } = await supabase
         .from("plan_instance_executions")
         .select(`
             *,
@@ -319,13 +323,23 @@ export async function POST(req: Request) {
                 )
             )
         `)
-        .eq("plan_instance_id", instance.id)
+        .eq("instance_id", instance.id)
         .order("day_index", { ascending: true });
-    timings['6a_exec_query'] = performance.now() - execQueryStart;
 
-    if (executions) {
+    let effectiveExecutions: any[] | null = executions as any[] | null;
+    if (executionsError) {
+        // Fallback: get minimal fields we need for nextDayIndex/completionDates.
+        const { data: fallbackExecs } = await supabase
+            .from("plan_instance_executions")
+            .select("id, instance_id, student_id, day_index, status, started_at, completed_at, action_executions")
+            .eq("instance_id", instance.id)
+            .order("day_index", { ascending: true });
+        effectiveExecutions = (fallbackExecs as any[]) || [];
+    }
+
+    if (effectiveExecutions) {
         // 处理执行记录，格式化 sets 数据
-        executionsList = executions.map((exec: any) => ({
+        executionsList = effectiveExecutions.map((exec: any) => ({
             ...exec,
             action_executions: exec.action_executions?.map((ae: any) => ({
                 ...ae,

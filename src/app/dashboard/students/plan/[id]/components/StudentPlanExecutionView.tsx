@@ -45,6 +45,10 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
 
     const [detailVisible, setDetailVisible] = useState(false);
 
+    const completedExecutionsCount = Object.values(executions || {}).filter(
+        (e: any) => e?.status === 'completed',
+    ).length;
+
     const ActionItem = ({ actionSet }: { actionSet: CoachPlanAction }) => {
         const actionId = (actionSet as any).actionId || (actionSet as any).action_id;
         // 优先从 actionsMap（后端返回的动作库映射）获取动作名称
@@ -60,8 +64,15 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
             '未知动作';
         // 获取参数
         const params = (actionSet as any).params || {};
-        const sets = params['组数'] ?? params.sets ?? (actionSet as any).sets ?? 3;
-        const reps = params['次数'] ?? params.reps ?? (actionSet as any).reps ?? 8;
+        const sets = params['组数'] ?? params.sets ?? (actionSet as any).sets ?? null;
+        const repsRaw = params['次数'] ?? params.reps ?? (actionSet as any).reps ?? null;
+        const durationSeconds = params['持续时间'] ?? (actionSet as any).durationSeconds ?? null;
+        const reps = (() => {
+            if (repsRaw === null || repsRaw === undefined || repsRaw === '') return null;
+            const n = Number(repsRaw);
+            return Number.isFinite(n) ? n : null;
+        })();
+        const note = params.note ?? (actionSet as any).note ?? '';
 
         // 计划侧“重量”常见来源：load（推荐/固定重量），其次才是历史字段
         const weightValue =
@@ -96,7 +107,12 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                     {/* 组数×次数 */}
                     <div className="flex items-center gap-1 text-surface-500 text-xs font-medium flex-shrink-0">
                         <i className="pi pi-th-large text-[10px]" />
-                        <span>{sets}组×{reps}次</span>
+                        <span title={note || undefined}>
+                            {typeof sets === 'number' ? `${sets}组` : '-'}
+                            {typeof durationSeconds === 'number'
+                                ? `×${durationSeconds}秒`
+                                : `×${typeof reps === 'number' ? `${reps}次` : '自选'}`}
+                        </span>
                     </div>
                     {/* 重量 */}
                     {typeof weightValue === 'number' && weightValue > 0 && (
@@ -161,8 +177,8 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                 )}
                             </div>
                             <span className="text-xs font-medium text-surface-500 mt-1 opacity-80 leading-snug">
-                                {Object.keys(executions).length > 0 
-                                    ? `已完成 ${Object.keys(executions).length} 次训练` 
+                                {completedExecutionsCount > 0
+                                    ? `已完成 ${completedExecutionsCount} 次训练`
                                     : '查看训练计划与执行记录'}
                             </span>
                         </div>
@@ -226,7 +242,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                     <div className="text-center">
                                         <div className="text-[10px] font-black text-surface-400 tracking-widest mb-1">已执行</div>
                                         <div className="text-2xl font-black text-primary-600 tracking-tighter">
-                                            {isCompleted ? 0 : Object.keys(executions).length}
+                                            {isCompleted ? 0 : completedExecutionsCount}
                                             <span className="text-[10px] font-bold text-primary-300 ml-1">次</span>
                                         </div>
                                     </div>
@@ -246,6 +262,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                         const isRest = day.type === 'rest';
                                         // 如果计划已完成，不显示执行状态
                                         const dayExe = isCompleted ? null : executions[day.dayIndex];
+                                        const isDayCompleted = !!dayExe && dayExe.status === 'completed';
 
                                         return (
                                             <div
@@ -270,7 +287,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                                         </div>
                                                     </div>
 
-                                                    {dayExe && (
+                                                    {isDayCompleted && (
                                                         <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100/50">
                                                             <CheckCircle2 size={12} className="text-green-600" />
                                                             <span className="text-[10px] font-black text-green-700 tracking-tight">已完成</span>
@@ -298,7 +315,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                                             })}
                                                         </div>
 
-                                                        {dayExe && (
+                                                        {isDayCompleted && (
                                                             <div className="mt-4 pt-4 border-t border-dashed border-surface-100/60">
                                                                 <div className="text-[10px] font-black text-surface-300 tracking-widest mb-2">执行反馈详情</div>
                                                                 <ExecutionDetails execution={dayExe} collapsed={true} />

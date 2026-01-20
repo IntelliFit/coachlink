@@ -88,9 +88,7 @@ export default function NavigationStudent() {
         if (session?.user && profile) {
             if (profile.onboarding_completed === true) {
                 clearOnboardingSuppression();
-                return;
-            }
-            if (profile.onboarding_completed !== true) {
+            } else {
                 openOnboardingModal();
             }
         }
@@ -98,15 +96,14 @@ export default function NavigationStudent() {
 
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) return;
-        const checkSubscriptions = async () => {
+        const checkSubscriptions = () => {
             const now = Date.now();
             if (now - lastSubscriptionCheck < 10 * 60 * 1000) return;
             setLastSubscriptionCheck(now);
-            try {
-                await subscriptionService.checkExpiredSubscriptions();
-            } catch (error) {
+            // Fire and forget: 不等待结果，避免阻塞 UI
+            subscriptionService.checkExpiredSubscriptions().catch((error) => {
                 console.error('Error checking expired subscriptions:', error);
-            }
+            });
         };
         checkSubscriptions();
         const interval = setInterval(checkSubscriptions, 10 * 60 * 1000);

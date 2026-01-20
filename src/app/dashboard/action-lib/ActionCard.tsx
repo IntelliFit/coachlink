@@ -1,11 +1,15 @@
 import { CoachActionRow } from '@/types';
 import { Button } from 'primereact/button';
+import { Checkbox } from 'primereact/checkbox';
 import React from 'react';
 
 interface ActionCardProps {
     action: CoachActionRow;
     onEditAction: (action: CoachActionRow) => void;
     onDeleteAction: (action: CoachActionRow) => void;
+    selectionEnabled?: boolean;
+    selected?: boolean;
+    onToggleSelect?: (action: CoachActionRow, selected: boolean) => void;
 }
 
 const formatActionTime = (createdAt: string, updatedAt: string) => {
@@ -37,6 +41,9 @@ const ActionCard: React.FC<ActionCardProps> = ({
     action,
     onEditAction,
     onDeleteAction,
+    selectionEnabled = false,
+    selected = false,
+    onToggleSelect,
 }) => {
 
     const typeConfig: Record<string, any> = {
@@ -49,7 +56,21 @@ const ActionCard: React.FC<ActionCardProps> = ({
     const timeInfo = formatActionTime(action.created_at, action.updated_at);
 
     return (
-        <div className="group relative flex items-center gap-5 p-4 mb-3 bg-surface dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px] transition-all duration-300 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:border-primary-200">
+        <div className={`group relative flex items-center gap-5 p-4 mb-3 bg-surface dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px] transition-all duration-300 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:border-primary-200 ${selectionEnabled && selected ? 'ring-2 ring-primary-200 border-primary-200' : ''}`}>
+
+            {selectionEnabled && (
+                <div
+                    className="flex items-center justify-center"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Checkbox
+                        inputId={`select_action_${action.id}`}
+                        checked={selected}
+                        onChange={(e) => onToggleSelect?.(action, Boolean(e.checked))}
+                    />
+                </div>
+            )}
 
             {/* 左侧图标区 */}
             <div className={`flex items-center justify-center min-w-[56px] h-[56px] rounded-[16px] ${config.color} border border-surface dark:border-surface-800 shadow-sm relative`}>

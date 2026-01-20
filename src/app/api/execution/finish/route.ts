@@ -53,6 +53,7 @@ async function updateEstimatedEndDate(instanceId: string) {
         const usedCredits = computeUsedCredits({
             eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
             executions: (completedExecutions as any[]) || [],
+            startExecutionDay: Number((instance as any).start_execution_day || 1),
         });
         const totalCredits = scope.totalCredits;
         const remainingCredits = Math.max(0, totalCredits - usedCredits);

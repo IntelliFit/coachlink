@@ -30,8 +30,11 @@ export type CreditsScope = {
 
 /**
  * B1: “4周计划”对外口径，但内部按“训练日次数”扣减。
- * 我们把 subscribedWeeks 转换为一个“训练日配额”，配额范围从 startExecutionDay 起算：
- *   [startExecutionDay, startExecutionDay + subscribedWeeks*7 - 1]
+ * 我们把 subscribedWeeks 转换为一个“训练日配额”，配额范围是计划前 N 周：
+ *   [1, subscribedWeeks*7]
+ *
+ * 迁移场景（线下已完成）：plan_instance.start_execution_day 表示学员已线下完成的进度起点，
+ * credits 的“已消耗”会在 computeUsedCredits 里把 start_execution_day 之前的训练日计入 used。
  */
 export function computeCreditsScope(params: {
   trainingDays: TrainingDayLike[];
@@ -39,10 +42,11 @@ export function computeCreditsScope(params: {
   subscribedWeeks?: number | null;
 }): CreditsScope {
   const { trainingDays } = params;
-  const startExecutionDay = Math.max(1, Number(params.startExecutionDay || 1));
+  // Scope always starts from plan day 1 for subscription credits.
+  const scopeStartDayIndex = 1;
   const weeks = Math.max(0, Number(params.subscribedWeeks || 0));
   const scopeLenDays = weeks * 7;
-  const rawScopeEnd = startExecutionDay + Math.max(0, scopeLenDays - 1);
+  const rawScopeEnd = scopeStartDayIndex + Math.max(0, scopeLenDays - 1);
 
   // cap by plan max dayIndex (calendar span)
   const maxDayIndex = Math.max(
@@ -55,13 +59,13 @@ export function computeCreditsScope(params: {
   for (const d of trainingDays || []) {
     const di = getDayIndex(d);
     if (!di) continue;
-    if (di < startExecutionDay) continue;
+    if (di < scopeStartDayIndex) continue;
     if (scopeLenDays > 0 && di > scopeEndDayIndex) continue;
     if (isTrainingDay(d)) eligibleTrainingDayIndexSet.add(di);
   }
 
   return {
-    scopeStartDayIndex: startExecutionDay,
+    scopeStartDayIndex,
     scopeEndDayIndex,
     eligibleTrainingDayIndexSet,
     totalCredits: eligibleTrainingDayIndexSet.size,
@@ -71,6 +75,7 @@ export function computeCreditsScope(params: {
 export function computeUsedCredits(params: {
   eligibleTrainingDayIndexSet: Set<number>;
   executions: ExecutionLike[];
+  startExecutionDay?: number | null;
 }): number {
   const used = new Set<number>();
   for (const e of params.executions || []) {
@@ -80,6 +85,16 @@ export function computeUsedCredits(params: {
     if (!params.eligibleTrainingDayIndexSet.has(di)) continue;
     used.add(di);
   }
+
+  // Offline migration consumption:
+  // If startExecutionDay > 1, treat eligible training days before it as already completed offline.
+  const startExecutionDay = Math.max(1, Number(params.startExecutionDay || 1));
+  if (startExecutionDay > 1) {
+    for (const di of params.eligibleTrainingDayIndexSet) {
+      if (di < startExecutionDay) used.add(di);
+    }
+  }
+
   return used.size;
 }
 

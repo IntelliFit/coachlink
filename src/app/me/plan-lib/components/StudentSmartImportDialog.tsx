@@ -9,6 +9,7 @@ import { Steps } from 'primereact/steps';
 import { Tag } from 'primereact/tag';
 import { Checkbox } from 'primereact/checkbox';
 import { Dropdown } from 'primereact/dropdown';
+import { MultiSelect } from 'primereact/multiselect';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Message } from 'primereact/message';
 import { ParsedStudentActionInfo } from '@/app/api/student/plan-lib/parse-actions/entity';
@@ -51,6 +52,9 @@ interface EditableAction extends ParsedStudentActionInfo {
     useExisting: boolean;
     selectedExistingId: string | null;
     shouldCreate: boolean;
+    positions?: string[];
+    detail?: string;
+    url?: string;
 }
 
 // 解析后的训练日结构
@@ -89,6 +93,25 @@ export default function StudentSmartImportDialog({
     
     // 合并后的动作列表（包含新创建的）
     const [allActions, setAllActions] = useState<any[]>([]);
+
+    const actionAttrs = [
+        { label: '组数(sets)', value: '组数' },
+        { label: '次数(reps)', value: '次数' },
+        { label: '持续时间(秒)', value: '持续时间' },
+        { label: '强度(RM/%/固定重量)', value: '强度' },
+        { label: '休息时间', value: '休息时间' },
+    ];
+
+    const actionTypes = [
+        { label: '全身', value: '全身' },
+        { label: '胸部', value: '胸部' },
+        { label: '背部', value: '背部' },
+        { label: '腿部', value: '腿部' },
+        { label: '肩部', value: '肩部' },
+        { label: '手臂', value: '手臂' },
+        { label: '核心', value: '核心' },
+        { label: '其他', value: '其他' },
+    ];
 
     // 重置状态
     const resetState = useCallback(() => {
@@ -132,12 +155,20 @@ export default function StudentSmartImportDialog({
             }
 
             // 转换为可编辑格式
-            const editable: EditableAction[] = result.data.actions.map((a: ParsedStudentActionInfo) => ({
-                ...a,
-                useExisting: !a.isNew,
-                selectedExistingId: a.matchedExistingId || null,
-                shouldCreate: a.isNew,
-            }));
+            const hasExistingOptions = (existingActions || []).length > 0;
+            const editable: EditableAction[] = result.data.actions.map((a: ParsedStudentActionInfo) => {
+                const canUseExisting = Boolean(a.matchedExistingId);
+                return {
+                    ...a,
+                    useExisting: canUseExisting,
+                    selectedExistingId: canUseExisting ? (a.matchedExistingId || null) : null,
+                    shouldCreate: !canUseExisting,
+                    positions: ["全身"],
+                    // 默认不写描述，避免“智能导入”带来的廉价感（需要时用户可手动补充）
+                    detail: "",
+                    url: "",
+                };
+            });
             
             setEditableActions(editable);
             setActiveStep(1);
@@ -200,6 +231,10 @@ export default function StudentSmartImportDialog({
                     name: a.name,
                     needsAutoCompute: a.needsAutoCompute,
                     includesBodyWeight: a.includesBodyWeight,
+                    attrs: a.attrs,
+                    positions: a.positions,
+                    detail: a.detail,
+                    url: a.url,
                 }));
 
             let createdActions: any[] = [];
@@ -264,6 +299,21 @@ export default function StudentSmartImportDialog({
         label: a.name,
         value: a.id,
     }));
+
+    // 为单个动作构造下拉选项（兼容 matchedExistingId 不在列表里的情况）
+    const buildExistingOptions = (action: EditableAction) => {
+        const base = [...existingActionOptions];
+        if (
+            action.matchedExistingId &&
+            !base.find(o => o.value === action.matchedExistingId)
+        ) {
+            base.unshift({
+                label: action.name,
+                value: action.matchedExistingId,
+            });
+        }
+        return base;
+    };
 
     // 获取动作名称
     const getActionName = (actionId: string): string => {
@@ -350,10 +400,10 @@ D2
                                             
                                             {action.useExisting ? (
                                                 <Dropdown
-                                                    value={action.selectedExistingId}
-                                                    options={existingActionOptions}
+                                                    value={action.selectedExistingId ?? action.matchedExistingId ?? null}
+                                                    options={buildExistingOptions(action)}
                                                     onChange={(e) => selectExistingAction(index, e.value)}
-                                                    placeholder="选择已有动作"
+                                                    placeholder={action.name || "选择已有动作"}
                                                     className="w-full max-w-xs"
                                                     filter
                                                     filterPlaceholder="搜索动作..."
@@ -384,21 +434,70 @@ D2
                                     </div>
                                     
                                     {!action.useExisting && action.shouldCreate && (
-                                        <div className="flex items-center gap-4 mt-2 ml-8 text-sm">
-                                            <label className="flex items-center gap-1 cursor-pointer">
-                                                <Checkbox
-                                                    checked={action.needsAutoCompute}
-                                                    onChange={(e) => updateAction(index, { needsAutoCompute: e.checked || false })}
-                                                />
-                                                <span>自动计算重量</span>
-                                            </label>
-                                            <label className="flex items-center gap-1 cursor-pointer">
-                                                <Checkbox
-                                                    checked={action.includesBodyWeight}
-                                                    onChange={(e) => updateAction(index, { includesBodyWeight: e.checked || false })}
-                                                />
-                                                <span>包含自重</span>
-                                            </label>
+                                        <div className="mt-2 ml-8 text-sm flex flex-col gap-3">
+                                            <div className="flex flex-wrap items-center gap-4">
+                                                <label className="flex items-center gap-1 cursor-pointer">
+                                                    <Checkbox
+                                                        checked={action.needsAutoCompute}
+                                                        onChange={(e) => updateAction(index, { needsAutoCompute: e.checked || false })}
+                                                    />
+                                                    <span>自动计算重量</span>
+                                                </label>
+                                                <label className="flex items-center gap-1 cursor-pointer">
+                                                    <Checkbox
+                                                        checked={action.includesBodyWeight}
+                                                        onChange={(e) => updateAction(index, { includesBodyWeight: e.checked || false })}
+                                                    />
+                                                    <span>包含自重</span>
+                                                </label>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500">动作属性（决定计划里要填什么）</span>
+                                                    <MultiSelect
+                                                        value={action.attrs || []}
+                                                        options={actionAttrs}
+                                                        onChange={(e) => updateAction(index, { attrs: e.value })}
+                                                        placeholder="选择属性"
+                                                        display="chip"
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500">训练部位</span>
+                                                    <MultiSelect
+                                                        value={action.positions || ["全身"]}
+                                                        options={actionTypes}
+                                                        onChange={(e) => updateAction(index, { positions: e.value })}
+                                                        placeholder="选择部位"
+                                                        display="chip"
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500">描述（可选）</span>
+                                                    <InputTextarea
+                                                        value={action.detail || ''}
+                                                        onChange={(e) => updateAction(index, { detail: e.target.value })}
+                                                        rows={2}
+                                                        className="w-full"
+                                                        placeholder="如：动作要点 / 注意事项"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs text-gray-500">演示视频 URL（可选）</span>
+                                                    <InputText
+                                                        value={action.url || ''}
+                                                        onChange={(e) => updateAction(index, { url: e.target.value })}
+                                                        className="w-full"
+                                                        placeholder="https://..."
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -454,7 +553,7 @@ D2
                                                     <span>
                                                         {getActionName(action.actionId)}
                                                         {' - '}
-                                                        {action.sets}组×{action.reps}次
+                                                        {action.sets}组{typeof action.reps === 'number' ? `×${action.reps}次` : ''}
                                                         {action.intensityConfig?.relativeIntensity && (
                                                             <span className="text-blue-600">
                                                                 {' '}
