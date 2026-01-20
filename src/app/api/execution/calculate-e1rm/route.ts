@@ -1,31 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import {
     calculateE1RM,
     type E1RMCalculationParams,
     requiresBodyWeightFallback,
 } from "@/lib/e1rmCalculator";
 import type { ApiData } from "@/types/api";
-
-// Request DTO
-export interface CalculateE1RMDto {
-    weight: number; // 负重（不含自重）
-    reps: number;
-    bodyWeight?: number; // 自重（可选）
-    includeBodyWeight?: boolean; // 是否将自重纳入计算
-    actionName?: string; // 动作名称（用于自动判断是否需要自重）
-}
-
-// Response DTO
-export interface CalculateE1RMResponseDto {
-    e1rm: number;
-    epley: number;
-    brzycki: number;
-    lombardi: number;
-    formula: string;
-    includesBodyWeight: boolean;
-}
+import type {
+    CalculateE1RMDto,
+    CalculateE1RMResponseDto,
+} from "./entity";
 
 /**
  * POST /api/execution/calculate-e1rm
@@ -34,9 +18,9 @@ export interface CalculateE1RMResponseDto {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<ApiData<null>>(
+            return NextResponse.json<ApiData<CalculateE1RMResponseDto>>(
                 { success: false, message: "未登录", data: null },
                 { status: 401 },
             );
@@ -48,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         // Validate required params
         if (weight === undefined || reps === undefined) {
-            return NextResponse.json<ApiData<null>>(
+            return NextResponse.json<ApiData<CalculateE1RMResponseDto>>(
                 {
                     success: false,
                     message: "缺少必填参数: weight, reps",
@@ -59,7 +43,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (weight <= 0 || reps <= 0) {
-            return NextResponse.json<ApiData<null>>(
+            return NextResponse.json<ApiData<CalculateE1RMResponseDto>>(
                 {
                     success: false,
                     message: "weight 和 reps 必须大于0",
@@ -109,7 +93,7 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("计算e1RM失败:", error);
-        return NextResponse.json<ApiData<null>>(
+        return NextResponse.json<ApiData<CalculateE1RMResponseDto>>(
             { success: false, message: "服务器错误", data: null },
             { status: 500 },
         );

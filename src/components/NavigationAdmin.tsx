@@ -13,7 +13,9 @@ import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { adminService } from '@/app/service/adminService';
+import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
+import type { UserProfilesRow } from '@/types';
 import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings } from 'lucide-react';
 
 export default function NavigationAdmin() {
@@ -26,6 +28,7 @@ export default function NavigationAdmin() {
     const [isClient, setIsClient] = useState(false);
     const { showToast } = useToastContext();
     const [navData, setNavData] = useState<any>(null);
+    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
 
     const loadNavData = async () => {
         try {
@@ -40,6 +43,25 @@ export default function NavigationAdmin() {
         setIsClient(true);
         loadNavData();
     }, []);
+
+    // 获取用户档案
+    useEffect(() => {
+        if (status !== 'authenticated' || !session?.user?.id) {
+            setProfile(null);
+            return;
+        }
+        const loadProfile = async () => {
+            try {
+                const res = await userService.getProfile({});
+                if (res?.profile) {
+                    setProfile(res.profile);
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        loadProfile();
+    }, [status, session?.user?.id]);
 
     const itemRenderer = (item: any) => (
         <div 
@@ -96,7 +118,7 @@ export default function NavigationAdmin() {
         {
             label: '个人设置',
             icon: 'pi pi-cog',
-            command: () => openProfileSetupModal(session?.profile, session?.user?.id),
+            command: () => openProfileSetupModal(profile, session?.user?.id),
         },
         { separator: true },
         {
@@ -105,7 +127,7 @@ export default function NavigationAdmin() {
             className: 'text-rose-500',
             command: () => signOut({ callbackUrl: '/' }),
         }
-    ], [session, openProfileSetupModal]);
+    ], [session, profile, openProfileSetupModal]);
 
     const start = (
         <Link href="/" className="flex items-center gap-3 mr-8 group transition-transform active:scale-95">
@@ -151,14 +173,14 @@ export default function NavigationAdmin() {
                         onClick={(e) => menuRef.current?.toggle(e)}
                     >
                         <Avatar
-                            image={session.profile?.avatar_url || undefined}
-                            label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'A')}
+                            image={profile?.avatar_url || undefined}
+                            label={profile?.avatar_url ? undefined : (profile?.nickname?.charAt(0) || 'A')}
                             shape="circle"
                             className="bg-primary-500 text-surface text-xs font-bold inner-img-object-fit"
                         />
                         <div className="hidden md:flex flex-col items-start leading-tight">
                             <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">
-                                {session.profile?.nickname || '管理员'}
+                                {profile?.nickname || '管理员'}
                             </span>
                             <span className="text-[10px] text-primary-500 font-medium px-1.5 py-0 bg-primary-50 rounded-full">
                                 Root

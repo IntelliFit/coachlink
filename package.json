@@ -7,7 +7,11 @@
         "build": "node scripts/build-prod.js",
         "start": "next start",
         "lint": "next lint",
-        "check-env": "node scripts/check-env.js"
+        "check-env": "node scripts/check-env.js",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:e2e": "playwright test",
+        "test:redis": "tsx scripts/test-redis.ts"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
@@ -60,11 +64,15 @@
         "typescript": "^5.6.3"
     },
     "devDependencies": {
+        "@playwright/test": "^1.57.0",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/lodash": "^4.17.21",
         "@types/react-beautiful-dnd": "^13.1.8",
         "@types/uuid": "^10.0.0",
         "baseline-browser-mapping": "^2.9.14",
-        "supabase": "^2.67.2"
+        "supabase": "^2.67.2",
+        "vite": "^5.4.21",
+        "vite-tsconfig-paths": "^5.1.4",
+        "vitest": "^2.1.9"
     }
 }

@@ -37,98 +37,101 @@ export default function LeaderboardHeader({
     };
 
     return (
-        <div className="relative w-full max-w-6xl mx-auto mb-10 group px-4">
+        <div className="relative w-full max-w-6xl mx-auto mb-6 md:mb-10 group px-3 sm:px-4">
             
             {/* 1. 主容器：大胆的 Primary 渐变底色 */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(var(--primary-rgb),0.3)]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 rounded-2xl md:rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(var(--primary-rgb),0.3)]" />
             
             {/* 2. 装饰性流体背景：增加深度感 */}
-            <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden">
+            <div className="absolute inset-0 rounded-2xl md:rounded-[2.5rem] overflow-hidden">
                 {/* 动态光晕 */}
-                <div className="absolute -top-24 -right-24 w-[30rem] h-[30rem] bg-white/10 rounded-full blur-[100px] animate-pulse" />
+                <div className="absolute -top-24 -right-24 w-[30rem] h-[30rem] bg-surface/10 rounded-full blur-[100px] animate-pulse" />
                 <div className="absolute top-1/2 -left-20 w-80 h-80 bg-black/10 rounded-full blur-[80px]" />
                 
                 {/* 极细网格纹理：增加工业/精密感 */}
                 <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-[size:30px_30px]" />
             </div>
 
-            <div className="relative z-10 p-8 md:p-14 lg:p-16 flex flex-col items-center">
+            <div className="relative z-10 p-5 sm:p-8 md:p-14 lg:p-16 flex flex-col items-center">
                 
                 {/* 顶部内容区 */}
                 <div className="flex flex-col md:flex-row items-center justify-between w-full gap-8 mb-16">
                     <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-5 flex-1">
                         
                         {/* 状态徽章：高亮的玻璃质感 */}
-                        <div className="inline-flex items-center px-4 py-1.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-black tracking-[0.2em] uppercase shadow-lg">
-                            <Zap className="w-3.5 h-3.5 mr-2 fill-white animate-pulse" />
+                        <div className="inline-flex items-center px-3 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-surface/20 backdrop-blur-md border border-surface/30 text-surface text-[10px] sm:text-xs font-black tracking-[0.15em] sm:tracking-[0.2em] uppercase shadow-lg">
+                            <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1.5 sm:mr-2 fill-surface animate-pulse" />
                             Live Ranking
                         </div>
                         
                         {/* 标题：白色高亮 + 阴影 */}
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase leading-none drop-shadow-2xl">
+                        <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-surface tracking-tight sm:tracking-tighter uppercase leading-tight sm:leading-none drop-shadow-2xl line-clamp-2">
                             {title}
                         </h1>
                         
                         {/* 描述：浅白色，增加易读性 */}
-                        <div className="flex items-center gap-4">
-                            <p className="text-lg md:text-xl text-white/80 max-w-xl leading-relaxed font-medium">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 w-full">
+                            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-surface/80 max-w-xl leading-relaxed font-medium line-clamp-2 sm:line-clamp-none">
                                 {description}
                             </p>
                             {needReview === false && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 text-emerald-200 text-xs font-bold tracking-wide">
+                                <span className="inline-flex items-center px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 text-emerald-200 text-[10px] sm:text-xs font-bold tracking-wide flex-shrink-0">
                                     无审核比赛
                                 </span>
                             )}
                         </div>
                     </div>
 
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 w-full sm:w-auto">
                         {/* 核心行动按钮：反转色 (白底黑字或深色字) 以产生最强对比 */}
                         <Button
                             onClick={() => onJoinClick()}
-                            className="group/btn relative overflow-hidden bg-white hover:bg-slate-50 text-primary-700 border-none py-4 px-10 rounded-2xl font-black shadow-2xl transition-all duration-300 transform active:scale-95"
+                            className="group/btn relative overflow-hidden bg-surface hover:bg-slate-50 text-primary-700 border-none py-3 sm:py-4 px-6 sm:px-10 rounded-2xl font-black shadow-2xl transition-all duration-300 transform active:scale-[0.98] w-full sm:w-auto"
                         >
-                            <div className="flex items-center gap-3">
-                                <span className="text-lg tracking-tight uppercase">提交记录</span>
-                                <ArrowUpRight className="w-5 h-5 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+                            <div className="flex items-center justify-center gap-2 sm:gap-3">
+                                <span className="text-sm sm:text-base md:text-lg tracking-tight uppercase">提交记录</span>
+                                <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
                             </div>
                         </Button>
                     </div>
                 </div>
 
                 {/* 底部属性区域：深色半透明玻璃化 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full pt-10 border-t border-white/20">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full pt-0 sm:pt-8 md:pt-10">
                     {[
                         {
-                            icon: <Calendar className="w-5 h-5" />,
+                            icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />,
                             title: '挑战周期',
                             value: formatTimeRange(),
+                            colSpan: 'col-span-2 sm:col-span-1',
                         },
                         {
-                            icon: <Users className="w-5 h-5" />,
+                            icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" />,
                             title: '参与人数',
                             value: `${recordCount} 位`,
+                            colSpan: '',
                         },
                         {
-                            icon: <User className="w-5 h-5" />,
+                            icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
                             title: '发起人',
                             value: ownerName,
+                            colSpan: '',
                         },
                     ].map((item, idx) => (
                         <div
                             key={idx}
-                            className="flex items-center space-x-5 rounded-2xl bg-white/10 backdrop-blur-md p-6
-                                     border border-white/10 hover:border-white/40 hover:bg-white/20 transition-all duration-300"
+                            className={`flex items-center space-x-3 sm:space-x-4 md:space-x-5 rounded-2xl bg-surface/10 backdrop-blur-md p-4 sm:p-5 md:p-6
+                                     border border-surface/10 hover:border-surface/40 hover:bg-surface/20 transition-all duration-300 active:scale-[0.98] ${item.colSpan || ''}`}
                         >
-                            <div className="p-3 rounded-xl bg-white text-primary-600 shadow-xl">
+                            <div className="p-2 sm:p-2.5 md:p-3 rounded-xl bg-surface text-primary-600 shadow-xl flex-shrink-0">
                                 {item.icon}
                             </div>
 
                             <div className="text-left flex-1 min-w-0">
-                                <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-1">
+                                <p className="text-[9px] sm:text-[10px] font-black text-surface/60 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-0.5 sm:mb-1">
                                     {item.title}
                                 </p>
-                                <p className="text-white text-base font-bold truncate tracking-tight">
+                                <p className="text-surface text-sm sm:text-base font-bold truncate tracking-tight">
                                     {item.value}
                                 </p>
                             </div>

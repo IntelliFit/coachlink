@@ -14,8 +14,9 @@ import { actionLibService } from '@/app/service/actionLibService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { useToastContext } from '@/context/ToastContext';
 import { CoachPlanInstanceRow, CoachActionRow } from '@/types';
-import { CoachPlanAction, CoachPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import { CoachPlanAction, CoachPlanTrainingImplementationDay } from '@/app/api/plan-lib/create-template/entity';
 import { calculateCurrentWeek, isDayUnlocked, getDayWeekNumber, formatUnlockDate, getUnlockDate } from '@/lib/weekUnlock';
+import { executionService } from '@/app/service/executionService';
 
 const TrainingPlansHome: React.FC = () => {
     const { data: session } = useSession();
@@ -48,6 +49,7 @@ const TrainingPlansHome: React.FC = () => {
                 setLoading(true);
                 const res = await subscriptionService.getCoachSubscriptions({
                     studentId: session.user.id,
+                    computePauseAwareEndDate: false,
                 });
 
                 if (res) {
@@ -85,27 +87,37 @@ const TrainingPlansHome: React.FC = () => {
                     if (res.actions) {
                         setSelfPlanActions(res.actions);
                     }
-                    
-                    // 加载执行记录（使用 instanceId）
-                    try {
-                        const exeRes = await planLibService.getWithExecutions({ instanceId: res.instance.id });
-                        if (exeRes) {
-                            setExecutions(prev => ({ ...prev, ...exeRes.executions }));
+
+                    // executions + nextDayIndex: prefer get-instance derived fields (fast path)
+                    if ((res as any).executionsByDayIndex) {
+                        setExecutions(prev => ({ ...prev, ...(res as any).executionsByDayIndex }));
+                    } else {
+                        // fallback: legacy API
+                        try {
+                            const exeRes = await planLibService.getWithExecutions({ instanceId: res.instance.id });
+                            if (exeRes) {
+                                setExecutions(prev => ({ ...prev, ...exeRes.executions }));
+                            }
+                        } catch (e) {
+                            console.error('Failed to load self plan executions:', e);
                         }
-                    } catch (e) {
-                        console.error('Failed to load self plan executions:', e);
                     }
-                    
-                    // 获取当前执行天数
-                    try {
-                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
-                        const nextDayData = await nextDayRes.json();
-                        if (nextDayData.success && nextDayData.data) {
-                            setCurrentDayIndex(nextDayData.data.nextDayIndex);
+
+                    if (typeof (res as any).nextDayIndex === 'number') {
+                        setCurrentDayIndex((res as any).nextDayIndex);
+                    } else {
+                        // fallback: legacy API
+                        try {
+                            const nextDayData = await executionService.getNextTrainingDay({
+                                instanceId: res.instance.id
+                            });
+                            if (nextDayData) {
+                                setCurrentDayIndex(nextDayData.nextDayIndex);
+                            }
+                        } catch (e) {
+                            const startDay = (res.instance as any).start_execution_day || 1;
+                            setCurrentDayIndex(startDay);
                         }
-                    } catch (e) {
-                        const startDay = (res.instance as any).start_execution_day || 1;
-                        setCurrentDayIndex(startDay);
                     }
                 }
             } catch (e) {
@@ -138,23 +150,31 @@ const TrainingPlansHome: React.FC = () => {
                         setActions(prev => ({ ...prev, ...res.actions }));
                     }
 
-                    // 加载执行数据
-                    const exeRes = await planLibService.getWithExecutions({ subscriptionId: activeSubscriptionId });
-                    if (exeRes) {
-                        setExecutions(exeRes.executions);
+                    // executions + nextDayIndex: prefer get-instance derived fields (fast path)
+                    if ((res as any).executionsByDayIndex) {
+                        setExecutions((res as any).executionsByDayIndex);
+                    } else {
+                        const exeRes = await planLibService.getWithExecutions({ subscriptionId: activeSubscriptionId });
+                        if (exeRes) {
+                            setExecutions(exeRes.executions);
+                        }
                     }
 
-                    // 获取当前执行天数（用于计算日期）
-                    try {
-                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${res.instance.id}`);
-                        const nextDayData = await nextDayRes.json();
-                        if (nextDayData.success && nextDayData.data) {
-                            setCurrentDayIndex(nextDayData.data.nextDayIndex);
+                    if (typeof (res as any).nextDayIndex === 'number') {
+                        setCurrentDayIndex((res as any).nextDayIndex);
+                    } else {
+                        try {
+                            const nextDayData = await executionService.getNextTrainingDay({
+                                instanceId: res.instance.id
+                            });
+                            if (nextDayData) {
+                                setCurrentDayIndex(nextDayData.nextDayIndex);
+                            }
+                        } catch (e) {
+                            // 默认使用起始执行天 或 day 1
+                            const startDay = (res.instance as any).start_execution_day || 1;
+                            setCurrentDayIndex(startDay);
                         }
-                    } catch (e) {
-                        // 默认使用起始执行天 或 day 1
-                        const startDay = (res.instance as any).start_execution_day || 1;
-                        setCurrentDayIndex(startDay);
                     }
                 }
 
@@ -325,7 +345,10 @@ const TrainingPlansHome: React.FC = () => {
     };
 
     // 动作项显示组件
-    const ActionItem = ({ actionSet, action }: { actionSet: CoachPlanAction; action?: any }) => {
+    const ActionItem = ({ actionSet, action }: {
+        actionSet: CoachPlanAction;
+        action?: any
+    }) => {
         // 支持多种字段名: actionName, set_name
         const actionName = action?.name || (actionSet as any).actionName || actionSet.set_name || '未知动作';
         const hasVideo = !!action?.url; // url 是视频链接字段
@@ -571,7 +594,7 @@ const TrainingPlansHome: React.FC = () => {
     };
 
     // 训练日卡片
-    const TrainingDayCard = ({ day, startDate, unlockedWeek }: { day: CoachPlanTrainingDay; startDate?: string | Date | null; unlockedWeek: number }) => {
+    const TrainingDayCard = ({ day, startDate, unlockedWeek }: { day: CoachPlanTrainingImplementationDay; startDate?: string | Date | null; unlockedWeek: number }) => {
         const isRestDay = day.type === 'rest';
         const actionSets = day.actionSets || [];
         const dayExecution = executions[day.dayIndex];
@@ -721,7 +744,7 @@ const TrainingPlansHome: React.FC = () => {
     // 计划详情卡片
     const PlanDetailCard = ({ instance }: { instance: CoachPlanInstanceRow }) => {
         const statusConfig = getStatusConfig(instance.status);
-        const trainingDays = (instance.training_days as unknown as CoachPlanTrainingDay[] || [])
+        const trainingDays = (instance.training_days as unknown as CoachPlanTrainingImplementationDay[] || [])
             .sort((a, b) => a.dayIndex - b.dayIndex);
         
         // 🔒 计算已解锁的周次

@@ -48,7 +48,7 @@ const StudentPlanLib = () => {
         const dayCount = Array.isArray(favorite.training_days) ? favorite.training_days.length : 0;
 
         return (
-            <div key={favorite.id} className="relative overflow-hidden rounded-2xl mb-3 bg-surface-900">
+            <div key={favorite.id} className="relative overflow-hidden rounded-2xl mb-3">
                 {/* 底层操作区 (Action Drawer) */}
                 <div className="absolute inset-y-0 right-0 flex items-center px-4 gap-2">
                     <button
@@ -150,11 +150,11 @@ const StudentPlanLib = () => {
     const handleEditPlan = (fav: StudentPlanFavoriteRow) => router.push(`/me/plan-lib/edit/${fav.id}`);
 
     return (
-        <div className="min-h-screen bg-surface-50/50 pb-20">
+        <div className="min-h-screen pb-20">
             <ConfirmDialog />
 
             {/* 头部：容器与深度逻辑 */}
-            <div className="sticky top-0 z-20 bg-surface-0/80 backdrop-blur-md border-b border-surface-100">
+            <div className="sticky top-0 z-20 backdrop-blur-md border-b border-surface-100">
                 <div className="max-w-3xl mx-auto px-5 py-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-black text-surface-900  tracking-tight uppercase">常用计划库</h1>

@@ -8,8 +8,8 @@ declare module 'next-auth' {
     /**
      * 扩展 User 类型（数据库返回的完整结构）
      */
-    interface User extends CoachLinkUser {
-        email: string | null
+    interface User extends DefaultUser, Partial<UsersRow> {
+        id: string; // 确保 id 是必须的
     }
 
     /**
@@ -17,8 +17,21 @@ declare module 'next-auth' {
      */
     interface Session extends DefaultSession {
         user: DefaultSession['user'] & UsersRow
-        profile: UserProfilesRow
     }
+
+
+    /**
+     * 扩展 TokenSet 类型，增加微信特有的字段
+     */
+    interface TokenSet {
+        access_token?: string
+        openid?: string
+        refresh_token?: string
+        expires_at?: number
+        scope?: string
+        unionid?: string
+    }
+
 }
 
 declare module 'next-auth/jwt' {
@@ -26,3 +39,4 @@ declare module 'next-auth/jwt' {
         user: UsersRow
     }
 }
+

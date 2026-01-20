@@ -1,11 +1,12 @@
 import type { SessionContextValue } from "next-auth/react";
+import type { UserProfilesRow } from "@/types";
 
-export function getUserDisplayName(session: SessionContextValue["data"]) {
-    if (session?.profile?.nickname) {
-        return session.profile.nickname;
+export function getUserDisplayName(session: SessionContextValue["data"], profile?: UserProfilesRow | null) {
+    if (profile?.nickname) {
+        return profile.nickname;
     }
-    if (session?.profile?.full_name) {
-        return session.profile.full_name;
+    if (profile?.full_name) {
+        return profile.full_name;
     }
     if (session?.user?.phone) {
         return session.user.phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
@@ -37,11 +38,11 @@ export function getCoachRating(session: SessionContextValue["data"]) {
     return baseRating[level as keyof typeof baseRating];
 }
 
-export function getCoach(session: SessionContextValue["data"] | null) {
+export function getCoach(session: SessionContextValue["data"] | null, profile?: UserProfilesRow | null) {
     if (session) {
         return {
             id: session?.user.id,
-            name: getUserDisplayName(session),
+            name: getUserDisplayName(session, profile),
             title: getCoachTitle(session),
             rating: getCoachRating(session),
         };

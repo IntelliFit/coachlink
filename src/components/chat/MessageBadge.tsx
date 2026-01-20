@@ -26,7 +26,7 @@ export function MessageBadge({ className }: MessageBadgeProps) {
         fetchUnreadCount();
         
         // 定时刷新未读数（每30秒）
-        const interval = setInterval(fetchUnreadCount, 30000);
+        const interval = setInterval(fetchUnreadCount, 60000);
         
         return () => clearInterval(interval);
     }, []);

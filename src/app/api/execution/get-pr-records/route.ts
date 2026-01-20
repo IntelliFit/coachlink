@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { getAuthUser } from "@/lib/auth";
 
@@ -30,15 +29,11 @@ interface GetPRRecordsResponse {
 }
 
 /**
- * GET /api/execution/get-pr-records
+ * POST /api/execution/get-pr-records
  *
  * Fetches user's personal record history
- * Query params:
- *   - userId: Optional, for coaches to view their student's records
- *   - limit: Max records to return (default 20)
- *   - offset: Pagination offset (default 0)
  */
-export async function GET(request: NextRequest) {
+export async function POST(req: Request) {
     try {
         // 使用统一鉴权函数,支持session和token两种方式
         const authResult = await getAuthUser(request);
@@ -66,10 +61,11 @@ export async function GET(request: NextRequest) {
                 .maybeSingle();
 
             if (!coachRow?.id) {
-                return NextResponse.json<GetPRRecordsResponse>(
-                    { success: false, message: "无权查看该用户的记录" },
-                    { status: 403 },
-                );
+                return NextResponse.json<ApiData<GetPRRecordsResponseDto>>({
+                    success: false,
+                    message: "无权查看该用户的记录",
+                    data: null,
+                }, { status: 403 });
             }
 
             // Verify the student is subscribed to this coach
@@ -82,10 +78,11 @@ export async function GET(request: NextRequest) {
                 .maybeSingle();
 
             if (!subscription) {
-                return NextResponse.json<GetPRRecordsResponse>(
-                    { success: false, message: "该学员不在您的订阅列表中" },
-                    { status: 403 },
-                );
+                return NextResponse.json<ApiData<GetPRRecordsResponseDto>>({
+                    success: false,
+                    message: "该学员不在您的订阅列表中",
+                    data: null,
+                }, { status: 403 });
             }
 
             targetUserId = requestedUserId;
@@ -93,19 +90,29 @@ export async function GET(request: NextRequest) {
 
         // Get PR records using new column names
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: records, error, count } = await (supabase as any)
+        let query = (supabase as any)
             .from("personal_records_history")
             .select("*", { count: "exact" })
             .eq("user_id", targetUserId)
             .order("date_achieved", { ascending: false })
             .range(offset, offset + limit - 1);
 
+        // Hide internal AUTO_STATE snapshots by default
+        if (!includeState) {
+            // IMPORTANT: `.neq()` will exclude NULLs too, so we must explicitly keep notes IS NULL.
+            // Keep: notes IS NULL OR notes != 'AUTO_STATE'
+            query = query.or("notes.is.null,notes.neq.AUTO_STATE");
+        }
+
+        const { data: records, error, count } = await query;
+
         if (error) {
             console.error("获取PR记录失败:", error);
-            return NextResponse.json<GetPRRecordsResponse>(
-                { success: false, message: "获取记录失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<GetPRRecordsResponseDto>>({
+                success: false,
+                message: "获取记录失败",
+                data: null,
+            }, { status: 500 });
         }
 
         // Map to response format with new column names
@@ -126,8 +133,9 @@ export async function GET(request: NextRequest) {
             created_at: r.created_at,
         }));
 
-        return NextResponse.json<GetPRRecordsResponse>({
+        return NextResponse.json<ApiData<GetPRRecordsResponseDto>>({
             success: true,
+            message: "获取成功",
             data: {
                 records: prRecords,
                 total: count || 0,
@@ -135,9 +143,10 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error("获取PR记录失败:", error);
-        return NextResponse.json<GetPRRecordsResponse>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<GetPRRecordsResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import type { CompleteSetDto, CompleteSetResponseDto } from "../entity";
+import type { ApiData } from "@/types/api";
+import type { CompleteSetDto, CompleteSetResponseDto } from "./entity";
 import {
     calculateE1RM,
     isNewPR,
     requiresBodyWeightFallback,
+    PR_THRESHOLD_KG,
 } from "@/lib/e1rmCalculator";
 
 /**
@@ -31,8 +32,8 @@ async function handleAutoE1RMCheck(params: {
         setNumber,
     } = params;
 
-    // Skip if weight or reps is invalid
-    if (!weight || weight <= 0 || !reps || reps <= 0) {
+    // Basic guard: reps must be present; weight may be negative for bodyweight-including actions (assistance)
+    if (weight === null || weight === undefined || !Number.isFinite(weight) || !reps || reps <= 0) {
         return null;
     }
 
@@ -64,6 +65,15 @@ async function handleAutoE1RMCheck(params: {
         bodyWeight = profile?.weight || 0;
     }
 
+    // Validate weight according to action type
+    if (!includeBodyWeight) {
+        if (weight <= 0) return null;
+    } else {
+        // allow negative/zero external load as long as totalWeight > 0
+        if (!bodyWeight || bodyWeight <= 0) return null;
+        if (weight + bodyWeight <= 0) return null;
+    }
+
     // 3. Calculate e1RM using 3-formula average
     const result = calculateE1RM({
         weight,
@@ -73,6 +83,89 @@ async function handleAutoE1RMCheck(params: {
     });
 
     const { e1rm, epley, brzycki, lombardi } = result;
+
+    // ------------------------------------------------------------
+    // 3.5 Update "current state" snapshot (AUTO_STATE) when change >= 2kg
+    // This allows current 1RM to go up OR down based on recent performance,
+    // while PR logic remains "only goes up" for achievements.
+    // ------------------------------------------------------------
+    try {
+        const today = new Date().toISOString().split("T")[0];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: latestState } = await (supabase as any)
+            .from("personal_records_history")
+            .select("id, e1rm, date_achieved, created_at")
+            .eq("user_id", userId)
+            .eq("action_id", actionId)
+            .eq("notes", "AUTO_STATE")
+            .order("date_achieved", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        const prev = latestState?.e1rm;
+        const shouldUpdate =
+            prev === undefined || prev === null
+                ? true
+                : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
+
+        if (shouldUpdate) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: todayState } = await (supabase as any)
+                .from("personal_records_history")
+                .select("id, e1rm")
+                .eq("user_id", userId)
+                .eq("action_id", actionId)
+                .eq("notes", "AUTO_STATE")
+                .eq("date_achieved", today)
+                .maybeSingle();
+
+            const estimatedFrom = {
+                weight,
+                reps,
+                bodyWeight: includeBodyWeight ? bodyWeight : undefined,
+                epley,
+                brzycki,
+                lombardi,
+            };
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const q: any = (supabase as any).from("personal_records_history");
+            if (todayState?.id) {
+                await q
+                    .update({
+                        weight,
+                        reps,
+                        e1rm,
+                        estimated_from: estimatedFrom,
+                        execution_id: executionId,
+                        execution_set_number: setNumber,
+                        load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                    })
+                    .eq("id", todayState.id);
+            } else {
+                await q.insert({
+                    user_id: userId,
+                    action_id: actionId,
+                    exercise_name: actionName,
+                    weight,
+                    reps,
+                    e1rm,
+                    load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                    execution_id: executionId,
+                    execution_set_number: setNumber,
+                    date_achieved: today,
+                    is_auto_calculated: true,
+                    estimated_from: estimatedFrom,
+                    notes: "AUTO_STATE",
+                    is_verified: false,
+                });
+            }
+        }
+    } catch (e) {
+        // best-effort
+        console.warn("[e1RM] Failed to update AUTO_STATE:", e);
+    }
 
     // 4. Get current highest PR for this action (prefer action_id match)
     // Use e1rm column (the calculated estimated 1RM)
@@ -184,12 +277,13 @@ async function handleAutoE1RMCheck(params: {
 export async function POST(request: NextRequest) {
     try {
         // 1. 验证用户身份
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<CompleteSetResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         const userId = session.user.id;
@@ -212,10 +306,11 @@ export async function POST(request: NextRequest) {
         if (
             !executionId || actionIndex === undefined || setIndex === undefined
         ) {
-            return NextResponse.json<CompleteSetResponseDto>(
-                { success: false, message: "缺少必填参数" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: "缺少必填参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 3. 获取执行记录
@@ -226,18 +321,20 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (fetchError || !execution) {
-            return NextResponse.json<CompleteSetResponseDto>(
-                { success: false, message: "执行记录不存在" },
-                { status: 404 },
-            );
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: "执行记录不存在",
+                data: null,
+            }, { status: 404 });
         }
 
         // 4. 验证权限
         if (execution.student_id !== userId) {
-            return NextResponse.json<CompleteSetResponseDto>(
-                { success: false, message: "无权访问此记录" },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: "无权访问此记录",
+                data: null,
+            }, { status: 403 });
         }
 
         // 4.5 查询视频URL（如果has_video为true）
@@ -270,10 +367,11 @@ export async function POST(request: NextRequest) {
             !actionExecutions[actionIndex] ||
             !actionExecutions[actionIndex].sets[setIndex]
         ) {
-            return NextResponse.json<CompleteSetResponseDto>(
-                { success: false, message: "组不存在" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: "组不存在",
+                data: null,
+            }, { status: 400 });
         }
 
         // Get action name for e1RM calculation
@@ -338,14 +436,16 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             console.error("更新失败:", updateError);
-            return NextResponse.json<CompleteSetResponseDto>(
-                { success: false, message: "更新失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: "更新失败",
+                data: null,
+            }, { status: 500 });
         }
 
-        return NextResponse.json<CompleteSetResponseDto>({
+        return NextResponse.json<ApiData<CompleteSetResponseDto>>({
             success: true,
+            message: "完成组成功",
             data: {
                 executionId,
                 completedSets: totalCompletedSets,
@@ -362,9 +462,10 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("完成组失败:", error);
-        return NextResponse.json<CompleteSetResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

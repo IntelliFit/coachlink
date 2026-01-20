@@ -11,6 +11,7 @@ import { Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
+import { executionService } from '@/app/service/executionService';
 import { useToastContext } from '@/context/ToastContext';
 
 import TodayTrainingCard from './TodayTrainingCard';
@@ -18,6 +19,13 @@ import RestDayCard from './RestDayCard';
 import BrowseSection from './BrowseSection';
 
 import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
+import { Avatar } from 'primereact/avatar';
+
+// 骨架屏组件
+import CoachCardSkeleton from './skeletons/CoachCardSkeleton';
+import SelfPlanCardSkeleton from './skeletons/SelfPlanCardSkeleton';
+import TodayTrainingCardSkeleton from './skeletons/TodayTrainingCardSkeleton';
+import BrowseSectionSkeleton from './skeletons/BrowseSectionSkeleton';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -41,7 +49,10 @@ const TodayTrainingPage: React.FC = () => {
     // 当前显示模式: 'coach' | 'self'
     const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach');
 
-    const [loading, setLoading] = useState(true);
+    // 分部分加载状态
+    const [loadingSubscription, setLoadingSubscription] = useState(true);
+    const [loadingCoachPlan, setLoadingCoachPlan] = useState(true);
+    const [loadingSelfPlan, setLoadingSelfPlan] = useState(true);
     const [subscription, setSubscription] = useState<any>(null);
     const [executionStatus, setExecutionStatus] = useState<'none' | 'in_progress' | 'completed'>('none');
     const [completedSets, setCompletedSets] = useState(0);
@@ -59,124 +70,204 @@ const TodayTrainingPage: React.FC = () => {
     const completionDates = planMode === 'coach' ? coachCompletionDates : selfCompletionDates;
 
     useEffect(() => {
-        if (session?.user?.id) {
-            loadData();
-        }
+        if (!session?.user?.id) return;
+
+        // 并行加载所有数据
+        const loadAllData = async () => {
+            try {
+                // 1. 先加载订阅信息（其他数据依赖此信息）
+                setLoadingSubscription(true);
+                const activeSubs = await loadSubscriptions();
+                // 立即设置订阅信息，这样 loadingSubscription 完成后 subscription 就已经有了
+                if (activeSubs.length > 0) {
+                    setSubscription(activeSubs[0]);
+                }
+                setLoadingSubscription(false);
+
+                // 2. 一次性加载教练计划和自建计划
+                setLoadingCoachPlan(true);
+                setLoadingSelfPlan(true);
+                const plansData = await loadPlans(activeSubs);
+
+                // 3. 处理加载结果
+                const coachResult = plansData.coachPlan
+                    ? {
+                        planData: plansData.coachPlan,
+                        subscription: activeSubs.find((s: any) => s.id === plansData.coachPlan?.matchedSubscriptionId) || activeSubs[0] || null,
+                        allSubs: plansData.allSubs,
+                    }
+                    : null;
+                const selfResult = plansData.selfPlan;
+
+                // 4. 并行处理计划数据（可以独立处理）
+                await Promise.all([
+                    processCoachPlan(coachResult, activeSubs).finally(() => setLoadingCoachPlan(false)),
+                    processSelfPlan(selfResult).finally(() => setLoadingSelfPlan(false)),
+                ]);
+
+                // 5. 设置默认显示模式（依赖两个计划的结果）
+                setDefaultPlanMode(coachResult, selfResult);
+
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast({
+                    severity: 'error',
+                    summary: '加载失败',
+                    detail: '无法加载训练数据，请稍后重试',
+                });
+                setLoadingSubscription(false);
+                setLoadingCoachPlan(false);
+                setLoadingSelfPlan(false);
+            }
+        };
+
+        loadAllData();
     }, [session?.user?.id]);
 
-    const loadData = async () => {
+    // 1. 加载订阅信息
+    const loadSubscriptions = async () => {
+        const subsResponse = await subscriptionService.getCoachSubscriptions({
+            studentId: session?.user?.id || '',
+            computePauseAwareEndDate: false,
+        });
+
+        const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
+        return activeSubs;
+    };
+
+    // 2. 加载教练计划和自建计划（合并为一次请求）
+    const loadPlans = async (activeSubs: any[]) => {
         try {
-            setLoading(true);
-
-            // 1. 获取订阅
-            const subsResponse = await subscriptionService.getCoachSubscriptions({
-                studentId: session?.user?.id || '',
+            const subscriptionIds = activeSubs.map((s: any) => s.id).filter(Boolean);
+            const result = await planLibService.getTodayTrainingInstance({
+                subscriptionIds: subscriptionIds.length > 0 ? subscriptionIds : undefined,
             });
 
-            const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
-
-            // 2. 加载教练计划：遍历所有活跃订阅，找到第一个有计划的订阅（避免“取第一个订阅但该订阅无计划”）
-            let coachRes: any = null;
-            let coachSub: any = null;
-            if (activeSubs.length > 0) {
-                const settled = await Promise.allSettled(
-                    activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id })),
-                );
-
-                for (let i = 0; i < settled.length; i++) {
-                    const r = settled[i];
-                    if (r.status === 'fulfilled' && r.value?.instance) {
-                        coachRes = r.value;
-                        coachSub = activeSubs[i];
-                        break;
-                    }
-                }
-            }
-
-            // 3. 加载自建计划：独立 try/catch，避免任意一个请求失败导致两个都丢失
-            let selfRes: any = null;
-            try {
-                selfRes = await planLibService.getInstance({ fetchSelf: true });
-            } catch (e) {
-                console.error('[today-training] Failed to load self plan:', e);
-                selfRes = null;
-            }
-
-            // 订阅信息用于顶部教练卡片/后续跳转：优先使用“有计划的订阅”，否则回退到第一个活跃订阅
-            setSubscription(coachSub || activeSubs[0] || null);
-
-            // 处理教练计划
-            if (coachRes?.instance) {
-                setCoachInstance(coachRes.instance);
-                setCoachActions(coachRes.actions || {});
-
-                try {
-                    const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
-                    const nextDayData = await nextDayRes.json();
-                    if (nextDayData.success && nextDayData.data) {
-                        setCoachDayIndex(nextDayData.data.nextDayIndex);
-                        setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
-                        setCoachCompletionDates(nextDayData.data.completionDates || {});
-
-                        // 检查是否完成所有计划
-                        const completedCount = nextDayData.data.completedDays.length;
-                        const totalCount = nextDayData.data.totalTrainingDays;
-
-                        if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
-                            // 自动标记为完成
-                            await handleCompletePlan(coachRes.instance);
-                        }
-                    }
-                } catch (e) {
-                    const startDay = (coachRes.instance as any).start_execution_day || 1;
-                    setCoachDayIndex(startDay);
-                }
-            }
-
-            // 处理自建计划
-            if (selfRes?.instance) {
-                setSelfInstance(selfRes.instance);
-                setSelfActions(selfRes.actions || {});
-
-                try {
-                    const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${selfRes.instance.id}`);
-                    const nextDayData = await nextDayRes.json();
-                    if (nextDayData.success && nextDayData.data) {
-                        setSelfDayIndex(nextDayData.data.nextDayIndex);
-                        setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
-                        setSelfCompletionDates(nextDayData.data.completionDates || {});
-
-                        // 检查是否完成所有计划
-                        const completedCount = nextDayData.data.completedDays.length;
-                        const totalCount = nextDayData.data.totalTrainingDays;
-
-                        if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
-                            // 自动标记为完成
-                            await handleCompletePlan(selfRes.instance);
-                        }
-                    }
-                } catch (e) {
-                    const startDay = (selfRes.instance as any).start_execution_day || 1;
-                    setSelfDayIndex(startDay);
-                }
-            }
-
-            // 设置默认显示模式：优先教练计划，没有则显示自建计划
-            if (coachRes?.instance) {
-                setPlanMode('coach');
-            } else if (selfRes?.instance) {
-                setPlanMode('self');
-            }
-
+            return {
+                coachPlan: result.coachPlan,
+                selfPlan: result.selfPlan,
+                allSubs: activeSubs,
+            };
         } catch (error) {
-            console.error('加载数据失败:', error);
-            showToast({
-                severity: 'error',
-                summary: '加载失败',
-                detail: '无法加载训练数据，请稍后重试',
-            });
-        } finally {
-            setLoading(false);
+            console.error('[today-training] 加载计划失败:', error);
+            return {
+                coachPlan: null,
+                selfPlan: null,
+                allSubs: activeSubs,
+            };
+        }
+    };
+
+    // 4. 处理教练计划数据
+    const processCoachPlan = async (coachResult: any, activeSubs: any[]) => {
+        if (!coachResult) {
+            // 设置订阅信息（即使没有计划）
+            if (activeSubs.length > 0) {
+                setSubscription(activeSubs[0]);
+            }
+            return;
+        }
+
+        const { planData: coachRes, subscription: coachSub, allSubs } = coachResult;
+
+        // 设置订阅信息：优先使用"有计划的订阅"，否则回退到第一个活跃订阅
+        setSubscription(coachSub || allSubs[0] || null);
+
+        if (!coachRes?.instance) {
+            return;
+        }
+
+        setCoachInstance(coachRes.instance);
+        setCoachActions(coachRes.actions || {});
+
+        const derived = coachRes as any;
+        if (typeof derived.nextDayIndex === 'number') {
+            setCoachDayIndex(derived.nextDayIndex);
+            setCoachTodayCompleted(derived.todayCompleted || false);
+            setCoachCompletionDates(derived.completionDates || {});
+
+            const completedCount = (derived.completedDays || []).length;
+            const totalCount = derived.totalTrainingDays || 0;
+            if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
+                await handleCompletePlan(coachRes.instance);
+            }
+        } else {
+            // fallback: legacy API
+            try {
+                const nextDayData = await executionService.getNextTrainingDay({
+                    instanceId: coachRes.instance.id
+                });
+                if (nextDayData) {
+                    setCoachDayIndex(nextDayData.nextDayIndex);
+                    setCoachTodayCompleted(nextDayData.todayCompleted || false);
+                    setCoachCompletionDates(nextDayData.completionDates || {});
+
+                    const completedCount = nextDayData.completedDays.length;
+                    const totalCount = nextDayData.totalTrainingDays;
+
+                    if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
+                        await handleCompletePlan(coachRes.instance);
+                    }
+                }
+            } catch (e) {
+                const startDay = (coachRes.instance as any).start_execution_day || 1;
+                setCoachDayIndex(startDay);
+            }
+        }
+    };
+
+    // 5. 处理自建计划数据
+    const processSelfPlan = async (selfRes: any) => {
+        if (!selfRes?.instance) {
+            return;
+        }
+
+        setSelfInstance(selfRes.instance);
+        setSelfActions(selfRes.actions || {});
+
+        const derived = selfRes as any;
+        if (typeof derived.nextDayIndex === 'number') {
+            setSelfDayIndex(derived.nextDayIndex);
+            setSelfTodayCompleted(derived.todayCompleted || false);
+            setSelfCompletionDates(derived.completionDates || {});
+
+            const completedCount = (derived.completedDays || []).length;
+            const totalCount = derived.totalTrainingDays || 0;
+            if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
+                await handleCompletePlan(selfRes.instance);
+            }
+        } else {
+            // fallback: legacy API
+            try {
+                const nextDayData = await executionService.getNextTrainingDay({
+                    instanceId: selfRes.instance.id
+                });
+                if (nextDayData) {
+                    setSelfDayIndex(nextDayData.nextDayIndex);
+                    setSelfTodayCompleted(nextDayData.todayCompleted || false);
+                    setSelfCompletionDates(nextDayData.completionDates || {});
+
+                    const completedCount = nextDayData.completedDays.length;
+                    const totalCount = nextDayData.totalTrainingDays;
+
+                    if (totalCount > 0 && completedCount >= totalCount && selfRes.instance.status === 'active') {
+                        await handleCompletePlan(selfRes.instance);
+                    }
+                }
+            } catch (e) {
+                const startDay = (selfRes.instance as any).start_execution_day || 1;
+                setSelfDayIndex(startDay);
+            }
+        }
+    };
+
+    // 6. 设置默认显示模式
+    const setDefaultPlanMode = (coachResult: any, selfResult: any) => {
+        const coachRes = coachResult?.planData;
+        if (coachRes?.instance) {
+            setPlanMode('coach');
+        } else if (selfResult?.instance) {
+            setPlanMode('self');
         }
     };
 
@@ -265,43 +356,12 @@ const TodayTrainingPage: React.FC = () => {
     const handleViewHistory = () => {
         router.push('/me/plan-history');
     };
-
-    if (loading) {
-        return (
-            <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
-                {/* 教练卡片骨架 */}
-                <div className="h-24 bg-gray-200 rounded-2xl mb-8"></div>
-
-                {/* 今日训练标题骨架 */}
-                <div className="flex justify-between items-center mb-6">
-                    <div className="h-8 bg-gray-200 w-48 rounded-lg"></div>
-                    <div className="h-6 bg-gray-200 w-24 rounded-lg"></div>
-                </div>
-
-                {/* 主卡片骨架 */}
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex gap-4 mb-6">
-                        <div className="w-20 h-20 bg-gray-100 rounded-2xl"></div>
-                        <div className="flex-1 space-y-3">
-                            <div className="h-6 bg-gray-100 w-1/3 rounded"></div>
-                            <div className="h-4 bg-gray-100 w-1/2 rounded"></div>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="h-20 bg-gray-50 rounded-xl"></div>
-                        <div className="h-20 bg-gray-50 rounded-xl"></div>
-                        <div className="h-20 bg-gray-50 rounded-xl"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     // 判断是否有任何计划
     const hasAnyPlan = coachInstance || selfInstance;
     const hasBothPlans = coachInstance && selfInstance;
+    const isInitialLoading = loadingSubscription || (loadingCoachPlan && loadingSelfPlan);
 
-    if (!hasAnyPlan) {
+    if (!isInitialLoading && !hasAnyPlan) {
         const subscribedCoachName =
             subscription?.coach?.name ||
             subscription?.coach?.title ||
@@ -402,11 +462,11 @@ const TodayTrainingPage: React.FC = () => {
     }
 
     // 找到今天的训练日
-    const trainingDays = (instance.training_days || []) as any[];
+    const trainingDays = (instance?.training_days || []) as any[];
     const todayTraining = trainingDays.find(d => d.dayIndex === todayDayIndex);
 
     return (
-        <div className="min-h-screen bg-surface-50 pb-12">
+        <div className="min-h-screen bg-surface pb-12">
             {/* 确认对话框 */}
             <ConfirmDialog />
 
@@ -426,10 +486,10 @@ const TodayTrainingPage: React.FC = () => {
             <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
                 {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
                 {hasBothPlans && (
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl mb-6 w-full sm:w-fit">
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
                         <button
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${planMode === 'coach'
-                                ? 'bg-white text-slate-900 shadow-sm'
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 duration-200 ease-out ${planMode === 'coach'
+                                ? 'bg-surface text-slate-900 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                             onClick={() => setPlanMode('coach')}
@@ -438,8 +498,8 @@ const TodayTrainingPage: React.FC = () => {
                             教练计划
                         </button>
                         <button
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${planMode === 'self'
-                                ? 'bg-white text-slate-900 shadow-sm'
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 duration-200 ease-out ${planMode === 'self'
+                                ? 'bg-surface text-slate-900 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                             onClick={() => setPlanMode('self')}
@@ -449,9 +509,11 @@ const TodayTrainingPage: React.FC = () => {
                         </button>
                     </div>
                 )}
-                {/* --- 顶部教练信息卡片 (仅当有订阅且当前计划不是自建时显示，或者即使是自建也可以不显示教练卡片) --- */}
-                {subscription?.coach && instance?.source !== 'self' && (
-                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
+                {/* --- 顶部教练信息卡片 (仅当有订阅且当前模式为教练模式时显示) --- */}
+                {loadingSubscription || (planMode === 'coach' && subscription && !subscription.coach) ? (
+                    <CoachCardSkeleton />
+                ) : subscription?.coach && planMode === 'coach' && (
+                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-surface border border-surface-100/20">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-blue-500/10 rounded-full blur-2xl"></div>
@@ -459,21 +521,22 @@ const TodayTrainingPage: React.FC = () => {
                         <div className="relative z-10 flex items-center justify-between">
                             <div className="flex items-center space-x-5">
                                 <div className="relative">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
-                                        <span className="text-2xl font-black italic">
-                                            {subscription.coach.name?.charAt(0) || 'C'}
-                                        </span>
-                                    </div>
+                                    <Avatar
+                                        label={subscription.coach.name?.charAt(0) || 'C'}
+                                        image={subscription.coach.avatar_url}
+                                        shape="circle"
+                                        className="w-16 h-16 bg-surface text-primary-500 font-bold"
+                                    ></Avatar>
                                     {/* 在线状态点 */}
                                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-slate-900 rounded-full"></div>
                                 </div>
 
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="px-2 py-0.5 bg-primary-500/20 text-primary-300 text-[10px] font-bold uppercase tracking-wider rounded">PRO COACH</span>
-                                        <span className="text-slate-400 text-xs font-medium italic">Assigning your path</span>
+                                        <span className="px-2 py-0.5 bg-primary-500/20 text-primary-300 text-[10px] font-bold tracking-tight rounded">专业教练</span>
+                                        <span className="text-slate-400 text-xs font-medium">为您规划训练路径</span>
                                     </div>
-                                    <h2 className="text-2xl font-bold tracking-tight">
+                                    <h2 className="text-2xl text-surface-50 font-bold tracking-tight">
                                         {subscription.coach.name || '未知教练'}
                                     </h2>
                                     <p className="text-slate-400 text-sm font-medium">
@@ -482,18 +545,19 @@ const TodayTrainingPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="hidden md:block text-right border-l border-white/10 pl-8">
-                                <div className="text-slate-400 text-xs uppercase mb-1">训练累计</div>
-                                <div className="text-xl font-mono font-bold">128 <span className="text-sm font-normal text-slate-500">Days</span></div>
+                            <div className="hidden md:block text-right border-l border-surface/10 pl-8">
+                                <div className="text-slate-400 text-xs mb-1">训练累计</div>
+                                <div className="text-xl font-mono font-bold">128 <span className="text-sm font-normal text-slate-500">天</span></div>
                             </div>
                         </div>
                     </div>
-
                 )}
 
                 {/* 自建计划顶部卡片 - 带移除按钮 */}
-                {instance?.source === 'self' && (
-                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-2xl shadow-slate-200">
+                {loadingSelfPlan && planMode === 'self' ? (
+                    <SelfPlanCardSkeleton />
+                ) : instance?.source === 'self' && (
+                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-surface border border-surface-100/20">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-pink-500/10 rounded-full blur-2xl"></div>
@@ -502,16 +566,16 @@ const TodayTrainingPage: React.FC = () => {
                             <div className="flex items-center space-x-5">
                                 <div className="relative">
                                     <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
-                                        <span className="text-2xl font-black italic">
-                                            ME
+                                        <span className="text-2xl font-black">
+                                            我
                                         </span>
                                     </div>
                                 </div>
 
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-wider rounded">SELF PLAN</span>
-                                        <span className="text-slate-400 text-xs font-medium italic">Your personal journey</span>
+                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-bold tracking-tight rounded">自建计划</span>
+                                        <span className="text-slate-400 text-xs font-medium">您的个人训练之旅</span>
                                     </div>
                                     <h2 className="text-2xl font-bold tracking-tight">
                                         {instance.name || '我的自建计划'}
@@ -543,7 +607,7 @@ const TodayTrainingPage: React.FC = () => {
                         <div className="flex items-end justify-between mb-6 px-2">
                             <div>
                                 <h3 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
-                                    TODAY'S MISSION
+                                    今日任务
                                 </h3>
                                 <p className="text-slate-500 text-sm">
                                     {todayCompleted
@@ -557,61 +621,87 @@ const TodayTrainingPage: React.FC = () => {
                                 : 'text-primary-600 bg-primary-50'
                                 }`}>
                                 <i className={todayCompleted ? 'pi pi-check' : 'pi pi-clock animate-spin-slow'} />
-                                {todayCompleted ? 'Well Done!' : 'Keep Pushing'}
+                                {todayCompleted ? '完成！' : '继续加油'}
                             </div>
                         </div>
 
                         {/* 卡片渲染 */}
                         <div className="transform transition-all sm:hover:translate-y-[-4px]">
-                            {todayCompleted ? (
-                                /* 今日已完成状态卡片 */
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 shadow-sm">
-                                    <div className="text-center">
-                                        <div className="text-6xl mb-4">🎉</div>
-                                        <h3 className="text-2xl font-bold text-green-800 mb-2">今日训练已完成!</h3>
-                                        <p className="text-green-600 mb-4">
-                                            太棒了！你已经完成了今天的训练任务，好好休息，明天继续加油！
-                                        </p>
-                                        <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
-                                            <i className="pi pi-calendar" />
-                                            下一个训练日: 第 {todayDayIndex} 天
+                            {(() => {
+                                // 根据计划类型显示对应的加载状态
+                                const isLoading = (planMode === 'coach' && loadingCoachPlan) ||
+                                    (planMode === 'self' && loadingSelfPlan);
+
+                                if (isLoading) {
+                                    return <TodayTrainingCardSkeleton />;
+                                }
+
+                                if (todayCompleted) {
+                                    /* 今日已完成状态卡片 */
+                                    return (
+                                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100/50">
+                                            <div className="text-center">
+                                                <div className="text-6xl mb-4">🎉</div>
+                                                <h3 className="text-2xl font-bold text-green-800 mb-2 tracking-tight">今日训练已完成!</h3>
+                                                <p className="text-green-600 mb-4">
+                                                    太棒了！你已经完成了今天的训练任务，好好休息，明天继续加油！
+                                                </p>
+                                                <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-2xl text-sm font-medium border border-green-100/50">
+                                                    <i className="pi pi-calendar" />
+                                                    下一个训练日: 第 {todayDayIndex} 天
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            ) : todayTraining && todayTraining.type === 'training' ? (
-                                <TodayTrainingCard
-                                    day={todayTraining}
-                                    actions={actions}
-                                    instanceId={instance.id}
-                                    dayIndex={todayDayIndex}
-                                    executionStatus={executionStatus}
-                                    completedSets={completedSets}
-                                    totalSets={totalSets}
-                                />
-                            ) : (
-                                <RestDayCard dayIndex={todayDayIndex} />
-                            )}
+                                    );
+                                } else if (todayTraining && todayTraining.type === 'training') {
+                                    return (
+                                        <TodayTrainingCard
+                                            day={todayTraining}
+                                            actions={actions}
+                                            instanceId={instance.id}
+                                            dayIndex={todayDayIndex}
+                                            executionStatus={executionStatus}
+                                            completedSets={completedSets}
+                                            totalSets={totalSets}
+                                        />
+                                    );
+                                } else {
+                                    return <RestDayCard dayIndex={todayDayIndex} />;
+                                }
+                            })()}
                         </div>
                     </section>
 
                     {/* --- 浏览区域 --- */}
                     <section className="pt-4">
                         <div className="flex items-center gap-3 mb-6 px-2">
-                            <div className="h-px flex-1 bg-slate-200"></div>
-                            <h4 className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                Explore Schedule
+                            <div className="h-px flex-1 bg-surface-100"></div>
+                            <h4 className="text-slate-400 text-xs font-bold tracking-tight">
+                                浏览训练计划
                             </h4>
-                            <div className="h-px flex-1 bg-slate-200"></div>
+                            <div className="h-px flex-1 bg-surface-100"></div>
                         </div>
 
-                        <BrowseSection
-                            instance={instance}
-                            actions={actions}
-                            currentDayIndex={todayDayIndex}
-                            todayExecutionStatus={executionStatus}
-                            completionDates={completionDates}
-                            todayCompleted={todayCompleted}
-                        />
+                        {(() => {
+                            // 根据计划类型显示对应的加载状态
+                            const isLoading = (planMode === 'coach' && loadingCoachPlan) ||
+                                (planMode === 'self' && loadingSelfPlan);
+
+                            if (isLoading || !instance) {
+                                return <BrowseSectionSkeleton />;
+                            }
+
+                            return (
+                                <BrowseSection
+                                    instance={instance}
+                                    actions={actions}
+                                    currentDayIndex={todayDayIndex}
+                                    todayExecutionStatus={executionStatus}
+                                    completionDates={completionDates}
+                                    todayCompleted={todayCompleted}
+                                />
+                            );
+                        })()}
                     </section>
                 </div>
             </div>

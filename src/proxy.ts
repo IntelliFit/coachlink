@@ -37,11 +37,20 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
-    // 公共路由 或者 鉴权路由直接放行
-    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
-        return NextResponse.next();
+    // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
+    // This lets Playwright seed/cleanup data without being redirected to `/login`.
+    if (pathname.startsWith("/api/test/e2e/")) {
+        if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
+            const expected = process.env.E2E_SECRET;
+            // If E2E_SECRET is configured, require it. Otherwise allow (local dev convenience).
+            if (!expected) return NextResponse.next();
+            const provided = request.headers.get("x-e2e-secret");
+            if (provided && provided === expected) return NextResponse.next();
+        }
+        // In non-dev/test, or with missing/invalid secret, fall through to normal auth checks.
     }
 
+<<<<<<< HEAD
     // API 路由：支持 JWT token 和 NextAuth session 两种鉴权方式
     // API 路由自己会通过 getAuthUser 函数处理鉴权，middleware 只需要验证token是否有效
     if (pathname.startsWith("/api/")) {
@@ -71,8 +80,25 @@ export async function proxy(request: NextRequest) {
     }
 
     // 页面路由：仅使用 NextAuth session
+=======
+
+
+    // 仅当访问受保护资源时才解码 token
+>>>>>>> 92168f969813fbd772c828442810903a0c157c06
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
+    
+    // 公共路由 或者 鉴权路由直接放行
+    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+        if (pathname === "/") {
+            const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+            const isAuthenticated = !!token;
+            if (isAuthenticated) {
+                return NextResponse.redirect(`${origin}/today-training`);
+            }
+        }
+        return NextResponse.next();
+    }
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {

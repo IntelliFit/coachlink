@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import type { CompleteItemDto } from "../entity";
-
-interface CompleteItemResponseDto {
-    success: boolean;
-    data?: {
-        executionId: string;
-        completedItems: number;
-        totalItems: number;
-    };
-    message?: string;
-}
+import type { ApiData } from "@/types/api";
+import type {
+    CompleteItemDto,
+    CompleteItemResponseDto,
+} from "./entity";
 
 /**
  * POST /api/execution/complete-item
@@ -22,12 +15,13 @@ interface CompleteItemResponseDto {
 export async function POST(request: NextRequest) {
     try {
         // 1. 验证用户身份
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<CompleteItemResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         const userId = session.user.id;
@@ -47,10 +41,11 @@ export async function POST(request: NextRequest) {
         } = body;
 
         if (!executionId || actionIndex === undefined || !itemType) {
-            return NextResponse.json<CompleteItemResponseDto>(
-                { success: false, message: "缺少必填参数" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: "缺少必填参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 3. 获取执行记录
@@ -61,28 +56,31 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (fetchError || !execution) {
-            return NextResponse.json<CompleteItemResponseDto>(
-                { success: false, message: "执行记录不存在" },
-                { status: 404 },
-            );
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: "执行记录不存在",
+                data: null,
+            }, { status: 404 });
         }
 
         // 4. 验证权限
         if (execution.student_id !== userId) {
-            return NextResponse.json<CompleteItemResponseDto>(
-                { success: false, message: "无权访问此记录" },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: "无权访问此记录",
+                data: null,
+            }, { status: 403 });
         }
 
         // 5. 更新 JSONB 数据
         const actionExecutions = execution.action_executions as any[];
 
         if (!actionExecutions[actionIndex]) {
-            return NextResponse.json<CompleteItemResponseDto>(
-                { success: false, message: "项目不存在" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: "项目不存在",
+                data: null,
+            }, { status: 400 });
         }
 
         // 更新项目数据 - 根据类型保存不同字段
@@ -143,14 +141,16 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             console.error("更新失败:", updateError);
-            return NextResponse.json<CompleteItemResponseDto>(
-                { success: false, message: "更新失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: "更新失败",
+                data: null,
+            }, { status: 500 });
         }
 
-        return NextResponse.json<CompleteItemResponseDto>({
+        return NextResponse.json<ApiData<CompleteItemResponseDto>>({
             success: true,
+            message: "完成项目成功",
             data: {
                 executionId,
                 completedItems: totalCompletedItems,
@@ -159,9 +159,10 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("完成项目失败:", error);
-        return NextResponse.json<CompleteItemResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

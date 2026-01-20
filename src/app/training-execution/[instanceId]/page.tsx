@@ -752,7 +752,13 @@ function TrainingExecutionContent() {
                                             const isEditingThisSet = editingSetKey === key;
                                             const showSetForm = isCurrentSet && (!isSetCompleted || isEditingThisSet);
                                             const allowNegativeWeight = !!(action?.includesBodyWeight ?? (action as any)?.includes_body_weight);
-                                            const plannedText = `${setData.planned_weight || '-'} × ${setData.planned_reps || '-'}次`;
+                                            const plannedRepsText = setData.planned_reps === null ||
+                                                setData.planned_reps === undefined ||
+                                                String(setData.planned_reps).trim() === "" ||
+                                                String(setData.planned_reps).trim() === "0"
+                                                ? "自选"
+                                                : String(setData.planned_reps);
+                                            const plannedText = `${setData.planned_weight || '-'} × ${plannedRepsText}次`;
                                             const actualText = `${setData.actual_weight ?? '-'}kg · ${setData.actual_reps ?? '-'}次`;
 
                                             return (

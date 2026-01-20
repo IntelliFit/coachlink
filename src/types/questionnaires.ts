@@ -1,5 +1,10 @@
 export interface TrainingTagsQuestion {
     type: "tags";
+    /**
+     * Coach-configured options for this question.
+     * This decouples questionnaire from plan templates (templates can be deleted).
+     */
+    options?: string[];
     userSelections?: string[];
 }
 
@@ -14,6 +19,11 @@ export interface TrainingTimesQuestion {
 
 export interface TrainingRmQuestion {
     type: "rm";
+    /**
+     * Coach-selected action ids for RM input.
+     * If omitted or empty, the student RM section will show empty / not required.
+     */
+    actionIds?: string[];
     userInputs?: Record<string, number>;
 }
 

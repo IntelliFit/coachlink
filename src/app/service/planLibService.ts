@@ -29,6 +29,10 @@ import type {
     GetInstanceResponseDto,
 } from "@/app/api/plan-lib/get-instance/entity";
 import type {
+    GetTodayTrainingInstanceDto,
+    GetTodayTrainingInstanceResponseDto,
+} from "@/app/api/plan-lib/get-today-training-instance/entity";
+import type {
     CreateInstanceDto,
     CreateInstanceResponseDto,
 } from "@/app/api/plan-lib/create-instance/entity";
@@ -40,6 +44,10 @@ import type {
     DeleteInstanceDto,
     DeleteInstanceResponseDto,
 } from "@/app/api/plan-lib/delete-instance/entity";
+import type {
+    ArchiveInstanceDto,
+    ArchiveInstanceResponseDto,
+} from "@/app/api/plan-lib/archive-instance/entity";
 import {
     GetWithExecutionsDto,
     GetWithExecutionsResponseDto,
@@ -137,6 +145,17 @@ export class PlanLibService extends BaseService {
         return res.data.data;
     }
 
+    async getTodayTrainingInstance(reqData: GetTodayTrainingInstanceDto) {
+        const res = await this.post<GetTodayTrainingInstanceResponseDto>(
+            "get-today-training-instance",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to fetch today training instance");
+        }
+        return res.data.data;
+    }
+
     async createInstance(reqData: CreateInstanceDto) {
         const res = await this.post<CreateInstanceResponseDto>(
             "create-instance",
@@ -188,6 +207,17 @@ export class PlanLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete instance");
+        }
+        return res.data.data;
+    }
+
+    async archiveInstance(reqData: ArchiveInstanceDto) {
+        const res = await this.post<ArchiveInstanceResponseDto>(
+            "archive-instance",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to archive instance");
         }
         return res.data.data;
     }
