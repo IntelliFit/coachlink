@@ -291,12 +291,6 @@ export const authOptions: AuthOptions = {
                         if (dbUser) {
                             dbUser.password_hash = undefined;
                             token.user = dbUser;
-                            // 如果 signIn callback 中已经获取了 profile，直接使用
-                            // 确保 profile 总是被设置（即使为 undefined）
-                            token.profile = (user as any).profile;
-                        } else {
-                            // 如果查询失败，仍然设置 profile（从 signIn callback 中获取）
-                            token.profile = (user as any).profile;
                         }
                     } else {
                         // 如果 signIn callback 中没有设置 dbUserId，回退到原来的逻辑（向后兼容）
@@ -309,38 +303,10 @@ export const authOptions: AuthOptions = {
                         if (dbUser) {
                             (dbUser as any).password_hash = undefined;
                             token.user = dbUser;
-                            
-                            // 获取 profile（回退逻辑，应该不会执行到这里）
-                            const { data: profile } = await supabase
-                                .from("user_profiles")
-                                .select("*")
-                                .eq("user_id", dbUser.id)
-                                .single();
-                            
-                            // 确保 profile 总是被设置
-                            token.profile = profile || undefined;
                         }
                     }
-                } else {
-                    // 普通登录（手机号/邮箱）：user 对象中已经包含了 profile
-                    // 先提取 profile，避免它被包含在 token.user 中
-                    const profile = (user as any).profile;
-                    const { profile: _, ...userWithoutProfile } = user as any;                                        
+                } else {                                    
                     token.user = user;
-
-                    // 如果没有 profile 请求获取
-                    if (!profile) {
-                        const { data } = await supabase
-                            .from("user_profiles")
-                            .select("*")
-                            .eq("user_id", user.id)
-                            .single();
-
-                        token.profile = data;
-                    } else {
-
-                        token.profile = profile;
-                    }
                 }
             }
 
@@ -356,10 +322,6 @@ export const authOptions: AuthOptions = {
 
             (user as any).password_hash = undefined;
             session.user = token.user;
-
-            // 直接从 token 中获取 profile，避免访问数据库
-            // token.profile 应该总是被设置（即使为 undefined）
-            session.profile = token.profile as any;
 
             return session;
         },

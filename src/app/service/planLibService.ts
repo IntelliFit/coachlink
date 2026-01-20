@@ -29,6 +29,10 @@ import type {
     GetInstanceResponseDto,
 } from "@/app/api/plan-lib/get-instance/entity";
 import type {
+    GetTodayTrainingInstanceDto,
+    GetTodayTrainingInstanceResponseDto,
+} from "@/app/api/plan-lib/get-today-training-instance/entity";
+import type {
     CreateInstanceDto,
     CreateInstanceResponseDto,
 } from "@/app/api/plan-lib/create-instance/entity";
@@ -133,6 +137,17 @@ export class PlanLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to fetch instance");
+        }
+        return res.data.data;
+    }
+
+    async getTodayTrainingInstance(reqData: GetTodayTrainingInstanceDto) {
+        const res = await this.post<GetTodayTrainingInstanceResponseDto>(
+            "get-today-training-instance",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to fetch today training instance");
         }
         return res.data.data;
     }

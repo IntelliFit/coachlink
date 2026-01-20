@@ -71,15 +71,18 @@ const TodayTrainingPage: React.FC = () => {
                 // 1. 先加载订阅信息（其他数据依赖此信息）
                 const activeSubs = await loadSubscriptions();
 
-                // 2. 并行加载教练计划和自建计划
-                const [coachPlanData, selfPlanData] = await Promise.allSettled([
-                    loadCoachPlan(activeSubs),
-                    loadSelfPlan(),
-                ]);
+                // 2. 一次性加载教练计划和自建计划
+                const plansData = await loadPlans(activeSubs);
 
                 // 3. 处理加载结果
-                const coachResult = coachPlanData.status === 'fulfilled' ? coachPlanData.value : null;
-                const selfResult = selfPlanData.status === 'fulfilled' ? selfPlanData.value : null;
+                const coachResult = plansData.coachPlan
+                    ? {
+                        planData: plansData.coachPlan,
+                        subscription: activeSubs.find((s: any) => s.id === plansData.coachPlan?.matchedSubscriptionId) || activeSubs[0] || null,
+                        allSubs: plansData.allSubs,
+                    }
+                    : null;
+                const selfResult = plansData.selfPlan;
 
                 // 4. 并行处理计划数据（可以独立处理）
                 await Promise.all([
@@ -116,43 +119,26 @@ const TodayTrainingPage: React.FC = () => {
         return activeSubs;
     };
 
-    // 2. 加载教练计划
-    const loadCoachPlan = async (activeSubs: any[]) => {
-        if (activeSubs.length === 0) {
-            return null;
-        }
-
-        const coachPlanResults = await Promise.allSettled(
-            activeSubs.map((s: any) => planLibService.getInstance({ subscriptionId: s.id }))
-        );
-
-        // 找到第一个有内容的计划
-        for (let i = 0; i < coachPlanResults.length; i++) {
-            const r = coachPlanResults[i];
-            if (r.status === 'fulfilled' && r.value?.instance) {
-                return {
-                    planData: r.value,
-                    subscription: activeSubs[i],
-                    allSubs: activeSubs,
-                };
-            }
-        }
-
-        return {
-            planData: null,
-            subscription: null,
-            allSubs: activeSubs,
-        };
-    };
-
-    // 3. 加载自建计划
-    const loadSelfPlan = async () => {
+    // 2. 加载教练计划和自建计划（合并为一次请求）
+    const loadPlans = async (activeSubs: any[]) => {
         try {
-            const selfRes = await planLibService.getInstance({ fetchSelf: true });
-            return selfRes;
+            const subscriptionIds = activeSubs.map((s: any) => s.id).filter(Boolean);
+            const result = await planLibService.getTodayTrainingInstance({
+                subscriptionIds: subscriptionIds.length > 0 ? subscriptionIds : undefined,
+            });
+
+            return {
+                coachPlan: result.coachPlan,
+                selfPlan: result.selfPlan,
+                allSubs: activeSubs,
+            };
         } catch (error) {
-            console.error('[today-training] 自建计划加载失败:', error);
-            return null;
+            console.error('[today-training] 加载计划失败:', error);
+            return {
+                coachPlan: null,
+                selfPlan: null,
+                allSubs: activeSubs,
+            };
         }
     };
 
