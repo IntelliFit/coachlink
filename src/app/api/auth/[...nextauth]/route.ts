@@ -273,7 +273,8 @@ export const authOptions: AuthOptions = {
 
             return true;
         },
-        async jwt({ token, user, account }) {            
+
+        async jwt({ token, user, account, trigger }) {            
             // 如果用户首次登录，将 user 和 profile 信息存储到 token 中
             if (user) {
                 if (account?.provider === 'wechat' && user.id) {
@@ -307,6 +308,20 @@ export const authOptions: AuthOptions = {
                     }
                 } else {                                    
                     (token.user as any) = user;
+                }
+            }
+
+            // 如果调用 updateSession()，从数据库重新读取最新的用户信息
+            if (trigger === "update" && token.user?.id) {
+                const { data: dbUser } = await supabase
+                    .from("users")
+                    .select("*")
+                    .eq("id", token.user.id)
+                    .single();
+
+                if (dbUser) {
+                    (dbUser as any).password_hash = undefined;
+                    token.user = dbUser;
                 }
             }
 

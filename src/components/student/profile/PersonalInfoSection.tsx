@@ -5,7 +5,6 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { Skeleton } from 'primereact/skeleton';
-import { Checkbox } from 'primereact/checkbox';
 import { ProgressBar } from 'primereact/progressbar';
 import { ProfileData } from './types';
 import { studentService } from '@/app/service/studentService';
@@ -20,7 +19,7 @@ interface PersonalInfoSectionProps {
     onUpdate: () => void;
     editingVisible?: boolean;
     onEditingChange?: (visible: boolean) => void;
-    hideDisplay?: boolean; // 隐藏显示区域，只保留编辑对话框
+    hideDisplay?: boolean;
 }
 
 // 性别选项
@@ -42,17 +41,6 @@ const FITNESS_LEVEL_OPTIONS = [
     { label: '初学者', value: 'beginner' },
     { label: '中级', value: 'intermediate' },
     { label: '高级', value: 'advanced' },
-];
-
-// 运动卡片类型 - 7 大类
-const CARD_TYPES = [
-    { key: 'powerlifting', label: '力量举', icon: Dumbbell, bgClass: 'bg-orange-50', borderClass: 'border-orange-200', textClass: 'text-orange-700' },
-    { key: 'streetlifting', label: '街头力量举', icon: Dumbbell, bgClass: 'bg-lime-50', borderClass: 'border-lime-200', textClass: 'text-lime-700' },
-    { key: 'calisthenics', label: '街头健身', icon: User, bgClass: 'bg-green-50', borderClass: 'border-green-200', textClass: 'text-green-700' },
-    { key: 'weightlifting', label: '举重', icon: Dumbbell, bgClass: 'bg-red-50', borderClass: 'border-red-200', textClass: 'text-red-700' },
-    { key: 'bodybuilding', label: '健美/形体', icon: User, bgClass: 'bg-purple-50', borderClass: 'border-purple-200', textClass: 'text-purple-700' },
-    { key: 'running', label: '跑步', icon: Footprints, bgClass: 'bg-blue-50', borderClass: 'border-blue-200', textClass: 'text-blue-700' },
-    { key: 'cycling', label: '骑行', icon: Bike, bgClass: 'bg-cyan-50', borderClass: 'border-cyan-200', textClass: 'text-cyan-700' },
 ];
 
 // 辅助函数：转换健身水平显示

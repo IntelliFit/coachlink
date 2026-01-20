@@ -200,10 +200,6 @@ export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({
     return (
         <div>
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
-                <h4 className="m-0 font-black text-sm sm:text-base flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    力量进步曲线
-                </h4>
                 {loadingActions ? (
                     <Skeleton width="160px" height="32px" />
                 ) : (
