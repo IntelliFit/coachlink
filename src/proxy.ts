@@ -50,6 +50,18 @@ export async function proxy(request: NextRequest) {
         // In non-dev/test, or with missing/invalid secret, fall through to normal auth checks.
     }
 
+    // 先检查是否是公共路径（包括登录接口），如果是则直接放行
+    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+        if (pathname === "/") {
+            const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+            const isAuthenticated = !!token;
+            if (isAuthenticated) {
+                return NextResponse.redirect(`${origin}/today-training`);
+            }
+        }
+        return NextResponse.next();
+    }
+
     // API 路由：支持 JWT token 和 NextAuth session 两种鉴权方式
     // API 路由自己会通过 getAuthUser 函数处理鉴权，middleware 只需要验证token是否有效
     if (pathname.startsWith("/api/")) {
@@ -81,18 +93,6 @@ export async function proxy(request: NextRequest) {
     // 页面路由：仅使用 NextAuth session
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
-    
-    // 公共路由 或者 鉴权路由直接放行
-    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
-        if (pathname === "/") {
-            const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
-            const isAuthenticated = !!token;
-            if (isAuthenticated) {
-                return NextResponse.redirect(`${origin}/today-training`);
-            }
-        }
-        return NextResponse.next();
-    }
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {
