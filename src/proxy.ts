@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { verifyToken } from "./lib/jwt";
 
 const PUBLIC_PATHS = new Set([
     "/",
@@ -41,7 +42,35 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // 仅当访问受保护资源时才解码 token
+    // API 路由：支持 JWT token 和 NextAuth session 两种鉴权方式
+    // API 路由自己会通过 getAuthUser 函数处理鉴权，middleware 只需要验证token是否有效
+    if (pathname.startsWith("/api/")) {
+        // 先尝试 JWT token（小程序）
+        const authHeader = request.headers.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            const decoded = verifyToken(token);
+            if (decoded) {
+                // JWT token 有效，放行
+                return NextResponse.next();
+            }
+        }
+
+        // 再尝试 NextAuth session（网页端）
+        const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+        if (token) {
+            // NextAuth session 有效，放行
+            return NextResponse.next();
+        }
+
+        // 两种方式都无效，返回 401 错误（注意：API 路由返回 JSON，不要重定向）
+        return NextResponse.json(
+            { success: false, message: '用户未登录', data: null },
+            { status: 401 }
+        );
+    }
+
+    // 页面路由：仅使用 NextAuth session
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
 

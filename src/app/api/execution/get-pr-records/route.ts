@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getAuthUser } from "@/lib/auth";
 
 interface PRRecord {
     id: string;
@@ -39,8 +40,9 @@ interface GetPRRecordsResponse {
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        // 使用统一鉴权函数,支持session和token两种方式
+        const authResult = await getAuthUser(request);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json<GetPRRecordsResponse>(
                 { success: false, message: "未登录" },
                 { status: 401 },
@@ -52,15 +54,15 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "20");
         const offset = parseInt(searchParams.get("offset") || "0");
 
-        let targetUserId = session.user.id;
+        let targetUserId = authResult.userId;
 
         // If userId is provided, verify the requester is a coach of this student
-        if (requestedUserId && requestedUserId !== session.user.id) {
+        if (requestedUserId && requestedUserId !== authResult.userId) {
             // Find coach record for current user
             const { data: coachRow } = await supabase
                 .from("coaches")
                 .select("id")
-                .eq("user_id", session.user.id)
+                .eq("user_id", authResult.userId)
                 .maybeSingle();
 
             if (!coachRow?.id) {

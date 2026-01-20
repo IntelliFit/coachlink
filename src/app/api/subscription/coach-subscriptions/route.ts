@@ -45,9 +45,11 @@ function isoDateKey(date: Date) {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
+    // 使用统一鉴权函数,支持session和token两种方式
+    const { getAuthUser } = await import('@/lib/auth');
+    const authResult = await getAuthUser(req);
 
-    if (!session || !session.user?.id) {
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: 'Unauthorized',
