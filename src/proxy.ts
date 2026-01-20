@@ -50,7 +50,6 @@ export async function proxy(request: NextRequest) {
         // In non-dev/test, or with missing/invalid secret, fall through to normal auth checks.
     }
 
-<<<<<<< HEAD
     // API 路由：支持 JWT token 和 NextAuth session 两种鉴权方式
     // API 路由自己会通过 getAuthUser 函数处理鉴权，middleware 只需要验证token是否有效
     if (pathname.startsWith("/api/")) {
@@ -80,11 +79,6 @@ export async function proxy(request: NextRequest) {
     }
 
     // 页面路由：仅使用 NextAuth session
-=======
-
-
-    // 仅当访问受保护资源时才解码 token
->>>>>>> 92168f969813fbd772c828442810903a0c157c06
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     const isAuthenticated = !!token;
     
