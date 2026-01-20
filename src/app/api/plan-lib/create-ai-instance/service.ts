@@ -2,6 +2,7 @@ import supabase from "@/lib/supabaseClient";
 import { TrainingItem } from "@/types/questionnaires";
 import { fillTemplate, matchPlan } from "./match";
 import { sendDirectMessage } from "@/lib/chat";
+import { randomInt } from "crypto";
 
 export class ApiError extends Error {
   status: number;
@@ -87,7 +88,10 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     throw new ApiError("没有匹配的训练计划", 400);
   }
 
-  const selectTemplate = templates[0];
+  // 多模板匹配时：随机选择一个模板（满足“适合该学员的模板有多个就随机选一个”）
+  const selectTemplate = templates.length === 1
+    ? templates[0]
+    : templates[randomInt(0, templates.length)];
 
   // 根据用户数据进行填充，同时自动计算负重
   fillTemplate(answers, selectTemplate, {

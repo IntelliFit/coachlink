@@ -32,7 +32,7 @@ describe("subscriptionCredits (B1)", () => {
     expect(scope.scopeEndDayIndex).toBe(28);
   });
 
-  it("respects startExecutionDay (migrated student starts at week2 day1)", () => {
+  it("credits scope is still the first N weeks even when startExecutionDay is mid-plan (migration)", () => {
     const trainingDays = makePlan({ weeks: 6, sessionsPerWeek: 3 });
     // week2 day1 => dayIndex 8
     const scope = computeCreditsScope({
@@ -40,11 +40,11 @@ describe("subscriptionCredits (B1)", () => {
       startExecutionDay: 8,
       subscribedWeeks: 4,
     });
-    // window = [8..35] covers weeks 2-5 inclusive.
-    // each full week has 3 training days => 12 total
+    // credits window = [1..28] (first 4 weeks)
+    // each full week has 3 training days => 12 total credits
     expect(scope.totalCredits).toBe(12);
-    expect(scope.scopeStartDayIndex).toBe(8);
-    expect(scope.scopeEndDayIndex).toBe(35);
+    expect(scope.scopeStartDayIndex).toBe(1);
+    expect(scope.scopeEndDayIndex).toBe(28);
   });
 
   it("caps window by plan max dayIndex", () => {
@@ -75,8 +75,25 @@ describe("subscriptionCredits (B1)", () => {
         { day_index: 2, status: "completed" },
         { day_index: 99, status: "completed" }, // out of scope
       ],
+      startExecutionDay: 1,
     });
     expect(used).toBe(2);
+  });
+
+  it("computeUsedCredits includes offline consumed credits before startExecutionDay (migration)", () => {
+    const trainingDays = makePlan({ weeks: 8, sessionsPerWeek: 3 });
+    const scope = computeCreditsScope({
+      trainingDays,
+      subscribedWeeks: 4,
+      startExecutionDay: 8, // migrated to week2 day1
+    });
+    // In first 4 weeks, week1 has 3 training days (1,2,3) which are before day 8 => offline consumed
+    const used = computeUsedCredits({
+      eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
+      executions: [],
+      startExecutionDay: 8,
+    });
+    expect(used).toBe(3);
   });
 
   it("estimateRemainingDays: uses plan cadence (credits/week) rather than assuming daily", () => {
