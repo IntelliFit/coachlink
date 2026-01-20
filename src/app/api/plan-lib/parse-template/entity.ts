@@ -10,8 +10,9 @@ export interface ParseTemplateDto {
 // 解析出的模板动作
 export interface ParsedTemplateAction {
     actionId: string;
-    sets: number;
-    reps: number;
+    sets: number | null;
+    reps: number | null;
+    durationSeconds?: number | null;
     restSeconds?: number;
     intensityConfig?: IntensityConfig | null;
     note?: string;
@@ -41,8 +42,9 @@ export interface GeminiParsedTemplate {
         type: "training" | "rest";
         actions: {
             actionId: string;
-            sets: number;
-            reps: number;
+            sets: number | null;
+            reps: number | null;
+            durationSeconds?: number | null;
             restSeconds?: number;
             intensityConfig?: {
                 relativeIntensity?: {

@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
 import { useRouter } from 'next/navigation';
 import { Play, Video, Info, CheckCircle, RotateCcw } from 'lucide-react';
 import { formatKgValueForGym } from '@/lib/weightQuantize';
@@ -28,6 +29,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
 }) => {
     const router = useRouter();
     const [showAllActions, setShowAllActions] = useState(false);
+    const [infoDialog, setInfoDialog] = useState<{ title: string; detail: string } | null>(null);
 
     const handleStartTraining = () => {
         router.push(`/training-execution/${instanceId}?dayIndex=${dayIndex}`);
@@ -114,6 +116,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         // 支持两种字段名: action_id 和 actionId
                         const actionId = actionSet.action_id || actionSet.actionId;
                         const action = actions[actionId];
+                        const noteText = String(actionSet?.params?.note || actionSet?.note || '').trim();
                         
                         return (
                             <div
@@ -166,7 +169,25 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                         return (
                                                             <>
                                                                 <span className="text-surface-600">
-                                                                    <strong>{params['组数'] || actionSet.sets || 1}组</strong> × <strong>{params['次数'] || actionSet.reps || 1}次</strong>
+                                                                    {(() => {
+                                                                        const parsePositiveIntOrNull = (v: any) => {
+                                                                            if (v === null || v === undefined || v === '') return null;
+                                                                            const n = Number(v);
+                                                                            if (!Number.isFinite(n) || n <= 0) return null;
+                                                                            return Math.floor(n);
+                                                                        };
+                                                                        const sets = parsePositiveIntOrNull(params['组数'] ?? actionSet.sets) ?? 1;
+                                                                        const reps = parsePositiveIntOrNull(params['次数'] ?? actionSet.reps);
+                                                                        const durationSeconds = parsePositiveIntOrNull(params['持续时间'] ?? actionSet.durationSeconds);
+                                                                        const secondPart = durationSeconds !== null
+                                                                            ? `${durationSeconds}秒`
+                                                                            : (reps !== null ? `${reps}次` : '自选');
+                                                                        return (
+                                                                            <>
+                                                                                <strong>{sets}组</strong> × <strong>{secondPart}</strong>
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </span>
                                                                 {/* 优先显示计算后的重量，否则显示RM强度 */}
                                                                 {(() => {
@@ -216,9 +237,13 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                             )}
                                         </div>
 
-                                        {action?.detail && (
-                                            <div className="mt-2 text-xs text-surface-500 line-clamp-2">
-                                                {action.detail}
+                                        {/* 教练备注：优先在今日训练卡片展示 */}
+                                        {noteText && (
+                                            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                                                <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                                                <div className="text-xs leading-relaxed line-clamp-2">
+                                                    {noteText}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -235,8 +260,12 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                         )}
                                         {action?.detail && (
                                             <button
+                                                onClick={() => setInfoDialog({
+                                                    title: action?.name || actionSet.set_name || '动作说明',
+                                                    detail: String(action.detail || '').trim(),
+                                                })}
                                                 className="p-2 text-surface-600 hover:bg-surface-100 rounded-xl transition-colors"
-                                                title={action.detail}
+                                                title="查看动作说明"
                                             >
                                                 <Info className="w-5 h-5" />
                                             </button>
@@ -297,6 +326,19 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     />
                 )}
             </div>
+
+            <Dialog
+                header={infoDialog?.title || '动作说明'}
+                visible={!!infoDialog}
+                onHide={() => setInfoDialog(null)}
+                draggable={false}
+                resizable={false}
+                className="w-[min(92vw,520px)]"
+            >
+                <div className="text-sm text-surface-700 leading-relaxed whitespace-pre-wrap">
+                    {infoDialog?.detail || ''}
+                </div>
+            </Dialog>
         </Card>
     );
 };

@@ -6,7 +6,6 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { RadioButton } from 'primereact/radiobutton';
 import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
-import { planLibService } from '@/app/service/planLibService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { actionLibService } from '@/app/service/actionLibService';
 import { CoachActionRow } from '@/types';
@@ -29,8 +28,6 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
 }) => {
     // 状态用于存储用户对问题的回答
     const [answers, setAnswers] = useState<Record<string, any>>({});
-    const [tags, setTags] = useState<string[]>([]);
-    const [loadingTags, setLoadingTags] = useState<boolean>(true);
     
     const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(true);
@@ -38,22 +35,6 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     const { data: session } = useSession();
 
     useEffect(() => {
-
-        const fetchTags = async () => {
-            setLoadingTags(true);
-            try {
-                const res = await planLibService.getUniqueTemplateTags({});
-                if (res && res.tags) {
-                    setTags(res.tags);
-                }
-            } catch (error) {
-                console.error("获取训练标签失败:", error);
-                // Fallback to default tags
-                setTags(['胸部训练', '背部训练', '腿部训练', '肩部训练', '手臂训练']);
-            } finally {
-                setLoadingTags(false);
-            }
-        };
 
         const fetchAutoComputeActions = async () => {
             setLoadingActions(true);
@@ -73,7 +54,6 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
         };
 
         if (visible) {
-            fetchTags();
             fetchAutoComputeActions();
         }
     }, [visible]);
@@ -90,41 +70,38 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
     const renderQuestionPreview = (question: TrainingItem, index: number) => {
         switch (question.type) {
             case 'tags':
+                const tagOptions: string[] = Array.isArray((question as any).options) && (question as any).options.length > 0
+                    ? (question as any).options
+                    : [];
                 return (
                     <div className="mb-4">
                         <label className="block text-sm font-medium mb-4">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
-                        {loadingTags ? (
-                            <div className="flex flex-col gap-2">
-                                {[1, 2, 3, 4, 5].map((_, i) => (
-                                    <div key={i} className="flex align-items-center">
-                                        <Skeleton width="20px" height="20px" className="mr-2" />
-                                        <Skeleton width="100px" height="1rem" />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-4">
-                                {tags.map((tag, tagIndex) => (
-                                    <div key={tagIndex} className="flex align-items-center">
-                                        <Checkbox 
-                                            inputId={`tag${index}-${tagIndex}`} 
-                                            name={`tags${index}`} 
-                                            value={tag}
-                                            onChange={(e) => {
-                                                const currentTags = answers[index] || [];
-                                                if (e.checked) {
-                                                    updateAnswer(index, [...currentTags, tag]);
-                                                } else {
-                                                    updateAnswer(index, currentTags.filter((t: string) => t !== tag));
-                                                }
-                                            }} 
-                                            checked={(answers[index] || []).includes(tag)}
-                                        />
-                                        <label htmlFor={`tag${index}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
-                                    </div>
-                                ))}
+                        {tagOptions.length === 0 && (
+                            <div className="text-sm text-surface-500 mb-2">
+                                教练暂未配置训练项目选项（来自 training_items）
                             </div>
                         )}
+                        <div className="flex flex-col gap-4">
+                            {tagOptions.map((tag, tagIndex) => (
+                                <div key={tagIndex} className="flex align-items-center">
+                                    <Checkbox
+                                        inputId={`tag${index}-${tagIndex}`}
+                                        name={`tags${index}`}
+                                        value={tag}
+                                        onChange={(e) => {
+                                            const currentTags = answers[index] || [];
+                                            if (e.checked) {
+                                                updateAnswer(index, [...currentTags, tag]);
+                                            } else {
+                                                updateAnswer(index, currentTags.filter((t: string) => t !== tag));
+                                            }
+                                        }}
+                                        checked={(answers[index] || []).includes(tag)}
+                                    />
+                                    <label htmlFor={`tag${index}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 );
             
@@ -156,6 +133,8 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                 );
             
             case 'rm':
+                const selectedActionIds: string[] = Array.isArray((question as any).actionIds) ? (question as any).actionIds : [];
+                const rmActions = (autoComputeActions || []).filter(a => selectedActionIds.includes(a.id));
                 return (
                     <div className="mb-4">
                         <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的极限重量</label>
@@ -168,23 +147,27 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                                     </div>
                                 ))}
                             </div>
-                        ) : autoComputeActions && (
+                        ) : rmActions && rmActions.length > 0 ? (
                             <div className="flex flex-col gap-4">
-                                {autoComputeActions.map((action, actionIndex) => (
+                                {rmActions.map((action, actionIndex) => (
                                     <div key={actionIndex} className="flex flex-col">
                                         <label className="block text-xs text-600 mb-1">{action.name}</label>
                                         
                                         <AeroInputNumber
                                             className='text-xs'
-                                            showButtons
                                             min={0}
-                                            suffix='RM'
-                                            value={answers[index]?.weight}
-                                            onValueChange={(e) => updateAnswer(index, { ...answers[index], })}
+                                            suffix=' kg'
+                                            value={null}
+                                            onValueChange={() => {}}
+                                            placeholder="预览：学员填写"
                                         />
                                         
                                     </div>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-surface-500">
+                                教练暂未配置需要填写 RM 的动作
                             </div>
                         )}
                     </div>

@@ -118,6 +118,7 @@ export default function NavigationCoach() {
         { label: '我的钱包', icon: 'pi pi-wallet', command: () => { router.push('/dashboard/wallet'); setVisibleLeft(false); } },
         { label: '动作库', icon: 'pi pi-database', command: () => { router.push('/dashboard/action-lib'); setVisibleLeft(false); } },
         { label: '订阅设置', icon: 'pi pi-tags', command: () => { router.push('/dashboard/pricing'); setVisibleLeft(false); } },
+        { label: '学员问卷', icon: 'pi pi-file', command: () => { router.push('/dashboard/questionnaire'); setVisibleLeft(false); } },
         { label: '收款码设置', icon: 'pi pi-qrcode', command: () => { router.push('/coach/settings/payment'); setVisibleLeft(false); } },
         { separator: true },
         {

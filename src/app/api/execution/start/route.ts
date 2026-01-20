@@ -323,7 +323,7 @@ export async function POST(request: NextRequest) {
             const plannedWeight =
                 load !== null && load !== undefined
                     ? formatKgForGym(Number(load))
-                    : (intensity ? `${intensity}RM` : null);
+                : (intensity ? `${intensity}RM` : null);
 
             return {
                 action_id: actionId,
@@ -384,14 +384,14 @@ export async function POST(request: NextRequest) {
                     .maybeSingle();
 
                 if (subRow && subRow.status === "active" && !subRow.start_date) {
-                    const nowIso = new Date().toISOString();
-                    await serviceRoleSupabase
-                        .from("coach_subscriptions")
-                        .update({
-                            start_date: nowIso,
-                            updated_at: nowIso,
-                        } as any)
-                        .eq("id", subscriptionId);
+                        const nowIso = new Date().toISOString();
+                        await serviceRoleSupabase
+                            .from("coach_subscriptions")
+                            .update({
+                                start_date: nowIso,
+                                updated_at: nowIso,
+                            } as any)
+                            .eq("id", subscriptionId);
                 }
             }
         } catch (e) {
