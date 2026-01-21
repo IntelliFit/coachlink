@@ -186,7 +186,7 @@ export const authOptions: AuthOptions = {
             },
             profile(profile) {
                 // Map WeChat user data to NextAuth user object
-                console.log(profile);
+                console.log('wechat profile', profile);
 
                 return {
                     id: profile.openid,
