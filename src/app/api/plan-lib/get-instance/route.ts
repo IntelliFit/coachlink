@@ -356,6 +356,13 @@ export async function POST(req: Request) {
         trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
     );
 
+    // Resolved days: completed + abandoned (treat abandoned as "skipped" for progress pointer)
+    const resolvedExecs = (executionsList || []).filter((e) =>
+        (e?.status === "completed" || e?.status === "abandoned") &&
+        Number(e?.day_index ?? 0) >= startExecutionDay &&
+        trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
+    );
+
     const completionDates: Record<number, string> = {};
     const completedDaySet = new Set<number>();
     for (const e of completedExecs) {
@@ -371,6 +378,13 @@ export async function POST(req: Request) {
     }
     const completedDays = Array.from(completedDaySet.values()).sort((a, b) => a - b);
 
+    const resolvedDaySet = new Set<number>();
+    for (const e of resolvedExecs) {
+        const di = Number(e.day_index);
+        if (di) resolvedDaySet.add(di);
+    }
+    const resolvedDays = Array.from(resolvedDaySet.values()).sort((a, b) => a - b);
+
     // todayCompleted + todayExecutionId
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -384,7 +398,7 @@ export async function POST(req: Request) {
     const todayCompleted = !!todayExecution;
     const todayExecutionId = todayExecution?.id;
 
-    // nextDayIndex
+    // nextDayIndex (legacy): first incomplete training day
     let nextDayIndex = startExecutionDay;
     for (const day of trainingOnlyDays) {
         const di = getDayIndex(day);
@@ -403,6 +417,30 @@ export async function POST(req: Request) {
         nextDayIndex = startExecutionDay;
     }
 
+    // recommendedDayIndex (spec v1): max(resolved) + 1 (next training day)
+    let recommendedDayIndex = startExecutionDay;
+    if (trainingOnlyDays.length > 0) {
+        const maxResolved = resolvedDays.length > 0 ? Math.max(...resolvedDays) : null;
+        if (maxResolved === null) {
+            recommendedDayIndex = startExecutionDay;
+        } else {
+            const idx = trainingOnlyDays.findIndex((d) => getDayIndex(d) === maxResolved);
+            if (idx >= 0 && idx + 1 < trainingOnlyDays.length) {
+                recommendedDayIndex = getDayIndex(trainingOnlyDays[idx + 1]);
+            } else {
+                // all resolved to the end -> loop or mark complete (keep looping for compatibility)
+                recommendedDayIndex = getDayIndex(trainingOnlyDays[0]);
+            }
+        }
+    } else {
+        recommendedDayIndex = startExecutionDay;
+    }
+
+    // missingDays: unresolved days before recommended pointer
+    const missingDays = trainingOnlyDays
+        .map((d) => getDayIndex(d))
+        .filter((di) => di > 0 && di < recommendedDayIndex && !resolvedDaySet.has(di));
+
     return NextResponse.json<ApiData<any>>({
         success: true,
         message: "获取训练计划实例成功",
@@ -417,7 +455,10 @@ export async function POST(req: Request) {
                 ? executionsByDayIndex
                 : undefined,
             nextDayIndex,
+            recommendedDayIndex,
             completedDays,
+            resolvedDays,
+            missingDays,
             totalTrainingDays: trainingOnlyDays.length,
             todayCompleted,
             todayExecutionId,

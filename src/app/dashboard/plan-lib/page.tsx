@@ -178,7 +178,7 @@ const PlanLib = () => {
             <header className="flex items-center justify-between mb-12 px-2">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-surface-900">
-                        计划模板库
+                        计划库
                     </h1>
                     <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary-50 px-2 py-0.5 rounded">
@@ -189,7 +189,7 @@ const PlanLib = () => {
                 </div>
 
                 <Button
-                    label="新建模板"
+                    label="新建计划"
                     icon="pi pi-plus"
                     onClick={handleAddPlan}
                     className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"

@@ -6,12 +6,13 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { RadioButton } from 'primereact/radiobutton';
 import { Checkbox } from 'primereact/checkbox';
 import { Skeleton } from 'primereact/skeleton';
-import type { TrainingItem } from '@/types/questionnaires';
+import type { QuestionMedia, TrainingItem } from '@/types/questionnaires';
 import { actionLibService } from '@/app/service/actionLibService';
 import { CoachActionRow } from '@/types';
 import { FloatLabel } from 'primereact/floatlabel';
 import { useSession } from 'next-auth/react';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { Image } from 'primereact/image';
 
 interface QuestionPreviewDialogProps {
     visible: boolean;
@@ -66,8 +67,28 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
         }));
     };
 
+    const ensureMedia = (q: TrainingItem): QuestionMedia[] => Array.isArray((q as any).media) ? (q as any).media : [];
+
+    const [mediaDialogVisible, setMediaDialogVisible] = useState(false);
+    const [mediaDialogTitle, setMediaDialogTitle] = useState<string>('');
+    const [mediaDialogItems, setMediaDialogItems] = useState<QuestionMedia[]>([]);
+
+    const openMediaDialog = (title: string, items: QuestionMedia[]) => {
+        setMediaDialogTitle(title);
+        setMediaDialogItems(items);
+        setMediaDialogVisible(true);
+    };
+
     // 渲染问题预览
     const renderQuestionPreview = (question: TrainingItem, index: number) => {
+        const medias = ensureMedia(question);
+        const hasMedia = medias.length > 0;
+        const title = question.type === 'tags'
+            ? '训练项目偏好'
+            : question.type === 'rm'
+                ? '用户极限（1RM）'
+                : (question as any).question || '问题';
+
         switch (question.type) {
             case 'tags':
                 const tagOptions: string[] = Array.isArray((question as any).options) && (question as any).options.length > 0
@@ -75,7 +96,18 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                     : [];
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <label className="block text-sm font-medium">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(title, medias)}
+                                />
+                            )}
+                        </div>
                         {tagOptions.length === 0 && (
                             <div className="text-sm text-surface-500 mb-2">
                                 教练暂未配置训练项目选项（来自 training_items）
@@ -108,9 +140,20 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
             case 'times':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">
-                            Q{index + 1}. {(question as any).question || '您希望每周训练几次？'}
-                        </label>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                            <label className="block text-sm font-medium">
+                                Q{index + 1}. {(question as any).question || '您希望每周训练几次？'}
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(title, medias)}
+                                />
+                            )}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             {(
                                 Array.isArray((question as any).options) && (question as any).options.length > 0
@@ -137,7 +180,18 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                 const rmActions = (autoComputeActions || []).filter(a => selectedActionIds.includes(a.id));
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请输入以下动作您的极限重量</label>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <label className="block text-sm font-medium">Q{index + 1}. 请输入以下动作您的极限重量</label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(title, medias)}
+                                />
+                            )}
+                        </div>
                         {loadingActions ? (
                             <div className="flex flex-col gap-3">
                                 {[1, 2, 3].map((_, i) => (
@@ -176,9 +230,20 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
             case 'option':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-4">
-                            Q{index + 1}. {question.question || `问题 ${index + 1}`}
-                        </label>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <label className="block text-sm font-medium">
+                                Q{index + 1}. {question.question || `问题 ${index + 1}`}
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(title, medias)}
+                                />
+                            )}
+                        </div>
                         <div className="flex flex-col gap-4">
                             {question.options.map((option, optionIndex) => (
                                 <div key={optionIndex} className="flex items-center">
@@ -199,7 +264,18 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
             case 'text':
                 return (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">Q{index + 1}. {question.question}</label>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                            <label className="block text-sm font-medium">Q{index + 1}. {question.question}</label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(title, medias)}
+                                />
+                            )}
+                        </div>
                         <InputTextarea
                             value={answers[index] || ''}
                             onChange={(e) => updateAnswer(index, e.target.value)}
@@ -247,6 +323,35 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* 示例媒体预览 */}
+            <Dialog
+                header={mediaDialogTitle || '示例'}
+                visible={mediaDialogVisible}
+                onHide={() => setMediaDialogVisible(false)}
+                draggable={false}
+                resizable={false}
+                modal
+                style={{ width: '92vw', maxWidth: '720px' }}
+            >
+                {mediaDialogItems.length === 0 ? (
+                    <div className="text-sm text-surface-500">暂无示例媒体</div>
+                ) : (
+                    <div className="space-y-4">
+                        {mediaDialogItems.map((m) => (
+                            <div key={m.id} className="p-3 rounded border border-surface-200 bg-surface-0">
+                                {m.caption && <div className="text-sm font-medium mb-2">{m.caption}</div>}
+                                {m.type === 'image' ? (
+                                    <Image src={m.url} alt={m.caption || '示例图片'} preview className="rounded border" />
+                                ) : (
+                                    <video src={m.url} controls className="w-full rounded border" />
+                                )}
+                                <div className="mt-2 text-[11px] text-surface-500 break-all">{m.url}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Dialog>
         </Dialog>
     );
 };

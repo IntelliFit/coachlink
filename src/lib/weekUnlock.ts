@@ -18,6 +18,10 @@ export function calculateCurrentWeek(
     const start = new Date(startDate);
     const now = new Date();
 
+    // Normalize to local day boundaries to avoid off-by-one caused by time-of-day (e.g. startDate parsed at 08:00).
+    start.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+
     // 如果开始日期在未来，返回第1周
     if (start > now) {
         return 1;
@@ -79,6 +83,7 @@ export function getUnlockDate(
     }
 
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
     // 第N周在第 (N-1)*7 天开始解锁
     const unlockOffset = (weekNumber - 1) * 7;
     const unlockDate = new Date(start);

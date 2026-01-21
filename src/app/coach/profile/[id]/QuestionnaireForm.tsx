@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -10,12 +10,13 @@ import { Skeleton } from 'primereact/skeleton';
 import { actionLibService } from '@/app/service/actionLibService';
 import { trainingItemService } from '@/app/service/trainingItemService';
 import { useToastContext } from '@/context/ToastContext';
-import type { TrainingItem } from '@/types/questionnaires';
+import type { QuestionMedia, TrainingItem } from '@/types/questionnaires';
 import { CoachesRow, CoachSubscriptionRow, CoachActionRow } from '@/types';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useSession } from 'next-auth/react';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { Image } from 'primereact/image';
 
 interface QuestionnaireFormProps {
     coach: CoachesRow;
@@ -44,6 +45,11 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     const [trainingItemNames, setTrainingItemNames] = useState<string[]>([]);
     const [loadingTrainingItems, setLoadingTrainingItems] = useState<boolean>(true);
     const { data: session } = useSession()
+
+    // 示例媒体预览
+    const [mediaDialogVisible, setMediaDialogVisible] = useState(false);
+    const [mediaDialogTitle, setMediaDialogTitle] = useState<string>('');
+    const [mediaDialogItems, setMediaDialogItems] = useState<QuestionMedia[]>([]);
 
     useEffect(() => {
         setAnswers(questions);
@@ -104,8 +110,10 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
     // 合并历史答案到问卷
     const mergeExistingAnswers = (subscribeData: TrainingItem[]) => {
         const subscribeMap = new Map<string, any>();
-        const makeKey = (item: { type: string; question?: string }) => {
-            // 固定题型（单例）一律用 type 作为 key，避免题干变更导致无法匹配历史答案
+        const makeKey = (item: { id?: string; type: string; question?: string }) => {
+            // 优先使用稳定 id
+            if (item.id) return `id::${item.id}`;
+            // 兼容旧数据：固定题型（单例）用 type；其余用 type+question
             if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return item.type;
             return item.question ? `${item.type}::${item.question}` : item.type;
         };
@@ -147,10 +155,12 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             setCoachSubscription(res.subscriptions[0]);
             const subscribeData = res.subscriptions[0].subscribe_data as unknown as TrainingItem[];
             const subscribeMap = new Map<string, any>();
-            const makeKey = (item: { type: string; question?: string }) => {
-            // 固定题型（单例）一律用 type 作为 key，避免题干变更导致无法匹配历史答案
-            if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return item.type;
-            return item.question ? `${item.type}::${item.question}` : item.type;
+            const makeKey = (item: { id?: string; type: string; question?: string }) => {
+                // 优先使用稳定 id
+                if (item.id) return `id::${item.id}`;
+                // 固定题型（单例）一律用 type 作为 key，避免题干变更导致无法匹配历史答案
+                if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return item.type;
+                return item.question ? `${item.type}::${item.question}` : item.type;
             };
 
             subscribeData.forEach(item => {
@@ -226,40 +236,148 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         }));
     };
 
+    const ensureMedia = (q: TrainingItem): QuestionMedia[] => Array.isArray((q as any).media) ? (q as any).media : [];
+
+    const openMediaDialog = (title: string, items: QuestionMedia[]) => {
+        setMediaDialogTitle(title);
+        setMediaDialogItems(items);
+        setMediaDialogVisible(true);
+    };
+
+    const idToIndex = useMemo(() => {
+        const map = new Map<string, number>();
+        answers.forEach((q, idx) => {
+            if ((q as any).id) map.set((q as any).id, idx);
+        });
+        return map;
+    }, [answers]);
+
+    const isAnsweredForFlow = (q: TrainingItem): boolean => {
+        switch (q.type) {
+            case 'tags': {
+                const configured = Array.isArray((q as any).options) && (q as any).options.length > 0;
+                const fallbackReady = trainingItemNames.length > 0;
+                if (!(configured || fallbackReady)) return true; // 没选项就不阻塞
+                return Array.isArray((q as any).userSelections) && (q as any).userSelections.length > 0;
+            }
+            case 'times':
+                return typeof (q as any).userSelection === 'number';
+            case 'rm':
+                return true; // 选填
+            case 'option':
+                return (q as any).userSelection !== undefined && (q as any).userSelection !== null;
+            case 'text':
+                return typeof (q as any).userSelection === 'string' && (q as any).userSelection.trim().length > 0;
+            default:
+                return true;
+        }
+    };
+
+    const getNextIndex = (currentIndex: number): number | null => {
+        const q = answers[currentIndex];
+        const sequentialNext = currentIndex + 1 < answers.length ? currentIndex + 1 : null;
+
+        // option / times 支持 branching
+        const branching = (q as any)?.branching;
+        if (branching) {
+            const selection =
+                q.type === 'option' ? (q as any).userSelection :
+                    q.type === 'times' ? (q as any).userSelection :
+                        undefined;
+
+            let nextId: string | null | undefined = undefined;
+            if (typeof selection === 'number' && branching?.rules && Object.prototype.hasOwnProperty.call(branching.rules, selection)) {
+                nextId = branching.rules[selection];
+            } else if (branching?.defaultNext !== undefined) {
+                nextId = branching.defaultNext;
+            }
+
+            if (nextId === null) return null; // 结束
+            if (typeof nextId === 'string') {
+                const idx = idToIndex.get(nextId);
+                return typeof idx === 'number' ? idx : null;
+            }
+        }
+
+        // 显式 next（所有题型都支持）
+        const explicitNext = (q as any)?.next;
+        if (explicitNext === null) return null;
+        if (typeof explicitNext === 'string') {
+            const idx = idToIndex.get(explicitNext);
+            return typeof idx === 'number' ? idx : null;
+        }
+
+        return sequentialNext;
+    };
+
+    const visibleIndices = useMemo(() => {
+        if (!answers || answers.length === 0) return [];
+        const path: number[] = [0];
+        const visited = new Set<number>([0]);
+
+        while (true) {
+            const cur = path[path.length - 1];
+            const curQ = answers[cur];
+
+            if (!isAnsweredForFlow(curQ)) break;
+
+            const next = getNextIndex(cur);
+            if (next === null) break;
+            if (next < 0 || next >= answers.length) break;
+            if (visited.has(next)) break; // 防死循环
+
+            visited.add(next);
+            path.push(next);
+        }
+
+        return path;
+    }, [answers, idToIndex, trainingItemNames]);
+
     const handleSubmit = () => {
         // 验证: 对于每个问题，若为必填类型则检查
 
-        for (let i = 0; i < questions.length; i++) {
-            const q = answers[i];
+        for (let displayIndex = 0; displayIndex < visibleIndices.length; displayIndex++) {
+            const originalIndex = visibleIndices[displayIndex];
+            const q = answers[originalIndex];
             if (q.type === 'tags') {
                 const configured = Array.isArray((q as any).options) && (q as any).options.length > 0;
                 const fallbackReady = trainingItemNames.length > 0;
                 // 只有当“有可选项”时才强制要求选择；否则不阻塞提交（避免老数据/异常配置卡死）
                 if ((configured || fallbackReady) && (!q.userSelections || q.userSelections.length === 0)) {
-                    showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                    showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${displayIndex + 1}` });
                     return;
                 }
             }
             if (q.type === 'times' && (![1, 2, 3, 4, 5, 6, 7].includes(q.userSelection))) {
-                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${displayIndex + 1}` });
                 return;
             }
             if (q.type === 'rm') {
                 // RM 问题可以选填，不做强制验证
             }
             if (q.type === 'option' && (q.userSelection === undefined || q.userSelection === null)) {
-                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${displayIndex + 1}` });
                 return;
             }
             if (q.type === 'text' && !(q as any).userSelection && (typeof (q as any).userSelection !== 'string' || (q as any).userSelection?.trim() === '')) {
-                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${i + 1}` });
+                showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${displayIndex + 1}` });
                 return;
             }
         }
-        onSubmit(answers);
+        // 仅提交当前路径上的问题，数组顺序即为“问题路径”
+        const visibleAnswers = visibleIndices.map(i => answers[i]);
+        onSubmit(visibleAnswers);
     };
 
-    const renderQuestion = (question: TrainingItem, index: number) => {
+    const renderQuestion = (question: TrainingItem, displayIndex: number, originalIndex: number) => {
+        const medias = ensureMedia(question);
+        const hasMedia = medias.length > 0;
+        const questionTitle = question.type === 'tags'
+            ? '训练项目偏好'
+            : question.type === 'rm'
+                ? '用户极限（1RM）'
+                : (question as any).question || '问题';
+
         switch (question.type) {
             case 'tags':
                 // 训练项目偏好选项库：优先使用问卷里配置的 options；缺失时兜底 training_items
@@ -267,8 +385,21 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                     ? (question as any).options
                     : trainingItemNames;
                 return (
-                    <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. 请选择您偏好的训练项目（可多选）</label>
+                    <div className="mb-8" key={originalIndex}>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <label className="block text-sm font-medium">
+                                Q{displayIndex + 1}. 请选择您偏好的训练项目（可多选）
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(questionTitle, medias)}
+                                />
+                            )}
+                        </div>
                         {loadingTrainingItems && (!Array.isArray((question as any).options) || (question as any).options.length === 0) ? (
                             <div className="flex flex-col gap-2">
                                 {[1, 2, 3, 4, 5].map((_, i) => (
@@ -283,20 +414,20 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                 {tagOptions.map((tag, tagIndex) => (
                                     <div key={tagIndex} className="flex align-items-center">
                                         <Checkbox
-                                            inputId={`tag${index}-${tagIndex}`}
-                                            name={`tags${index}`}
+                                            inputId={`tag${originalIndex}-${tagIndex}`}
+                                            name={`tags${originalIndex}`}
                                             value={tag}
                                             onChange={(e) => {
                                                 const currentTags = (question.userSelections || []);
                                                 if (e.checked) {
-                                                    updateAnswer(index, [...currentTags, tag]);
+                                                    updateAnswer(originalIndex, [...currentTags, tag]);
                                                 } else {
-                                                    updateAnswer(index, currentTags.filter((t: string) => t !== tag));
+                                                    updateAnswer(originalIndex, currentTags.filter((t: string) => t !== tag));
                                                 }
                                             }}
                                             checked={(question.userSelections || []).includes(tag)}
                                         />
-                                        <label htmlFor={`tag${index}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
+                                        <label htmlFor={`tag${originalIndex}-${tagIndex}`} className="ml-2 text-sm">{tag}</label>
                                     </div>
                                 ))}
                             </div>
@@ -310,10 +441,21 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
             case 'times':
                 return (
-                    <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-2">
-                            Q{index + 1}. {(question as any).question || '您希望每周训练几次？'}
-                        </label>
+                    <div className="mb-8" key={originalIndex}>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                            <label className="block text-sm font-medium">
+                                Q{displayIndex + 1}. {(question as any).question || '您希望每周训练几次？'}
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(questionTitle, medias)}
+                                />
+                            )}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             {(
                                 Array.isArray((question as any).options) && (question as any).options.length > 0
@@ -322,13 +464,13 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                             ).map((num: number) => (
                                 <div key={num} className="flex items-center rounded px-3 py-2">
                                     <RadioButton
-                                        inputId={`times${index}-${num}`}
-                                        name={`times${index}`}
+                                        inputId={`times${originalIndex}-${num}`}
+                                        name={`times${originalIndex}`}
                                         value={num}
-                                        onChange={(e) => updateAnswer(index, e.value)}
+                                        onChange={(e) => updateAnswer(originalIndex, e.value)}
                                         checked={question.userSelection === num}
                                     />
-                                    <label htmlFor={`times${index}-${num}`} className="ml-2 text-sm">{num}次</label>
+                                    <label htmlFor={`times${originalIndex}-${num}`} className="ml-2 text-sm">{num}次</label>
                                 </div>
                             ))}
                         </div>
@@ -339,8 +481,21 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 const selectedActionIds: string[] = Array.isArray((question as any).actionIds) ? (question as any).actionIds : [];
                 const rmActions = (autoComputeActions || []).filter(a => selectedActionIds.includes(a.id));
                 return (
-                    <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-2">Q{index + 1}. 请输入以下动作您的极限重量</label>
+                    <div className="mb-8" key={originalIndex}>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                            <label className="block text-sm font-medium">
+                                Q{displayIndex + 1}. 请输入以下动作您的极限重量
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(questionTitle, medias)}
+                                />
+                            )}
+                        </div>
                         <p className="text-xs text-surface-500 mb-4">
                             💡 自重类动作（如引体向上）：这里填写<strong>额外负重</strong>（不含自重），可填负数表示需要辅助的重量
                         </p>
@@ -371,7 +526,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                                                 onValueChange={(e) => {
                                                     const currentUserInputs = question.userInputs || {};
                                                     const currentSelections = { ...currentUserInputs };
-                                                    updateAnswer(index, {
+                                                    updateAnswer(originalIndex, {
                                                         ...currentSelections,
                                                         [action.id]: e.value
                                                     });
@@ -397,19 +552,32 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
             case 'option':
                 return (
-                    <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-4">Q{index + 1}. {question.question || `问题 ${index + 1}`}</label>
+                    <div className="mb-8" key={originalIndex}>
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <label className="block text-sm font-medium">
+                                Q{displayIndex + 1}. {question.question || `问题 ${displayIndex + 1}`}
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(questionTitle, medias)}
+                                />
+                            )}
+                        </div>
                         <div className="flex flex-col gap-4">
                             {question.options?.map((option, optionIndex) => (
                                 <div key={optionIndex} className="flex items-center">
                                     <RadioButton
-                                        inputId={`option${index}-${optionIndex}`}
-                                        name={`option${index}`}
+                                        inputId={`option${originalIndex}-${optionIndex}`}
+                                        name={`option${originalIndex}`}
                                         value={optionIndex}
-                                        onChange={(e) => updateAnswer(index, e.value)}
+                                        onChange={(e) => updateAnswer(originalIndex, e.value)}
                                         checked={question.userSelection === optionIndex}
                                     />
-                                    <label htmlFor={`option${index}-${optionIndex}`} className="ml-2 text-sm">{option}</label>
+                                    <label htmlFor={`option${originalIndex}-${optionIndex}`} className="ml-2 text-sm">{option}</label>
                                 </div>
                             ))}
                         </div>
@@ -419,11 +587,24 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'text':
             default:
                 return (
-                    <div className="mb-8" key={index}>
-                        <label className="block text-sm font-medium mb-2">Q{index + 1}. {question.question}</label>
+                    <div className="mb-8" key={originalIndex}>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                            <label className="block text-sm font-medium">
+                                Q{displayIndex + 1}. {question.question}
+                            </label>
+                            {hasMedia && (
+                                <Button
+                                    label="查看示例"
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    text
+                                    onClick={() => openMediaDialog(questionTitle, medias)}
+                                />
+                            )}
+                        </div>
                         <InputTextarea
                             value={(question as any).userSelection || ''}
-                            onChange={(e) => updateAnswer(index, e.target.value)}
+                            onChange={(e) => updateAnswer(originalIndex, e.target.value)}
                             className="w-full"
                             rows={3}
                         />
@@ -506,9 +687,42 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                    {answers.map((q, idx) => renderQuestion(q, idx))}
+                    {visibleIndices.map((originalIndex, displayIndex) => (
+                        <React.Fragment key={`q-${originalIndex}`}>
+                            {renderQuestion(answers[originalIndex], displayIndex, originalIndex)}
+                        </React.Fragment>
+                    ))}
                 </div>
             </div>
+
+            {/* 示例媒体预览 */}
+            <Dialog
+                header={mediaDialogTitle || '示例'}
+                visible={mediaDialogVisible}
+                onHide={() => setMediaDialogVisible(false)}
+                draggable={false}
+                resizable={false}
+                modal
+                style={{ width: '92vw', maxWidth: '720px' }}
+            >
+                {mediaDialogItems.length === 0 ? (
+                    <div className="text-sm text-surface-500">暂无示例媒体</div>
+                ) : (
+                    <div className="space-y-4">
+                        {mediaDialogItems.map((m) => (
+                            <div key={m.id} className="p-3 rounded border border-surface-200 bg-surface-0">
+                                {m.caption && <div className="text-sm font-medium mb-2">{m.caption}</div>}
+                                {m.type === 'image' ? (
+                                    <Image src={m.url} alt={m.caption || '示例图片'} preview className="rounded border" />
+                                ) : (
+                                    <video src={m.url} controls className="w-full rounded border" />
+                                )}
+                                <div className="mt-2 text-[11px] text-surface-500 break-all">{m.url}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Dialog>
         </Dialog>
     );
 };

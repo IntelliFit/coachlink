@@ -6,6 +6,7 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import type { StudentActionRow } from "@/types/student";
 
 export async function POST(req: Request) {
     const { id, ...updateData } = await req.json() as UpdateStudentActionDto;
@@ -30,10 +31,29 @@ export async function POST(req: Request) {
 
     // 更新动作（确保只能更新自己的动作）
     console.log("[API] update-action data:", updateData);
+    const nextType = updateData.type;
+    const sanitizedUpdateData: Record<string, unknown> = { ...updateData };
+    // 当明确传入 type 时，按类型纠正/清理不相关字段，避免脏数据残留
+    if (nextType && nextType !== "STRENGTH") {
+        sanitizedUpdateData.positions = null;
+        sanitizedUpdateData.attrs = null;
+        sanitizedUpdateData.enableAutoWeightCompute = false;
+        sanitizedUpdateData.includesBodyWeight = false;
+        sanitizedUpdateData.canonical_action_id = null;
+        sanitizedUpdateData.suggested_time = nextType === "DIET" ? ((updateData as any).suggested_time || null) : null;
+    } else if (nextType && nextType === "STRENGTH") {
+        // 力量训练不使用 suggested_time
+        sanitizedUpdateData.suggested_time = null;
+        // includesBodyWeight 只有在启用自动计算时才有意义
+        if (!(updateData.enableAutoWeightCompute || false)) {
+            sanitizedUpdateData.includesBodyWeight = false;
+        }
+    }
+
     const { data: action, error } = await supabase
         .from("student_actions")
         .update({
-            ...updateData,
+            ...sanitizedUpdateData,
             updated_at: new Date().toISOString(),
         })
         .eq("id", id)
@@ -53,7 +73,7 @@ export async function POST(req: Request) {
         success: true,
         message: "更新动作成功",
         data: {
-            action,
+            action: action as unknown as StudentActionRow,
         },
     });
 }

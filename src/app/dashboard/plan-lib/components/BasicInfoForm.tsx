@@ -31,6 +31,12 @@ interface BasicInfoFormProps {
      * Pass `null` to clear (unanswer) a question.
      */
     onGlobalAnswerChange?: (question: string, answerIndex: number | null) => void;
+    /**
+     * 可选的训练项目标签列表（来自教练的问卷配置）
+     * 如果提供，则使用此列表作为模板标签的可选项
+     * 如果不提供，则回退到 training_items 全局表
+     */
+    availableTrainingTags?: string[];
 }
 
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
@@ -50,18 +56,28 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     onWeekDaysChange,
     globalQuestions = [],
     globalAnswers = {},
-    onGlobalAnswerChange
+    onGlobalAnswerChange,
+    availableTrainingTags
 }) => {
 
     const { showToast } = useToastContext();
-    const [templateTypes, setTemplateTypes] = useState<{ label: string, value: string }[]>([]);
-    const [loadingTemplateTypes, setLoadingTemplateTypes] = useState(false);
+    const [fallbackTypes, setFallbackTypes] = useState<{ label: string, value: string }[]>([]);
+    const [loadingFallback, setLoadingFallback] = useState(false);
     const isStudent = variant === 'student';
 
+    // 计算最终使用的训练项目选项：优先使用问卷配置的，否则回退到 training_items
+    const templateTypes: { label: string, value: string }[] = React.useMemo(() => {
+        if (availableTrainingTags && availableTrainingTags.length > 0) {
+            return availableTrainingTags.map(tag => ({ label: tag, value: tag }));
+        }
+        return fallbackTypes;
+    }, [availableTrainingTags, fallbackTypes]);
+
+    // 只有在没有提供 availableTrainingTags 时才加载 training_items 作为回退
     useEffect(() => {
         const loadTrainingItems = async () => {
-            if (variant === 'template') {
-                setLoadingTemplateTypes(true);
+            if (variant === 'template' && (!availableTrainingTags || availableTrainingTags.length === 0)) {
+                setLoadingFallback(true);
                 try {
                     const response = await trainingItemService.listTrainingItems();
                     const items = response.trainingItems.map(item => ({
@@ -69,22 +85,18 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                         value: item.name
                     }));
                     
-                    setTemplateTypes(items);
+                    setFallbackTypes(items);
                 } catch (error) {
                     console.error('获取训练项目失败:', error);
-                    showToast({ 
-                        severity: 'error', 
-                        summary: '获取训练项目失败', 
-                        detail: error instanceof Error ? error.message : '未知错误' 
-                    });
+                    // 静默失败，问卷配置可能还没设置训练项目
                 } finally {
-                    setLoadingTemplateTypes(false);
+                    setLoadingFallback(false);
                 }
             }
         };
 
         loadTrainingItems();
-    }, [variant, showToast]);
+    }, [variant, availableTrainingTags]);
 
     return (
         <div className="flex flex-col gap-6 mb-12">

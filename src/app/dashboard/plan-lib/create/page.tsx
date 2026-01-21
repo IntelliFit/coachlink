@@ -438,7 +438,7 @@ const CreatePlanPage = () => {
         <div className="mx-auto">
             {/* 智能导入按钮 - 放在顶部显眠位置 */}
             <div className="mb-4 flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-900">新建训练计划模板</h1>
+                <h1 className="text-2xl font-bold text-900">新建计划</h1>
                 <Button
                     label="智能导入"
                     icon="pi pi-bolt"
@@ -476,6 +476,10 @@ const CreatePlanPage = () => {
                         return next;
                     });
                 }}
+                availableTrainingTags={
+                    // 从问卷配置中提取 tags 问题的选项
+                    (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
+                }
             />
 
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">

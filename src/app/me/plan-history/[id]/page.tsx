@@ -103,6 +103,7 @@ export default function PlanHistoryDetailPage() {
     const getTrainingDate = (dayIndex: number) => {
         if (!instance?.start_date) return '';
         const startDate = new Date(instance.start_date);
+        startDate.setHours(0, 0, 0, 0);
         const targetDate = new Date(startDate);
         targetDate.setDate(startDate.getDate() + dayIndex - 1);
         return `${targetDate.getMonth() + 1}月${targetDate.getDate()}日`;

@@ -31,6 +31,7 @@ const TodayTrainingPage: React.FC = () => {
     const [coachDayIndex, setCoachDayIndex] = useState(1);
     const [coachTodayCompleted, setCoachTodayCompleted] = useState(false);
     const [coachCompletionDates, setCoachCompletionDates] = useState<Record<number, string>>({});
+    const [coachExecutionsByDayIndex, setCoachExecutionsByDayIndex] = useState<Record<number, any>>({});
 
     // 自建计划
     const [selfInstance, setSelfInstance] = useState<any>(null);
@@ -38,12 +39,15 @@ const TodayTrainingPage: React.FC = () => {
     const [selfDayIndex, setSelfDayIndex] = useState(1);
     const [selfTodayCompleted, setSelfTodayCompleted] = useState(false);
     const [selfCompletionDates, setSelfCompletionDates] = useState<Record<number, string>>({});
+    const [selfExecutionsByDayIndex, setSelfExecutionsByDayIndex] = useState<Record<number, any>>({});
 
     // 当前显示模式: 'coach' | 'self'
     const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach');
 
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState<any>(null);
+    // spec v1: missing days (unresolved days before recommended pointer)
+    const [missingDays, setMissingDays] = useState<number[]>([]);
     const [executionStatus, setExecutionStatus] = useState<'none' | 'in_progress' | 'completed'>('none');
     const [completedSets, setCompletedSets] = useState(0);
     const [totalSets, setTotalSets] = useState(0);
@@ -58,6 +62,44 @@ const TodayTrainingPage: React.FC = () => {
     const todayDayIndex = planMode === 'coach' ? coachDayIndex : selfDayIndex;
     const todayCompleted = planMode === 'coach' ? coachTodayCompleted : selfTodayCompleted;
     const completionDates = planMode === 'coach' ? coachCompletionDates : selfCompletionDates;
+    const executionsByDayIndex = planMode === 'coach' ? coachExecutionsByDayIndex : selfExecutionsByDayIndex;
+
+    const handleSkipDay = async (dayIndex: number) => {
+        if (!instance?.id || !dayIndex) return;
+        try {
+            const res = await fetch('/api/execution/skip-day', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ instanceId: instance.id, dayIndex }),
+            });
+            const json = await res.json().catch(() => null);
+            if (!res.ok || !json?.success) {
+                throw new Error(json?.message || 'skip failed');
+            }
+            await loadData();
+        } catch (e) {
+            showToast({
+                severity: 'error',
+                summary: '操作失败',
+                detail: '标记跳过失败，请稍后重试',
+            });
+        }
+    };
+
+    // Use executionsByDayIndex to drive current executionStatus (avoid cross-page inconsistency).
+    useEffect(() => {
+        if (!instance?.id) return;
+        const exec = (executionsByDayIndex || {})[todayDayIndex];
+        if (exec?.status) {
+            setExecutionStatus(exec.status);
+            setCompletedSets(Number(exec.completed_sets || 0));
+            setTotalSets(Number(exec.total_sets || 0));
+        } else {
+            setExecutionStatus('none');
+            setCompletedSets(0);
+            setTotalSets(0);
+        }
+    }, [instance?.id, todayDayIndex, planMode, executionsByDayIndex]);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -124,10 +166,12 @@ const TodayTrainingPage: React.FC = () => {
                 setCoachActions(coachRes.actions || {});
 
                 const derived = coachRes as any;
-                if (typeof derived.nextDayIndex === 'number') {
-                    setCoachDayIndex(derived.nextDayIndex);
+                if (typeof (derived.recommendedDayIndex ?? derived.nextDayIndex) === 'number') {
+                    setCoachDayIndex(derived.recommendedDayIndex ?? derived.nextDayIndex);
                     setCoachTodayCompleted(derived.todayCompleted || false);
                     setCoachCompletionDates(derived.completionDates || {});
+                    setCoachExecutionsByDayIndex(derived.executionsByDayIndex || {});
+                    setMissingDays(Array.isArray(derived.missingDays) ? derived.missingDays : []);
 
                     const completedCount = (derived.completedDays || []).length;
                     const totalCount = derived.totalTrainingDays || 0;
@@ -143,6 +187,7 @@ const TodayTrainingPage: React.FC = () => {
                             setCoachDayIndex(nextDayData.data.nextDayIndex);
                             setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
                             setCoachCompletionDates(nextDayData.data.completionDates || {});
+                            setCoachExecutionsByDayIndex({});
 
                             // 检查是否完成所有计划
                             const completedCount = nextDayData.data.completedDays.length;
@@ -166,10 +211,15 @@ const TodayTrainingPage: React.FC = () => {
                 setSelfActions(selfRes.actions || {});
 
                 const derived = selfRes as any;
-                if (typeof derived.nextDayIndex === 'number') {
-                    setSelfDayIndex(derived.nextDayIndex);
+                if (typeof (derived.recommendedDayIndex ?? derived.nextDayIndex) === 'number') {
+                    setSelfDayIndex(derived.recommendedDayIndex ?? derived.nextDayIndex);
                     setSelfTodayCompleted(derived.todayCompleted || false);
                     setSelfCompletionDates(derived.completionDates || {});
+                    setSelfExecutionsByDayIndex(derived.executionsByDayIndex || {});
+                    // if currently no coach plan, allow self plan missingDays to surface
+                    if (!coachRes?.instance) {
+                        setMissingDays(Array.isArray(derived.missingDays) ? derived.missingDays : []);
+                    }
 
                     const completedCount = (derived.completedDays || []).length;
                     const totalCount = derived.totalTrainingDays || 0;
@@ -185,6 +235,7 @@ const TodayTrainingPage: React.FC = () => {
                             setSelfDayIndex(nextDayData.data.nextDayIndex);
                             setSelfTodayCompleted(nextDayData.data.todayCompleted || false);
                             setSelfCompletionDates(nextDayData.data.completionDates || {});
+                            setSelfExecutionsByDayIndex({});
 
                             // 检查是否完成所有计划
                             const completedCount = nextDayData.data.completedDays.length;
@@ -474,9 +525,72 @@ const TodayTrainingPage: React.FC = () => {
         );
     }
 
-    // 找到今天的训练日
+    // -----------------------------
+    // 日历日（包含休息日）：
+    // 以“最近一次 resolved（completed/abandoned）训练日”的完成日期为锚点，按自然天数顺延 dayIndex，
+    // 这样当昨天完成 day10 时，今天自然落在 day11（休息），明天落在 day12（训练）。
+    // -----------------------------
     const trainingDays = (instance.training_days || []) as any[];
-    const todayTraining = trainingDays.find(d => d.dayIndex === todayDayIndex);
+
+    const formatShortDate = (ts?: string | null) => {
+        if (!ts) return '';
+        const dt = new Date(ts);
+        return dt.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+    };
+
+    const calendarDayIndex = (() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const execs = executionsByDayIndex || {};
+        const resolved = Object.values(execs).filter((e: any) =>
+            (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
+        ) as any[];
+
+        if (resolved.length > 0) {
+            const maxResolved = Math.max(...resolved.map((e) => Number(e?.day_index ?? 0)).filter(Boolean));
+            const anchorExec = (execs as any)[maxResolved];
+            const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
+            if (anchorTs) {
+                const anchor = new Date(anchorTs);
+                anchor.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor((today.getTime() - anchor.getTime()) / (24 * 60 * 60 * 1000));
+                return Math.max(1, Math.min(trainingDays.length || 1, maxResolved + diffDays));
+            }
+        }
+
+        // fallback：当没有任何执行记录时，best-effort 用 start_date 作为计划日历锚点
+        if ((instance as any).start_date) {
+            const start = new Date((instance as any).start_date);
+            start.setHours(0, 0, 0, 0);
+            const diffDays = Math.floor((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+            return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
+        }
+
+        // 再 fallback：保持与进度指针一致
+        return todayDayIndex;
+    })();
+
+    const calendarDay = trainingDays.find(d => d.dayIndex === calendarDayIndex);
+    const calendarExec = (executionsByDayIndex || {})[calendarDayIndex];
+    const calendarExecutionStatus: 'none' | 'in_progress' | 'completed' =
+        calendarExec?.status === 'completed'
+            ? 'completed'
+            : calendarExec?.status === 'in_progress'
+                ? 'in_progress'
+                : 'none';
+
+    const inProgressExec = (() => {
+        const execs = Object.values(executionsByDayIndex || {}) as any[];
+        const inps = execs.filter(e => e?.status === 'in_progress' && Number(e?.day_index ?? 0) > 0);
+        if (inps.length === 0) return null;
+        inps.sort((a, b) => {
+            const at = a?.started_at ? new Date(a.started_at).getTime() : 0;
+            const bt = b?.started_at ? new Date(b.started_at).getTime() : 0;
+            return bt - at;
+        });
+        return inps[0];
+    })();
 
     return (
         <div className="min-h-screen bg-surface pb-12">
@@ -620,10 +734,9 @@ const TodayTrainingPage: React.FC = () => {
                                     TODAY'S MISSION
                                 </h3>
                                 <p className="text-slate-500 text-sm">
-                                    {todayCompleted
-                                        ? `✅ 今日训练已完成 · 下一个训练日: 第${todayDayIndex}天`
-                                        : `训练日 ${todayDayIndex} · ${executionStatus === 'completed' ? '已完成' : '进行中'}`
-                                    }
+                                    今日（日历）：第{calendarDayIndex}天 · {calendarDay?.type === 'rest' ? '休息日' : '训练日'}
+                                    {calendarExecutionStatus === 'in_progress' && calendarExec?.started_at ? `（开始于 ${formatShortDate(calendarExec.started_at)}）` : ''}
+                                    {calendarExecutionStatus === 'completed' && calendarExec?.completed_at ? `（完成于 ${formatShortDate(calendarExec.completed_at)}）` : ''}
                                 </p>
                             </div>
                             <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full ${todayCompleted
@@ -635,35 +748,70 @@ const TodayTrainingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* 卡片渲染 */}
+                        {/* 卡片渲染
+                            统一口径：这里始终展示 “下一次需要做的训练日（nextDayIndex）” 的卡片。
+                            即使你今天完成过其它训练日，也不要用一个“今日已完成”卡片把未完成的训练日盖掉，避免混乱。
+                        */}
                         <div className="transform transition-all sm:hover:translate-y-[-4px]">
-                            {todayCompleted ? (
-                                /* 今日已完成状态卡片 */
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 shadow-sm">
-                                    <div className="text-center">
-                                        <div className="text-6xl mb-4">🎉</div>
-                                        <h3 className="text-2xl font-bold text-green-800 mb-2">今日训练已完成!</h3>
-                                        <p className="text-green-600 mb-4">
-                                            太棒了！你已经完成了今天的训练任务，好好休息，明天继续加油！
-                                        </p>
-                                        <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
-                                            <i className="pi pi-calendar" />
-                                            下一个训练日: 第 {todayDayIndex} 天
+                            {missingDays.length > 0 && (
+                                <div className="mb-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <div>
+                                            ⚠️ 你有 <b>{missingDays.length}</b> 天训练日未确认/未完成（允许跳过，不会影响今日推荐）。
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {missingDays.slice(0, 3).map((di) => (
+                                                <div key={di} className="flex items-center gap-1.5">
+                                                    <button
+                                                        className="px-2 py-1 rounded-lg bg-white border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-100"
+                                                        onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${di}`)}
+                                                    >
+                                                        去补练 第{di}天
+                                                    </button>
+                                                    <button
+                                                        className="px-2 py-1 rounded-lg bg-surface-900 text-white text-xs font-semibold hover:bg-surface-700"
+                                                        onClick={() => handleSkipDay(di)}
+                                                    >
+                                                        跳过
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {missingDays.length > 3 && (
+                                                <span className="text-xs text-amber-700">…</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                            ) : todayTraining && todayTraining.type === 'training' ? (
+                            )}
+                            {todayCompleted && (
+                                <div className="mb-4 rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-green-800 text-sm">
+                                    ✅ 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。
+                                </div>
+                            )}
+                            {calendarDay && calendarDay.type === 'training' ? (
                                 <TodayTrainingCard
-                                    day={todayTraining}
+                                    day={calendarDay}
                                     actions={actions}
                                     instanceId={instance.id}
-                                    dayIndex={todayDayIndex}
-                                    executionStatus={executionStatus}
-                                    completedSets={completedSets}
-                                    totalSets={totalSets}
+                                    dayIndex={calendarDayIndex}
+                                    executionStatus={calendarExecutionStatus}
+                                    completedSets={Number(calendarExec?.completed_sets || 0)}
+                                    totalSets={Number(calendarExec?.total_sets || 0)}
                                 />
                             ) : (
-                                <RestDayCard dayIndex={todayDayIndex} />
+                                <RestDayCard dayIndex={calendarDayIndex} />
+                            )}
+
+                            {calendarDay?.type === 'rest' && inProgressExec && (
+                                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                    你有进行中的训练：第{inProgressExec.day_index}天（开始于 {formatShortDate(inProgressExec.started_at)}）。
+                                    <button
+                                        className="ml-2 underline font-semibold"
+                                        onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${inProgressExec.day_index}`)}
+                                    >
+                                        继续训练
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </section>
@@ -684,7 +832,10 @@ const TodayTrainingPage: React.FC = () => {
                             currentDayIndex={todayDayIndex}
                             todayExecutionStatus={executionStatus}
                             completionDates={completionDates}
+                            executionsByDayIndex={executionsByDayIndex}
                             todayCompleted={todayCompleted}
+                            initialSelectedDayIndex={calendarDayIndex}
+                            calendarDayIndex={calendarDayIndex}
                         />
                     </section>
                 </div>

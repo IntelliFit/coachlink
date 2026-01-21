@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
 import type { CompleteItemDto } from "../entity";
+import { computeExecutionProgress } from "@/lib/executionProgress";
+import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 
 interface CompleteItemResponseDto {
     success: boolean;
@@ -111,33 +113,23 @@ export async function POST(request: NextRequest) {
             ...itemExecution,
         };
 
-        // 计算完成的项目数（包括力量类型的组和非力量类型的项目）
-        let totalCompletedItems = 0;
-        let totalItems = 0;
-
-        for (const action of actionExecutions) {
-            if (action.sets && Array.isArray(action.sets)) {
-                // STRENGTH 类型：统计组数
-                totalItems += action.sets.length;
-                totalCompletedItems += action.sets.filter(
-                    (s: any) => s.status === "completed",
-                ).length;
-            } else {
-                // 非 STRENGTH 类型：作为单个项目
-                totalItems += 1;
-                if (action.completed || action.status === "completed") {
-                    totalCompletedItems += 1;
-                }
-            }
-        }
+        const progress = computeExecutionProgress(actionExecutions as any[]);
+        const totalCompletedItems = progress.completedItems;
+        const totalItems = progress.totalItems;
 
         // 6. 保存到数据库
+        const nowIso = new Date().toISOString();
+        const shouldAutoComplete = totalItems > 0 && totalCompletedItems >= totalItems;
+
         const { error: updateError } = await supabase
             .from("plan_instance_executions")
             .update({
                 action_executions: actionExecutions,
                 completed_sets: totalCompletedItems,
-                last_saved_at: new Date().toISOString(),
+                total_sets: totalItems,
+                status: shouldAutoComplete ? "completed" : execution.status,
+                completed_at: shouldAutoComplete ? nowIso : execution.completed_at,
+                last_saved_at: nowIso,
             })
             .eq("id", executionId);
 
@@ -147,6 +139,10 @@ export async function POST(request: NextRequest) {
                 { success: false, message: "更新失败" },
                 { status: 500 },
             );
+        }
+
+        if (shouldAutoComplete && execution.instance_id) {
+            updateEstimatedEndDateForInstance(execution.instance_id);
         }
 
         return NextResponse.json<CompleteItemResponseDto>({

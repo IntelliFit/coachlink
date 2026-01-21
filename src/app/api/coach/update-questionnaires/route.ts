@@ -8,6 +8,17 @@ import type {
     UpdateQuestionnairesResponseDto,
 } from "./entity";
 
+function normalizeQuestions(questions: any[]): any[] {
+    return (Array.isArray(questions) ? questions : []).map((q: any) => {
+        if (typeof q === "string") {
+            return { id: crypto.randomUUID(), type: "text", question: q };
+        }
+        if (!q || typeof q !== "object") return q;
+        if (!q.id) return { ...q, id: crypto.randomUUID() };
+        return q;
+    });
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -33,12 +44,14 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
+    const normalized = normalizeQuestions(questionnaires as any);
+
     if (id) {
         // 更新现有问卷
         const { data, error } = await supabase
             .from("coach_questionnaires")
             .update({
-                questions: questionnaires as any,
+                questions: normalized as any,
             })
             .eq("id", id)
             .select()
@@ -63,7 +76,7 @@ export async function POST(req: Request) {
     } else {
         const insertData: CoachQuestionnairesInsert = {
             coach_id: userId,
-            questions: questionnaires as any,
+            questions: normalized as any,
         };
 
         const { data, error } = await supabase

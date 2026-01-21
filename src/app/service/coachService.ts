@@ -70,6 +70,12 @@ import type {
     UpdateQuestionnairesDto,
     UpdateQuestionnairesResponseDto
 } from '@/app/api/coach/update-questionnaires/entity';
+import type { UploadQuestionMediaResponseDto } from '@/app/api/coach/upload-question-media/entity';
+import type { ListQuestionnairesDto, ListQuestionnairesResponseDto } from '@/app/api/coach/list-questionnaires/entity';
+import type { GetQuestionnaireByIdDto, GetQuestionnaireByIdResponseDto } from '@/app/api/coach/get-questionnaire-by-id/entity';
+import type { DuplicateQuestionnaireDto, DuplicateQuestionnaireResponseDto } from '@/app/api/coach/duplicate-questionnaire/entity';
+import type { SetDefaultQuestionnaireDto, SetDefaultQuestionnaireResponseDto } from '@/app/api/coach/set-default-questionnaire/entity';
+import type { PublishQuestionnaireDto, PublishQuestionnaireResponseDto } from '@/app/api/coach/publish-questionnaire/entity';
 
 // 聚合信息相关接口
 import type {
@@ -264,6 +270,65 @@ class CoachService extends BaseService {
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
+    }
+
+    async listQuestionnaires(reqData?: ListQuestionnairesDto) {
+        const res = await this.post<ListQuestionnairesResponseDto>('list-questionnaires', reqData || {});
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async getQuestionnaireById(reqData: GetQuestionnaireByIdDto) {
+        const res = await this.post<GetQuestionnaireByIdResponseDto>('get-questionnaire-by-id', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async duplicateQuestionnaire(reqData: DuplicateQuestionnaireDto) {
+        const res = await this.post<DuplicateQuestionnaireResponseDto>('duplicate-questionnaire', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async setDefaultQuestionnaire(reqData: SetDefaultQuestionnaireDto) {
+        const res = await this.post<SetDefaultQuestionnaireResponseDto>('set-default-questionnaire', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    async publishQuestionnaire(reqData: PublishQuestionnaireDto) {
+        const res = await this.post<PublishQuestionnaireResponseDto>('publish-questionnaire', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+    }
+
+    // 上传问卷问题示例媒体（图片/视频）
+    async uploadQuestionMedia(file: File) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const resp = await fetch("/api/coach/upload-question-media", {
+            method: "POST",
+            body: formData,
+        });
+
+        const contentType = resp.headers.get("content-type") || "";
+        // 兼容：当后端异常返回 HTML 时，避免前端直接 resp.json() 崩溃
+        if (!contentType.includes("application/json")) {
+            const text = await resp.text();
+            throw new Error(
+                `上传失败（非 JSON 响应，HTTP ${resp.status}）。请检查服务端日志/环境变量。`,
+            );
+        }
+
+        const data = (await resp.json()) as ApiData<UploadQuestionMediaResponseDto>;
+        if (data?.success) return data.data || null;
+        throw new Error(data?.message || "上传失败");
     }
 
     async getAggregatedInfo(reqData: GetAggregatedInfoDto) {

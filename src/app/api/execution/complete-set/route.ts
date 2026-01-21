@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
 import type { CompleteSetDto, CompleteSetResponseDto } from "../entity";
+import { computeExecutionProgress } from "@/lib/executionProgress";
+import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import {
     calculateE1RM,
     isNewPR,
@@ -414,17 +416,22 @@ export async function POST(request: NextRequest) {
             ).length;
 
         // 计算总完成组数
-        const totalCompletedSets = actionExecutions.reduce(
-            (sum: number, action: any) => sum + (action.completed_sets || 0),
-            0,
-        );
+        const progress = computeExecutionProgress(actionExecutions as any[]);
+        const totalCompletedSets = progress.completedItems;
+        const totalSets = progress.totalItems;
 
         // 6. 保存到数据库
+        const nowIso = new Date().toISOString();
+        const shouldAutoComplete = totalSets > 0 && totalCompletedSets >= totalSets;
+
         const { error: updateError } = await supabase
             .from("plan_instance_executions")
             .update({
                 action_executions: actionExecutions,
                 completed_sets: totalCompletedSets,
+                total_sets: totalSets,
+                status: shouldAutoComplete ? "completed" : execution.status,
+                completed_at: shouldAutoComplete ? nowIso : execution.completed_at,
                 last_saved_at: new Date().toISOString(),
             })
             .eq("id", executionId);
@@ -437,12 +444,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // If we auto-completed the execution, refresh subscription estimated end date (B1 credits-driven).
+        if (shouldAutoComplete && execution.instance_id) {
+            updateEstimatedEndDateForInstance(execution.instance_id);
+        }
+
         return NextResponse.json<CompleteSetResponseDto>({
             success: true,
             data: {
                 executionId,
                 completedSets: totalCompletedSets,
-                totalSets: execution.total_sets,
+                totalSets: totalSets,
                 // Include auto e1RM result for frontend celebration
                 autoE1RM: autoE1RMResult
                     ? {
