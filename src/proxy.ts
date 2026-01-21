@@ -46,6 +46,16 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
 
+    // Internal server-to-server calls (e.g. background poster rendering) can bypass auth for specific endpoints.
+    // This prevents middleware from returning 401 when the caller is the backend itself (no browser session).
+    if (pathname.startsWith("/api/og/")) {
+        const internalKey = process.env.INTERNAL_POSTER_KEY;
+        const provided = request.headers.get("x-internal-poster-key");
+        if (internalKey && provided && provided === internalKey) {
+            return NextResponse.next();
+        }
+    }
+
     // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
     // This lets Playwright seed/cleanup data without being redirected to `/login`.
     if (pathname.startsWith("/api/test/e2e/")) {
