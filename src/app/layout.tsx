@@ -37,6 +37,15 @@ export async function generateMetadata(): Promise<Metadata> {
         '教练学员管理',
     ];
 
+    const googleSiteVerification =
+        process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+        process.env.GOOGLE_SITE_VERIFICATION ||
+        undefined;
+    const bingSiteVerification =
+        process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ||
+        process.env.BING_SITE_VERIFICATION ||
+        undefined;
+
     return {
         metadataBase: new URL(siteUrl),
         title,
@@ -47,6 +56,10 @@ export async function generateMetadata(): Promise<Metadata> {
         creator: 'CoachLink',
         publisher: 'CoachLink',
         robots: { index: true, follow: true },
+        verification: {
+            google: googleSiteVerification,
+            other: bingSiteVerification ? { 'msvalidate.01': bingSiteVerification } : undefined,
+        },
         alternates: {
             canonical: '/',
         },

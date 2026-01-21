@@ -3,6 +3,7 @@ import { ClipboardCheck, Edit3, Eye, RotateCcw, Repeat, ArrowRight } from 'lucid
 import { Button } from 'primereact/button';
 import { useRouter } from 'next/navigation';
 import { ProfileData } from './types';
+import { useSession } from 'next-auth/react';
 
 interface CoachApplicationCardProps {
     status: ProfileData['coachApplicationStatus'];
@@ -11,6 +12,7 @@ interface CoachApplicationCardProps {
 
 export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ status, rejectionReason }) => {
     const router = useRouter();
+    const { update: updateSession } = useSession();
 
     const getStatusConfig = () => {
         switch (status) {
@@ -29,6 +31,11 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                                 body: JSON.stringify({ role: 'coach' })
                             });
                             if (res.ok) {
+                                try {
+                                    await updateSession();
+                                } catch (e) {
+                                    console.warn('刷新 session 失败:', e);
+                                }
                                 window.location.href = '/dashboard';
                             }
                         } catch (e) {
@@ -52,6 +59,11 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                                 body: JSON.stringify({ role: 'coach' })
                             });
                             if (res.ok) {
+                                try {
+                                    await updateSession();
+                                } catch (e) {
+                                    console.warn('刷新 session 失败:', e);
+                                }
                                 window.location.href = '/dashboard';
                             }
                         } catch (e) {
