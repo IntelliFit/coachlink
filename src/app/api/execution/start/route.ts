@@ -392,6 +392,17 @@ export async function POST(request: NextRequest) {
                                 updated_at: nowIso,
                             } as any)
                             .eq("id", subscriptionId);
+
+                        // Also set plan instance start_date (used by week unlock + date mapping in UI).
+                        // This prevents dayIndex/calendar mismatches across "今日训练" vs "当前计划" pages.
+                        await serviceRoleSupabase
+                            .from("coach_plan_instances" as any)
+                            .update({
+                                start_date: nowIso,
+                                updated_at: nowIso,
+                            } as any)
+                            .eq("id", instanceId)
+                            .is("start_date", null);
                 }
             }
         } catch (e) {

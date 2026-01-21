@@ -70,6 +70,12 @@ function TrainingExecutionContent() {
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
 
+    // 超时未结束提醒（in_progress 挂太久）
+    const [staleReminderVisible, setStaleReminderVisible] = useState(false);
+    const [staleHours, setStaleHours] = useState<number>(0);
+    const [staleExecutionId, setStaleExecutionId] = useState<string | null>(null);
+    const STALE_THRESHOLD_HOURS = 10; // 可按产品调整：10/24
+
     // Form state for current set
     const [weight, setWeight] = useState<number | null>(null);
     const [reps, setReps] = useState<number | null>(null);
@@ -187,6 +193,26 @@ function TrainingExecutionContent() {
 
             if (res.success && res.data) {
                 setExecution(res.data);
+
+                // 超时提醒：只要该训练日存在 in_progress 且 started_at 距今超过阈值，就弹出提醒
+                try {
+                    const exec = res.data as any;
+                    if (exec?.status === 'in_progress' && exec?.started_at) {
+                        const startedAtMs = new Date(exec.started_at).getTime();
+                        const nowMs = Date.now();
+                        const hours = Math.floor((nowMs - startedAtMs) / (1000 * 60 * 60));
+                        const snoozeKey = `coachlink:stale-exec-snooze:${exec.id}`;
+                        const snoozeUntil = Number(localStorage.getItem(snoozeKey) || 0);
+
+                        if (Number.isFinite(hours) && hours >= STALE_THRESHOLD_HOURS && nowMs >= snoozeUntil) {
+                            setStaleHours(hours);
+                            setStaleExecutionId(exec.id);
+                            setStaleReminderVisible(true);
+                        }
+                    }
+                } catch {
+                    // best-effort
+                }
                 
                 // Find first incomplete set
                 const actionExecutions = res.data.action_executions || [];
@@ -215,6 +241,57 @@ function TrainingExecutionContent() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const snoozeStaleReminder = (hours: number) => {
+        if (!staleExecutionId) {
+            setStaleReminderVisible(false);
+            return;
+        }
+        try {
+            const key = `coachlink:stale-exec-snooze:${staleExecutionId}`;
+            localStorage.setItem(key, String(Date.now() + hours * 60 * 60 * 1000));
+        } catch {
+            // ignore
+        } finally {
+            setStaleReminderVisible(false);
+        }
+    };
+
+    const handleQuickFinish = async () => {
+        if (!staleExecutionId) return;
+        try {
+            setCompleting(true);
+            const res = await executionService.finishTraining({ executionId: staleExecutionId });
+            if (res?.success && res.data) {
+                setExecution((prev: any) => ({
+                    ...(prev || {}),
+                    status: 'completed',
+                    completed_at: (res.data as any).completed_at || new Date().toISOString(),
+                }));
+                showToast({
+                    severity: 'success',
+                    summary: '已确认完成',
+                    detail: '训练已标记为完成',
+                });
+                setStaleReminderVisible(false);
+            } else {
+                showToast({
+                    severity: 'warn',
+                    summary: '确认失败',
+                    detail: res?.message || '无法确认完成，请稍后重试',
+                });
+            }
+        } catch (e) {
+            console.error('quick finish failed:', e);
+            showToast({
+                severity: 'error',
+                summary: '确认失败',
+                detail: '无法确认完成，请稍后重试',
+            });
+        } finally {
+            setCompleting(false);
         }
     };
 
@@ -620,6 +697,54 @@ function TrainingExecutionContent() {
 
     return (
         <div className="min-h-screen bg-surface-50">
+            {/* 超时未结束提醒 */}
+            <Dialog
+                header="训练未结束提醒"
+                visible={staleReminderVisible}
+                onHide={() => setStaleReminderVisible(false)}
+                draggable={false}
+                resizable={false}
+                className="w-[min(92vw,520px)]"
+            >
+                <div className="space-y-3 text-sm text-surface-700 leading-relaxed">
+                    <p>
+                        这次训练已经开始 {staleHours} 小时了，但状态仍是 <strong>进行中</strong>。
+                        如果你已经练完但忘记点击“完成训练”，可以在这里快速确认；如果还没练完，就直接继续训练即可。
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                        <Button
+                            label={completing ? '确认中...' : '我已练完，一键确认完成'}
+                            icon="pi pi-check"
+                            onClick={handleQuickFinish}
+                            disabled={completing}
+                            className="w-full sm:w-auto"
+                        />
+                        <Button
+                            label="继续训练"
+                            icon="pi pi-play"
+                            onClick={() => setStaleReminderVisible(false)}
+                            className="w-full sm:w-auto"
+                            severity="secondary"
+                            outlined
+                        />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                        <Button
+                            label="6小时后再提醒"
+                            onClick={() => snoozeStaleReminder(6)}
+                            className="p-button-text p-button-sm"
+                        />
+                        <Button
+                            label="今天不再提醒"
+                            onClick={() => snoozeStaleReminder(24)}
+                            className="p-button-text p-button-sm"
+                        />
+                    </div>
+                    <p className="text-xs text-surface-500">
+                        提醒阈值当前为 {STALE_THRESHOLD_HOURS} 小时（可配置）。
+                    </p>
+                </div>
+            </Dialog>
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 sticky top-0 z-10">
                 <div className="flex items-center justify-between mb-3">

@@ -207,7 +207,7 @@ const Overview = () => {
             href: "/dashboard/content"
         },
         {
-            title: "计划模板",
+            title: "计划库",
             description: "标准化训练方案",
             value: overviewData?.planTemplateCount || 0,
             icon: Layout,

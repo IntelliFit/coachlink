@@ -51,7 +51,7 @@ import type {
     RenewSubscriptionDto,
     RenewSubscriptionResponseDto,
 } from "../api/subscription/renew-subscription/entity";
-import { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/coach/update-questionnaires/entity";
+import type { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/subscription/update-questionnaire/entity";
 import type {
     CheckSubscriptionDto,
     CheckSubscriptionResponseDto,

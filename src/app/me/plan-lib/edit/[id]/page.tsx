@@ -16,6 +16,7 @@ import { CoachActionRow } from '@/types';
 import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
+import type { ItemType } from '@/types';
 
 const EditPlanPage = () => {
     const router = useRouter();
@@ -104,10 +105,14 @@ const EditPlanPage = () => {
                     positions: action.positions,
                     attrs: action.attrs,
                     url: action.url,
+                    type: action.type || 'STRENGTH',
+                    item_schema: action.item_schema ?? null,
+                    suggested_time: action.suggested_time ?? null,
                     created_at: action.created_at,
                     updated_at: action.updated_at,
-                    enableAutoWeightCompute: false,
-                    includesBodyWeight: false,
+                    enableAutoWeightCompute: action.enableAutoWeightCompute || false,
+                    includesBodyWeight: action.includesBodyWeight || false,
+                    canonical_action_id: action.canonical_action_id ?? null,
                 }));
                 setActions(convertedActions);
             }
@@ -150,7 +155,8 @@ const EditPlanPage = () => {
     };
 
     const handleDeleteWeek = (weekStartIndex: number) => {
-        const weekStart = weekStartIndex * 7;
+        // WeekCalendar 传入的就是“周起始的数组下标”（0, 7, 14...），不需要再 * 7
+        const weekStart = weekStartIndex;
         const newDays = days.filter((_, index) => index < weekStart || index >= weekStart + 7);
         
         const reindexedDays = newDays.map((day, index) => ({
@@ -161,9 +167,12 @@ const EditPlanPage = () => {
         setDays(reindexedDays);
         
         if (selectedDayIndex !== null) {
-            if (selectedDayIndex > weekStart && selectedDayIndex <= weekStart + 7) {
+            // selectedDayIndex 是 dayIndex（1-based）
+            const startDayIndex = weekStart + 1;
+            const endDayIndex = weekStart + 7;
+            if (selectedDayIndex >= startDayIndex && selectedDayIndex <= endDayIndex) {
                 setSelectedDayIndex(null);
-            } else if (selectedDayIndex > weekStart + 7) {
+            } else if (selectedDayIndex > endDayIndex) {
                 setSelectedDayIndex(selectedDayIndex - 7);
             }
         }
@@ -191,7 +200,7 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
-    const handleAddActionSet = (dayIndexVal: number) => {
+    const handleAddActionSet = (dayIndexVal: number, type: ItemType = 'STRENGTH') => {
         const newDays = [...days];
         const arrayIndex = newDays.findIndex(d => d.dayIndex === dayIndexVal);
         
@@ -201,16 +210,64 @@ const EditPlanPage = () => {
         }
 
         const day = newDays[arrayIndex];
-        day.actionSets.push({
+        // 关键：PlanDayCard 会用 actionSet.itemType 来筛选动作选项
+        const baseItem: any = {
+            type: 'no-filter',
             actionId: '',
-            actionName: '',
-            params: {
-                sets: 3,
-                reps: '10',
-                intensity: '',
-                rest: '60秒'
-            }
-        } as any);
+            setName: '',
+            itemType: type,
+        };
+
+        if (type === 'STRENGTH') {
+            day.actionSets.push({
+                ...baseItem,
+                actionName: '',
+                params: {
+                    sets: 3,
+                    reps: '10',
+                    intensity: '',
+                    rest: '60秒'
+                }
+            } as any);
+        } else if (type === 'DIET') {
+            day.actionSets.push({
+                ...baseItem,
+                params: {
+                    suggested_time: null,
+                    custom_data: {
+                        content: '',
+                        calories: null,
+                    },
+                },
+            } as any);
+        } else if (type === 'CARDIO') {
+            day.actionSets.push({
+                ...baseItem,
+                params: {
+                    custom_data: {
+                        distance: null, // meters
+                        duration: null, // seconds
+                        pace: null, // min/km
+                    },
+                },
+            } as any);
+        } else if (type === 'HABIT') {
+            day.actionSets.push({
+                ...baseItem,
+                params: {
+                    custom_data: {
+                        habit_name: '',
+                        target_duration: null,
+                    },
+                },
+            } as any);
+        } else {
+            // fallback
+            day.actionSets.push({
+                ...baseItem,
+                params: {},
+            } as any);
+        }
         day.actionSetsCount = day.actionSets.length;
         setDays(newDays);
     };
@@ -221,10 +278,20 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
-    const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
+    const handleRemoveActionSet = (dayIndexOrArrayIndex: number, setIndex: number) => {
         const newDays = [...days];
-        newDays[dayIndex].actionSets.splice(setIndex, 1);
-        newDays[dayIndex].actionSetsCount = newDays[dayIndex].actionSets.length;
+        // PlanDayCard 传入的是 day.dayIndex（1-based），这里需要转换成数组下标
+        let arrayIndex = newDays.findIndex(d => d.dayIndex === dayIndexOrArrayIndex);
+        // 兼容旧调用：如果没找到，再尝试把入参当作数组下标
+        if (arrayIndex === -1 && dayIndexOrArrayIndex >= 0 && dayIndexOrArrayIndex < newDays.length) {
+            arrayIndex = dayIndexOrArrayIndex;
+        }
+        if (arrayIndex === -1) {
+            console.error('Cannot find day for removeActionSet:', dayIndexOrArrayIndex);
+            return;
+        }
+        newDays[arrayIndex].actionSets.splice(setIndex, 1);
+        newDays[arrayIndex].actionSetsCount = newDays[arrayIndex].actionSets.length;
         setDays(newDays);
     };
 

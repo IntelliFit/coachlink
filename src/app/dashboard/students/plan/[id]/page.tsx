@@ -634,7 +634,7 @@ const StudentPlanPage = () => {
             setImportModeDialogVisible(true);
         } else {
             setImportMode('new_instance');
-            setPlanStartConfigVisible(true);
+        setPlanStartConfigVisible(true);
         }
     };
 

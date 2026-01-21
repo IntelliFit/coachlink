@@ -73,7 +73,7 @@ export default function NavigationCoach() {
         },
         {
             key: 'planlib',
-            label: '模板',
+            label: '计划库',
             icon: ClipboardList,
             active: pathname.startsWith('/dashboard/plan-lib'),
             onClick: () => router.push('/dashboard/plan-lib'),
@@ -110,11 +110,12 @@ export default function NavigationCoach() {
         { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
         { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), template: itemRenderer },
         { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
-        { label: '计划模板', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
+        { label: '计划库', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [
         { label: '我的主页', icon: 'pi pi-home', command: () => { gotoCoachDisplayPage(); setVisibleLeft(false); } },
+        { label: '邀请学员', icon: 'pi pi-user-plus', command: () => { router.push('/coach/settings/invitation'); setVisibleLeft(false); } },
         { label: '我的钱包', icon: 'pi pi-wallet', command: () => { router.push('/dashboard/wallet'); setVisibleLeft(false); } },
         { label: '动作库', icon: 'pi pi-database', command: () => { router.push('/dashboard/action-lib'); setVisibleLeft(false); } },
         { label: '订阅设置', icon: 'pi pi-tags', command: () => { router.push('/dashboard/pricing'); setVisibleLeft(false); } },

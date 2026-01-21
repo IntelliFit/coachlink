@@ -8,6 +8,31 @@ import type {
 } from "./entity";
 import { TrainingItem } from "@/types/questionnaires";
 
+function ensureQuestionIds(questions: any[]): { normalized: TrainingItem[]; changed: boolean } {
+    let changed = false;
+    const normalized = (Array.isArray(questions) ? questions : []).map((q: any) => {
+        // 兼容极老数据：字符串数组
+        if (typeof q === "string") {
+            changed = true;
+            return {
+                id: crypto.randomUUID(),
+                type: "text",
+                question: q,
+            } as any;
+        }
+
+        if (!q || typeof q !== "object") return q as any;
+
+        if (!q.id) {
+            q = { ...q, id: crypto.randomUUID() };
+            changed = true;
+        }
+        return q as any;
+    });
+
+    return { normalized: normalized as unknown as TrainingItem[], changed };
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -50,11 +75,15 @@ export async function POST(req: Request) {
         userId = coach.user_id;
     }
 
-    // 获取问卷数据
+    // 获取线上问卷（is_active=true）
+    // 规则：线上版本就是“学员订阅时应用的版本”
     const { data: questionnaire, error: questionnaireError } = await supabase
         .from("coach_questionnaires")
-        .select("id,questions")
+        .select("id,questions,is_active,updated_at")
         .eq("coach_id", userId)
+        .eq("is_active", true)
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
     if (questionnaireError) {
@@ -67,28 +96,15 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 默认训练项目选项库：来自 training_items（避免误用模板 tags）
-    let defaultTrainingItemNames: string[] = [];
-    try {
-        const { data: trainingItems, error: trainingItemsError } = await supabase
-            .from("training_items")
-            .select("name")
-            .order("name");
-        if (!trainingItemsError && Array.isArray(trainingItems)) {
-            defaultTrainingItemNames = trainingItems.map((it: any) => String(it.name)).filter(Boolean);
-        }
-    } catch (e) {
-        // ignore and fall back to static
-    }
+    // 注意：training_items 查询已移除，tags 选项现在由教练自定义
 
     // 默认问题列表：包含用户极限（1RM）问题
+    // 注意：tags 选项现在由教练自定义，默认为空数组
     const defaultQuestions = [
         {
             type: "tags",
-            // 默认训练项目选项库：来自 training_items（若为空则给一个兜底）
-            options: defaultTrainingItemNames.length > 0
-                ? defaultTrainingItemNames
-                : ["胸", "背", "腿", "肩", "手臂", "核心", "全身", "体能", "灵活性", "康复/矫正"],
+            // 教练自定义训练项目选项，默认为空
+            options: [],
         }, // 训练项目偏好
         {
             type: "times",
@@ -107,13 +123,29 @@ export async function POST(req: Request) {
         questions: defaultQuestions,
     };
 
+    // 确保每个问题都有稳定 id（用于分支/历史答案匹配）
+    const { normalized, changed } = ensureQuestionIds(
+        (questionnairesData as any)?.questions || [],
+    );
+
+    // 若发现旧数据缺少 id，则自动补齐并持久化（避免每次打开都变）
+    if (changed && questionnairesData.id) {
+        const { error: patchErr } = await supabase
+            .from("coach_questionnaires")
+            .update({ questions: normalized as any })
+            .eq("id", questionnairesData.id);
+        if (patchErr) {
+            // 不阻断返回，但打印日志便于排查
+            console.error("[get-questionnaires] auto-migrate ids failed:", patchErr);
+        }
+    }
+
     return NextResponse.json<ApiData<GetQuestionnairesResponseDto>>({
         success: true,
         message: "获取问卷成功",
         data: {
             id: questionnairesData.id,
-            questionnaires: questionnairesData
-                .questions as unknown as TrainingItem[],
+            questionnaires: normalized,
         },
     });
 }
