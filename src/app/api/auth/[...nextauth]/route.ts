@@ -135,22 +135,27 @@ export const authOptions: AuthOptions = {
                     appid: process.env.WECHAT_APP_ID,
                     response_type: "code",
                     scope: "snsapi_login",
+                    // 启用 PC/Mac 微信客户端“快速登录”（无需扫码，直接确认）
+                    fast_login: "1",
+                    lang: "zh_CN",
                 },
             },
             token: {
                 url: "https://api.weixin.qq.com/sns/oauth2/access_token",
                 async request({ params, provider }) {
                     // Construct the token request with required parameters
-                    const url = new URL(provider.token?.toString() || "");
+                    const tokenUrl =
+                        typeof provider.token === "string"
+                            ? provider.token
+                            : provider.token?.url;
+                    const url = new URL(tokenUrl || "");
                     url.searchParams.set("appid", process.env.WECHAT_APP_ID || "");
                     url.searchParams.set("secret", process.env.WECHAT_APP_SECRET || "");
                     url.searchParams.set("code", params.code || "");
                     url.searchParams.set("grant_type", "authorization_code");
 
-                    const response = await fetch(url, {
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        method: "POST",
-                    });
+                    // 微信文档为 GET 请求；这里按官方方式请求
+                    const response = await fetch(url, { method: "GET" });
 
                     return {
                         tokens: await response.json()
@@ -220,7 +225,6 @@ export const authOptions: AuthOptions = {
                         .insert({
                             wechat_openid: user.id,
                             password_hash: '',
-                            is_active: true,
                             is_admin: false,
                             admin_role: null,
                             is_coach: false,
@@ -241,8 +245,7 @@ export const authOptions: AuthOptions = {
                             user_id: newUser.id,
                             nickname: user.name || `微信用户_${user.id.slice(-4) || 'unknown'}`,
                             avatar_url: user.image,
-                            bio: "通过微信登录的用户",
-                            is_active: true,
+                            bio: "",
                         })
                         .select()
                         .single();

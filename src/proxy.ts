@@ -7,6 +7,9 @@ const PUBLIC_PATHS = new Set([
     "/",
     "/login",
     "/register",
+    // 微信网页登录回调桥接页：OAuth 完成后会在 iframe 中访问该页面用于 postMessage 通知父页面
+    // 该页面不应被鉴权中间件重定向到 /login，否则会出现短暂的登录页/错误提示闪现
+    "/wechat-auth/bridge",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
     "/api/sms/send-verification-code",
@@ -22,6 +25,10 @@ const PUBLIC_PATHS = new Set([
     "/docs/terms.md",
     "/contact",
     "/docs/contact.md",
+    "/site.webmanifest",
+    "/sitemap.xml",
+    "/BingSiteAuth.xml",
+    '/baidu_verify_codeva-xPfI6tYHyK.html',
     '/fonts/AlibabaPuHuiTi-3-85-Bold.ttf',
     '/fonts/AlibabaPuHuiTi-3-55-Regular.ttf'
 ]);
@@ -31,6 +38,8 @@ const AUTH_BASE_URL = "/api/auth";
 
 // 管理员路径前缀
 const ADMIN_BASE_URL = "/admin";
+// 微信网页登录相关页面前缀（如 /wechat-auth/bridge）
+const WECHAT_AUTH_BASE_URL = "/wechat-auth";
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
@@ -50,13 +59,20 @@ export async function proxy(request: NextRequest) {
         // In non-dev/test, or with missing/invalid secret, fall through to normal auth checks.
     }
 
-    // 先检查是否是公共路径（包括登录接口），如果是则直接放行
-    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+    // 先检查是否是公共路径（包括登录接口/微信回调桥接页），如果是则直接放行
+    if (
+        PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith(AUTH_BASE_URL) ||
+        pathname.startsWith(WECHAT_AUTH_BASE_URL)
+    ) {
         if (pathname === "/") {
             const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
             const isAuthenticated = !!token;
             if (isAuthenticated) {
-                return NextResponse.redirect(`${origin}/today-training`);
+                const isCoachView = token?.user?.is_coach && token?.user?.primary_role === "coach";
+                return NextResponse.redirect(
+                    isCoachView ? `${origin}/dashboard/overview` : `${origin}/today-training`
+                );
             }
         }
         return NextResponse.next();

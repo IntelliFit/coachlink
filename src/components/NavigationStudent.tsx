@@ -44,7 +44,7 @@ export default function NavigationStudent() {
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { openOnboardingModal, clearOnboardingSuppression } = useOnboardingModal();
-    const { data: session, status } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
@@ -170,7 +170,15 @@ export default function NavigationStudent() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ role: 'coach' })
                         });
-                        if (res.ok) window.location.href = '/dashboard';
+                        if (res.ok) {
+                            // 刷新 session，确保 JWT 中 primary_role 立即更新
+                            try {
+                                await updateSession();
+                            } catch (e) {
+                                console.warn('刷新 session 失败:', e);
+                            }
+                            window.location.href = '/dashboard';
+                        }
                     } catch (e) { console.error(e); }
                 } else { router.push('/coach/application'); }
                 setVisibleLeft(false);
@@ -180,7 +188,7 @@ export default function NavigationStudent() {
         { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(profile, session?.user?.id); setVisibleLeft(false); } },
         { label: '账户设置', icon: 'pi pi-shield', command: () => { router.push('/me/settings'); setVisibleLeft(false); } },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
-    ], [session, profile, openProfileSetupModal, router]);
+    ], [session, profile, openProfileSetupModal, router, updateSession]);
 
     const studentTabRoots = useMemo(() => [
         '/today-training', '/coach/discovery', '/me/profile', '/ranking', '/friends/activity',

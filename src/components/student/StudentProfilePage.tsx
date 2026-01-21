@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { ProfileHeaderMerged } from './profile/ProfileHeaderMerged';
 import { PersonalInfoSection } from './profile/PersonalInfoSection';
+import AccountBindingSection from './profile/AccountBindingSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
 import { CoachNotesSection } from './profile/CoachNotesSection';
 import { SportCardsDisplay } from './profile/SportCardsDisplay';
@@ -363,6 +364,9 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                         </TabPanel>
                     </TabView>
                 </div>
+
+                {/* 账号绑定：手机号 / 邮箱 / 微信（放在页面底部） */}
+                {data && <AccountBindingSection />}
             </div>
 
             {/* 问卷编辑对话框 */}
