@@ -11,6 +11,7 @@ export default function WechatBindBridgePage() {
     const message = searchParams.get('message') || '';
     const returnTo = searchParams.get('returnTo') || '/me/profile';
 
+    // 如果是 iframe，向父窗口发送消息
     try {
       window.parent?.postMessage(
         {
@@ -24,8 +25,32 @@ export default function WechatBindBridgePage() {
       // ignore
     }
 
+    // 如果不是 iframe，延迟跳转以显示提示信息，并添加绑定状态参数
     if (window.top === window.self) {
-      window.location.replace(returnTo);
+      const timer = setTimeout(() => {
+        try {
+          // 尝试解析 returnTo 为 URL
+          let returnUrl: URL;
+          if (returnTo.startsWith('http://') || returnTo.startsWith('https://')) {
+            returnUrl = new URL(returnTo);
+          } else {
+            returnUrl = new URL(returnTo, window.location.origin);
+          }
+          
+          returnUrl.searchParams.set('wechatBind', status);
+          if (message) {
+            returnUrl.searchParams.set('message', encodeURIComponent(message));
+          }
+          window.location.replace(returnUrl.toString());
+        } catch (e) {
+          // 如果 URL 解析失败，使用简单方式拼接
+          const separator = returnTo.includes('?') ? '&' : '?';
+          const encodedMessage = message ? `&message=${encodeURIComponent(message)}` : '';
+          window.location.replace(`${returnTo}${separator}wechatBind=${status}${encodedMessage}`);
+        }
+      }, 2000); // 2 秒后跳转
+
+      return () => clearTimeout(timer);
     }
   }, [searchParams]);
 

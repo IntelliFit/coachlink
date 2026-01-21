@@ -5,7 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { useSession } from 'next-auth/react';
-import { Mail, Phone, Link2, ShieldCheck, X, RefreshCw } from 'lucide-react';
+import { Mail, Phone, Link2, ShieldCheck, X } from 'lucide-react';
 import { useToastContext } from '@/context/ToastContext';
 import WechatIcon from '@/components/icons/wechat';
 import { smsService } from '@/app/service/smsService';
@@ -145,108 +145,9 @@ export default function AccountBindingSection() {
         }
     };
 
-    // ---- WeChat bind dialog (WxLogin.js) ----
-    const [wechatDialogOpen, setWechatDialogOpen] = useState(false);
-    const [wechatEmbedReady, setWechatEmbedReady] = useState(false);
-    const [wechatEmbedError, setWechatEmbedError] = useState<string | null>(null);
-    const [wechatLoading, setWechatLoading] = useState(false);
-
-    useEffect(() => {
-        const handler = (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) return;
-            const data = event.data as any;
-            if (data?.type === 'coachlink:wechat-bind-complete') {
-                setWechatDialogOpen(false);
-                setWechatEmbedReady(false);
-                setWechatEmbedError(null);
-                // 刷新 session
-                updateSession().catch(() => { });
-                showToast({ severity: 'success', summary: '微信绑定成功' });
-                return;
-            }
-            if (data?.type === 'coachlink:wechat-bind-error') {
-                setWechatDialogOpen(false);
-                setWechatEmbedReady(false);
-                setWechatEmbedError(null);
-                showToast({ severity: 'error', summary: '微信绑定失败', detail: data?.message || '请重试' });
-                return;
-            }
-        };
-        window.addEventListener('message', handler);
-        return () => window.removeEventListener('message', handler);
-    }, [showToast, updateSession]);
-
-    // 微信二维码内嵌绑定（官方 WxLogin.js）
-    useEffect(() => {
-        if (!wechatDialogOpen) return;
-        let cancelled = false;
-
-        const loadScript = () =>
-            new Promise<void>((resolve, reject) => {
-                if ((window as any).WxLogin) return resolve();
-                const existing = document.querySelector('script[data-wxlogin-bind="1"]') as HTMLScriptElement | null;
-                if (existing) {
-                    existing.addEventListener('load', () => resolve());
-                    existing.addEventListener('error', () => reject(new Error('微信脚本加载失败')));
-                    return;
-                }
-                const s = document.createElement('script');
-                s.src = 'https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js';
-                s.async = true;
-                s.dataset.wxloginBind = '1';
-                s.onload = () => resolve();
-                s.onerror = () => reject(new Error('微信脚本加载失败'));
-                document.body.appendChild(s);
-            });
-
-        const init = async () => {
-            setWechatEmbedReady(false);
-            setWechatEmbedError(null);
-            try {
-                const res = await fetch('/api/wechat/bind/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ returnTo: '/me/profile' }),
-                });
-                const json = await res.json().catch(() => ({}));
-                if (!json?.success || !json?.data?.appid || !json?.data?.redirectUri || !json?.data?.state) {
-                    throw new Error(json?.message || '未获取到微信授权配置');
-                }
-
-                const container = document.getElementById('wechat_bind_container');
-                if (container) container.innerHTML = '';
-
-                await loadScript();
-                if (cancelled) return;
-
-                // eslint-disable-next-line no-new
-                new (window as any).WxLogin({
-                    self_redirect: true,
-                    id: 'wechat_bind_container',
-                    appid: json.data.appid,
-                    scope: 'snsapi_login',
-                    redirect_uri: encodeURIComponent(json.data.redirectUri),
-                    state: json.data.state,
-                    stylelite: 1,
-                    fast_login: '1',
-                    onReady: function (isReady: boolean) {
-                        if (isReady) setWechatEmbedReady(true);
-                    },
-                });
-            } catch (e: any) {
-                console.error('[wechat-bind-embed] init error:', e);
-                setWechatEmbedError(e?.message || '微信绑定初始化失败');
-            }
-        };
-
-        init();
-        return () => {
-            cancelled = true;
-        };
-    }, [wechatDialogOpen]);
-
     const startWechatBind = () => {
-        setWechatDialogOpen(true);
+        const returnTo = window.location.pathname + window.location.search;
+        window.location.href = `/wechat-auth/bind?returnTo=${encodeURIComponent(returnTo)}`;
     };
 
     const ItemRow = ({
@@ -441,86 +342,6 @@ export default function AccountBindingSection() {
                                 确认绑定
                             </Button>
                         </div>
-                    </div>
-                </div>
-            </Dialog>
-
-            {/* 微信绑定弹窗（iframe） */}
-            <Dialog
-                visible={wechatDialogOpen}
-                onHide={() => {
-                    setWechatDialogOpen(false);
-                    setWechatEmbedReady(false);
-                    setWechatEmbedError(null);
-                }}
-                showHeader={false}
-                className="border-none shadow-2xl rounded-none sm:rounded-3xl overflow-hidden"
-                style={{ width: '720px' }}
-                contentClassName="p-0"
-                pt={{
-                    root: {
-                        className:
-                            'shadow-none border-none bg-transparent min-h-screen flex items-center justify-center md:min-h-[fit-content] md:justify-start',
-                    },
-                    content: { className: 'rounded-none sm:rounded-[24px]' },
-                }}
-            >
-                <div className="bg-surface p-8 relative">
-                    <button
-                        onClick={() => {
-                            setWechatDialogOpen(false);
-                            setWechatEmbedReady(false);
-                            setWechatEmbedError(null);
-                        }}
-                        className="absolute top-6 right-6 p-2 text-surface-400 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-all"
-                    >
-                        <X size={20} />
-                    </button>
-
-                    <div className="mb-6">
-                        <div className="text-[10px] font-black text-primary-500 uppercase tracking-[0.3em] mb-2">
-                            账号绑定
-                        </div>
-                        <div className="text-2xl font-black text-surface-900">绑定微信</div>
-                    </div>
-
-                    <div className="rounded-2xl border border-surface-200 bg-surface-50 overflow-hidden shadow-sm">
-                        <div className="relative w-full min-h-[280px] bg-white flex items-center justify-center py-8">
-                            {wechatEmbedError ? (
-                                <div className="p-6 text-center">
-                                    <div className="text-sm font-black text-surface-900">微信绑定加载失败</div>
-                                    <div className="mt-2 text-xs text-surface-500">{wechatEmbedError}</div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center">
-                                    {/* 微信官方 WxLogin.js 会在该容器内渲染 iframe 二维码（实际二维码尺寸 160x160） */}
-                                    <div 
-                                        id="wechat_bind_container" 
-                                        className="flex items-center justify-center [&>iframe]:!w-[280px] [&>iframe]:!h-[280px]"
-                                    />
-                                    {!wechatEmbedReady && (
-                                        <div className="mt-4 text-sm text-surface-500">正在加载微信绑定…</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="mt-4 flex justify-end">
-                        <button
-                            type="button"
-                            className="p-2 text-surface-500 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-all"
-                            onClick={() => {
-                                setWechatEmbedReady(false);
-                                setWechatEmbedError(null);
-                                setWechatDialogOpen(false);
-                                setTimeout(() => setWechatDialogOpen(true), 0);
-                            }}
-                            disabled={wechatLoading}
-                            title="刷新二维码"
-                        >
-                            <RefreshCw size={18} className={wechatLoading ? 'animate-spin' : ''} />
-                        </button>
                     </div>
                 </div>
             </Dialog>
