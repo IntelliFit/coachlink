@@ -15,7 +15,9 @@ import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useSession, signOut, getSession } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import { userService } from '@/app/service/userService';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
+import type { UserProfilesRow } from '@/types';
 import {
     PlayCircle,
     Search,
@@ -32,7 +34,8 @@ import {
     Activity,
     Users,
     Menu as MenuIcon, // 引入菜单图标
-    Headphones
+    Headphones,
+    MessageSquare
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -41,11 +44,12 @@ export default function NavigationStudent() {
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { openOnboardingModal, clearOnboardingSuppression } = useOnboardingModal();
-    const { data: session, status } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
     const [visibleLeft, setVisibleLeft] = useState(false); // 控制侧边菜单显示
+    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
 
     useEffect(() => {
         setIsClient(true);
@@ -61,31 +65,46 @@ export default function NavigationStudent() {
         return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
+    // 获取用户档案
+    useEffect(() => {
+        if (status !== 'authenticated' || !session?.user?.id) {
+            setProfile(null);
+            return;
+        }
+        const loadProfile = async () => {
+            try {
+                const res = await userService.getProfile({});
+                if (res?.profile) {
+                    setProfile(res.profile);
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        loadProfile();
+    }, [status, session?.user?.id]);
+
     useEffect(() => {
         if (status === 'loading') return;
-        if (session?.user) {
-            const profile = session.profile as any;
-            if (profile?.onboarding_completed === true) {
+        if (session?.user && profile) {
+            if (profile.onboarding_completed === true) {
                 clearOnboardingSuppression();
-                return;
-            }
-            if (profile?.onboarding_completed !== true) {
+            } else {
                 openOnboardingModal();
             }
         }
-    }, [session, status, openOnboardingModal, clearOnboardingSuppression]);
+    }, [session, profile, status, openOnboardingModal, clearOnboardingSuppression]);
 
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) return;
-        const checkSubscriptions = async () => {
+        const checkSubscriptions = () => {
             const now = Date.now();
             if (now - lastSubscriptionCheck < 10 * 60 * 1000) return;
             setLastSubscriptionCheck(now);
-            try {
-                await subscriptionService.checkExpiredSubscriptions();
-            } catch (error) {
+            // Fire and forget: 不等待结果，避免阻塞 UI
+            subscriptionService.checkExpiredSubscriptions().catch((error) => {
                 console.error('Error checking expired subscriptions:', error);
-            }
+            });
         };
         checkSubscriptions();
         const interval = setInterval(checkSubscriptions, 10 * 60 * 1000);
@@ -120,7 +139,7 @@ export default function NavigationStudent() {
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [
-        // 统一入口：当前计划（替代“训练计划”）
+        // 统一入口：当前计划（替代"训练计划"）
         { label: '当前计划', icon: 'pi pi-clipboard', command: () => { router.push('/coach/plans'); setVisibleLeft(false); } },
         { label: '我的教练', icon: 'pi pi-star', command: () => { router.push('/coach/subscription'); setVisibleLeft(false); } },
         { label: '我的会员', icon: 'pi pi-crown', command: () => { router.push('/me/membership'); setVisibleLeft(false); } },
@@ -151,17 +170,25 @@ export default function NavigationStudent() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ role: 'coach' })
                         });
-                        if (res.ok) window.location.href = '/dashboard';
+                        if (res.ok) {
+                            // 刷新 session，确保 JWT 中 primary_role 立即更新
+                            try {
+                                await updateSession();
+                            } catch (e) {
+                                console.warn('刷新 session 失败:', e);
+                            }
+                            window.location.href = '/dashboard';
+                        }
                     } catch (e) { console.error(e); }
                 } else { router.push('/coach/application'); }
                 setVisibleLeft(false);
             },
         },
         { separator: true },
-        { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(session?.profile, session?.user?.id); setVisibleLeft(false); } },
+        { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(profile, session?.user?.id); setVisibleLeft(false); } },
         { label: '账户设置', icon: 'pi pi-shield', command: () => { router.push('/me/settings'); setVisibleLeft(false); } },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
-    ], [session, openProfileSetupModal, router]);
+    ], [session, profile, openProfileSetupModal, router, updateSession]);
 
     const studentTabRoots = useMemo(() => [
         '/today-training', '/coach/discovery', '/me/profile', '/ranking', '/friends/activity',
@@ -174,7 +201,7 @@ export default function NavigationStudent() {
         { label: '排行', url: '/ranking' },
     ], []);
 
-    // 2. 移动端底部导航：将“发现”、“档案”与“消息”、“菜单(头像)”整合
+    // 2. 移动端底部导航：将"发现"、"档案"与"消息"、"菜单(头像)"整合
     const mobileBottomTabs = useMemo(() => [
         {
             key: 'discover',
@@ -248,14 +275,14 @@ export default function NavigationStudent() {
                         }}
                     >
                         <Avatar
-                            image={session.profile?.avatar_url || undefined}
-                            label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'U')}
+                            image={profile?.avatar_url || undefined}
+                            label={profile?.avatar_url ? undefined : (profile?.nickname?.charAt(0) || 'U')}
                             shape="circle"
                             className="bg-primary-500 text-surface text-xs font-bold inner-img-object-fit"
                         />
                         <div className="hidden md:flex flex-col items-start leading-tight">
                             <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">
-                                {session.profile?.nickname || '学员'}
+                                {profile?.nickname || '学员'}
                             </span>
                             <span className="text-[10px] text-surface-400 font-medium">Ready</span>
                         </div>
@@ -298,15 +325,15 @@ export default function NavigationStudent() {
                     <div className="p-6 pt-10 border-b border-surface-50">
                         <div className="flex flex-col gap-4">
                             <Avatar
-                                image={session?.profile?.avatar_url || undefined}
-                                label={session?.profile?.avatar_url ? undefined : (session?.profile?.nickname?.charAt(0) || 'U')}
+                                image={profile?.avatar_url || undefined}
+                                label={profile?.avatar_url ? undefined : (profile?.nickname?.charAt(0) || 'U')}
                                 shape="circle"
                                 size="xlarge"
                                 className="bg-primary-500 text-surface font-bold shadow-lg"
                             />
                             <div>
                                 <h3 className="text-xl font-black text-surface-900 leading-none mb-1">
-                                    {session?.profile?.nickname || '学员'}
+                                    {profile?.nickname || '学员'}
                                 </h3>
                                 <div className="flex items-center gap-2">
                                     <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold rounded-full uppercase">
@@ -374,13 +401,13 @@ export default function NavigationStudent() {
                             <button
                                 onClick={() => {
                                     // 这里填写你的客服逻辑，比如跳转路由或打开第三方聊天
-                                    router.push('/support');
+                                    router.push('/feedback');
                                     setVisibleLeft(false);
                                 }}
                                 className="flex items-center gap-2 px-3 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-600 active:scale-90 transition-transform"
                             >
-                                <Headphones size={18} />
-                                <span className="text-xs font-bold">客服</span>
+                                <MessageSquare size={18} />
+                                <span className="text-xs font-bold">反馈</span>
                             </button>
                         </div>
 
@@ -465,7 +492,7 @@ export default function NavigationStudent() {
                                     <div className="relative">
                                         <item.icon size={24} strokeWidth={item.active ? 2.5 : 2} />
                                         {item.isMessage && (
-                                            <MessageBadge className="absolute -top-1 -right-1 border-2 border-surface" />
+                                            <MessageBadge className="absolute -top-2.5 -right-2.5 border-2 border-surface" />
                                         )}
                                     </div>
                                     <span className={`text-[10px] mt-1 ${item.active ? 'font-bold' : 'font-medium'}`}>

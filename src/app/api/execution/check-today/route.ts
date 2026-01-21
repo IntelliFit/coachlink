@@ -1,31 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
+import type {
+    CheckTodayDto,
+    CheckTodayResponseDto,
+} from "./entity";
 
 /**
- * GET /api/execution/check-today
+ * POST /api/execution/check-today
  *
  * 检查今天是否有执行记录
  */
-export async function GET(request: NextRequest) {
+export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json({ success: false, message: "未登录" }, {
-                status: 401,
-            });
+            return NextResponse.json<ApiData<CheckTodayResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         const userId = session.user.id;
-        const { searchParams } = new URL(request.url);
-        const instanceId = searchParams.get("instanceId");
-        const dayIndex = parseInt(searchParams.get("dayIndex") || "1");
+        const body = await req.json() as CheckTodayDto;
+        const { instanceId, dayIndex = 1 } = body;
 
         if (!instanceId) {
-            return NextResponse.json({ success: false, message: "缺少参数" }, {
-                status: 400,
-            });
+            return NextResponse.json<ApiData<CheckTodayResponseDto>>({
+                success: false,
+                message: "缺少参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 查询“今天”的执行记录（按 Asia/Shanghai 日界线；避免 UTC toISOString 导致差一天）
@@ -66,11 +73,16 @@ export async function GET(request: NextRequest) {
         }
 
         if (!data) {
-            return NextResponse.json({ success: true, data: null });
+            return NextResponse.json<ApiData<CheckTodayResponseDto>>({
+                success: true,
+                message: "查询成功",
+                data: null,
+            });
         }
 
-        return NextResponse.json({
+        return NextResponse.json<ApiData<CheckTodayResponseDto>>({
             success: true,
+            message: "查询成功",
             data: {
                 id: data.id,
                 status: data.status,
@@ -82,8 +94,10 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error("检查执行状态失败:", error);
-        return NextResponse.json({ success: false, message: "服务器错误" }, {
-            status: 500,
-        });
+        return NextResponse.json<ApiData<CheckTodayResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

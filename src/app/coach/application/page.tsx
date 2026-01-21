@@ -23,6 +23,8 @@ import ZhihuIcon from '@/components/icons/zhihu';
 import XiaohongshuIcon from '@/components/icons/xiaohongshu';
 import KuaishouIcon from '@/components/icons/kuaishou';
 import { useToastContext } from '@/context/ToastContext';
+import { userService } from '@/app/service/userService';
+import type { UserProfilesRow } from '@/types';
 
 // 定义资质证书和社交媒体的类型
 interface Credential {
@@ -83,6 +85,7 @@ const CoachApplicationPage = () => {
     // UI状态
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
 
     // 检查登录状态
     useEffect(() => {
@@ -100,7 +103,24 @@ const CoachApplicationPage = () => {
         }
     }, [status, router, showToast, session]);
 
-
+    // 获取用户档案
+    useEffect(() => {
+        if (!session?.user?.id) {
+            setProfile(null);
+            return;
+        }
+        const loadProfile = async () => {
+            try {
+                const res = await userService.getProfile({});
+                if (res?.profile) {
+                    setProfile(res.profile);
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        loadProfile();
+    }, [session?.user?.id]);
 
     // 社交媒体平台选项
     const socialMediaOptions: SocialMediaOption[] = [
@@ -205,12 +225,12 @@ const CoachApplicationPage = () => {
                         review_notes: app.review_notes || null,
                         status: app.status
                     });
-                } else if (session?.user) {
+                } else if (profile) {
                     // 如果没有申请但有用户信息，则预填姓名
                     setFormData(prev => ({
                         ...prev,
-                        name: session.profile.nickname,
-                        contactPhone: session.profile.phone
+                        name: profile.nickname || '',
+                        contactPhone: profile.phone || ''
                     }));
                 }
             } catch (error) {
@@ -232,7 +252,7 @@ const CoachApplicationPage = () => {
             // Should not happen normally if authenticated
              setLoading(false);
         }
-    }, [session?.user?.id, session?.user?.name, status]);
+    }, [session?.user?.id, session?.user?.name, status, profile]);
 
     // 处理输入变化
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

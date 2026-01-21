@@ -10,7 +10,8 @@
         "check-env": "node scripts/check-env.js",
         "test": "vitest run",
         "test:watch": "vitest",
-        "test:e2e": "playwright test"
+        "test:e2e": "playwright test",
+        "test:redis": "tsx scripts/test-redis.ts"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",

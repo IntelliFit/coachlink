@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { History, Trophy, Play, Calendar, Star, Loader2, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
 import { ProfileData, TimelineItem, PRRecord } from './types';
+import { executionService } from '@/app/service/executionService';
 
 interface ProgressTimelineProps {
-    data: ProfileData;
+    data: ProfileData | null;
 }
 
 export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
@@ -23,13 +24,14 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
     const fetchPRRecords = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/execution/get-pr-records?limit=20');
-            const result = await res.json();
+            const result = await executionService.getPRRecords({
+                limit: 20,
+            });
             
-            if (result.success && result.data) {
-                setPrRecords(result.data.records || []);
+            if (result) {
+                setPrRecords(result.records || []);
             } else {
-                setError(result.message || '获取记录失败');
+                setError('获取记录失败');
             }
         } catch (err) {
             console.error('获取PR记录失败:', err);
@@ -84,7 +86,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
     // Merge with any existing timeline data that isn't PR type
     const mergedTimeline = [
         ...timelineItems,
-        ...(data.timelineData?.filter(t => t.type !== 'pr') || [])
+        ...(data?.timelineData?.filter(t => t.type !== 'pr') || [])
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (loading) {

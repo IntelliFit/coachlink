@@ -68,9 +68,16 @@ export async function POST(req: Request) {
             .single();
 
         if (session.user.id === coach.user_id) {
+            // 从数据库获取用户档案
+            const { data: profile } = await supabase
+                .from("user_profiles")
+                .select("nickname")
+                .eq("user_id", session.user.id)
+                .single();
+
             defaultPricings = [
                 {
-                    title: session.profile.nickname + "的基础订阅计划",
+                    title: (profile?.nickname || "教练") + "的基础订阅计划",
                     price: 100,
                     features: [
                         "服务1",

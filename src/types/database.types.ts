@@ -659,6 +659,68 @@ export type Database = {
           },
         ]
       }
+      coach_posters: {
+        Row: {
+          coach_id: string
+          created_at: string
+          generation_finished_at: string | null
+          generation_started_at: string | null
+          id: string
+          image_meta: Json
+          image_url: string | null
+          last_error: string | null
+          poster_type: string
+          requested_at: string
+          requested_by: string | null
+          status: string
+          storage_bucket: string | null
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          generation_finished_at?: string | null
+          generation_started_at?: string | null
+          id?: string
+          image_meta?: Json
+          image_url?: string | null
+          last_error?: string | null
+          poster_type?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          generation_finished_at?: string | null
+          generation_started_at?: string | null
+          id?: string
+          image_meta?: Json
+          image_url?: string | null
+          last_error?: string | null
+          poster_type?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_posters_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_pricing: {
         Row: {
           coach_id: string
@@ -1180,6 +1242,44 @@ export type Database = {
           {
             foreignKeyName: "execution_set_videos_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedbacks: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          related_question: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          related_question?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          related_question?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedbacks_user_id_fkey1"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -3232,6 +3332,7 @@ export type Database = {
           subscription_expires_at: string | null
           subscription_level: string | null
           updated_at: string | null
+          wechat_openid: string | null
         }
         Insert: {
           admin_permissions?: string[] | null
@@ -3251,6 +3352,7 @@ export type Database = {
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
+          wechat_openid?: string | null
         }
         Update: {
           admin_permissions?: string[] | null
@@ -3270,6 +3372,7 @@ export type Database = {
           subscription_expires_at?: string | null
           subscription_level?: string | null
           updated_at?: string | null
+          wechat_openid?: string | null
         }
         Relationships: [
           {

@@ -36,6 +36,7 @@ export const ToastContextProvider: React.FC<ToastContextProviderProps> = ({ chil
             <Toast 
                 ref={toastRef} 
                 position="top-right"
+                className="app-toast"
             />
             {children}
         </ToastContext.Provider>

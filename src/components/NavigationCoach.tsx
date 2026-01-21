@@ -15,6 +15,8 @@ import { useSession, signOut } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { coachService } from '@/app/service/coachService';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import { userService } from '@/app/service/userService';
+import type { UserProfilesRow } from '@/types';
 import {
     LayoutDashboard,
     PlayCircle,
@@ -25,7 +27,7 @@ import {
     ChevronDown,
     LogIn,
     Menu as MenuIcon,
-    Headphones,
+    MessageSquare,
     Moon,
     Sun,
     Bell,
@@ -38,15 +40,35 @@ export default function NavigationCoach() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
-    const { data: session, status } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const [visibleLeft, setVisibleLeft] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
+    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
 
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    // 获取用户档案
+    useEffect(() => {
+        if (status !== 'authenticated' || !session?.user?.id) {
+            setProfile(null);
+            return;
+        }
+        const loadProfile = async () => {
+            try {
+                const res = await userService.getProfile({});
+                if (res?.profile) {
+                    setProfile(res.profile);
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        loadProfile();
+    }, [status, session?.user?.id]);
 
     const gotoCoachDisplayPage = async () => {
         const res = await coachService.getCoach({ userId: session?.user?.id || '' });
@@ -118,7 +140,9 @@ export default function NavigationCoach() {
         { label: '邀请学员', icon: 'pi pi-user-plus', command: () => { router.push('/coach/settings/invitation'); setVisibleLeft(false); } },
         { label: '我的钱包', icon: 'pi pi-wallet', command: () => { router.push('/dashboard/wallet'); setVisibleLeft(false); } },
         { label: '动作库', icon: 'pi pi-database', command: () => { router.push('/dashboard/action-lib'); setVisibleLeft(false); } },
+        { separator: true },
         { label: '订阅设置', icon: 'pi pi-tags', command: () => { router.push('/dashboard/pricing'); setVisibleLeft(false); } },
+        { label: '邀请学员', icon: 'pi pi-user-plus', command: () => { router.push('/coach/settings/invitation'); setVisibleLeft(false); } },
         { label: '学员问卷', icon: 'pi pi-file', command: () => { router.push('/dashboard/questionnaire'); setVisibleLeft(false); } },
         { label: '收款码设置', icon: 'pi pi-qrcode', command: () => { router.push('/coach/settings/payment'); setVisibleLeft(false); } },
         { separator: true },
@@ -130,14 +154,22 @@ export default function NavigationCoach() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ role: 'student' })
                     });
-                    if (res.ok) window.location.href = '/';
+                    if (res.ok) {
+                        // 刷新 session 以更新 JWT 中的用户数据
+                        try {
+                            await updateSession();
+                        } catch (e) {
+                            console.warn('刷新 session 失败:', e);
+                        }
+                        window.location.href = '/';
+                    }
                 } catch (e) { console.error(e); }
             }
         },
         { separator: true },
-        { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(session?.profile, session?.user?.id); setVisibleLeft(false); } },
+        { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(profile, session?.user?.id); setVisibleLeft(false); } },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
-    ], [session, openProfileSetupModal, router]);
+    ], [session, profile, openProfileSetupModal, router]);
 
     const start = (
         <Link href="/dashboard/overview" className="flex items-center gap-3 mr-8 group">
@@ -165,9 +197,9 @@ export default function NavigationCoach() {
                         <button onClick={toggleTheme} className={`p-2 rounded-xl transition-all pi ${theme === 'light' ? 'pi-moon text-surface-500' : 'pi-sun text-yellow-500'} hover:bg-surface`} />
                     </div>
                     <div className="flex items-center h-full gap-2 pl-1 pr-3 py-1 bg-surface border border-surface-100 rounded-2xl cursor-pointer hover:border-primary-200 transition-all" onClick={(e) => menuRef.current?.toggle(e)}>
-                        <Avatar image={session.profile?.avatar_url || undefined} label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'C')} shape="circle" className="bg-primary-500 text-surface text-xs font-bold" />
+                        <Avatar image={profile?.avatar_url || undefined} label={profile?.avatar_url ? undefined : (profile?.nickname?.charAt(0) || 'C')} shape="circle" className="bg-primary-500 text-surface text-xs font-bold" />
                         <div className="hidden md:flex flex-col items-start leading-tight">
-                            <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">{session.profile?.nickname || '教练'}</span>
+                            <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">{profile?.nickname || '教练'}</span>
                             <span className="text-[10px] text-primary-500 font-medium px-1.5 py-0 bg-primary-50 rounded-full">Coach</span>
                         </div>
                         <ChevronDown size={14} className="ml-1 text-surface-300" />
@@ -199,9 +231,9 @@ export default function NavigationCoach() {
                 <div className="flex flex-col h-full bg-surface">
                     <div className="p-6 pt-10 border-b border-surface-50">
                         <div className="flex flex-col gap-4">
-                            <Avatar image={session?.profile?.avatar_url || undefined} shape="circle" size="xlarge" className="bg-primary-500 text-surface font-bold shadow-lg" />
+                            <Avatar image={profile?.avatar_url || undefined} shape="circle" size="xlarge" className="bg-primary-500 text-surface font-bold shadow-lg" />
                             <div>
-                                <h3 className="text-xl font-black text-surface-900 leading-none mb-1">{session?.profile?.nickname || '教练'}</h3>
+                                <h3 className="text-xl font-black text-surface-900 leading-none mb-1">{profile?.nickname || '教练'}</h3>
                                 <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold rounded-full uppercase">Coach Mode</span>
                             </div>
                         </div>
@@ -225,9 +257,9 @@ export default function NavigationCoach() {
                             <button onClick={toggleTheme} className="w-10 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 flex items-center justify-center">
                                 {theme === 'light' ? <Moon size={18} className="text-indigo-600" /> : <Sun size={18} className="text-yellow-500" />}
                             </button>
-                            <button onClick={() => { router.push('/support'); setVisibleLeft(false); }} className="flex items-center gap-2 px-4 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-700">
-                                <Headphones size={18} />
-                                <span className="text-xs font-bold">客服</span>
+                            <button onClick={() => { router.push('/feedback'); setVisibleLeft(false); }} className="flex items-center gap-2 px-4 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-700">
+                                <MessageSquare size={18} />
+                                <span className="text-xs font-bold">反馈</span>
                             </button>
                         </div>
                         <span className="text-[10px] text-surface-300 font-black italic">V0.0.1</span>

@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { verifyToken } from "./lib/jwt";
 
 const PUBLIC_PATHS = new Set([
     "/",
     "/login",
     "/register",
+    // 微信网页登录回调桥接页：OAuth 完成后会在 iframe 中访问该页面用于 postMessage 通知父页面
+    // 该页面不应被鉴权中间件重定向到 /login，否则会出现短暂的登录页/错误提示闪现
+    "/wechat-auth/bridge",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
+    "/api/wechat/login/start",
+    "/api/wechat/login/finish",
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/docs/agreement",
     "/docs/disclaimer",
@@ -21,6 +27,10 @@ const PUBLIC_PATHS = new Set([
     "/docs/terms.md",
     "/contact",
     "/docs/contact.md",
+    "/site.webmanifest",
+    "/sitemap.xml",
+    "/BingSiteAuth.xml",
+    '/baidu_verify_codeva-xPfI6tYHyK.html',
     '/fonts/AlibabaPuHuiTi-3-85-Bold.ttf',
     '/fonts/AlibabaPuHuiTi-3-55-Regular.ttf'
 ]);
@@ -30,11 +40,23 @@ const AUTH_BASE_URL = "/api/auth";
 
 // 管理员路径前缀
 const ADMIN_BASE_URL = "/admin";
+// 微信网页登录相关页面前缀（如 /wechat-auth/bridge）
+const WECHAT_AUTH_BASE_URL = "/wechat-auth";
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
 export async function proxy(request: NextRequest) {
     const { pathname, origin } = request.nextUrl;
+
+    // Internal server-to-server calls (e.g. background poster rendering) can bypass auth for specific endpoints.
+    // This prevents middleware from returning 401 when the caller is the backend itself (no browser session).
+    if (pathname.startsWith("/api/og/")) {
+        const internalKey = process.env.INTERNAL_POSTER_KEY;
+        const provided = request.headers.get("x-internal-poster-key");
+        if (internalKey && provided && provided === internalKey) {
+            return NextResponse.next();
+        }
+    }
 
     // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
     // This lets Playwright seed/cleanup data without being redirected to `/login`.
@@ -49,23 +71,56 @@ export async function proxy(request: NextRequest) {
         // In non-dev/test, or with missing/invalid secret, fall through to normal auth checks.
     }
 
-
-
-    // 仅当访问受保护资源时才解码 token
-    const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
-    const isAuthenticated = !!token;
-    
-    // 公共路由 或者 鉴权路由直接放行
-    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith(AUTH_BASE_URL)) {
+    // 先检查是否是公共路径（包括登录接口/微信回调桥接页），如果是则直接放行
+    if (
+        PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith(AUTH_BASE_URL) ||
+        pathname.startsWith(WECHAT_AUTH_BASE_URL)
+    ) {
         if (pathname === "/") {
             const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
             const isAuthenticated = !!token;
             if (isAuthenticated) {
-                return NextResponse.redirect(`${origin}/today-training`);
+                const isCoachView = token?.user?.is_coach && token?.user?.primary_role === "coach";
+                return NextResponse.redirect(
+                    isCoachView ? `${origin}/dashboard/overview` : `${origin}/today-training`
+                );
             }
         }
         return NextResponse.next();
     }
+
+    // API 路由：支持 JWT token 和 NextAuth session 两种鉴权方式
+    // API 路由自己会通过 getAuthUser 函数处理鉴权，middleware 只需要验证token是否有效
+    if (pathname.startsWith("/api/")) {
+        // 先尝试 JWT token（小程序）
+        const authHeader = request.headers.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            const decoded = verifyToken(token);
+            if (decoded) {
+                // JWT token 有效，放行
+                return NextResponse.next();
+            }
+        }
+
+        // 再尝试 NextAuth session（网页端）
+        const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+        if (token) {
+            // NextAuth session 有效，放行
+            return NextResponse.next();
+        }
+
+        // 两种方式都无效，返回 401 错误（注意：API 路由返回 JSON，不要重定向）
+        return NextResponse.json(
+            { success: false, message: '用户未登录', data: null },
+            { status: 401 }
+        );
+    }
+
+    // 页面路由：仅使用 NextAuth session
+    const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+    const isAuthenticated = !!token;
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {

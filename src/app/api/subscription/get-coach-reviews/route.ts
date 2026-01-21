@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+import { getAuthUser } from '@/lib/auth';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
 import type { GetCoachReviewsDto, GetCoachReviewsResponseDto } from './entity';
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    // 使用统一鉴权函数,支持session和token两种方式
+    const authResult = await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
@@ -16,8 +18,8 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    // 重点！通过 session 获取用户 ID
-    const userId = session.user.id;
+    // 重点！通过鉴权结果获取用户 ID
+    const userId = authResult.userId;
 
     const {
         subscriptionId,

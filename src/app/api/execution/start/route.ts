@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
-import type { StartExecutionDto, StartExecutionResponseDto } from "../entity";
+import type { ApiData } from "@/types/api";
+import type { StartExecutionDto, StartExecutionResponseDto } from "./entity";
 import { formatKgForGym } from "@/lib/weightQuantize";
 import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
@@ -17,12 +17,13 @@ import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 export async function POST(request: NextRequest) {
     try {
         // 1. 验证用户身份
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<StartExecutionResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         const userId = session.user.id;
@@ -32,10 +33,11 @@ export async function POST(request: NextRequest) {
         const { instanceId, dayIndex } = body;
 
         if (!instanceId || !dayIndex) {
-            return NextResponse.json<StartExecutionResponseDto>(
-                { success: false, message: "缺少必填参数" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: "缺少必填参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 3. 检查今天是否已有执行记录
@@ -54,8 +56,9 @@ export async function POST(request: NextRequest) {
         if (existingExecution) {
             // 如果是已完成状态，直接返回，不需要同步
             if (existingExecution.status === "completed") {
-                return NextResponse.json<StartExecutionResponseDto>({
+                return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                     success: true,
+                    message: "获取执行记录成功",
                     data: existingExecution,
                 });
             }
@@ -153,20 +156,20 @@ export async function POST(request: NextRequest) {
 
                         if (!updateError && updatedExecution) {
                             console.log("已同步执行记录与母版计划");
-                            return NextResponse.json<StartExecutionResponseDto>(
-                                {
-                                    success: true,
-                                    data: updatedExecution,
-                                },
-                            );
+                            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                                success: true,
+                                message: "同步执行记录成功",
+                                data: updatedExecution,
+                            });
                         }
                     }
                 }
             }
 
             // 没有变化或同步失败，返回原执行记录
-            return NextResponse.json<StartExecutionResponseDto>({
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: true,
+                message: "获取执行记录成功",
                 data: existingExecution,
             });
         }
@@ -179,10 +182,11 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (instanceError || !instance) {
-            return NextResponse.json<StartExecutionResponseDto>(
-                { success: false, message: "计划实例不存在" },
-                { status: 404 },
-            );
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: "计划实例不存在",
+                data: null,
+            }, { status: 404 });
         }
 
         // 5. 验证权限 - 检查学生是否有权访问此计划
@@ -214,10 +218,11 @@ export async function POST(request: NextRequest) {
                     .maybeSingle();
 
                 if (!directCheck) {
-                    return NextResponse.json<StartExecutionResponseDto>(
-                        { success: false, message: "无权访问此计划" },
-                        { status: 403 },
-                    );
+                    return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                        success: false,
+                        message: "无权访问此计划",
+                        data: null,
+                    }, { status: 403 });
                 }
             }
         }
@@ -227,10 +232,11 @@ export async function POST(request: NextRequest) {
         const trainingDay = trainingDays.find((d) => d.dayIndex === dayIndex);
 
         if (!trainingDay) {
-            return NextResponse.json<StartExecutionResponseDto>(
-                { success: false, message: "训练日不存在" },
-                { status: 404 },
-            );
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: "训练日不存在",
+                data: null,
+            }, { status: 404 });
         }
 
         // 7. 获取动作库信息（用于获取真实动作名称）
@@ -366,10 +372,11 @@ export async function POST(request: NextRequest) {
 
         if (insertError) {
             console.error("创建执行记录失败:", insertError);
-            return NextResponse.json<StartExecutionResponseDto>(
-                { success: false, message: "创建训练记录失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: "创建训练记录失败",
+                data: null,
+            }, { status: 500 });
         }
 
         // B1: Subscription starts when the student actually begins training (first execution).
@@ -409,15 +416,17 @@ export async function POST(request: NextRequest) {
             console.error("[execution/start] Failed to start subscription window:", e);
         }
 
-        return NextResponse.json<StartExecutionResponseDto>({
+        return NextResponse.json<ApiData<StartExecutionResponseDto>>({
             success: true,
+            message: "开始训练成功",
             data: newExecution,
         });
     } catch (error) {
         console.error("开始训练失败:", error);
-        return NextResponse.json<StartExecutionResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }
