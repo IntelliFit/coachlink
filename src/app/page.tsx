@@ -119,7 +119,7 @@ export default function Home() {
                 {/* Mobile: 不要被 flex-col 默认 stretch 拉满导致“看起来被放大” */}
                 <div className="flex flex-row justify-center items-center gap-4 sm:gap-5">
                     <Button
-                        className="group font-bold w-auto sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 bg-orange-500 border-none rounded-2xl shadow-xl shadow-orange-200 dark:shadow-orange-700 hover:bg-orange-600 transition-all active:scale-95 text-white text-sm sm:text-lg"
+                        className="group font-bold w-auto flex justify-center sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 bg-orange-500 border-none rounded-2xl shadow-xl shadow-orange-200 dark:shadow-orange-700 hover:bg-orange-600 transition-all active:scale-95 text-white text-sm sm:text-lg"
                         onClick={handleStartTraining}
                     >
                         <span className="flex items-center justify-center gap-2">
@@ -130,7 +130,7 @@ export default function Home() {
                     {/* 次要按钮：文字使用 surface-700 */}
                     <Button
                         outlined
-                        className="font-bold w-auto sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 rounded-2xl transition-all active:scale-95 text-sm sm:text-lg"
+                        className="font-bold w-auto flex justify-center sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 rounded-2xl transition-all active:scale-95 text-sm sm:text-lg"
                         onClick={() => router.push('/coach/application')}
                     >
                         入驻成为教练
@@ -140,48 +140,48 @@ export default function Home() {
 
             {/* 小程序内测群招募 */}
             <section className="relative z-10 max-w-6xl w-full px-4 -mt-6 sm:-mt-10 mb-16 sm:mb-20">
-                <div className="relative overflow-hidden rounded-[2.5rem] bg-surface border border-surface-200/40 shadow-[0_14px_60px_-30px_rgba(0,0,0,0.25)]">
+                <div className="relative overflow-hidden rounded-2xl bg-surface-0 border border-surface-100 shadow-sm hover:shadow-md transition-shadow">
                     {/* 装饰性光晕 */}
-                    <div className="absolute -top-28 -right-28 w-[420px] h-[420px] bg-orange-500/12 rounded-full blur-[90px]" />
-                    <div className="absolute -bottom-28 -left-28 w-[420px] h-[420px] bg-amber-500/10 rounded-full blur-[100px]" />
+                    <div className="absolute -top-28 -right-28 w-[420px] h-[420px] bg-primary-500/8 rounded-full blur-[90px]" />
+                    <div className="absolute -bottom-28 -left-28 w-[420px] h-[420px] bg-primary-500/6 rounded-full blur-[100px]" />
 
                     <div className="relative p-6 sm:p-10 md:p-12 grid grid-cols-1 md:grid-cols-[1fr_280px] gap-8 items-center">
                         <div className="text-left">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 text-orange-700 border border-orange-500/20 text-sm font-bold">
-                                <Users className="w-4 h-4" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary-50 text-primary-600 border border-primary-100 text-xs font-black uppercase tracking-widest">
+                                <Users className="w-3 h-3" />
                                 小程序内测招募
                             </div>
 
-                            <h2 className="mt-4 text-2xl sm:text-4xl font-black tracking-tight text-surface-900 leading-tight">
+                            <h2 className="mt-5 text-2xl sm:text-4xl font-black tracking-tight text-surface-900 leading-tight">
                                 小程序版本正在持续制作中，欢迎加入内测群
                             </h2>
 
-                            <p className="mt-3 text-surface-600 text-sm sm:text-lg leading-relaxed font-medium max-w-2xl">
+                            <p className="mt-4 text-surface-600 text-sm sm:text-base leading-relaxed font-medium max-w-2xl line-clamp-3">
                                 我们会持续迭代功能与体验。欢迎你在内测群提出宝贵建议；对积极反馈的用户，我们将提供专属权益（例如终身会员等）。
                             </p>
 
-                            <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-x-6 gap-y-3 text-sm sm:text-base">
-                                <div className="flex items-center gap-2 text-surface-700 font-semibold">
-                                    <Zap size={18} className="text-orange-600" />
+                            <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-x-6 gap-y-3 text-sm">
+                                <div className="flex items-center gap-2 text-surface-700 font-bold">
+                                    <Zap size={16} className="text-primary-600" />
                                     优先体验新功能
                                 </div>
-                                <div className="flex items-center gap-2 text-surface-700 font-semibold">
-                                    <Sparkles size={18} className="text-orange-600" />
+                                <div className="flex items-center gap-2 text-surface-700 font-bold">
+                                    <Sparkles size={16} className="text-primary-600" />
                                     参与产品共创与讨论
                                 </div>
-                                <div className="flex items-center gap-2 text-surface-700 font-semibold">
-                                    <Gift size={18} className="text-orange-600" />
+                                <div className="flex items-center gap-2 text-surface-700 font-bold">
+                                    <Gift size={16} className="text-primary-600" />
                                     反馈奖励（终身会员等）
                                 </div>
                             </div>
 
-                            <p className="mt-4 text-xs sm:text-sm text-surface-500">
+                            <p className="mt-5 text-xs text-surface-500">
                                 提示：可长按/扫码识别右侧二维码加入微信群。
                             </p>
                         </div>
 
                         <div className="flex flex-col items-center justify-center">
-                            <div className="w-[220px] h-[220px] rounded-3xl bg-white shadow-lg border border-surface-200/40 flex items-center justify-center overflow-hidden">
+                            <div className="w-[220px] h-[220px] rounded-2xl bg-surface-0 shadow-sm border border-surface-100 flex items-center justify-center overflow-hidden">
                                 {!qrFailed ? (
                                     <img
                                         src="/images/wechat-beta-group-qr.png"
@@ -191,10 +191,10 @@ export default function Home() {
                                     />
                                 ) : (
                                     <div className="p-6 text-center">
-                                        <div className="mx-auto w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-700 mb-3">
+                                        <div className="mx-auto w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600 mb-3">
                                             <QrCode className="w-6 h-6" />
                                         </div>
-                                        <div className="text-surface-900 font-black">二维码暂未配置</div>
+                                        <div className="text-surface-900 font-black text-sm">二维码暂未配置</div>
                                         <div className="mt-1 text-xs text-surface-500 leading-relaxed">
                                             请稍后再试，或联系官方获取入群方式
                                         </div>
@@ -206,7 +206,7 @@ export default function Home() {
                                     </div>
                                 )}
                             </div>
-                            <div className="mt-3 text-sm font-black text-surface-900">加入内测群</div>
+                            <div className="mt-3 text-sm font-black text-surface-900 tracking-tight">加入内测群</div>
                             <div className="text-xs text-surface-500">获取新功能优先体验与反馈奖励</div>
                         </div>
                     </div>
@@ -216,11 +216,11 @@ export default function Home() {
             {/* 核心亮点网格 (Aero-Productivity 优化版) */}
             <section className="relative z-10 max-w-7xl w-full px-4 mt-20 mb-12 sm:mb-40 transition-all">
                 {/* 头部排版：紧凑型字间距与呼吸感控制 */}
-                <div className="text-center mb-12 sm:mb-24 px-6">
-                    <h2 className="text-3xl sm:text-5xl font-black mb-4 tracking-tighter text-surface-900 leading-tight">
-                        重新定义 <span className="text-primary-500">训练体验</span>
+                <div className="text-center mb-12 sm:mb-20 px-6">
+                    <h2 className="text-3xl sm:text-5xl font-black mb-4 tracking-tight text-surface-900 leading-tight">
+                        重新定义 <span className="text-primary-600">训练体验</span>
                     </h2>
-                    <p className="text-surface-500 font-medium text-base sm:text-xl tracking-tight max-w-2xl mx-auto opacity-80">
+                    <p className="text-surface-500 font-medium text-base sm:text-lg tracking-tight max-w-2xl mx-auto">
                         每一个细节，都为了更高效、更科学、更强大的你
                     </p>
                 </div>
