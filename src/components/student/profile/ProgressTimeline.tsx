@@ -7,7 +7,7 @@ import { ProfileData, TimelineItem, PRRecord } from './types';
 import { executionService } from '@/app/service/executionService';
 
 interface ProgressTimelineProps {
-    data: ProfileData;
+    data: ProfileData | null;
 }
 
 export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
@@ -86,7 +86,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
     // Merge with any existing timeline data that isn't PR type
     const mergedTimeline = [
         ...timelineItems,
-        ...(data.timelineData?.filter(t => t.type !== 'pr') || [])
+        ...(data?.timelineData?.filter(t => t.type !== 'pr') || [])
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (loading) {
