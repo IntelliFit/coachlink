@@ -61,12 +61,12 @@ export async function POST(req: Request) {
     // “模板名称/版本标签”由 UI 侧固定显示为“线上/灰度”，后续迁移后再存 name/status。
     const nextQuestions = normalizeQuestions(src.questions);
 
-    // “灰度版本”策略：如果已有草稿（is_active=false）则覆盖更新，否则创建新草稿
+    // “灰度版本”策略：如果已有草稿（status='archived' 或 is_active=false）则覆盖更新，否则创建新草稿
     const { data: existingDraft } = await supabase
         .from("coach_questionnaires")
         .select("id")
         .eq("coach_id", userId)
-        .eq("is_active", false)
+        .or("status.eq.archived,is_active.eq.false")
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -77,8 +77,10 @@ export async function POST(req: Request) {
             .from("coach_questionnaires")
             .update({
                 questions: nextQuestions as any,
+                is_active: false,
+                status: 'archived',
                 updated_at: new Date().toISOString(),
-            })
+            } as any)
             .eq("id", existingDraft.id)
             .select("id")
             .single();
@@ -98,6 +100,7 @@ export async function POST(req: Request) {
                 coach_id: userId,
                 questions: nextQuestions as any,
                 is_active: false,
+                status: 'archived',
                 version: 1,
             } as any)
             .select("id")

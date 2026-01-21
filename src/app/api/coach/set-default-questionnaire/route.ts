@@ -59,6 +59,36 @@ export async function POST(req: Request) {
         );
     }
 
+    // 1. 先清除其他问卷的 is_default 标记（每个教练只能有一个默认问卷）
+    const { error: clearErr } = await supabase
+        .from("coach_questionnaires")
+        .update({ is_default: false })
+        .eq("coach_id", userId);
+
+    if (clearErr) {
+        console.error("[set-default-questionnaire] clear is_default failed:", clearErr);
+        return NextResponse.json<ApiData<null>>(
+            { success: false, message: "设置默认问卷失败（清除旧标记失败）", data: null },
+            { status: 500 },
+        );
+    }
+
+    // 2. 设置新问卷的 is_default 标记
+    const { error: setErr } = await supabase
+        .from("coach_questionnaires")
+        .update({ is_default: true })
+        .eq("id", id)
+        .eq("coach_id", userId);
+
+    if (setErr) {
+        console.error("[set-default-questionnaire] set is_default failed:", setErr);
+        return NextResponse.json<ApiData<null>>(
+            { success: false, message: "设置默认问卷失败（设置新标记失败）", data: null },
+            { status: 500 },
+        );
+    }
+
+    // 3. 同时更新 coaches.profile.default_questionnaire_id（保持向后兼容）
     const nextProfile = {
         ...(coach.profile as any),
         default_questionnaire_id: id,
@@ -70,9 +100,9 @@ export async function POST(req: Request) {
         .eq("id", coach.id);
 
     if (updErr) {
-        console.error("[set-default-questionnaire] failed:", updErr);
+        console.error("[set-default-questionnaire] update profile failed:", updErr);
         return NextResponse.json<ApiData<null>>(
-            { success: false, message: "设置默认问卷失败", data: null },
+            { success: false, message: "设置默认问卷失败（更新教练配置失败）", data: null },
             { status: 500 },
         );
     }

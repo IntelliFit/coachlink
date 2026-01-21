@@ -49,19 +49,49 @@ export async function POST(req: Request) {
         }
     }
 
-    // 读取默认问卷 id（存到 coaches.profile.default_questionnaire_id）
+    // 读取默认问卷 id
+    // 优先使用 is_default 字段（数据库层面），兼容旧数据用 coaches.profile.default_questionnaire_id
     let defaultId: string | null = null;
-    const { data: coachRow } = await supabase
-        .from("coaches")
-        .select("profile")
-        .eq("user_id", coachUserId)
+    
+    // 先尝试从数据库 is_default 字段获取
+    const { data: defaultQuestionnaire } = await supabase
+        .from("coach_questionnaires")
+        .select("id")
+        .eq("coach_id", coachUserId)
+        .eq("is_default", true)
         .maybeSingle();
-
-    defaultId = (coachRow?.profile as any)?.default_questionnaire_id || null;
+    
+    if (defaultQuestionnaire?.id) {
+        defaultId = defaultQuestionnaire.id;
+    } else {
+        // 兼容旧数据：从 coaches.profile.default_questionnaire_id 获取
+        const { data: coachRow } = await supabase
+            .from("coaches")
+            .select("profile")
+            .eq("user_id", coachUserId)
+            .maybeSingle();
+        defaultId = (coachRow?.profile as any)?.default_questionnaire_id || null;
+        
+        // 如果从 profile 找到了，同步到 is_default（数据迁移）
+        if (defaultId) {
+            // 清除其他问卷的 is_default
+            await supabase
+                .from("coach_questionnaires")
+                .update({ is_default: false })
+                .eq("coach_id", coachUserId);
+            
+            // 设置找到的问卷为 is_default
+            await supabase
+                .from("coach_questionnaires")
+                .update({ is_default: true })
+                .eq("id", defaultId)
+                .eq("coach_id", coachUserId);
+        }
+    }
 
     const { data: rows, error } = await supabase
         .from("coach_questionnaires")
-        .select("id, questions, is_active, version, created_at, updated_at")
+        .select("id, questions, is_active, status, name, is_default, version, created_at, updated_at")
         .eq("coach_id", coachUserId)
         .order("updated_at", { ascending: false });
 
@@ -74,21 +104,27 @@ export async function POST(req: Request) {
     }
 
     // UI 简化为固定两份：
-    // - 线上版本：is_active = true（取最新一份）
-    // - 灰度版本：is_active = false（取最新一份）
-    const online = (rows || []).filter((r: any) => Boolean(r.is_active))[0] || null;
-    const draft = (rows || []).filter((r: any) => !Boolean(r.is_active))[0] || null;
+    // - 线上版本：status = 'active' 或 is_active = true（取最新一份，优先用 status）
+    // - 灰度版本：status = 'archived' 或 is_active = false（取最新一份，优先用 status）
+    const online = (rows || []).filter((r: any) => {
+        const status = r.status || (r.is_active ? 'active' : 'archived');
+        return status === 'active';
+    })[0] || null;
+    const draft = (rows || []).filter((r: any) => {
+        const status = r.status || (r.is_active ? 'archived' : 'active');
+        return status === 'archived';
+    })[0] || null;
 
     const items = [online, draft]
         .filter(Boolean)
         .map((r: any) => ({
             id: r.id,
-            name: r.is_active ? "线上版本" : "灰度版本",
+            name: r.name || (r.is_active ? "线上版本" : "灰度版本"),
             is_active: Boolean(r.is_active),
             version: r.version ?? null,
             created_at: r.created_at ?? null,
             updated_at: r.updated_at ?? null,
-            is_default: defaultId ? r.id === defaultId : false,
+            is_default: r.is_default || (defaultId ? r.id === defaultId : false),
         }));
 
     const resp: ListQuestionnairesResponseDto = {

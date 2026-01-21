@@ -41,11 +41,12 @@ export async function POST(req: Request) {
     }
 
     // 1. 获取问卷信息和当前版本号
+    // 优先使用 status='active'，兼容旧数据用 is_active=true
     const { data: questionnaire, error: questionnaireError } = await supabase
         .from("coach_questionnaires")
-        .select("id, coach_id, version")
+        .select("id, coach_id, version, status, is_active")
         .eq("id", questionnaireId)
-        .eq("is_active", true)
+        .or("status.eq.active,is_active.eq.true")
         .single();
 
     if (questionnaireError || !questionnaire) {
