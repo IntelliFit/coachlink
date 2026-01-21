@@ -41,18 +41,29 @@ export async function POST(req: Request) {
     }
 
     // 1. 获取问卷信息和当前版本号
-    // 优先使用 status='active'，兼容旧数据用 is_active=true
+    // 简化逻辑：统一使用 status 字段，兼容旧数据
     const { data: questionnaire, error: questionnaireError } = await supabase
         .from("coach_questionnaires")
         .select("id, coach_id, version, status, is_active")
         .eq("id", questionnaireId)
-        .or("status.eq.active,is_active.eq.true")
         .single();
 
     if (questionnaireError || !questionnaire) {
         return NextResponse.json({
             success: false,
             message: "问卷不存在或已失效",
+        }, { status: 404 });
+    }
+
+    // 验证是否为线上版本：必须同时满足 status='active' AND is_active=true
+    const isActive = questionnaire.status 
+        ? (questionnaire.status === 'active' && questionnaire.is_active === true)
+        : questionnaire.is_active === true; // 兼容旧数据
+    
+    if (!isActive) {
+        return NextResponse.json({
+            success: false,
+            message: "问卷不存在或已失效（非线上版本）",
         }, { status: 404 });
     }
 

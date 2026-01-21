@@ -78,24 +78,35 @@ export async function POST(req: Request) {
     // 获取线上问卷（status='active' 或 is_active=true）
     // 规则：线上版本就是“学员订阅时应用的版本”
     // 优先使用 status 字段（迁移后更稳定），兼容旧数据用 is_active
-    const { data: questionnaire, error: questionnaireError } = await supabase
+    // 简化逻辑：先获取所有问卷，然后在内存中筛选
+    const { data: allQuestionnaires, error: fetchError } = await supabase
         .from("coach_questionnaires")
         .select("id,questions,is_active,status,updated_at")
         .eq("coach_id", userId)
-        .or("status.eq.active,is_active.eq.true")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("updated_at", { ascending: false });
 
-    if (questionnaireError) {
-        console.error(questionnaireError);
-
+    if (fetchError) {
+        console.error("[get-questionnaires] fetch error:", fetchError);
         return NextResponse.json({
             success: false,
             message: "获取问卷失败",
             data: null,
         }, { status: 500 });
     }
+
+    // 筛选线上版本：必须同时满足 status='active' AND is_active=true
+    const questionnaire = (allQuestionnaires || []).find((q: any) => {
+        // 优先检查 status 和 is_active 的一致性
+        if (q.status) {
+            // 如果 status 存在，必须同时检查 is_active
+            if (q.status === 'active') {
+                return q.is_active === true;  // 必须同时为 true
+            }
+            return false;
+        }
+        // 兼容旧数据：如果 status 为空，使用 is_active
+        return q.is_active === true;
+    }) || null;
 
     // 注意：training_items 查询已移除，tags 选项现在由教练自定义
 
