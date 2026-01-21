@@ -15,6 +15,8 @@ const PUBLIC_PATHS = new Set([
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
+    "/api/wechat/login/start",
+    "/api/wechat/login/finish",
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/docs/agreement",
     "/docs/disclaimer",
