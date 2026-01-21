@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-    Plus, Play, Pencil, Trash2, Calendar,
-    Clock, ChevronRight, Bookmark, AlertCircle
+    Plus, Pencil, Trash2, Calendar,
+    Clock, Bookmark, MoreVertical
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
@@ -22,7 +22,7 @@ const StudentPlanLib = () => {
 
     const [favorites, setFavorites] = useState<StudentPlanFavoriteRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeId, setActiveId] = useState<string | null>(null);
+    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
     useEffect(() => {
         if (userId) loadFavorites();
@@ -40,49 +40,22 @@ const StudentPlanLib = () => {
         }
     };
 
-    // --- 动画配置 ---
-    const inertialSpring = { type: "spring", stiffness: 400, damping: 30, mass: 1 } as const;
-
     const renderPlanCard = (favorite: StudentPlanFavoriteRow) => {
-        const isExpanded = activeId === favorite.id;
+        const isMenuOpen = activeMenuId === favorite.id;
         const dayCount = Array.isArray(favorite.training_days) ? favorite.training_days.length : 0;
 
         return (
-            <div key={favorite.id} className="relative overflow-hidden rounded-2xl mb-3">
-                {/* 底层操作区 (Action Drawer) */}
-                <div className="absolute inset-y-0 right-0 flex items-center px-4 gap-2">
-                    <button
-                        onClick={() => handleEditPlan(favorite)}
-                        className="w-12 h-12 rounded-xl bg-surface-100 text-surface-600 flex items-center justify-center active:scale-90 transition-all"
-                    >
-                        <Pencil size={18} />
-                    </button>
-                    <button
-                        onClick={() => handleDeletePlan(favorite)}
-                        className="w-12 h-12 rounded-xl bg-red-50 text-red-500 flex items-center justify-center active:scale-90 transition-all"
-                    >
-                        <Trash2 size={18} />
-                    </button>
-                </div>
-
-                {/* 表层内容卡片 */}
-                <motion.div
-                    onClick={() => setActiveId(isExpanded ? null : favorite.id)}
-                    whileTap={{ scale: 0.98 }}
-                    animate={{ x: isExpanded ? -130 : 0 }}
-                    transition={inertialSpring}
-                    className={`
-                        relative z-10 bg-surface-0 border border-surface-100 p-4 sm:p-5 rounded-2xl
-                        flex items-center justify-between gap-4 cursor-pointer
-                        ${isExpanded ? 'shadow-lg border-surface-200' : 'shadow-sm'}
-                    `}
-                >
+            <div
+                key={favorite.id}
+                onClick={() => handleEditPlan(favorite)}
+                className="bg-surface-0 border border-surface-100 p-4 sm:p-5 rounded-2xl mb-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer relative"
+            >
+                <div className="flex items-start justify-between gap-4 pr-16 sm:pr-20">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-lg font-black text-surface-900 tracking-tight  uppercase truncate">
+                            <h3 className="text-lg font-black text-surface-900 tracking-tight uppercase truncate">
                                 {favorite.name}
                             </h3>
-                            {isExpanded && <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />}
                         </div>
 
                         <p className="text-sm font-medium text-surface-500 line-clamp-1 mb-3">
@@ -98,19 +71,68 @@ const StudentPlanLib = () => {
                             </span>
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex items-center gap-3">
-                        {/* 应用计划按钮：采用强调色联动 */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleApplyPlan(favorite); }}
-                            className="flex flex-col items-center justify-center bg-primary-600 text-surface-0 h-14 w-14 rounded-2xl shadow-sm active:scale-95 transition-all"
-                        >
-                            <Play size={20} fill="currentColor" />
-                            <span className="text-[9px] font-black mt-1  uppercase">应用</span>
-                        </button>
-                        <ChevronRight size={20} className={`text-surface-200 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </div>
-                </motion.div>
+                {/* 右下角应用按钮 */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); handleApplyPlan(favorite); }}
+                    className="absolute bottom-4 right-4 sm:bottom-5 sm:right-5 flex items-center justify-center bg-primary-600 text-surface-0 px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition-all"
+                    title="应用计划"
+                >
+                    <span className="text-sm font-black uppercase">应用</span>
+                </button>
+
+                {/* PC 端：右上角操作按钮 */}
+                <div className="hidden sm:flex absolute top-4 right-4 items-center gap-2">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleEditPlan(favorite); }}
+                        className="w-10 h-10 rounded-xl bg-surface-100 text-surface-600 flex items-center justify-center hover:bg-surface-200 transition-all"
+                        title="编辑"
+                    >
+                        <Pencil size={16} />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleDeletePlan(favorite); }}
+                        className="w-10 h-10 rounded-xl bg-surface-100 text-surface-600 flex items-center justify-center hover:bg-surface-200 transition-all"
+                        title="删除"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+
+                {/* 移动端：右上角菜单按钮 */}
+                <div className="sm:hidden absolute top-4 right-4">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setActiveMenuId(isMenuOpen ? null : favorite.id); }}
+                        className="w-10 h-10 rounded-xl bg-surface-100 text-surface-600 flex items-center justify-center transition-all"
+                    >
+                        <MoreVertical size={18} />
+                    </button>
+
+                    {isMenuOpen && (
+                        <>
+                            <div
+                                className="fixed inset-0 z-10"
+                                onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }}
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 top-12 z-20 bg-surface-0 border border-surface-100 rounded-2xl shadow-lg p-2 min-w-[120px]"
+                            >
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeletePlan(favorite); setActiveMenuId(null); }}
+                                    className="w-full px-4 py-2.5 rounded-xl bg-surface-100 text-surface-700 text-sm font-bold flex items-center gap-2 transition-all"
+                                >
+                                    <Trash2 size={14} />
+                                    删除
+                                </button>
+                            </motion.div>
+                        </>
+                    )}
+                </div>
             </div>
         );
     };
@@ -162,7 +184,7 @@ const StudentPlanLib = () => {
                     </div>
                     <button
                         onClick={() => router.push('/me/plan-lib/create')}
-                        className="bg-surface-900 text-surface-0 p-3 rounded-2xl active:scale-95 transition-all shadow-sm flex items-center gap-2"
+                        className="bg-surface-900 text-surface-0 p-3 rounded-2xl transition-all shadow-sm flex items-center gap-2"
                     >
                         <Plus size={20} />
                         <span className="hidden sm:inline text-sm font-black ">新建</span>
@@ -193,7 +215,7 @@ const StudentPlanLib = () => {
                         <p className="text-sm text-surface-400 mt-2 mb-8">还没有收藏任何训练计划模板</p>
                         <button
                             onClick={() => router.push('/me/plan-lib/create')}
-                            className="px-8 py-3 bg-primary-600 text-surface-0 rounded-2xl font-black  shadow-lg shadow-primary-500/20 active:scale-95 transition-all"
+                            className="px-8 py-3 bg-primary-600 text-surface-0 rounded-2xl font-black  shadow-lg shadow-primary-500/20 transition-all"
                         >
                             创建第一个计划
                         </button>
