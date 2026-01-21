@@ -10,7 +10,7 @@ import { TabView, TabPanel, TabViewTabChangeEvent } from 'primereact/tabview';
 import { useToastContext } from '@/context/ToastContext';
 import { signIn } from 'next-auth/react';
 import { smsService } from '@/app/service/smsService';
-import { Phone, Lock, ShieldCheck, X, LogIn, Send, User } from 'lucide-react';
+import { Phone, Lock, ShieldCheck, X, LogIn, Send, User, RefreshCw } from 'lucide-react';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 import { sesService } from '@/app/service/sesService';
 import WechatIcon from '@/components/icons/wechat';
@@ -40,8 +40,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [sendingCode, setSendingCode] = useState(false);
-    const [wechatAuthUrl, setWechatAuthUrl] = useState<string | null>(null);
     const [showWechatQr, setShowWechatQr] = useState(false);
+    const [wechatEmbedReady, setWechatEmbedReady] = useState(false);
+    const [wechatEmbedError, setWechatEmbedError] = useState<string | null>(null);
 
     // 重置视图状态当弹窗关闭
     useEffect(() => {
@@ -53,23 +54,52 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 setPhoneOrEmail('');
                 setPassword('');
                 setVerificationCode('');
-                setWechatAuthUrl(null);
                 setShowWechatQr(false);
+                setWechatEmbedReady(false);
+                setWechatEmbedError(null);
             }, 300);
             return () => clearTimeout(timer);
         }
     }, [isOpen]);
 
-    // 监听微信登录完成（来自 /wechat-auth/bridge）
+    // 监听微信登录完成（来自 /wechat-auth/bridge 或 /wechat-auth/login-bridge）
     useEffect(() => {
         const handler = (event: MessageEvent) => {
             if (event.origin !== window.location.origin) return;
             const data = event.data as any;
+            if (data?.type === 'coachlink:wechat-login-token') {
+                const returnTo = typeof data.returnTo === 'string' ? data.returnTo : '/today-training';
+                const loginToken = typeof data.loginToken === 'string' ? data.loginToken : '';
+                if (!loginToken) {
+                    showToast({ severity: 'error', summary: '微信登录失败', detail: '缺少登录凭证，请重试' });
+                    return;
+                }
+                void signIn('credentials', {
+                    wechatLoginToken: loginToken,
+                    redirect: false,
+                    callbackUrl: returnTo,
+                }).then((res) => {
+                    if (res?.error) {
+                        showToast({ severity: 'error', summary: '微信登录失败', detail: res.error });
+                        return;
+                    }
+                    setShowWechatQr(false);
+                    onClose(false);
+                    try { router.refresh(); } catch { }
+                    if (returnTo && returnTo !== window.location.pathname) router.push(returnTo);
+                });
+                return;
+            }
+
+            if (data?.type === 'coachlink:wechat-login-error') {
+                showToast({ severity: 'error', summary: '微信登录失败', detail: data?.message || '请重试' });
+                return;
+            }
+
             if (data?.type !== 'coachlink:wechat-auth-complete') return;
 
             const returnTo = typeof data.returnTo === 'string' ? data.returnTo : '/';
             setShowWechatQr(false);
-            setWechatAuthUrl(null);
 
             onClose(false);
             // 刷新 session（以及页面数据）
@@ -84,7 +114,82 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
         window.addEventListener('message', handler);
         return () => window.removeEventListener('message', handler);
-    }, [onClose, router]);
+    }, [onClose, router, showToast]);
+
+    // 微信二维码内嵌登录（官方 WxLogin.js）
+    useEffect(() => {
+        if (!showWechatQr) return;
+        let cancelled = false;
+
+        const loadScript = () =>
+            new Promise<void>((resolve, reject) => {
+                if ((window as any).WxLogin) return resolve();
+                const existing = document.querySelector('script[data-wxlogin="1"]') as HTMLScriptElement | null;
+                if (existing) {
+                    existing.addEventListener('load', () => resolve());
+                    existing.addEventListener('error', () => reject(new Error('微信脚本加载失败')));
+                    return;
+                }
+                const s = document.createElement('script');
+                s.src = 'https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js';
+                s.async = true;
+                s.dataset.wxlogin = '1';
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error('微信脚本加载失败'));
+                document.body.appendChild(s);
+            });
+
+        const init = async () => {
+            setWechatEmbedReady(false);
+            setWechatEmbedError(null);
+            try {
+                const origin = window.location.origin;
+                const isLoginPage = window.location.pathname.includes('/login');
+                const returnTo = isLoginPage
+                    ? '/today-training'
+                    : `${window.location.pathname}${window.location.search}`;
+
+                const res = await fetch('/api/wechat/login/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ returnTo }),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!json?.success || !json?.data?.appid || !json?.data?.redirectUri || !json?.data?.state) {
+                    throw new Error(json?.message || '未获取到微信授权配置');
+                }
+
+                const container = document.getElementById('wechat_login_container');
+                if (container) container.innerHTML = '';
+
+                await loadScript();
+                if (cancelled) return;
+
+                // eslint-disable-next-line no-new
+                new (window as any).WxLogin({
+                    self_redirect: true,
+                    id: 'wechat_login_container',
+                    appid: json.data.appid,
+                    scope: 'snsapi_login',
+                    redirect_uri: encodeURIComponent(json.data.redirectUri),
+                    state: json.data.state,
+                    stylelite: 1,
+                    fast_login: '1',
+                    onReady: function (isReady: boolean) {
+                        if (isReady) setWechatEmbedReady(true);
+                    },
+                });
+            } catch (e: any) {
+                console.error('[wechat-embed] init error:', e);
+                setWechatEmbedError(e?.message || '微信登录初始化失败');
+            }
+        };
+
+        init();
+        return () => {
+            cancelled = true;
+        };
+    }, [showWechatQr]);
 
     const devUsers = useMemo<DevUser[]>(() => {
         try {
@@ -294,26 +399,26 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                         />
                     ) : showWechatQr ? (
                         <div className="w-full max-w-[420px] mx-auto">
-                            <div className="mb-8 text-center md:text-left">
-                                <h2 className="text-2xl font-black text-surface-900 mb-2">微信登录</h2>
-                                <p className="text-sm text-surface-500 leading-relaxed">
-                                    请使用微信扫码登录；若电脑已登录微信客户端，可能会出现“快速登录”直接确认，无需扫码。
-                                </p>
-                            </div>
-
                             <div className="rounded-2xl border border-surface-200 bg-surface-50 overflow-hidden shadow-sm">
-                                {wechatAuthUrl ? (
-                                    <iframe
-                                        title="wechat-login"
-                                        src={wechatAuthUrl}
-                                        className="w-full h-[420px] bg-white"
-                                        referrerPolicy="origin"
-                                    />
-                                ) : (
-                                    <div className="p-6 text-center text-surface-500 text-sm">
-                                        正在加载微信登录…
-                                    </div>
-                                )}
+                                <div className="relative w-full min-h-[280px] bg-white flex items-center justify-center py-8">
+                                    {wechatEmbedError ? (
+                                        <div className="p-6 text-center">
+                                            <div className="text-sm font-black text-surface-900">微信登录加载失败</div>
+                                            <div className="mt-2 text-xs text-surface-500">{wechatEmbedError}</div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center">
+                                            {/* 微信官方 WxLogin.js 会在该容器内渲染 iframe 二维码（实际二维码尺寸 160x160） */}
+                                            <div 
+                                                id="wechat_login_container" 
+                                                className="flex items-center justify-center [&>iframe]:!w-[280px] [&>iframe]:!h-[280px]"
+                                            />
+                                            {!wechatEmbedReady && (
+                                                <div className="mt-4 text-sm text-surface-500">正在加载微信登录…</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="mt-6 flex items-center justify-between">
@@ -322,48 +427,28 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                     className="text-sm font-bold text-surface-500 hover:text-surface-700 transition-colors"
                                     onClick={() => {
                                         setShowWechatQr(false);
-                                        setWechatAuthUrl(null);
+                                        setWechatEmbedReady(false);
+                                        setWechatEmbedError(null);
                                     }}
                                 >
                                     返回其它登录方式
                                 </button>
 
-                                <Button
+                                <button
                                     type="button"
-                                    className="py-2 px-4 bg-surface border border-surface-200 rounded-xl text-surface-700 font-bold hover:border-primary-500 hover:text-primary-600 transition-all"
+                                    className="p-2 text-surface-500 hover:text-primary-500 hover:bg-primary-50 rounded-full transition-all"
                                     onClick={async () => {
-                                        // 重新拉取一次授权地址
-                                        setLoading(true);
-                                        try {
-                                            const origin = window.location.origin;
-                                            const isLoginPage = window.location.pathname.includes('/login');
-                                            const returnTo = isLoginPage
-                                                ? '/today-training'
-                                                : `${window.location.pathname}${window.location.search}`;
-                                            const callbackUrl = `${origin}/wechat-auth/bridge?returnTo=${encodeURIComponent(returnTo)}`;
-
-                                            const result = await signIn('wechat', {
-                                                redirect: false,
-                                                callbackUrl,
-                                            });
-
-                                            if (result?.error) {
-                                                showToast({
-                                                    severity: 'error',
-                                                    summary: '微信登录失败',
-                                                    detail: result.error,
-                                                });
-                                                return;
-                                            }
-                                            if (result?.url) setWechatAuthUrl(result.url);
-                                        } finally {
-                                            setLoading(false);
-                                        }
+                                        // 重新拉取一次配置并刷新二维码：重建视图触发 init
+                                        setWechatEmbedReady(false);
+                                        setWechatEmbedError(null);
+                                        setShowWechatQr(false);
+                                        setTimeout(() => setShowWechatQr(true), 0);
                                     }}
-                                    loading={loading}
+                                    disabled={loading}
+                                    title="刷新二维码"
                                 >
-                                    刷新二维码
-                                </Button>
+                                    <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                                </button>
                             </div>
                         </div>
                     ) : (
@@ -512,51 +597,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                     <button
                                         type="button"
                                         onClick={async () => {
-                                            setLoading(true);
-                                            try {
-                                                const origin = window.location.origin;
-                                                // 默认登录后回到当前页；如果是 /login 页，则回到 /today-training
-                                                const isLoginPage = window.location.pathname.includes('/login');
-                                                const returnTo = isLoginPage
-                                                    ? '/today-training'
-                                                    : `${window.location.pathname}${window.location.search}`;
-
-                                                const callbackUrl = `${origin}/wechat-auth/bridge?returnTo=${encodeURIComponent(returnTo)}`;
-
-                                                const result = await signIn('wechat', {
-                                                    redirect: false,
-                                                    callbackUrl,
-                                                });
-
-                                                if (result?.error) {
-                                                    showToast({
-                                                        severity: 'error',
-                                                        summary: '微信登录失败',
-                                                        detail: result.error,
-                                                    });
-                                                    return;
-                                                }
-
-                                                if (result?.url) {
-                                                    // 在弹窗内嵌二维码页面（同时支持 PC/Mac 微信客户端快速登录）
-                                                    setWechatAuthUrl(result.url);
-                                                    setShowWechatQr(true);
-                                                } else {
-                                                    showToast({
-                                                        severity: 'error',
-                                                        summary: '微信登录失败',
-                                                        detail: '未获取到微信授权地址',
-                                                    });
-                                                }
-                                            } catch (error: any) {
-                                                showToast({
-                                                    severity: 'error',
-                                                    summary: '微信登录失败',
-                                                    detail: error.message || '未知错误',
-                                                });
-                                            } finally {
-                                                setLoading(false);
-                                            }
+                                            // 使用 WxLogin.js 内嵌二维码，不跳转到新页面
+                                            setShowWechatQr(true);
                                         }}
                                         className="flex items-center justify-center p-3 border border-surface-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all"
                                         title="微信登录"

@@ -15,11 +15,59 @@ export const authOptions: AuthOptions = {
                 phoneOrEmail: { label: "PhoneOrEmail", type: "text" },
                 password: { label: "Password", type: "password" },
                 verifyCode: { label: "verifyCode", type: "text" },
+                wechatLoginToken: { label: "wechatLoginToken", type: "text" },
             },
             async authorize(credentials) {
                 const phoneOrEmail = credentials?.phoneOrEmail?.trim();
                 const password = credentials?.password?.trim();
                 const verifyCode = credentials?.verifyCode?.trim();
+                const wechatLoginToken = credentials?.wechatLoginToken?.trim();
+
+                // 方式 0：微信内嵌二维码登录（一次性 token）
+                if (wechatLoginToken) {
+                    if (!redis) {
+                        throw new Error("验证服务不可用");
+                    }
+                    const key = `wechat_login_token:${wechatLoginToken}`;
+                    const stored = await redis.get(key);
+                    if (!stored) {
+                        throw new Error("登录凭证已过期，请刷新二维码重试");
+                    }
+                    // One-time use
+                    await redis.del(key);
+
+                    let parsed: any = {};
+                    try {
+                        const raw = typeof stored === "string" ? stored : stored.toString("utf8");
+                        parsed = JSON.parse(raw);
+                    } catch { }
+                    const userId = parsed?.userId as string | undefined;
+                    if (!userId) {
+                        throw new Error("登录凭证无效");
+                    }
+
+                    const { data: user, error: userError } = await supabase
+                        .from("users")
+                        .select("*")
+                        .eq("id", userId)
+                        .single();
+
+                    if (userError || !user) {
+                        throw new Error("用户不存在");
+                    }
+
+                    (user as any).password_hash = undefined;
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .single();
+
+                    return {
+                        ...user,
+                        profile: profile || undefined,
+                    };
+                }
 
                 if (!phoneOrEmail) {
                     throw new Error("请输入手机号或邮箱");

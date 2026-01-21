@@ -9,7 +9,13 @@ interface StartWechatBindDto {
 }
 
 interface StartWechatBindResponseDto {
-  url: string;
+  appid: string;
+  scope: "snsapi_login";
+  redirectUri: string;
+  state: string;
+  stylelite?: number;
+  fast_login?: string;
+  self_redirect?: boolean;
 }
 
 export async function POST(req: Request) {
@@ -49,20 +55,20 @@ export async function POST(req: Request) {
     JSON.stringify({ userId: session.user.id, returnTo: safeReturnTo }),
   );
 
-  const authUrl = new URL("https://open.weixin.qq.com/connect/qrconnect");
-  authUrl.searchParams.set("appid", appid);
-  authUrl.searchParams.set("redirect_uri", redirectUri);
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", "snsapi_login");
-  authUrl.searchParams.set("state", state);
-  // PC/Mac 微信客户端“快速登录”
-  authUrl.searchParams.set("fast_login", "1");
-  authUrl.searchParams.set("lang", "zh_CN");
+  const resp: StartWechatBindResponseDto = {
+    appid,
+    scope: "snsapi_login",
+    redirectUri,
+    state,
+    stylelite: 1,
+    fast_login: "1",
+    self_redirect: true,
+  };
 
   return NextResponse.json<ApiData<StartWechatBindResponseDto>>({
     success: true,
     message: "ok",
-    data: { url: authUrl.toString() },
+    data: resp,
   });
 }
 
