@@ -33,13 +33,13 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const [subscription, setSubscription] = useState<any>(null);
     const [statsData, setStatsData] = useState<any>(null);
     const [planStatus, setPlanStatus] = useState<string | null>(null);
-    
+
     // 独立的 loading 状态
     const [loadingProfile, setLoadingProfile] = useState(true);
     const [loadingSubscription, setLoadingSubscription] = useState(true);
     const [loadingStats, setLoadingStats] = useState(true);
     const [loadingPlanStatus, setLoadingPlanStatus] = useState(false);
-    
+
     const [error, setError] = useState<string | null>(null);
 
     const { data: session, update: updateSession } = useSession();
@@ -48,22 +48,20 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const { showToast } = useToastContext();
     const [activeTab, setActiveTab] = useState(0);
 
-    // 检测微信绑定完成状态并刷新 session
-    useEffect(() => {
+    const checkWechatBindStatus = async () => {
         const wechatBind = searchParams.get('wechatBind');
         const message = searchParams.get('message');
-        
+
         if (wechatBind) {
             // 刷新 session 以获取最新的微信绑定状态
-            updateSession().catch(() => {});
-            
+            await updateSession();
+
             // 显示提示
             if (wechatBind === 'success') {
-                showToast({
-                    severity: 'success',
-                    summary: '微信绑定成功',
-                    detail: message || '微信账号已成功绑定',
-                });
+                // showToast({
+                //     severity: 'success',
+                //     summary: '微信绑定成功',
+                // });
             } else if (wechatBind === 'error') {
                 showToast({
                     severity: 'error',
@@ -71,20 +69,25 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     detail: message || '请重试',
                 });
             }
-            
+
             // 清除 URL 参数，避免刷新页面时重复提示
             const url = new URL(window.location.href);
             url.searchParams.delete('wechatBind');
             url.searchParams.delete('message');
             router.replace(url.pathname + (url.search ? url.search : ''));
         }
+    }
+
+    // 检测微信绑定完成状态并刷新 session
+    useEffect(() => {
+        checkWechatBindStatus();
     }, [searchParams, updateSession, showToast, router]);
 
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
-    
+
     // 个人信息编辑状态
     const [personalInfoEditing, setPersonalInfoEditing] = useState(false);
 
@@ -117,7 +120,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     // 刷新数据的函数（用于更新后刷新）
     const fetchData = React.useCallback(async () => {
         if (!session?.user.id) return;
-        
+
         try {
             const [profileRes, subsRes, statsRes] = await Promise.all([
                 studentService.getStudentProfile(session.user.id),
@@ -127,11 +130,11 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
             if (profileRes) setProfileData(profileRes);
             if (statsRes) setStatsData(statsRes);
-            
+
             if (subsRes && subsRes.subscriptions && subsRes.subscriptions.length > 0) {
                 const activeSub = subsRes.subscriptions[0];
                 setSubscription(activeSub);
-                
+
                 try {
                     const instanceRes = await planLibService.getInstance({ subscriptionId: activeSub.id });
                     if (instanceRes?.instance?.status) {
@@ -176,7 +179,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 if (res && res.subscriptions && res.subscriptions.length > 0) {
                     const activeSub = res.subscriptions[0];
                     setSubscription(activeSub);
-                    
+
                     // 获取计划实例状态（依赖订阅数据，但不阻塞其他数据）
                     setLoadingPlanStatus(true);
                     try {
@@ -268,7 +271,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
     // 判断是否所有关键数据都已加载（至少要有 profile 才能显示页面）
     const isInitialLoading = loadingProfile && loadingSubscription && loadingStats;
-    
+
     if (isInitialLoading) {
         return (
             <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -297,15 +300,15 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     <Skeleton height="300px" className="rounded-2xl" />
                 ) : data ? (
                     <>
-                        <ProfileHeaderMerged 
-                            data={data} 
+                        <ProfileHeaderMerged
+                            data={data}
                             onUpdate={fetchData}
                             onEditClick={() => setPersonalInfoEditing(true)}
                         />
-                        
+
                         {/* 个人信息编辑对话框（通过合并组件触发） */}
-                        <PersonalInfoSection 
-                            data={data} 
+                        <PersonalInfoSection
+                            data={data}
                             onUpdate={fetchData}
                             editingVisible={personalInfoEditing}
                             onEditingChange={setPersonalInfoEditing}
@@ -322,12 +325,12 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     ) : profileData?.profile?.sport_cards ? (
                         <SportCardsDisplay sportCards={profileData.profile.sport_cards as any} />
                     ) : null}
-                    
+
                     {/* 教练评语 - 独立组件，自己管理 loading */}
                     {data && session?.user.id && (
                         <CoachNotesSection data={data} userId={session.user.id} />
                     )}
-                    
+
                     {/* 力量进步曲线 - 依赖 subscription */}
                     {loadingSubscription ? (
                         <Skeleton height="200px" className="rounded-2xl" />
