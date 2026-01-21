@@ -15,6 +15,7 @@ import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
 import type { VideoReferenceItem } from '@/app/api/chat/send-message/entity';
 import { userService } from '@/app/service/userService';
+import type { UserProfilesRow } from '@/types';
 import { CoachLinkTable } from '@/types';
 import { Send, AtSign, MessageSquareOff, Loader2 } from 'lucide-react';
 
@@ -34,9 +35,29 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     const [messageText, setMessageText] = useState('');
     const [chatPartner, setChatPartner] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
     const [showVideoPicker, setShowVideoPicker] = useState(false);
+    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const userMap = useRef<Record<string, { name: string; avatar: string | null }>>({});
+
+    // 获取当前用户档案
+    useEffect(() => {
+        if (!session?.user?.id) {
+            setProfile(null);
+            return;
+        }
+        const loadProfile = async () => {
+            try {
+                const res = await userService.getProfile({});
+                if (res?.profile) {
+                    setProfile(res.profile);
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        loadProfile();
+    }, [session?.user?.id]);
 
     // 1. 加载用户 Profile
     useEffect(() => {
@@ -45,7 +66,8 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         const loadUserProfiles = async () => {
             for (const id of chatroom.members) {
                 if (id === session.user.id) {
-                    userMap.current[id] = { name: session.profile?.nickname || '我', avatar: session.profile?.avatar_url };
+                    // 使用从 API 获取的 profile
+                    userMap.current[id] = { name: profile?.nickname || '我', avatar: profile?.avatar_url || null };
                 } else if (!userMap.current[id]) {
                     const res = await userService.getProfile({ userId: id });
                     if (res) {
@@ -56,7 +78,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
             }
         };
         loadUserProfiles();
-    }, [visible, chatroom, session]);
+    }, [visible, chatroom, session, profile]);
 
     // 2. 加载历史消息
     useEffect(() => {
@@ -117,7 +139,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         const optimisticMsg: MessageItemType = {
             id: Date.now().toString(),
             chatUserId: session.user.id,
-            chatUserProfile: { name: session.profile?.nickname, avatar: session.profile?.avatar_url },
+            chatUserProfile: { name: profile?.nickname || '我', avatar: profile?.avatar_url || null },
             messageType: 'text',
             content,
             isMine: true,
@@ -149,7 +171,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         const optimisticMsg: MessageItemType = {
             id: Date.now().toString(),
             chatUserId: session.user.id,
-            chatUserProfile: { name: session.profile?.nickname, avatar: session.profile?.avatar_url },
+            chatUserProfile: { name: profile?.nickname || '我', avatar: profile?.avatar_url || null },
             messageType: 'video_reference',
             content,
             isMine: true,

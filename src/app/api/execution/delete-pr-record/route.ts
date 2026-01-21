@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-
-type DeletePRRecordDto = {
-  recordId: string;
-};
+import type { ApiData } from "@/types/api";
+import type {
+    DeletePRRecordDto,
+    DeletePRRecordResponseDto,
+} from "./entity";
 
 /**
  * POST /api/execution/delete-pr-record
@@ -15,16 +15,24 @@ type DeletePRRecordDto = {
  * - The owner (student) themselves
  * - The student's active coach
  */
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user?.id) {
-      return NextResponse.json({ success: false, message: "未登录" }, { status: 401 });
+      return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+        success: false,
+        message: "未登录",
+        data: null,
+      }, { status: 401 });
     }
 
-    const body = (await request.json()) as DeletePRRecordDto;
+    const body = (await req.json()) as DeletePRRecordDto;
     if (!body?.recordId) {
-      return NextResponse.json({ success: false, message: "缺少 recordId" }, { status: 400 });
+      return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+        success: false,
+        message: "缺少 recordId",
+        data: null,
+      }, { status: 400 });
     }
 
     // Fetch record owner + linkage fields (for cascade delete of AUTO_STATE)
@@ -36,10 +44,18 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (recErr) {
-      return NextResponse.json({ success: false, message: "查询记录失败" }, { status: 500 });
+      return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+        success: false,
+        message: "查询记录失败",
+        data: null,
+      }, { status: 500 });
     }
     if (!record?.id || !record.user_id) {
-      return NextResponse.json({ success: false, message: "记录不存在" }, { status: 404 });
+      return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+        success: false,
+        message: "记录不存在",
+        data: null,
+      }, { status: 404 });
     }
 
     const requesterId = session.user.id;
@@ -55,7 +71,11 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (!coachRow?.id) {
-        return NextResponse.json({ success: false, message: "无权删除该记录" }, { status: 403 });
+        return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+          success: false,
+          message: "无权删除该记录",
+          data: null,
+        }, { status: 403 });
       }
 
       const { data: subscription } = await supabase
@@ -67,7 +87,11 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (!subscription) {
-        return NextResponse.json({ success: false, message: "无权删除该记录" }, { status: 403 });
+        return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+          success: false,
+          message: "无权删除该记录",
+          data: null,
+        }, { status: 403 });
       }
     }
 
@@ -80,7 +104,11 @@ export async function POST(request: NextRequest) {
 
     if (delErr) {
       console.error("[delete-pr-record] Failed:", delErr);
-      return NextResponse.json({ success: false, message: "删除失败" }, { status: 500 });
+      return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+        success: false,
+        message: "删除失败",
+        data: null,
+      }, { status: 500 });
     }
 
     // Best-effort: also delete the matching AUTO_STATE snapshot from the same set
@@ -101,10 +129,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+      success: true,
+      message: "删除成功",
+      data: null,
+    });
   } catch (e) {
     console.error("[delete-pr-record] Error:", e);
-    return NextResponse.json({ success: false, message: "服务器错误" }, { status: 500 });
+    return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
+      success: false,
+      message: "服务器错误",
+      data: null,
+    }, { status: 500 });
   }
 }
 

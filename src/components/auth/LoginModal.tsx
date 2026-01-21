@@ -13,6 +13,7 @@ import { smsService } from '@/app/service/smsService';
 import { Phone, Lock, ShieldCheck, X, LogIn, Send, User } from 'lucide-react';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 import { sesService } from '@/app/service/sesService';
+import WechatIcon from '@/components/icons/wechat';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -39,6 +40,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [sendingCode, setSendingCode] = useState(false);
+    const [wechatAuthUrl, setWechatAuthUrl] = useState<string | null>(null);
+    const [showWechatQr, setShowWechatQr] = useState(false);
 
     // 重置视图状态当弹窗关闭
     useEffect(() => {
@@ -50,10 +53,38 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 setPhoneOrEmail('');
                 setPassword('');
                 setVerificationCode('');
+                setWechatAuthUrl(null);
+                setShowWechatQr(false);
             }, 300);
             return () => clearTimeout(timer);
         }
     }, [isOpen]);
+
+    // 监听微信登录完成（来自 /wechat-auth/bridge）
+    useEffect(() => {
+        const handler = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            const data = event.data as any;
+            if (data?.type !== 'coachlink:wechat-auth-complete') return;
+
+            const returnTo = typeof data.returnTo === 'string' ? data.returnTo : '/';
+            setShowWechatQr(false);
+            setWechatAuthUrl(null);
+
+            onClose(false);
+            // 刷新 session（以及页面数据）
+            try {
+                router.refresh();
+            } catch { }
+            // 如果需要跳转（如从 /login 打开登录框）
+            if (typeof returnTo === 'string' && returnTo && returnTo !== window.location.pathname) {
+                router.push(returnTo);
+            }
+        };
+
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, [onClose, router]);
 
     const devUsers = useMemo<DevUser[]>(() => {
         try {
@@ -127,12 +158,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     ? {
                         phoneOrEmail: trimmedPhoneOrEmail,
                         password: trimmedPassword,
-                        redirect: false,
+                        callbackUrl: '/today-training'
                     }
                     : {
                         phoneOrEmail: trimmedPhoneOrEmail,
                         verifyCode: trimmedCode,
-                        redirect: false,
+                        callbackUrl: '/today-training'
                     }
             );
             if (result?.error) {
@@ -142,11 +173,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 onClose(false);
 
                 // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
-                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                    router.push('/today-training');
-                } else {
-                    router.refresh();
-                }
+                // if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                //     router.push('/today-training');
+                // } else {
+                //     router.refresh();
+                // }
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '登录失败' });
@@ -160,10 +191,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 phoneOrEmail: user.phone,
                 password: user.password,
                 redirect: false,
+                callbackUrl: '/today-training',
             });
             if (!result?.error) {
                 // Close modal and redirect to dashboard/home after successful login
-                onClose(true);
+                onClose(false);
                 // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
                 if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
                     router.push('/');
@@ -179,7 +211,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             visible={isOpen}
             onHide={() => onClose(true)}
             showHeader={false}
-            className="border-none shadow-2xl rounded-3xl overflow-hidden"
+            className="border-none shadow-2xl rounded-none sm:rounded-3xl overflow-hidden"
             style={{ width: '850px' }}
             contentClassName="p-0"
             pt={{
@@ -187,10 +219,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
                 },
                 header: {
-                    className: 'p-8 pb-4 border-none bg-surface sm:rounded-t-[24px] rounded-t-none'
+                    className: 'p-8 pb-4 border-none bg-surface rounded-t-none sm:rounded-t-[24px]'
                 },
                 content: {
-                    className: 'text-xl font-black tracking-tight sm:rounded-b-[24px] rounded-b-none'
+                    className: 'text-xl font-black tracking-tight rounded-none sm:rounded-b-[24px]'
                 }
             }}
         >
@@ -389,6 +421,73 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                             立即注册
                                         </button>
                                     </p>
+                                </div>
+
+                                {/* 5. 分割线和其它登录方式 */}
+                                <div className="relative my-6">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-surface-200"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="px-4 bg-surface text-surface-500 text-xs font-bold uppercase tracking-widest">其他登录方式</span>
+                                    </div>
+                                </div>
+
+                                {/* 6. 社交登录按钮 */}
+                                <div className="flex justify-center space-x-4">
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            setLoading(true);
+                                            try {
+                                                const origin = window.location.origin;
+                                                // 默认登录后回到当前页；如果是 /login 页，则回到 /today-training
+                                                const isLoginPage = window.location.pathname.includes('/login');
+                                                const returnTo = isLoginPage
+                                                    ? '/today-training'
+                                                    : `${window.location.pathname}${window.location.search}`;
+
+                                                const callbackUrl = `${origin}/wechat-auth/bridge?returnTo=${encodeURIComponent(returnTo)}`;
+
+                                                const result = await signIn('wechat', {
+                                                    redirect: false,
+                                                    callbackUrl,
+                                                });
+
+                                                if (result?.error) {
+                                                    showToast({
+                                                        severity: 'error',
+                                                        summary: '微信登录失败',
+                                                        detail: result.error,
+                                                    });
+                                                    return;
+                                                }
+
+                                                if (result?.url) {
+                                                    // 跳转到新页面显示二维码
+                                                    window.location.href = result.url;
+                                                } else {
+                                                    showToast({
+                                                        severity: 'error',
+                                                        summary: '微信登录失败',
+                                                        detail: '未获取到微信授权地址',
+                                                    });
+                                                }
+                                            } catch (error: any) {
+                                                showToast({
+                                                    severity: 'error',
+                                                    summary: '微信登录失败',
+                                                    detail: error.message || '未知错误',
+                                                });
+                                            } finally {
+                                                setLoading(false);
+                                            }
+                                        }}
+                                        className="flex items-center justify-center p-3 border border-surface-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all"
+                                        title="微信登录"
+                                    >
+                                        <WechatIcon className="w-6 h-6" fill="#07C160" />
+                                    </button>
                                 </div>
                             </form>
                         </>

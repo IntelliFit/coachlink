@@ -3,10 +3,12 @@ import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import { ApiData } from '@/types/api';
 import { GetStudentProfileResponseDto } from './entity';
+import { getAuthUser } from '@/lib/auth';
 
 export async function POST(request: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    // 使用统一鉴权函数,支持session和token两种方式
+    const authResult = await getAuthUser(request);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
@@ -15,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     const { userId } = await request.json();
-    const targetUserId = userId || session.user.id;
+    const targetUserId = userId || authResult.userId;
 
     // 直接数据库查询聚合：用户档案、最近问卷、视频、生活记录
     const [{ data: profile }, { data: questionnaire }, { data: videos }, { data: lifestyle }] = await Promise.all([

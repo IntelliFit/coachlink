@@ -1,13 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react';
 import LoginModal from './LoginModal';
 import { useRouter } from 'next/navigation';
 
 type LoginModalContextType = {
     isLoginModalOpen: boolean;
     openLoginModal: () => void;
-    closeLoginModal: () => void;
+    closeLoginModal: (back?: boolean) => void;
 };
 
 const LoginModalContext = createContext<LoginModalContextType | undefined>(undefined);
@@ -15,21 +15,26 @@ const LoginModalContext = createContext<LoginModalContextType | undefined>(undef
 export function LoginModalProvider({ children }: { children: ReactNode }) {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-    const openLoginModal = () => {
+    const openLoginModal = useCallback(() => {
         setIsLoginModalOpen(true);
-    };
+    }, []);
 
     const router = useRouter();
 
-    const closeLoginModal = (back: boolean = true) => {
+    const closeLoginModal = useCallback((back: boolean = true) => {
         setIsLoginModalOpen(false);
         if (back) {
             router.back();
         }
-    };
+    }, [router]);
+
+    const value = useMemo(
+        () => ({ isLoginModalOpen, openLoginModal, closeLoginModal }),
+        [isLoginModalOpen, openLoginModal, closeLoginModal]
+    );
 
     return (
-        <LoginModalContext.Provider value={{ isLoginModalOpen, openLoginModal, closeLoginModal }}>
+        <LoginModalContext.Provider value={value}>
             {children}
             <LoginModal 
                 isOpen={isLoginModalOpen} 

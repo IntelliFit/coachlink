@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import type { FinishTrainingDto, FinishTrainingResponseDto } from "../entity";
+import type { ApiData } from "@/types/api";
+import type { FinishTrainingDto, FinishTrainingResponseDto } from "./entity";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 
 /**
@@ -12,12 +12,13 @@ import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<FinishTrainingResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         const userId = session.user.id;
@@ -25,10 +26,11 @@ export async function POST(request: NextRequest) {
         const { executionId, sessionNotes } = body;
 
         if (!executionId) {
-            return NextResponse.json<FinishTrainingResponseDto>(
-                { success: false, message: "缺少执行ID" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                success: false,
+                message: "缺少执行ID",
+                data: null,
+            }, { status: 400 });
         }
 
         // 验证权限并获取 instance_id
@@ -39,10 +41,11 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (!execution || execution.student_id !== userId) {
-            return NextResponse.json<FinishTrainingResponseDto>(
-                { success: false, message: "无权限" },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                success: false,
+                message: "无权限",
+                data: null,
+            }, { status: 403 });
         }
 
         // 更新状态
@@ -59,10 +62,11 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error("完成训练失败:", error);
-            return NextResponse.json<FinishTrainingResponseDto>(
-                { success: false, message: "更新失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                success: false,
+                message: "更新失败",
+                data: null,
+            }, { status: 500 });
         }
 
         // 异步更新订阅的预计完成日期
@@ -70,8 +74,9 @@ export async function POST(request: NextRequest) {
             updateEstimatedEndDateForInstance(execution.instance_id);
         }
 
-        return NextResponse.json<FinishTrainingResponseDto>({
+        return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
             success: true,
+            message: "完成训练成功",
             data: {
                 id: data.id,
                 status: data.status,
@@ -82,9 +87,10 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("完成训练失败:", error);
-        return NextResponse.json<FinishTrainingResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

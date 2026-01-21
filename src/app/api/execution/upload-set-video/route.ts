@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { v4 as uuidv4 } from "uuid";
-import type { UploadSetVideoResponseDto } from "../entity";
+import type { ApiData } from "@/types/api";
+import type { UploadSetVideoResponseDto } from "./entity";
 
 // 运行在 Node.js，以避免 Edge 运行时的流式限制
 export const runtime = "nodejs";
@@ -19,10 +20,11 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession();
         if (!session?.user?.id) {
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: "未登录" },
-                { status: 401 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: "未登录",
+                data: null,
+            }, { status: 401 });
         }
 
         // Service role key is required for Storage upload on server.
@@ -34,14 +36,12 @@ export async function POST(req: Request) {
             console.error(
                 "[upload-set-video] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.",
             );
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                {
-                    success: false,
-                    message:
-                        "服务器配置缺失：未设置 Supabase Service Role Key，无法上传视频",
-                },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message:
+                    "服务器配置缺失：未设置 Supabase Service Role Key，无法上传视频",
+                data: null,
+            }, { status: 500 });
         }
 
         const userId = session.user.id;
@@ -54,19 +54,21 @@ export async function POST(req: Request) {
         const setNumber = parseInt(formData.get("setNumber") as string);
 
         if (!file || !executionId || !actionId || !setNumber) {
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: "缺少参数" },
-                { status: 400 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: "缺少参数",
+                data: null,
+            }, { status: 400 });
         }
 
         // 防止超大文件导致请求体截断或锁定（Next 默认 10MB）
         const maxSizeBytes = 50 * 1024 * 1024; // 50MB
         if (file.size > maxSizeBytes) {
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: "视频过大，单个视频请小于 50MB" },
-                { status: 413 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: "视频过大，单个视频请小于 50MB",
+                data: null,
+            }, { status: 413 });
         }
 
         // --- STORAGE QUOTA CHECK ---
@@ -75,13 +77,11 @@ export async function POST(req: Request) {
         );
         const quotaCheck = await checkStorageAvailable(userId, file.size);
         if (!quotaCheck.success) {
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                {
-                    success: false,
-                    message: quotaCheck.message || "存储空间不足",
-                },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: quotaCheck.message || "存储空间不足",
+                data: null,
+            }, { status: 403 });
         }
         // --- STORAGE QUOTA CHECK END ---
 
@@ -93,10 +93,11 @@ export async function POST(req: Request) {
             .single();
 
         if (!execution || execution.student_id !== userId) {
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: "无权限" },
-                { status: 403 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: "无权限",
+                data: null,
+            }, { status: 403 });
         }
 
         // Try to determine exercise name from JSONB action_executions
@@ -136,10 +137,11 @@ export async function POST(req: Request) {
 
         if (uploadError) {
             console.error("上传失败:", uploadError);
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: uploadError.message || "上传失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: uploadError.message || "上传失败",
+                data: null,
+            }, { status: 500 });
         }
 
         // --- UPDATE QUOTA ---
@@ -184,14 +186,16 @@ export async function POST(req: Request) {
 
             if (updateError || !data) {
                 console.error("更新视频记录失败:", updateError);
-                return NextResponse.json<UploadSetVideoResponseDto>(
-                    { success: false, message: "更新失败" },
-                    { status: 500 },
-                );
+                return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                    success: false,
+                    message: "更新失败",
+                    data: null,
+                }, { status: 500 });
             }
 
-            return NextResponse.json<UploadSetVideoResponseDto>({
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
                 success: true,
+                message: "上传视频成功",
                 data: {
                     id: data.id,
                     execution_id: data.execution_id,
@@ -222,14 +226,16 @@ export async function POST(req: Request) {
 
         if (insertError) {
             console.error("保存视频记录失败:", insertError);
-            return NextResponse.json<UploadSetVideoResponseDto>(
-                { success: false, message: "保存失败" },
-                { status: 500 },
-            );
+            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+                success: false,
+                message: "保存失败",
+                data: null,
+            }, { status: 500 });
         }
 
-        return NextResponse.json<UploadSetVideoResponseDto>({
+        return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
             success: true,
+            message: "上传视频成功",
             data: {
                 id: data.id,
                 execution_id: data.execution_id,
@@ -241,9 +247,10 @@ export async function POST(req: Request) {
         });
     } catch (error) {
         console.error("上传视频失败:", error);
-        return NextResponse.json<UploadSetVideoResponseDto>(
-            { success: false, message: "服务器错误" },
-            { status: 500 },
-        );
+        return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
+            success: false,
+            message: "服务器错误",
+            data: null,
+        }, { status: 500 });
     }
 }

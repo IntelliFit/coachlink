@@ -50,7 +50,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     return (
         <Card
             id="guide-today-card"
-            className={`shadow-lg border-2 rounded-3xl ${isCompleted ? 'border-green-500' : 'border-primary-500'}`}
+            className={`border rounded-3xl ${isCompleted ? 'border-green-100/50 bg-green-50/30' : 'border-primary-100/50'}`}
         >
             <div className="space-y-6">
                 {/* Header */}
@@ -64,7 +64,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 weekday: 'long'
                             })}</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-surface-900 mt-1 flex items-center gap-2">
+                        <h2 className="text-2xl font-bold text-surface-900 mt-1 flex items-center gap-2 tracking-tight">
                             今日训练
                             {isCompleted && (
                                 <span className="inline-flex items-center gap-1 text-green-600 text-base font-medium">
@@ -94,13 +94,13 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
 
                 {/* Completion Summary for completed training */}
                 {isCompleted && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="bg-green-50 border border-green-100/50 rounded-2xl p-4">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                                <CheckCircle className="w-6 h-6 text-white" />
+                                <CheckCircle className="w-6 h-6 text-surface" />
                             </div>
                             <div>
-                                <div className="font-bold text-green-800">训练已完成！</div>
+                                <div className="font-bold text-green-800 tracking-tight">训练已完成！</div>
                                 <div className="text-green-600 text-sm">
                                     完成 {completedSets}/{totalSets} 组 · 
                                     今日训练目标达成 🎉
@@ -121,7 +121,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         return (
                             <div
                                 key={idx}
-                                className={`bg-surface-50 rounded-2xl p-4 border border-surface-200 hover:border-primary-300 transition-colors ${isCompleted ? 'opacity-80' : ''}`}
+                                className={`bg-surface-50 rounded-2xl p-4 border border-surface-100/50 hover:border-primary-200/50 transition-all active:scale-[0.99] ${isCompleted ? 'opacity-80' : ''}`}
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
@@ -282,7 +282,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     <button
                         type="button"
                         onClick={() => setShowAllActions(true)}
-                        className="w-full py-3 rounded-2xl border border-surface-200 bg-surface hover:bg-surface-50 text-surface-700 font-medium transition-all active:scale-[0.99]"
+                        className="w-full py-3 rounded-2xl border border-surface-100/50 bg-surface hover:bg-surface-50 text-surface-700 font-medium transition-all active:scale-95 duration-200 ease-out"
                     >
                         展开查看全部（还有 {hiddenCount} 个动作）
                     </button>
@@ -291,7 +291,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     <button
                         type="button"
                         onClick={() => setShowAllActions(false)}
-                        className="w-full py-2 rounded-2xl text-surface-500 hover:text-surface-700 hover:bg-surface-50 transition-all active:scale-[0.99]"
+                        className="w-full py-2 rounded-2xl text-surface-500 hover:text-surface-700 hover:bg-surface-50 transition-all active:scale-95 duration-200 ease-out"
                     >
                         收起预览
                     </button>
@@ -303,7 +303,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         label="查看记录"
                         icon={<CheckCircle className="w-5 h-5" />}
                         onClick={handleStartTraining}
-                        className="w-full !py-3"
+                        className="w-full !py-3 rounded-2xl transition-all active:scale-95 duration-200 ease-out"
                         severity="secondary"
                         outlined
                     />
@@ -312,7 +312,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         label="继续训练"
                         icon={<Play className="w-5 h-5" />}
                         onClick={handleStartTraining}
-                        className="w-full !py-4 !text-lg font-bold"
+                        className="w-full !py-4 !text-lg font-bold rounded-2xl transition-all active:scale-95 duration-200 ease-out"
                         severity="warning"
                     />
                 ) : (
@@ -321,7 +321,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         label="开始训练"
                         icon={<Play className="w-5 h-5" />}
                         onClick={handleStartTraining}
-                        className="w-full !py-4 !text-lg font-bold"
+                        className="w-full !py-4 !text-lg font-bold rounded-2xl transition-all active:scale-95 duration-200 ease-out"
                         severity="success"
                     />
                 )}
