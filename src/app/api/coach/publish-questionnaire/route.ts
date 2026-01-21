@@ -3,7 +3,10 @@ import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 import type { ApiData } from "@/types/api";
-import type { PublishQuestionnaireDto, PublishQuestionnaireResponseDto } from "./entity";
+import type {
+    PublishQuestionnaireDto,
+    PublishQuestionnaireResponseDto,
+} from "./entity";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -53,32 +56,45 @@ export async function POST(req: Request) {
         );
     }
 
-    // 1) Demote current online questionnaires（同步 status 和 is_active）
-    const { error: demoteErr } = await supabase
+    // 1) Demote current online questionnaires
+    const { data: allQuestionnaires } = await supabase
         .from("coach_questionnaires")
-        .update({ 
-            is_active: false, 
-            status: 'archived',
-            updated_at: new Date().toISOString() 
-        } as any)
-        .eq("coach_id", userId)
-        .or("status.eq.active,is_active.eq.true");
+        .select("id, is_active")
+        .eq("coach_id", userId);
 
-    if (demoteErr) {
-        console.error("[publish-questionnaire] demote failed:", demoteErr);
-        return NextResponse.json<ApiData<null>>(
-            { success: false, message: "发布失败（下线旧线上版本失败）", data: null },
-            { status: 500 },
-        );
+    // 查找线上版本：is_active=true
+    const currentOnline = (allQuestionnaires || []).filter((q: any) =>
+        q.is_active === true
+    );
+
+    if (currentOnline && currentOnline.length > 0) {
+        const { error: demoteErr } = await supabase
+            .from("coach_questionnaires")
+            .update({
+                is_active: false,
+                updated_at: new Date().toISOString(),
+            } as any)
+            .in("id", currentOnline.map((q) => q.id));
+
+        if (demoteErr) {
+            console.error("[publish-questionnaire] demote failed:", demoteErr);
+            return NextResponse.json<ApiData<null>>(
+                {
+                    success: false,
+                    message: "发布失败（下线旧线上版本失败）",
+                    data: null,
+                },
+                { status: 500 },
+            );
+        }
     }
 
-    // 2) Promote draft to online, bump version（同步 status 和 is_active）
+    // 2) Promote draft to online, bump version
     const nextVersion = (draft.version ?? 1) + 1;
     const { data: promoted, error: promoteErr } = await supabase
         .from("coach_questionnaires")
         .update({
             is_active: true,
-            status: 'active',
             version: nextVersion,
             updated_at: new Date().toISOString(),
         } as any)
@@ -89,7 +105,11 @@ export async function POST(req: Request) {
     if (promoteErr || !promoted) {
         console.error("[publish-questionnaire] promote failed:", promoteErr);
         return NextResponse.json<ApiData<null>>(
-            { success: false, message: "发布失败（上线灰度版本失败）", data: null },
+            {
+                success: false,
+                message: "发布失败（上线灰度版本失败）",
+                data: null,
+            },
             { status: 500 },
         );
     }
@@ -101,4 +121,3 @@ export async function POST(req: Request) {
         data: resp,
     });
 }
-

@@ -334,7 +334,8 @@ const QuestionarePage = () => {
 
             const result = await coachService.updateQuestionnaires({
                 id: questionId || '',
-                questionnaires: questions
+                questionnaires: questions,
+                mode: mode,  // 传递当前模式，实现独立保存
             });
 
             if (result) {

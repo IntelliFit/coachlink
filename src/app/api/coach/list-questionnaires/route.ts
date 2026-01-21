@@ -3,7 +3,10 @@ import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 import type { ApiData } from "@/types/api";
-import type { ListQuestionnairesDto, ListQuestionnairesResponseDto } from "./entity";
+import type {
+    ListQuestionnairesDto,
+    ListQuestionnairesResponseDto,
+} from "./entity";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -49,49 +52,22 @@ export async function POST(req: Request) {
         }
     }
 
-    // 读取默认问卷 id
-    // 优先使用 is_default 字段（数据库层面），兼容旧数据用 coaches.profile.default_questionnaire_id
-    let defaultId: string | null = null;
-    
-    // 先尝试从数据库 is_default 字段获取
+    // 读取默认问卷 id：统一使用 is_default 字段
+    // 简化逻辑：只使用 is_default，不再依赖 coaches.profile.default_questionnaire_id
     const { data: defaultQuestionnaire } = await supabase
         .from("coach_questionnaires")
         .select("id")
         .eq("coach_id", coachUserId)
         .eq("is_default", true)
         .maybeSingle();
-    
-    if (defaultQuestionnaire?.id) {
-        defaultId = defaultQuestionnaire.id;
-    } else {
-        // 兼容旧数据：从 coaches.profile.default_questionnaire_id 获取
-        const { data: coachRow } = await supabase
-            .from("coaches")
-            .select("profile")
-            .eq("user_id", coachUserId)
-            .maybeSingle();
-        defaultId = (coachRow?.profile as any)?.default_questionnaire_id || null;
-        
-        // 如果从 profile 找到了，同步到 is_default（数据迁移）
-        if (defaultId) {
-            // 清除其他问卷的 is_default
-            await supabase
-                .from("coach_questionnaires")
-                .update({ is_default: false })
-                .eq("coach_id", coachUserId);
-            
-            // 设置找到的问卷为 is_default
-            await supabase
-                .from("coach_questionnaires")
-                .update({ is_default: true })
-                .eq("id", defaultId)
-                .eq("coach_id", coachUserId);
-        }
-    }
+
+    const defaultId = defaultQuestionnaire?.id || null;
 
     const { data: rows, error } = await supabase
         .from("coach_questionnaires")
-        .select("id, questions, is_active, status, name, is_default, version, created_at, updated_at")
+        .select(
+            "id, questions, is_active, name, is_default, version, created_at, updated_at",
+        )
         .eq("coach_id", coachUserId)
         .order("updated_at", { ascending: false });
 
@@ -104,16 +80,10 @@ export async function POST(req: Request) {
     }
 
     // UI 简化为固定两份：
-    // - 线上版本：status = 'active' 或 is_active = true（取最新一份，优先用 status）
-    // - 灰度版本：status = 'archived' 或 is_active = false（取最新一份，优先用 status）
-    const online = (rows || []).filter((r: any) => {
-        const status = r.status || (r.is_active ? 'active' : 'archived');
-        return status === 'active';
-    })[0] || null;
-    const draft = (rows || []).filter((r: any) => {
-        const status = r.status || (r.is_active ? 'archived' : 'active');
-        return status === 'archived';
-    })[0] || null;
+    // - 线上版本：is_active=true
+    // - 灰度版本：is_active=false
+    const online = (rows || []).find((r: any) => r.is_active === true) || null;
+    const draft = (rows || []).find((r: any) => r.is_active === false) || null;
 
     const items = [online, draft]
         .filter(Boolean)
@@ -124,7 +94,8 @@ export async function POST(req: Request) {
             version: r.version ?? null,
             created_at: r.created_at ?? null,
             updated_at: r.updated_at ?? null,
-            is_default: r.is_default || (defaultId ? r.id === defaultId : false),
+            is_default: r.is_default ||
+                (defaultId ? r.id === defaultId : false),
         }));
 
     const resp: ListQuestionnairesResponseDto = {
@@ -138,4 +109,3 @@ export async function POST(req: Request) {
         data: resp,
     });
 }
-
