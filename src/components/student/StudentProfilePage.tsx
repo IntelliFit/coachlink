@@ -3,7 +3,7 @@ import { studentService } from '@/app/service/studentService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ProfileHeaderMerged } from './profile/ProfileHeaderMerged';
 import { PersonalInfoSection } from './profile/PersonalInfoSection';
 import AccountBindingSection from './profile/AccountBindingSection';
@@ -42,10 +42,43 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     
     const [error, setError] = useState<string | null>(null);
 
-    const { data: session } = useSession();
+    const { data: session, update: updateSession } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { showToast } = useToastContext();
     const [activeTab, setActiveTab] = useState(0);
+
+    // 检测微信绑定完成状态并刷新 session
+    useEffect(() => {
+        const wechatBind = searchParams.get('wechatBind');
+        const message = searchParams.get('message');
+        
+        if (wechatBind) {
+            // 刷新 session 以获取最新的微信绑定状态
+            updateSession().catch(() => {});
+            
+            // 显示提示
+            if (wechatBind === 'success') {
+                showToast({
+                    severity: 'success',
+                    summary: '微信绑定成功',
+                    detail: message || '微信账号已成功绑定',
+                });
+            } else if (wechatBind === 'error') {
+                showToast({
+                    severity: 'error',
+                    summary: '微信绑定失败',
+                    detail: message || '请重试',
+                });
+            }
+            
+            // 清除 URL 参数，避免刷新页面时重复提示
+            const url = new URL(window.location.href);
+            url.searchParams.delete('wechatBind');
+            url.searchParams.delete('message');
+            router.replace(url.pathname + (url.search ? url.search : ''));
+        }
+    }, [searchParams, updateSession, showToast, router]);
 
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
