@@ -48,10 +48,22 @@ export async function POST(req: Request) {
 
     if (id) {
         // 更新现有问卷
+        // 保持 status 和 is_active 同步（迁移后的新逻辑）
+        const { data: existing } = await supabase
+            .from("coach_questionnaires")
+            .select("is_active, status")
+            .eq("id", id)
+            .single();
+        
+        const currentStatus = existing?.status || (existing?.is_active ? 'active' : 'archived');
+        const syncIsActive = currentStatus === 'active';
+
         const { data, error } = await supabase
             .from("coach_questionnaires")
             .update({
                 questions: normalized as any,
+                // 同步 status 和 is_active（如果 status 存在）
+                ...(existing?.status ? { status: currentStatus, is_active: syncIsActive } : {}),
             })
             .eq("id", id)
             .select()
@@ -74,10 +86,13 @@ export async function POST(req: Request) {
             },
         });
     } else {
+        // 新建问卷：默认创建为灰度版本（is_active=false, status='archived'）
         const insertData: CoachQuestionnairesInsert = {
             coach_id: userId,
             questions: normalized as any,
-        };
+            is_active: false,
+            status: 'archived',
+        } as any;
 
         const { data, error } = await supabase
             .from("coach_questionnaires")

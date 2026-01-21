@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const userId = session.user.id;
     const { data, error } = await supabase
         .from("coach_questionnaires")
-        .select("id, questions, is_active, version")
+        .select("id, questions, is_active, status, version")
         .eq("id", id)
         .eq("coach_id", userId)
         .single();
@@ -58,10 +58,14 @@ export async function POST(req: Request) {
         );
     }
 
+    // 兼容旧数据：优先使用 status，如果没有则从 is_active 推导
+    const status = data.status || (data.is_active ? 'active' : 'archived');
+    const isActive = status === 'active';
+
     const resp: GetQuestionnaireByIdResponseDto = {
         id: data.id,
         questionnaires: normalizeQuestions(data.questions),
-        is_active: Boolean(data.is_active),
+        is_active: isActive,
         version: data.version ?? null,
     };
 

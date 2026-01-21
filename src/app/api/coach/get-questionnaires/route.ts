@@ -75,13 +75,14 @@ export async function POST(req: Request) {
         userId = coach.user_id;
     }
 
-    // 获取线上问卷（is_active=true）
+    // 获取线上问卷（status='active' 或 is_active=true）
     // 规则：线上版本就是“学员订阅时应用的版本”
+    // 优先使用 status 字段（迁移后更稳定），兼容旧数据用 is_active
     const { data: questionnaire, error: questionnaireError } = await supabase
         .from("coach_questionnaires")
-        .select("id,questions,is_active,updated_at")
+        .select("id,questions,is_active,status,updated_at")
         .eq("coach_id", userId)
-        .eq("is_active", true)
+        .or("status.eq.active,is_active.eq.true")
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();

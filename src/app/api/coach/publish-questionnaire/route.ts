@@ -53,12 +53,16 @@ export async function POST(req: Request) {
         );
     }
 
-    // 1) Demote current online questionnaires
+    // 1) Demote current online questionnaires（同步 status 和 is_active）
     const { error: demoteErr } = await supabase
         .from("coach_questionnaires")
-        .update({ is_active: false, updated_at: new Date().toISOString() } as any)
+        .update({ 
+            is_active: false, 
+            status: 'archived',
+            updated_at: new Date().toISOString() 
+        } as any)
         .eq("coach_id", userId)
-        .eq("is_active", true);
+        .or("status.eq.active,is_active.eq.true");
 
     if (demoteErr) {
         console.error("[publish-questionnaire] demote failed:", demoteErr);
@@ -68,12 +72,13 @@ export async function POST(req: Request) {
         );
     }
 
-    // 2) Promote draft to online, bump version
+    // 2) Promote draft to online, bump version（同步 status 和 is_active）
     const nextVersion = (draft.version ?? 1) + 1;
     const { data: promoted, error: promoteErr } = await supabase
         .from("coach_questionnaires")
         .update({
             is_active: true,
+            status: 'active',
             version: nextVersion,
             updated_at: new Date().toISOString(),
         } as any)
