@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { sendPushToUser } from "@/lib/pushNotify";
 import type { ApiData } from "@/types/api";
 import type { SendMessageDto, SendMessageResponseDto } from "./entity";
 
@@ -35,11 +36,21 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 对于非视频引用类型，content 是必填的
-    if (messageType !== "video_reference" && !content) {
+    // 对于非视频引用类型和非图像类型，content 是必填的
+    // 图像类型允许 content 为空（纯图像消息）
+    if (messageType !== "video_reference" && messageType !== "image" && !content) {
         return NextResponse.json({
             success: false,
             message: "缺少消息内容",
+            data: null,
+        }, { status: 400 });
+    }
+
+    // 对于图像类型，mediaUrl 是必填的
+    if (messageType === "image" && !mediaUrl) {
+        return NextResponse.json({
+            success: false,
+            message: "缺少图像URL",
             data: null,
         }, { status: 400 });
     }
@@ -142,6 +153,26 @@ export async function POST(req: Request) {
             message: "更新会话状态失败",
             data: null,
         }, { status: 500 });
+    }
+
+    // 向未读成员推送系统通知（fire-and-forget，不阻塞响应；VAPID 未配置时静默跳过）
+    try {
+        const recipients = (chatRoom.members as string[]).filter((m) => m !== userId);
+        const excerpt = typeof lastMessage === "string" ? lastMessage.slice(0, 80) : "新消息";
+        if (recipients.length > 0) {
+            Promise.all(
+                recipients.map((recipientId) =>
+                    sendPushToUser(recipientId, {
+                        title: "CoachLink 新消息",
+                        body: excerpt,
+                        url: `/messages?peerUserId=${userId}`,
+                        tag: `chat-${roomId}`,
+                    }).catch(() => {})
+                )
+            ).catch(() => {});
+        }
+    } catch {
+        // VAPID 未配置等
     }
 
     return NextResponse.json<ApiData<SendMessageResponseDto>>({

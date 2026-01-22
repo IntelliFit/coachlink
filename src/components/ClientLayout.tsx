@@ -9,6 +9,7 @@ import { SessionProvider, useSession } from 'next-auth/react';
 import { GuideProvider } from '@/stores/useGuideStore';
 import { GuideManager } from '@/components/guide/GuideManager';
 import Footer from './Footer';
+import { registerSw } from '@/lib/swRegistration';
 
 // Wrapper component to access session and provide guide context
 function GuideWrapper({ children }: { children: ReactNode }) {
@@ -42,6 +43,11 @@ export default function ClientLayout({
             el.setAttribute('data-lenis-prevent', '');
         });
     };
+
+    // 注册 Service Worker（PWA / 推送）
+    useEffect(() => {
+        registerSw();
+    }, []);
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
