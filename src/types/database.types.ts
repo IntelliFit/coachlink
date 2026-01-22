@@ -56,6 +56,60 @@ export type Database = {
           },
         ]
       }
+      admin_trace_events: {
+        Row: {
+          id: string
+          event_type: string
+          user_id: string | null
+          anon_id: string | null
+          session_id: string | null
+          path: string | null
+          url: string | null
+          referrer: string | null
+          user_agent: string | null
+          properties: Json | null
+          created_at: string
+          env: string | null
+          method: string | null
+          trace_id: string | null
+          leave_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_type: string
+          user_id?: string | null
+          anon_id?: string | null
+          session_id?: string | null
+          path?: string | null
+          url?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          properties?: Json | null
+          created_at?: string
+          env?: string | null
+          method?: string | null
+          trace_id?: string | null
+          leave_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_type?: string
+          user_id?: string | null
+          anon_id?: string | null
+          session_id?: string | null
+          path?: string | null
+          url?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          properties?: Json | null
+          created_at?: string
+          env?: string | null
+          method?: string | null
+          trace_id?: string | null
+          leave_at?: string | null
+        }
+        Relationships: []
+      }
       alipay_orders: {
         Row: {
           alipay_trade_no: string | null

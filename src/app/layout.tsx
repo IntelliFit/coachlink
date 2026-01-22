@@ -11,6 +11,7 @@ import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
 import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primereact/api';
 import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
+import TraceReporter from '@/app/trace/component';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -154,6 +155,8 @@ export default function RootLayout({
                             <ProfileSetupModalProvider>
                                 <Navigation />
                             </ProfileSetupModalProvider>
+
+                            <TraceReporter />
 
                             {children}
                         </PrimeReactProvider>

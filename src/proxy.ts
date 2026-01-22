@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import * as apiTrace from "@/app/api/middleware/api-trace";
 import { getToken } from "next-auth/jwt";
 import { verifyToken } from "./lib/jwt";
 
@@ -44,9 +45,23 @@ const WECHAT_AUTH_BASE_URL = "/wechat-auth";
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
-export async function proxy(request: NextRequest) {
+function handleMiddleware(request: NextRequest) {
+    // 运行聚合中间件
     const { pathname, origin } = request.nextUrl;
 
+    const middlewares = [apiTrace];
+    for (const mw of middlewares) {
+        if (matches(pathname, mw.matcher)) {
+            // fire-and-forget，避免阻塞主逻辑
+            void mw.handle(request);
+        }
+    }
+}
+
+export async function proxy(request: NextRequest) {
+
+    handleMiddleware(request);
+    const { pathname, origin } = request.nextUrl;
     // Internal server-to-server calls (e.g. background poster rendering) can bypass auth for specific endpoints.
     // This prevents middleware from returning 401 when the caller is the backend itself (no browser session).
     if (pathname.startsWith("/api/og/")) {
@@ -163,3 +178,18 @@ export const config = {
         "/((?!_next/static|_next/image|favicon.ico|favicon.jpg|themes|images).*)",
     ],
 };
+
+function matches(pathname: string, patterns: string[]): boolean {
+    return patterns.some((pattern) => {
+        if (pattern === pathname) return true;
+        // 将 /api/:path* 转为正则
+        const regex = new RegExp(
+            "^" +
+            pattern
+                .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+                .replace(/:path\*/g, ".*") +
+            "$",
+        );
+        return regex.test(pathname);
+    });
+}
