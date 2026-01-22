@@ -43,13 +43,18 @@ export default function NavigationStudent() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
-    const { openOnboardingModal, clearOnboardingSuppression } = useOnboardingModal();
+    const { openOnboardingModal, clearOnboardingSuppression, isOnboardingModalOpen } = useOnboardingModal();
     const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
     const [visibleLeft, setVisibleLeft] = useState(false); // 控制侧边菜单显示
     const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+    // 使用 useRef 记录已检查过的 profile 状态，避免重复检查（不会触发重新渲染）
+    const checkedProfileStateRef = useRef<{
+        profileId?: string;
+        onboardingCompleted?: boolean;
+    } | null>(null);
 
     useEffect(() => {
         setIsClient(true);
@@ -69,6 +74,7 @@ export default function NavigationStudent() {
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) {
             setProfile(null);
+            checkedProfileStateRef.current = null; // 重置检查标记
             return;
         }
         const loadProfile = async () => {
@@ -84,16 +90,47 @@ export default function NavigationStudent() {
         loadProfile();
     }, [status, session?.user?.id]);
 
+    // 检查 onboarding 完成状态（优化后的逻辑）
     useEffect(() => {
+        // 等待认证状态加载完成
         if (status === 'loading') return;
-        if (session?.user && profile) {
-            if (profile.onboarding_completed === true) {
-                clearOnboardingSuppression();
-            } else {
-                openOnboardingModal();
-            }
+        
+        // 确保有用户和 profile 数据
+        if (!session?.user || !profile) return;
+        
+        // 如果弹窗已经打开，不要重复触发
+        if (isOnboardingModalOpen) return;
+        
+        // 检查是否已经检查过相同的 profile 状态
+        // 只有当 profile.id 或 onboarding_completed 发生变化时才重新检查
+        const currentState = {
+            profileId: profile.id,
+            onboardingCompleted: profile.onboarding_completed
+        };
+        
+        const previousState = checkedProfileStateRef.current;
+        if (previousState && 
+            previousState.profileId === currentState.profileId &&
+            previousState.onboardingCompleted === currentState.onboardingCompleted) {
+            // 已经检查过相同的状态，不需要重复检查
+            return;
         }
-    }, [session, profile, status, openOnboardingModal, clearOnboardingSuppression]);
+        
+        // 标记为已检查当前状态
+        checkedProfileStateRef.current = currentState;
+        
+        // 严格判断：只有明确为 true 时才认为已完成
+        if (profile.onboarding_completed === true) {
+            clearOnboardingSuppression();
+            return;
+        }
+        
+        // 只有在 onboarding_completed 明确不是 true 时才打开弹窗
+        // 注意：这里不判断 null/undefined，因为可能是新用户还没有 profile
+        if (profile.onboarding_completed === false || profile.onboarding_completed === null || profile.onboarding_completed === undefined) {
+            openOnboardingModal();
+        }
+    }, [session?.user?.id, profile?.id, profile?.onboarding_completed, status, isOnboardingModalOpen, clearOnboardingSuppression, openOnboardingModal]);
 
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) return;
