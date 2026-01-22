@@ -7,6 +7,7 @@ import { Button } from 'primereact/button';
 import { useToastContext } from '@/context/ToastContext';
 import { authService } from '@/app/service/authService';
 import { smsService } from '@/app/service/smsService';
+import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { Phone, Lock, ShieldCheck, Send, RotateCcw } from 'lucide-react';
 
 interface ResetPasswordFormProps {
@@ -23,6 +24,7 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [sendingCode, setSendingCode] = useState(false);
+    const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false);
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
@@ -32,24 +34,30 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
         return () => clearTimeout(timer);
     }, [countdown]);
 
-    const sendVerificationCode = async () => {
-        if (!/^1[3-9]\d{9}$/.test(phone)) {
-            showToast({ severity: 'warn', summary: '请输入正确的手机号' });
-            return;
-        }
+    const handleCaptchaSuccess = async (token: string) => {
         setSendingCode(true);
         try {
             if (process.env.NODE_ENV === 'development') {
                 setCountdown(60);
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
-                await smsService.sendVerificationCode({ phoneNumber: phone });
+                await smsService.sendVerificationCode({ phoneNumber: phone, captchaToken: token });
                 setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '发送失败', detail: error.message });
-        } finally { setSendingCode(false); }
+        } finally {
+            setSendingCode(false);
+        }
+    };
+
+    const sendVerificationCode = () => {
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号' });
+            return;
+        }
+        setSliderCaptchaVisible(true);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +89,7 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
     };
 
     return (
+        <>
         <div className="w-full">
             <div className="mb-8 text-center md:text-left">
                 <h2 className="text-2xl font-bold text-surface-900 mb-2">重置密码</h2>
@@ -119,7 +128,7 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
                         <button
                             type="button"
                             onClick={sendVerificationCode}
-                            disabled={countdown > 0 || sendingCode || !phone}
+                            disabled={countdown > 0 || sendingCode || sliderCaptchaVisible || !phone}
                             className="px-5 rounded-2xl text-sm font-bold border border-primary-100 text-primary-600 hover:bg-primary-50 disabled:opacity-50 transition-all min-w-[120px] flex items-center justify-center gap-2"
                         >
                             {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : <><Send size={16} /> 获取</>}
@@ -193,5 +202,11 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
                 </div>
             </form>
         </div>
+        <SliderCaptcha
+            visible={sliderCaptchaVisible}
+            onHide={() => setSliderCaptchaVisible(false)}
+            onSuccess={handleCaptchaSuccess}
+        />
+        </>
     );
 }

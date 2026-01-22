@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react';
 import { userService } from '@/app/service/userService';
 import { smsService } from '@/app/service/smsService';
 import { sesService } from '@/app/service/sesService';
+import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { Lock, Phone, Mail, ShieldCheck } from 'lucide-react';
 
 type VerifyType = 'phone' | 'email';
@@ -43,6 +44,7 @@ export default function ChangePasswordForm() {
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [countdown, setCountdown] = useState(0);
+    const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false);
 
     useEffect(() => {
         if (countdown <= 0) return;
@@ -75,19 +77,14 @@ export default function ChangePasswordForm() {
         return emailRegex.test(currentContactValue);
     }, [verifyType, currentContactValue]);
 
-    const handleSendCode = async () => {
-        if (!verifyType || !currentContactValue) {
-            showToast({ severity: 'warn', summary: '请先选择验证方式' });
-            return;
-        }
-        if (countdown > 0) return;
-
+    const handleCaptchaSuccess = async (token: string) => {
+        if (!verifyType || !currentContactValue) return;
         setSending(true);
         try {
             if (verifyType === 'phone') {
-                await smsService.sendVerificationCode({ phoneNumber: currentContactValue });
+                await smsService.sendVerificationCode({ phoneNumber: currentContactValue, captchaToken: token });
             } else {
-                await sesService.sendVerificationCode({ email: currentContactValue });
+                await sesService.sendVerificationCode({ email: currentContactValue, captchaToken: token });
             }
             setCountdown(60);
             showToast({ severity: 'success', summary: '验证码已发送' });
@@ -96,6 +93,15 @@ export default function ChangePasswordForm() {
         } finally {
             setSending(false);
         }
+    };
+
+    const handleSendCode = () => {
+        if (!verifyType || !currentContactValue) {
+            showToast({ severity: 'warn', summary: '请先选择验证方式' });
+            return;
+        }
+        if (countdown > 0) return;
+        setSliderCaptchaVisible(true);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -152,6 +158,7 @@ export default function ChangePasswordForm() {
     }
 
     return (
+        <>
         <div className="bg-surface rounded-2xl shadow-sm border border-surface-200 p-4 sm:p-6">
             <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm sm:text-lg font-black text-surface-900 flex items-center gap-2">
@@ -234,7 +241,7 @@ export default function ChangePasswordForm() {
                                     <Button
                                         type="button"
                                         onClick={handleSendCode}
-                                        disabled={sending || countdown > 0 || !canSend}
+                                        disabled={sending || countdown > 0 || sliderCaptchaVisible || !canSend}
                                         className="h-9 px-4 rounded-xl bg-surface border border-surface-200 text-surface-700 font-black hover:border-primary-400 hover:text-primary-600 transition-all shrink-0"
                                     >
                                         {sending ? '发送中…' : countdown > 0 ? `${countdown}s` : '发送验证码'}
@@ -317,5 +324,11 @@ export default function ChangePasswordForm() {
                 </div>
             </form>
         </div>
+        <SliderCaptcha
+            visible={sliderCaptchaVisible}
+            onHide={() => setSliderCaptchaVisible(false)}
+            onSuccess={handleCaptchaSuccess}
+        />
+        </>
     );
 }

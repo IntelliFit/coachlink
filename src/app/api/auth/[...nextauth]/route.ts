@@ -2,7 +2,7 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import OAuthProvider from "next-auth/providers/oauth";
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { verifyPassword } from "./verify";
 import redis from "@/lib/redisClient";
 import { getWhiteList } from "@/lib/devUsers";
@@ -108,41 +108,25 @@ export const authOptions: AuthOptions = {
                     throw new Error("请输入正确的手机号或邮箱格式");
                 }
 
-                // 查询用户（两种登录方式都需要）
-                let userQuery;
-                if (isPhone) {
-                    userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).single();
-                } else {
-                    userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).single();
-                }
-
-                const { data: user, error: userError } = await userQuery;
-
-                if (userError) {
-                    throw new Error("登录失败\n" + userError.message);
-                }
-
-                // 方式 1：验证码登录（手机号/邮箱 + 验证码）
+                // 方式 1：验证码登录（手机号/邮箱 + 验证码）；未注册则直接注册并登录
                 if (verifyCode && !password) {
-                    // 如果是开发者模式 获取白名单（白名单跳过验证码校验）
+                    if (verifyCode.length !== 6) {
+                        throw new Error("验证码错误");
+                    }
+
+                    // 先校验验证码（通过后再查用户，未注册则自动注册）
                     const whiteList = getWhiteList();
                     const isInWhiteList = whiteList.some((u) => u.phone === phoneOrEmail);
-
                     if (!isInWhiteList) {
-                        // 开发模式下接受模拟验证码 123456
                         const useMockSms = process.env.NODE_ENV === "development";
                         const isMockCode = useMockSms && verifyCode === "123456";
-
                         if (!isMockCode) {
                             if (!redis) {
                                 throw new Error("验证服务不可用");
                             }
-
-                            // 根据是手机号还是邮箱来查询验证码
                             const verificationKey = isPhone
                                 ? `sms_verification_code:${phoneOrEmail}`
                                 : `email_verification_code:${phoneOrEmail}`;
-
                             const storedCode = await redis.get(verificationKey);
                             if (!storedCode) {
                                 throw new Error("验证码已过期或不存在");
@@ -150,28 +134,83 @@ export const authOptions: AuthOptions = {
                             if (storedCode !== verifyCode) {
                                 throw new Error("验证码错误");
                             }
-
-                            // 验证成功后删除验证码，防止重复使用
                             await redis.del(verificationKey);
                         }
                     }
 
-                    (user as any).password_hash = undefined;
-                    
-                    // 同时获取用户档案，避免在 jwt/session callback 中访问数据库
-                    const { data: profile } = await supabase
+                    let userQuery;
+                    if (isPhone) {
+                        userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).maybeSingle();
+                    } else {
+                        userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).maybeSingle();
+                    }
+                    const { data: user, error: userError } = await userQuery;
+                    if (userError) {
+                        throw new Error("登录失败，请稍后重试");
+                    }
+
+                    let resolvedUser: any;
+                    if (user) {
+                        resolvedUser = user;
+                    } else {
+                        // 未注册：自动创建用户 + 档案（使用 service role 绕过 RLS）
+                        const { data: newUser, error: createError } = await serviceRoleSupabase
+                            .from("users")
+                            .insert({
+                                ...(isPhone ? { phone: phoneOrEmail } : { email: phoneOrEmail }),
+                                password_hash: "",
+                                is_admin: false,
+                                is_coach: false,
+                            })
+                            .select("*")
+                            .single();
+                        if (createError || !newUser) {
+                            throw new Error("注册失败，请稍后重试");
+                        }
+                        const nickname = isPhone
+                            ? `手机用户_${phoneOrEmail.slice(-4)}`
+                            : `邮箱用户_${(phoneOrEmail.split("@")[0] || "").slice(0, 8)}`;
+                        const { error: profileErr } = await serviceRoleSupabase
+                            .from("user_profiles")
+                            .insert({
+                                user_id: newUser.id,
+                                nickname,
+                                bio: "",
+                            })
+                            .select()
+                            .single();
+                        if (profileErr) {
+                            console.error("创建用户档案失败:", profileErr);
+                        }
+                        resolvedUser = newUser;
+                    }
+
+                    (resolvedUser as any).password_hash = undefined;
+                    const { data: profile } = await serviceRoleSupabase
                         .from("user_profiles")
                         .select("*")
-                        .eq("user_id", user.id)
+                        .eq("user_id", resolvedUser.id)
                         .single();
-                    
                     return {
-                        ...user,
+                        ...resolvedUser,
                         profile: profile || undefined,
                     };
                 }
 
                 // 方式 2：密码登录（手机号/邮箱 + 密码）
+                let userQuery;
+                if (isPhone) {
+                    userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).maybeSingle();
+                } else {
+                    userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).maybeSingle();
+                }
+                const { data: user, error: userError } = await userQuery;
+                if (userError) {
+                    throw new Error("登录失败，请稍后重试");
+                }
+                if (!user) {
+                    throw new Error("该手机号/邮箱未注册");
+                }
                 if (password && !verifyCode) {
                     const isValid = verifyPassword(password, user.password_hash);
                     if (!isValid) {

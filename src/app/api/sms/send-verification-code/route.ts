@@ -14,10 +14,10 @@ const THROTTLE_TIME = 30;
 export async function POST(req: Request) {
     try {
         const {
-            phoneNumber
+            phoneNumber,
+            captchaToken,
         } = await req.json() as SendVerificationCodeDto;
 
-        // 参数校验
         if (!phoneNumber) {
             return NextResponse.json<ApiData<SendVerificationCodeResponseDto>>({
                 success: false,
@@ -26,10 +26,6 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        // 获取客户端IP地址
-        const clientIp = (req.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0].trim();
-
-        // 检查Redis连接
         if (!redis) {
             return NextResponse.json<ApiData<SendVerificationCodeResponseDto>>({
                 success: false,
@@ -37,6 +33,27 @@ export async function POST(req: Request) {
                 data: null
             }, { status: 500 });
         }
+
+        if (!captchaToken) {
+            return NextResponse.json<ApiData<SendVerificationCodeResponseDto>>({
+                success: false,
+                message: "请先完成滑块验证",
+                data: null
+            }, { status: 400 });
+        }
+        const tokenKey = `captcha:token:${captchaToken}`;
+        const tokenValid = await redis.get(tokenKey);
+        await redis.del(tokenKey);
+        if (!tokenValid) {
+            return NextResponse.json<ApiData<SendVerificationCodeResponseDto>>({
+                success: false,
+                message: "验证已过期，请重新完成滑块验证",
+                data: null
+            }, { status: 400 });
+        }
+
+        // 获取客户端IP地址
+        const clientIp = (req.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0].trim();
 
         // 检查手机号节流限制
         const phoneThrottleKey = `throttle:sms:${phoneNumber}`;
