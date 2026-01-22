@@ -101,6 +101,14 @@ export default function RegisterPage() {
         loadDocs();
     }, []);
 
+    // 禁用 body 滚动，避免出现双滚动条
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, []);
+
     useEffect(() => {
         let timer: NodeJS.Timeout;
         if (countdown > 0) {
