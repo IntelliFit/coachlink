@@ -36,6 +36,14 @@ const Footer: React.FC<FooterProps> = ({
                         <p className="text-[11px] font-bold text-surface-400 uppercase tracking-widest mt-1">
                             &copy; 2025-{new Date().getFullYear()} 保留所有权利
                         </p>
+                        <a 
+                            href="https://beian.miit.gov.cn/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-medium text-surface-400 hover:text-primary-500 transition-colors mt-1"
+                        >
+                            京ICP备2025141637号-1
+                        </a>
                     </div>
 
                     {/* 右侧：功能链接 */}
