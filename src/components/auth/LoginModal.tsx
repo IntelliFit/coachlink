@@ -42,6 +42,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [sendingCode, setSendingCode] = useState(false);
     const [wechatAuthUrl, setWechatAuthUrl] = useState<string | null>(null);
     const [showWechatQr, setShowWechatQr] = useState(false);
+    const [quickUserId, setQuickUserId] = useState(''); // 快速接入：用户 ID 输入
 
     // 重置视图状态当弹窗关闭
     useEffect(() => {
@@ -55,6 +56,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 setVerificationCode('');
                 setWechatAuthUrl(null);
                 setShowWechatQr(false);
+                setQuickUserId('');
             }, 300);
             return () => clearTimeout(timer);
         }
@@ -206,6 +208,34 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         } finally { setLoading(false); }
     };
 
+    const handleQuickLoginByUserId = async () => {
+        const trimmedUserId = quickUserId.trim();
+        if (!trimmedUserId) {
+            showToast({ severity: 'warn', summary: '请输入用户 ID' });
+            return;
+        }
+        setLoading(true);
+        try {
+            const result = await signIn('credentials', {
+                userId: trimmedUserId,
+                redirect: false,
+                callbackUrl: '/today-training',
+            });
+            if (result?.error) {
+                showToast({ severity: 'error', summary: '登录失败', detail: result.error });
+            } else {
+                onClose(false);
+                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                    router.push('/');
+                } else {
+                    router.refresh();
+                }
+            }
+        } catch (error: any) {
+            showToast({ severity: 'error', summary: '登录失败', detail: error.message });
+        } finally { setLoading(false); }
+    };
+
     return (
         <Dialog
             visible={isOpen}
@@ -260,19 +290,48 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     </div>
 
                     {/* 开发模式快捷入口 - 仅在登录页显示 */}
-                    {currentView === 'login' && process.env.NODE_ENV === 'development' && devUsers.length > 0 && (
-                        <div className="relative z-10 pt-8 border-t border-surface-200">
+                    {currentView === 'login' && process.env.NODE_ENV === 'development' && (
+                        <div className="relative z-10 pt-8 border-t border-surface-200 space-y-4">
                             <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-4">快速接入 (Dev)</p>
-                            <div className="flex flex-wrap gap-2">
-                                {devUsers.map((user, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleQuickLogin(user)}
-                                        className="px-3 py-1.5 text-xs bg-surface border border-surface-200 rounded-lg text-surface-600 hover:border-primary-500 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
+                            
+                            {/* 预设开发用户列表 */}
+                            {devUsers.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {devUsers.map((user, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleQuickLogin(user)}
+                                            className="px-3 py-1.5 text-xs bg-surface border border-surface-200 rounded-lg text-surface-600 hover:border-primary-500 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
+                                        >
+                                            {user.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* 通过用户 ID 快速登录 */}
+                            <div className="space-y-2">
+                                <div className="flex gap-2 flex-col">
+                                    <InputText
+                                        value={quickUserId}
+                                        onChange={(e) => setQuickUserId(e.target.value)}
+                                        placeholder="输入用户 ID"
+                                        className="flex-1 text-xs py-2 px-3 bg-surface border border-surface-200 rounded-lg"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleQuickLoginByUserId();
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        onClick={handleQuickLoginByUserId}
+                                        loading={loading}
+                                        disabled={!quickUserId.trim()}
+                                        className="px-3 py-2 text-xs bg-primary-500 border-none rounded-lg text-white hover:bg-primary-600 transition-all active:scale-95 shadow-sm"
                                     >
-                                        {user.name}
-                                    </button>
-                                ))}
+                                        快速登录
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}

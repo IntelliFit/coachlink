@@ -16,12 +16,39 @@ export const authOptions: AuthOptions = {
                 password: { label: "Password", type: "password" },
                 verifyCode: { label: "verifyCode", type: "text" },
                 wechatLoginToken: { label: "wechatLoginToken", type: "text" },
+                userId: { label: "UserId", type: "text" }, // 快速接入：通过用户 ID 直接登录
             },
             async authorize(credentials) {
                 const phoneOrEmail = credentials?.phoneOrEmail?.trim();
                 const password = credentials?.password?.trim();
                 const verifyCode = credentials?.verifyCode?.trim();
                 const wechatLoginToken = credentials?.wechatLoginToken?.trim();
+                const userId = credentials?.userId?.trim();
+
+                // 方式 0.5：快速接入 - 通过用户 ID 直接登录（无需密码或验证码）
+                if (userId) {
+                    const { data: user, error: userError } = await supabase
+                        .from("users")
+                        .select("*")
+                        .eq("id", userId)
+                        .single();
+
+                    if (userError || !user) {
+                        throw new Error("用户不存在");
+                    }
+
+                    (user as any).password_hash = undefined;
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .single();
+
+                    return {
+                        ...user,
+                        profile: profile || undefined,
+                    };
+                }
 
                 // 方式 0：微信内嵌二维码登录（一次性 token）
                 if (wechatLoginToken) {
