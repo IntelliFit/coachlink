@@ -12,6 +12,7 @@ import { signIn } from 'next-auth/react';
 import { smsService } from '@/app/service/smsService';
 import { Phone, Lock, ShieldCheck, X, LogIn, Send, User } from 'lucide-react';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
+import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { sesService } from '@/app/service/sesService';
 import WechatIcon from '@/components/icons/wechat';
 
@@ -43,6 +44,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [wechatAuthUrl, setWechatAuthUrl] = useState<string | null>(null);
     const [showWechatQr, setShowWechatQr] = useState(false);
     const [quickUserId, setQuickUserId] = useState(''); // 快速接入：用户 ID 输入
+    const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false);
 
     // 重置视图状态当弹窗关闭
     useEffect(() => {
@@ -57,6 +59,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 setWechatAuthUrl(null);
                 setShowWechatQr(false);
                 setQuickUserId('');
+                setSliderCaptchaVisible(false);
             }, 300);
             return () => clearTimeout(timer);
         }
@@ -103,15 +106,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         return () => clearTimeout(timer);
     }, [countdown]);
 
-    const sendVerificationCode = async () => {
-        // Check if input is a valid phone number or email
+    const handleCaptchaSuccess = async (token: string) => {
         const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
-
-        if (!isPhone && !isEmail) {
-            showToast({ severity: 'warn', summary: isPhone ? '请输入正确的手机号' : '请输入正确的邮箱地址' });
-            return;
-        }
         setSendingCode(true);
         try {
             if (process.env.NODE_ENV === 'development') {
@@ -119,16 +116,28 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
                 if (isEmail) {
-                    await sesService.sendVerificationCode({ email: phoneOrEmail });
+                    await sesService.sendVerificationCode({ email: phoneOrEmail, captchaToken: token });
                 } else {
-                    await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
+                    await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail, captchaToken: token });
                 }
                 setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '发送失败', detail: error.message });
-        } finally { setSendingCode(false); }
+        } finally {
+            setSendingCode(false);
+        }
+    };
+
+    const sendVerificationCode = () => {
+        const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
+        if (!isPhone && !isEmail) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号或邮箱' });
+            return;
+        }
+        setSliderCaptchaVisible(true);
     };
 
     const handleLogin = async (e?: React.FormEvent) => {
@@ -155,35 +164,29 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
         setLoading(true);
         try {
-            const result = await signIn('credentials',
-                loginMode === 'password'
-                    ? {
-                        phoneOrEmail: trimmedPhoneOrEmail,
-                        password: trimmedPassword,
-                        callbackUrl: '/today-training'
-                    }
-                    : {
-                        phoneOrEmail: trimmedPhoneOrEmail,
-                        verifyCode: trimmedCode,
-                        callbackUrl: '/today-training'
-                    }
-            );
+            const result = await signIn('credentials', {
+                redirect: false,
+                callbackUrl: '/today-training',
+                ...(loginMode === 'password'
+                    ? { phoneOrEmail: trimmedPhoneOrEmail, password: trimmedPassword }
+                    : { phoneOrEmail: trimmedPhoneOrEmail, verifyCode: trimmedCode }
+                ),
+            });
             if (result?.error) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
+                return;
+            }
+            onClose(false);
+            if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                router.push('/today-training');
             } else {
-                // Close modal and redirect to dashboard/home after successful login
-                onClose(false);
-
-                // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
-                // if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                //     router.push('/today-training');
-                // } else {
-                //     router.refresh();
-                // }
+                router.refresh();
             }
         } catch (error: any) {
-            showToast({ severity: 'error', summary: '登录失败' });
-        } finally { setLoading(false); }
+            showToast({ severity: 'error', summary: '登录失败', detail: error?.message });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleQuickLogin = async (user: DevUser) => {
@@ -237,6 +240,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     };
 
     return (
+        <>
         <Dialog
             visible={isOpen}
             onHide={() => onClose(true)}
@@ -445,7 +449,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                                 <button
                                                     type="button"
                                                     onClick={sendVerificationCode}
-                                                    disabled={countdown > 0 || sendingCode || !phoneOrEmail.trim()}
+                                                    disabled={countdown > 0 || sendingCode || sliderCaptchaVisible || !phoneOrEmail.trim()}
                                                     className="px-6 rounded-2xl text-sm font-bold bg-surface border text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
                                                 >
                                                     {sendingCode ? '...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
@@ -554,5 +558,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
             </div>
         </Dialog>
+        <SliderCaptcha
+            visible={sliderCaptchaVisible}
+            onHide={() => setSliderCaptchaVisible(false)}
+            onSuccess={handleCaptchaSuccess}
+        />
+        </>
     );
 }

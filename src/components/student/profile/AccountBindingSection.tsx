@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react';
 import { Mail, Phone, Link2, ShieldCheck, X } from 'lucide-react';
 import { useToastContext } from '@/context/ToastContext';
 import WechatIcon from '@/components/icons/wechat';
+import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { smsService } from '@/app/service/smsService';
 import { sesService } from '@/app/service/sesService';
 import { userService } from '@/app/service/userService';
@@ -74,7 +75,25 @@ export default function AccountBindingSection() {
         return emailRegex.test(v);
     }, [contactType, contactValue]);
 
-    const handleSendCode = async () => {
+    const handleCaptchaSuccess = async (token: string) => {
+        const v = contactValue.trim();
+        setSending(true);
+        try {
+            if (contactType === 'phone') {
+                await smsService.sendVerificationCode({ phoneNumber: v, captchaToken: token });
+            } else {
+                await sesService.sendVerificationCode({ email: v, captchaToken: token });
+            }
+            setCountdown(60);
+            showToast({ severity: 'success', summary: '验证码已发送' });
+        } catch (e: any) {
+            showToast({ severity: 'error', summary: '发送失败', detail: e?.message || '请稍后重试' });
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const handleSendCode = () => {
         const v = contactValue.trim();
         if (!canSend) {
             showToast({
@@ -84,21 +103,7 @@ export default function AccountBindingSection() {
             return;
         }
         if (countdown > 0) return;
-
-        setSending(true);
-        try {
-            if (contactType === 'phone') {
-                await smsService.sendVerificationCode({ phoneNumber: v });
-            } else {
-                await sesService.sendVerificationCode({ email: v });
-            }
-            setCountdown(60);
-            showToast({ severity: 'success', summary: '验证码已发送' });
-        } catch (e: any) {
-            showToast({ severity: 'error', summary: '发送失败', detail: e?.message || '请稍后重试' });
-        } finally {
-            setSending(false);
-        }
+        setSliderCaptchaVisible(true);
     };
 
     const handleConfirmBind = async () => {
@@ -345,6 +350,11 @@ export default function AccountBindingSection() {
                     </div>
                 </div>
             </Dialog>
+            <SliderCaptcha
+                visible={sliderCaptchaVisible}
+                onHide={() => setSliderCaptchaVisible(false)}
+                onSuccess={handleCaptchaSuccess}
+            />
         </>
     );
 }

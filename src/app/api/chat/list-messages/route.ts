@@ -19,12 +19,9 @@ export async function POST(req: Request) {
     }
 
     const userId = session.user.id;
-    const {
-        roomId,
-        page = 1,
-        limit = 50,
-        beforeId,
-    } = await req.json() as GetMessagesDto;
+    const body = await req.json() as GetMessagesDto;
+    const { roomId, beforeId } = body;
+    const limit = Math.min(body.limit ?? 50, 50);
 
     if (!roomId) {
         return NextResponse.json({
@@ -88,6 +85,8 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    const hasMore = messages.length === limit;
+
     if (!messages || messages.length === 0) {
         return NextResponse.json<ApiData<GetMessagesResponseDto>>({
             success: true,
@@ -95,7 +94,7 @@ export async function POST(req: Request) {
             data: {
                 messages: [],
                 has_more: false,
-                total: 0,
+                total: count ?? 0,
             },
         });
     }
@@ -139,8 +138,8 @@ export async function POST(req: Request) {
         message: "获取消息成功",
         data: {
             messages: returnChatMessages,
-            has_more: messages.length === limit,
-            total: count || 0,
+            has_more: hasMore,
+            total: count ?? 0,
         },
     });
 }

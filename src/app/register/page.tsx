@@ -14,6 +14,7 @@ import { Phone, ShieldCheck, ArrowLeft, UserPlus, User, Lock, Dumbbell, KeyRound
 import MarkdownIt from 'markdown-it';
 import { sesService } from '../service/sesService';
 import { signIn, useSession } from 'next-auth/react';
+import SliderCaptcha from '@/components/auth/SliderCaptcha';
 
 const fetchMarkdown = async (filename: string) => {
     const md = new MarkdownIt({
@@ -44,6 +45,7 @@ export default function RegisterPage() {
 
     const [loading, setLoading] = useState(false);
     const [sendingCode, setSendingCode] = useState(false);
+    const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false);
     const [showUserAgreement, setShowUserAgreement] = useState(false);
     const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
     const [terms, setTerms] = useState<string>('');
@@ -182,21 +184,15 @@ export default function RegisterPage() {
         }
     };
 
-    const sendVerificationCode = async () => {
-        // Check if input is a valid phone number or email
+    const handleCaptchaSuccess = async (token: string) => {
         const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
-
-        if (!isPhone && !isEmail) {
-            showToast({ severity: 'warn', summary: isPhone ? '手机号格式错误' : '邮箱格式错误' });
-            return;
-        }
         setSendingCode(true);
         try {
             if (isEmail) {
-                await sesService.sendVerificationCode({ email: phoneOrEmail });
+                await sesService.sendVerificationCode({ email: phoneOrEmail, captchaToken: token });
             } else {
-                await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
+                await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail, captchaToken: token });
             }
             setCountdown(60);
             showToast({ severity: 'success', summary: '验证码已发送' });
@@ -205,6 +201,16 @@ export default function RegisterPage() {
         } finally {
             setSendingCode(false);
         }
+    };
+
+    const sendVerificationCode = () => {
+        const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
+        if (!isPhone && !isEmail) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号或邮箱' });
+            return;
+        }
+        setSliderCaptchaVisible(true);
     };
 
     return (
@@ -354,7 +360,7 @@ export default function RegisterPage() {
                         <button
                             type="button"
                             onClick={sendVerificationCode}
-                            disabled={countdown > 0 || sendingCode || !phoneOrEmail.trim()}
+                            disabled={countdown > 0 || sendingCode || sliderCaptchaVisible || !phoneOrEmail.trim()}
                             className="px-6 rounded-2xl text-sm font-bold bg-surface border text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
                         >
                             {sendingCode ? '...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
@@ -441,6 +447,12 @@ export default function RegisterPage() {
                         />
                     </div>
                 </Dialog>
+
+                <SliderCaptcha
+                    visible={sliderCaptchaVisible}
+                    onHide={() => setSliderCaptchaVisible(false)}
+                    onSuccess={handleCaptchaSuccess}
+                />
             </div>
 
         </div>
