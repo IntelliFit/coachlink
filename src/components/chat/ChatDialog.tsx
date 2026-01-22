@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
@@ -44,6 +44,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     const eventSourceRef = useRef<EventSource | null>(null);
     const userMap = useRef<Record<string, { name: string; avatar: string | null }>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const loadingMoreRef = useRef(false);
 
     // 获取当前用户档案
     useEffect(() => {
@@ -85,13 +86,15 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         loadUserProfiles();
     }, [visible, chatroom, session, profile]);
 
-    // 2. 加载历史消息
+    // 2. 初始化加载最近 50 条消息
     useEffect(() => {
         if (!visible || !chatroom?.id) return;
         const fetchChat = async () => {
             setLoading(true);
+            setMessages([]);
+            setHasMore(false);
             try {
-                const messagesRes = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
+                const messagesRes = await chatService.listMessages({ roomId: chatroom.id, limit: 50 });
                 if (messagesRes) {
                     setMessages(messagesRes.messages);
                     setHasMore(messagesRes.has_more);
@@ -137,31 +140,28 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         return () => { es.close(); eventSourceRef.current = null; };
     }, [visible, chatroom?.id, session?.user?.id]);
 
-    // 滚动到底部（仅在初始加载或新消息时）
+    // 滚动到底部（仅初始加载完成时；加载更多历史不触发）
     useEffect(() => {
-        // 只在初始加载完成或发送新消息时滚动到底部
-        if (!loading && messages.length > 0) {
-            // 延迟一下确保 DOM 更新完成
-            setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
-        }
+        if (loading || messages.length === 0) return;
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
     }, [loading]);
 
-    // 加载更多历史消息
-    const loadMoreMessages = async () => {
-        if (!chatroom?.id || loadingMore || !hasMore || messages.length === 0) return;
-
-        const oldestMessage = messages[0]; // 第一条消息是最早的
+    // 向上滚动加载更多历史消息（每次最多 50 条，无限回滚）
+    const loadMoreMessages = useCallback(async () => {
+        if (!chatroom?.id || loadingMoreRef.current || !hasMore || messages.length === 0) return;
+        const oldestMessage = messages[0];
         if (!oldestMessage) return;
 
+        loadingMoreRef.current = true;
         setLoadingMore(true);
 
-        try {
-            // 保存当前滚动位置
-            const container = messagesContainerRef.current;
-            const scrollHeightBefore = container?.scrollHeight || 0;
+        const container = messagesContainerRef.current;
+        const scrollHeightBefore = container?.scrollHeight ?? 0;
+        const scrollTopBefore = container?.scrollTop ?? 0;
 
+        try {
             const messagesRes = await chatService.listMessages({
                 roomId: chatroom.id,
                 limit: 50,
@@ -169,46 +169,49 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
             });
 
             if (messagesRes && messagesRes.messages.length > 0) {
-                // 将新消息添加到列表开头
                 setMessages(prev => [...messagesRes.messages, ...prev]);
                 setHasMore(messagesRes.has_more);
 
-                // 恢复滚动位置
-                setTimeout(() => {
-                    if (container) {
-                        const scrollHeightAfter = container.scrollHeight;
-                        const scrollDiff = scrollHeightAfter - scrollHeightBefore;
-                        container.scrollTop = scrollDiff;
-                    }
-                }, 50);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const el = messagesContainerRef.current;
+                        if (el) {
+                            const scrollHeightAfter = el.scrollHeight;
+                            const added = scrollHeightAfter - scrollHeightBefore;
+                            el.scrollTop = scrollTopBefore + added;
+                        }
+                        setLoadingMore(false);
+                        loadingMoreRef.current = false;
+                    });
+                });
             } else {
                 setHasMore(false);
+                setLoadingMore(false);
+                loadingMoreRef.current = false;
             }
         } catch (error) {
             console.error('加载更多消息失败:', error);
             showToast({ severity: 'error', summary: '加载失败，请稍后重试' });
-        } finally {
             setLoadingMore(false);
+            loadingMoreRef.current = false;
         }
-    };
+    }, [chatroom?.id, hasMore, messages, showToast]);
 
-    // 监听滚动事件，当滚动到顶部时加载更多
+    // 向上滚动到顶部附近时加载更多历史
     useEffect(() => {
         const container = messagesContainerRef.current;
-        if (!container || !hasMore) return;
+        if (!container || !hasMore || loading) return;
 
         const handleScroll = () => {
-            // 当滚动到顶部附近（距离顶部 100px 内）时加载更多
-            if (container.scrollTop <= 100 && !loadingMore && hasMore) {
+            if (loadingMoreRef.current || !hasMore) return;
+            if (container.scrollTop <= 120) {
                 loadMoreMessages();
             }
         };
 
-        container.addEventListener('scroll', handleScroll);
-        return () => {
-            container.removeEventListener('scroll', handleScroll);
-        };
-    }, [hasMore, loadingMore, messages.length]);
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [hasMore, loading, loadMoreMessages]);
 
     const sendMessage = async () => {
         if (sending || !messageText.trim() || !chatroom) return;
