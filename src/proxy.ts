@@ -7,8 +7,6 @@ const PUBLIC_PATHS = new Set([
     "/",
     "/login",
     "/register",
-    // 微信网页登录回调桥接页：OAuth 完成后会在 iframe 中访问该页面用于 postMessage 通知父页面
-    // 该页面不应被鉴权中间件重定向到 /login，否则会出现短暂的登录页/错误提示闪现
     "/wechat-auth/bridge",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
@@ -28,6 +26,7 @@ const PUBLIC_PATHS = new Set([
     "/contact",
     "/docs/contact.md",
     "/site.webmanifest",
+    "/sw.js", // Service Worker，须可匿名拉取以便注册
     "/sitemap.xml",
     "/BingSiteAuth.xml",
     '/baidu_verify_codeva-xPfI6tYHyK.html',
@@ -56,6 +55,11 @@ export async function proxy(request: NextRequest) {
         if (internalKey && provided && provided === internalKey) {
             return NextResponse.next();
         }
+    }
+
+    // 如果是 /icons/ 开头的，直接放行
+    if (pathname.startsWith("/icons/")) {
+        return NextResponse.next();
     }
 
     // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
