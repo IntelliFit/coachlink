@@ -9,6 +9,7 @@
         "lint": "next lint",
         "check-env": "node scripts/check-env.js",
         "test": "vitest run",
+        "test:report": "xunit-viewer -r test-results/vitest/junit.xml -o test-results/vitest/report.html",
         "test:watch": "vitest",
         "test:e2e": "playwright test",
         "test:redis": "tsx scripts/test-redis.ts",
@@ -75,10 +76,12 @@
         "@types/lodash": "^4.17.21",
         "@types/react-beautiful-dnd": "^13.1.8",
         "@types/uuid": "^10.0.0",
+        "@vitest/ui": "^2.1.9",
         "baseline-browser-mapping": "^2.9.14",
         "supabase": "^2.67.2",
         "vite": "^5.4.21",
         "vite-tsconfig-paths": "^5.1.4",
-        "vitest": "^2.1.9"
+        "vitest": "^2.1.9",
+        "xunit-viewer": "^10.6.1"
     }
 }
