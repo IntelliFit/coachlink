@@ -12,6 +12,7 @@ import { signIn } from 'next-auth/react';
 import { smsService } from '@/app/service/smsService';
 import { Phone, Lock, ShieldCheck, X, LogIn, Send, User } from 'lucide-react';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
+import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { sesService } from '@/app/service/sesService';
 import WechatIcon from '@/components/icons/wechat';
 
@@ -42,6 +43,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [sendingCode, setSendingCode] = useState(false);
     const [wechatAuthUrl, setWechatAuthUrl] = useState<string | null>(null);
     const [showWechatQr, setShowWechatQr] = useState(false);
+    const [quickUserId, setQuickUserId] = useState(''); // 快速接入：用户 ID 输入
+    const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false);
 
     // 重置视图状态当弹窗关闭
     useEffect(() => {
@@ -55,6 +58,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 setVerificationCode('');
                 setWechatAuthUrl(null);
                 setShowWechatQr(false);
+                setQuickUserId('');
+                setSliderCaptchaVisible(false);
             }, 300);
             return () => clearTimeout(timer);
         }
@@ -101,35 +106,43 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         return () => clearTimeout(timer);
     }, [countdown]);
 
-    const sendVerificationCode = async () => {
-        // Check if input is a valid phone number or email
+    const handleCaptchaSuccess = async (token: string) => {
         const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
-
-        if (!isPhone && !isEmail) {
-            showToast({ severity: 'warn', summary: isPhone ? '请输入正确的手机号' : '请输入正确的邮箱地址' });
-            return;
-        }
         setSendingCode(true);
         try {
             // 检查是否使用模拟短信（通过环境变量控制）
             const useMockSms = process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
 
-            if (isEmail) {
-                await sesService.sendVerificationCode({ email: phoneOrEmail });
-            } else {
-                await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
-            }
-            setCountdown(60);
-
             if (useMockSms) {
+                // 模拟模式：不发送真实请求，直接设置倒计时并提示
+                setCountdown(60);
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
+                // 生产模式：发送真实请求（带 captchaToken）
+                if (isEmail) {
+                    await sesService.sendVerificationCode({ email: phoneOrEmail, captchaToken: token });
+                } else {
+                    await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail, captchaToken: token });
+                }
+                setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '发送失败', detail: error.message });
-        } finally { setSendingCode(false); }
+        } finally {
+            setSendingCode(false);
+        }
+    };
+
+    const sendVerificationCode = () => {
+        const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail);
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail);
+        if (!isPhone && !isEmail) {
+            showToast({ severity: 'warn', summary: '请输入正确的手机号或邮箱' });
+            return;
+        }
+        setSliderCaptchaVisible(true);
     };
 
     const handleLogin = async (e?: React.FormEvent) => {
@@ -156,35 +169,29 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
         setLoading(true);
         try {
-            const result = await signIn('credentials',
-                loginMode === 'password'
-                    ? {
-                        phoneOrEmail: trimmedPhoneOrEmail,
-                        password: trimmedPassword,
-                        callbackUrl: '/today-training'
-                    }
-                    : {
-                        phoneOrEmail: trimmedPhoneOrEmail,
-                        verifyCode: trimmedCode,
-                        callbackUrl: '/today-training'
-                    }
-            );
+            const result = await signIn('credentials', {
+                redirect: false,
+                callbackUrl: '/today-training',
+                ...(loginMode === 'password'
+                    ? { phoneOrEmail: trimmedPhoneOrEmail, password: trimmedPassword }
+                    : { phoneOrEmail: trimmedPhoneOrEmail, verifyCode: trimmedCode }
+                ),
+            });
             if (result?.error) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
+                return;
+            }
+            onClose(false);
+            if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                router.push('/today-training');
             } else {
-                // Close modal and redirect to dashboard/home after successful login
-                onClose(false);
-
-                // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
-                // if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                //     router.push('/today-training');
-                // } else {
-                //     router.refresh();
-                // }
+                router.refresh();
             }
         } catch (error: any) {
-            showToast({ severity: 'error', summary: '登录失败' });
-        } finally { setLoading(false); }
+            showToast({ severity: 'error', summary: '登录失败', detail: error?.message });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleQuickLogin = async (user: DevUser) => {
@@ -209,7 +216,36 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         } finally { setLoading(false); }
     };
 
+    const handleQuickLoginByUserId = async () => {
+        const trimmedUserId = quickUserId.trim();
+        if (!trimmedUserId) {
+            showToast({ severity: 'warn', summary: '请输入用户 ID' });
+            return;
+        }
+        setLoading(true);
+        try {
+            const result = await signIn('credentials', {
+                userId: trimmedUserId,
+                redirect: false,
+                callbackUrl: '/today-training',
+            });
+            if (result?.error) {
+                showToast({ severity: 'error', summary: '登录失败', detail: result.error });
+            } else {
+                onClose(false);
+                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                    router.push('/');
+                } else {
+                    router.refresh();
+                }
+            }
+        } catch (error: any) {
+            showToast({ severity: 'error', summary: '登录失败', detail: error.message });
+        } finally { setLoading(false); }
+    };
+
     return (
+        <>
         <Dialog
             visible={isOpen}
             onHide={() => onClose(true)}
@@ -263,19 +299,48 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     </div>
 
                     {/* 开发模式快捷入口 - 仅在登录页显示 */}
-                    {currentView === 'login' && process.env.NODE_ENV === 'development' && devUsers.length > 0 && (
-                        <div className="relative z-10 pt-8 border-t border-surface-200">
+                    {currentView === 'login' && process.env.NODE_ENV === 'development' && (
+                        <div className="relative z-10 pt-8 border-t border-surface-200 space-y-4">
                             <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-4">快速接入 (Dev)</p>
-                            <div className="flex flex-wrap gap-2">
-                                {devUsers.map((user, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleQuickLogin(user)}
-                                        className="px-3 py-1.5 text-xs bg-surface border border-surface-200 rounded-lg text-surface-600 hover:border-primary-500 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
+                            
+                            {/* 预设开发用户列表 */}
+                            {devUsers.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {devUsers.map((user, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleQuickLogin(user)}
+                                            className="px-3 py-1.5 text-xs bg-surface border border-surface-200 rounded-lg text-surface-600 hover:border-primary-500 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
+                                        >
+                                            {user.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* 通过用户 ID 快速登录 */}
+                            <div className="space-y-2">
+                                <div className="flex gap-2 flex-col">
+                                    <InputText
+                                        value={quickUserId}
+                                        onChange={(e) => setQuickUserId(e.target.value)}
+                                        placeholder="输入用户 ID"
+                                        className="flex-1 text-xs py-2 px-3 bg-surface border border-surface-200 rounded-lg"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleQuickLoginByUserId();
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        onClick={handleQuickLoginByUserId}
+                                        loading={loading}
+                                        disabled={!quickUserId.trim()}
+                                        className="px-3 py-2 text-xs bg-primary-500 border-none rounded-lg text-white hover:bg-primary-600 transition-all active:scale-95 shadow-sm"
                                     >
-                                        {user.name}
-                                    </button>
-                                ))}
+                                        快速登录
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -389,7 +454,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                                 <button
                                                     type="button"
                                                     onClick={sendVerificationCode}
-                                                    disabled={countdown > 0 || sendingCode || !phoneOrEmail.trim()}
+                                                    disabled={countdown > 0 || sendingCode || sliderCaptchaVisible || !phoneOrEmail.trim()}
                                                     className="px-6 rounded-2xl text-sm font-bold bg-surface border text-primary-600 hover:border-primary-500 disabled:opacity-50 transition-all min-w-[110px] whitespace-nowrap"
                                                 >
                                                     {sendingCode ? '...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
@@ -498,5 +563,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
             </div>
         </Dialog>
+        <SliderCaptcha
+            visible={sliderCaptchaVisible}
+            onHide={() => setSliderCaptchaVisible(false)}
+            onSuccess={handleCaptchaSuccess}
+        />
+        </>
     );
 }

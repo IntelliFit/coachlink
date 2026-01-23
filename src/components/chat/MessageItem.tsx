@@ -42,14 +42,24 @@ export function MessageItem({ message }: MessageItemProps) {
             case 'image':
                 return (
                     <div className="max-w-md">
-                        <Image 
-                            src={message.mediaUrl || ''} 
-                            alt="图片消息" 
-                            width="250"
-                            preview
-                            className="rounded-lg"
-                        />
-                        {message.content && message.content !== message.mediaUrl && (
+                        {message.mediaUrl ? (
+                            <Image 
+                                src={message.mediaUrl} 
+                                alt="图片消息" 
+                                width="250"
+                                preview
+                                className="rounded-lg cursor-pointer"
+                            />
+                        ) : (
+                            <div className={`px-4 py-2 rounded-lg ${
+                                message.isMine
+                                    ? 'bg-primary-500 text-surface'
+                                    : 'bg-surface-100 text-surface-900'
+                            }`}>
+                                图片加载失败
+                            </div>
+                        )}
+                        {message.content && message.content.trim() && message.content !== message.mediaUrl && (
                             <div className={`mt-2 px-4 py-2 rounded-lg ${
                                 message.isMine
                                     ? 'bg-primary-500 text-surface'

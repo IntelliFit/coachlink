@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import * as apiTrace from "@/app/api/middleware/api-trace";
 import { getToken } from "next-auth/jwt";
 import { verifyToken } from "./lib/jwt";
 
@@ -7,8 +8,6 @@ const PUBLIC_PATHS = new Set([
     "/",
     "/login",
     "/register",
-    // 微信网页登录回调桥接页：OAuth 完成后会在 iframe 中访问该页面用于 postMessage 通知父页面
-    // 该页面不应被鉴权中间件重定向到 /login，否则会出现短暂的登录页/错误提示闪现
     "/wechat-auth/bridge",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
@@ -28,6 +27,7 @@ const PUBLIC_PATHS = new Set([
     "/contact",
     "/docs/contact.md",
     "/site.webmanifest",
+    "/sw.js", // Service Worker，须可匿名拉取以便注册
     "/sitemap.xml",
     "/BingSiteAuth.xml",
     '/baidu_verify_codeva-xPfI6tYHyK.html',
@@ -45,9 +45,23 @@ const WECHAT_AUTH_BASE_URL = "/wechat-auth";
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
-export async function proxy(request: NextRequest) {
+function handleMiddleware(request: NextRequest) {
+    // 运行聚合中间件
     const { pathname, origin } = request.nextUrl;
 
+    const middlewares = [apiTrace];
+    for (const mw of middlewares) {
+        if (matches(pathname, mw.matcher)) {
+            // fire-and-forget，避免阻塞主逻辑
+            void mw.handle(request);
+        }
+    }
+}
+
+export async function proxy(request: NextRequest) {
+
+    handleMiddleware(request);
+    const { pathname, origin } = request.nextUrl;
     // Internal server-to-server calls (e.g. background poster rendering) can bypass auth for specific endpoints.
     // This prevents middleware from returning 401 when the caller is the backend itself (no browser session).
     if (pathname.startsWith("/api/og/")) {
@@ -56,6 +70,11 @@ export async function proxy(request: NextRequest) {
         if (internalKey && provided && provided === internalKey) {
             return NextResponse.next();
         }
+    }
+
+    // 如果是 /icons/ 开头的，直接放行
+    if (pathname.startsWith("/icons/")) {
+        return NextResponse.next();
     }
 
     // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
@@ -159,3 +178,18 @@ export const config = {
         "/((?!_next/static|_next/image|favicon.ico|favicon.jpg|themes|images).*)",
     ],
 };
+
+function matches(pathname: string, patterns: string[]): boolean {
+    return patterns.some((pattern) => {
+        if (pattern === pathname) return true;
+        // 将 /api/:path* 转为正则
+        const regex = new RegExp(
+            "^" +
+            pattern
+                .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+                .replace(/:path\*/g, ".*") +
+            "$",
+        );
+        return regex.test(pathname);
+    });
+}
