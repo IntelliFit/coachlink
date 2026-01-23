@@ -49,6 +49,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
 
     const handlePointerDown = (e: React.PointerEvent) => {
         if (!id || verifying) return;
+        e.preventDefault(); // 防止默认行为
         const track = trackRef.current;
         if (!track) return;
         const rect = track.getBoundingClientRect();
@@ -60,6 +61,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
 
     const handlePointerMove = (e: React.PointerEvent) => {
         if (!dragging || !trackRef.current) return;
+        e.preventDefault(); // 防止默认行为
         const rect = trackRef.current.getBoundingClientRect();
         const delta = e.clientX - rect.left - dragStartRef.current.x;
         let next = dragStartRef.current.base + delta;
@@ -67,7 +69,10 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         setPosition(next);
     };
 
-    const handlePointerUp = async () => {
+    const handlePointerUp = async (e?: React.PointerEvent) => {
+        if (e) {
+            e.preventDefault();
+        }
         setDragging(false);
         if (!id || verifying) return;
         const thumbRight = position + THUMB_SIZE;
@@ -115,7 +120,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
                         <div
                             ref={trackRef}
                             className="relative w-full h-11 rounded-xl bg-surface-100 border border-surface-200 select-none"
-                            style={{ maxWidth: TRACK_WIDTH }}
+                            style={{ maxWidth: TRACK_WIDTH, touchAction: 'none' }}
                         >
                             <div
                                 className="absolute inset-y-1 left-1 rounded-lg bg-primary-500 flex items-center justify-center text-white shadow-md cursor-grab active:cursor-grabbing transition-none"
@@ -123,6 +128,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
                                     left: position,
                                     width: THUMB_SIZE,
                                     height: 36,
+                                    touchAction: 'none',
                                 }}
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
