@@ -32,7 +32,8 @@ const PUBLIC_PATHS = new Set([
     "/BingSiteAuth.xml",
     '/baidu_verify_codeva-xPfI6tYHyK.html',
     '/fonts/AlibabaPuHuiTi-3-85-Bold.ttf',
-    '/fonts/AlibabaPuHuiTi-3-55-Regular.ttf'
+    '/fonts/AlibabaPuHuiTi-3-55-Regular.ttf',
+    '/84WgJbHMbX.txt'
 ]);
 
 // 需要仅匹配前缀的路径（如 /api/auth/...）

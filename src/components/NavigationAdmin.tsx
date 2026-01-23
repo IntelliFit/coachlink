@@ -10,7 +10,7 @@ import { Menu } from 'primereact/menu';
 import { Skeleton } from 'primereact/skeleton';
 import { useTheme } from '@/context/ThemeContext';
 import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut, getSession } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { adminService } from '@/app/service/adminService';
 import { userService } from '@/app/service/userService';
@@ -42,6 +42,23 @@ export default function NavigationAdmin() {
     useEffect(() => {
         setIsClient(true);
         loadNavData();
+    }, []);
+
+    // PWA 恢复时主动刷新 session（解决 Android Chrome 息屏后 session 丢失问题）
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                getSession().catch(() => {
+                    // 静默失败，避免控制台噪音
+                });
+            }
+        };
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        // 页面加载时也尝试恢复 session（PWA 从后台恢复时）
+        if (document.visibilityState === 'visible') {
+            getSession().catch(() => {});
+        }
+        return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     // 获取用户档案

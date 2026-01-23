@@ -249,8 +249,7 @@ export const authOptions: AuthOptions = {
                     appid: process.env.WECHAT_APP_ID,
                     response_type: "code",
                     scope: "snsapi_login",
-                    // 启用 PC/Mac 微信客户端“快速登录”（无需扫码，直接确认）
-                    fast_login: "1",
+                    fast_login: 1,
                     lang: "zh_CN",
                 },
             },
@@ -318,7 +317,38 @@ export const authOptions: AuthOptions = {
     ],
     session: {
         strategy: "jwt",
-        maxAge: 90 * 24 * 60 * 60,
+        maxAge: 90 * 24 * 60 * 60, // 90 天
+        updateAge: 24 * 60 * 60, // 每 24 小时更新一次
+    },
+    cookies: {
+        sessionToken: {
+            name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+            options: {
+                httpOnly: true,
+                sameSite: 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+                maxAge: 90 * 24 * 60 * 60, // 90 天，与 session.maxAge 一致
+            },
+        },
+        callbackUrl: {
+            name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.callback-url`,
+            options: {
+                httpOnly: true,
+                sameSite: 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+            },
+        },
+        csrfToken: {
+            name: `${process.env.NODE_ENV === 'production' ? '__Host-' : ''}next-auth.csrf-token`,
+            options: {
+                httpOnly: true,
+                sameSite: 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+            },
+        },
     },
     callbacks: {
         async signIn({ user, account }) {

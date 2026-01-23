@@ -530,11 +530,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                                     // 跳转到新页面显示二维码
                                                     window.location.href = result.url;
                                                 } else {
-                                                    showToast({
-                                                        severity: 'error',
-                                                        summary: '微信登录失败',
-                                                        detail: '未获取到微信授权地址',
-                                                    });
                                                 }
                                             } catch (error: any) {
                                                 showToast({

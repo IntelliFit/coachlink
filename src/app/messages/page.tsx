@@ -20,6 +20,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ChatDialog from '@/components/chat/ChatDialog';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useNotificationPermission } from '@/context/NotificationPermissionContext';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import type { StudentSubscription } from '@/app/api/coach/list-students/entity';
 
@@ -29,6 +30,7 @@ export default function MessagesPage() {
     const searchParams = useSearchParams();
     const { data: session } = useSession();
     const { supported, permission, pushLoading, error, requestAndSubscribe } = usePushNotifications();
+    const { openDialog: openNotificationDialog } = useNotificationPermission();
 
     const [chatrooms, setChatrooms] = useState<ChatroomItem[]>([]);
     const [filteredChatrooms, setFilteredChatrooms] = useState<ChatroomItem[]>([]);
@@ -281,26 +283,28 @@ export default function MessagesPage() {
                     )}
                 </div>
 
-                {/* 开启系统通知：仅支持且未授权时展示，点击即用户手势 */}
-                {session?.user && supported && permission !== 'granted' && permission !== 'denied' && (
+                {/* 开启系统通知：仅支持且未授权时展示，点击打开统一对话框 */}
+                {session?.user && supported && permission !== 'granted' && (
                     <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl bg-primary-50 dark:bg-primary-900/20 px-4 py-3">
                         <div className="flex items-center gap-2 text-surface-700 dark:text-surface-200">
                             <Bell size={18} strokeWidth={2.5} className="text-primary-500" />
                             <span className="text-sm font-medium">开启系统通知，及时收到新消息</span>
                         </div>
                         <Button
-                            label={pushLoading ? '开通中…' : '开启通知'}
+                            label={permission === 'denied' ? '去设置' : '开启通知'}
                             icon="pi pi-bell"
                             className="rounded-xl"
                             size="small"
-                            loading={pushLoading}
                             disabled={pushLoading}
-                            onClick={async () => {
-                                const res = await requestAndSubscribe();
-                                if (res?.ok) {
-                                    showToast({ severity: 'success', summary: '已开启', detail: '系统通知已开启' });
-                                } else if (res && !res.ok && res.reason) {
-                                    showToast({ severity: 'warn', summary: '提示', detail: res.reason });
+                            onClick={() => {
+                                if (permission === 'denied') {
+                                    showToast({ 
+                                        severity: 'info', 
+                                        summary: '提示', 
+                                        detail: '请在系统设置中允许 CoachLink 的通知权限' 
+                                    });
+                                } else {
+                                    openNotificationDialog();
                                 }
                             }}
                         />

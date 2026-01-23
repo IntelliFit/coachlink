@@ -5,6 +5,7 @@
 
 import webpush from 'web-push';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
+import type { Database } from '@/types/database.types';
 
 export interface PushPayload {
     title: string;
@@ -31,12 +32,6 @@ function ensureVapid() {
     vapidConfigured = true;
 }
 
-interface SubscriptionRow {
-    endpoint: string;
-    keys_p256dh: string;
-    keys_auth: string;
-}
-
 /**
  * 向指定用户的所有推送订阅发送通知
  */
@@ -46,7 +41,7 @@ export async function sendPushToUser(
 ): Promise<{ sent: number; failed: number }> {
     ensureVapid();
 
-    const { data: rows, error } = await (serviceRoleSupabase as any)
+    const { data: rows, error } = await serviceRoleSupabase
         .from('push_subscriptions')
         .select('endpoint, keys_p256dh, keys_auth')
         .eq('user_id', userId);
@@ -65,10 +60,12 @@ export async function sendPushToUser(
 
     let sent = 0;
     let failed = 0;
+    const errors: string[] = [];
 
     await Promise.all(
-        (rows as SubscriptionRow[]).map(async (sub) => {
+        rows.map(async (sub) => {
             try {
+                console.log('[pushNotify] 发送推送到:', sub.endpoint.substring(0, 50) + '...');
                 await webpush.sendNotification(
                     {
                         endpoint: sub.endpoint,
@@ -77,12 +74,20 @@ export async function sendPushToUser(
                     body,
                     { TTL: 60 * 60 * 24 }
                 );
+                console.log('[pushNotify] 推送发送成功');
                 sent++;
-            } catch {
+            } catch (error: any) {
+                const errorMsg = error?.message || '未知错误';
+                console.error('[pushNotify] 推送发送失败:', errorMsg, error);
+                errors.push(errorMsg);
                 failed++;
             }
         })
     );
+
+    if (errors.length > 0) {
+        console.warn('[pushNotify] 部分推送失败:', errors);
+    }
 
     return { sent, failed };
 }

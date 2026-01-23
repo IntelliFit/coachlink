@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { useRouter } from 'next/navigation';
@@ -117,10 +116,10 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     };
 
     return (
-        <div className="mt-8">
-            <Card>
+        <div className="mt-6 sm:mt-8">
+            <div className="bg-surface border rounded-2xl border-surface-100/50 p-4 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
-                    <h3 className="text-lg font-bold text-surface-900">浏览训练日</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-surface-900 tracking-tight">浏览训练日</h3>
                     <div className="flex items-center justify-between sm:justify-end gap-2">
                         <Button
                             icon={<ChevronLeft className="w-4 h-4" />}
@@ -166,7 +165,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 )}
                 
                 {/* Week Calendar */}
-                <div className="bg-surface rounded-2xl p-3 sm:p-4 mb-6 relative">
+                <div className="bg-surface-50 rounded-2xl p-2 sm:p-3 mb-4 relative">
                     {/* 📝 制定中周遮罩 */}
                     {!isCurrentWeekUnlocked && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-surface-900/10 backdrop-blur-sm rounded-xl">
@@ -211,16 +210,16 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     onClick={() => setSelectedDayIndex(dayIndex)}
                                     disabled={!isCurrentWeekUnlocked}
                                     className={`
-                                        relative flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl transition-all
+                                        relative flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl transition-all active:scale-[0.98]
                                         ${isSelected 
-                                            ? 'bg-primary-500 text-white shadow-md scale-105' 
+                                            ? 'bg-primary-500 text-surface' 
                                             : isBeforeStart
-                                            ? 'bg-gray-100 opacity-50'
+                                            ? 'bg-surface-100 opacity-50'
                                             : isCompleted
-                                            ? 'bg-green-50 border border-green-200'
-                                            : isTrainingDay
-                                            ? 'bg-gray-50 hover:bg-gray-100'
-                                            : 'bg-gray-50 opacity-60 hover:opacity-80'}
+                                                ? 'bg-green-50 border border-green-100/50'
+                                                : isTrainingDay
+                                                    ? 'bg-surface-50 hover:bg-surface-100 border border-surface-100/50'
+                                                    : 'bg-surface-50 opacity-60 hover:opacity-80 border border-surface-100/50'}
                                         ${isRecommended && !isSelected && !todayCompleted ? 'ring-2 ring-primary-500' : ''}
                                         ${isCalendarToday && !isSelected ? 'ring-2 ring-surface-900' : ''}
                                         ${isStartDay && !isSelected ? 'ring-2 ring-green-500' : ''}
@@ -256,25 +255,19 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                         </div>
                                     )}
                                     
-                                    <div className={`text-[10px] sm:text-xs mb-1 ${isSelected ? 'text-white opacity-90' : 'text-surface-500'}`}>
-                                        第{dayIndex}天
-                                    </div>
-                                    <div className={`text-base sm:text-lg font-bold ${isSelected ? 'text-white' : isCompleted ? 'text-green-700' : 'text-surface-900'}`}>
+                                    <div className={`text-xs sm:text-sm font-bold ${isSelected ? 'text-surface' : isCompleted ? 'text-green-700' : 'text-surface-900'}`}>
                                         {dayIndex}
                                     </div>
-                                    <div className={`text-[10px] sm:text-xs mt-1 truncate max-w-full ${isSelected ? 'text-white opacity-90' : isCompleted ? 'text-green-600' : 'text-surface-600'}`}>
-                                        {isBeforeStart
-                                            ? '线下已完成'
-                                            : isCompleted
-                                                ? `✓ 已完成${getActualDateLabel(dayIndex) ? ' · ' + getActualDateLabel(dayIndex) : ''}`
-                                                : isInProgress
-                                                    ? `进行中${getActualDateLabel(dayIndex) ? ' · ' + getActualDateLabel(dayIndex) : ''}`
-                                                    : isAbandoned
-                                                        ? '已跳过'
-                                                        : isTrainingDay
-                                                            ? '训练'
-                                                            : '休息'}
-                                        {isRecommended && !isSelected && !todayCompleted && ' 📍'}
+                                    <div className={`text-[9px] sm:text-[10px] mt-0.5 truncate max-w-full ${isSelected ? 'text-surface opacity-80' : isCompleted ? 'text-green-600' : 'text-surface-500'}`}>
+                                        {isCompleted
+                                            ? '✓'
+                                            : isInProgress
+                                                ? '进行中'
+                                                : isAbandoned
+                                                    ? '跳过'
+                                                    : isTrainingDay
+                                                        ? '训练'
+                                                        : '休息'}
                                     </div>
                                 </button>
                             );
@@ -282,7 +275,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                         
                         {/* 填充空位 */}
                         {Array.from({ length: 7 - weekDays.length }).map((_, i) => (
-                            <div key={`empty-${i}`} className="p-3 rounded-lg bg-gray-50 opacity-30" />
+                            <div key={`empty-${i}`} className="p-2 sm:p-3 rounded-2xl bg-surface-50 opacity-30 border border-surface-100/50" />
                         ))}
                     </div>
                 </div>
@@ -290,42 +283,39 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 {/* Selected Day Preview */}
                 {!isCurrentWeekUnlocked ? (
                     /* 制定中周的预览区域 */
-                    <div className="text-center py-8 bg-amber-50/50 rounded-xl border border-amber-100">
+                    <div className="text-center py-8 bg-amber-50/50 rounded-2xl border border-amber-100/50">
                         <i className="pi pi-pencil text-2xl text-amber-400 mb-3" />
                         <p className="text-amber-600 text-sm font-medium">本周训练内容制定中</p>
-                        <p className="text-amber-400 text-xs mt-1">教练正在精心准备，敬请期待</p>
+                        <p className="text-amber-500 text-xs mt-1">教练正在精心准备，敬请期待</p>
                     </div>
                 ) : selectedDay ? (
                     selectedDay.type === 'training' ? (
                         <div>
-                            <div className="mb-4">
-                                <h4 className="font-semibold text-gray-900">
-                                    第 {selectedDayIndex} 天
-                                    {isDayCompleted(selectedDayIndex) && (
-                                        <span className="ml-2 text-sm text-green-600">
-                                            ✓ {getActualDateLabel(selectedDayIndex) || ''} 已完成
-                                        </span>
-                                    )}
-                                    {!isDayCompleted(selectedDayIndex) && getExec(selectedDayIndex)?.status === 'in_progress' && (
-                                        <span className="ml-2 text-sm text-amber-600">
-                                            · {getActualDateLabel(selectedDayIndex) || ''} 进行中
-                                        </span>
-                                    )}
-                                    {!isDayCompleted(selectedDayIndex) && getExec(selectedDayIndex)?.status === 'abandoned' && (
-                                        <span className="ml-2 text-sm text-surface-600">
-                                            · 已跳过
-                                        </span>
-                                    )}
-                                    {selectedDayIndex < startExecutionDay && (
-                                        <span className="ml-2 text-sm text-gray-400">(线下已完成)</span>
-                                    )}
-                                </h4>
-                                <p className="text-sm text-gray-500">
-                                    {selectedDay.actionSets?.length || 0} 个动作
-                                </p>
+                            <div className="mb-3">
+                                <div className="flex items-center justify-between mb-1">
+                                    <h4 className="font-semibold text-surface-900 tracking-tight">
+                                        第 {selectedDayIndex} 天
+                                    </h4>
+                                    <span className="text-xs text-surface-500">
+                                        {selectedDay.actionSets?.length || 0} 个动作
+                                    </span>
+                                </div>
+                                {(isDayCompleted(selectedDayIndex) || getExec(selectedDayIndex)?.status === 'in_progress' || getExec(selectedDayIndex)?.status === 'abandoned' || selectedDayIndex < startExecutionDay) && (
+                                    <p className="text-xs text-surface-500">
+                                        {isDayCompleted(selectedDayIndex)
+                                            ? `✓ 已完成${getActualDateLabel(selectedDayIndex) ? ' · ' + getActualDateLabel(selectedDayIndex) : ''}`
+                                            : getExec(selectedDayIndex)?.status === 'in_progress'
+                                                ? `进行中${getActualDateLabel(selectedDayIndex) ? ' · ' + getActualDateLabel(selectedDayIndex) : ''}`
+                                                : getExec(selectedDayIndex)?.status === 'abandoned'
+                                                    ? '已跳过'
+                                                    : selectedDayIndex < startExecutionDay
+                                                        ? '线下已完成'
+                                                        : ''}
+                                    </p>
+                                )}
                             </div>
 
-                            <div className="space-y-2 mb-4">
+                            <div className="space-y-2 mb-3">
                                 {(selectedDay.actionSets || []).map((actionSet: any, idx: number) => {
                                     // 支持两种字段名: action_id 和 actionId
                                     const actionId = actionSet.action_id || actionSet.actionId;
@@ -335,7 +325,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     const noteText = String(actionSet?.params?.note || actionSet?.note || '').trim();
                                     
                                     return (
-                                        <div key={idx} className="bg-gray-50 rounded p-3 text-sm">
+                                        <div key={idx} className="bg-surface-50 rounded-xl p-2.5 sm:p-3 border border-surface-100/50 text-sm">
                                             <div className="font-medium flex items-center justify-between gap-2">
                                                 <div className="min-w-0 truncate">
                                                     {idx + 1}. {action?.name || actionSet.set_name}
@@ -343,7 +333,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                 {action?.detail && (
                                                     <button
                                                         type="button"
-                                                        className="p-1.5 rounded-lg text-surface-600 hover:bg-white/80 transition-colors"
+                                                        className="p-1.5 rounded-xl text-surface-600 hover:bg-surface transition-colors active:scale-[0.98]"
                                                         title="查看动作说明"
                                                         onClick={() => setInfoDialog({
                                                             title: action?.name || actionSet.set_name || '动作说明',
@@ -354,7 +344,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="text-gray-600 flex flex-wrap gap-2">
+                                            <div className="text-surface-600 flex flex-wrap gap-2">
                                                 {/* 根据动作类型显示不同的摘要信息 */}
                                                 {(() => {
                                                     const itemType = actionSet.itemType || action?.type || 'STRENGTH';
@@ -452,7 +442,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 
                                             {/* 教练备注：在浏览训练日预览中也优先展示 */}
                                             {noteText && (
-                                                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-800">
+                                                <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200/50 bg-amber-50 px-2.5 py-2 text-amber-800">
                                                     <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                                                     <div className="text-xs leading-relaxed line-clamp-2">
                                                         {noteText}
@@ -469,7 +459,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 <Button
                                     label="线下已完成"
                                     icon={<Check className="w-5 h-5" />}
-                                    className="w-full"
+                                    className="w-full rounded-2xl"
                                     severity="secondary"
                                     disabled
                                 />
@@ -478,7 +468,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     label="查看记录"
                                     icon={<Eye className="w-5 h-5" />}
                                     onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${selectedDayIndex}`)}
-                                    className="w-full"
+                                    className="w-full rounded-2xl transition-all active:scale-[0.98] duration-200 ease-out"
                                     severity="secondary"
                                     outlined
                                 />
@@ -487,7 +477,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     label="继续训练"
                                     icon={<Play className="w-5 h-5" />}
                                     onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${selectedDayIndex}`)}
-                                    className="w-full"
+                                    className="w-full rounded-2xl transition-all active:scale-[0.98] duration-200 ease-out"
                                     severity="warning"
                                 />
                             ) : (
@@ -495,24 +485,24 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     label={selectedDayIndex === currentDayIndex ? "开始训练" : "查看训练"}
                                     icon={<Play className="w-5 h-5" />}
                                     onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${selectedDayIndex}`)}
-                                    className="w-full"
+                                    className="w-full rounded-2xl transition-all active:scale-[0.98] duration-200 ease-out"
                                     severity={selectedDayIndex === currentDayIndex ? "success" : "info"}
                                 />
                             )}
                         </div>
                     ) : (
-                        <div className="text-center py-8">
-                            <div className="text-6xl mb-4">😌</div>
-                            <h4 className="text-xl font-bold text-gray-900 mb-2">休息日</h4>
-                            <p className="text-gray-600">今天好好休息，为下次训练做准备</p>
+                        <div className="text-center py-6">
+                            <div className="text-5xl mb-3">😌</div>
+                            <h4 className="text-lg font-bold text-surface-900 mb-1 tracking-tight">休息日</h4>
+                            <p className="text-sm text-surface-600">今天好好休息，为下次训练做准备</p>
                         </div>
                     )
                 ) : (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-6 text-surface-500 text-sm">
                         请选择日期查看训练内容
                     </div>
                 )}
-            </Card>
+            </div>
 
             <Dialog
                 header={infoDialog?.title || '动作说明'}

@@ -1,45 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Badge } from 'primereact/badge';
-import { chatService } from '@/app/service/chatService';
+import { useChatContext } from '@/context/ChatContext';
 
 interface MessageBadgeProps {
     className?: string;
 }
 
 export function MessageBadge({ className }: MessageBadgeProps) {
-    const [unreadCount, setUnreadCount] = useState<number>(0);
-
-    const fetchUnreadCount = async () => {
-        try {
-            const data = await chatService.getUnreadCount({});
-            if (data) {
-                setUnreadCount(data.totalUnread);
-            }
-        } catch (error) {
-            console.error('获取未读消息数失败:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchUnreadCount();
-        
-        // 定时刷新未读数（每30秒）
-        const interval = setInterval(fetchUnreadCount, 60000);
-        
-        return () => clearInterval(interval);
-    }, []);
-
-    // 监听自定义事件来实时更新
-    useEffect(() => {
-        const handleUpdate = () => {
-            fetchUnreadCount();
-        };
-
-        window.addEventListener('chat-unread-update', handleUpdate);
-        return () => window.removeEventListener('chat-unread-update', handleUpdate);
-    }, []);
+    // 直接从 Context 获取未读数，不需要自己建立连接
+    const { unreadCount } = useChatContext();
 
     if (unreadCount === 0) {
         return null;
