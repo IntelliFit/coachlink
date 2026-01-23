@@ -16,6 +16,9 @@ const PUBLIC_PATHS = new Set([
     "/api/coach/get-all-coaches",
     "/api/wechat/login/start",
     "/api/wechat/login/finish",
+    '/api/trace',
+    '/api/captcha/slider/create',
+    '/api/captcha/slider/verify',
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/docs/agreement",
     "/docs/disclaimer",
