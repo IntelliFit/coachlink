@@ -369,16 +369,16 @@ function TrainingExecutionContent() {
                         setNumber: setIndex + 1,
                         videoUrl: videoLink.trim(),
                     });
-                    if (res.success && res.data?.id && res.data.video_url) {
-                        setLinkedVideo({ id: res.data.id, url: res.data.video_url });
-                        uploadedVideoUrl = res.data.video_url;
-                        uploadedVideoId = res.data.id;
+                    if (res && res.id && res.video_url) {
+                        setLinkedVideo({ id: res.id, url: res.video_url });
+                        uploadedVideoUrl = res.video_url;
+                        uploadedVideoId = res.id;
                         hasVideo = true;
                     } else {
                         showToast({
                             severity: "warn",
                             summary: "链接绑定失败",
-                            detail: res.message || "将继续保存本组，但不会附带视频链接",
+                            detail: "将继续保存本组，但不会附带视频链接",
                         });
                     }
                 } finally {
@@ -401,12 +401,12 @@ function TrainingExecutionContent() {
                         actionExecution.action_id,
                         setIndex + 1
                     );
-                    if (uploadRes?.success && uploadRes?.data?.video_url) {
-                        uploadedVideoUrl = uploadRes.data.video_url;
-                        uploadedVideoId = uploadRes.data.id;
+                    if (uploadRes?.video_url) {
+                        uploadedVideoUrl = uploadRes.video_url;
+                        uploadedVideoId = uploadRes.id;
                         hasVideo = true;
                     } else {
-                        const msg = uploadRes?.message || '视频上传失败';
+                        const msg = '视频上传失败';
                         showToast({
                             severity: 'warn',
                             summary: '视频上传失败',
@@ -440,11 +440,11 @@ function TrainingExecutionContent() {
                 has_video: hasVideo
             });
 
-            if (res.success) {
+            if (res) {
                 // Check for auto-detected PR (e1RM system)
-                if (res.data?.autoE1RM?.isPR) {
-                    const e1rm = res.data.autoE1RM.e1rm;
-                    const previousPR = res.data.autoE1RM.previousPR;
+                if (res.autoE1RM?.isPR) {
+                    const e1rm = res.autoE1RM.e1rm;
+                    const previousPR = res.autoE1RM.previousPR;
                     const improvement = previousPR ? (e1rm - previousPR).toFixed(1) : null;
                     
                     showToast({
@@ -485,13 +485,13 @@ function TrainingExecutionContent() {
                     has_video: hasVideo,
                     video_url: uploadedVideoUrl,
                     // Add e1RM info
-                    e1rm: res.data?.autoE1RM?.e1rm,
-                    is_auto_pr: res.data?.autoE1RM?.isPR
+                    e1rm: res.autoE1RM?.e1rm,
+                    is_auto_pr: res.autoE1RM?.isPR
                 };
             // Recalculate completion counts (editing should not "++" counts)
             updatedExecution.action_executions[actionIndex].completed_sets =
                 updatedExecution.action_executions[actionIndex].sets.filter((s: any) => s.status === 'completed').length;
-            updatedExecution.completed_sets = res.data?.completedSets ?? updatedExecution.action_executions.reduce(
+            updatedExecution.completed_sets = res.completedSets ?? updatedExecution.action_executions.reduce(
                 (sum: number, ae: any) => sum + (ae.completed_sets || 0),
                 0
             );
@@ -510,6 +510,16 @@ function TrainingExecutionContent() {
             setEditingSetKey(null);
             // Keep details expanded for edited set so user can confirm changes
             setExpandedSetKey(setKeyOf(actionIndex, setIndex));
+
+            // Bug 4 fix: 提供完成组的即时反馈
+            if (!isEditing) {
+                showToast({
+                    severity: 'success',
+                    summary: '✓ 完成',
+                    detail: `第${setData.set_number}组 已记录`,
+                    life: 1500
+                });
+            }
 
             // Editing a completed set should not trigger rest timer or auto-advance
             if (!isEditing) {
@@ -574,7 +584,7 @@ function TrainingExecutionContent() {
                 notes: sessionNotes // Reuse session notes or add specific field if needed
             });
 
-            if (res.success) {
+            if (res) {
                 // Update local state
                 const updatedExecution = { ...execution };
                 const setData = updatedExecution.action_executions[actionIndex].sets[0];
@@ -589,7 +599,7 @@ function TrainingExecutionContent() {
                 };
                 
                 updatedExecution.action_executions[actionIndex].completed_sets = 1;
-                updatedExecution.completed_sets = res.data?.completedSets || execution.completed_sets + 1;
+                updatedExecution.completed_sets = res.completedSets || execution.completed_sets + 1;
                 setExecution(updatedExecution);
 
                 // Reset forms
@@ -635,17 +645,30 @@ function TrainingExecutionContent() {
                 sessionNotes: sessionNotes || undefined
             });
 
-            if (res.success) {
+            if (res) {
                 showToast({
                     severity: 'success',
                     summary: '训练完成',
-                    detail: `完成 ${res.data?.completed_sets}/${res.data?.total_sets} 组`
+                    detail: `完成 ${res.completed_sets}/${res.total_sets} 组`
                 });
                 // Instead of immediate redirect, show share card
                 setShareModalVisible(true);
+            } else {
+                // Bug 5 fix: 处理 API 返回失败的情况
+                showToast({
+                    severity: 'error',
+                    summary: '完成训练失败',
+                    detail: '请稍后重试'
+                });
             }
         } catch (error) {
             console.error('Finish training failed:', error);
+            // Bug 5 fix: 提供错误反馈
+            showToast({
+                severity: 'error',
+                summary: '完成训练失败',
+                detail: '网络错误，请稍后重试'
+            });
         }
     };
 
@@ -903,6 +926,15 @@ function TrainingExecutionContent() {
                                                                         onClick={() => {
                                                             // 未完成组：点击直接切换为当前编辑组
                                                             if (!isSetCompleted) {
+                                                                // Bug 3 Fix: 手动切换组时重置输入状态，防止"重量联动"
+                                                                if (currentSetIndex !== setIndex) {
+                                                                    setWeight(null);
+                                                                    setReps(null);
+                                                                    setRpe(null);
+                                                                    setSetNotes('');
+                                                                    setMarkAsPR(false);
+                                                                }
+
                                                                 setExpandedAction(actionIndex);
                                                                 setCurrentSetIndex(setIndex);
                                                                 setShowOptionalFields(false);
@@ -1134,12 +1166,12 @@ function TrainingExecutionContent() {
                                                                                     setUploading(true);
                                                                                     const res = await executionService.addSetVideoLink({
                                                                                         executionId: execution.id,
-                                                                                        actionId: actionExecution.action_id,
+                                                                                        actionId: execution.action_executions[actionIndex].action_id,
                                                                                         setNumber: setIndex + 1,
                                                                                         videoUrl: url,
                                                                                     });
-                                                                                    if (res.success && res.data?.id && res.data.video_url) {
-                                                                                        setLinkedVideo({ id: res.data.id, url: res.data.video_url });
+                                                                                    if (res && res.id && res.video_url) {
+                                                                                        setLinkedVideo({ id: res.id, url: res.video_url });
                                                                                         showToast({
                                                                                             severity: "success",
                                                                                             summary: "链接已绑定",
@@ -1149,7 +1181,7 @@ function TrainingExecutionContent() {
                                                                                         showToast({
                                                                                             severity: "error",
                                                                                             summary: "绑定失败",
-                                                                                            detail: res.message || "无法绑定链接",
+                                                                                            detail: "无法绑定链接",
                                                                                         });
                                                                                     }
                                                                                 } finally {
