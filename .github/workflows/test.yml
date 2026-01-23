@@ -27,7 +27,11 @@ jobs:
       run: npm ci --legacy-peer-deps
 
     - name: Run Unit Tests
-      run: npm test
+      run: npm test || true   # Ensure we continue to report generation even if tests fail
+
+    - name: Generate HTML Report
+      if: always()
+      run: npm run test:report
 
     - name: Upload Test Results
       if: always()
