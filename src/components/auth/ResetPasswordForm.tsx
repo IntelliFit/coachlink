@@ -37,10 +37,15 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
     const handleCaptchaSuccess = async (token: string) => {
         setSendingCode(true);
         try {
-            if (process.env.NODE_ENV === 'development') {
+            // 检查是否使用模拟短信（通过环境变量控制）
+            const useMockSms = process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
+
+            if (useMockSms) {
+                // 模拟模式：不发送真实请求，直接设置倒计时并提示
                 setCountdown(60);
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
+                // 生产模式：发送真实请求（带 captchaToken）
                 await smsService.sendVerificationCode({ phoneNumber: phone, captchaToken: token });
                 setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });

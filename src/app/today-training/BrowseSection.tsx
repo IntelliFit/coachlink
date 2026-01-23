@@ -49,8 +49,10 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     const totalWeeks = Math.ceil(trainingDays.length / 7);
     
     // 根据当前选中的天计算当前显示的周
+    // 优先使用日历日(initialSelectedDayIndex)，否则使用推荐训练日(currentDayIndex)
     const [currentWeek, setCurrentWeek] = useState(() => {
-        const startWeek = Math.ceil(currentDayIndex / 7);
+        const anchorDay = initialSelectedDayIndex || currentDayIndex;
+        const startWeek = Math.ceil(anchorDay / 7);
         return Math.max(1, Math.min(startWeek, totalWeeks));
     });
     

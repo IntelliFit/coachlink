@@ -40,10 +40,10 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
     const loadShareData = async () => {
         try {
             setLoading(true);
-            const data = await executionService.getShareInfo(executionId);
+            const data = await executionService.getShareInfo({ id: executionId });
             
-            if (data?.success) {
-                const baseData = data.data;
+            if (data) {
+                const baseData = { ...data } as any;
 
                 // Create acquisition share link for QR code (best-effort)
                 try {
@@ -62,7 +62,7 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
                 showToast({
                     severity: 'error',
                     summary: '获取分享信息失败',
-                    detail: data.message
+                    detail: '无法加载分享数据'
                 });
             }
         } catch (error) {
