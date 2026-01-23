@@ -13,6 +13,7 @@ import { Checkbox } from 'primereact/checkbox';
 import { userService } from '@/app/service/userService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import type { CoachSubscriptionRow, CoachesRow } from '@/types';
 import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
 
@@ -49,6 +50,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
     onConfirm
 }) => {
     const { showToast } = useToastContext();
+    const { trackEvent } = useAnalytics();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
     const [subscriptionsWithProfiles, setSubscriptionsWithProfiles] = useState<SubscriptionWithStudentProfile[]>([]);
@@ -168,6 +170,11 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             });
 
             await Promise.all(updatePromises);
+            trackEvent('coach_manual_payment', 'business', {
+                count: selectedSubscriptions.length,
+                subscription_ids: selectedSubscriptions.map(s => s.id)
+            });
+            
             
             showToast({
                 severity: 'success',

@@ -26,6 +26,7 @@ import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-p
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import { Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
 import { ProgressBar } from 'primereact/progressbar';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
@@ -54,6 +55,7 @@ export default function StudentsPage() {
     const router = useRouter();
     const { showToast } = useToastContext();
     const { status, data: session } = useSession();
+    const { trackEvent } = useAnalytics();
 
     const loadPricing = async () => {
         if (!coach) return;
@@ -193,6 +195,13 @@ export default function StudentsPage() {
             if (res) {
                 if (res.template) {
                     showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
+
+                    trackEvent('coach_ai_plan_generate', 'coach', {
+                        is_bulk: false,
+                        student_id: student.id,
+                        start_week: config.startWeek
+                    });
+
                     setAiConfigDialogVisible(false);
                     // 当res.template非空时，更新当前表单
                     const defaultPlanName = `${student.profile?.nickname || '学员'}的计划`;
@@ -260,6 +269,12 @@ export default function StudentsPage() {
                             description: tpl?.description || '暂无描述',
                             status: tpl?.status || 'active',
                         },
+            trackEvent('coach_ai_plan_generate', 'coach', {
+                is_bulk: true,
+                success_count: successCount,
+                failed_count: failedCount
+            });
+
                     };
                 }));
             }
@@ -320,6 +335,10 @@ export default function StudentsPage() {
             </div>
         );
     };
+                setSelectedStudent(student); 
+                setDialogVisible(true);
+                trackEvent('coach_view_student_detail', 'coach', { student_id: student.id });
+           
 
     /** 学员基本信息列 */
     const studentTemplate = (student: StudentSubscription) => (

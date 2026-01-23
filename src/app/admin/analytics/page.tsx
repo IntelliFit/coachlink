@@ -155,7 +155,7 @@ function RetentionView() {
      }, []);
 
     return (
-        <Section title="用户留存 (模拟数据)">
+        <Section title="用户留存">
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm text-center text-slate-800 dark:text-slate-200">
                     <thead>
@@ -179,6 +179,11 @@ function RetentionView() {
                                 <td className="py-2 px-4">{row.d30}</td>
                             </tr>
                         ))}
+                        {data.length === 0 && (
+                            <tr>
+                                <td colSpan={6} className="py-4 text-slate-500">暂无数据，请先确保有用户注册和行为埋点</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

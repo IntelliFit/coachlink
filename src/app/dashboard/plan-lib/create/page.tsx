@@ -22,12 +22,14 @@ import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
 import SmartImportDialog from '../components/SmartImportDialog';
 import { ItemType } from '@/types/student';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const CreatePlanPage = () => {
     const router = useRouter();
     const { showToast } = useToastContext();
     const { data: session } = useSession();
     const coach = getCoach(session);
+    const { trackEvent } = useAnalytics();
 
     // Plan template basic info
     const [name, setName] = useState('');
@@ -407,6 +409,14 @@ const CreatePlanPage = () => {
                 tags: tags,
                 suitableFor: suitableFor,
                 trainingDays: daysData
+            });
+
+            trackEvent('coach_plan_create', 'coach', {
+                name,
+                suitable_for: suitableFor,
+                tags_count: tags.length,
+                days_count: daysData.length,
+                total_sets: daysData.reduce((acc, d) => acc + (d.actionSets?.length || 0), 0)
             });
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已创建' });

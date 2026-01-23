@@ -16,6 +16,7 @@ import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface SetData {
     set_number: number;
@@ -54,6 +55,7 @@ function TrainingExecutionContent() {
     const searchParams = useSearchParams();
     const { data: session } = useSession();
     const { showToast } = useToastContext();
+    const { trackEvent } = useAnalytics();
 
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
@@ -193,6 +195,11 @@ function TrainingExecutionContent() {
 
             if (res.success && res.data) {
                 setExecution(res.data);
+                trackEvent('student_training_start', 'training', { 
+                    planId: (res.data as any).plan_id, 
+                    executionId: (res.data as any).id,
+                    instanceId 
+                });
 
                 // 超时提醒：只要该训练日存在 in_progress 且 started_at 距今超过阈值，就弹出提醒
                 try {
@@ -265,6 +272,11 @@ function TrainingExecutionContent() {
             setCompleting(true);
             const res = await executionService.finishTraining({ executionId: staleExecutionId });
             if (res?.success && res.data) {
+                trackEvent('student_training_complete', 'training', { 
+                    planId: execution.plan_id, 
+                    executionId: execution.id,
+                    method: 'quick_finish'
+                });
                 setExecution((prev: any) => ({
                     ...(prev || {}),
                     status: 'completed',
@@ -405,6 +417,13 @@ function TrainingExecutionContent() {
                         uploadedVideoUrl = uploadRes.video_url;
                         uploadedVideoId = uploadRes.id;
                         hasVideo = true;
+                        
+                        // Track video upload
+                        trackEvent('student_video_upload', 'training', { 
+                            execution_id: execution.id, 
+                            action_id: actionExecution.action_id,
+                            set_index: setIndex
+                        });
                     } else {
                         const msg = '视频上传失败';
                         showToast({
@@ -441,6 +460,26 @@ function TrainingExecutionContent() {
             });
 
             if (res) {
+                // Track set completion
+                trackEvent('student_set_complete', 'training', {
+                    execution_id: execution.id,
+                    action_id: actionExecution.action_id,
+                    set_index: setIndex,
+                    weight: weight,
+                    trackEvent('student_pr_record', 'training', {
+                        execution_id: execution.id,
+                        action_id: actionExecution.action_id,
+                        type: 'auto_e1rm',
+                        weight: e1rm,
+                        improvement: improvement
+                    });
+                    
+                    reps: reps,
+                    rpe: rpe,
+                    is_pr: markAsPR || res.autoE1RM?.isPR,
+                    has_video: hasVideo
+                });
+
                 // Check for auto-detected PR (e1RM system)
                 if (res.autoE1RM?.isPR) {
                     const e1rm = res.autoE1RM.e1rm;
@@ -462,6 +501,14 @@ function TrainingExecutionContent() {
                     await executionService.createPR({
                         executionId: execution.id,
                         actionId: actionExecution.action_id,
+
+                    trackEvent('student_pr_record', 'training', {
+                        execution_id: execution.id,
+                        action_id: actionExecution.action_id,
+                        type: 'manual',
+                        weight: weight,
+                        reps: reps
+                    });
                         actionName: actionExecution.action_name,
                         setNumber: setIndex + 1,
                         weight,
@@ -646,6 +693,11 @@ function TrainingExecutionContent() {
             });
 
             if (res) {
+                trackEvent('student_training_complete', 'training', { 
+                    planId: execution.plan_id, 
+                    executionId: execution.id
+                });
+
                 showToast({
                     severity: 'success',
                     summary: '训练完成',
