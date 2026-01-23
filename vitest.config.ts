@@ -11,6 +11,11 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    reporters: ["default", "junit", "json"],
+    outputFile: {
+      junit: "test-results/vitest/junit.xml",
+      json: "test-results/vitest/results.json",
+    },
   },
 });
 
