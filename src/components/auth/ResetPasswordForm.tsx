@@ -39,12 +39,15 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
         }
         setSendingCode(true);
         try {
-            if (process.env.NODE_ENV === 'development') {
-                setCountdown(60);
+            // 检查是否使用模拟短信（通过环境变量控制）
+            const useMockSms = process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
+
+            await smsService.sendVerificationCode({ phoneNumber: phone });
+            setCountdown(60);
+
+            if (useMockSms) {
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
-                await smsService.sendVerificationCode({ phoneNumber: phone });
-                setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });
             }
         } catch (error: any) {

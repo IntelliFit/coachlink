@@ -93,7 +93,14 @@ export default function AccountBindingSection() {
                 await sesService.sendVerificationCode({ email: v });
             }
             setCountdown(60);
-            showToast({ severity: 'success', summary: '验证码已发送' });
+
+            // 检查是否使用模拟短信（通过环境变量控制）
+            const useMockSms = process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
+            if (useMockSms) {
+                showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
+            } else {
+                showToast({ severity: 'success', summary: '验证码已发送' });
+            }
         } catch (e: any) {
             showToast({ severity: 'error', summary: '发送失败', detail: e?.message || '请稍后重试' });
         } finally {

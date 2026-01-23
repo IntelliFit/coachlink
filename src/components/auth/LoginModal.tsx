@@ -112,16 +112,19 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
         setSendingCode(true);
         try {
-            if (process.env.NODE_ENV === 'development') {
-                setCountdown(60);
+            // 检查是否使用模拟短信（通过环境变量控制）
+            const useMockSms = process.env.NEXT_PUBLIC_USE_MOCK_SMS === 'true';
+
+            if (isEmail) {
+                await sesService.sendVerificationCode({ email: phoneOrEmail });
+            } else {
+                await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
+            }
+            setCountdown(60);
+
+            if (useMockSms) {
                 showToast({ severity: 'info', summary: '验证码已发送', detail: '模拟验证码：123456' });
             } else {
-                if (isEmail) {
-                    await sesService.sendVerificationCode({ email: phoneOrEmail });
-                } else {
-                    await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail });
-                }
-                setCountdown(60);
                 showToast({ severity: 'success', summary: '验证码已发送' });
             }
         } catch (error: any) {
