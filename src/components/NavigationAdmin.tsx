@@ -123,6 +123,13 @@ export default function NavigationAdmin() {
             template: itemRenderer
         },
         {
+            label: '数据分析',
+            icon: Settings,
+            url: '/admin/analytics',
+            command: () => router.push('/admin/analytics'),
+            template: itemRenderer
+        },
+        {
             label: '平台设置',
             icon: Settings,
             url: '/admin/settings',
