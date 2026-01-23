@@ -142,7 +142,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 
                 {/* 今日 vs 当前查看：明确提示，避免把“正在查看的日”误认为今天 */}
                 {calendarDayIndex && (
-                    <div className="mb-4 rounded-xl border border-surface-200 bg-surface-50 px-4 py-3 text-sm">
+                    <div className="mb-4 rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3 text-sm">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="text-surface-700">
                                 <span className="font-bold">今日（日历）</span>：第{calendarDayIndex}天 · {todayCalendarDay?.type === 'rest' ? '休息日' : '训练日'}
@@ -154,7 +154,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                             </div>
                             {selectedDayIndex !== calendarDayIndex && (
                                 <button
-                                    className="w-fit px-3 py-1 rounded-lg bg-white border border-surface-200 text-surface-700 text-xs font-semibold hover:bg-surface-100"
+                                    className="w-fit px-3 py-1 rounded-xl bg-surface border border-surface-200 text-surface-700 text-xs font-semibold hover:bg-surface-100 transition-all active:scale-[0.98]"
                                     onClick={handleBackToToday}
                                 >
                                     回到今天
@@ -168,13 +168,13 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 <div className="bg-surface-50 rounded-2xl p-2 sm:p-3 mb-4 relative">
                     {/* 📝 制定中周遮罩 */}
                     {!isCurrentWeekUnlocked && (
-                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-surface-900/10 backdrop-blur-sm rounded-xl">
-                            <div className="bg-white/90 rounded-2xl p-6 shadow-lg text-center max-w-xs">
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-surface-900/10 backdrop-blur-sm rounded-2xl">
+                            <div className="bg-surface/90 rounded-2xl p-6 border border-surface-100/50 text-center max-w-xs">
                                 <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <i className="pi pi-pencil text-2xl text-amber-500" />
+                                    <i className="pi pi-pencil text-2xl text-amber-600" />
                                 </div>
-                                <h4 className="text-lg font-bold text-gray-800 mb-1">第 {currentWeek} 周内容制定中</h4>
-                                <p className="text-sm text-gray-500 mb-2">
+                                <h4 className="text-lg font-bold text-surface-900 mb-1 tracking-tight">第 {currentWeek} 周内容制定中</h4>
+                                <p className="text-sm text-surface-600 mb-2">
                                     {(() => {
                                         const unlockDate = getUnlockDate(currentWeek, instance?.start_date);
                                         if (unlockDate) {
@@ -183,7 +183,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                         return '教练正在为您精心准备训练内容';
                                     })()}
                                 </p>
-                                <p className="text-xs text-gray-400">
+                                <p className="text-xs text-surface-500">
                                     专属计划，逐周发布
                                 </p>
                             </div>
@@ -227,30 +227,30 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 >
                                     {/* 今日标记 */}
                                     {isCalendarToday && (
-                                        <div className="absolute -top-1 -left-1 bg-surface-900 text-white text-[8px] px-1 rounded-full">
+                                        <div className="absolute -top-1 -left-1 bg-surface-900 text-surface text-[8px] px-1 rounded-full">
                                             今日
                                         </div>
                                     )}
                                     {/* 起始执行天标记 */}
                                     {isStartDay && (
-                                        <div className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] px-1 rounded-full">
+                                        <div className="absolute -top-1 -right-1 bg-green-600 text-surface text-[8px] px-1 rounded-full">
                                             开始
                                         </div>
                                     )}
                                     
                                     {/* 状态标记 */}
                                     {(isBeforeStart || isCompleted) && (
-                                        <div className={`absolute -top-1 -right-1 ${isCompleted ? 'bg-green-500' : 'bg-gray-400'} text-white text-[8px] p-0.5 rounded-full`}>
+                                        <div className={`absolute -top-1 -right-1 ${isCompleted ? 'bg-green-600' : 'bg-surface-400'} text-surface text-[8px] p-0.5 rounded-full`}>
                                             <Check className="w-2 h-2" />
                                         </div>
                                     )}
                                     {isInProgress && (
-                                        <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[8px] px-1 rounded-full">
+                                        <div className="absolute -top-1 -right-1 bg-amber-600 text-surface text-[8px] px-1 rounded-full">
                                             进行中
                                         </div>
                                     )}
                                     {isAbandoned && (
-                                        <div className="absolute -top-1 -right-1 bg-surface-600 text-white text-[8px] px-1 rounded-full">
+                                        <div className="absolute -top-1 -right-1 bg-surface-600 text-surface text-[8px] px-1 rounded-full">
                                             跳过
                                         </div>
                                     )}
@@ -284,19 +284,19 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 {!isCurrentWeekUnlocked ? (
                     /* 制定中周的预览区域 */
                     <div className="text-center py-8 bg-amber-50/50 rounded-2xl border border-amber-100/50">
-                        <i className="pi pi-pencil text-2xl text-amber-400 mb-3" />
-                        <p className="text-amber-600 text-sm font-medium">本周训练内容制定中</p>
-                        <p className="text-amber-500 text-xs mt-1">教练正在精心准备，敬请期待</p>
+                        <i className="pi pi-pencil text-2xl text-amber-600 mb-3" />
+                        <p className="text-amber-600 text-sm font-medium tracking-tight">本周训练内容制定中</p>
+                        <p className="text-amber-600 text-xs mt-1">教练正在精心准备，敬请期待</p>
                     </div>
                 ) : selectedDay ? (
                     selectedDay.type === 'training' ? (
                         <div>
                             <div className="mb-3">
                                 <div className="flex items-center justify-between mb-1">
-                                    <h4 className="font-semibold text-surface-900 tracking-tight">
+                                    <h4 className="font-bold text-surface-900 tracking-tight">
                                         第 {selectedDayIndex} 天
                                     </h4>
-                                    <span className="text-xs text-surface-500">
+                                    <span className="text-xs text-surface-500 font-medium">
                                         {selectedDay.actionSets?.length || 0} 个动作
                                     </span>
                                 </div>
@@ -325,7 +325,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     const noteText = String(actionSet?.params?.note || actionSet?.note || '').trim();
                                     
                                     return (
-                                        <div key={idx} className="bg-surface-50 rounded-xl p-2.5 sm:p-3 border border-surface-100/50 text-sm">
+                                        <div key={idx} className="bg-surface-50 rounded-2xl p-2.5 sm:p-3 border border-surface-100/50 text-sm">
                                             <div className="font-medium flex items-center justify-between gap-2">
                                                 <div className="min-w-0 truncate">
                                                     {idx + 1}. {action?.name || actionSet.set_name}
@@ -333,7 +333,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                 {action?.detail && (
                                                     <button
                                                         type="button"
-                                                        className="p-1.5 rounded-xl text-surface-600 hover:bg-surface transition-colors active:scale-[0.98]"
+                                                        className="p-1.5 rounded-2xl text-surface-600 hover:bg-surface transition-colors active:scale-[0.98]"
                                                         title="查看动作说明"
                                                         onClick={() => setInfoDialog({
                                                             title: action?.name || actionSet.set_name || '动作说明',
@@ -442,7 +442,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 
                                             {/* 教练备注：在浏览训练日预览中也优先展示 */}
                                             {noteText && (
-                                                <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200/50 bg-amber-50 px-2.5 py-2 text-amber-800">
+                                                <div className="mt-2 flex items-start gap-2 rounded-2xl border border-amber-200/50 bg-amber-50 px-2.5 py-2 text-amber-800">
                                                     <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                                                     <div className="text-xs leading-relaxed line-clamp-2">
                                                         {noteText}
@@ -494,7 +494,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                         <div className="text-center py-6">
                             <div className="text-5xl mb-3">😌</div>
                             <h4 className="text-lg font-bold text-surface-900 mb-1 tracking-tight">休息日</h4>
-                            <p className="text-sm text-surface-600">今天好好休息，为下次训练做准备</p>
+                            <p className="text-sm text-surface-600">好好休息，为下次训练做准备</p>
                         </div>
                     )
                 ) : (

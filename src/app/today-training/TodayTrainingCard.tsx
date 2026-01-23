@@ -66,13 +66,13 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         <h2 className="text-xl sm:text-2xl font-bold text-surface-900 mt-1 flex items-center gap-2 tracking-tight">
                             今日训练
                             {isCompleted && (
-                                <span className="inline-flex items-center gap-1 text-green-600 text-base font-medium">
-                                    <CheckCircle className="w-5 h-5" />
+                                <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-sm font-medium">
+                                    <CheckCircle className="w-4 h-4" />
                                     已完成
                                 </span>
                             )}
                             {isInProgress && (
-                                <span className="inline-flex items-center gap-1 text-orange-600 text-base font-medium">
+                                <span className="inline-flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full text-sm font-medium">
                                     进行中
                                 </span>
                             )}
@@ -95,7 +95,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                 {isCompleted && (
                     <div className="bg-green-50 border border-green-100/50 rounded-2xl p-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
                                 <CheckCircle className="w-6 h-6 text-surface" />
                             </div>
                             <div>
@@ -125,7 +125,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                            <span className={`w-6 h-6 ${isCompleted ? 'bg-green-500' : 'bg-primary-500'} text-surface rounded-full flex items-center justify-center text-sm font-bold`}>
+                                            <span className={`w-6 h-6 ${isCompleted ? 'bg-green-600' : 'bg-primary-600'} text-surface rounded-full flex items-center justify-center text-sm font-bold`}>
                                                 {isCompleted ? <CheckCircle className="w-4 h-4" /> : idx + 1}
                                             </span>
                                             <h3 className="font-semibold text-surface-900">
@@ -238,7 +238,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
 
                                         {/* 教练备注：优先在今日训练卡片展示 */}
                                         {noteText && (
-                                            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200/50 bg-amber-50 px-3 py-2 text-amber-800">
+                                            <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200/50 bg-amber-50 px-3 py-2 text-amber-800">
                                                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                                                 <div className="text-xs leading-relaxed line-clamp-2">
                                                     {noteText}
@@ -251,7 +251,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                         {action?.url && (
                                             <button
                                                 onClick={() => window.open(action.url, '_blank')}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-2xl transition-colors active:scale-[0.98]"
                                                 title="查看视频"
                                             >
                                                 <Video className="w-5 h-5" />
@@ -263,7 +263,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                     title: action?.name || actionSet.set_name || '动作说明',
                                                     detail: String(action.detail || '').trim(),
                                                 })}
-                                                className="p-2 text-surface-600 hover:bg-surface-100 rounded-xl transition-colors"
+                                                className="p-2 text-surface-600 hover:bg-surface-100 rounded-2xl transition-colors active:scale-[0.98]"
                                                 title="查看动作说明"
                                             >
                                                 <Info className="w-5 h-5" />
@@ -311,7 +311,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         label="继续训练"
                         icon={<Play className="w-5 h-5" />}
                         onClick={handleStartTraining}
-                        className="w-full !py-4 !text-lg font-bold rounded-2xl transition-all active:scale-95 duration-200 ease-out"
+                        className="w-full !py-4 !text-lg font-bold rounded-2xl transition-all active:scale-[0.98] duration-200 ease-out"
                         severity="warning"
                     />
                 ) : (
@@ -320,7 +320,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         label="开始训练"
                         icon={<Play className="w-5 h-5" />}
                         onClick={handleStartTraining}
-                        className="w-full !py-4 !text-lg font-bold rounded-2xl transition-all active:scale-95 duration-200 ease-out"
+                        className="w-full !py-4 !text-lg font-bold rounded-2xl transition-all active:scale-[0.98] duration-200 ease-out"
                         severity="success"
                     />
                 )}
