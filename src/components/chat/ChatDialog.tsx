@@ -18,6 +18,7 @@ import { userService } from '@/app/service/userService';
 import type { UserProfilesRow } from '@/types';
 import { CoachLinkTable } from '@/types';
 import { Send, AtSign, MessageSquareOff, Loader2, Image as ImageIcon } from 'lucide-react';
+import { useChatContext } from '@/context/ChatContext';
 
 interface ChatDialogProps {
     visible: boolean;
@@ -29,6 +30,7 @@ interface ChatDialogProps {
 const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMarkSuccess }) => {
     const { data: session } = useSession() as any;
     const { showToast } = useToastContext();
+    const { setCurrentOpenRoomId, subscribeToMessages } = useChatContext();
     const [loading, setLoading] = useState(false);
     const [messages, setMessages] = useState<MessageItemType[]>([]);
     const [sending, setSending] = useState(false);
@@ -41,10 +43,10 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     const [loadingMore, setLoadingMore] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
-    const eventSourceRef = useRef<EventSource | null>(null);
     const userMap = useRef<Record<string, { name: string; avatar: string | null }>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
     const loadingMoreRef = useRef(false);
+    const shouldScrollToBottomRef = useRef(true); // 标记是否应该滚动到底部
 
     // 获取当前用户档案
     useEffect(() => {
@@ -108,45 +110,77 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         fetchChat();
     }, [visible, chatroom?.id]);
 
-    // 3. SSE 实时监听
+    // 3. SSE 实时监听（使用统一的 SSE endpoint，通过 Context 管理）
     useEffect(() => {
-        if (!visible || !chatroom?.id || !session?.user?.id) return;
-        if (eventSourceRef.current) eventSourceRef.current.close();
-        const es = new EventSource(`/api/chat/receive-stream?roomId=${chatroom.id}`);
-        eventSourceRef.current = es;
-        es.onmessage = (event) => {
-            try {
-                const newMessage = JSON.parse(event.data);
-                if (newMessage.sender_id === session.user.id) return;
-                const profile = userMap.current[newMessage.sender_id] || { name: 'User', avatar: null };
-                const incoming: MessageItemType = {
-                    id: newMessage.id,
-                    chatUserId: newMessage.sender_id,
-                    chatUserProfile: { name: profile.name, avatar: profile.avatar },
-                    messageType: newMessage.message_type,
-                    content: newMessage.content || '',
-                    isMine: false,
-                    createdAt: newMessage.created_at,
-                    isRead: true,
-                    mediaUrl: newMessage.media_url || null,
-                    fileName: newMessage.file_name || null,
-                    fileSize: newMessage.file_size || null,
-                    duration: newMessage.duration || null,
-                    contentMetadata: newMessage.content_metadata || null
-                };
-                setMessages(prev => [...prev, incoming]);
-            } catch (e) { console.error(e); }
-        };
-        return () => { es.close(); eventSourceRef.current = null; };
-    }, [visible, chatroom?.id, session?.user?.id]);
+        if (!visible || !chatroom?.id || !session?.user?.id) {
+            setCurrentOpenRoomId(null);
+            return;
+        }
 
-    // 滚动到底部（仅初始加载完成时；加载更多历史不触发）
+        // 更新当前打开的聊天室 ID（这会触发 Context 中的 SSE 连接重建）
+        setCurrentOpenRoomId(chatroom.id);
+
+        // 订阅消息事件（通过 Context 的全局连接）
+        const unsubscribe = subscribeToMessages((newMessage) => {
+            // 只处理当前聊天室的消息
+            if (newMessage.room_id !== chatroom.id) return;
+            if (newMessage.sender_id === session.user.id) return;
+            
+            const profile = userMap.current[newMessage.sender_id] || { name: 'User', avatar: null };
+            const incoming: MessageItemType = {
+                id: newMessage.id,
+                chatUserId: newMessage.sender_id,
+                chatUserProfile: { name: profile.name, avatar: profile.avatar },
+                messageType: newMessage.message_type,
+                content: newMessage.content || '',
+                isMine: false,
+                createdAt: newMessage.created_at,
+                isRead: true,
+                mediaUrl: newMessage.media_url || null,
+                fileName: newMessage.file_name || null,
+                fileSize: newMessage.file_size || null,
+                duration: newMessage.duration || null,
+                contentMetadata: newMessage.content_metadata || null
+            };
+            setMessages(prev => [...prev, incoming]);
+            // 收到新消息时，应该滚动到底部
+            shouldScrollToBottomRef.current = true;
+        });
+
+        return () => {
+            setCurrentOpenRoomId(null);
+            unsubscribe();
+        };
+    }, [visible, chatroom?.id, session?.user?.id, setCurrentOpenRoomId, subscribeToMessages]);
+
+    // 滚动到底部的函数
+    const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        // 使用 requestAnimationFrame 确保 DOM 已更新
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // 直接设置 scrollTop 到最大值，确保滚动到底部
+                container.scrollTop = container.scrollHeight;
+            });
+        });
+    }, []);
+
+    // 滚动到底部（初始加载完成时）
     useEffect(() => {
         if (loading || messages.length === 0) return;
-        setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-    }, [loading]);
+        // 初始加载完成后，立即滚动到底部（不使用 smooth，确保立即到位）
+        scrollToBottom('auto');
+    }, [loading, scrollToBottom]);
+
+    // 当消息列表变化时，如果应该滚动到底部，则滚动
+    useEffect(() => {
+        if (loading || messages.length === 0) return;
+        if (shouldScrollToBottomRef.current) {
+            scrollToBottom('smooth');
+        }
+    }, [messages, loading, scrollToBottom]);
 
     // 向上滚动加载更多历史消息（每次最多 50 条，无限回滚）
     const loadMoreMessages = useCallback(async () => {
@@ -204,6 +238,12 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
 
         const handleScroll = () => {
             if (loadingMoreRef.current || !hasMore) return;
+            
+            // 检查是否接近底部（距离底部 100px 以内）
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+            shouldScrollToBottomRef.current = isNearBottom;
+            
+            // 如果滚动到顶部附近，加载更多历史
             if (container.scrollTop <= 120) {
                 loadMoreMessages();
             }
@@ -231,6 +271,8 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
             mediaUrl: null, fileName: null, fileSize: null, duration: null
         };
         setMessages(prev => [...prev, optimisticMsg]);
+        // 发送消息后，应该滚动到底部
+        shouldScrollToBottomRef.current = true;
 
         const res = await chatService.sendMessage({ roomId: chatroom.id, messageType: 'text', content });
         if (!res) {
@@ -296,6 +338,8 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                 duration: null
             };
             setMessages(prev => [...prev, optimisticMsg]);
+            // 发送图片后，应该滚动到底部
+            shouldScrollToBottomRef.current = true;
 
             // 发送消息
             const res = await chatService.sendMessage({
@@ -354,6 +398,8 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
             contentMetadata: { video_references: videos }
         };
         setMessages(prev => [...prev, optimisticMsg]);
+        // 发送视频引用后，应该滚动到底部
+        shouldScrollToBottomRef.current = true;
 
         const res = await chatService.sendMessage({
             roomId: chatroom.id,
@@ -398,7 +444,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                 className="chat-dialog-container border-none shadow-2xl rounded-3xl overflow-hidden"
                 contentClassName="p-0 flex flex-col bg-surface-0"
                 pt={{
-                    header: { className: 'py-4 px-6 border-b border-surface-100 bg-surface-0/80 backdrop-blur-md' },
+                    header: { className: 'py-4 px-6 border-b border-surface bg-surface-50' },
                     closeButton: { className: 'hover:bg-surface-100 rounded-full transition-all' },
                     content: { className: 'flex flex-col' }
                 }}
@@ -443,7 +489,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                 </div>
 
                 {/* 输入区域 */}
-                <div className="p-4 md:p-6 bg-surface-0 border-t border-surface-100">
+                <div className="p-4 md:p-6 border-t border-surface-100">
                     <div className="flex items-end gap-2 bg-surface-50 p-2 rounded-[1.5rem] border border-surface-100 focus-within:border-primary-300 focus-within:ring-4 focus-within:ring-primary-500/5 transition-all">
                         <button
                             className="p-2.5 text-surface-400 hover:text-primary-500 transition-colors"

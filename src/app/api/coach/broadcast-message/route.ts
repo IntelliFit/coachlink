@@ -203,6 +203,22 @@ export async function POST(req: Request) {
           throw new Error(updateRoomErr.message);
         }
 
+        // 触发 Web Push 系统通知（后台/锁屏推送）
+        // fire-and-forget，不阻塞响应
+        try {
+          const { sendPushToUser } = await import('@/lib/pushNotify');
+          sendPushToUser(studentUserId, {
+            title: 'CoachLink 新消息',
+            body: trimmedContent.slice(0, 80),
+            url: `/messages?peerUserId=${coachUserId}`,
+            tag: `chat-${roomId}`,
+          }).catch(() => {
+            // 静默失败，VAPID 未配置或推送失败不影响广播
+          });
+        } catch {
+          // 静默失败
+        }
+
         return { studentUserId, roomId, success: true };
       } catch (e: any) {
         return {

@@ -12,12 +12,23 @@ export type PushPermission = 'default' | 'granted' | 'denied';
 
 /** 仅注册 SW，不请求权限。可在页面加载时调用。 */
 export async function registerSw(): Promise<ServiceWorkerRegistration | null> {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+        console.log('[SW] 环境不支持 Service Worker');
+        return null;
+    }
     try {
+        console.log('[SW] 开始注册 Service Worker...');
         const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
+        console.log('[SW] 注册成功，scope:', reg.scope);
+        
+        // 监听 Service Worker 状态变化
+        reg.addEventListener('updatefound', () => {
+            console.log('[SW] 发现新版本，正在更新...');
+        });
+        
         return reg;
     } catch (e) {
-        console.warn('[SW] 注册失败:', e);
+        console.error('[SW] 注册失败:', e);
         return null;
     }
 }
@@ -74,11 +85,14 @@ export async function requestPermissionAndSubscribe(): Promise<{
     }
 
     try {
+        console.log('[Push] 开始订阅，VAPID 公钥长度:', vapid.length);
         const sub = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
         });
+        console.log('[Push] 订阅成功，endpoint:', sub.endpoint);
         const payload = subscriptionToJson(sub);
+        console.log('[Push] 上报订阅到服务端...');
         const res = await fetch('/api/push/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -86,12 +100,14 @@ export async function requestPermissionAndSubscribe(): Promise<{
             credentials: 'same-origin',
         });
         const data = (await res.json()) as { success?: boolean; message?: string };
+        console.log('[Push] 服务端响应:', data);
         if (!res.ok || !data.success) {
             return { ok: false, reason: data.message || '上报订阅失败' };
         }
+        console.log('[Push] 订阅完成！');
         return { ok: true };
     } catch (e: any) {
-        console.warn('[Push] 订阅失败:', e);
+        console.error('[Push] 订阅失败:', e);
         return { ok: false, reason: e?.message || '订阅失败' };
     }
 }

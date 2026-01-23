@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
+import type { Database } from '@/types/database.types';
 
 interface SubscriptionKeys {
   p256dh: string;
@@ -12,6 +13,8 @@ interface SubscriptionPayload {
   keys: SubscriptionKeys;
   expirationTime?: number | null;
 }
+
+type PushSubscriptionInsert = Database['public']['Tables']['push_subscriptions']['Insert'];
 
 export async function POST(req: Request) {
   const session = await getServerSession();
@@ -39,19 +42,18 @@ export async function POST(req: Request) {
 
   const userAgent = req.headers.get('user-agent') ?? undefined;
 
-  const { error } = await (serviceRoleSupabase as any)
+  const insertData: PushSubscriptionInsert = {
+    user_id: session.user.id,
+    endpoint: sub.endpoint,
+    keys_p256dh: sub.keys.p256dh,
+    keys_auth: sub.keys.auth,
+    user_agent: userAgent,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await serviceRoleSupabase
     .from('push_subscriptions')
-    .upsert(
-      {
-        user_id: session.user.id,
-        endpoint: sub.endpoint,
-        keys_p256dh: sub.keys.p256dh,
-        keys_auth: sub.keys.auth,
-        user_agent: userAgent,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,endpoint' }
-    );
+    .upsert(insertData, { onConflict: 'user_id,endpoint' });
 
   if (error) {
     console.error('[push/subscribe] 写入失败:', error);

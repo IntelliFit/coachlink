@@ -610,7 +610,7 @@ const TodayTrainingPage: React.FC = () => {
                 />
             )}
 
-            <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
                 {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
                 {hasBothPlans && (
                     <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit">
@@ -725,7 +725,7 @@ const TodayTrainingPage: React.FC = () => {
                 )}
 
                 {/* --- 核心内容区域 --- */}
-                <div className="space-y-10">
+                <div className="space-y-6 sm:space-y-8 md:space-y-10">
                     {/* 今日模块标题层 */}
                     <section>
                         <div className="flex items-end justify-between mb-6 px-2">
@@ -817,7 +817,7 @@ const TodayTrainingPage: React.FC = () => {
                     </section>
 
                     {/* --- 浏览区域 --- */}
-                    <section className="pt-4">
+                    <section className="pt-2 sm:pt-4">
                         <div className="flex items-center gap-3 mb-6 px-2">
                             <div className="h-px flex-1 bg-surface-100"></div>
                             <h4 className="text-slate-400 text-xs font-bold uppercase tracking-widest">

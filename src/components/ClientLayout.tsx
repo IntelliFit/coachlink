@@ -8,6 +8,8 @@ import { OnboardingModalProvider } from './auth/OnboardingModalContext';
 import { SessionProvider, useSession } from 'next-auth/react';
 import { GuideProvider } from '@/stores/useGuideStore';
 import { GuideManager } from '@/components/guide/GuideManager';
+import { ChatProvider } from '@/context/ChatContext';
+import { NotificationPermissionProvider } from '@/context/NotificationPermissionContext';
 import Footer from './Footer';
 import { registerSw } from '@/lib/swRegistration';
 
@@ -66,19 +68,26 @@ export default function ClientLayout({
     }, [theme]);
 
     return (
-        <SessionProvider>
+        <SessionProvider
+            refetchInterval={5 * 60} // 每 5 分钟刷新一次 session（PWA 后台恢复时）
+            refetchOnWindowFocus={true} // 窗口聚焦时刷新
+        >
             <ToastContextProvider>
                 <LoginModalProvider>
                     <OnboardingModalProvider>
-                        <GuideWrapper>
-                            <div className="flex flex-col">
-                                {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
-                                <main className="flex-grow pb-24 min-h-screen">
-                                    {children}
-                                </main>
-                                <Footer />
-                            </div>
-                        </GuideWrapper>
+                        <ChatProvider>
+                            <NotificationPermissionProvider>
+                                <GuideWrapper>
+                                    <div className="flex flex-col">
+                                        {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
+                                        <main className="flex-grow pb-24 min-h-screen">
+                                            {children}
+                                        </main>
+                                        <Footer />
+                                    </div>
+                                </GuideWrapper>
+                            </NotificationPermissionProvider>
+                        </ChatProvider>
                     </OnboardingModalProvider>
                 </LoginModalProvider>
             </ToastContextProvider>

@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_trace_events: {
+        Row: {
+          anon_id: string | null
+          created_at: string
+          duration_ms: number | null
+          env: string | null
+          event_type: string
+          from_path: string | null
+          id: string
+          leave_at: string | null
+          method: string | null
+          path: string | null
+          referrer: string | null
+          session_id: string | null
+          trace_id: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          anon_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          env?: string | null
+          event_type: string
+          from_path?: string | null
+          id?: string
+          leave_at?: string | null
+          method?: string | null
+          path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          trace_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          anon_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          env?: string | null
+          event_type?: string
+          from_path?: string | null
+          id?: string
+          leave_at?: string | null
+          method?: string | null
+          path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          trace_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           created_at: string | null
@@ -55,60 +112,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      admin_trace_events: {
-        Row: {
-          id: string
-          event_type: string
-          user_id: string | null
-          anon_id: string | null
-          session_id: string | null
-          path: string | null
-          url: string | null
-          referrer: string | null
-          user_agent: string | null
-          properties: Json | null
-          created_at: string
-          env: string | null
-          method: string | null
-          trace_id: string | null
-          leave_at: string | null
-        }
-        Insert: {
-          id?: string
-          event_type: string
-          user_id?: string | null
-          anon_id?: string | null
-          session_id?: string | null
-          path?: string | null
-          url?: string | null
-          referrer?: string | null
-          user_agent?: string | null
-          properties?: Json | null
-          created_at?: string
-          env?: string | null
-          method?: string | null
-          trace_id?: string | null
-          leave_at?: string | null
-        }
-        Update: {
-          id?: string
-          event_type?: string
-          user_id?: string | null
-          anon_id?: string | null
-          session_id?: string | null
-          path?: string | null
-          url?: string | null
-          referrer?: string | null
-          user_agent?: string | null
-          properties?: Json | null
-          created_at?: string
-          env?: string | null
-          method?: string | null
-          trace_id?: string | null
-          leave_at?: string | null
-        }
-        Relationships: []
       }
       alipay_orders: {
         Row: {
@@ -816,7 +819,10 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          is_default: boolean
+          name: string
           questions: Json
+          status: string
           updated_at: string | null
           version: number | null
         }
@@ -825,7 +831,10 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
+          name?: string
           questions: Json
+          status?: string
           updated_at?: string | null
           version?: number | null
         }
@@ -834,7 +843,10 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
+          name?: string
           questions?: Json
+          status?: string
           updated_at?: string | null
           version?: number | null
         }
@@ -2176,6 +2188,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          keys_auth: string
+          keys_p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          keys_auth: string
+          keys_p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          keys_auth?: string
+          keys_p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       questionnaire_responses: {
         Row: {

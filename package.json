@@ -12,7 +12,9 @@
         "test:watch": "vitest",
         "test:e2e": "playwright test",
         "test:redis": "tsx scripts/test-redis.ts",
-        "optimize-favicon": "python scripts/optimize-favicon.py"
+        "optimize-favicon": "python scripts/optimize-favicon.py",
+        "check-vapid": "tsx scripts/check-vapid.ts",
+        "test-push": "tsx scripts/test-push.ts"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",

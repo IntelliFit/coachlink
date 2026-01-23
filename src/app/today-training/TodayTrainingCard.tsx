@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { useRouter } from 'next/navigation';
@@ -48,11 +47,11 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     const hiddenCount = Math.max(0, actionSets.length - visibleActionSets.length);
 
     return (
-        <Card
+        <div
             id="guide-today-card"
-            className={`border rounded-3xl ${isCompleted ? 'border-green-100/50 bg-green-50/30' : 'border-primary-100/50'}`}
+            className={`bg-surface border rounded-2xl ${isCompleted ? 'border-green-100/50 bg-green-50/30' : 'border-surface-100/50'} p-4 sm:p-6`}
         >
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -64,7 +63,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 weekday: 'long'
                             })}</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-surface-900 mt-1 flex items-center gap-2 tracking-tight">
+                        <h2 className="text-xl sm:text-2xl font-bold text-surface-900 mt-1 flex items-center gap-2 tracking-tight">
                             今日训练
                             {isCompleted && (
                                 <span className="inline-flex items-center gap-1 text-green-600 text-base font-medium">
@@ -121,12 +120,12 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         return (
                             <div
                                 key={idx}
-                                className={`bg-surface-50 rounded-2xl p-4 border border-surface-100/50 hover:border-primary-200/50 transition-all active:scale-[0.99] ${isCompleted ? 'opacity-80' : ''}`}
+                                className={`bg-surface-50 rounded-2xl p-4 border border-surface-100/50 hover:border-primary-200/50 transition-all active:scale-[0.98] ${isCompleted ? 'opacity-80' : ''}`}
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                            <span className={`w-6 h-6 ${isCompleted ? 'bg-green-500' : 'bg-primary-500'} text-white rounded-full flex items-center justify-center text-sm font-bold`}>
+                                            <span className={`w-6 h-6 ${isCompleted ? 'bg-green-500' : 'bg-primary-500'} text-surface rounded-full flex items-center justify-center text-sm font-bold`}>
                                                 {isCompleted ? <CheckCircle className="w-4 h-4" /> : idx + 1}
                                             </span>
                                             <h3 className="font-semibold text-surface-900">
@@ -239,7 +238,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
 
                                         {/* 教练备注：优先在今日训练卡片展示 */}
                                         {noteText && (
-                                            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                                            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200/50 bg-amber-50 px-3 py-2 text-amber-800">
                                                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
                                                 <div className="text-xs leading-relaxed line-clamp-2">
                                                     {noteText}
@@ -282,7 +281,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     <button
                         type="button"
                         onClick={() => setShowAllActions(true)}
-                        className="w-full py-3 rounded-2xl border border-surface-100/50 bg-surface hover:bg-surface-50 text-surface-700 font-medium transition-all active:scale-95 duration-200 ease-out"
+                        className="w-full py-3 rounded-2xl border border-surface-100/50 bg-surface hover:bg-surface-50 text-surface-700 font-medium transition-all active:scale-[0.98] duration-200 ease-out"
                     >
                         展开查看全部（还有 {hiddenCount} 个动作）
                     </button>
@@ -291,7 +290,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     <button
                         type="button"
                         onClick={() => setShowAllActions(false)}
-                        className="w-full py-2 rounded-2xl text-surface-500 hover:text-surface-700 hover:bg-surface-50 transition-all active:scale-95 duration-200 ease-out"
+                        className="w-full py-2 rounded-2xl text-surface-500 hover:text-surface-700 hover:bg-surface-50 transition-all active:scale-[0.98] duration-200 ease-out"
                     >
                         收起预览
                     </button>
@@ -303,7 +302,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         label="查看记录"
                         icon={<CheckCircle className="w-5 h-5" />}
                         onClick={handleStartTraining}
-                        className="w-full !py-3 rounded-2xl transition-all active:scale-95 duration-200 ease-out"
+                        className="w-full !py-3 rounded-2xl transition-all active:scale-[0.98] duration-200 ease-out"
                         severity="secondary"
                         outlined
                     />
@@ -339,7 +338,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     {infoDialog?.detail || ''}
                 </div>
             </Dialog>
-        </Card>
+        </div>
     );
 };
 

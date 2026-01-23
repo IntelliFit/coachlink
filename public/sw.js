@@ -59,8 +59,18 @@ function showNotification(registration, payload) {
 }
 
 self.addEventListener('push', (event) => {
+  console.log('[SW] 收到 push 事件', event);
   const payload = parsePushPayload(event);
-  event.waitUntil(showNotification(self.registration, payload).catch(() => {}));
+  console.log('[SW] 解析后的 payload:', payload);
+  event.waitUntil(
+    showNotification(self.registration, payload)
+      .then(() => {
+        console.log('[SW] 通知已显示');
+      })
+      .catch((err) => {
+        console.error('[SW] 显示通知失败:', err);
+      })
+  );
 });
 
 /**

@@ -2,6 +2,7 @@
 
 import ChangePasswordForm from '@/components/auth/ChangePasswordForm';
 import AccountBindingSection from '@/components/student/profile/AccountBindingSection';
+import NotificationSettingsSection from '@/components/settings/NotificationSettingsSection';
 
 export default function StudentSettingsPage() {
     return (
@@ -12,6 +13,7 @@ export default function StudentSettingsPage() {
                     <p className="text-surface-500">管理您的账户安全和偏好设置。</p>
                 </div>
 
+                <NotificationSettingsSection />
                 <ChangePasswordForm />
                 <AccountBindingSection />
             </div>
