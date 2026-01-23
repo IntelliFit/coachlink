@@ -437,11 +437,11 @@ const TodayTrainingPage: React.FC = () => {
         if (hasActiveSubscription) {
             return (
                 <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
-                    <Card className="rounded-3xl bg-transparent shadow-none overflow-hidden">
+                    <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
                         <div className="text-center py-16 px-4">
                             <div className="relative inline-block mb-6">
                                 <div className="absolute inset-0 animate-ping opacity-20 bg-primary-400 rounded-full" />
-                                <div className="relative bg-surface-50 p-6 rounded-full border border-surface-100">
+                                <div className="relative bg-surface-50 p-6 rounded-full border border-surface-100/50">
                                     <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
                                 </div>
                             </div>
@@ -467,13 +467,13 @@ const TodayTrainingPage: React.FC = () => {
                                             router.push('/messages');
                                         }
                                     }}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-95 duration-200 ease-out"
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                                 />
                                 <Button
                                     label="我的计划库"
                                     icon="pi pi-bookmark"
                                     onClick={() => router.push('/me/plan-lib')}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-95 duration-200 ease-out hover:bg-surface-100 shadow-none"
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
                                 />
                             </div>
                         </div>
@@ -485,7 +485,7 @@ const TodayTrainingPage: React.FC = () => {
         return (
             <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
                 {/* 1. 容器与深度：使用 surface 背景与极浅边框，摒弃阴影 */}
-                <Card className="rounded-3xl bg-transparent shadow-none overflow-hidden">
+                <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
                     <div className="text-center py-16 px-4">
 
                         {/* 2. 状态动效：利用微弱的周期性动效引导注意力 */}
@@ -510,13 +510,13 @@ const TodayTrainingPage: React.FC = () => {
                                 label="浏览教练"
                                 icon="pi pi-compass"
                                 onClick={() => router.push('/coach/discovery')}
-                                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-95 duration-200 ease-out"
+                                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                             />
                             <Button
                                 label="我的计划库"
                                 icon="pi pi-bookmark"
                                 onClick={() => router.push('/me/plan-lib')}
-                                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-95 duration-200 ease-out hover:bg-surface-100 shadow-none"
+                                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
                             />
                         </div>
                     </div>
@@ -613,11 +613,11 @@ const TodayTrainingPage: React.FC = () => {
             <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
                 {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
                 {hasBothPlans && (
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit">
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
                         <button
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${planMode === 'coach'
-                                ? 'bg-surface text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${planMode === 'coach'
+                                ? 'bg-surface text-surface-900 shadow-sm'
+                                : 'text-surface-500 hover:text-surface-700'
                                 }`}
                             onClick={() => setPlanMode('coach')}
                         >
@@ -625,9 +625,9 @@ const TodayTrainingPage: React.FC = () => {
                             教练计划
                         </button>
                         <button
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${planMode === 'self'
-                                ? 'bg-surface text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${planMode === 'self'
+                                ? 'bg-surface text-surface-900 shadow-sm'
+                                : 'text-surface-500 hover:text-surface-700'
                                 }`}
                             onClick={() => setPlanMode('self')}
                         >
@@ -638,7 +638,7 @@ const TodayTrainingPage: React.FC = () => {
                 )}
                 {/* --- 顶部教练信息卡片 (仅当有订阅且当前计划不是自建时显示，或者即使是自建也可以不显示教练卡片) --- */}
                 {subscription?.coach && instance?.source !== 'self' && (
-                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-surface shadow-2xl shadow-surface-100 dark:shadow-slate-700">
+                    <div className="relative overflow-hidden bg-surface-900 rounded-2xl p-6 mb-8 text-surface border border-surface-100/50">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-blue-500/10 rounded-full blur-2xl"></div>
@@ -650,7 +650,7 @@ const TodayTrainingPage: React.FC = () => {
                                         label={subscription.coach.name?.charAt(0) || 'C'}
                                         image={subscription.coach.avatar_url}
                                         shape="circle"
-                                        className="w-16 h-16 bg-white text-primary-500 font-bold"
+                                        className="w-16 h-16 bg-surface text-primary-500 font-bold"
                                     ></Avatar>
                                     {/* 在线状态点 */}
                                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-slate-900 rounded-full"></div>
@@ -658,21 +658,21 @@ const TodayTrainingPage: React.FC = () => {
 
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="px-2 py-0.5 bg-primary-500/20 text-primary-300 text-[10px] font-bold uppercase tracking-wider rounded">PRO COACH</span>
-                                        <span className="text-slate-400 text-xs font-medium italic">Assigning your path</span>
+                                        <span className="px-2 py-0.5 bg-primary-500/20 text-primary-300 text-[10px] font-bold uppercase tracking-wider rounded">专业教练</span>
+                                        <span className="text-surface-400 text-xs font-medium italic">为你定制训练路径</span>
                                     </div>
-                                    <h2 className="text-2xl text-surface-50 font-bold tracking-tight">
+                                    <h2 className="text-2xl text-surface font-bold tracking-tight">
                                         {subscription.coach.name || '未知教练'}
                                     </h2>
-                                    <p className="text-slate-400 text-sm font-medium">
+                                    <p className="text-surface-400 text-sm font-medium">
                                         {subscription.coach.title || '资深健身专家'}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="hidden md:block text-right border-l border-surface/10 pl-8">
-                                <div className="text-slate-400 text-xs uppercase mb-1">训练累计</div>
-                                <div className="text-xl font-mono font-bold">128 <span className="text-sm font-normal text-slate-500">Days</span></div>
+                                <div className="text-surface-400 text-xs uppercase mb-1 tracking-wider">训练累计</div>
+                                <div className="text-xl font-mono font-bold tracking-tight">128 <span className="text-sm font-normal text-surface-500">天</span></div>
                             </div>
                         </div>
                     </div>
@@ -681,7 +681,7 @@ const TodayTrainingPage: React.FC = () => {
 
                 {/* 自建计划顶部卡片 - 带移除按钮 */}
                 {instance?.source === 'self' && (
-                    <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-6 mb-8 text-surface shadow-2xl shadow-surface-100 dark:shadow-slate-800">
+                    <div className="relative overflow-hidden bg-surface-900 rounded-2xl p-6 mb-8 text-surface border border-surface-100/50">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[-20%] left-[-5%] w-48 h-48 bg-pink-500/10 rounded-full blur-2xl"></div>
@@ -698,13 +698,13 @@ const TodayTrainingPage: React.FC = () => {
 
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-wider rounded">SELF PLAN</span>
-                                        <span className="text-slate-400 text-xs font-medium italic">Your personal journey</span>
+                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-wider rounded">自建计划</span>
+                                        <span className="text-surface-400 text-xs font-medium italic">你的专属旅程</span>
                                     </div>
-                                    <h2 className="text-2xl font-bold tracking-tight">
+                                    <h2 className="text-2xl font-bold tracking-tight text-surface">
                                         {instance.name || '我的自建计划'}
                                     </h2>
-                                    <p className="text-slate-400 text-sm font-medium">
+                                    <p className="text-surface-400 text-sm font-medium">
                                         自我驱动，超越极限
                                     </p>
                                 </div>
@@ -730,21 +730,21 @@ const TodayTrainingPage: React.FC = () => {
                     <section>
                         <div className="flex items-end justify-between mb-6 px-2">
                             <div>
-                                <h3 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
-                                    TODAY'S MISSION
+                                <h3 className="text-xl sm:text-2xl font-black text-surface-900 tracking-tight">
+                                    今日任务
                                 </h3>
-                                <p className="text-slate-500 text-sm">
+                                <p className="text-surface-500 text-sm">
                                     今日（日历）：第{calendarDayIndex}天 · {calendarDay?.type === 'rest' ? '休息日' : '训练日'}
                                     {calendarExecutionStatus === 'in_progress' && calendarExec?.started_at ? `（开始于 ${formatShortDate(calendarExec.started_at)}）` : ''}
                                     {calendarExecutionStatus === 'completed' && calendarExec?.completed_at ? `（完成于 ${formatShortDate(calendarExec.completed_at)}）` : ''}
                                 </p>
                             </div>
-                            <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full ${todayCompleted
+                            <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full tracking-tight ${todayCompleted
                                 ? 'text-green-600 bg-green-50'
                                 : 'text-primary-600 bg-primary-50'
                                 }`}>
                                 <i className={todayCompleted ? 'pi pi-check' : 'pi pi-clock animate-spin-slow'} />
-                                {todayCompleted ? 'Well Done!' : 'Keep Pushing'}
+                                {todayCompleted ? '已完成' : '进行中'}
                             </div>
                         </div>
 
@@ -754,7 +754,7 @@ const TodayTrainingPage: React.FC = () => {
                         */}
                         <div className="transform transition-all sm:hover:translate-y-[-4px]">
                             {missingDays.length > 0 && (
-                                <div className="mb-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                <div className="mb-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                         <div>
                                             ⚠️ 你有 <b>{missingDays.length}</b> 天训练日未确认/未完成（允许跳过，不会影响今日推荐）。
@@ -763,13 +763,13 @@ const TodayTrainingPage: React.FC = () => {
                                             {missingDays.slice(0, 3).map((di) => (
                                                 <div key={di} className="flex items-center gap-1.5">
                                                     <button
-                                                        className="px-2 py-1 rounded-lg bg-white border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-100"
+                                                        className="px-2 py-1 rounded-xl bg-surface border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-50 transition-all active:scale-[0.98]"
                                                         onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${di}`)}
                                                     >
                                                         去补练 第{di}天
                                                     </button>
                                                     <button
-                                                        className="px-2 py-1 rounded-lg bg-surface-900 text-white text-xs font-semibold hover:bg-surface-700"
+                                                        className="px-2 py-1 rounded-xl bg-surface-900 text-surface text-xs font-semibold hover:bg-surface-700 transition-all active:scale-[0.98]"
                                                         onClick={() => handleSkipDay(di)}
                                                     >
                                                         跳过
@@ -784,7 +784,7 @@ const TodayTrainingPage: React.FC = () => {
                                 </div>
                             )}
                             {todayCompleted && (
-                                <div className="mb-4 rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-green-800 text-sm">
+                                <div className="mb-4 rounded-2xl border border-green-100/50 bg-green-50 px-4 py-3 text-green-800 text-sm">
                                     ✅ 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。
                                 </div>
                             )}
@@ -803,10 +803,10 @@ const TodayTrainingPage: React.FC = () => {
                             )}
 
                             {calendarDay?.type === 'rest' && inProgressExec && (
-                                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                <div className="mt-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
                                     你有进行中的训练：第{inProgressExec.day_index}天（开始于 {formatShortDate(inProgressExec.started_at)}）。
                                     <button
-                                        className="ml-2 underline font-semibold"
+                                        className="ml-2 underline font-semibold transition-all active:scale-[0.98]"
                                         onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${inProgressExec.day_index}`)}
                                     >
                                         继续训练
@@ -820,8 +820,8 @@ const TodayTrainingPage: React.FC = () => {
                     <section className="pt-2 sm:pt-4">
                         <div className="flex items-center gap-3 mb-6 px-2">
                             <div className="h-px flex-1 bg-surface-100"></div>
-                            <h4 className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                Explore Schedule
+                            <h4 className="text-surface-400 text-xs font-bold uppercase tracking-widest">
+                                浏览计划
                             </h4>
                             <div className="h-px flex-1 bg-surface-100"></div>
                         </div>
