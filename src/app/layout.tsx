@@ -11,6 +11,7 @@ import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
 import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primereact/api';
 import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
+import TraceReporter from '@/app/trace/component';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -94,11 +95,13 @@ export async function generateMetadata(): Promise<Metadata> {
         },
         icons: {
             icon: [
-                { url: '/favicon.svg', type: 'image/svg+xml' },
-                { url: '/favicon.jpg', type: 'image/jpeg' },
+                { url: '/icons/favicon.ico', type: 'image/x-icon', sizes: 'any' },
+                { url: '/icons/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+                { url: '/icons/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+                { url: '/icons/favicon-48x48.png', type: 'image/png', sizes: '48x48' },
             ],
-            shortcut: [{ url: '/favicon.jpg', type: 'image/jpeg' }],
-            apple: [{ url: '/favicon.jpg', type: 'image/jpeg' }],
+            shortcut: [{ url: '/icons/favicon.ico', type: 'image/x-icon', sizes: 'any' }],
+            apple: [{ url: '/icons/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
         },
         other: {
             'mobile-web-app-capable': 'yes',
@@ -152,6 +155,8 @@ export default function RootLayout({
                             <ProfileSetupModalProvider>
                                 <Navigation />
                             </ProfileSetupModalProvider>
+
+                            <TraceReporter />
 
                             {children}
                         </PrimeReactProvider>

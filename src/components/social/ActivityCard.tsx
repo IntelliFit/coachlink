@@ -37,7 +37,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
 
     return (
         <div 
-            className="bg-white p-4 rounded-xl shadow-sm border border-surface-100 mb-3 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]"
+            className="bg-surface-0 p-4 rounded-xl shadow-sm border border-surface-100 mb-3 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]"
             onClick={handleClick}
         >
             {/* Header */}
@@ -61,7 +61,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
 
             {/* Content */}
             <div className="bg-surface-50 rounded-lg p-3">
-                <h4 className="font-bold text-primary-700 mb-2 text-sm">
+                <h4 className="font-bold text-primary-500 mb-2 text-sm">
                     {execution.planName} · Day {execution.dayIndex}
                 </h4>
                 

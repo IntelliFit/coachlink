@@ -119,7 +119,7 @@ const CoachDiscoveryPage: React.FC = () => {
         <div
             key={coach.id}
             id={idx === 0 ? "guide-discovery-first-coach" : undefined}
-            className="group bg-white rounded-[24px] md:rounded-2xl p-4 md:p-5 mb-4 transition-all active:scale-[0.98] md:active:scale-100 md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-surface-100 cursor-pointer"
+            className="group bg-surface-0 rounded-[24px] md:rounded-2xl p-4 md:p-5 mb-4 transition-all active:scale-[0.98] md:active:scale-100 md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-surface-100 cursor-pointer"
             onClick={() => router.push('/coach/profile/' + coach.id + '?from=discovery')}
         >
             <div className="flex flex-row gap-4 md:gap-6">
@@ -333,7 +333,7 @@ const CoachDiscoveryPage: React.FC = () => {
                 {isLoading || visibilityLoading ? (
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-white rounded-xl p-6 border border-surface-100">
+                            <div key={i} className="bg-surface-0 rounded-xl p-6 border border-surface-100">
                                 <div className="flex gap-4">
                                     <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
                                     <div className="flex-1 space-y-3">
@@ -345,7 +345,7 @@ const CoachDiscoveryPage: React.FC = () => {
                         ))}
                     </div>
                 ) : coaches.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-surface-100">
+                    <div className="flex flex-col items-center justify-center py-20 bg-surface-0 rounded-xl border border-surface-100">
                         <Eye size={40} className="text-surface-200 mb-3" />
                         <p className="text-surface-500 font-bold">没有找到相关教练</p>
                     </div>

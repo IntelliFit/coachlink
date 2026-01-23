@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
@@ -17,7 +17,7 @@ import type { VideoReferenceItem } from '@/app/api/chat/send-message/entity';
 import { userService } from '@/app/service/userService';
 import type { UserProfilesRow } from '@/types';
 import { CoachLinkTable } from '@/types';
-import { Send, AtSign, MessageSquareOff, Loader2 } from 'lucide-react';
+import { Send, AtSign, MessageSquareOff, Loader2, Image as ImageIcon } from 'lucide-react';
 
 interface ChatDialogProps {
     visible: boolean;
@@ -36,9 +36,15 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
     const [chatPartner, setChatPartner] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
     const [showVideoPicker, setShowVideoPicker] = useState(false);
     const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const userMap = useRef<Record<string, { name: string; avatar: string | null }>>({});
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const loadingMoreRef = useRef(false);
 
     // 获取当前用户档案
     useEffect(() => {
@@ -80,14 +86,19 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         loadUserProfiles();
     }, [visible, chatroom, session, profile]);
 
-    // 2. 加载历史消息
+    // 2. 初始化加载最近 50 条消息
     useEffect(() => {
         if (!visible || !chatroom?.id) return;
         const fetchChat = async () => {
             setLoading(true);
+            setMessages([]);
+            setHasMore(false);
             try {
-                const messagesRes = await chatService.listMessages({ roomId: chatroom.id, page: 1, limit: 50 });
-                if (messagesRes) setMessages(messagesRes.messages);
+                const messagesRes = await chatService.listMessages({ roomId: chatroom.id, limit: 50 });
+                if (messagesRes) {
+                    setMessages(messagesRes.messages);
+                    setHasMore(messagesRes.has_more);
+                }
                 const markRes = await chatService.markAsRead({ roomId: chatroom.id });
                 if (markRes && onMarkSuccess) onMarkSuccess(chatroom.id);
             } finally {
@@ -113,11 +124,14 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                     chatUserId: newMessage.sender_id,
                     chatUserProfile: { name: profile.name, avatar: profile.avatar },
                     messageType: newMessage.message_type,
-                    content: newMessage.content,
+                    content: newMessage.content || '',
                     isMine: false,
                     createdAt: newMessage.created_at,
                     isRead: true,
-                    mediaUrl: newMessage.media_url, fileName: null, fileSize: null, duration: null,
+                    mediaUrl: newMessage.media_url || null,
+                    fileName: newMessage.file_name || null,
+                    fileSize: newMessage.file_size || null,
+                    duration: newMessage.duration || null,
                     contentMetadata: newMessage.content_metadata || null
                 };
                 setMessages(prev => [...prev, incoming]);
@@ -126,9 +140,78 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
         return () => { es.close(); eventSourceRef.current = null; };
     }, [visible, chatroom?.id, session?.user?.id]);
 
+    // 滚动到底部（仅初始加载完成时；加载更多历史不触发）
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, loading]);
+        if (loading || messages.length === 0) return;
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    }, [loading]);
+
+    // 向上滚动加载更多历史消息（每次最多 50 条，无限回滚）
+    const loadMoreMessages = useCallback(async () => {
+        if (!chatroom?.id || loadingMoreRef.current || !hasMore || messages.length === 0) return;
+        const oldestMessage = messages[0];
+        if (!oldestMessage) return;
+
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+
+        const container = messagesContainerRef.current;
+        const scrollHeightBefore = container?.scrollHeight ?? 0;
+        const scrollTopBefore = container?.scrollTop ?? 0;
+
+        try {
+            const messagesRes = await chatService.listMessages({
+                roomId: chatroom.id,
+                limit: 50,
+                beforeId: oldestMessage.id,
+            });
+
+            if (messagesRes && messagesRes.messages.length > 0) {
+                setMessages(prev => [...messagesRes.messages, ...prev]);
+                setHasMore(messagesRes.has_more);
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const el = messagesContainerRef.current;
+                        if (el) {
+                            const scrollHeightAfter = el.scrollHeight;
+                            const added = scrollHeightAfter - scrollHeightBefore;
+                            el.scrollTop = scrollTopBefore + added;
+                        }
+                        setLoadingMore(false);
+                        loadingMoreRef.current = false;
+                    });
+                });
+            } else {
+                setHasMore(false);
+                setLoadingMore(false);
+                loadingMoreRef.current = false;
+            }
+        } catch (error) {
+            console.error('加载更多消息失败:', error);
+            showToast({ severity: 'error', summary: '加载失败，请稍后重试' });
+            setLoadingMore(false);
+            loadingMoreRef.current = false;
+        }
+    }, [chatroom?.id, hasMore, messages, showToast]);
+
+    // 向上滚动到顶部附近时加载更多历史
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (!container || !hasMore || loading) return;
+
+        const handleScroll = () => {
+            if (loadingMoreRef.current || !hasMore) return;
+            if (container.scrollTop <= 120) {
+                loadMoreMessages();
+            }
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [hasMore, loading, loadMoreMessages]);
 
     const sendMessage = async () => {
         if (sending || !messageText.trim() || !chatroom) return;
@@ -156,6 +239,96 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
             setMessageText(content);
         }
         setSending(false);
+    };
+
+    // 处理图像上传
+    const handleImageUpload = async (file: File) => {
+        if (!chatroom || sending || uploadingImage) return;
+
+        // 验证文件类型
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+            showToast({ severity: 'error', summary: '仅支持 PNG/JPEG/WEBP/GIF 格式的图片' });
+            return;
+        }
+
+        // 验证文件大小（10MB）
+        if (file.size > 10 * 1024 * 1024) {
+            showToast({ severity: 'error', summary: '图片大小不能超过 10MB' });
+            return;
+        }
+
+        setUploadingImage(true);
+
+        try {
+            // 上传图像
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadRes = await fetch('/api/upload/chat-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const uploadData = await uploadRes.json();
+
+            if (!uploadData.success || !uploadData.data?.url) {
+                showToast({ severity: 'error', summary: uploadData.message || '上传失败' });
+                setUploadingImage(false);
+                return;
+            }
+
+            const imageUrl = uploadData.data.url;
+
+            // 创建乐观消息
+            const optimisticMsg: MessageItemType = {
+                id: Date.now().toString(),
+                chatUserId: session.user.id,
+                chatUserProfile: { name: profile?.nickname || '我', avatar: profile?.avatar_url || null },
+                messageType: 'image',
+                content: '', // 纯图像消息，content 为空
+                isMine: true,
+                createdAt: new Date().toISOString(),
+                isRead: false,
+                mediaUrl: imageUrl,
+                fileName: file.name,
+                fileSize: file.size,
+                duration: null
+            };
+            setMessages(prev => [...prev, optimisticMsg]);
+
+            // 发送消息
+            const res = await chatService.sendMessage({
+                roomId: chatroom.id,
+                messageType: 'image',
+                content: '', // 纯图像消息，content 为空
+                mediaUrl: imageUrl,
+                fileName: file.name,
+                fileSize: file.size,
+            });
+
+            if (!res) {
+                showToast({ severity: 'error', summary: '发送失败' });
+                setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+            }
+        } catch (error) {
+            console.error('上传图像失败:', error);
+            showToast({ severity: 'error', summary: '上传失败，请稍后重试' });
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    // 处理文件选择
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleImageUpload(file);
+        }
+        // 重置 input，允许重复选择同一文件
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     // 发送视频引用
@@ -231,7 +404,10 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                 }}
             >
                 {/* 消息区域 - 维持 500px 固定高度 */}
-                <div className="relative flex-1 bg-surface-50/30 px-4 py-6 md:px-8 overflow-y-auto min-h-[500px] max-h-[500px] h-[500px]">
+                <div 
+                    ref={messagesContainerRef}
+                    className="relative flex-1 bg-surface-50/30 px-4 py-6 md:px-8 overflow-y-auto min-h-[500px] max-h-[500px] h-[500px]"
+                >
                     {loading ? (
                         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-surface-0/60 backdrop-blur-sm transition-all duration-300">
                             <div className="relative">
@@ -251,6 +427,13 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
+                            {/* 加载更多指示器 */}
+                            {loadingMore && (
+                                <div className="flex items-center justify-center py-2">
+                                    <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
+                                    <span className="ml-2 text-xs text-surface-500">加载更多消息...</span>
+                                </div>
+                            )}
                             {messages.map((message) => (
                                 <MessageItem key={message.id} message={message} />
                             ))}
@@ -265,10 +448,32 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                         <button
                             className="p-2.5 text-surface-400 hover:text-primary-500 transition-colors"
                             onClick={() => setShowVideoPicker(true)}
-                            disabled={sending}
+                            disabled={sending || uploadingImage}
                             title="引用视频"
                         >
                             <AtSign size={20} />
+                        </button>
+
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handleFileSelect}
+                            disabled={sending || uploadingImage}
+                        />
+
+                        <button
+                            className="p-2.5 text-surface-400 hover:text-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={sending || uploadingImage}
+                            title="上传图片"
+                        >
+                            {uploadingImage ? (
+                                <Loader2 size={20} className="animate-spin" />
+                            ) : (
+                                <ImageIcon size={20} />
+                            )}
                         </button>
 
                         <InputTextarea
@@ -280,12 +485,12 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                             autoResize
                             className="flex-1 border-none shadow-none bg-transparent text-surface-700 py-2 px-1 focus:shadow-none min-h-[40px] max-h-24"
                             style={{ resize: 'none' }}
-                            disabled={sending}
+                            disabled={sending || uploadingImage}
                         />
 
                         <Button
                             onClick={sendMessage}
-                            disabled={!messageText.trim() || sending}
+                            disabled={!messageText.trim() || sending || uploadingImage}
                             // 移除 Primereact 默认样式，完全自定义 Aero 物理动效
                             className={`
                                 relative w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center 
