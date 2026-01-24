@@ -18,6 +18,7 @@ interface BrowseSectionProps {
     todayCompleted?: boolean;                  // 今天是否已完成训练
     initialSelectedDayIndex?: number;          // 默认选中的日历日（用于“今天”定格）
     calendarDayIndex?: number;                 // 今日（日历日）dayIndex（用于高亮/提示，避免误解）
+    effectiveStartDate?: string | Date | null; // 实际生效的开始日期（用于解锁计算）
 }
 
 const BrowseSection: React.FC<BrowseSectionProps> = ({
@@ -29,7 +30,8 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     executionsByDayIndex = {},
     todayCompleted = false,
     initialSelectedDayIndex,
-    calendarDayIndex
+    calendarDayIndex,
+    effectiveStartDate
 }) => {
     const router = useRouter();
     const [selectedDayIndex, setSelectedDayIndex] = useState(initialSelectedDayIndex || currentDayIndex);
@@ -58,11 +60,13 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     
     // 🔒 计算已解锁的周次（基于计划开始日期）
     const unlockedWeek = useMemo(() => {
-        const byDate = calculateCurrentWeek(instance?.start_date);
+        // 优先使用传入的 effectiveStartDate，回退到 instance.start_date
+        const startDate = effectiveStartDate || instance?.start_date;
+        const byDate = calculateCurrentWeek(startDate);
         // For migrated students, start_execution_day should unlock to that week even if start_date is null/too recent.
         const byStartExecution = getDayWeekNumber(startExecutionDay || 1);
         return Math.max(byDate, byStartExecution);
-    }, [instance?.start_date, startExecutionDay]);
+    }, [effectiveStartDate, instance?.start_date, startExecutionDay]);
     
     // 计算当前周的训练日范围
     const weekDays = useMemo(() => {
