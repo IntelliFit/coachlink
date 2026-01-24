@@ -559,9 +559,10 @@ const TodayTrainingPage: React.FC = () => {
             }
         }
 
-        // fallback：当没有任何执行记录时，best-effort 用 start_date 作为计划日历锚点
-        if ((instance as any).start_date) {
-            const start = new Date((instance as any).start_date);
+        // fallback：当没有任何执行记录时，best-effort 用 start_date (或订阅 start_date) 作为计划日历锚点
+        const effectiveStart = (instance as any).start_date || subscription?.start_date;
+        if (effectiveStart) {
+            const start = new Date(effectiveStart);
             start.setHours(0, 0, 0, 0);
             const diffDays = Math.floor((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
             return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
@@ -836,6 +837,7 @@ const TodayTrainingPage: React.FC = () => {
                             todayCompleted={todayCompleted}
                             initialSelectedDayIndex={calendarDayIndex}
                             calendarDayIndex={calendarDayIndex}
+                            effectiveStartDate={instance.start_date || subscription?.start_date}
                         />
                     </section>
                 </div>

@@ -466,14 +466,6 @@ function TrainingExecutionContent() {
                     action_id: actionExecution.action_id,
                     set_index: setIndex,
                     weight: weight,
-                    trackEvent('student_pr_record', 'training', {
-                        execution_id: execution.id,
-                        action_id: actionExecution.action_id,
-                        type: 'auto_e1rm',
-                        weight: e1rm,
-                        improvement: improvement
-                    });
-                    
                     reps: reps,
                     rpe: rpe,
                     is_pr: markAsPR || res.autoE1RM?.isPR,
@@ -501,14 +493,6 @@ function TrainingExecutionContent() {
                     await executionService.createPR({
                         executionId: execution.id,
                         actionId: actionExecution.action_id,
-
-                    trackEvent('student_pr_record', 'training', {
-                        execution_id: execution.id,
-                        action_id: actionExecution.action_id,
-                        type: 'manual',
-                        weight: weight,
-                        reps: reps
-                    });
                         actionName: actionExecution.action_name,
                         setNumber: setIndex + 1,
                         weight,
@@ -516,6 +500,14 @@ function TrainingExecutionContent() {
                         rpe: rpe || undefined,
                         notes: setNotes || undefined,
                         videoId: uploadedVideoId
+                    });
+
+                    trackEvent('student_pr_record', 'training', {
+                        execution_id: execution.id,
+                        action_id: actionExecution.action_id,
+                        type: 'manual',
+                        weight: weight,
+                        reps: reps
                     });
                 }
 
