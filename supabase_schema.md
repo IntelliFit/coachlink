@@ -1,12 +1,13 @@
 # Supabase 数据库结构文档（public schema）
 
-- **生成时间**：2026-01-07
-- **最后更新**：2026-01-07（通过 MCP 从 Supabase 云端数据库实时获取）
+- **生成时间**：2026-01-26
+- **最后更新**：2026-01-26（通过 MCP 从 Supabase 云端数据库实时获取）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
 > ⚠️ **重要变更说明**：
 >
+> - 2026-01-26：新增 **知识库系统**（knowledge_books / knowledge_videos / knowledge_progress / knowledge_subscriptions）、**标准动作库**（canonical_actions）、**增长分享系统**（growth_share_*）、**推送订阅**（push_subscriptions）、**用户行为追踪**（user_behavior_events）等
 > - 2026-01-06：上线 **学员会员与权益体系**（student_memberships / quotas /
 >   coupons /
 >   membership_orders），新增教练钱包、流水、提现、拉新奖励、推广投稿等财务与增长表
@@ -16,7 +17,7 @@
 > - 2025-12-29：执行集视频与计划实例等字段优化，新增学员自建动作与常用计划表
 > - 2025-12-26：聊天系统重构、训练执行系统优化、排行榜系统上线
 > - 根据数据库分析报告（2025-12-04），已删除6个冗余表
-> - 当前保留 **53个表 + 3个视图 = 56个数据库对象**
+> - 当前保留 **68个表 + 3个视图 = 71个数据库对象**
 
 ## 目录
 
@@ -33,7 +34,7 @@
 
 ## 表清单
 
-### 用户与平台（6个）
+### 用户与平台（9个）
 
 - `users` - 统一用户表（auth）
 - `user_profiles` - 学员个人档案表
@@ -41,8 +42,11 @@
 - `shipping_info` - 快递信息表
 - `social_friendships` ⭐ 新增 - 好友关系与请求
 - `platform_settings` ⭐ 新增 - 平台全局配置
+- `user_behavior_events` ⭐ 新增 - 用户行为事件追踪表
+- `admin_trace_events` ⭐ 新增 - 管理员操作追踪表
+- `push_subscriptions` ⭐ 新增 - 推送订阅表（Web Push）
 
-### 教练与订阅/钱包（14个）
+### 教练与订阅/钱包（16个）
 
 - `coaches` - 教练基本信息表
 - `coach_subscriptions` - 教练订阅关系表
@@ -58,6 +62,8 @@
 - `wallet_transactions` ⭐ 新增 - 教练钱包流水
 - `payout_requests` ⭐ 新增 - 教练提现申请
 - `coach_questionnaires` - 教练专属问卷表
+- `coach_posters` ⭐ 新增 - 教练海报/宣传素材表
+- `canonical_actions` ⭐ 新增 - 标准动作库表（平台统一动作库）
 
 ### 训练与执行（16个）
 
@@ -102,13 +108,27 @@
 - `leaderboard_entries` - 排行榜条目表（通用）
 - `pullup_leaderboard` - 引体向上排行榜表（当前活动）
 
+### 知识库与内容（5个）
+
+- `knowledge_books` ⭐ 新增 - 知识书籍表（电子书/课程）
+- `knowledge_videos` ⭐ 新增 - 知识视频表
+- `knowledge_progress` ⭐ 新增 - 知识学习进度表
+- `knowledge_subscriptions` ⭐ 新增 - 知识订阅关系表
+- `feedbacks` ⭐ 新增 - 用户反馈表
+
+### 增长与运营（3个）
+
+- `growth_share_links` ⭐ 新增 - 增长分享链接表
+- `growth_share_events` ⭐ 新增 - 增长分享事件表
+- `feature_releases` ⭐ 新增 - 功能发布记录表
+
 ### 其他（2个）
 
 - `specialties` - 教练专业领域表
 - `lifestyle_logs` - 学员生活日志表
 
-**总计：53个表**（用户与平台6 + 教练14 + 训练16 + 会员交易7 + 内容互动5 +
-排行榜3 + 其他2 = 53）
+**总计：68个表**（用户与平台9 + 教练16 + 训练16 + 会员交易7 + 内容互动5 +
+排行榜3 + 知识库5 + 增长运营3 + 其他2 = 68）
 
 ---
 
@@ -242,6 +262,8 @@
 | is_coach                | boolean     | YES  | false             |                                            |
 | coach_status            | text        | YES  | 'none'            | ∈ {'none','pending','approved','rejected'} |
 | primary_role            | text        | YES  | 'student'         | ∈ {'student','coach','admin'}              |
+| invitation_coach_id     | uuid        | YES  |                   | ⭐ **新增**：邀请教练ID（用于拉新奖励）   |
+| wechat_openid           | text        | YES  |                   | ⭐ **新增**：微信OpenID（用于微信登录）   |
 
 **外键**
 
@@ -297,6 +319,8 @@
 | lifestyle            | text        | YES  |                   | ⭐ **新增**：生活作息描述，如"朝九晚五，久坐办公" |
 | onboarding_completed | boolean     | YES  | false             | ⭐ **新增**：初始问卷是否已完成                   |
 | age                  | integer     | YES  |                   | ⭐ **新增**：年龄                                 |
+| search_id            | text        | YES  |                   | ⭐ **新增**：搜索ID（唯一标识，用于搜索）        |
+| guides_completed     | jsonb       | YES  | '{}'              | ⭐ **新增**：已完成的新手引导（JSON格式）        |
 | created_at           | timestamptz | YES  | now()             |                                                   |
 | updated_at           | timestamptz | YES  | now()             |                                                   |
 
@@ -346,10 +370,14 @@
 | is_featured      | boolean     | YES  | false             |                                                 |
 | status           | text        | YES  | 'pending'         | ∈ {'pending','approved','rejected','suspended'} |
 | search_vector    | tsvector    | YES  |                   | 全文搜索向量                                    |
-| profile          | jsonb       | YES  |                   | ⭐ **新增**：教练扩展信息（JSON格式）           |
-| payment_qr_code  | text        | YES  |                   | ⭐ **新增**：收款二维码                         |
-| created_at       | timestamptz | YES  | now()             |                                                 |
-| updated_at       | timestamptz | YES  | now()             |                                                 |
+| profile                | jsonb       | YES  |                   | ⭐ **新增**：教练扩展信息（JSON格式）           |
+| payment_qr_codes       | jsonb       | YES  | '[]'               | ⭐ **新增**：收款二维码列表（支持多个）         |
+| payment_mode           | varchar     | YES  |                   | ⭐ **新增**：收款模式（direct/platform）        |
+| allow_personal_qrcode  | boolean     | YES  | true               | ⭐ **新增**：是否允许使用个人收款码             |
+| invitation_code        | text        | YES  |                   | ⭐ **新增**：教练邀请码（用于拉新）             |
+| invitation_mode         | text        | YES  |                   | ⭐ **新增**：邀请模式                             |
+| created_at             | timestamptz | YES  | now()             |                                                 |
+| updated_at             | timestamptz | YES  | now()             |                                                 |
 
 **外键**
 
@@ -879,7 +907,7 @@
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
-- 说明：**核心模板库**，教练设计的可复用训练计划模板
+- 说明：**核心模板库**，教练设计的可复用训练计划模板。采用模板-实例设计模式，教练可以创建一次模板，多次分配给不同学员。模板支持 AI 导入文本计划，自动识别动作、组数、次数、休息日等，极大提升教练效率。
 
 **字段说明**
 
@@ -900,6 +928,13 @@
 | global_answers      | jsonb       | YES  | '{}'              | ⭐ **新增**：全局选项问题的答案，格式: {"问题名": 选项索引}，用于AI计划匹配 |
 | created_at          | timestamptz | YES  | now()             |                                                                             |
 | updated_at          | timestamptz | YES  | now()             |                                                                             |
+
+**业务说明**
+
+- **模板复用**：教练创建一次模板，可以分配给多个学员，避免重复设计
+- **AI 导入**：支持复制粘贴文本格式的计划（如聊天记录、文档），AI 自动识别动作、组数、次数、休息日，一键生成结构化模板
+- **强度设置**：支持固定重量、百分比（%1RM）或 RM 区间设置，学员端根据最新 1RM 数据自动计算当日训练重量
+- **数据独立性**：模板修改不影响已生成的实例，实例修改不影响原模板
 
 **索引**
 
@@ -1174,7 +1209,7 @@
 - 主键：`id` (uuid)
 - 外键：`coach_plan_template_id → coach_plan_templates.id`,
   `coach_subscription_id → coach_subscriptions.id`
-- 说明：从模板生成给学员的计划实例
+- 说明：从模板生成给学员的计划实例。每个学员有独立的实例，可以基于学员情况定制调整。系统根据学员档案中的 1RM 数据，自动计算出每天、每组的具体重量（精确到 2.5kg 倍数）。
 
 **字段说明**
 
@@ -1196,6 +1231,8 @@
 | type                   | text        | YES  |                               | 计划类型                                                              |
 | tags                   | text[]      | YES  |                               | 标签                                                                  |
 | suitable_for           | text        | YES  |                               | 适合人群                                                              |
+| rest_days_count        | smallint    | YES  |                               | ⭐ **新增**：休息天数（从模板继承）                                  |
+| training_days_count    | smallint    | YES  |                               | ⭐ **新增**：训练天数（从模板继承）                                   |
 | created_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                       |
 | updated_at             | timestamptz | YES  | CURRENT_TIMESTAMP             |                                                                       |
 
@@ -1215,6 +1252,13 @@
 - `idx_plan_instances_coach` (coach_id) - 普通索引
 - `idx_coach_plan_instances_start_execution_day` (start_execution_day) -
   普通索引
+
+**业务说明**
+
+- **个性化定制**：从模板创建实例时，可以修改计划名称、训练天数、适合人群等，为学员量身定制
+- **动态负荷计算**：系统根据学员档案中的 1RM 数据，自动计算计划中的百分比重量（如 80% 1RM），学员更新 1RM 后计划自动调整
+- **中途迁入支持**：`start_execution_day` 字段支持老学员中途迁入平台，可以从计划的第 N 天开始执行
+- **计划来源**：`source` 字段区分计划是教练分配（'coach'）还是学员自建（'self'）
 
 #### 31. coach_reviews（教练评价表）⭐ 新增
 
@@ -1414,7 +1458,7 @@
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
 - 外键：`instance_id → coach_plan_instances.id`, `student_id → users.id`
-- 说明：替代 `training_records`，记录新计划系统的训练执行
+- 说明：替代 `training_records`，记录新计划系统的训练执行。支持训练记录的分享功能，学员可以将训练成果分享给好友或公开。
 
 **字段说明**
 
@@ -1433,6 +1477,8 @@
 | progress_percent  | numeric     | YES  |                   | 进度百分比（计算列）                               |
 | session_notes     | text        | YES  |                   | 整体训练备注                                       |
 | last_saved_at     | timestamptz | YES  | now()             | 最后保存时间                                       |
+| visibility        | text        | YES  | 'friends'         | ⭐ **新增**：分享可见性 ∈ {'private','friends','public'} |
+| share_token       | uuid        | YES  | gen_random_uuid() | ⭐ **新增**：分享令牌，用于生成分享链接             |
 | created_at        | timestamptz | NO   | now()             |                                                    |
 | updated_at        | timestamptz | NO   | now()             |                                                    |
 
@@ -1898,6 +1944,246 @@
 
 ---
 
+#### 58. canonical_actions（标准动作库表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (text)
+- 说明：平台统一管理的标准动作库，用于动作名称标准化和AI识别。教练和学员都可以引用这些标准动作。
+
+**字段说明**
+
+| 列名       | 类型        | 可空 | 默认值 | 约束/备注                           |
+| ---------- | ----------- | ---- | ------ | ----------------------------------- |
+| id         | text        | NO   |        | 主键，动作唯一标识（如 "squat"）    |
+| name       | text        | NO   |        | 动作标准名称（如 "深蹲"）            |
+| aliases    | text[]      | YES  | '{}'   | 动作别名数组（如 ["蹲起", "下蹲"]） |
+| category   | text        | YES  |        | 动作分类（如 "下肢", "上肢"）       |
+| created_at | timestamptz | YES  | now()  |                                     |
+
+**业务说明**
+
+- 用于统一动作命名，避免同一动作有多种叫法
+- AI 导入计划时，通过别名匹配识别动作
+- 教练创建动作库时可以关联标准动作，便于搜索和推荐
+
+---
+
+#### 59. knowledge_books（知识书籍表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 说明：知识库系统中的电子书/课程内容，支持付费订阅。教练可以发布知识内容，学员可以订阅学习。
+
+**字段说明**
+
+| 列名          | 类型        | 可空 | 默认值 | 约束/备注                                    |
+| ------------- | ----------- | ---- | ------ | -------------------------------------------- |
+| id            | uuid        | NO   |        | 主键                                         |
+| title         | text        | NO   |        | 书籍/课程标题                                |
+| author        | text        | YES  |        | 作者（教练ID或平台）                         |
+| cover_image   | text        | YES  |        | 封面图片URL                                  |
+| summary       | text        | YES  |        | 简介                                         |
+| audio_url     | text        | YES  |        | 音频URL（支持音频课程）                       |
+| content       | jsonb       | NO   |        | 内容结构（JSON格式，包含章节、视频等）       |
+| is_free       | boolean     | YES  | false  | 是否免费                                     |
+| is_published  | boolean     | YES  | false  | 是否已发布                                   |
+| sort_order    | integer     | YES  | 0      | 排序顺序                                     |
+| created_at    | timestamptz | YES  | now()  |                                              |
+| updated_at    | timestamptz | YES  | now()  |                                              |
+
+**业务说明**
+
+- 支持教练发布知识内容，形成知识付费体系
+- 内容可以是电子书、视频课程、音频课程等
+- 学员订阅后可以学习，平台记录学习进度
+
+---
+
+#### 60. knowledge_videos（知识视频表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`book_id → knowledge_books.id`
+- 说明：知识书籍中的视频内容
+
+**字段要点**
+
+- `book_id`：所属书籍ID
+- `title`，`video_url`，`duration`
+- `order_index`：在书籍中的顺序
+
+---
+
+#### 61. knowledge_progress（知识学习进度表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`(user_id, book_id)` 或 `id` (uuid)
+- 外键：`user_id → users.id`, `book_id → knowledge_books.id`
+- 说明：记录学员对知识书籍的学习进度
+
+**字段要点**
+
+- `progress_percent`：学习进度百分比
+- `last_learned_at`：最后学习时间
+- `completed_chapters`：已完成的章节列表
+
+---
+
+#### 62. knowledge_subscriptions（知识订阅关系表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`, `book_id → knowledge_books.id`
+- 说明：学员订阅知识书籍的关系表
+
+**字段要点**
+
+- `status` ∈ {active, expired, cancelled}
+- `start_date`，`end_date`
+- `order_id`：关联订单ID
+
+---
+
+#### 63. coach_posters（教练海报表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`coach_id → coaches.id`
+- 说明：教练的宣传海报/素材，用于推广和展示
+
+**字段要点**
+
+- `image_url`：海报图片URL
+- `title`，`description`
+- `is_active`：是否启用
+- `sort_order`：排序
+
+---
+
+#### 64. growth_share_links（增长分享链接表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：用户生成的分享链接，用于拉新和增长
+
+**字段要点**
+
+- `share_code`：分享码（唯一）
+- `share_type`：分享类型（如 "invite", "content"）
+- `expires_at`：过期时间
+- `click_count`：点击次数
+
+---
+
+#### 65. growth_share_events（增长分享事件表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`share_link_id → growth_share_links.id`, `user_id → users.id`
+- 说明：记录分享链接的点击、注册等事件
+
+**字段要点**
+
+- `event_type` ∈ {click, register, subscribe}
+- `event_data` (jsonb)：事件数据
+- `created_at`：事件时间
+
+---
+
+#### 66. push_subscriptions（推送订阅表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：Web Push 推送订阅，用于向用户发送浏览器推送通知
+
+**字段要点**
+
+- `endpoint`：推送端点URL
+- `p256dh`，`auth`：加密密钥
+- `device_info` (jsonb)：设备信息
+- `is_active`：是否激活
+
+---
+
+#### 67. user_behavior_events（用户行为事件表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：记录用户行为事件，用于数据分析和产品优化
+
+**字段要点**
+
+- `event_type`：事件类型（如 "page_view", "button_click"）
+- `event_data` (jsonb)：事件数据
+- `page_url`，`user_agent`
+- `created_at`：事件时间
+
+---
+
+#### 68. admin_trace_events（管理员操作追踪表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`admin_id → users.id`
+- 说明：记录管理员的操作日志，用于审计和安全
+
+**字段要点**
+
+- `action_type`：操作类型
+- `target_type`，`target_id`：操作目标
+- `action_data` (jsonb)：操作数据
+- `ip_address`：操作IP
+- `created_at`：操作时间
+
+---
+
+#### 69. feature_releases（功能发布记录表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 说明：记录平台功能发布历史，用于版本管理和用户通知
+
+**字段要点**
+
+- `version`：版本号
+- `title`，`description`：功能描述
+- `release_date`：发布日期
+- `is_announced`：是否已公告
+
+---
+
+#### 70. feedbacks（用户反馈表）⭐ 新增
+
+- 行数：~0
+- 状态：✅ 正常使用
+- 主键：`id` (uuid)
+- 外键：`user_id → users.id`
+- 说明：用户反馈和建议，用于产品改进
+
+**字段要点**
+
+- `feedback_type`：反馈类型（如 "bug", "suggestion"）
+- `content`：反馈内容
+- `status` ∈ {pending, reviewed, resolved}
+- `admin_response`：管理员回复
+
+---
+
 ## 视图详细说明
 
 ### 1. user_video_timeline（学员视频时间线视图）
@@ -2097,6 +2383,44 @@ GROUP BY user_id, plan_id;
 
 ## 数据库变更历史
 
+**最新变更（2026-01-26）：**
+
+1. ⭐ **知识库系统新增 4 表**：
+   - `knowledge_books` - 知识书籍/课程表，支持教练发布知识内容
+   - `knowledge_videos` - 知识视频表
+   - `knowledge_progress` - 知识学习进度表
+   - `knowledge_subscriptions` - 知识订阅关系表
+   - 实现知识付费体系，教练可以发布电子书、视频课程等内容
+
+2. ⭐ **标准动作库**：新增 `canonical_actions` 表，平台统一管理标准动作库，用于动作名称标准化和 AI 识别，避免同一动作有多种叫法。
+
+3. ⭐ **增长与运营系统新增 3 表**：
+   - `growth_share_links` - 增长分享链接表
+   - `growth_share_events` - 增长分享事件表
+   - `feature_releases` - 功能发布记录表
+   - 支持分享拉新、事件追踪、版本管理
+
+4. ⭐ **推送与追踪系统新增 3 表**：
+   - `push_subscriptions` - Web Push 推送订阅表
+   - `user_behavior_events` - 用户行为事件追踪表
+   - `admin_trace_events` - 管理员操作追踪表
+   - 支持浏览器推送通知、用户行为分析、管理员审计
+
+5. ⭐ **其他新增表**：
+   - `coach_posters` - 教练海报/宣传素材表
+   - `feedbacks` - 用户反馈表
+
+6. 📝 **字段更新**：
+   - `plan_instance_executions` 新增 `visibility`（分享可见性）和 `share_token`（分享令牌），支持训练记录分享功能
+   - `users` 新增 `invitation_coach_id`（邀请教练ID）和 `wechat_openid`（微信OpenID），支持拉新奖励和微信登录
+   - `coaches` 新增 `invitation_code`（教练邀请码）和 `invitation_mode`（邀请模式），完善拉新体系
+   - `coach_plan_instances` 新增 `rest_days_count` 和 `training_days_count`，从模板继承训练周期信息
+   - `user_profiles` 新增 `guides_completed`（已完成的新手引导），用于引导系统
+
+7. 📊 **数据库统计更新**：
+   - 表总数从 53 个增加到 **68 个表**
+   - 数据库对象总数：**68 个表 + 3 个视图 = 71 个数据库对象**
+
 **最新变更（2026-01-06）：**
 
 1. ⭐ **会员与权益体系新增 7 表**：`student_memberships`, `student_quotas`,
@@ -2165,7 +2489,7 @@ GROUP BY user_id, plan_id;
 
 本文档包含了 Supabase 数据库中 `public` schema 的完整结构信息，包括：
 
-- ✅ **53个表**的详细说明（含会员体系、钱包与推广等新增表）
+- ✅ **68个表**的详细说明（含知识库、标准动作库、增长运营、推送追踪等新增表）
 - ✅ **3个视图**的定义
 - ✅ 主要索引与外键信息
 - ✅ 冗余分析和优化建议

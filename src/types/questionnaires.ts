@@ -52,6 +52,13 @@ export interface TrainingTagsQuestion extends BaseQuestion {
      */
     options?: string[];
     userSelections?: string[];
+    /**
+     * 可选：分支跳转
+     *
+     * 注意：tags 是“多选题”，因此目前**仅支持 defaultNext**（填完后整体跳转），
+     * 不支持按选项/组合做 rules 分支（否则会有“多选命中多个分支”的歧义）。
+     */
+    branching?: QuestionBranching;
 }
 
 export interface TrainingTimesQuestion extends BaseQuestion {

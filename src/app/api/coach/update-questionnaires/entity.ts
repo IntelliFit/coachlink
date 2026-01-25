@@ -4,7 +4,7 @@ import { TrainingItem } from "@/types/questionnaires";
 export interface UpdateQuestionnairesDto {
     id?: string;
     questionnaires: TrainingItem[];
-    /** 保存模式：'online' = 线上版本, 'draft' = 灰度版本 */
+    /** 保存模式：'online' = 线上版本, 'draft' = 草稿版本 */
     mode?: "online" | "draft";
 }
 

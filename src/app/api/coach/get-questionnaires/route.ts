@@ -23,9 +23,11 @@ function ensureQuestionIds(questions: any[]): { normalized: TrainingItem[]; chan
 
         if (!q || typeof q !== "object") return q as any;
 
+        // 确保保留所有字段，包括 branching、media 等
         if (!q.id) {
-            q = { ...q, id: crypto.randomUUID() };
+            const normalizedQ = { ...q, id: crypto.randomUUID() };
             changed = true;
+            return normalizedQ as any;
         }
         return q as any;
     });

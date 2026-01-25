@@ -196,9 +196,18 @@ const QuestionarePage = () => {
     }
 
     const loadTemplates = async (targetMode?: 'online' | 'draft') => {
-        if (!session?.user?.id || !coach) return;
+        // 仅依赖登录态即可拉取模板列表；避免 coach 尚未就绪时直接 return 导致 UI 残留上一次内容
+        if (!session?.user?.id) return;
         setLoadingTemplates(true);
         try {
+            // 先按“目标模式”清空本地展示，避免因为异步/早退导致草稿页残留线上内容
+            const effectiveMode = targetMode || mode;
+            if (effectiveMode === 'draft') {
+                setSelectedTemplateId(null);
+                setQuestionId(null);
+                setQuestions([]);
+            }
+
             const res = await coachService.listQuestionnaires();
             const items = res?.items || [];
             setTemplates(items);
@@ -207,8 +216,6 @@ const QuestionarePage = () => {
             const online = items.find(i => i.is_active) || null;
             const draft = items.find(i => !i.is_active) || null;
 
-            const effectiveMode = targetMode || mode;
-
             if (effectiveMode === 'draft') {
                 if (draft?.id) {
                     setSelectedTemplateId(draft.id);
@@ -216,7 +223,7 @@ const QuestionarePage = () => {
                     setQuestionId(q?.id || null);
                     setQuestions((q?.questionnaires as any) || []);
                 } else {
-                    // 灰度版本默认是“空问卷”（符合你说的体验）
+                    // 草稿版本默认是“空问卷”
                     setSelectedTemplateId(null);
                     setQuestionId(null);
                     setQuestions([]);
@@ -303,6 +310,17 @@ const QuestionarePage = () => {
                 if (!branching) continue;
                 const selfId = q.id;
 
+                // tags 是多选题：暂不支持按选项 rules 分支（否则会有“多选命中多个分支”的歧义）
+                if (q.type === 'tags' && branching.rules && typeof branching.rules === 'object' && Object.keys(branching.rules).length > 0) {
+                    showToast({
+                        severity: 'error',
+                        summary: '分支配置不支持',
+                        detail: `问题「${labelOfQuestion(q)}」为多选题（tags），暂不支持按选项分支。你可以改用“选项问题（单选）”来实现分叉，或仅配置“默认跳转”。`,
+                    });
+                    setSaving(false);
+                    return;
+                }
+
                 const checkTarget = (target: any, label: string) => {
                     if (target === undefined) return true;
                     if (target === null) return true; // 结束问卷
@@ -322,7 +340,7 @@ const QuestionarePage = () => {
                     setSaving(false);
                     return;
                 }
-                if (branching.rules && typeof branching.rules === 'object') {
+                if (q.type !== 'tags' && branching.rules && typeof branching.rules === 'object') {
                     for (const [k, v] of Object.entries(branching.rules)) {
                         if (!checkTarget(v as any, `问题「${labelOfQuestion(q)}」选项 ${Number(k) + 1} 跳转`)) {
                             setSaving(false);
@@ -559,7 +577,7 @@ const QuestionarePage = () => {
     const normalizeBranchingAfterDeletion = (nextQuestions: TrainingItem[], deletedIds: Set<string>) => {
         // 清理所有指向被删除节点的跳转（规则删除=回到顺序下一题）
         return nextQuestions.map((q: any) => {
-            if (q?.type !== 'option' && q?.type !== 'times') return q;
+            if (q?.type !== 'option' && q?.type !== 'times' && q?.type !== 'tags') return q;
             const b = q.branching;
             if (!b) return q;
 
@@ -570,7 +588,7 @@ const QuestionarePage = () => {
                 delete nextB.defaultNext;
                 changed = true;
             }
-            if (nextB.rules) {
+            if (q?.type !== 'tags' && nextB.rules) {
                 const rules: Record<string, any> = { ...nextB.rules };
                 for (const k of Object.keys(rules)) {
                     const v = rules[k];
@@ -615,13 +633,16 @@ const QuestionarePage = () => {
             const next: any = questions[i + 1];
             if (next?.id) addEdge(cur.id, next.id);
 
-            if (cur.type === 'option' || cur.type === 'times') {
+            if (cur.type === 'option' || cur.type === 'times' || cur.type === 'tags') {
                 const b = cur.branching || {};
                 if (typeof b.defaultNext === 'string') addEdge(cur.id, b.defaultNext);
-                const rules = b.rules || {};
-                Object.values(rules).forEach((v: any) => {
-                    if (typeof v === 'string') addEdge(cur.id, v);
-                });
+                // tags 为多选题：当前不支持 rules 分支
+                if (cur.type !== 'tags') {
+                    const rules = b.rules || {};
+                    Object.values(rules).forEach((v: any) => {
+                        if (typeof v === 'string') addEdge(cur.id, v);
+                    });
+                }
             }
         }
 
@@ -876,6 +897,17 @@ const QuestionarePage = () => {
                     }
                     children.push(child);
                 });
+            } else if (q.type === 'tags') {
+                // tags（多选）：当前仅支持 defaultNext（填完后整体跳转）；否则按顺序下一题
+                const defTarget = branching?.defaultNext;
+                if (defTarget === null) {
+                    // 结束问卷
+                } else if (typeof defTarget === 'string') {
+                    children.push(makeQuestionNode(defTarget, depth + 1));
+                } else {
+                    const seq = getNextSequentialId(qid);
+                    if (seq) children.push(makeQuestionNode(seq, depth + 1));
+                }
             } else {
                 // 非分支题：顺序下一题
                 const seq = getNextSequentialId(qid);
@@ -902,6 +934,11 @@ const QuestionarePage = () => {
                             {(q.type === 'option' || q.type === 'times') && (
                                 <span className="text-[11px] px-2 py-0.5 rounded bg-primary-50 text-primary-700 border border-primary-200">
                                     分支题
+                                </span>
+                            )}
+                            {q.type === 'tags' && (
+                                <span className="text-[11px] px-2 py-0.5 rounded bg-surface-50 text-surface-700 border border-surface-200">
+                                    多选（仅默认跳转）
                                 </span>
                             )}
                             <Button
@@ -1101,7 +1138,8 @@ const QuestionarePage = () => {
 
     const updateBranching = (qIndex: number, updater: (branching: any) => any) => {
         updateQuestion(qIndex, (q) => {
-            if (q.type !== 'option' && q.type !== 'times') return q;
+            // tags（多选）仅支持 defaultNext；option/times 支持 rules + defaultNext
+            if (q.type !== 'option' && q.type !== 'times' && q.type !== 'tags') return q;
             const current = (q as any).branching || {};
             const next = updater(current) || undefined;
             return { ...q, branching: next } as any;
@@ -1146,6 +1184,15 @@ const QuestionarePage = () => {
         switch (question.type) {
             case 'tags':
                 const tagsOptions: string[] = Array.isArray((question as any).options) ? (question as any).options : [];
+                const tagsBranching = (question as any).branching || {};
+                const tagsTargets = questions
+                    .filter(q => q.id && q.id !== question.id)
+                    .map(q => ({ label: labelOfQuestion(q), value: q.id as string }));
+                const tagsBranchOptions = [
+                    { label: '顺序下一题（默认）', value: '__NEXT__' },
+                    { label: '结束问卷', value: '__END__' },
+                    ...tagsTargets,
+                ];
                 return (
                     <div className="mb-4 p-3 bg-surface-100 rounded">
                         <div className="flex justify-between items-start">
@@ -1246,6 +1293,30 @@ const QuestionarePage = () => {
                                 onClick={() => removeQuestion(index)}
                             />
                         </div>
+
+                        {/* 默认跳转（tags：仅支持 defaultNext） */}
+                        <div className="mt-4 p-3 rounded-lg border border-surface-200 bg-surface-50">
+                            <div className="text-xs font-bold text-surface-600 mb-2">默认跳转（可选）</div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-surface-600 w-20 shrink-0">跳转到</span>
+                                <Dropdown
+                                    value={
+                                        tagsBranching.defaultNext === undefined
+                                            ? '__NEXT__'
+                                            : (tagsBranching.defaultNext === null ? '__END__' : tagsBranching.defaultNext)
+                                    }
+                                    options={tagsBranchOptions}
+                                    onChange={(e) => setBranchDefault(index, e.value)}
+                                    className="w-full"
+                                    placeholder="选择默认跳转"
+                                />
+                            </div>
+                            <div className="mt-2 text-[11px] text-surface-500">
+                                说明：该题为<strong>多选题</strong>，目前仅支持“填完后整体跳转”（defaultNext），不支持按选项分支。
+                                如需根据某个选项分叉，请使用「选项问题（单选）」来建模。
+                            </div>
+                        </div>
+
                         {renderMediaEditor(question, index)}
                     </div>
                 );
@@ -1678,7 +1749,7 @@ const QuestionarePage = () => {
                                         })}
                                     />
                                     <Button
-                                        label="灰度版本"
+                                        label="草稿版本"
                                         icon="pi pi-wrench"
                                         onClick={async () => {
                                             setMode('draft');
@@ -1705,7 +1776,7 @@ const QuestionarePage = () => {
                                                 }
                                                 const created = await coachService.duplicateQuestionnaire({ id: online.id });
                                                 if (created?.id) {
-                                                    showToast({ severity: 'success', summary: '已复制', detail: '已同步到灰度版本' });
+                                                    showToast({ severity: 'success', summary: '已复制', detail: '已同步到草稿版本' });
                                                     setMode('draft');
                                                     await loadTemplates('draft');
                                                 }
@@ -1718,12 +1789,12 @@ const QuestionarePage = () => {
                                             onClick={async () => {
                                                 const draft = templates.find(i => !i.is_active) || null;
                                                 if (!draft?.id) {
-                                                    showToast({ severity: 'warn', summary: '灰度版本为空', detail: '请先在灰度版本里编辑或从线上复制' });
+                                                    showToast({ severity: 'warn', summary: '草稿版本为空', detail: '请先在草稿版本里编辑或从线上复制' });
                                                     return;
                                                 }
                                                 const ok = await coachService.publishQuestionnaire({ id: draft.id });
                                                 if (ok?.id) {
-                                                    showToast({ severity: 'success', summary: '发布成功', detail: '灰度版本已发布为线上版本' });
+                                                    showToast({ severity: 'success', summary: '发布成功', detail: '草稿版本已发布为线上版本' });
                                                     setMode('online');
                                                     await loadTemplates('online');
                                                 }
@@ -1734,7 +1805,7 @@ const QuestionarePage = () => {
                             </div>
                         </div>
                         <div className="mt-2 text-[12px] text-surface-500">
-                            建议：线上版本保持稳定；试验新功能先复制到灰度版本，在灰度里修改验证，满意后再切换默认/上线。
+                            建议：线上版本保持稳定；试验新功能先复制到草稿版本，在草稿里修改验证，满意后再切换默认/上线。
                         </div>
                     </div>
 

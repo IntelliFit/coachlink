@@ -277,7 +277,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         const q = answers[currentIndex];
         const sequentialNext = currentIndex + 1 < answers.length ? currentIndex + 1 : null;
 
-        // option / times 支持 branching
+        // tags / option / times 支持 branching
         const branching = (q as any)?.branching;
         if (branching) {
             const selection =
@@ -286,13 +286,20 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                         undefined;
 
             let nextId: string | null | undefined = undefined;
-            if (typeof selection === 'number' && branching?.rules && Object.prototype.hasOwnProperty.call(branching.rules, selection)) {
+            // tags 是多选题：当前仅支持 defaultNext（不支持 rules）
+            if (q.type === 'tags') {
+                if (branching?.defaultNext !== undefined) {
+                    nextId = branching.defaultNext;
+                }
+            } else if (typeof selection === 'number' && branching?.rules && Object.prototype.hasOwnProperty.call(branching.rules, selection)) {
                 nextId = branching.rules[selection];
             } else if (branching?.defaultNext !== undefined) {
                 nextId = branching.defaultNext;
             }
 
-            if (nextId === null) return null; // 结束
+            if (nextId === null) {
+                return null; // 结束
+            }
             if (typeof nextId === 'string') {
                 const idx = idToIndex.get(nextId);
                 return typeof idx === 'number' ? idx : null;

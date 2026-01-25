@@ -290,6 +290,36 @@ function buildGraph(questions: TrainingItem[]) {
       return;
     }
 
+    // tags（多选题）：当前仅支持 defaultNext（填完后整体跳转）
+    if (q.type === 'tags') {
+      const b = q.branching || {};
+      const explicitNext = (q as any)?.next;
+
+      if (b.defaultNext === null) {
+        addEdge(q.id, '__END__', '默认', '#60a5fa');
+        return;
+      }
+      if (typeof b.defaultNext === 'string') {
+        addEdge(q.id, b.defaultNext, '默认', '#60a5fa');
+        return;
+      }
+
+      // 没配置 defaultNext：走原有顺序逻辑
+      if (explicitNext === null) {
+        addEdge(q.id, '__END__', '结束', '#94a3b8', true);
+        return;
+      }
+      if (typeof explicitNext === 'string') {
+        addEdge(q.id, explicitNext, '顺序', '#94a3b8', true);
+        return;
+      }
+
+      const seq = getImplicitSequentialId(q.id);
+      if (seq) addEdge(q.id, seq, '顺序', '#94a3b8', true);
+      else addEdge(q.id, '__END__', '结束', '#94a3b8', true);
+      return;
+    }
+
     // 非分支题：显式 next 优先；否则兼容旧数据用“顺序下一题”
     const explicitNext = (q as any)?.next;
     if (explicitNext === null) {
