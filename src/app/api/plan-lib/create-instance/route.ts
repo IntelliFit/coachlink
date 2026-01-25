@@ -56,8 +56,7 @@ export async function POST(req: Request) {
     // Calculate start_execution_day if provided (migration mid-cycle)
     const normalizedStartWeek = Number(startWeek ?? 1);
     const normalizedStartDay = Number(startDay ?? 1);
-    const hasStartPosition =
-        Number.isFinite(normalizedStartWeek) &&
+    const hasStartPosition = Number.isFinite(normalizedStartWeek) &&
         Number.isFinite(normalizedStartDay) &&
         normalizedStartWeek >= 1 &&
         normalizedStartDay >= 1 &&
@@ -72,7 +71,8 @@ export async function POST(req: Request) {
         if (startExecutionDay > totalDays) {
             return NextResponse.json({
                 success: false,
-                message: `起始位置(第${normalizedStartWeek}周第${normalizedStartDay}天)超出计划总天数(${totalDays}天)`,
+                message:
+                    `起始位置(第${normalizedStartWeek}周第${normalizedStartDay}天)超出计划总天数(${totalDays}天)`,
             }, { status: 400 });
         }
     }
@@ -91,7 +91,10 @@ export async function POST(req: Request) {
             .in("status", ["active", "paused"]);
     } catch (e) {
         // best-effort; do not block instance creation
-        console.warn("[create-instance] Failed to archive previous instances:", e);
+        console.warn(
+            "[create-instance] Failed to archive previous instances:",
+            e,
+        );
     }
 
     // 创建计划实例
@@ -104,7 +107,11 @@ export async function POST(req: Request) {
             coach_id: subscription.coach_id || null,
             student_id: subscription.student_id || null,
             coach_plan_template_id: templateId || null,
-            start_date: startDate || null,
+            // Auto-fill start_date when creating as active and no explicit date provided
+            start_date: startDate ||
+                ((!status || status === "active")
+                    ? new Date().toISOString().split("T")[0]
+                    : null),
             end_date: endDate || null,
             tags: tags || null,
             type: type || null,
@@ -129,8 +136,7 @@ export async function POST(req: Request) {
         const studentId = subscription.student_id as string | null;
         if (studentId) {
             const planName = name?.trim() || "训练计划";
-            const content =
-                `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
+            const content = `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
                 `请点击 [今日训练](/today-training) 查看并开始训练。`;
 
             await sendDirectMessage({

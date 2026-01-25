@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     const { data: rows, error } = await supabase
         .from("coach_questionnaires")
         .select(
-            "id, questions, is_active, name, is_default, version, created_at, updated_at",
+            "id, questions, is_active, status, name, is_default, version, created_at, updated_at",
         )
         .eq("coach_id", coachUserId)
         .order("updated_at", { ascending: false });
@@ -80,16 +80,27 @@ export async function POST(req: Request) {
     }
 
     // UI 简化为固定两份：
-    // - 线上版本：is_active=true
-    // - 灰度版本：is_active=false
-    const online = (rows || []).find((r: any) => r.is_active === true) || null;
-    const draft = (rows || []).find((r: any) => r.is_active === false) || null;
+    // - 线上版本：status='active' 且 is_active=true
+    // - 草稿版本：status='draft' 且 is_active=false
+    //
+    // 兼容旧数据：
+    // - 若 status 为空：用 is_active 推导（true=active，false=draft），并尽量只取一份草稿
+    const all = (rows || []) as any[];
+    const online =
+        all.find((r) => r.status === "active" && r.is_active === true) ||
+        all.find((r) => r.is_active === true) ||
+        null;
+
+    const draft =
+        all.find((r) => r.status === "draft" && r.is_active === false) ||
+        all.find((r) => !r.status && r.is_active === false) ||
+        null;
 
     const items = [online, draft]
         .filter(Boolean)
         .map((r: any) => ({
             id: r.id,
-            name: r.name || (r.is_active ? "线上版本" : "灰度版本"),
+            name: r.name || (r.status === "active" || r.is_active ? "线上版本" : "草稿版本"),
             is_active: Boolean(r.is_active),
             version: r.version ?? null,
             created_at: r.created_at ?? null,

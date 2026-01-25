@@ -176,6 +176,7 @@ export const authOptions: AuthOptions = {
                                 user_id: newUser.id,
                                 nickname,
                                 bio: "",
+                                onboarding_completed: false, // 明确设置为 false，确保触发问卷
                             })
                             .select()
                             .single();
