@@ -464,7 +464,7 @@ export default function NavigationStudent() {
 
             {/* Mobile: 顶部导航 (类似小红书：左侧菜单 + 居中 Tab) */}
             {session && (
-                <div className="md:hidden sticky top-0 z-50 w-full bg-surface/80 backdrop-blur-md border-b border-surface-100">
+                <div className="md:hidden sticky top-0 z-50 w-full pt-[env(safe-area-inset-top)] bg-surface/80 backdrop-blur-md border-b border-surface-100">
                     <div className="flex items-center h-14 px-4">
                         {/* 左侧：找回菜单触发按钮 */}
                         <div className="flex-1">
