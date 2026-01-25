@@ -11,9 +11,11 @@ const PUBLIC_PATHS = new Set([
     "/wechat-auth/bridge",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
+    "/api/miniapp/wechat-login", // 小程序微信登录接口
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
+    "/api/coach/get-specialties", // 获取专长列表（公开接口）
     "/api/wechat/login/start",
     "/api/wechat/login/finish",
     '/api/trace',
