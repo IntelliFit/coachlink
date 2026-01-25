@@ -167,7 +167,7 @@ export default function StudentsPage() {
 
     // 当前页默认选中“未配置计划”的学员；跨页取消通过 excludedNoPlanIds 生效
     // 注意：这里不要监听 excludedNoPlanIds，否则会在用户点击复选框时立刻“反向覆盖”selection，导致 UI 看起来不变
-    useEffect(() => {        
+    useEffect(() => {
         const noPlan = (students || []).filter(s => s.plan === null);
         const excludeSet = new Set(excludedNoPlanIds || []);
         setSelectedStudents(noPlan.filter(s => !excludeSet.has(s.id)));
@@ -258,6 +258,9 @@ export default function StudentsPage() {
                 if (r?.success) successMap.set(r.subscriptionId, r.template);
             });
 
+            const successCount = res?.successCount ?? successMap.size;
+            const failedCount = res?.failedCount ?? 0;
+
             if (successMap.size > 0) {
                 setStudents(prev => prev.map(s => {
                     if (!successMap.has(s.id)) return s;
@@ -269,18 +272,15 @@ export default function StudentsPage() {
                             description: tpl?.description || '暂无描述',
                             status: tpl?.status || 'active',
                         },
-            trackEvent('coach_ai_plan_generate', 'coach', {
-                is_bulk: true,
-                success_count: successCount,
-                failed_count: failedCount
-            });
-
                     };
                 }));
-            }
 
-            const successCount = res?.successCount ?? successMap.size;
-            const failedCount = res?.failedCount ?? 0;
+                trackEvent('coach_ai_plan_generate', 'coach', {
+                    is_bulk: true,
+                    success_count: successCount,
+                    failed_count: failedCount
+                });
+            }
 
             showToast({
                 severity: failedCount > 0 ? 'warn' : 'success',
@@ -335,10 +335,6 @@ export default function StudentsPage() {
             </div>
         );
     };
-                setSelectedStudent(student); 
-                setDialogVisible(true);
-                trackEvent('coach_view_student_detail', 'coach', { student_id: student.id });
-           
 
     /** 学员基本信息列 */
     const studentTemplate = (student: StudentSubscription) => (
@@ -752,8 +748,8 @@ export default function StudentsPage() {
                                                 className={[
                                                     'px-2 py-0.5 rounded-full border font-bold',
                                                     isActive ? 'bg-primary-50 border-primary-100 text-primary-700' :
-                                                    isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
-                                                    'bg-surface-50 border-surface-100 text-surface-500'
+                                                        isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                                                            'bg-surface-50 border-surface-100 text-surface-500'
                                                 ].join(' ')}
                                             >
                                                 {isActive ? '进行中' : isCompleted ? '已完成' : '未配置'}
@@ -793,7 +789,7 @@ export default function StudentsPage() {
                                     className={[
                                         'mt-2 flex items-center gap-3 p-3 rounded-2xl border transition-all',
                                         isActive ? 'border-primary-100 bg-surface shadow-sm shadow-primary-50/50' :
-                                        'border-surface-100 bg-surface-50/20 opacity-90'
+                                            'border-surface-100 bg-surface-50/20 opacity-90'
                                     ].join(' ')}
                                     onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                                 >
@@ -956,7 +952,7 @@ export default function StudentsPage() {
                     rowClassName={() => 'hover:bg-primary-50/20 transition-colors border-b border-surface-50 last:border-0'}
                     dataKey="id"
                     selection={selectedStudents}
-                    onSelectionChange={(e) => {                                                
+                    onSelectionChange={(e) => {
                         // 受控选择：和 PrimeReact demo 一致，selection 直接绑定 setSelectedStudents
                         const newSelection = (e.value || []) as StudentSubscription[];
                         setSelectedStudents(newSelection);
@@ -964,7 +960,7 @@ export default function StudentsPage() {
                         // 同步更新 excludedNoPlanIds（用于跨页批量生成的排除逻辑；只关心 plan === null 的行）
                         const selectedIds = new Set(newSelection.map(s => s.id));
                         const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
-                        
+
                         // 计算哪些应该被排除：所有未配置计划的学员中，没有被选中的
                         setExcludedNoPlanIds(prev => {
                             const set = new Set(prev || []);

@@ -1314,6 +1314,39 @@ export type Database = {
           },
         ]
       }
+      feature_releases: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          release_date: string
+          target_users: string | null
+          tracked_events: string[]
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          release_date: string
+          target_users?: string | null
+          tracked_events: string[]
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          release_date?: string
+          target_users?: string | null
+          tracked_events?: string[]
+        }
+        Relationships: []
+      }
       feedbacks: {
         Row: {
           content: string
@@ -3329,6 +3362,45 @@ export type Database = {
           },
         ]
       }
+      user_behavior_events: {
+        Row: {
+          created_at: string | null
+          device_type: string | null
+          event_category: string
+          event_data: Json | null
+          event_name: string
+          id: string
+          page_path: string | null
+          session_id: string | null
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_type?: string | null
+          event_category: string
+          event_data?: Json | null
+          event_name: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          created_at?: string | null
+          device_type?: string | null
+          event_category?: string
+          event_data?: Json | null
+          event_name?: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           address: string | null
@@ -3538,6 +3610,25 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_active_users: {
+        Row: {
+          active_users: number | null
+          date: string | null
+          user_type: string | null
+        }
+        Relationships: []
+      }
+      feature_usage_stats: {
+        Row: {
+          date: string | null
+          event_category: string | null
+          event_name: string | null
+          unique_users: number | null
+          usage_count: number | null
+          user_type: string | null
+        }
+        Relationships: []
+      }
       training_statistics: {
         Row: {
           avg_duration_minutes: number | null
@@ -3712,6 +3803,17 @@ export type Database = {
           rank: number
           video_url: string
           weight_kg: number
+        }[]
+      }
+      get_retention_data: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: {
+          d1_count: number
+          d3_count: number
+          d30_count: number
+          d7_count: number
+          date: string
+          new_users: number
         }[]
       }
       init_default_rulepacks: { Args: never; Returns: undefined }
