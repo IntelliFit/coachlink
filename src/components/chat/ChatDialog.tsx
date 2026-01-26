@@ -30,7 +30,7 @@ interface ChatDialogProps {
 const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMarkSuccess }) => {
     const { data: session } = useSession() as any;
     const { showToast } = useToastContext();
-    const { setCurrentOpenRoomId, subscribeToMessages } = useChatContext();
+    const { setCurrentOpenRoomId, subscribeToMessages, markRoomAsRead } = useChatContext();
     const [loading, setLoading] = useState(false);
     const [messages, setMessages] = useState<MessageItemType[]>([]);
     const [sending, setSending] = useState(false);
@@ -102,7 +102,11 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ visible, onHide, chatroom, onMa
                     setHasMore(messagesRes.has_more);
                 }
                 const markRes = await chatService.markAsRead({ roomId: chatroom.id });
-                if (markRes && onMarkSuccess) onMarkSuccess(chatroom.id);
+                if (markRes) {
+                    // 立即更新未读数，不等待 SSE 事件
+                    markRoomAsRead(chatroom.id);
+                    if (onMarkSuccess) onMarkSuccess(chatroom.id);
+                }
             } finally {
                 setTimeout(() => setLoading(false), 300);
             }
