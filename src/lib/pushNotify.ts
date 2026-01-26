@@ -75,7 +75,7 @@ export async function sendPushToUser(
                     { TTL: 60 * 60 * 24 }
                 );
                 console.log('[pushNotify] 推送发送成功');
-                sent++;
+                sent ++;
             } catch (error: any) {
                 const errorMsg = error?.message || '未知错误';
                 console.error('[pushNotify] 推送发送失败:', errorMsg, error);
