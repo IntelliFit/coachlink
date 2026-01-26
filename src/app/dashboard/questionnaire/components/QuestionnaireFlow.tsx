@@ -1,16 +1,20 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  Panel,
   type Edge,
   type Node,
   type NodeProps,
   Handle,
   MarkerType,
   Position,
+  applyNodeChanges,
+  useEdgesState,
+  useNodesState,
+  type NodeChange,
 } from 'reactflow';
-import dagre from '@dagrejs/dagre';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
 import type { TrainingItem } from '@/types/questionnaires';
@@ -38,6 +42,10 @@ type QuestionNodeData = {
   isBranch: boolean;
   options?: { key: number; text: string; kind: 'option' }[];
   times?: { key: number; text: string; kind: 'times' }[];
+  /**
+   * 布局用的尺寸估算（避免“选项很多时节点真实高度>固定高度”导致重叠）
+   */
+  layout?: { w: number; h: number };
   highlight: boolean;
   onJump: (qid: string) => void;
   onAdd: (ctx: AddCtx, e: any) => void;
@@ -155,6 +163,9 @@ const QuestionNode = ({ data }: NodeProps<QuestionNodeData>) => {
 
 const nodeTypes = { questionNode: QuestionNode };
 
+type LayoutKind = 'sequential' | 'option' | 'times' | 'default' | 'end';
+type EdgeMeta = { kind: LayoutKind; order: number };
+
 function labelOfQuestion(q: any) {
   switch (q.type) {
     case 'tags':
@@ -174,8 +185,7 @@ function labelOfQuestion(q: any) {
 
 function buildGraph(questions: TrainingItem[]) {
   const nodes: Node<QuestionNodeData>[] = [];
-  const edges: Edge[] = [];
-  let usedEnd = false;
+  const edges: Edge<EdgeMeta>[] = [];
 
   const idToIndex = new Map<string, number>();
   questions.forEach((q: any, idx) => q?.id && idToIndex.set(q.id, idx));
@@ -185,6 +195,78 @@ function buildGraph(questions: TrainingItem[]) {
     if (idx === undefined) return null;
     const next: any = questions[idx + 1];
     return next?.id || null;
+  };
+
+  // 记录“分支子树”（从分支边出发，通过显式 next/分支边可达的所有节点）
+  // 目的：分支子树内不再使用“数组顺序”兜底，避免并列分支被误连顺序边
+  const branchTargets = new Set<string>();
+  const explicitAdj = new Map<string, string[]>();
+  const addAdj = (from: string, to: string | null | undefined) => {
+    if (!from || !to || typeof to !== 'string') return;
+    if (!explicitAdj.has(from)) explicitAdj.set(from, []);
+    explicitAdj.get(from)!.push(to);
+  };
+
+  for (const q of questions as any[]) {
+    if (!q?.id) continue;
+    const b = q.branching || {};
+    if (typeof b.defaultNext === 'string') {
+      branchTargets.add(b.defaultNext);
+      addAdj(q.id, b.defaultNext);
+    }
+    const rules = b.rules || {};
+    Object.values(rules).forEach((v: any) => {
+      if (typeof v === 'string') {
+        branchTargets.add(v);
+        addAdj(q.id, v);
+      }
+    });
+    const explicitNext = q.next;
+    if (typeof explicitNext === 'string') {
+      addAdj(q.id, explicitNext);
+    }
+  }
+
+  const branchSubtree = new Set<string>();
+  const queue = Array.from(branchTargets);
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    if (branchSubtree.has(cur)) continue;
+    branchSubtree.add(cur);
+    const nexts = explicitAdj.get(cur) || [];
+    nexts.forEach((n) => {
+      if (!branchSubtree.has(n)) queue.push(n);
+    });
+  }
+
+  // 估算节点高度：让自动布局考虑“选项数量”，避免节点重叠
+  const estimateNodeSize = (q: any): { w: number; h: number } => {
+    const w = 320;
+    const headerH = 44;
+    const paddingH = 16;
+    const sequentialRowH = 34;
+    const sectionTitleH = 22;
+    const optionRowH = 28; // 一行“选项X + 新增”
+    const timesRowH = 28; // 一格“X次 + +”
+    const base = headerH + paddingH + sequentialRowH + 12;
+
+    if (q?.type === '__END__') return { w: 220, h: 80 };
+
+    if (q?.type === 'option') {
+      const count = Array.isArray(q.options) ? q.options.length : 0;
+      const h = base + (count > 0 ? sectionTitleH + count * optionRowH : 0);
+      return { w, h: Math.max(140, Math.min(720, h + 8)) };
+    }
+
+    if (q?.type === 'times') {
+      const opts: number[] = Array.isArray(q.options) ? q.options : [1, 2, 3, 4, 5, 6, 7];
+      const rows = Math.ceil(opts.length / 2); // grid-cols-2
+      const h = base + sectionTitleH + rows * timesRowH;
+      return { w, h: Math.max(150, Math.min(540, h + 10)) };
+    }
+
+    // tags/text/rm 等：不展示分支列表，但仍有“顺序下一题”
+    return { w, h: 150 };
   };
 
   // nodes
@@ -204,6 +286,7 @@ function buildGraph(questions: TrainingItem[]) {
           }))
         : undefined;
 
+    const layout = estimateNodeSize(q);
     nodes.push({
       id: q.id,
       type: 'questionNode',
@@ -215,6 +298,7 @@ function buildGraph(questions: TrainingItem[]) {
         isBranch,
         options,
         times,
+        layout,
         highlight: false,
         onJump: () => {},
         onAdd: () => {},
@@ -230,8 +314,16 @@ function buildGraph(questions: TrainingItem[]) {
   questions.forEach((q: any) => {
     if (!q?.id) return;
 
-    const addEdge = (from: string, to: string, label: string, color: string, dashed?: boolean) => {
-      if (to === '__END__') usedEnd = true;
+    const addEdge = (
+      from: string,
+      to: string,
+      label: string,
+      color: string,
+      dashed: boolean | undefined,
+      meta: EdgeMeta,
+    ) => {
+      // 不再渲染“结束问卷”节点：叶子节点自然表示结束
+      if (to === '__END__') return;
       edges.push({
         id: `${from}-${label}-${to}`,
         source: from,
@@ -244,6 +336,7 @@ function buildGraph(questions: TrainingItem[]) {
           ? { stroke: color, strokeDasharray: '6 6' }
           : { stroke: color },
         labelStyle: { fill: color, fontSize: 11, fontWeight: 600 },
+        data: meta,
       });
     };
 
@@ -257,15 +350,17 @@ function buildGraph(questions: TrainingItem[]) {
       opts.forEach((opt: string, optIdx: number) => {
         const v = rules?.[optIdx];
         const label = `选项${optIdx + 1}`;
-        if (v === null) addEdge(q.id, '__END__', label, '#f59e0b');
-        else if (typeof v === 'string') addEdge(q.id, v, label, '#f59e0b');
+        if (v === null) addEdge(q.id, '__END__', label, '#f59e0b', false, { kind: 'option', order: optIdx });
+        else if (typeof v === 'string') addEdge(q.id, v, label, '#f59e0b', false, { kind: 'option', order: optIdx });
       });
 
-      if (b.defaultNext === null) addEdge(q.id, '__END__', '默认', '#60a5fa');
-      else if (typeof b.defaultNext === 'string') addEdge(q.id, b.defaultNext, '默认', '#60a5fa');
+      if (b.defaultNext === null) addEdge(q.id, '__END__', '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
+      else if (typeof b.defaultNext === 'string') addEdge(q.id, b.defaultNext, '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
 
-      if (explicitNext === null) addEdge(q.id, '__END__', '顺序', '#94a3b8', true);
-      else if (typeof explicitNext === 'string') addEdge(q.id, explicitNext, '顺序', '#94a3b8', true);
+      // 顺序边：仅在显式 next 存在时绘制（避免靠列表顺序误连分支节点）
+      if (typeof explicitNext === 'string') {
+        addEdge(q.id, explicitNext, '顺序', '#94a3b8', true, { kind: 'sequential', order: 0 });
+      }
       return;
     }
 
@@ -278,15 +373,17 @@ function buildGraph(questions: TrainingItem[]) {
       opts.forEach((num: number) => {
         const v = rules?.[num];
         const label = `${num}次`;
-        if (v === null) addEdge(q.id, '__END__', label, '#f59e0b');
-        else if (typeof v === 'string') addEdge(q.id, v, label, '#f59e0b');
+        if (v === null) addEdge(q.id, '__END__', label, '#f59e0b', false, { kind: 'times', order: num });
+        else if (typeof v === 'string') addEdge(q.id, v, label, '#f59e0b', false, { kind: 'times', order: num });
       });
 
-      if (b.defaultNext === null) addEdge(q.id, '__END__', '默认', '#60a5fa');
-      else if (typeof b.defaultNext === 'string') addEdge(q.id, b.defaultNext, '默认', '#60a5fa');
+      if (b.defaultNext === null) addEdge(q.id, '__END__', '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
+      else if (typeof b.defaultNext === 'string') addEdge(q.id, b.defaultNext, '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
 
-      if (explicitNext === null) addEdge(q.id, '__END__', '顺序', '#94a3b8', true);
-      else if (typeof explicitNext === 'string') addEdge(q.id, explicitNext, '顺序', '#94a3b8', true);
+      // 顺序边：仅在显式 next 存在时绘制（避免靠列表顺序误连分支节点）
+      if (typeof explicitNext === 'string') {
+        addEdge(q.id, explicitNext, '顺序', '#94a3b8', true, { kind: 'sequential', order: 0 });
+      }
       return;
     }
 
@@ -296,98 +393,202 @@ function buildGraph(questions: TrainingItem[]) {
       const explicitNext = (q as any)?.next;
 
       if (b.defaultNext === null) {
-        addEdge(q.id, '__END__', '默认', '#60a5fa');
+        addEdge(q.id, '__END__', '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
         return;
       }
       if (typeof b.defaultNext === 'string') {
-        addEdge(q.id, b.defaultNext, '默认', '#60a5fa');
+        addEdge(q.id, b.defaultNext, '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
         return;
       }
 
       // 没配置 defaultNext：走原有顺序逻辑
-      if (explicitNext === null) {
-        addEdge(q.id, '__END__', '结束', '#94a3b8', true);
-        return;
-      }
       if (typeof explicitNext === 'string') {
-        addEdge(q.id, explicitNext, '顺序', '#94a3b8', true);
+        addEdge(q.id, explicitNext, '顺序', '#94a3b8', true, { kind: 'sequential', order: 0 });
         return;
       }
 
       const seq = getImplicitSequentialId(q.id);
-      if (seq) addEdge(q.id, seq, '顺序', '#94a3b8', true);
-      else addEdge(q.id, '__END__', '结束', '#94a3b8', true);
+      // 仅在“主干链路”上做列表顺序兜底：避免分支子树被数组顺序串线
+      if (seq && !branchSubtree.has(q.id) && !branchSubtree.has(seq)) {
+        addEdge(q.id, seq, '顺序', '#94a3b8', true, { kind: 'sequential', order: 0 });
+      }
       return;
     }
 
     // 非分支题：显式 next 优先；否则兼容旧数据用“顺序下一题”
     const explicitNext = (q as any)?.next;
-    if (explicitNext === null) {
-      addEdge(q.id, '__END__', '结束', '#94a3b8', true);
-      return;
-    }
     if (typeof explicitNext === 'string') {
-      addEdge(q.id, explicitNext, '顺序', '#94a3b8', true);
+      addEdge(q.id, explicitNext, '顺序', '#94a3b8', true, { kind: 'sequential', order: 0 });
       return;
     }
 
     const seq = getImplicitSequentialId(q.id);
-    if (seq) addEdge(q.id, seq, '顺序', '#94a3b8', true);
-    else addEdge(q.id, '__END__', '结束', '#94a3b8', true);
+    // 仅在“主干链路”上做列表顺序兜底：避免分支子树被数组顺序串线
+    if (seq && !branchSubtree.has(q.id) && !branchSubtree.has(seq)) {
+      addEdge(q.id, seq, '顺序', '#94a3b8', true, { kind: 'sequential', order: 0 });
+    }
   });
-
-  // END 节点仅在需要时出现，避免被排到右侧“漂浮”
-  if (usedEnd) {
-    nodes.push({
-      id: '__END__',
-      type: 'default',
-      position: { x: 0, y: 0 },
-      data: { label: '结束问卷' } as any,
-      style: {
-        border: '1px dashed #cbd5e1',
-        borderRadius: 12,
-        padding: 10,
-        background: '#fff',
-        color: '#64748b',
-        fontSize: 12,
-      },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-    });
-  }
 
   return { nodes, edges };
 }
 
-function layoutDagre(nodes: Node[], edges: Edge[]) {
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  // 更像“树”：根在上、往下分叉（而不是横向线性轴）
-  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 90 });
+function layoutStable(
+  nodes: Node<QuestionNodeData>[],
+  edges: Edge<EdgeMeta>[],
+  rootId: string | null,
+): Node<QuestionNodeData>[] {
+  const byId = new Map<string, Node<QuestionNodeData>>();
+  nodes.forEach((n) => byId.set(n.id, n));
 
-  const NODE_W = 320;
-  const NODE_H = 180;
+  // children edges (exclude END so it doesn't distort spacing too much; END node can be laid out but not treated as branch child)
+  const childrenEdges = new Map<string, Edge<EdgeMeta>[]>();
+  for (const e of edges) {
+    if (!childrenEdges.has(e.source)) childrenEdges.set(e.source, []);
+    childrenEdges.get(e.source)!.push(e);
+  }
 
-  nodes.forEach((n) => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
-  edges.forEach((e) => g.setEdge(e.source, e.target));
-  dagre.layout(g);
-
-  const laidOut = nodes.map((n) => {
-    const p = g.node(n.id);
-    return {
-      ...n,
-      position: { x: p.x - NODE_W / 2, y: p.y - NODE_H / 2 },
+  const sortEdges = (arr: Edge<EdgeMeta>[]) => {
+    // sequential first, then option/times by order, default/end last
+    const kindRank: Record<LayoutKind, number> = {
+      sequential: 0,
+      option: 1,
+      times: 1,
+      default: 2,
+      end: 3,
     };
-  });
+    return [...arr].sort((a, b) => {
+      const ka = a.data?.kind ?? 'end';
+      const kb = b.data?.kind ?? 'end';
+      const ra = kindRank[ka];
+      const rb = kindRank[kb];
+      if (ra !== rb) return ra - rb;
+      const oa = a.data?.order ?? 0;
+      const ob = b.data?.order ?? 0;
+      if (oa !== ob) return oa - ob;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  };
 
-  return laidOut;
+  const H_SPACING = 380;
+  const V_GAP = 90;
+
+  const visiting = new Set<string>();
+  const computedWidth = new Map<string, number>();
+
+  const nodeH = (id: string) => byId.get(id)?.data?.layout?.h ?? 180;
+
+  const getChildren = (id: string) => sortEdges(childrenEdges.get(id) || []);
+
+  const getSequentialChild = (id: string) => {
+    const edges = getChildren(id);
+    const seq = edges.find((e) => e.data?.kind === 'sequential') || null;
+    return seq?.target || null;
+  };
+
+  const getBranchChildren = (id: string) => {
+    const edges = getChildren(id);
+    return edges
+      .filter((e) => e.data?.kind === 'option' || e.data?.kind === 'times' || e.data?.kind === 'default')
+      .map((e) => e.target);
+  };
+
+  const widthOf = (id: string): number => {
+    if (computedWidth.has(id)) return computedWidth.get(id)!;
+    if (visiting.has(id)) return 1; // cycle guard
+    visiting.add(id);
+
+    const seq = getSequentialChild(id);
+    const branches = getBranchChildren(id);
+
+    const seqW = seq && seq !== '__END__' ? widthOf(seq) : 0;
+    const branchW = branches
+      .filter((c) => c && c !== '__END__')
+      .reduce((acc, c) => acc + widthOf(c), 0);
+
+    const w = Math.max(1, seqW, branchW);
+    computedWidth.set(id, w);
+    visiting.delete(id);
+    return w;
+  };
+
+  const positions = new Map<string, { x: number; y: number }>();
+  const placed = new Set<string>();
+
+  const place = (id: string, x: number, y: number) => {
+    if (!byId.has(id)) return;
+    if (placed.has(id)) return; // shared node: keep first placement (deterministic from traversal)
+    placed.add(id);
+    positions.set(id, { x, y });
+
+    const seq = getSequentialChild(id);
+    const branches = getBranchChildren(id);
+
+    const parentH = nodeH(id);
+
+    const branchIds = branches.filter((c) => c && c !== '__END__' && byId.has(c));
+    const hasBranches = branchIds.length > 0;
+
+    // 1) 顺序下一题：永远在正下方（如果同时还有分支，则先放顺序，再把分支放到再下一层）
+    let yAfterSeq = y;
+    if (seq && seq !== '__END__' && byId.has(seq)) {
+      const ySeq = y + parentH / 2 + nodeH(seq) / 2 + V_GAP;
+      place(seq, x, ySeq);
+      yAfterSeq = ySeq; // used when placing branches under seq
+    }
+
+    // 2) 分支：按 order 从左到右排一行
+    if (hasBranches) {
+      const totalUnits = branchIds.reduce((acc, c) => acc + widthOf(c), 0);
+      const maxChildH = Math.max(...branchIds.map((c) => nodeH(c)));
+      const baseY = (seq && seq !== '__END__' && byId.has(seq))
+        ? (yAfterSeq + nodeH(seq) / 2 + maxChildH / 2 + V_GAP)
+        : (y + parentH / 2 + maxChildH / 2 + V_GAP);
+
+      const startX = x - ((totalUnits - 1) * H_SPACING) / 2;
+      let cursor = 0;
+      for (const childId of branchIds) {
+        const wUnits = widthOf(childId);
+        const childX = startX + (cursor + (wUnits - 1) / 2) * H_SPACING;
+        place(childId, childX, baseY);
+        cursor += wUnits;
+      }
+    }
+  };
+
+  const root = rootId && byId.has(rootId) ? rootId : (nodes[0]?.id ?? null);
+  if (root) {
+    // 从 root 居中开始
+    place(root, 0, 0);
+  }
+
+  // 剩余未连通节点：按 id 排序放到下方，避免丢失
+  const unplaced = nodes
+    .filter((n) => !positions.has(n.id))
+    .map((n) => n.id)
+    .sort();
+  if (unplaced.length > 0) {
+    let y = 0;
+    const maxPlacedY = Math.max(0, ...Array.from(positions.values()).map((p) => p.y));
+    y = maxPlacedY + 260;
+    unplaced.forEach((id, idx) => {
+      positions.set(id, { x: idx * (H_SPACING * 0.9), y });
+    });
+  }
+
+  return nodes.map((n) => {
+    const p = positions.get(n.id) || { x: 0, y: 0 };
+    return { ...n, position: p };
+  });
 }
 
 export default function QuestionnaireFlow(props: Props) {
-  const { nodes, edges } = useMemo(() => buildGraph(props.questions), [props.questions]);
+  const { nodes: baseNodes, edges: baseEdges } = useMemo(() => buildGraph(props.questions), [props.questions]);
 
-  const finalNodes = useMemo(() => {
-    const withHandlers = nodes.map((n) => ({
+  // 手动布局覆盖：拖动节点后会记录在这里，避免每次微小改动都触发全局“跳位”
+  const [manualPositions, setManualPositions] = useState<Record<string, { x: number; y: number }>>({});
+
+  const computedNodes = useMemo(() => {
+    const withHandlers = baseNodes.map((n) => ({
       ...n,
       data: {
         ...n.data,
@@ -397,12 +598,65 @@ export default function QuestionnaireFlow(props: Props) {
         onDelete: (qid: string, e: any) => props.onRequestDelete({ questionId: qid }, e),
       },
     }));
-    return layoutDagre(withHandlers as any, edges);
-  }, [nodes, edges, props.highlightQuestionId, props.onJumpToQuestion, props.onRequestAdd, props.onRequestDelete]);
+    const rootId = (props.questions?.[0] as any)?.id || null;
+    const laidOut = layoutStable(withHandlers as any, baseEdges as any, rootId);
+    return laidOut.map((n) => {
+      const mp = manualPositions[n.id];
+      return mp ? { ...n, position: mp } : n;
+    });
+  }, [
+    baseNodes,
+    baseEdges,
+    manualPositions,
+    props.highlightQuestionId,
+    props.onJumpToQuestion,
+    props.onRequestAdd,
+    props.onRequestDelete,
+    props.questions,
+  ]);
+
+  const [nodes, setNodes] = useNodesState(computedNodes);
+  const [edges, setEdges] = useEdgesState(baseEdges as any);
+
+  // questions/edges 变化时刷新（保留 manualPositions）
+  useEffect(() => {
+    setNodes(computedNodes);
+    setEdges(baseEdges as any);
+  }, [computedNodes, baseEdges, setEdges, setNodes]);
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => {
+      const next = applyNodeChanges(changes, nds);
+      // 记录拖动后的坐标
+      for (const c of changes) {
+        if (c.type === 'position' && (c as any).position) {
+          const id = c.id;
+          const node = next.find((n) => n.id === id);
+          if (node) {
+            setManualPositions((prev) => ({ ...prev, [id]: { ...node.position } }));
+          }
+        }
+      }
+      return next;
+    });
+  }, [setNodes]);
 
   return (
     <div className="w-full h-[640px] border border-surface-200 rounded-lg overflow-hidden bg-surface-50">
-      <ReactFlow nodes={finalNodes} edges={edges} nodeTypes={nodeTypes} fitView>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView onNodesChange={onNodesChange}>
+        <Panel position="top-right">
+          <div className="flex gap-2">
+            <Button
+              label="重新自动布局"
+              icon="pi pi-refresh"
+              size="small"
+              outlined
+              onClick={() => setManualPositions({})}
+              tooltip="清除手动拖动位置，按规则重新排版"
+              tooltipOptions={{ position: 'left' }}
+            />
+          </div>
+        </Panel>
         <Background />
         <Controls />
         <MiniMap />

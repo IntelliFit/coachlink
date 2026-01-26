@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
@@ -56,6 +56,34 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
 
     const { showToast } = useToastContext();
 
+    const parseDateSafe = (value: string | null | undefined) => {
+        if (!value) return null;
+        const d = new Date(value as any);
+        return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    const formatDate = (value: string | null | undefined, fallback: string = '未开始') => {
+        const d = parseDateSafe(value);
+        if (!d) return fallback;
+        return d.toLocaleDateString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    // 当切换学员时，重置编辑态和编辑值，避免“上一个学员的值”残留
+    useEffect(() => {
+        if (!student) return;
+        setIsEditingPriorWeeks(false);
+        setIsSavingPriorWeeks(false);
+        setPriorWeeksValue(student.prior_training_weeks ?? 0);
+
+        setIsEditingEndDate(false);
+        setIsSavingEndDate(false);
+        setEndDateValue(student.end_date ? new Date(student.end_date as any) : null);
+    }, [student?.id]);
+
     // 保存prior_training_weeks
     const savePriorTrainingWeeks = async () => {
         if (!student) return;
@@ -75,13 +103,51 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     };
 
     const getRemainingDuration = () => {
-        if (!student?.end_date) return '长期';
-        const end = new Date(student.end_date);
+        const startDate = parseDateSafe(student?.start_date ?? null);
+        
+        // 如果还没开始训练，显示"未开始"
+        if (!startDate) {
+            return '未开始';
+        }
+        
+        const endDate = parseDateSafe(student?.end_date ?? null);
         const now = new Date();
-        const diff = end.getTime() - now.getTime();
-        if (diff < 0) return '已过期';
-        const weeks = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
-        return `${weeks} 周`;
+        
+        // 如果有 end_date（系统计算的预计完成日），显示预计剩余时间
+        if (endDate) {
+            const diff = endDate.getTime() - now.getTime();
+            if (diff < 0) {
+                return '已过期';
+            }
+            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+            if (days < 7) {
+                return `预计剩余 ${days} 天`;
+            }
+            const weeks = Math.floor(days / 7);
+            const remainingDays = days % 7;
+            if (remainingDays === 0) {
+                return `预计剩余 ${weeks} 周`;
+            }
+            return `预计剩余 ${weeks} 周 ${remainingDays} 天`;
+        }
+        
+        // 如果没有 end_date，但已开始训练，根据 subscribed_weeks 估算
+        // 注意：这是粗略估算，实际应该由后端根据 credits 计算
+        const subscribedWeeks = student?.subscribed_weeks ?? 0;
+        if (subscribedWeeks > 0) {
+            // 粗略估算：假设每周训练 3 次，从开始日期算起
+            const elapsedDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            const elapsedWeeks = Math.floor(elapsedDays / 7);
+            const remainingWeeks = Math.max(0, subscribedWeeks - elapsedWeeks);
+            if (remainingWeeks > 0) {
+                return `预计剩余约 ${remainingWeeks} 周（估算）`;
+            } else {
+                return '预计已完成';
+            }
+        }
+        
+        // 兜底：无法确定
+        return '待计算';
     };
 
     const saveEndDate = async () => {
@@ -145,20 +211,19 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
 
     const getPendingReviews = () => student.uploaded - student.reviewed;
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('zh-CN', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-
     // 计算总训练周数
     const getTotalTrainingWeeks = () => {
         const priorWeeks = student.prior_training_weeks || 0;
-        const startDate = new Date(student.start_date);
+        const startDate = parseDateSafe(student.start_date);
+        if (!startDate) {
+            // 没有开始日期：只显示迁入前周数，平台内为 0
+            return priorWeeks;
+        }
         const now = new Date();
-        const platformWeeks = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        // 若已设置 end_date 且已过期，则平台内周数用 end_date 截止，避免“无限增长”
+        const endDate = parseDateSafe(student.end_date);
+        const effectiveEnd = endDate && endDate.getTime() < now.getTime() ? endDate : now;
+        const platformWeeks = Math.floor((effectiveEnd.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
         return priorWeeks + Math.max(0, platformWeeks);
     };
 
@@ -245,7 +310,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-primary shadow-sm"><Calendar size={16} /></div>
                             <div>
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">开始日期</p>
-                                <p className="text-xs font-black text-surface-700">{formatDate(student.start_date)}</p>
+                                <p className="text-xs font-black text-surface-700">{formatDate(student.start_date, '未开始')}</p>
                             </div>
                         </div>
                         <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
