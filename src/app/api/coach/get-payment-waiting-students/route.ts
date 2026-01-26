@@ -65,33 +65,12 @@ export async function POST(req: Request) {
         });
     }
 
-    // Platform payment pending (not paid yet): show as read-only notification in the same入口
-    const { data: platformPending, error: pendingErr } = await supabase
-        .from("coach_subscriptions")
-        .select("*")
-        .eq("coach_id", coach.id)
-        .eq("status", "inactive")
-        .eq("payment_method", "platform_alipay")
-        .is("coach_seen_at", null)
-        .not("order_id", "is", null)
-        .order("created_at", { ascending: false });
-
-    if (pendingErr) {
-        return NextResponse.json({
-            success: false,
-            message: pendingErr.message,
-        });
-    }
-
     return NextResponse.json<ApiData<GetPaymentWaitingStudentsResponseDto>>({
         success: true,
-        message: "获取定价信息成功",
+        message: "获取待支付确认列表成功",
         data: {
             manualSubscriptions: manualSubscriptions || [],
-            systemSubscriptions: [
-                ...(systemSubscriptions || []),
-                ...(platformPending || []),
-            ],
+            systemSubscriptions: systemSubscriptions || [],
         },
     });
 }
