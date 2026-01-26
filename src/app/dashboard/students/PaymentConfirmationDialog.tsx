@@ -9,7 +9,6 @@ import { Avatar } from 'primereact/avatar';
 import { Skeleton } from 'primereact/skeleton';
 import { Image } from 'primereact/image';
 import { Tag } from 'primereact/tag';
-import { Checkbox } from 'primereact/checkbox';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { userService } from '@/app/service/userService';
 import { subscriptionService } from '@/app/service/subscriptionService';
@@ -54,7 +53,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
     const { showToast } = useToastContext();
     const { trackEvent } = useAnalytics();
     const [activeTab, setActiveTab] = useState(0); // 0: 待确认  1: 历史
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectedManualRows, setSelectedManualRows] = useState<SubscriptionWithStudentProfile[]>([]);
     const [loading, setLoading] = useState(false);
     const [subscriptionsWithProfiles, setSubscriptionsWithProfiles] = useState<SubscriptionWithStudentProfile[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -67,7 +66,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             const allSubscriptions = [...manualSubscriptions, ...systemSubscriptions];
             if (!visible || allSubscriptions.length === 0) {
                 setSubscriptionsWithProfiles([]);
-                setSelectedIds(new Set());
+                setSelectedManualRows([]);
                 return;
             }
 
@@ -115,6 +114,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
     }, [visible, manualSubscriptions, systemSubscriptions]);
 
     const manualRows = subscriptionsWithProfiles.filter(s => s.__kind !== 'system');
+    const systemRows = subscriptionsWithProfiles.filter(s => s.__kind === 'system');
 
     // 打开弹窗时默认回到“待确认”
     useEffect(() => {
@@ -122,6 +122,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             setActiveTab(0);
             setHistoryLoadedOnce(false);
             setHistoryWithProfiles([]);
+            setSelectedManualRows([]);
         }
     }, [visible]);
 
@@ -187,22 +188,6 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         loadHistory();
     }, [activeTab, visible, historyLoadedOnce]);
 
-    const toggleSelect = (id: string, checked: boolean) => {
-        setSelectedIds(prev => {
-            const next = new Set(prev);
-            if (checked) next.add(id);
-            else next.delete(id);
-            return next;
-        });
-    };
-
-    const toggleSelectAllManual = (checked: boolean) => {
-        setSelectedIds(() => {
-            if (!checked) return new Set();
-            return new Set(manualRows.map(s => s.id));
-        });
-    };
-
     const buildUpdateDataForConfirm = (subscription: CoachSubscriptionRow) => {
         const paymentData = (subscription as any).payment_data as any;
         const offlinePayment: OfflinePaymentData | undefined = paymentData?.offline_payment || undefined;
@@ -261,12 +246,8 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 detail: `成功确认 ${targets.length} 位学员的支付`
             });
 
-            // 移除已确认项的勾选
-            setSelectedIds((prev) => {
-                const next = new Set(prev);
-                targets.forEach((t) => next.delete(t.id));
-                return next;
-            });
+            // 清空选择（列表会在 onConfirm 后刷新）
+            setSelectedManualRows([]);
 
             onConfirm(); // refresh list (parent will re-fetch)
             // 让历史 tab 重新拉取
@@ -287,9 +268,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
 
     const handleConfirm = async () => {
         // 批量更新订阅状态，并为线下支付/续费请求处理 end_date
-        const selectedSubscriptions = subscriptionsWithProfiles
-            .filter(s => selectedIds.has(s.id) && s.__kind !== 'system')
-            .map(s => s as CoachSubscriptionRow);
+        const selectedSubscriptions = (selectedManualRows || []).map(s => s as CoachSubscriptionRow);
 
         if (selectedSubscriptions.length === 0) return;
         await confirmSubscriptions(selectedSubscriptions, { closeOnSuccess: true });
@@ -483,28 +462,6 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         );
     };
 
-    const selectHeaderTemplate = () => {
-        const allSelected = manualRows.length > 0 && manualRows.every(r => selectedIds.has(r.id));
-        return (
-            <Checkbox
-                checked={allSelected}
-                onChange={(e) => toggleSelectAllManual(!!e.checked)}
-                disabled={manualRows.length === 0 || loading}
-            />
-        );
-    };
-
-    const selectBodyTemplate = (rowData: SubscriptionWithStudentProfile) => {
-        if (rowData.__kind === 'system') return <span className="text-surface-400">-</span>;
-        return (
-            <Checkbox
-                checked={selectedIds.has(rowData.id)}
-                onChange={(e) => toggleSelect(rowData.id, !!e.checked)}
-                disabled={loading}
-            />
-        );
-    };
-
     const actionTemplate = (rowData: SubscriptionWithStudentProfile) => {
         if (rowData.__kind !== 'system') {
             return (
@@ -537,10 +494,10 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 disabled={loading}
             />
             <Button
-                label={`确认支付 (${selectedIds.size})`}
+                label={`确认支付 (${selectedManualRows.length})`}
                 icon="pi pi-check"
                 onClick={handleConfirm}
-                disabled={selectedIds.size === 0 || loading}
+                disabled={selectedManualRows.length === 0 || loading}
                 className="p-button-primary rounded-2xl"
                 loading={loading}
             />
@@ -571,51 +528,89 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             <div className="p-4">
                 <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
                     <TabPanel header={`待确认 (${manualSubscriptions.length + systemSubscriptions.length})`}>
-                        {subscriptionsWithProfiles.length > 0 ? (
-                            <DataTable
-                                value={subscriptionsWithProfiles}
-                                dataKey="id"
-                                scrollable
-                                scrollHeight="400px"
-                            >
-                                <Column
-                                    header={selectHeaderTemplate}
-                                    body={selectBodyTemplate}
-                                    headerStyle={{ width: '3rem' }}
-                                    bodyStyle={{ width: '3rem' }}
-                                />
-                                <Column field="student" header="学员" body={studentTemplate}></Column>
-                                <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '110px' }}></Column>
-                                <Column field="offline_details" header="线下支付详情" body={offlineDetailsTemplate} style={{ width: '180px' }}></Column>
-                                <Column field="monthly_price" header="月费" body={priceTemplate} align="right" style={{ width: '100px' }}></Column>
-                                <Column
-                                    field="remind_coach_note"
-                                    header="备注"
-                                    body={noteTemplate}
-                                    style={{ maxWidth: '150px' }}
-                                ></Column>
-                                <Column
-                                    field="created_at"
-                                    header="申请时间"
-                                    body={(rowData) => new Date(rowData.created_at).toLocaleString()}
-                                    style={{ width: '140px' }}
-                                ></Column>
-                                <Column
-                                    header="操作"
-                                    body={actionTemplate}
-                                    style={{ width: '110px' }}
-                                />
-                            </DataTable>
-                        ) : (
+                        {manualRows.length === 0 && systemRows.length === 0 ? (
                             <div className="text-center text-surface-500 py-8">
                                 暂无待确认的支付信息
                             </div>
-                        )}
+                        ) : (
+                            <>
+                                {/* 需要教练确认（可勾选 / 可批量） */}
+                                {manualRows.length > 0 && (
+                                    <div className="mb-6">
+                                        <div className="text-sm font-semibold text-surface-700 mb-2">
+                                            需要确认（{manualRows.length}）
+                                        </div>
+                                        <DataTable
+                                            value={manualRows}
+                                            dataKey="id"
+                                            scrollable
+                                            scrollHeight="260px"
+                                            selection={selectedManualRows}
+                                            onSelectionChange={(e) => setSelectedManualRows((e.value || []) as SubscriptionWithStudentProfile[])}
+                                            selectionMode="checkbox"
+                                        >
+                                            <Column selectionMode="multiple" headerStyle={{ width: '3rem' }} bodyStyle={{ width: '3rem' }} />
+                                            <Column field="student" header="学员" body={studentTemplate}></Column>
+                                            <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '110px' }}></Column>
+                                            <Column field="offline_details" header="线下支付详情" body={offlineDetailsTemplate} style={{ width: '180px' }}></Column>
+                                            <Column field="monthly_price" header="月费" body={priceTemplate} align="right" style={{ width: '100px' }}></Column>
+                                            <Column
+                                                field="remind_coach_note"
+                                                header="备注"
+                                                body={noteTemplate}
+                                                style={{ maxWidth: '150px' }}
+                                            ></Column>
+                                            <Column
+                                                field="created_at"
+                                                header="申请时间"
+                                                body={(rowData) => new Date(rowData.created_at).toLocaleString()}
+                                                style={{ width: '140px' }}
+                                            ></Column>
+                                            <Column
+                                                header="操作"
+                                                body={actionTemplate}
+                                                style={{ width: '110px' }}
+                                            />
+                                        </DataTable>
 
-                        {subscriptionsWithProfiles.length > 0 && (
-                            <div className="mt-4 text-sm text-surface-500">
-                                已选择 {selectedIds.size} 位学员，确认后将激活/续费生效。
-                            </div>
+                                        <div className="mt-3 text-sm text-surface-500">
+                                            已选择 {selectedManualRows.length} 位学员，确认后将激活/续费生效。
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 系统通知（只读 / 可忽略） */}
+                                {systemRows.length > 0 && (
+                                    <div>
+                                        <div className="text-sm font-semibold text-surface-700 mb-2">
+                                            系统通知（{systemRows.length}）
+                                        </div>
+                                        <DataTable
+                                            value={systemRows}
+                                            dataKey="id"
+                                            scrollable
+                                            scrollHeight="220px"
+                                        >
+                                            <Column field="student" header="学员" body={studentTemplate}></Column>
+                                            <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '140px' }}></Column>
+                                            <Column
+                                                field="created_at"
+                                                header="时间"
+                                                body={(rowData) => new Date(rowData.created_at).toLocaleString()}
+                                                style={{ width: '160px' }}
+                                            ></Column>
+                                            <Column
+                                                header="操作"
+                                                body={actionTemplate}
+                                                style={{ width: '110px' }}
+                                            />
+                                        </DataTable>
+                                        <div className="mt-2 text-xs text-surface-500">
+                                            系统通知仅用于告知状态（如平台支付已自动确认），不会影响批量确认。
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </TabPanel>
 
