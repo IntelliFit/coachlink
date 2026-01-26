@@ -77,7 +77,7 @@ export default function NavigationStudent() {
         return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
-    // 获取用户档案
+    // 获取用户档案并自动修复空资料
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) {
             setProfile(null);
@@ -89,13 +89,82 @@ export default function NavigationStudent() {
                 const res = await userService.getProfile({});
                 if (res?.profile) {
                     setProfile(res.profile);
+                    
+                    // 自动检测并修复空资料（昵称为空）
+                    const needsFix = !res.profile.nickname || res.profile.nickname.trim() === '';
+                    
+                    if (needsFix && session?.user) {
+                        // 生成默认昵称
+                        const phone = session.user.phone;
+                        const email = session.user.email;
+                        let defaultNickname = '';
+                        
+                        if (phone) {
+                            defaultNickname = `手机用户_${phone.slice(-4)}`;
+                        } else if (email) {
+                            const emailPrefix = email.split('@')[0] || '';
+                            defaultNickname = `邮箱用户_${emailPrefix.slice(0, 8)}`;
+                        } else {
+                            defaultNickname = '用户';
+                        }
+                        
+                        // 自动修复：只更新昵称，不改变其他字段（包括 onboarding_completed）
+                        try {
+                            const updatedProfile = await userService.updateProfile({
+                                nickname: defaultNickname,
+                                // 不设置 onboarding_completed，保持原值
+                                // 如果为 null/undefined，后续的问卷检查逻辑会处理
+                            });
+                            
+                            if (updatedProfile) {
+                                // 更新本地状态
+                                setProfile(updatedProfile);
+                                // 刷新 session 以更新昵称显示
+                                await updateSession();
+                                console.log('[NavigationStudent] 已自动修复空昵称:', defaultNickname);
+                            }
+                        } catch (fixError) {
+                            console.error('[NavigationStudent] 自动修复昵称失败:', fixError);
+                        }
+                    }
+                } else {
+                    // Profile 不存在，创建默认 profile
+                    if (session?.user) {
+                        const phone = session.user.phone;
+                        const email = session.user.email;
+                        let defaultNickname = '';
+                        
+                        if (phone) {
+                            defaultNickname = `手机用户_${phone.slice(-4)}`;
+                        } else if (email) {
+                            const emailPrefix = email.split('@')[0] || '';
+                            defaultNickname = `邮箱用户_${emailPrefix.slice(0, 8)}`;
+                        } else {
+                            defaultNickname = '用户';
+                        }
+                        
+                        try {
+                            const newProfile = await userService.updateProfile({
+                                nickname: defaultNickname,
+                                onboarding_completed: false,
+                            });
+                            
+                            if (newProfile) {
+                                setProfile(newProfile);
+                                await updateSession();
+                                console.log('[NavigationStudent] 已创建默认 profile:', defaultNickname);
+                            }
+                        } catch (createError) {
+                            console.error('[NavigationStudent] 创建默认 profile 失败:', createError);
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('获取用户档案失败:', error);
             }
         };
         loadProfile();
-    }, [status, session?.user?.id]);
+    }, [status, session?.user?.id, session?.user?.phone, session?.user?.email, updateSession]);
 
     // 检查 onboarding 完成状态（优化后的逻辑）
     useEffect(() => {
