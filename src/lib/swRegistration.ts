@@ -49,13 +49,15 @@ export function isPushSupported(): boolean {
     );
 }
 
-/** 请求通知权限并订阅 Push，然后上报服务端。须在用户手势中调用（如点击）。 */
+/** * 请求通知权限。
+ * 即使没有 FCM，我们也需要获取权限来通过 Service Worker 弹出本地通知。
+ */
 export async function requestPermissionAndSubscribe(): Promise<{
     ok: boolean;
     reason?: string;
 }> {
-    if (!isPushSupported()) {
-        return { ok: false, reason: '当前环境不支持推送' };
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+        return { ok: false, reason: '当前浏览器不支持通知' };
     }
 
     const perm = getNotificationPermission();
@@ -63,55 +65,41 @@ export async function requestPermissionAndSubscribe(): Promise<{
         return { ok: false, reason: '您已拒绝通知权限' };
     }
 
-    let reg = navigator.serviceWorker.ready;
-    const existing = navigator.serviceWorker.controller;
-    if (!existing) {
-        const r = await registerSw();
-        if (!r) return { ok: false, reason: 'Service Worker 注册失败' };
-        reg = Promise.resolve(r);
+    // 确保 SW 已就绪
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration) {
+        return { ok: false, reason: 'Service Worker 未就绪' };
     }
-    const registration = await reg;
 
+    // 如果是第一次，请求权限
     if (perm === 'default') {
         const newPerm = (await Notification.requestPermission()) as PushPermission;
         if (newPerm !== 'granted') {
-            return { ok: false, reason: newPerm === 'denied' ? '您已拒绝通知权限' : '未授予权限' };
+            return { ok: false, reason: '未获得通知授权' };
         }
-    }
-
-    const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapid || !vapid.trim()) {
-        return { ok: false, reason: '未配置 VAPID 公钥' };
     }
 
     try {
-        console.log('[Push] 开始订阅，VAPID 公钥长度:', vapid.length);
-        const sub = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
-        });
-        console.log('[Push] 订阅成功，endpoint:', sub.endpoint);
-        const payload = subscriptionToJson(sub);
-        console.log('[Push] 上报订阅到服务端...');
-        const res = await fetch('/api/push/subscribe', {
+        // 【关键改动】：不再调用 pushManager.subscribe()，因为那会请求 Google 服务器
+        // 相反，我们向后端上报“该用户已开启通知”，并建立你的长连接（WebSocket）
+        console.log('[Notification] 权限已获取，通知后端记录设备状态');
+        
+        const res = await fetch('/api/push/register-local', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subscription: payload }),
-            credentials: 'same-origin',
+            body: JSON.stringify({ 
+                status: 'granted',
+                userAgent: navigator.userAgent 
+            }),
         });
-        const data = (await res.json()) as { success?: boolean; message?: string };
-        console.log('[Push] 服务端响应:', data);
-        if (!res.ok || !data.success) {
-            return { ok: false, reason: data.message || '上报订阅失败' };
-        }
-        console.log('[Push] 订阅完成！');
+
+        if (!res.ok) return { ok: false, reason: '上报设备状态失败' };
+        
         return { ok: true };
     } catch (e: any) {
-        console.error('[Push] 订阅失败:', e);
-        return { ok: false, reason: e?.message || '订阅失败' };
+        return { ok: false, reason: e?.message || '初始化失败' };
     }
 }
-
 function urlBase64ToUint8Array(base64: string): Uint8Array {
     const padding = '='.repeat((4 - (base64.length % 4)) % 4);
     const raw = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
