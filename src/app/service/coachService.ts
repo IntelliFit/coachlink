@@ -95,6 +95,10 @@ import type {
     UpdateCoachProfileResponseDto
 } from '@/app/api/coach/update-coach-profile/entity';
 import { GetPaymentWaitingStudentsDto, GetPaymentWaitingStudentsResponseDto } from "../api/coach/get-payment-waiting-students/entity";
+import type {
+    GetPaymentConfirmationHistoryDto,
+    GetPaymentConfirmationHistoryResponseDto,
+} from "../api/coach/get-payment-confirmation-history/entity";
 
 
 import type {
@@ -349,6 +353,17 @@ class CoachService extends BaseService {
 
     async getPaymentWaitingStudents(reqData: GetPaymentWaitingStudentsDto) {
         const res = await this.post<GetPaymentWaitingStudentsResponseDto>('get-payment-waiting-students', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async getPaymentConfirmationHistory(reqData?: GetPaymentConfirmationHistoryDto) {
+        const res = await this.post<GetPaymentConfirmationHistoryResponseDto>(
+            "get-payment-confirmation-history",
+            reqData || {},
+        );
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
