@@ -21,6 +21,7 @@ import { E1RMProgressChart } from '@/components/student/profile/E1RMProgressChar
 import { StudentPlanHistory } from '@/components/coach/StudentPlanHistory';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
+import { actionLibService } from '@/app/service/actionLibService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { useToastContext } from '@/context/ToastContext';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
@@ -53,6 +54,9 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
+    const [optionMap, setOptionMap] = useState<Record<string, string[]>>({});
+    const [autoComputeActions, setAutoComputeActions] = useState<{ id: string; name: string }[]>([]);
+    const [loadingActions, setLoadingActions] = useState(false);
 
     const { showToast } = useToastContext();
 
@@ -83,6 +87,39 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         setIsSavingEndDate(false);
         setEndDateValue(student.end_date ? new Date(student.end_date as any) : null);
     }, [student?.id]);
+
+    useEffect(() => {
+        if (!visible || !student) return;
+        const hasOption = Array.isArray(student.subscribe_data) && student.subscribe_data.some((it: any) => it?.type === 'option');
+        const hasRm = Array.isArray(student.subscribe_data) && student.subscribe_data.some((it: any) => it?.type === 'rm');
+
+        const loadOptions = async () => {
+            if (!hasOption) return;
+            const res = await coachService.getQuestionnaires();
+            const qs = res?.questionnaires || [];
+            const map: Record<string, string[]> = {};
+            qs.forEach((q: any) => {
+                if (q?.id && Array.isArray(q.options)) {
+                    map[q.id] = q.options;
+                }
+            });
+            setOptionMap(map);
+        };
+
+        const loadActions = async () => {
+            if (!hasRm || !coach?.user_id) return;
+            setLoadingActions(true);
+            try {
+                const res = await actionLibService.listAutoComputeActions({ coachId: coach.user_id });
+                setAutoComputeActions(res?.actions || []);
+            } finally {
+                setLoadingActions(false);
+            }
+        };
+
+        loadOptions();
+        loadActions();
+    }, [visible, student, coach?.user_id]);
 
     // 保存prior_training_weeks
     const savePriorTrainingWeeks = async () => {
@@ -189,16 +226,17 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
 
     // 保存问卷
     const handleSaveQuestionnaire = async (answers: TrainingItem[]) => {
+        if (!student?.id) return;
         try {
-            const res = await fetch('/api/subscription/update-questionnaire', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subscriptionId: student.id, subscribeData: answers })
+            const res = await subscriptionService.updateQuestionnaire({
+                id: student.id,
+                questionnaires: answers,
             });
-            if (res.ok) {
+            if (res?.id) {
                 showToast({ severity: 'success', summary: '问卷更新成功' });
                 setQuestionnaireVisible(false);
-                onStudentUpdate?.({ ...student, subscribe_data: { answers } as any });
+                // subscribe_data 新结构就是 TrainingItem[]
+                onStudentUpdate?.({ ...student, subscribe_data: answers as any });
             } else {
                 showToast({ severity: 'error', summary: '问卷更新失败' });
             }
@@ -544,12 +582,24 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                         inputs &&
                                         typeof inputs === 'object' &&
                                         Object.values(inputs).some((n: any) => typeof n === 'number' && n > 0);
-                                    return hasAny ? '已填写 RM 数据' : '未填写';
+                                    if (!hasAny) return '未填写';
+                                    if (!autoComputeActions.length) return '已填写 RM 数据';
+                                    const lines = autoComputeActions
+                                        .map((a) => {
+                                            const v = inputs?.[a.id];
+                                            return typeof v === 'number' && v > 0 ? `${a.name} ${v}kg` : null;
+                                        })
+                                        .filter(Boolean) as string[];
+                                    return lines.length > 0 ? lines.join('，') : '已填写 RM 数据';
                                 }
                                 case 'option': {
                                     if (typeof item.userSelection === 'number') {
                                         const opts = Array.isArray(item.options) ? item.options : [];
-                                        return opts[item.userSelection] ?? `选项 ${item.userSelection + 1}`;
+                                        if (opts[item.userSelection]) return opts[item.userSelection];
+                                        if (item.id && optionMap[item.id] && optionMap[item.id][item.userSelection]) {
+                                            return optionMap[item.id][item.userSelection];
+                                        }
+                                        return `选项 ${item.userSelection + 1}`;
                                     }
                                     return '未填写';
                                 }

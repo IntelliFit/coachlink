@@ -4,8 +4,10 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { BadgeCheck, ShoppingBag, ArrowRight, Tag, Users } from 'lucide-react';
+import { BadgeCheck, ShoppingBag, ArrowRight, Tag, Users, ShoppingCart } from 'lucide-react';
 import { Button } from 'primereact/button';
+import { useToastContext } from '@/context/ToastContext';
+import { useCart } from '@/context/CartContext';
 import type { DurationOption, Product, PricingTier } from '@/app/api/coach/get-pricing/entity';
 
 export interface MarketCoach {
@@ -42,6 +44,8 @@ function formatPrice(price: number | null | undefined) {
 export default function MarketClient({ initialItems }: { initialItems: MarketItem[] }) {
   const router = useRouter();
   const { data: session } = useSession();
+  const { showToast } = useToastContext();
+  const { addToCart, getItemCount } = useCart();
 
   const [query, setQuery] = useState('');
   const [tier, setTier] = useState<'all' | PricingTier>('all');
@@ -72,6 +76,35 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
     router.push(`/coach/profile/${item.coach.id}?from=market#choose-pricing`);
   };
 
+  const handleAddToCart = async (item: MarketItem, opt: DurationOption) => {
+    if (!session?.user) {
+      router.push(`/login?redirect=${encodeURIComponent('/market')}`);
+      return;
+    }
+    try {
+      await addToCart({
+        coachId: item.coach.id,
+        coachName: item.coach.name || '教练',
+        productId: item.product.id,
+        productName: item.product.name,
+        productTier: item.product.tier,
+        durationMonths: opt.months,
+        price: opt.price,
+      });
+      showToast({
+        severity: 'success',
+        summary: '已加入购物车',
+        detail: `${item.product.name} - ${opt.months}个月`,
+      });
+    } catch (e: any) {
+      showToast({
+        severity: 'error',
+        summary: '添加失败',
+        detail: e?.message || '请稍后重试',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface-50/50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
@@ -91,6 +124,13 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
             </div>
 
             <div className="shrink-0 flex gap-2">
+              <Button
+                outlined
+                className="rounded-2xl"
+                label={getItemCount() > 0 ? `购物车（${getItemCount()}）` : '购物车'}
+                icon="pi pi-shopping-cart"
+                onClick={() => router.push('/me/cart')}
+              />
               <Button
                 outlined
                 className="rounded-2xl"
@@ -222,24 +262,35 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
                   <div className="text-[10px] font-black uppercase tracking-widest text-surface-400">选择时长</div>
                   <div className="grid grid-cols-1 gap-2">
                     {(item.product.duration_options || []).map((opt, i) => (
-                      <button
-                        key={`${item.product.id}-opt-${i}`}
-                        onClick={() => handleBuy(item, opt)}
-                        className="w-full flex items-center justify-between gap-3 rounded-2xl border border-surface-100 bg-surface-50 px-4 py-3 hover:bg-primary-50 hover:border-primary-200 transition-colors group"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-surface-800">{opt.months} 个月</span>
-                          {opt.is_recommend && (
-                            <span className="text-[10px] font-black text-primary-700 bg-primary-100 px-2 py-0.5 rounded-xl">
-                              推荐
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-base font-black text-primary-600">{formatPrice(opt.price)}</span>
-                          <ArrowRight className="w-4 h-4 text-surface-300 group-hover:text-primary-600 group-hover:translate-x-0.5 transition-all" />
-                        </div>
-                      </button>
+                      <div key={`${item.product.id}-opt-${i}`} className="flex gap-2">
+                        <button
+                          onClick={() => handleBuy(item, opt)}
+                          className="flex-1 flex items-center justify-between gap-3 rounded-2xl border border-surface-100 bg-surface-50 px-4 py-3 hover:bg-primary-50 hover:border-primary-200 transition-colors group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-surface-800">{opt.months} 个月</span>
+                            {opt.is_recommend && (
+                              <span className="text-[10px] font-black text-primary-700 bg-primary-100 px-2 py-0.5 rounded-xl">
+                                推荐
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-black text-primary-600">{formatPrice(opt.price)}</span>
+                            <ArrowRight className="w-4 h-4 text-surface-300 group-hover:text-primary-600 group-hover:translate-x-0.5 transition-all" />
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleAddToCart(item, opt);
+                          }}
+                          className="px-4 rounded-2xl border border-surface-100 bg-surface-50 hover:bg-primary-50 hover:border-primary-200 transition-colors group"
+                          title="加入购物车"
+                        >
+                          <ShoppingCart className="w-5 h-5 text-surface-400 group-hover:text-primary-600 transition-colors" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

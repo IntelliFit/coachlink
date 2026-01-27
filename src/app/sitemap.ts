@@ -20,6 +20,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/market',
     '/about',
     '/articles',
+    '/onboarding',
     '/contact',
     '/terms',
     '/disclaimer',
@@ -30,7 +31,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/toolbox',
     '/generate-plan',
     '/generate-plan/waiting',
-    '/coach/application',
     '/docs/agreement',
     '/docs/disclaimer',
   ];

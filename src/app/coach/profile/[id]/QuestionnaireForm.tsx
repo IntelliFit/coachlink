@@ -109,7 +109,6 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
 
     // 合并历史答案到问卷
     const mergeExistingAnswers = (subscribeData: TrainingItem[]) => {
-        const subscribeMap = new Map<string, any>();
         const makeKey = (item: { id?: string; type: string; question?: string }) => {
             // 优先使用稳定 id
             if (item.id) return `id::${item.id}`;
@@ -118,13 +117,56 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             return item.question ? `${item.type}::${item.question}` : item.type;
         };
 
+        const byKey = new Map<string, any>();
+        const byOptionsKey = new Map<string, any>();
+        const byTypeList = new Map<string, any[]>();
+        const used = new Set<any>();
+
         subscribeData.forEach(item => {
-            subscribeMap.set(makeKey(item), item);
+            byKey.set(makeKey(item), item);
+            if (item.type === 'option' && Array.isArray((item as any).options) && (item as any).options.length > 0) {
+                const optKey = `opt::${(item as any).options.join('|')}`;
+                if (!byOptionsKey.has(optKey)) byOptionsKey.set(optKey, item);
+            }
+            const list = byTypeList.get(item.type) || [];
+            list.push(item);
+            byTypeList.set(item.type, list);
         });
 
-        const newAnswers = questions.map(item => {
+        const typeCursor = new Map<string, number>();
+        const takeByTypeOrder = (type: string) => {
+            const list = byTypeList.get(type) || [];
+            let idx = typeCursor.get(type) || 0;
+            while (idx < list.length && used.has(list[idx])) idx++;
+            if (idx < list.length) {
+                typeCursor.set(type, idx + 1);
+                used.add(list[idx]);
+                return list[idx];
+            }
+            return undefined;
+        };
+
+        const resolveAnswer = (item: TrainingItem) => {
             const key = makeKey(item);
-            const sItem = subscribeMap.get(key);
+            if (byKey.has(key)) {
+                const s = byKey.get(key);
+                used.add(s);
+                return s;
+            }
+            if (item.type === 'option' && Array.isArray((item as any).options) && (item as any).options.length > 0) {
+                const optKey = `opt::${(item as any).options.join('|')}`;
+                if (byOptionsKey.has(optKey)) {
+                    const s = byOptionsKey.get(optKey);
+                    used.add(s);
+                    return s;
+                }
+            }
+            // 兜底：按题型顺序匹配（适用于“题干改了但顺序未变”的场景）
+            return takeByTypeOrder(item.type);
+        };
+
+        const newAnswers = questions.map(item => {
+            const sItem = resolveAnswer(item);
             if (!sItem) return item;
 
             switch (item.type) {
@@ -154,65 +196,8 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         if (res && res.subscriptions.length > 0) {
             setCoachSubscription(res.subscriptions[0]);
             const subscribeData = res.subscriptions[0].subscribe_data as unknown as TrainingItem[];
-            const subscribeMap = new Map<string, any>();
-            const makeKey = (item: { id?: string; type: string; question?: string }) => {
-                // 优先使用稳定 id
-                if (item.id) return `id::${item.id}`;
-                // 固定题型（单例）一律用 type 作为 key，避免题干变更导致无法匹配历史答案
-                if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return item.type;
-                return item.question ? `${item.type}::${item.question}` : item.type;
-            };
-
-            subscribeData.forEach(item => {
-                subscribeMap.set(makeKey(item), item);
-            });
-
-            const newAnswers = questions.map(item => {
-                const key = makeKey(item);
-                const sItem = subscribeMap.get(key);
-
-                if (!sItem) return item;
-
-                console.log(sItem);
-                
-
-                switch (item.type) {
-                    case 'tags':
-                        return {
-                            ...item,
-                            userSelections: sItem.userSelections,
-                        };
-
-                    case 'rm':
-                        return {
-                            ...item,
-                            userInputs: sItem.userInputs,
-                        };
-
-                    case 'times':
-                        return {
-                            ...item,
-                            userSelection: sItem.userSelection,
-                        };
-
-                    case 'option':
-                        return {
-                            ...item,
-                            userSelection: sItem.userSelection,
-                        };
-
-                    case 'text':
-                        return {
-                            ...item,
-                            userSelection: sItem.userSelection,
-                        };
-
-                    default:
-                        return item;
-                }
-            });
-
-            setAnswers(newAnswers);
+            // 复用同一套合并策略，避免“改题干/顺序后答案丢失”
+            mergeExistingAnswers(subscribeData as any);
         }
     }
 
@@ -250,6 +235,69 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             if ((q as any).id) map.set((q as any).id, idx);
         });
         return map;
+    }, [answers]);
+
+    /**
+     * 分支子树判定：
+     * - 被 branching 指向的节点（rules/defaultNext）视为“分支入口”
+     * - 从这些入口出发，通过显式 next / branching 边可达的都视为“分支子树”
+     *
+     * 目的：避免分支路径走完后，因“数组顺序兜底”串到别的分支/重复题。
+     */
+    const branchSubtreeIds = useMemo(() => {
+        const byId = new Map<string, TrainingItem>();
+        answers.forEach((q: any) => q?.id && byId.set(q.id, q));
+
+        const adj = new Map<string, Set<string>>();
+        const addAdj = (from: any, to: any) => {
+            if (!from || !to) return;
+            if (typeof from !== 'string' || typeof to !== 'string') return;
+            if (!adj.has(from)) adj.set(from, new Set());
+            adj.get(from)!.add(to);
+        };
+
+        const branchTargets = new Set<string>();
+
+        // Build adjacency from explicit next + branching edges
+        for (const q of answers as any[]) {
+            const fromId = q?.id;
+            if (!fromId) continue;
+
+            // explicit next
+            if (typeof q.next === 'string') addAdj(fromId, q.next);
+
+            const b = q.branching || {};
+            if (typeof b.defaultNext === 'string') {
+                branchTargets.add(b.defaultNext);
+                addAdj(fromId, b.defaultNext);
+            }
+
+            // tags 不支持 rules；其它题型允许 rules
+            if (q.type !== 'tags' && b.rules && typeof b.rules === 'object') {
+                Object.values(b.rules).forEach((v: any) => {
+                    if (typeof v === 'string') {
+                        branchTargets.add(v);
+                        addAdj(fromId, v);
+                    }
+                });
+            }
+        }
+
+        // BFS from branchTargets to collect subtree
+        const subtree = new Set<string>();
+        const queue = Array.from(branchTargets);
+        while (queue.length > 0) {
+            const cur = queue.shift()!;
+            if (subtree.has(cur)) continue;
+            subtree.add(cur);
+            const outs = adj.get(cur);
+            if (!outs) continue;
+            outs.forEach((n) => {
+                if (!subtree.has(n)) queue.push(n);
+            });
+        }
+
+        return subtree;
     }, [answers]);
 
     const isAnsweredForFlow = (q: TrainingItem): boolean => {
@@ -312,6 +360,14 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         if (typeof explicitNext === 'string') {
             const idx = idToIndex.get(explicitNext);
             return typeof idx === 'number' ? idx : null;
+        }
+
+        // 兜底顺序：
+        // - 主干（非分支子树）沿数组顺序前进（兼容旧数据/简单线性问卷）
+        // - 分支子树里的节点如果没有显式 next，则默认结束（避免串到别的分支/重复题）
+        const selfId = (q as any)?.id as string | undefined;
+        if (selfId && branchSubtreeIds.has(selfId)) {
+            return null;
         }
 
         return sequentialNext;
