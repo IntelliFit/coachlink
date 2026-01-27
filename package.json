@@ -15,7 +15,8 @@
         "test:redis": "tsx scripts/test-redis.ts",
         "optimize-favicon": "python scripts/optimize-favicon.py",
         "check-vapid": "tsx scripts/check-vapid.ts",
-        "test-push": "tsx scripts/test-push.ts"
+        "test-push": "tsx scripts/test-push.ts",
+        "pre-deploy-check": "node scripts/pre-deploy-check.js"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",

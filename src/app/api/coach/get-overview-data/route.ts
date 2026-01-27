@@ -28,16 +28,13 @@ export async function POST(req: Request) {
     }
 
     const coachId = coach.id;
-    const now = new Date().toISOString();
-    const startOfMonth = new Date(
-        new Date().getFullYear(),
-        new Date().getMonth(),
-        1,
-    ).toISOString();
+    // NOTE: start_date is intentionally null until the student actually starts training.
+    // Do NOT use start_date as a filter for overview stats.
 
-    // 2. 并行执行优化后的聚合查询
+    // 2. 并行执行聚合查询
     const [
-        statsResult,
+        activeStudentCountResult,
+        activeRevenueResult,
         pendingReviewResult,
         ratingResult,
         contentCountResult,
@@ -46,12 +43,20 @@ export async function POST(req: Request) {
         coachQuestionResult,
         coachPricingResult,
     ] = await Promise.all([
+        // 总学员数：与“学员管理”页口径一致（active 订阅数；不应依赖 start_date 是否已设置）
         supabase
             .from("coach_subscriptions")
-            .select("monthly_price, subscribe_data")
+            .select("id", { count: "exact", head: true })
             .eq("coach_id", coachId)
-            .eq("status", "active")
-            .lte("start_date", now),
+            .eq("status", "active"),
+
+        // 本月收入（当前口径）：active 订阅金额汇总（与教练端“业务概览”历史表现一致）
+        // 关键修复：不要依赖 start_date（新订阅 start_date = null，直到学员真正开始训练）
+        supabase
+            .from("coach_subscriptions")
+            .select("monthly_price")
+            .eq("coach_id", coachId)
+            .eq("status", "active"),
 
         // 假设 training_videos 表有 coach_id 或可以通过关联查询
         supabase
@@ -95,30 +100,14 @@ export async function POST(req: Request) {
             .maybeSingle(),
     ]);
 
-    // 3. 内存处理聚合数据（比多次 DB 查询快得多）
-    const subscriptions = statsResult.data || [];
-    const totalStudentCount = subscriptions.length;
+    // 3. 内存处理聚合数据
+    const totalStudentCount = activeStudentCountResult.count || 0;
     const pendingReviewCount = pendingReviewResult.count || 0;
 
-    // Helper: check if subscription is an offline payment (money already collected outside platform)
-    const isOfflinePayment = (sub: any): boolean => {
-        const sd = sub.subscribe_data;
-        if (!sd) return false;
-        // New format: array with type='offline_payment'
-        if (Array.isArray(sd)) {
-            return sd.some((item: any) => item?.type === "offline_payment");
-        }
-        // Old format: object with offline_payment key
-        if (typeof sd === "object" && sd.offline_payment) {
-            return true;
-        }
-        return false;
-    };
-
-    // Only count revenue from platform payments (exclude offline payments)
-    const monthlyRevenue = subscriptions
-        .filter((sub) => !isOfflinePayment(sub))
-        .reduce((sum, sub) => sum + (Number(sub.monthly_price) || 0), 0);
+    const monthlyRevenue = (activeRevenueResult.data || []).reduce(
+        (sum, row: any) => sum + (Number(row?.monthly_price) || 0),
+        0,
+    );
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;

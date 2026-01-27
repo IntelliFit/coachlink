@@ -7,9 +7,9 @@
 
 ### 📂 文档治理
 
-- **重组**: 将 `docs/todo` 重构为基于功能的目录结构
-  (`docs/todo/features/`)，以提高可读性。
-- **整合**: 将变更日志和 README 整合至 `docs/todo` 统一管理。
+- **重组**: 将规划文档集中在 `docs/work/roadmap`，并按功能划分目录结构
+  (`docs/work/roadmap/features/`)，以提高可读性。
+- **整合**: 将变更日志和 README 整合至 `docs/work/roadmap` 统一管理。
 
 ## 2026-01-04
 

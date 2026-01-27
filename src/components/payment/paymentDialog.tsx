@@ -66,6 +66,8 @@ interface PaymentDialogProps {
     /** Used for renew flow (weeks to extend). */
     renewAdditionalWeeks?: number;
     amount?: number;
+    /** Default payment method to select when dialog opens */
+    defaultPaymentMethod?: 'qrcode' | 'alipay_api' | 'offline';
     onSuccess?: (note?: string, offlinePaymentData?: OfflinePaymentData) => void;
     onCancel?: () => void;
 }
@@ -80,6 +82,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     subscriptionFlow = 'subscribe',
     renewAdditionalWeeks,
     amount,
+    defaultPaymentMethod,
     onSuccess,
     onCancel
 }) => {
@@ -117,21 +120,30 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             setCoach(res.coach);
             setPaymentInfo(res.paymentInfo || null);
 
-            // 根据支付模式设置默认选项
-            const mode = res.paymentInfo?.effectivePaymentMode || 'qrcode';
-            if (mode === 'alipay_api') {
-                setSelectedPaymentMethod('alipay_api');
-            } else if (mode === 'qrcode') {
-                setSelectedPaymentMethod('qrcode');
-                if (res.paymentInfo?.qrCodes?.length > 0) {
+            // 如果指定了默认支付方式，优先使用它
+            if (defaultPaymentMethod) {
+                setSelectedPaymentMethod(defaultPaymentMethod);
+                // 如果是扫码支付，需要设置二维码
+                if (defaultPaymentMethod === 'qrcode' && res.paymentInfo?.qrCodes?.length > 0) {
                     setSelectedQrCode(res.paymentInfo.qrCodes[0]);
                 }
-            } else if (mode === 'both') {
-                if (res.paymentInfo?.qrCodes?.length > 0) {
-                    setSelectedPaymentMethod('qrcode');
-                    setSelectedQrCode(res.paymentInfo.qrCodes[0]);
-                } else {
+            } else {
+                // 否则根据支付模式设置默认选项
+                const mode = res.paymentInfo?.effectivePaymentMode || 'qrcode';
+                if (mode === 'alipay_api') {
                     setSelectedPaymentMethod('alipay_api');
+                } else if (mode === 'qrcode') {
+                    setSelectedPaymentMethod('qrcode');
+                    if (res.paymentInfo?.qrCodes?.length > 0) {
+                        setSelectedQrCode(res.paymentInfo.qrCodes[0]);
+                    }
+                } else if (mode === 'both') {
+                    if (res.paymentInfo?.qrCodes?.length > 0) {
+                        setSelectedPaymentMethod('qrcode');
+                        setSelectedQrCode(res.paymentInfo.qrCodes[0]);
+                    } else {
+                        setSelectedPaymentMethod('alipay_api');
+                    }
                 }
             }
         }
@@ -143,7 +155,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         if (visible && coachId) {
             setLoading(true);
             setSelectedQrCode(null);
-            setSelectedPaymentMethod('qrcode');
+            // 如果指定了默认支付方式，使用它；否则默认使用qrcode
+            setSelectedPaymentMethod(defaultPaymentMethod || 'qrcode');
             loadCoach();
         } else if (!visible) {
             setCoach(null);
@@ -157,7 +170,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             // 重置扫码支付凭证状态
             setQrcodeReceiptUrl('');
         }
-    }, [visible, coachId]);
+    }, [visible, coachId, defaultPaymentMethod]);
 
     // 上传支付凭证
     const handleReceiptUpload = async (event: FileUploadHandlerEvent) => {

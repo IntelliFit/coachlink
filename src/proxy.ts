@@ -6,6 +6,10 @@ import { verifyToken } from "./lib/jwt";
 
 const PUBLIC_PATHS = new Set([
     "/",
+    "/market",
+    "/about",
+    "/articles",
+    "/onboarding",
     "/login",
     "/register",
     "/wechat-auth/bridge",
@@ -15,6 +19,9 @@ const PUBLIC_PATHS = new Set([
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
+    "/api/coach/get-coach", // 公开获取教练信息（页面内再做动作级登录保护）
+    "/api/coach/get-aggregated-info", // 公开展示教练聚合信息（接口内部会剔除敏感字段）
+    "/api/coach/get-pricing", // 公开展示教练服务商品
     "/api/coach/get-specialties", // 获取专长列表（公开接口）
     "/api/wechat/login/start",
     "/api/wechat/login/finish",
@@ -99,6 +106,12 @@ export async function proxy(request: NextRequest) {
     // 先检查是否是公共路径（包括登录接口/微信回调桥接页），如果是则直接放行
     if (
         PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith("/articles") ||
+        // 公开 API（分享/公开文章等）
+        pathname.startsWith("/api/public/") ||
+        // 公开可浏览：发现教练/教练主页（动作在页面内再做登录保护）
+        pathname.startsWith("/coach/discovery") ||
+        pathname.startsWith("/coach/profile") ||
         pathname.startsWith(AUTH_BASE_URL) ||
         pathname.startsWith(WECHAT_AUTH_BASE_URL)
     ) {

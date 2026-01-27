@@ -17,6 +17,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // 仅收录公开、无需枚举动态参数的页面；登录态/后台页面不进入 sitemap
   const staticPaths = [
     '/',
+    '/market',
+    '/about',
+    '/articles',
+    '/onboarding',
     '/contact',
     '/terms',
     '/disclaimer',
@@ -27,7 +31,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/toolbox',
     '/generate-plan',
     '/generate-plan/waiting',
-    '/coach/application',
     '/docs/agreement',
     '/docs/disclaimer',
   ];

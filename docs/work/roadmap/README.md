@@ -1,4 +1,4 @@
-# CoachLink 规划与任务中心 (`docs/todo/`)
+# CoachLink 规划与任务中心 (`docs/work/roadmap/`)
 
 本目录是 CoachLink
 项目的实施和规划中心。它将活跃的任务、功能设计和进度跟踪与通用的项目文档区分开来。

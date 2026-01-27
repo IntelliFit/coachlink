@@ -42,4 +42,9 @@ export interface GeminiParsedTemplate {
 export interface ParseStudentTemplateResponseDto {
     weeks: number;
     trainingDays: ParsedTemplateDay[];
+    /**
+     * Optional: extracted global description/preface that appears before the first week/day marker.
+     * Intended to be written into plan `description`.
+     */
+    globalDescription?: string | null;
 }

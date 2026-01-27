@@ -63,6 +63,8 @@ function TrainingExecutionContent() {
     const [loading, setLoading] = useState(true);
     const [execution, setExecution] = useState<any>(null);
     const [actions, setActions] = useState<Record<string, any>>({});
+    const [planInstance, setPlanInstance] = useState<any>(null);
+    const [planDescExpanded, setPlanDescExpanded] = useState(false);
     const [expandedAction, setExpandedAction] = useState<number>(0);
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
@@ -185,6 +187,9 @@ function TrainingExecutionContent() {
             const instanceRes = await planLibService.getInstance({ id: instanceId });
             if (instanceRes?.actions) {
                 setActions(instanceRes.actions);
+            }
+            if (instanceRes?.instance) {
+                setPlanInstance(instanceRes.instance);
             }
 
             // Start or resume execution
@@ -762,6 +767,12 @@ function TrainingExecutionContent() {
         ? Math.round((execution.completed_sets / execution.total_sets) * 100) 
         : 0;
 
+    const planDescriptionText = String(planInstance?.description || '').trim();
+    const planNameText = String(planInstance?.name || '').trim();
+    const planDescriptionPreview = planDescriptionText.length > 140
+        ? `${planDescriptionText.slice(0, 140)}…`
+        : planDescriptionText;
+
     return (
         <div className="min-h-screen bg-surface-50">
             {/* 超时未结束提醒 */}
@@ -825,6 +836,38 @@ function TrainingExecutionContent() {
                 </div>
                 <ProgressBar value={progress} showValue={false} style={{ height: '8px' }} />
             </div>
+
+            {/* Plan global description (template/instance description) */}
+            {(planNameText || planDescriptionText) && (
+                <div className="px-4 pt-4">
+                    <div className="bg-surface-0 border border-surface-200/70 rounded-2xl p-4">
+                        {planNameText ? (
+                            <div className="text-sm font-bold text-surface-900 mb-1">
+                                {planNameText}
+                            </div>
+                        ) : null}
+                        {planDescriptionText ? (
+                            <div className="text-sm text-surface-700 whitespace-pre-line">
+                                {planDescExpanded ? planDescriptionText : planDescriptionPreview}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-surface-500">
+                                暂无计划说明
+                            </div>
+                        )}
+                        {planDescriptionText && planDescriptionText.length > 140 ? (
+                            <div className="mt-3">
+                                <Button
+                                    label={planDescExpanded ? '收起' : '展开'}
+                                    icon={planDescExpanded ? 'pi pi-chevron-up' : 'pi pi-chevron-down'}
+                                    className="p-button-text p-button-sm"
+                                    onClick={() => setPlanDescExpanded((v) => !v)}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
 
             {/* Rest Timer Overlay */}
             {isResting && (

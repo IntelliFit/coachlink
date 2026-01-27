@@ -15,9 +15,13 @@ interface FooterProps {
 const Footer: React.FC<FooterProps> = ({
     companyName = "北京智健启能",
     links = [
-        { label: "免责申明", href: "/disclaimer" },
-        { label: "用户服务协议", href: "/terms" },
+        { label: "服务商品", href: "/market" },
+        { label: "技术文章", href: "/articles" },
+        { label: "入驻流程", href: "/onboarding" },
+        { label: "关于我们", href: "/about" },
         { label: "联系我们", href: "/contact" },
+        { label: "用户服务协议", href: "/terms" },
+        { label: "免责声明", href: "/disclaimer" },
     ],
 }) => {
     return (
@@ -47,7 +51,7 @@ const Footer: React.FC<FooterProps> = ({
                     </div>
 
                     {/* 右侧：功能链接 */}
-                    <nav className="flex items-center gap-8">
+                    <nav className="flex flex-wrap items-center justify-center md:justify-end gap-x-8 gap-y-3">
                         {links.map((item, index) => (
                             <a
                                 key={index}
