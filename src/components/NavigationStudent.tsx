@@ -17,6 +17,7 @@ import { MessageBadge } from '@/components/chat/MessageBadge';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { userService } from '@/app/service/userService';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
+import { useCart } from '@/context/CartContext';
 import type { UserProfilesRow } from '@/types';
 import {
     PlayCircle,
@@ -35,7 +36,9 @@ import {
     Users,
     Menu as MenuIcon, // 引入菜单图标
     Headphones,
-    MessageSquare
+    MessageSquare,
+    Receipt,
+    ShoppingCart
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -44,6 +47,7 @@ export default function NavigationStudent() {
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { openOnboardingModal, clearOnboardingSuppression, isOnboardingModalOpen } = useOnboardingModal();
+    const { getItemCount } = useCart();
     const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
@@ -271,6 +275,8 @@ export default function NavigationStudent() {
         { label: '知识库', icon: 'pi pi-book', command: () => { router.push('/dashboard/knowledge'); setVisibleLeft(false); } },
         { label: '我的计划库', icon: 'pi pi-bookmark', command: () => { router.push('/me/plan-lib'); setVisibleLeft(false); } },
         { label: '训练历史', icon: 'pi pi-history', command: () => { router.push('/me/plan-history'); setVisibleLeft(false); } },
+        { label: '购买记录', icon: 'pi pi-receipt', command: () => { router.push('/me/purchase-history'); setVisibleLeft(false); } },
+        { label: '购物车', icon: 'pi pi-shopping-cart', command: () => { router.push('/me/cart'); setVisibleLeft(false); } },
         { separator: true },
         {
             label: (session?.user as any)?.is_coach ? '切换到教练端' : '申请成为教练',
