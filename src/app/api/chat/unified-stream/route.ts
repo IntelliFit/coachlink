@@ -73,6 +73,8 @@ export async function GET(req: NextRequest) {
                                     // 这样可以确保即使数据库触发器没有正确触发事件，前端也能收到更新
                                     // 只有当消息不是当前用户发送的时才更新未读数
                                     const isIncomingMessage = payload.new?.sender_id !== userId;
+                                    console.log('isIncomingMessage', isIncomingMessage);
+                                    
                                     if (isIncomingMessage) {
                                         // 触发 Web Push 系统通知（后台/锁屏推送）
                                         // fire-and-forget，不阻塞 SSE 响应
@@ -107,11 +109,21 @@ export async function GET(req: NextRequest) {
                                                 body: body.slice(0, 80),
                                                 url: `/messages?peerUserId=${senderId}`,
                                                 tag: `chat-${messageRoomId}`,
-                                            }).catch(() => {
-                                                // 静默失败，VAPID 未配置或推送失败不影响 SSE
+                                            }).then((result) => {
+                                                if (result.sent > 0) {
+                                                    console.log(`[unified-stream] 推送通知已发送给用户 ${userId}: ${result.sent} 条成功`);
+                                                } else if (result.failed > 0) {
+                                                    console.warn(`[unified-stream] 推送通知发送失败给用户 ${userId}: ${result.failed} 条失败`);
+                                                } else {
+                                                    console.log(`[unified-stream] 用户 ${userId} 没有推送订阅，跳过推送`);
+                                                }
+                                            }).catch((error) => {
+                                                // 记录错误但不阻塞 SSE
+                                                console.error(`[unified-stream] 推送通知异常 (用户 ${userId}):`, error?.message || error);
                                             });
-                                        } catch {
-                                            // 静默失败
+                                        } catch (error) {
+                                            // 记录错误但不阻塞 SSE
+                                            console.error(`[unified-stream] 准备推送通知时出错 (用户 ${userId}):`, error);
                                         }
                                     }
                                     

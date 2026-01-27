@@ -17,11 +17,12 @@ const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
     const siteUrl = process.env.NEXTAUTH_URL || 'https://coachlink.fit';
-    const title = 'CoachLink 教链｜教练与学员的训练管理平台';
+    const title = 'CoachLink 启能教链｜教练与学员的训练管理平台';
     const description =
-        'CoachLink 教链，连接教练与学员：训练计划制定/AI 快速生成、今日训练一键开练、视频上传点评、PR 进步时间轴、自动负荷计算与数据分析。';
+        'CoachLink 启能教链，连接教练与学员：训练计划制定/AI 快速生成、今日训练一键开练、视频上传点评、PR 进步时间轴、自动负荷计算与数据分析。';
     const keywords = [
         'CoachLink',
+        '启能教链',
         '教链',
         '健身教练',
         '私教',
@@ -69,7 +70,7 @@ export async function generateMetadata(): Promise<Metadata> {
             type: 'website',
             locale: 'zh_CN',
             url: siteUrl,
-            siteName: 'CoachLink 教链',
+            siteName: 'CoachLink 启能教链',
             title,
             description,
             images: [
@@ -77,7 +78,7 @@ export async function generateMetadata(): Promise<Metadata> {
                     url: '/images/favicon.jpg',
                     width: 1200,
                     height: 630,
-                    alt: 'CoachLink 教链',
+                    alt: 'CoachLink 启能教链',
                 },
             ],
         },
@@ -91,7 +92,7 @@ export async function generateMetadata(): Promise<Metadata> {
         appleWebApp: {
             capable: true,
             statusBarStyle: 'black-translucent',
-            title: 'CoachLink 教链',
+            title: 'CoachLink 启能教链',
         },
         icons: {
             icon: [
@@ -132,10 +133,10 @@ export default function RootLayout({
         '@context': 'https://schema.org',
         '@type': 'WebSite',
         url: siteUrl,
-        name: 'CoachLink 教链',
-        alternateName: 'CoachLink 教链｜教练与学员的训练管理平台',
+        name: 'CoachLink 启能教链',
+        alternateName: 'CoachLink 启能教链｜教练与学员的训练管理平台',
         description:
-            '连接教练与学员的训练管理平台：计划制定/AI 生成、今日训练、视频上传点评、PR 进步时间轴与自动负荷计算。',
+            'CoachLink 启能教链，连接教练与学员：训练计划制定/AI 快速生成、今日训练一键开练、视频上传点评、PR 进步时间轴、自动负荷计算与数据分析。',
     };
 
     return (
