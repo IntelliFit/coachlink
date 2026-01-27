@@ -5,7 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { QrCode } from 'lucide-react';
 
-export default function ArticlePaywall() {
+export default function ArticlePaywall({ knowledgeHref }: { knowledgeHref?: string }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -21,6 +21,16 @@ export default function ArticlePaywall() {
               点击下方按钮可获取完整内容与扩展资料（示例交互：二维码服务）。
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+              {knowledgeHref ? (
+                <Button
+                  className="rounded-2xl"
+                  label="登录后在知识库阅读全文"
+                  onClick={() => {
+                    const redirect = encodeURIComponent(knowledgeHref);
+                    window.location.href = `/login?redirect=${redirect}`;
+                  }}
+                />
+              ) : null}
               <Button className="rounded-2xl" label="查看更多（¥20）" onClick={() => setOpen(true)} />
               <Button
                 outlined

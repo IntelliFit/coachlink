@@ -17,7 +17,7 @@ const Footer: React.FC<FooterProps> = ({
     links = [
         { label: "服务商品", href: "/market" },
         { label: "技术文章", href: "/articles" },
-        { label: "入驻流程", href: "/coach/application" },
+        { label: "入驻流程", href: "/onboarding" },
         { label: "关于我们", href: "/about" },
         { label: "联系我们", href: "/contact" },
         { label: "用户服务协议", href: "/terms" },

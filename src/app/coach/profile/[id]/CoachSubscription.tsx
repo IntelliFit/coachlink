@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Inbox, CheckCircle, Package, Bolt, Star, Shield, ArrowRight, ShoppingCart } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
@@ -27,7 +27,7 @@ import { useGuideStore } from '@/stores/useGuideStore';
 interface CoachSubscriptionProps {
     coach: CoachesRow;
     mySubscriptions: QueryCoachSubscription[];
-    onSubscribeSuccess: (tier: number) => void;
+    onSubscribeSuccess: (tier?: number) => void;
 }
 
 const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
@@ -50,12 +50,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
+    const [isOfflinePaymentMode, setIsOfflinePaymentMode] = useState(false);
     
     // 选择逻辑
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
     const [coachSubscription, setCoachSubscription] = useState<CoachSubscriptionRow | null>(null);
     const [renewMode, setRenewMode] = useState(false);
+    const autoSubscribeOnceRef = useRef(false);
 
     // 风格配置 (对应 PricingSettings)
     const tierConfig = {
@@ -126,9 +128,23 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const handleSelectProduct = async (product: Product, duration: DurationOption) => {
         setSelectedProduct(product);
         setSelectedDuration(duration);
+        setIsOfflinePaymentMode(false);
         
         try {
             setSubscribing(true);
+
+            // 登录保护：订阅/支付/购物车均需要登录
+            if (!session?.user?.id) {
+                try {
+                    const redirect = typeof window !== 'undefined'
+                        ? `${window.location.pathname}${window.location.search}${window.location.hash || ''}`
+                        : `/coach/profile/${coach.id}?tab=1`; // 订阅价格现在在第二栏（index 1）
+                    router.push(`/login?redirect=${encodeURIComponent(redirect)}`);
+                } catch {
+                    router.push('/login');
+                }
+                return;
+            }
 
             if (activeSub && !renewMode) {
                 showToast({ severity: 'info', summary: '您已订阅该教练', detail: '点击上方【续费】即可延长订阅' });
@@ -149,14 +165,14 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 if (!renewMode) {
                     const res = await subscriptionService.createSubscription({
                         coachId: coach.id,
-                        tier: selectedProduct?.tier === 'basic' ? 1 : selectedProduct?.tier === 'standard' ? 2 : 3,
-                        monthlyPrice: selectedDuration?.price || 0,
+                        tier: product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3,
+                        monthlyPrice: duration.price || 0,
                         status: 'inactive',
                         subscribeData: [],
-                        productId: selectedProduct?.id,
-                        productName: selectedProduct?.name,
-                        productTier: selectedProduct?.tier,
-                        subscribedWeeks: (selectedDuration?.months || 1) * 4
+                        productId: product.id,
+                        productName: product.name,
+                        productTier: product.tier,
+                        subscribedWeeks: (duration.months || 1) * 4
                     });
                     if (res) {
                         setCoachSubscription(res.subscription);
@@ -172,11 +188,39 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         }
     };
 
+    // 购物车/市场页跳转进来：自动选中商品并触发订阅流程（一次性）
+    useEffect(() => {
+        if (autoSubscribeOnceRef.current) return;
+        if (loading) return;
+        if (!products || products.length === 0) return;
+        if (typeof window === 'undefined') return;
+
+        const sp = new URLSearchParams(window.location.search);
+        const autoSubscribe = sp.get('autoSubscribe') === '1';
+        const productId = sp.get('productId') || '';
+        const months = Number(sp.get('months') || '');
+        if (!autoSubscribe || !productId || !Number.isFinite(months)) return;
+
+        const product = products.find((p) => p.id === productId);
+        const duration = product?.duration_options?.find((o) => Number(o.months) === months);
+        if (!product || !duration) return;
+
+        autoSubscribeOnceRef.current = true;
+        // 确保滚动到订阅区域
+        try {
+            document.getElementById('choose-pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch { }
+        void handleSelectProduct(product, duration);
+    }, [loading, products]);
+
     const handlePaymentSuccess = async (note?: string, offlinePaymentData?: OfflinePaymentData) => {
-        if (!selectedProduct || !selectedDuration) return;
+        const isOffline = Boolean(offlinePaymentData);
+        if (!isOffline && (!selectedProduct || !selectedDuration)) return;
         
-        const additionalWeeks = selectedDuration.months * 4;
-        const targetSubscriptionId = renewMode ? activeSub?.id : coachSubscription?.id;
+        const additionalWeeks = selectedDuration ? selectedDuration.months * 4 : 0;
+        const targetSubscriptionId = renewMode
+            ? (activeSub?.id || coachSubscription?.id)
+            : (coachSubscription?.id || activeSub?.id);
 
         if (!targetSubscriptionId) return;
 
@@ -194,7 +238,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         const nextPaymentData: any = {
             ...basePaymentData,
             offline_payment: offlinePaymentData || null,
-            pending_renew: renewMode
+            pending_renew: !isOffline && renewMode && selectedDuration
                 ? {
                       additional_weeks: additionalWeeks,
                       amount: selectedDuration.price,
@@ -210,11 +254,124 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             remind_coach_note: note || '',
             payment_method: offlinePaymentData ? 'offline' : 'personal_qrcode',
             payment_data: nextPaymentData as any,
+            ...(offlinePaymentData?.expires_at ? { end_date: offlinePaymentData.expires_at } : {}),
         });
 
         if (res) {
-            onSubscribeSuccess(selectedProduct.tier === 'basic' ? 1 : selectedProduct.tier === 'standard' ? 2 : 3);
+            if (!isOffline && selectedProduct) {
+                onSubscribeSuccess(selectedProduct.tier === 'basic' ? 1 : selectedProduct.tier === 'standard' ? 2 : 3);
+            } else {
+                onSubscribeSuccess(undefined);
+            }
             setPaymentDialogVisible(false);
+        }
+    };
+
+    // 处理线下支付（直接从套餐选择页面触发）
+    const handleOfflinePayment = async (product: Product, duration: DurationOption) => {
+        setSelectedProduct(product);
+        setSelectedDuration(duration);
+        setIsOfflinePaymentMode(true); // 标记为线下支付模式
+        
+        try {
+            setSubscribing(true);
+
+            // 登录保护：订阅/支付均需要登录
+            if (!session?.user?.id) {
+                try {
+                    const redirect = typeof window !== 'undefined'
+                        ? `${window.location.pathname}${window.location.search}${window.location.hash || ''}`
+                        : `/coach/profile/${coach.id}?tab=1`; // 订阅价格现在在第二栏（index 1）
+                    router.push(`/login?redirect=${encodeURIComponent(redirect)}`);
+                } catch {
+                    router.push('/login');
+                }
+                return;
+            }
+
+            if (activeSub && !renewMode) {
+                showToast({ severity: 'info', summary: '您已订阅该教练', detail: '点击上方【续费】即可延长订阅' });
+                return;
+            }
+
+            // 如果是续费模式，直接打开支付对话框
+            if (renewMode || activeSub) {
+                setPaymentDialogVisible(true);
+                return;
+            }
+
+            // 检查是否有问卷
+            const qRes = await coachService.getQuestionnaires({ coachId: coach.id });
+            if (qRes?.questionnaires?.length > 0) {
+                // 有问卷时，先填写问卷
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+            } else {
+                // 无问卷时，直接创建订阅记录并打开支付对话框
+                const res = await subscriptionService.createSubscription({
+                    coachId: coach.id,
+                    tier: product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3,
+                    monthlyPrice: duration.price || 0,
+                    status: 'inactive',
+                    subscribeData: [],
+                    productId: product.id,
+                    productName: product.name,
+                    productTier: product.tier,
+                    subscribedWeeks: duration.months * 4
+                });
+                if (res) {
+                    setCoachSubscription(res.subscription);
+                    setPaymentDialogVisible(true);
+                }
+            }
+        } catch (error) {
+            showToast({ severity: 'error', summary: '启动订阅流程失败' });
+        } finally {
+            setSubscribing(false);
+        }
+    };
+
+    const handleOfflineEntry = async () => {
+        setIsOfflinePaymentMode(true);
+        setSelectedProduct(null);
+        setSelectedDuration(null);
+        try {
+            setSubscribing(true);
+            // 登录保护：订阅/支付均需要登录
+            if (!session?.user?.id) {
+                try {
+                    const redirect = typeof window !== 'undefined'
+                        ? `${window.location.pathname}${window.location.search}${window.location.hash || ''}`
+                        : `/coach/profile/${coach.id}?tab=1`; // 订阅价格现在在第二栏（index 1）
+                    router.push(`/login?redirect=${encodeURIComponent(redirect)}`);
+                } catch {
+                    router.push('/login');
+                }
+                return;
+            }
+
+            if (activeSub) {
+                setPaymentDialogVisible(true);
+                return;
+            }
+
+            if (!coachSubscription) {
+                const res = await subscriptionService.createSubscription({
+                    coachId: coach.id,
+                    tier: 1,
+                    monthlyPrice: 0,
+                    status: 'inactive',
+                    subscribeData: [],
+                });
+                if (res) {
+                    setCoachSubscription(res.subscription);
+                }
+            }
+            setPaymentDialogVisible(true);
+        } catch (error) {
+            showToast({ severity: 'error', summary: '启动订阅流程失败' });
+        } finally {
+            setSubscribing(false);
         }
     };
 
@@ -386,6 +543,24 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                     onClick={() => startGuide('STUDENT_SUBSCRIBE_FLOW_GUIDE')}
                 />
             </div>
+            <div className="mb-6 rounded-3xl border border-green-200/60 bg-green-50/40 p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <div className="text-xs font-black uppercase tracking-widest text-green-600/80">线下已支付</div>
+                    <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
+                        上传凭证直接订阅
+                    </div>
+                    <div className="text-sm text-surface-500 mt-1">线下已付款可直接上传凭证并提交</div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                    <Button
+                        label="线下已支付"
+                        icon="pi pi-wallet"
+                        className="rounded-2xl p-button-success"
+                        onClick={handleOfflineEntry}
+                        disabled={subscribing}
+                    />
+                </div>
+            </div>
             {products.length === 0 ? (
                 <div className="py-20 text-center bg-surface-50 rounded-3xl border-2 border-dashed border-surface-200">
                     <Inbox className="w-16 h-16 text-surface-200 mx-auto mb-4" />
@@ -424,6 +599,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                         setCoachSubscription(res.subscription);
                         setQuestionnaireVisible(false);
                         setPaymentDialogVisible(true);
+                        // 注意：isOfflinePaymentMode状态已经在handleOfflinePayment中设置，这里不需要重置
                     }
                 }}
                 loading={subscribing}
@@ -431,14 +607,24 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
             <PaymentDialog
                 visible={paymentDialogVisible}
-                onHide={() => setPaymentDialogVisible(false)}
+                onHide={() => {
+                    setPaymentDialogVisible(false);
+                    setIsOfflinePaymentMode(false); // 关闭时重置状态
+                }}
                 amount={selectedDuration?.price || 0}
                 coachId={coach.id}
-                subscriptionId={renewMode ? (activeSub?.id || undefined) : (coachSubscription?.id || undefined)}
+                subscriptionId={renewMode
+                    ? (activeSub?.id || coachSubscription?.id || undefined)
+                    : (coachSubscription?.id || activeSub?.id || undefined)
+                }
                 subscriptionFlow={renewMode ? 'renew' : 'subscribe'}
                 renewAdditionalWeeks={renewMode ? (selectedDuration?.months || 1) * 4 : undefined}
+                defaultPaymentMethod={isOfflinePaymentMode ? 'offline' : undefined}
                 onSuccess={handlePaymentSuccess}
-                onCancel={() => setPaymentDialogVisible(false)}
+                onCancel={() => {
+                    setPaymentDialogVisible(false);
+                    setIsOfflinePaymentMode(false); // 取消时重置状态
+                }}
             />
         </div>
     );

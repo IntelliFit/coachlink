@@ -1,16 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Pencil } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
+import { coachService } from '@/app/service/coachService';
 
 interface SubscribeItem {
     type: 'tags' | 'times' | 'rm' | string;
+    id?: string;
     question?: string;
     userSelection?: string | number;
     userSelections?: string[];
     userInputs?: Record<string, number>;
+    options?: string[];
 }
 
 interface StudentSubscribeDataViewProps {
@@ -26,6 +29,25 @@ export const StudentSubscribeDataView: React.FC<StudentSubscribeDataViewProps> =
     autoComputeActions = [],
     onEdit
 }) => {
+    const [optionMap, setOptionMap] = useState<Record<string, string[]>>({});
+    const hasOption = useMemo(() => (data || []).some((item) => item.type === 'option'), [data]);
+
+    useEffect(() => {
+        const loadQuestionnaireOptions = async () => {
+            if (!hasOption) return;
+            const res = await coachService.getQuestionnaires();
+            const qs = res?.questionnaires || [];
+            const map: Record<string, string[]> = {};
+            qs.forEach((q: any) => {
+                if (q?.id && Array.isArray(q.options)) {
+                    map[q.id] = q.options;
+                }
+            });
+            setOptionMap(map);
+        };
+        loadQuestionnaireOptions();
+    }, [hasOption]);
+
     const getQuestionText = (item: SubscribeItem) => {
         // 兼容：部分题型（tags/times/rm）历史上不存 question 字段，标题需由前端按类型提供
         if (item.question && item.question.trim()) return item.question;
@@ -59,6 +81,16 @@ export const StudentSubscribeDataView: React.FC<StudentSubscribeDataViewProps> =
     }
 
     if (!data || data.length === 0) return null;
+
+    const getOptionLabel = (item: SubscribeItem) => {
+        if (typeof item.userSelection !== 'number') return '未填写';
+        const localOptions = Array.isArray(item.options) ? item.options : [];
+        if (localOptions[item.userSelection]) return localOptions[item.userSelection];
+        if (item.id && optionMap[item.id] && optionMap[item.id][item.userSelection]) {
+            return optionMap[item.id][item.userSelection];
+        }
+        return `选项 ${item.userSelection + 1}`;
+    };
 
     return (
         <div className="space-y-4">
@@ -115,14 +147,23 @@ export const StudentSubscribeDataView: React.FC<StudentSubscribeDataViewProps> =
                                 </div>
                             ) : item.type === 'rm' ? (
                                 <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                                    {autoComputeActions.map(action => (
+                                    {autoComputeActions.map(action => {
+                                        let inputs: any = item.userInputs;
+                                        if (typeof inputs === 'string') {
+                                            try { inputs = JSON.parse(inputs); } catch { inputs = {}; }
+                                        }
+                                        return (
                                         <div key={action.id} className="flex justify-between items-center text-[11px] py-1 border-b border-surface-100/30 last:border-0">
                                             <span className="text-surface-400 font-medium">{action.name}</span>
                                             <span className="font-bold text-surface-900 tracking-tight">
-                                                {item.userInputs?.[action.id] || '--'} <small className="text-[9px] font-normal">kg</small>
+                                                {inputs?.[action.id] || '--'} <small className="text-[9px] font-normal">kg</small>
                                             </span>
                                         </div>
-                                    ))}
+                                    )})}
+                                </div>
+                            ) : item.type === 'option' ? (
+                                <div className="text-sm text-surface-600 leading-relaxed font-medium italic opacity-80">
+                                    {getOptionLabel(item)}
                                 </div>
                             ) : (
                                 <div className="text-sm text-surface-600 leading-relaxed font-medium italic opacity-80">
