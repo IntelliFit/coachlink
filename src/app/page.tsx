@@ -313,6 +313,68 @@ export default function Home() {
                 }
             `}</style>
 
+            {/* 服务商品分类入口（为合规/审核提供清晰入口） */}
+            <section className="relative z-10 max-w-7xl w-full px-4 mb-12 sm:mb-20">
+                <div className="text-center mb-10 sm:mb-14 px-6">
+                    <h2 className="text-3xl sm:text-5xl font-black mb-4 tracking-tight text-surface-900 leading-tight">
+                        服务商品分类
+                    </h2>
+                    <p className="text-surface-500 font-medium text-base sm:text-lg tracking-tight max-w-2xl mx-auto">
+                        选择教练订阅/训练计划等服务商品，开启你的训练之旅
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[
+                        {
+                            title: '服务商品',
+                            desc: '聚合展示教练订阅/计划服务商品，支持按时长选择。',
+                            icon: Layers,
+                            href: '/market',
+                            color: 'bg-primary-50 text-primary-600',
+                        },
+                        {
+                            title: '发现教练',
+                            desc: '按专长与口碑发现合适的教练，进入主页查看方案。',
+                            icon: Users,
+                            href: '/coach/discovery',
+                            color: 'bg-amber-50 text-amber-600',
+                        },
+                        {
+                            title: '技术文章',
+                            desc: '训练科技与产品实践，帮助你理解更科学的训练方式。',
+                            icon: BookOpen,
+                            href: '/articles',
+                            color: 'bg-indigo-50 text-indigo-600',
+                        },
+                        {
+                            title: '入驻流程',
+                            desc: '提交资料、审核通过后即可上架服务并开始授课。',
+                            icon: ShieldCheck,
+                            href: '/coach/application',
+                            color: 'bg-green-50 text-green-600',
+                        },
+                    ].map((item) => (
+                        <button
+                            key={item.href}
+                            onClick={() => router.push(item.href)}
+                            className="text-left group p-6 rounded-[2rem] bg-surface border border-surface-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all active:scale-[0.98]"
+                        >
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.color} mb-5 border border-surface-100`}>
+                                <item.icon size={22} />
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="text-lg font-black text-surface-900 tracking-tight">{item.title}</h3>
+                                <ArrowRight size={18} className="text-surface-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                            </div>
+                            <p className="mt-2 text-sm text-surface-500 font-medium leading-relaxed line-clamp-2">
+                                {item.desc}
+                            </p>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
             {/* 未来工具箱预告 */}
             {/* 未来工具箱预告 - 仿照 Ranking 样式的深度改造 */}
             <section className="relative z-10 max-w-6xl w-full px-4 mb-12 sm:mb-20">

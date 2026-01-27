@@ -323,6 +323,28 @@ const CoachDiscoveryPage: React.FC = () => {
                     </div>
                 </header>
 
+                {/* 服务商品入口（不破坏发现教练主流程） */}
+                <div className="mb-5">
+                    <div className="rounded-[24px] border border-surface-100 bg-surface-0 p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="min-w-0">
+                            <div className="text-xs font-black uppercase tracking-widest text-surface-400">服务商品</div>
+                            <div className="mt-1 text-lg font-black text-surface-900 tracking-tight">
+                                想直接选购订阅/计划？去服务商品页看看
+                            </div>
+                            <div className="mt-1 text-sm text-surface-500 font-medium">
+                                聚合展示教练提供的订阅方案与服务商品，支持按时长选择（购买需登录）。
+                            </div>
+                        </div>
+                        <div className="shrink-0 flex gap-2">
+                            <Button
+                                className="rounded-2xl bg-primary-500 border-none font-bold"
+                                label="去服务商品"
+                                onClick={() => router.push('/market')}
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 <div className="mb-4 flex items-center justify-between">
                     <div className="text-xs font-bold text-surface-400 tracking-wider">
                         共找到 {totalCount} 位教练

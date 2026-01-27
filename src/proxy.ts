@@ -6,6 +6,9 @@ import { verifyToken } from "./lib/jwt";
 
 const PUBLIC_PATHS = new Set([
     "/",
+    "/market",
+    "/about",
+    "/articles",
     "/login",
     "/register",
     "/wechat-auth/bridge",
@@ -15,6 +18,7 @@ const PUBLIC_PATHS = new Set([
     "/api/sms/send-verification-code",
     "/api/ses/send-verification-code",
     "/api/coach/get-all-coaches",
+    "/api/coach/get-pricing", // 公开展示教练服务商品
     "/api/coach/get-specialties", // 获取专长列表（公开接口）
     "/api/wechat/login/start",
     "/api/wechat/login/finish",
@@ -99,6 +103,7 @@ export async function proxy(request: NextRequest) {
     // 先检查是否是公共路径（包括登录接口/微信回调桥接页），如果是则直接放行
     if (
         PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith("/articles") ||
         pathname.startsWith(AUTH_BASE_URL) ||
         pathname.startsWith(WECHAT_AUTH_BASE_URL)
     ) {

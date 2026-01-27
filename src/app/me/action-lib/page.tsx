@@ -102,9 +102,13 @@ const StudentActionLib = () => {
             } else {
                 loadActions();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('删除动作失败:', error);
-            showToast({ severity: 'error', summary: '删除失败', detail: '无法删除动作' });
+            showToast({
+                severity: 'error',
+                summary: '删除失败',
+                detail: error?.message || '无法删除动作',
+            });
         }
     };
 

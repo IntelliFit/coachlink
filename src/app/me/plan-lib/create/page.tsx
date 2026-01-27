@@ -298,7 +298,10 @@ const CreatePlanPage = () => {
     };
 
     // 智能导入完成回调
-    const handleImportComplete = async (importedDays: any[]) => {
+    const handleImportComplete = async (
+        importedDays: any[],
+        importedGlobalDescription?: string | null,
+    ) => {
         // 确认覆盖现有内容
         if (days.some(d => d.actionSets.length > 0)) {
             const confirmed = window.confirm('导入将覆盖现有的训练内容，是否继续？');
@@ -334,6 +337,11 @@ const CreatePlanPage = () => {
 
         // 重新加载动作库（可能创建了新动作）
         await loadActions();
+
+        // 如果当前未填写描述，则用“全局说明”自动回填
+        if (importedGlobalDescription?.trim()) {
+            setDescription((prev) => (prev?.trim() ? prev : importedGlobalDescription.trim()));
+        }
 
         showToast({ severity: 'success', summary: '导入成功', detail: `已导入 ${convertedDays.length} 天训练计划` });
     };
