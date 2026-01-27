@@ -39,3 +39,22 @@ jobs:
       with:
         name: vitest-results
         path: test-results/vitest/
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps chromium
+
+    - name: Run E2E Tests
+      run: npm run test:e2e
+      env:
+        E2E_SECRET: ${{ secrets.E2E_SECRET || 'local-e2e' }}
+        NEXTAUTH_URL: http://127.0.0.1:3000
+        NODE_ENV: test
+      continue-on-error: true  # E2E测试可能不稳定，先不阻塞CI
+
+    - name: Upload Playwright Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 7

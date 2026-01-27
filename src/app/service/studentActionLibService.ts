@@ -24,6 +24,14 @@ import type {
     CopyCoachActionDto,
     CopyCoachActionResponseDto,
 } from "@/app/api/student/action-lib/copy-coach-action/entity";
+import type {
+    StudentActionReferencesDto,
+    StudentActionReferencesResponseDto,
+} from "@/app/api/student/action-lib/action-references/entity";
+import type {
+    MergeStudentActionsDto,
+    MergeStudentActionsResponseDto,
+} from "@/app/api/student/action-lib/merge-actions/entity";
 
 export class StudentActionLibService extends BaseService {
     async listActions(reqData: ListStudentActionsDto) {
@@ -66,6 +74,28 @@ export class StudentActionLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res?.data?.message || "删除动作失败");
+        }
+        return res.data.data;
+    }
+
+    async getActionReferences(reqData: StudentActionReferencesDto) {
+        const res = await this.post<StudentActionReferencesResponseDto>(
+            "action-references",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "获取动作引用失败");
+        }
+        return res.data.data;
+    }
+
+    async mergeActions(reqData: MergeStudentActionsDto) {
+        const res = await this.post<MergeStudentActionsResponseDto>(
+            "merge-actions",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "合并动作失败");
         }
         return res.data.data;
     }

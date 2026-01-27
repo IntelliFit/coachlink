@@ -10,8 +10,6 @@ import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import { Skeleton } from 'primereact/skeleton';
 import { ShoppingCart, Package, User, Calendar, Trash2 } from 'lucide-react';
-import { subscriptionService } from '@/app/service/subscriptionService';
-import { coachService } from '@/app/service/coachService';
 
 export default function CartPage() {
     const router = useRouter();
@@ -42,7 +40,7 @@ export default function CartPage() {
     const handleSubscribe = async (item: typeof items[0]) => {
         if (!session?.user?.id) {
             showToast({ severity: 'warn', summary: '请先登录', detail: '需要登录后才能订阅' });
-            router.push('/auth/signin');
+            router.push(`/login?redirect=${encodeURIComponent('/me/cart')}`);
             return;
         }
 
@@ -50,63 +48,15 @@ export default function CartPage() {
         setSubscribing(true);
 
         try {
-            // 获取教练信息
-            const coachRes = await coachService.getCoach({ coachId: item.coachId });
-            if (!coachRes?.coach) {
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法获取教练信息' });
-                return;
-            }
-
-            // 获取定价信息
-            const pricingRes = await coachService.getPricing({ coachId: item.coachId });
-            if (!pricingRes?.products) {
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法获取定价信息' });
-                return;
-            }
-
-            const product = pricingRes.products.find(p => p.id === item.productId);
-            if (!product) {
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法找到对应的产品' });
-                return;
-            }
-
-            const duration = product.duration_options.find(opt => opt.months === item.durationMonths);
-            if (!duration) {
-                showToast({ severity: 'error', summary: '加载失败', detail: '无法找到对应的时长选项' });
-                return;
-            }
-
-            // 检查是否有问卷
-            const qRes = await coachService.getQuestionnaires({ coachId: item.coachId });
-            
-            if (qRes?.questionnaires?.length > 0) {
-                // 有问卷，跳转到教练页面并打开订阅标签页
-                router.push(`/coach/profile/${item.coachId}?tab=3`);
-                showToast({ severity: 'info', summary: '请填写问卷', detail: '正在跳转到订阅页面' });
-            } else {
-                // 无问卷，直接创建订阅并跳转到支付
-                const subRes = await subscriptionService.createSubscription({
-                    coachId: item.coachId,
-                    tier: item.productTier === 'basic' ? 1 : item.productTier === 'standard' ? 2 : 3,
-                    monthlyPrice: item.price,
-                    status: 'inactive',
-                    subscribeData: [],
-                    productId: item.productId,
-                    productName: item.productName,
-                    productTier: item.productTier,
-                    subscribedWeeks: item.durationMonths * 4,
-                });
-
-                if (subRes?.subscription) {
-                    // 跳转到支付页面
-                    router.push(`/coach/profile/${item.coachId}?tab=3&subscribe=true`);
-                    showToast({ severity: 'success', summary: '已创建订阅', detail: '请完成支付' });
-                    // 从购物车移除
-                    await removeFromCart(item.id);
-                } else {
-                    showToast({ severity: 'error', summary: '创建失败', detail: '无法创建订阅，请重试' });
-                }
-            }
+            // 统一订阅入口：由“教练主页订阅区”统一处理（问卷→创建订阅→支付），避免购物车页重复写逻辑导致不一致
+            const params = new URLSearchParams();
+            params.set('tab', '1'); // 订阅价格现在在第二栏（index 1）
+            params.set('from', 'cart');
+            params.set('autoSubscribe', '1');
+            params.set('productId', item.productId);
+            params.set('months', String(item.durationMonths));
+            router.push(`/coach/profile/${item.coachId}?${params.toString()}#choose-pricing`);
+            showToast({ severity: 'info', summary: '正在跳转', detail: '将为你打开订阅流程（问卷/支付）' });
         } catch (error: any) {
             console.error('订阅失败:', error);
             showToast({ severity: 'error', summary: '订阅失败', detail: error.message || '请稍后重试' });
@@ -119,26 +69,18 @@ export default function CartPage() {
     const handleSubscribeAll = async () => {
         if (!session?.user?.id) {
             showToast({ severity: 'warn', summary: '请先登录', detail: '需要登录后才能订阅' });
-            router.push('/auth/signin');
+            router.push(`/login?redirect=${encodeURIComponent('/me/cart')}`);
             return;
         }
 
         if (items.length === 0) return;
 
-        setSubscribing(true);
-        try {
-            // 逐个处理订阅
-            for (const item of items) {
-                await handleSubscribe(item);
-                // 添加小延迟避免请求过快
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-            showToast({ severity: 'success', summary: '处理完成', detail: '所有商品已处理，请完成支付' });
-        } catch (error: any) {
-            showToast({ severity: 'error', summary: '处理失败', detail: error.message || '部分商品处理失败' });
-        } finally {
-            setSubscribing(false);
-        }
+        // 批量订阅会涉及多个教练/多次问卷/多次支付，先不做“自动批量”避免误触与流程混乱
+        showToast({
+            severity: 'info',
+            summary: '暂不支持批量订阅',
+            detail: '请逐个点击“立即订阅”，系统会自动进入对应教练的问卷/支付流程',
+        });
     };
 
     const getTierLabel = (tier: string) => {

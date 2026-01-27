@@ -95,7 +95,7 @@ export default function Home() {
             </div>
 
             {/* Hero 主体 */}
-            <section className="relative z-10 text-center max-w-4xl mb-20 pt-20 sm:pt-auto sm:mb-24 mt-4 sm:mt-10">
+            <section className="relative z-10 text-center max-w-4xl mb-10 sm:mb-24 pt-14 sm:pt-auto sm:mb-24 mt-2 sm:mt-10">
 
                 <div>
                     <img src="/favicon.jpg" alt="" className="sm:hidden w-[150px] rounded-2xl mx-auto mb-4" />
@@ -131,92 +131,17 @@ export default function Home() {
                     <Button
                         outlined
                         className="font-bold w-auto flex justify-center sm:w-[82vw] max-w-[320px] px-4 sm:px-10 py-3 sm:py-4 rounded-2xl transition-all active:scale-95 text-sm sm:text-lg"
-                        onClick={() => router.push('/coach/application')}
+                        onClick={() => router.push('/onboarding')}
                     >
                         入驻成为教练
                     </Button>
                 </div>
             </section>
 
-            {/* 小程序内测群招募 */}
-            <section className="relative z-10 max-w-6xl w-full px-4 -mt-6 sm:-mt-10 mb-16 sm:mb-20">
-                <div className="relative overflow-hidden rounded-2xl bg-surface-0 border border-surface-100 shadow-sm hover:shadow-md transition-shadow">
-                    {/* 装饰性光晕 */}
-                    <div className="absolute -top-28 -right-28 w-[420px] h-[420px] bg-primary-500/8 rounded-full blur-[90px]" />
-                    <div className="absolute -bottom-28 -left-28 w-[420px] h-[420px] bg-primary-500/6 rounded-full blur-[100px]" />
-
-                    <div className="relative p-6 sm:p-10 md:p-12 grid grid-cols-1 md:grid-cols-[1fr_280px] gap-8 items-center">
-                        <div className="text-left">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary-50 text-primary-600 border border-primary-100 text-xs font-black uppercase tracking-widest">
-                                <Users className="w-3 h-3" />
-                                小程序内测招募
-                            </div>
-
-                            <h2 className="mt-5 text-2xl sm:text-4xl font-black tracking-tight text-surface-900 leading-tight">
-                                小程序版本正在持续制作中，欢迎加入内测群
-                            </h2>
-
-                            <p className="mt-4 text-surface-600 text-sm sm:text-base leading-relaxed font-medium max-w-2xl line-clamp-3">
-                                我们会持续迭代功能与体验。欢迎你在内测群提出宝贵建议；对积极反馈的用户，我们将提供专属权益（例如终身会员等）。
-                            </p>
-
-                            <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-x-6 gap-y-3 text-sm">
-                                <div className="flex items-center gap-2 text-surface-700 font-bold">
-                                    <Zap size={16} className="text-primary-600" />
-                                    优先体验新功能
-                                </div>
-                                <div className="flex items-center gap-2 text-surface-700 font-bold">
-                                    <Sparkles size={16} className="text-primary-600" />
-                                    参与产品共创与讨论
-                                </div>
-                                <div className="flex items-center gap-2 text-surface-700 font-bold">
-                                    <Gift size={16} className="text-primary-600" />
-                                    反馈奖励（终身会员等）
-                                </div>
-                            </div>
-
-                            <p className="mt-5 text-xs text-surface-500">
-                                提示：可长按/扫码识别右侧二维码加入微信群。
-                            </p>
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center">
-                            <div className="w-[220px] h-[220px] rounded-2xl bg-surface-0 shadow-sm border border-surface-100 flex items-center justify-center overflow-hidden">
-                                {!qrFailed ? (
-                                    <img
-                                        src="/images/wechat-beta-group-qr.png"
-                                        alt="加入内测群微信二维码"
-                                        className="w-full h-full object-cover"
-                                        onError={() => setQrFailed(true)}
-                                    />
-                                ) : (
-                                    <div className="p-6 text-center">
-                                        <div className="mx-auto w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600 mb-3">
-                                            <QrCode className="w-6 h-6" />
-                                        </div>
-                                        <div className="text-surface-900 font-black text-sm">二维码暂未配置</div>
-                                        <div className="mt-1 text-xs text-surface-500 leading-relaxed">
-                                            请稍后再试，或联系官方获取入群方式
-                                        </div>
-                                        {process.env.NODE_ENV !== 'production' && (
-                                            <div className="mt-2 text-[11px] text-surface-400 font-mono">
-                                                public/images/wechat-beta-group-qr.png
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="mt-3 text-sm font-black text-surface-900 tracking-tight">加入内测群</div>
-                            <div className="text-xs text-surface-500">获取新功能优先体验与反馈奖励</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             {/* 核心亮点网格 (Aero-Productivity 优化版) */}
-            <section className="relative z-10 max-w-7xl w-full px-4 mt-20 mb-12 sm:mb-40 transition-all">
+            <section className="relative z-10 max-w-7xl w-full px-4 mt-12 mb-8 sm:mb-40 transition-all">
                 {/* 头部排版：紧凑型字间距与呼吸感控制 */}
-                <div className="text-center mb-12 sm:mb-20 px-6">
+                <div className="text-center mb-6 sm:mb-20 px-4 sm:px-6">
                     <h2 className="text-3xl sm:text-5xl font-black mb-4 tracking-tight text-surface-900 leading-tight">
                         重新定义 <span className="text-primary-600">训练体验</span>
                     </h2>
@@ -226,7 +151,7 @@ export default function Home() {
                 </div>
 
                 {/* Mobile: 跑马灯组件优化 - 强化边缘消失感与物理质感 */}
-                <div className="sm:hidden mb-12 relative">
+                <div className="sm:hidden mb-6 relative">
                     {/* 左右渐变边缘：利用 surface 背景色实现呼吸感过渡 */}
                     <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-surface to-transparent z-10 pointer-events-none" />
                     <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-surface to-transparent z-10 pointer-events-none" />
@@ -312,6 +237,143 @@ export default function Home() {
                     animation-play-state: paused;
                 }
             `}</style>
+
+            {/* 服务商品分类入口（为合规/审核提供清晰入口） */}
+            <section className="relative z-10 max-w-7xl w-full px-4 mb-6 sm:mb-16">
+                <div className="text-center mb-6 sm:mb-12 px-4 sm:px-6">
+                    <h2 className="text-2xl sm:text-4xl font-black mb-3 tracking-tight text-surface-900 leading-tight">
+                        服务商品分类
+                    </h2>
+                    <p className="text-surface-500 font-medium text-sm sm:text-base tracking-tight max-w-2xl mx-auto">
+                        选择教练订阅/训练计划等服务商品，开启你的训练之旅
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                    {[
+                        {
+                            title: '服务商品',
+                            desc: '聚合展示教练订阅/计划服务商品，支持按时长选择。',
+                            icon: Layers,
+                            href: '/market',
+                            color: 'bg-primary-50 text-primary-600',
+                        },
+                        {
+                            title: '发现教练',
+                            desc: '按专长与口碑发现合适的教练，进入主页查看方案。',
+                            icon: Users,
+                            href: '/coach/discovery',
+                            color: 'bg-amber-50 text-amber-600',
+                        },
+                        {
+                            title: '技术文章',
+                            desc: '训练科技与产品实践，帮助你理解更科学的训练方式。',
+                            icon: BookOpen,
+                            href: '/articles',
+                            color: 'bg-indigo-50 text-indigo-600',
+                        },
+                        {
+                            title: '入驻流程',
+                            desc: '教练/健身房：提交资料→资质审核→完善主页→设置服务与价格→上架开售。',
+                            icon: ShieldCheck,
+                            href: '/onboarding',
+                            color: 'bg-green-50 text-green-600',
+                        },
+                    ].map((item) => (
+                        <button
+                            key={item.href}
+                            onClick={() => router.push(item.href)}
+                            className="text-left group p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-surface border border-surface-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all active:scale-[0.98]"
+                        >
+                            <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center ${item.color} mb-3 sm:mb-5 border border-surface-100`}>
+                                <item.icon size={18} />
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="text-base sm:text-lg font-black text-surface-900 tracking-tight">{item.title}</h3>
+                                <ArrowRight size={14} className="text-surface-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                            </div>
+                            <p className="mt-1.5 text-xs sm:text-sm text-surface-500 font-medium leading-relaxed line-clamp-2">
+                                {item.desc}
+                            </p>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* 小程序内测群招募（下移：避免打断核心卖点/商品入口） */}
+            <section className="relative z-10 max-w-6xl w-full px-4 mt-4 sm:mt-10 mb-10 sm:mb-20">
+                <div className="relative overflow-hidden rounded-2xl bg-surface-0 border border-surface-100 shadow-sm hover:shadow-md transition-shadow">
+                    {/* 装饰性光晕 */}
+                    <div className="absolute -top-28 -right-28 w-[420px] h-[420px] bg-primary-500/8 rounded-full blur-[90px]" />
+                    <div className="absolute -bottom-28 -left-28 w-[420px] h-[420px] bg-primary-500/6 rounded-full blur-[100px]" />
+
+                    <div className="relative p-5 sm:p-10 md:p-12 grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6 sm:gap-8 items-center">
+                        <div className="text-left">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary-50 text-primary-600 border border-primary-100 text-xs font-black uppercase tracking-widest">
+                                <Users className="w-3 h-3" />
+                                小程序内测招募
+                            </div>
+
+                            <h2 className="mt-4 text-2xl sm:text-4xl font-black tracking-tight text-surface-900 leading-tight">
+                                小程序版本正在持续制作中，欢迎加入内测群
+                            </h2>
+
+                            <p className="mt-3 text-surface-600 text-sm sm:text-base leading-relaxed font-medium max-w-2xl line-clamp-3">
+                                我们会持续迭代功能与体验。欢迎你在内测群提出宝贵建议；对积极反馈的用户，我们将提供专属权益（例如终身会员等）。
+                            </p>
+
+                            <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-x-6 gap-y-2 text-sm">
+                                <div className="flex items-center gap-2 text-surface-700 font-bold">
+                                    <Zap size={16} className="text-primary-600" />
+                                    优先体验新功能
+                                </div>
+                                <div className="flex items-center gap-2 text-surface-700 font-bold">
+                                    <Sparkles size={16} className="text-primary-600" />
+                                    参与产品共创与讨论
+                                </div>
+                                <div className="flex items-center gap-2 text-surface-700 font-bold">
+                                    <Gift size={16} className="text-primary-600" />
+                                    反馈奖励（终身会员等）
+                                </div>
+                            </div>
+
+                            <p className="mt-4 text-xs text-surface-500">
+                                提示：可长按/扫码识别右侧二维码加入微信群。
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="w-[220px] h-[220px] rounded-2xl bg-surface-0 shadow-sm border border-surface-100 flex items-center justify-center overflow-hidden">
+                                {!qrFailed ? (
+                                    <img
+                                        src="/images/wechat-beta-group-qr.png"
+                                        alt="加入内测群微信二维码"
+                                        className="w-full h-full object-cover"
+                                        onError={() => setQrFailed(true)}
+                                    />
+                                ) : (
+                                    <div className="p-6 text-center">
+                                        <div className="mx-auto w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600 mb-3">
+                                            <QrCode className="w-6 h-6" />
+                                        </div>
+                                        <div className="text-surface-900 font-black text-sm">二维码暂未配置</div>
+                                        <div className="mt-1 text-xs text-surface-500 leading-relaxed">
+                                            请稍后再试，或联系官方获取入群方式
+                                        </div>
+                                        {process.env.NODE_ENV !== 'production' && (
+                                            <div className="mt-2 text-[11px] text-surface-400 font-mono">
+                                                public/images/wechat-beta-group-qr.png
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-3 text-sm font-black text-surface-900 tracking-tight">加入内测群</div>
+                            <div className="text-xs text-surface-500">获取新功能优先体验与反馈奖励</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {/* 未来工具箱预告 */}
             {/* 未来工具箱预告 - 仿照 Ranking 样式的深度改造 */}

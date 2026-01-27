@@ -369,10 +369,17 @@ const CreatePlanPage = () => {
     };
 
     // 智能导入完成处理
-    const handleImportComplete = (importedDays: FormPlanTrainingDay[]) => {
+    const handleImportComplete = (
+        importedDays: FormPlanTrainingDay[],
+        importedGlobalDescription?: string | null,
+    ) => {
         setDays(importedDays);
         if (importedDays.length > 0) {
             setSelectedDayIndex(importedDays[0].dayIndex);
+        }
+        // 如果当前未填写描述，则用“全局说明”自动回填
+        if (importedGlobalDescription?.trim()) {
+            setDescription((prev) => (prev?.trim() ? prev : importedGlobalDescription.trim()));
         }
         showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划` });
         // 重新加载动作库以包含新创建的动作

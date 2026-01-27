@@ -17,6 +17,7 @@ import {
     normalizeActionNameForMatch,
     normalizeStrengthAttrs,
     sanitizeActionName,
+    splitPlanGlobalPreface,
 } from "@/lib/planImportText";
 import type { StudentActionRow } from "@/types/student";
 
@@ -61,8 +62,12 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        // 仅用于动作提取阶段：对文本做轻量规则化，减少 “动作名+强度” 被黏在一起的情况
-        const normalizedText = normalizeTextForActionExtraction(text);
+        // 仅用于动作提取阶段：将“全局说明”与正文拆分，避免热身/说明污染动作库
+        const { bodyText } = splitPlanGlobalPreface(text);
+        const textForActions = bodyText.trim() ? bodyText : text;
+
+        // 对文本做轻量规则化，减少 “动作名+强度” 被黏在一起的情况
+        const normalizedText = normalizeTextForActionExtraction(textForActions);
 
         // 构建 Prompt
         const prompt = buildParseActionsPrompt(
