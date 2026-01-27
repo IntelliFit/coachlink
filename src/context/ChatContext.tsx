@@ -8,6 +8,7 @@ interface ChatContextType {
     setCurrentOpenRoomId: (roomId: string | null) => void;
     unreadCount: number;
     subscribeToMessages: (callback: (message: any) => void) => () => void;
+    markRoomAsRead: (roomId: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -108,12 +109,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
+    // 标记聊天室为已读，立即更新未读数（不等待 SSE 事件）
+    const markRoomAsRead = useCallback((roomId: string) => {
+        // 立即将该聊天室的未读数设为 0
+        unreadByRoomRef.current[roomId] = 0;
+        // 重新计算未读数（会排除当前打开的聊天室）
+        calculateUnreadCount();
+    }, [calculateUnreadCount]);
+
     return (
         <ChatContext.Provider value={{ 
             currentOpenRoomId, 
             setCurrentOpenRoomId, 
             unreadCount,
-            subscribeToMessages
+            subscribeToMessages,
+            markRoomAsRead
         }}>
             {children}
         </ChatContext.Provider>

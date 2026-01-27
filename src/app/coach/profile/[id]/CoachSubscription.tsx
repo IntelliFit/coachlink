@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Inbox, CheckCircle, Package, Bolt, Star, Shield, ArrowRight } from 'lucide-react';
+import { Inbox, CheckCircle, Package, Bolt, Star, Shield, ArrowRight, ShoppingCart } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { Tag } from 'primereact/tag';
@@ -11,6 +11,7 @@ import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useCart } from '@/context/CartContext';
 
 // 类型定义
 import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
@@ -37,7 +38,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const { showToast } = useToastContext();
     const router = useRouter();
     const { data: session } = useSession();
-    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading, isInitialized: isGuideInitialized } = useGuideStore();
+    const { startGuide, hasCompletedGuide, isLoading: isGuideLoading } = useGuideStore();
+    const { addToCart } = useCart();
 
     // 状态管理
     const [products, setProducts] = useState<Product[]>([]);
@@ -79,20 +81,20 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     // When dialogs open, show action-specific guides (in-context, not just homepage tour)
     useEffect(() => {
-        if (!isGuideInitialized || isGuideLoading) return;
+        if (isGuideLoading) return;
         if (questionnaireVisible && !hasCompletedGuide('student_questionnaire')) {
             const t = setTimeout(() => startGuide('STUDENT_QUESTIONNAIRE_GUIDE'), 200);
             return () => clearTimeout(t);
         }
-    }, [questionnaireVisible, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized]);
+    }, [questionnaireVisible, hasCompletedGuide, startGuide, isGuideLoading]);
 
     useEffect(() => {
-        if (!isGuideInitialized || isGuideLoading) return;
+        if (isGuideLoading) return;
         if (paymentDialogVisible && !hasCompletedGuide('student_payment')) {
             const t = setTimeout(() => startGuide('STUDENT_PAYMENT_GUIDE'), 200);
             return () => clearTimeout(t);
         }
-    }, [paymentDialogVisible, hasCompletedGuide, startGuide, isGuideLoading, isGuideInitialized]);
+    }, [paymentDialogVisible, hasCompletedGuide, startGuide, isGuideLoading]);
 
     const searchParams = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search)
@@ -150,7 +152,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                         tier: selectedProduct?.tier === 'basic' ? 1 : selectedProduct?.tier === 'standard' ? 2 : 3,
                         monthlyPrice: selectedDuration?.price || 0,
                         status: 'inactive',
-                        subscribeData: {},
+                        subscribeData: [],
                         productId: selectedProduct?.id,
                         productName: selectedProduct?.name,
                         productTier: selectedProduct?.tier,
@@ -246,21 +248,53 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 <p className="text-xs font-bold text-surface-400 uppercase tracking-widest ml-1">选择计划梯度</p>
                 <div className="grid grid-cols-1 gap-2">
                     {product.duration_options.map((opt, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleSelectProduct(product, opt)}
-                            disabled={subscribing}
-                            className="w-full flex justify-between items-center p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 dark:hover:bg-primary-800/50 dark:hover:border-primary-700 transition-all group"
-                        >
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-surface-700">{opt.months}个月</span>
-                                {opt.months >= 3 && <Tag value="推荐" className="text-[9px] px-1 h-4" />}
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-lg font-black text-primary">¥{opt.price}</span>
-                                <ArrowRight className="w-4 h-4 text-surface-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                            </div>
-                        </button>
+                        <div key={idx} className="flex gap-2">
+                            <button
+                                onClick={() => handleSelectProduct(product, opt)}
+                                disabled={subscribing}
+                                className="flex-1 flex justify-between items-center p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 dark:hover:bg-primary-800/50 dark:hover:border-primary-700 transition-all group"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-surface-700">{opt.months}个月</span>
+                                    {opt.months >= 3 && <Tag value="推荐" className="text-[9px] px-1 h-4" />}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-lg font-black text-primary">¥{opt.price}</span>
+                                    <ArrowRight className="w-4 h-4 text-surface-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                                </div>
+                            </button>
+                            <button
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                        await addToCart({
+                                            coachId: coach.id,
+                                            coachName: coach.name || '教练',
+                                            productId: product.id,
+                                            productName: product.name,
+                                            productTier: product.tier,
+                                            durationMonths: opt.months,
+                                            price: opt.price,
+                                        });
+                                        showToast({
+                                            severity: 'success',
+                                            summary: '已加入购物车',
+                                            detail: `${product.name} - ${opt.months}个月`,
+                                        });
+                                    } catch (error: any) {
+                                        showToast({
+                                            severity: 'error',
+                                            summary: '添加失败',
+                                            detail: error.message || '请稍后重试',
+                                        });
+                                    }
+                                }}
+                                className="p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 dark:hover:bg-primary-800/50 dark:hover:border-primary-700 transition-all group"
+                                title="加入购物车"
+                            >
+                                <ShoppingCart className="w-5 h-5 text-surface-400 group-hover:text-primary transition-colors" />
+                            </button>
+                        </div>
                     ))}
                 </div>
             </div>
