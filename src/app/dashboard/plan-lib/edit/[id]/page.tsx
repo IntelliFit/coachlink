@@ -381,12 +381,19 @@ const EditPlanPage = () => {
     }
 
     // 智能导入完成处理
-    const handleImportComplete = async (importedDays: FormPlanTrainingDay[]) => {
+    const handleImportComplete = async (
+        importedDays: FormPlanTrainingDay[],
+        importedGlobalDescription?: string | null,
+    ) => {
         setDays(importedDays);
         // 导入会改变周结构，周训练日计数也需要同步更新（否则保存时可能还是旧的 weekDays）
         setWeekDays(makeWeekDays(importedDays as any));
         if (importedDays.length > 0) {
             setSelectedDayIndex(importedDays[0].dayIndex);
+        }
+        // 如果当前未填写描述，则用“全局说明”自动回填
+        if (importedGlobalDescription?.trim()) {
+            setDescription((prev) => (prev?.trim() ? prev : importedGlobalDescription.trim()));
         }
         showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划（记得点击「保存模板」以生效）` });
         // 只刷新动作库以包含新创建的动作；不要 reload 模板，否则会把刚导入的数据覆盖回旧内容

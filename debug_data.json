@@ -1,37 +1,207 @@
 {
-  "user": {
-    "id": "c844cae9-d271-452f-9b80-e54dd67eb752",
-    "phone": "17859866997"
-  },
-  "subscriptions": [
+  "timestamp": "2026-01-26T15:02:03.995Z",
+  "start_date": "2025-12-27T15:02:02.092Z",
+  "end_date": "2026-01-26T15:02:02.092Z",
+  "rpc_data": [
     {
-      "id": "c104a58c-f959-4129-93c3-b7ace51e6638",
-      "status": "active",
-      "start_date": "2026-01-12T20:49:38.374+00:00",
-      "end_date": "2026-02-21T02:15:05.107+00:00"
-    }
-  ],
-  "plans": [
-    {
-      "id": "be4cf0f9-7183-4519-bb60-507919bd52fb",
-      "name": "15周长期计划",
-      "start_execution_day": 1,
-      "start_date": null,
-      "training_days_count": 105
-    }
-  ],
-  "executions": [
-    {
-      "day_index": 4,
-      "status": "in_progress",
-      "started_at": "2026-01-18T09:15:55.428082+00:00",
-      "completed_at": null
+      "date": "2026-01-26",
+      "new_users": 3,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
     },
     {
-      "day_index": 1,
-      "status": "in_progress",
-      "started_at": "2026-01-14T05:44:18.484989+00:00",
-      "completed_at": null
+      "date": "2026-01-25",
+      "new_users": 8,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-24",
+      "new_users": 3,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-23",
+      "new_users": 4,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-22",
+      "new_users": 12,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-21",
+      "new_users": 14,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-20",
+      "new_users": 16,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-19",
+      "new_users": 28,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-18",
+      "new_users": 37,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 2,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-17",
+      "new_users": 32,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 2,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-16",
+      "new_users": 91,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-15",
+      "new_users": 67,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-14",
+      "new_users": 8,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-13",
+      "new_users": 5,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-12",
+      "new_users": 5,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-11",
+      "new_users": 8,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-10",
+      "new_users": 4,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-08",
+      "new_users": 1,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-05",
+      "new_users": 1,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2026-01-03",
+      "new_users": 1,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    },
+    {
+      "date": "2025-12-29",
+      "new_users": 1,
+      "d1_count": 0,
+      "d3_count": 0,
+      "d7_count": 0,
+      "d30_count": 0
+    }
+  ],
+  "rpc_error": null,
+  "table_counts": {
+    "user_behavior_events": 252,
+    "admin_trace_events": 2282
+  },
+  "recent_events": [
+    {
+      "created_at": "2026-01-26T14:39:29.38951+00:00",
+      "event_name": "student_training_complete",
+      "user_id": "eb4cfd12-9e37-4d87-ba94-568a33ef6f95"
+    },
+    {
+      "created_at": "2026-01-26T14:34:29.679508+00:00",
+      "event_name": "student_training_start",
+      "user_id": "eb4cfd12-9e37-4d87-ba94-568a33ef6f95"
+    },
+    {
+      "created_at": "2026-01-26T13:24:11.383191+00:00",
+      "event_name": "student_training_start",
+      "user_id": "c2917b6e-3c1e-4775-a2d8-3e6b92ab82b0"
+    },
+    {
+      "created_at": "2026-01-26T13:23:04.317357+00:00",
+      "event_name": "student_set_complete",
+      "user_id": "eb4cfd12-9e37-4d87-ba94-568a33ef6f95"
+    },
+    {
+      "created_at": "2026-01-26T13:22:39.350418+00:00",
+      "event_name": "student_training_start",
+      "user_id": "c2917b6e-3c1e-4775-a2d8-3e6b92ab82b0"
     }
   ]
 }

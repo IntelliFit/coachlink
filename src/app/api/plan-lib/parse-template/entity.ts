@@ -31,6 +31,11 @@ export interface ParsedTemplateDay {
 export interface ParseTemplateResponseDto {
     weeks: number;
     trainingDays: ParsedTemplateDay[];
+    /**
+     * Optional: extracted global description/preface that appears before the first week/day marker.
+     * Intended to be written into template/instance `description`.
+     */
+    globalDescription?: string | null;
 }
 
 // Gemini 返回的原始模板结构

@@ -64,6 +64,67 @@ export function normalizeTextForActionExtraction(text: string): string {
     return t;
 }
 
+function looksLikePlanHeaderLine(line: string): boolean {
+    const s = (line ?? "").trim();
+    if (!s) return false;
+
+    // Day markers
+    if (/^W\s*\d+\s*D\s*\d+/i.test(s)) return true; // "W1 D1"
+    if (/^W\d+\s*D\d+/i.test(s)) return true; // "W1D1" or "W1 D1"
+    if (/^W\d+D\d+/i.test(s)) return true; // "W1D1"
+    if (/^D\s*\d+\b/i.test(s)) return true; // "D1" (within a week section)
+    if (/^D\d+\b/i.test(s)) return true; // "D1"
+
+    // Week markers (CN + EN)
+    if (/第\s*([0-9一二三四五六七八九十两]+)\s*周/.test(s)) return true; // "第1周/第一周"
+    if (/\(\s*W\d+\s*\)/i.test(s)) return true; // "第一周 (W1)"
+    if (/\bW\d+\b/i.test(s)) return true; // fallback: contains "W1"
+
+    return false;
+}
+
+/**
+ * Split a plan text into a global preface section and the main plan body.
+ *
+ * Global preface is defined as the content BEFORE the first week/day marker line,
+ * such as "W1D1", "W1 D1", "第一周 (W1)", "第1周", etc.
+ *
+ * This is used to support "global description" (e.g., warm-up instructions)
+ * without polluting action extraction or template parsing.
+ */
+export function splitPlanGlobalPreface(text: string): {
+    globalDescription: string | null;
+    bodyText: string;
+} {
+    const cleaned = (text ?? "").replace(/\r\n/g, "\n").trim();
+    if (!cleaned) return { globalDescription: null, bodyText: "" };
+
+    const lines = cleaned.split("\n");
+    let firstMarkerIdx = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+        const s = lines[i]?.trim() ?? "";
+        if (!s) continue; // ignore empty lines
+        if (looksLikePlanHeaderLine(s)) {
+            firstMarkerIdx = i;
+            break;
+        }
+    }
+
+    // If the plan starts with a marker (or no marker found), treat as no global preface.
+    if (firstMarkerIdx <= 0) {
+        return { globalDescription: null, bodyText: cleaned };
+    }
+
+    const globalDescription = lines.slice(0, firstMarkerIdx).join("\n").trim();
+    const bodyText = lines.slice(firstMarkerIdx).join("\n").trim();
+
+    return {
+        globalDescription: globalDescription || null,
+        bodyText: bodyText || cleaned,
+    };
+}
+
 /**
  * Post-process action name returned by LLM:
  * - Remove trailing intensity / rest / set-rep tokens

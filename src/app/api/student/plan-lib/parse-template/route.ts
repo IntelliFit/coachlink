@@ -7,6 +7,7 @@ import {
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
+import { splitPlanGlobalPreface } from "@/lib/planImportText";
 import { findFirstLineForAction, lineHasExplicitReps } from "@/lib/planImportText";
 
 /**
@@ -218,8 +219,12 @@ export async function POST(req: Request) {
     // --- QUOTA CHECK END ---
 
     try {
+        // 提取“全局说明”（如热身/执行说明），并用正文做结构解析，避免说明污染解析结果
+        const { globalDescription, bodyText } = splitPlanGlobalPreface(text);
+        const planText = bodyText.trim() ? bodyText : text;
+
         // 按周拆分，逐段解析，减少截断风险并加速
-        const sections = splitPlanByWeekSections(text);
+        const sections = splitPlanByWeekSections(planText);
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 
@@ -305,6 +310,7 @@ export async function POST(req: Request) {
             data: {
                 weeks: maxWeek || 1,
                 trainingDays: allTrainingDays,
+                globalDescription,
             },
         });
     } catch (error) {

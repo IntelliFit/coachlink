@@ -20,7 +20,7 @@ interface SmartImportDialogProps {
     visible: boolean;
     onHide: () => void;
     existingActions: CoachActionRow[];
-    onImportComplete: (trainingDays: any[]) => void;
+    onImportComplete: (trainingDays: any[], globalDescription?: string | null) => void;
 }
 
 interface Step {
@@ -84,6 +84,7 @@ export default function SmartImportDialog({
     // Step 3: 解析出的模板
     const [parsedWeeks, setParsedWeeks] = useState(0);
     const [parsedDays, setParsedDays] = useState<ParsedTemplateDay[]>([]);
+    const [globalDescription, setGlobalDescription] = useState<string>('');
     
     // 合并后的动作列表（包含新创建的）
     const [allActions, setAllActions] = useState<CoachActionRow[]>([]);
@@ -117,6 +118,7 @@ export default function SmartImportDialog({
         setEditingIndex(null);
         setParsedWeeks(0);
         setParsedDays([]);
+        setGlobalDescription('');
         setAllActions([]);
     }, []);
 
@@ -274,6 +276,7 @@ export default function SmartImportDialog({
 
             setParsedWeeks(templateResult.data.weeks);
             setParsedDays(templateResult.data.trainingDays);
+            setGlobalDescription(templateResult.data.globalDescription || '');
             setActiveStep(2);
         } catch (err: any) {
             setError(err.message || '处理失败');
@@ -286,7 +289,7 @@ export default function SmartImportDialog({
     const handleImportTemplate = () => {
         // 将解析的数据转换为模板编辑器需要的格式
         const trainingDays = convertToTemplateDays(parsedDays, parsedWeeks, allActions);
-        onImportComplete(trainingDays);
+        onImportComplete(trainingDays, globalDescription || null);
         handleHide();
     };
 
@@ -524,6 +527,13 @@ D2
             case 2:
                 return (
                     <div className="flex flex-col gap-4">
+                        {globalDescription?.trim() ? (
+                            <Message
+                                severity="info"
+                                text={`已识别到全局说明（将写入计划“详情描述”）：${globalDescription.trim().slice(0, 60)}${globalDescription.trim().length > 60 ? '…' : ''}`}
+                                className="w-full"
+                            />
+                        ) : null}
                         <div className="flex items-center gap-2">
                             <Tag value={`${parsedWeeks} 周`} severity="info" />
                             <Tag value={`${parsedDays.filter(d => d.type === 'training').length} 个训练日`} />
