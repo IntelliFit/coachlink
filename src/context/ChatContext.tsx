@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useNotification } from '@/context/NotificationContext';
+import { userService } from '@/app/service/userService';
 
 interface ChatContextType {
     currentOpenRoomId: string | null;
@@ -19,7 +21,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const eventSourceRef = useRef<EventSource | null>(null);
     const messageCallbacksRef = useRef<Set<(message: any) => void>>(new Set());
     const unreadByRoomRef = useRef<Record<string, number>>({});
+    const userInfoCacheRef = useRef<Record<string, { nickname?: string; full_name?: string }>>({});
     const { data: session } = useSession();
+    const { showNotification } = useNotification();
 
     // 计算未读数的辅助函数
     const calculateUnreadCount = useCallback(() => {
@@ -58,9 +62,67 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             try {
                 const parsed = JSON.parse(event.data);
                 if (parsed.type === 'message') {
+                    const messageData = parsed.data;
+                    const userId = session?.user?.id;
+                    
+                    // 如果是接收到的消息（不是自己发送的），且不在当前打开的聊天室，显示通知
+                    if (userId && messageData.sender_id !== userId) {
+                        const messageRoomId = messageData.room_id;
+                        const senderId = messageData.sender_id;
+                        const isCurrentRoom = messageRoomId === currentOpenRoomId;
+                        
+                        if (!isCurrentRoom) {
+                            console.log('[ChatContext] 收到新消息，准备显示通知:', {
+                                roomId: messageRoomId,
+                                senderId,
+                                currentRoom: currentOpenRoomId,
+                            });
+                            
+                            // 获取消息内容
+                            const messageContent = messageData.content || '';
+                            const messageType = messageData.message_type || 'text';
+                            let body = messageContent;
+                            if (messageType === 'image') body = '[图片]';
+                            else if (messageType === 'video_reference') body = '[视频]';
+                            else if (messageType === 'file') body = '[文件]';
+                            
+                            // 获取发送者名称（从缓存或异步获取）
+                            let senderName = '新消息';
+                            
+                            const cachedUser = userInfoCacheRef.current[senderId];
+                            if (cachedUser) {
+                                senderName = cachedUser.nickname || cachedUser.full_name || '新消息';
+                            } else {
+                                // 异步获取用户信息（不阻塞通知显示）
+                                userService.getProfile({ userId: senderId }).then((res) => {
+                                    if (res?.profile) {
+                                        userInfoCacheRef.current[senderId] = {
+                                            nickname: res.profile.nickname,
+                                            full_name: res.profile.full_name,
+                                        };
+                                    }
+                                }).catch((error) => {
+                                    console.warn('[ChatContext] 获取发送者信息失败:', error);
+                                });
+                            }
+                            
+                            // 显示通知（异步，不阻塞）
+                            showNotification({
+                                title: senderName,
+                                body: body.slice(0, 80),
+                                url: `/messages?peerUserId=${senderId}`,
+                                tag: `chat-${messageRoomId}`,
+                            }).catch((error) => {
+                                console.error('[ChatContext] 显示通知失败:', error);
+                            });
+                        } else {
+                            console.log('[ChatContext] 消息来自当前打开的聊天室，不显示通知');
+                        }
+                    }
+                    
                     // 通知所有订阅者
                     messageCallbacksRef.current.forEach(callback => {
-                        callback(parsed.data);
+                        callback(messageData);
                     });
                 }
             } catch (error) {
@@ -94,7 +156,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 eventSourceRef.current = null;
             }
         };
-    }, [session?.user?.id]); // 只在用户登录时建立连接，不随 currentOpenRoomId 变化
+    }, [session?.user?.id, currentOpenRoomId]); // 依赖 currentOpenRoomId 以便在消息处理时判断
 
     // 当 currentOpenRoomId 变化时，重新计算未读数
     useEffect(() => {

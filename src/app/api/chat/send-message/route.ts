@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import { sendPushToUser } from "@/lib/pushNotify";
+// 推送通知现在完全由前端通过 Service Worker 处理，不再需要后端推送
 import type { ApiData } from "@/types/api";
 import type { SendMessageDto, SendMessageResponseDto } from "./entity";
 
@@ -155,25 +155,8 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 向未读成员推送系统通知（fire-and-forget，不阻塞响应；VAPID 未配置时静默跳过）
-    try {
-        const recipients = (chatRoom.members as string[]).filter((m) => m !== userId);
-        const excerpt = typeof lastMessage === "string" ? lastMessage.slice(0, 80) : "新消息";
-        if (recipients.length > 0) {
-            Promise.all(
-                recipients.map((recipientId) =>
-                    sendPushToUser(recipientId, {
-                        title: "CoachLink 新消息",
-                        body: excerpt,
-                        url: `/messages?peerUserId=${userId}`,
-                        tag: `chat-${roomId}`,
-                    }).catch(() => {})
-                )
-            ).catch(() => {});
-        }
-    } catch {
-        // VAPID 未配置等
-    }
+    // 注意：推送通知现在完全由前端通过 Service Worker 处理
+    // 当消息插入到数据库后，SSE 会通知前端，前端会自动显示通知
 
     return NextResponse.json<ApiData<SendMessageResponseDto>>({
         success: true,
