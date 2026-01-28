@@ -445,9 +445,13 @@ const CoachDiscoveryPage: React.FC = () => {
                             </div>
                             <div className="shrink-0 flex gap-2">
                                 <Button
-                                    outlined
-                                    className="rounded-2xl"
-                                    label="查看更多"
+                                    text
+                                    severity="secondary"
+                                    size="small"
+                                    className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
+                                    label="去服务商品页"
+                                    icon="pi pi-arrow-right"
+                                    iconPos="right"
                                     onClick={() => router.push('/market')}
                                 />
                             </div>
@@ -489,10 +493,12 @@ const CoachDiscoveryPage: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="mt-3 flex gap-2">
+                                            <div className="mt-3 flex items-center justify-between gap-2">
                                                 <Button
-                                                    className="flex-1 rounded-2xl bg-primary-500 border-none font-bold"
-                                                    label="立即订阅"
+                                                    outlined
+                                                    size="small"
+                                                    className="rounded-2xl border-primary-200 text-primary-700 hover:bg-primary-50 active:scale-[0.98] transition-all font-bold"
+                                                    label="订阅"
                                                     onClick={() => {
                                                         const p = new URLSearchParams();
                                                         p.set('tab', '1'); // 订阅价格现在在第二栏（index 1）
@@ -503,33 +509,37 @@ const CoachDiscoveryPage: React.FC = () => {
                                                         router.push(`/coach/profile/${it.coach.id}?${p.toString()}#choose-pricing`);
                                                     }}
                                                 />
-                                                <Button
-                                                    outlined
-                                                    className="rounded-2xl"
-                                                    icon={<ShoppingCart size={18} />}
-                                                    onClick={async () => {
-                                                        if (!session?.user?.id) {
-                                                            router.push(`/login?redirect=${encodeURIComponent('/coach/discovery')}`);
-                                                            return;
-                                                        }
-                                                        try {
-                                                            await addToCart({
-                                                                coachId: it.coach.id,
-                                                                coachName: it.coach.name || '教练',
-                                                                productId: it.product.id,
-                                                                productName: it.product.name,
-                                                                productTier: it.product.tier,
-                                                                durationMonths: it.opt.months,
-                                                                price: it.opt.price,
-                                                            });
-                                                            showToast({ severity: 'success', summary: '已加入购物车' });
-                                                        } catch (e: any) {
-                                                            showToast({ severity: 'error', summary: '添加失败', detail: e?.message || '请稍后重试' });
-                                                        }
-                                                    }}
-                                                    tooltip="加入购物车"
-                                                    tooltipOptions={{ position: 'top' }}
-                                                />
+                                                <div className="flex items-center gap-1">
+                                                    <Button
+                                                        text
+                                                        severity="secondary"
+                                                        size="small"
+                                                        className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
+                                                        icon={<ShoppingCart size={18} />}
+                                                        onClick={async () => {
+                                                            if (!session?.user?.id) {
+                                                                router.push(`/login?redirect=${encodeURIComponent('/coach/discovery')}`);
+                                                                return;
+                                                            }
+                                                            try {
+                                                                await addToCart({
+                                                                    coachId: it.coach.id,
+                                                                    coachName: it.coach.name || '教练',
+                                                                    productId: it.product.id,
+                                                                    productName: it.product.name,
+                                                                    productTier: it.product.tier,
+                                                                    durationMonths: it.opt.months,
+                                                                    price: it.opt.price,
+                                                                });
+                                                                showToast({ severity: 'success', summary: '已加入购物车' });
+                                                            } catch (e: any) {
+                                                                showToast({ severity: 'error', summary: '添加失败', detail: e?.message || '请稍后重试' });
+                                                            }
+                                                        }}
+                                                        tooltip="加入购物车"
+                                                        tooltipOptions={{ position: 'top' }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

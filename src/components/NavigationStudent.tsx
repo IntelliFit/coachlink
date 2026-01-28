@@ -53,7 +53,7 @@ export default function NavigationStudent() {
     const [isClient, setIsClient] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
     const [visibleLeft, setVisibleLeft] = useState(false); // 控制侧边菜单显示
-    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+    const [profile, setProfile] = useState<Partial<UserProfilesRow> | null>(null);
     // 使用 useRef 记录已检查过的 profile 状态，避免重复检查（不会触发重新渲染）
     const checkedProfileStateRef = useRef<{
         profileId?: string;
@@ -247,13 +247,17 @@ export default function NavigationStudent() {
         );
     };
 
-    const studentMenuItems = useMemo(() => [
-        { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
-        { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
-        { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
-        { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
-        { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
-    ], [router, pathname]);
+    const isStreetlifting = pathname.startsWith('/streetlifting-index');
+
+    const studentMenuItems = useMemo(() => {
+        return [
+            { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
+            { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
+            { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
+            { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
+            { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
+        ];
+    }, [router, pathname]);
 
     const userMenuItems = useMemo(() => [
         // 统一入口：当前计划（替代"训练计划"）
@@ -314,44 +318,48 @@ export default function NavigationStudent() {
     ], []);
 
     // 1. 移动端顶部的纯文字 Tab 布局
-    const mobileTopTabs = useMemo(() => [
-        { label: '动态', url: '/friends/activity' },
-        { label: '训练', url: '/today-training' },
-        { label: '排行', url: '/ranking' },
-    ], []);
+    const mobileTopTabs = useMemo(() => {
+        return [
+            { label: '动态', url: '/friends/activity' },
+            { label: '训练', url: '/today-training' },
+            { label: '排行', url: '/ranking' },
+        ];
+    }, []);
 
     // 2. 移动端底部导航：将"发现"、"档案"与"消息"、"菜单(头像)"整合
-    const mobileBottomTabs = useMemo(() => [
-        {
-            key: 'discover',
-            label: '发现教练',
-            icon: Search,
-            active: pathname.startsWith('/coach/discovery'),
-            onClick: () => router.push('/coach/discovery'),
-        },
-        {
-            key: 'plan',
-            label: '计划库',
-            icon: Bookmark,
-            active: pathname.startsWith('/me/plan-lib'),
-            onClick: () => router.push('/me/plan-lib'),
-        },
-        {
-            key: 'messages',
-            label: '消息',
-            icon: Bell, // 内部会处理 Badge
-            active: pathname === '/messages',
-            onClick: () => router.push('/messages'),
-            isMessage: true
-        },
-        {
-            key: 'profile',
-            label: '我',
-            icon: User,
-            active: pathname.startsWith('/me/profile'),
-            onClick: () => router.push('/me/profile'),
-        },
-    ], [pathname, router, visibleLeft]);
+    const mobileBottomTabs = useMemo(() => {
+        return [
+            {
+                key: 'discover',
+                label: '发现教练',
+                icon: Search,
+                active: pathname.startsWith('/coach/discovery'),
+                onClick: () => router.push('/coach/discovery'),
+            },
+            {
+                key: 'plan',
+                label: '计划库',
+                icon: Bookmark,
+                active: pathname.startsWith('/me/plan-lib'),
+                onClick: () => router.push('/me/plan-lib'),
+            },
+            {
+                key: 'messages',
+                label: '消息',
+                icon: Bell, // 内部会处理 Badge
+                active: pathname === '/messages',
+                onClick: () => router.push('/messages'),
+                isMessage: true
+            },
+            {
+                key: 'profile',
+                label: '我',
+                icon: User,
+                active: pathname.startsWith('/me/profile'),
+                onClick: () => router.push('/me/profile'),
+            },
+        ];
+    }, [pathname, router, visibleLeft]);
 
     const start = (
         <Link href="/" className="flex items-center gap-3 mr-8 group transition-transform active:scale-95">
@@ -538,7 +546,7 @@ export default function NavigationStudent() {
             </Sidebar>
 
             {/* Mobile: 顶部导航 (类似小红书：左侧菜单 + 居中 Tab) */}
-            {session && (
+            {session && !isStreetlifting && (
                 <div className="md:hidden sticky top-0 z-50 w-full pt-[env(safe-area-inset-top)] bg-surface/80 backdrop-blur-md border-b border-surface-100">
                     <div className="flex items-center h-14 px-4">
                         {/* 左侧：找回菜单触发按钮 */}
