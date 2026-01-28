@@ -16,6 +16,10 @@ import type {
     TogglePublicActionLikeDto,
     TogglePublicActionLikeResponseDto,
 } from "@/app/api/public-action-lib/toggle-like/entity";
+import type {
+    PublishFromMyActionDto,
+    PublishFromMyActionResponseDto,
+} from "@/app/api/public-action-lib/publish-from-my-action/entity";
 
 export class PublicActionLibService extends BaseService {
     async listActions(reqData: ListPublicActionsDto) {
@@ -60,6 +64,17 @@ export class PublicActionLibService extends BaseService {
             return res.data.data;
         }
         throw new Error(res.data?.message || "点赞操作失败");
+    }
+
+    async publishFromMyAction(reqData: PublishFromMyActionDto) {
+        const res = await this.post<PublishFromMyActionResponseDto>(
+            "publish-from-my-action",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        throw new Error(res.data?.message || "贡献失败");
     }
 }
 
