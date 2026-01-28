@@ -40,7 +40,7 @@
 可选输入（若希望更懂业务）：
 
 - `actionLibraryHints`: string[]（仅私有库动作名列表或摘要；不要把公共库喂进去）
-- `knownSchema`: 用于提示“系统字段能力边界”（例如 sets/reps/rest/intensity/note/dayNote/globalDescription）
+- `knownSchema`: 用于提示“系统字段能力边界”（例如 sets/rest/intensity/note/dayNote/globalDescription，以及**动作 attrs 可选：次数/持续时间等**）
 
 #### 6.3.2 输出（完备性判断）
 
@@ -52,7 +52,7 @@
     {
       "scope": "global | day | action",
       "where": "W1D1 / 第1周第2天 / 行号或片段",
-      "field": "dayMarkers | actionBoundaries | sets | reps | restSeconds | intensity | weekCount | restDays",
+      "field": "dayMarkers | actionBoundaries | sets | reps | durationSeconds | restSeconds | intensity | weekCount | restDays | actionAttrs",
       "reason": "为什么缺",
       "exampleFix": "给用户的示例补写方式"
     }
@@ -110,6 +110,9 @@ Stage0 的修缮必须遵守“只修格式，不改事实”：
   - UI 展示：缺失项清单 + “示例补写”
   - 提供一键复制“建议格式模板”
 
+> 补充：完备性判断应结合动作 attrs 的可选性。  
+> 例如计时动作如果动作 attrs 选择了“持续时间”且未选择“次数”，则不应因为缺少 reps 就判定“不完备”；反之若 attrs 包含“次数”，则 reps 缺失应进入“提示补充/自选”。
+
 强行（force）：
 
 - 用户点击“强行识别（可能不准确）”后，允许进入阶段 1/2
@@ -126,6 +129,77 @@ Stage0 的修缮必须遵守“只修格式，不改事实”：
 
 - **全局说明**仍由既有 `splitPlanGlobalPreface()` 提取（或 Stage0 直接输出 `globalDescription` 供后续复用）
 - 既有 trace/case 机制仍可复现：能看到 Stage0 前后的文本与判断依据
+
+### 6.6.1 （补充规划）attrs 不让模型自由生成：改为“从 Profiles 里选”
+
+你提出的优化点：与其让 LLM 自己决定动作 attrs，不如给出少量**稳定的属性配置模板（Profiles）**，让 LLM 只做选择题。
+
+推荐最小集合（覆盖大多数力量场景）：
+
+- **COUNT_STRENGTH**：`["组数","次数","强度","休息时间"]`
+- **TIME_STRENGTH**：`["组数","持续时间","休息时间"]`（通常不含“次数”）
+
+Stage0 / Stage1 可按“动作名关键词 + 原文 token（秒/分钟/保持/悬挂/计时）”选择 profile；若无法确定则输出“需要确认”，由用户在 UI 勾选 attrs。
+
+### 6.6.2 （补充规划）“学员可读化”层：把专业处方翻译成小白能执行的说明
+
+你指出的关键痛点：即使结构化导入完全正确，小白也可能看不懂专业术语（RPE/RIR/RM/力竭/自选/累积等）。  
+因此在“导入正确”之外，还需要一个**学员可读化（Explain / Simplify Layer）**，把专业表达翻译成学员能理解、能执行的话术。
+
+#### 目标
+
+- **不改变处方事实**（组数/次数/重量/休息等数值不能被改写）
+- **把隐含处方显式化**：例如 `RPE9` 实际是在表达“还剩 1 次余力”，需要对小白讲清楚
+- **保留两套口径**
+  - 教练端：保留原始专业表达（coachNote）
+  - 学员端：展示白话解释（studentNote / studentDayNote）
+
+#### 触发时机（建议）
+
+- 模板/实例生成后、推送学员前（或学员端训练执行页展示时按需生成）
+- 对“包含术语/复杂逻辑”的动作或训练日触发（无需每条都生成）
+
+#### 输入与输出（建议）
+
+- 输入：
+  - 结构化数据：`sets/reps/durationSeconds/restSeconds/intensityConfig`
+  - 原始文本：`note/dayNote/globalDescription`
+  - 动作 attrs/profile（COUNT_STRENGTH / TIME_STRENGTH 等）
+- 输出：
+  - `studentNote`：面向小白的执行说明（可展示）
+  - `coachNote`：原始 note（保留）
+  - `glossaryHits`：本次命中的术语列表（用于 UI 标注/可点击解释）
+
+#### 最小术语词典（建议先做确定性映射）
+
+- **RPE / RIR**
+  - `RPE9`：大约还剩 **1 次余力**（不要练到完全力竭）
+  - `RPE8`：大约还剩 **2 次余力**
+  - `RPE10`：几乎/达到力竭（不建议每组都这样做）
+  - 建议话术模板：  
+    - “RPE9 ≈ 这组做完你感觉最多还能再做 1 次。”  
+    - “如果你做完还剩 3 次以上 → 强度偏低；如果做完是 0 次（完全力竭）→ 强度偏高或太累。”
+- **RM**
+  - `10RM`：选择一个“你最多只能做大约 10 次就力竭”的重量  
+  - 若文本未给 reps：应提示“本次每组次数自选/按感觉做，但不要把 10RM 当 10 次”
+- **力竭 / 自选**
+  - `力竭`：做到无法再完成标准动作（应结合休息与安全提示）
+  - `次数自选`：按当天状态选择次数，但需要给出“目标感受/范围”
+- **累积（极限个数×N / 够即可）**
+  - 话术：说明目标是“累计完成 N 倍极限次数/累计到指定总量”，并提醒不要伪造 reps
+- **降速临界点**
+  - 话术：说明“动作速度明显变慢前停止/控制质量”，并提示学员如何判断
+
+> 后续可扩展：把术语解释做成 UI 可点击的“术语提示卡”，而不是把所有解释都塞进 note。
+
+#### 实现策略（规划，避免胡编）
+
+- 优先确定性模板化（术语→解释）覆盖 80% 场景
+- 对复杂 note 可选 LLM 改写，但必须加“红线约束”：
+  - 禁止新增/删除任何数字与强度信息
+  - 禁止改写动作名
+  - 改写只允许：分段、加标题、把术语解释成白话、补安全提示
+
 
 ### 6.7 计划新增的接口与前端步骤（仅规划）
 
