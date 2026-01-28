@@ -1,0 +1,31 @@
+{
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "assertions": [
+        {
+          "actionName": "双手悬垂",
+          "setsMustBe": 5,
+          "durationSecondsMustBe": 30,
+          "repsMustBeNull": true,
+          "restSecondsMustBe": 30
+        },
+        {
+          "actionName": "单手悬垂交替",
+          "setsMustBe": 6,
+          "repsMustBeNull": true,
+          "noteMustContain": ["力竭"],
+          "restSecondsMustBe": 30
+        }
+      ],
+      "notes": [
+        "计时动作：应落到 durationSeconds，且 reps 必须为 null。",
+        "力竭：优先写入 note，不要伪造 reps。"
+      ]
+    }
+  ]
+}
+

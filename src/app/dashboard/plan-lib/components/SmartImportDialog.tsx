@@ -16,6 +16,9 @@ import { CoachActionRow } from '@/types';
 import { ParsedActionInfo } from '@/app/api/plan-lib/parse-actions/entity';
 import { ParsedTemplateDay } from '@/app/api/plan-lib/parse-template/entity';
 
+// NOTE: Keep this file client-safe. Do NOT import server-only modules (node:fs, etc).
+const SMART_IMPORT_TRACE_HEADER = 'x-smart-import-trace-id';
+
 interface SmartImportDialogProps {
     visible: boolean;
     onHide: () => void;
@@ -85,9 +88,25 @@ export default function SmartImportDialog({
     const [parsedWeeks, setParsedWeeks] = useState(0);
     const [parsedDays, setParsedDays] = useState<ParsedTemplateDay[]>([]);
     const [globalDescription, setGlobalDescription] = useState<string>('');
+
+    // Trace (auto-generate real cases)
+    const traceUiEnabled = process.env.NEXT_PUBLIC_SMART_IMPORT_TRACE === '1';
+    const [saveAsCase, setSaveAsCase] = useState(false);
+    const [traceId, setTraceId] = useState<string | null>(null);
+    const [caseDir, setCaseDir] = useState<string>('');
     
     // 合并后的动作列表（包含新创建的）
     const [allActions, setAllActions] = useState<CoachActionRow[]>([]);
+
+    const generateTraceId = () => {
+        // Keep it URL/path safe; server also sanitizes.
+        try {
+            // @ts-ignore
+            return (crypto?.randomUUID?.() as string) || null;
+        } catch {
+            return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        }
+    };
 
     const actionAttrs = [
         { label: '组数(sets)', value: '组数' },
@@ -119,6 +138,9 @@ export default function SmartImportDialog({
         setParsedWeeks(0);
         setParsedDays([]);
         setGlobalDescription('');
+        setSaveAsCase(false);
+        setTraceId(null);
+        setCaseDir('');
         setAllActions([]);
     }, []);
 
@@ -138,9 +160,11 @@ export default function SmartImportDialog({
         setError(null);
 
         try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (saveAsCase && traceId) headers[SMART_IMPORT_TRACE_HEADER] = traceId;
             const response = await fetch('/api/plan-lib/parse-actions', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ text: inputText }),
             });
 
@@ -259,9 +283,11 @@ export default function SmartImportDialog({
             setAllActions(mergedActions);
 
             // 调用解析模板 API
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (saveAsCase && traceId) headers[SMART_IMPORT_TRACE_HEADER] = traceId;
             const templateResponse = await fetch('/api/plan-lib/parse-template', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     text: inputText,
                     // 传递 attrs 让模型知道哪些动作是按“持续时间”计量
@@ -278,6 +304,41 @@ export default function SmartImportDialog({
             setParsedDays(templateResult.data.trainingDays);
             setGlobalDescription(templateResult.data.globalDescription || '');
             setActiveStep(2);
+
+            // Finalize trace: persist what the UI saw (non-blocking)
+            if (saveAsCase && traceId) {
+                try {
+                    const convertedTrainingDays = convertToTemplateDays(
+                        templateResult.data.trainingDays,
+                        templateResult.data.weeks,
+                        mergedActions,
+                    );
+                    const finalizeRes = await fetch(
+                        '/api/plan-lib/smart-import/finalize-trace',
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                traceId,
+                                uiSnapshot: {
+                                    capturedAt: new Date().toISOString(),
+                                    inputText,
+                                    editableActions,
+                                    mergedActions,
+                                    templateResult: templateResult.data,
+                                    convertedTrainingDays,
+                                },
+                            }),
+                        },
+                    );
+                    const finalizeData = await parseApiResponse<any>(finalizeRes);
+                    if (finalizeData?.success && finalizeData?.data?.caseDir) {
+                        setCaseDir(finalizeData.data.caseDir);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
         } catch (err: any) {
             setError(err.message || '处理失败');
         } finally {
@@ -332,6 +393,42 @@ export default function SmartImportDialog({
                         <p className="text-sm text-gray-600">
                             请粘贴您的训练计划文本，系统将自动智能解析动作和训练结构。
                         </p>
+                        {traceUiEnabled && (
+                            <div className="flex flex-col gap-2 rounded-lg border p-3 bg-gray-50">
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        checked={saveAsCase}
+                                        onChange={(e) => {
+                                            const next = Boolean(e.checked);
+                                            setSaveAsCase(next);
+                                            if (next) {
+                                                const id = generateTraceId();
+                                                setTraceId(id);
+                                            } else {
+                                                setTraceId(null);
+                                                setCaseDir('');
+                                            }
+                                        }}
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                        保存为用例（写入 docs/智能导入计划/cases-generated）
+                                    </span>
+                                </div>
+                                {saveAsCase && traceId && (
+                                    <div className="text-xs text-gray-600 font-mono break-all">
+                                        traceId: {traceId}
+                                    </div>
+                                )}
+                                {caseDir && (
+                                    <div className="text-xs text-gray-600 font-mono break-all">
+                                        已生成用例目录: {caseDir}
+                                    </div>
+                                )}
+                                <div className="text-xs text-gray-500">
+                                    将保存输入、两阶段 prompt/原始输出、解析结果与 UI 快照。仅建议在本地/自托管环境启用。
+                                </div>
+                            </div>
+                        )}
                         <InputTextarea
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}

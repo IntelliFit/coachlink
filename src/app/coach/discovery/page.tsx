@@ -7,6 +7,7 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { coachService } from '@/app/service/coachService';
+import { publicActionLibService } from '@/app/service/publicActionLibService';
 import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -15,6 +16,7 @@ import { useSession } from 'next-auth/react';
 import { useToastContext } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
 import type { Product, DurationOption } from '@/app/api/coach/get-pricing/entity';
+import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
 
 interface VisibilityStatus {
     focusMode: boolean;
@@ -38,6 +40,10 @@ const CoachDiscoveryPage: React.FC = () => {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
     const { addToCart } = useCart();
+
+    // 推荐动作（公共动作库）
+    const [recommendedActions, setRecommendedActions] = useState<PublicActionItemDto[]>([]);
+    const [recommendedLoading, setRecommendedLoading] = useState(false);
 
     // 混合流：推荐服务商品（来自教练的订阅产品）
     const [productFeed, setProductFeed] = useState<Array<{
@@ -74,6 +80,41 @@ const CoachDiscoveryPage: React.FC = () => {
         loadCoaches(1);
         loadSpecialties();
     }, [visibilityLoading, visibilityStatus]);
+
+    // 推荐动作：仅在已登录且非专注模式下展示（避免干扰）
+    useEffect(() => {
+        if (visibilityLoading) return;
+        if (visibilityStatus?.focusMode) {
+            setRecommendedActions([]);
+            return;
+        }
+        if (!session?.user?.id) {
+            setRecommendedActions([]);
+            return;
+        }
+
+        let cancelled = false;
+        const loadRecommendedActions = async () => {
+            setRecommendedLoading(true);
+            try {
+                const res = await publicActionLibService.listActions({
+                    page: 1,
+                    limit: 9,
+                });
+                if (!cancelled) setRecommendedActions(res?.actions || []);
+            } catch (e) {
+                // 静默失败：不影响核心发现教练流程
+                if (!cancelled) setRecommendedActions([]);
+            } finally {
+                if (!cancelled) setRecommendedLoading(false);
+            }
+        };
+
+        loadRecommendedActions();
+        return () => {
+            cancelled = true;
+        };
+    }, [visibilityLoading, visibilityStatus?.focusMode, session?.user?.id]);
 
     // 混合流：根据当前教练列表拉取一批“服务商品”
     useEffect(() => {
@@ -497,6 +538,97 @@ const CoachDiscoveryPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* 推荐动作：公共动作库（增长入口） */}
+                {!visibilityStatus?.focusMode && (
+                    <div className="mb-6">
+                        <div className="rounded-[24px] border border-surface-100 bg-surface-0 p-4 md:p-5">
+                            <div className="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
+                                <div className="min-w-0">
+                                    <div className="text-xs font-black uppercase tracking-widest text-surface-400">公共动作库</div>
+                                    <div className="mt-1 text-lg font-black text-surface-900 tracking-tight">
+                                        推荐动作
+                                    </div>
+                                    <div className="mt-1 text-sm text-surface-500 font-medium">
+                                        发现大家都在用的动作，一键加入你的动作库。
+                                    </div>
+                                </div>
+                                <div className="shrink-0 flex gap-2">
+                                    <Button
+                                        outlined
+                                        className="rounded-2xl"
+                                        label="去动作库"
+                                        onClick={() => router.push('/me/action-lib')}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-4">
+                                {recommendedLoading ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {[1, 2, 3].map((i) => (
+                                            <div key={i} className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
+                                                <Skeleton width="60%" height="1rem" className="mb-2" />
+                                                <Skeleton width="100%" height="2.5rem" className="mb-3" />
+                                                <Skeleton width="40%" height="1rem" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : recommendedActions.length === 0 ? (
+                                    <div className="py-10 text-center bg-surface-50 rounded-2xl border border-dashed border-surface-200">
+                                        <Package className="w-10 h-10 text-surface-200 mx-auto mb-2" />
+                                        <div className="text-sm font-bold text-surface-700">暂无推荐动作</div>
+                                        <div className="text-xs text-surface-500 mt-1">你可以先去动作库贡献或收藏</div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {recommendedActions.map((a) => (
+                                            <div key={a.id} className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="text-sm font-black text-surface-900 line-clamp-1">
+                                                            {a.name}
+                                                        </div>
+                                                        <div className="mt-1 text-xs text-surface-500 font-medium line-clamp-2">
+                                                            {a.detail || '暂无描述'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="text-[10px] text-surface-400 font-bold uppercase tracking-wider">点赞</div>
+                                                        <div className="text-base font-black text-primary-600">{a.like_count || 0}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-3 flex gap-2">
+                                                    <Button
+                                                        className="flex-1 rounded-2xl bg-primary-500 border-none font-bold"
+                                                        label={a.isAdded ? '已加入' : '一键加入'}
+                                                        disabled={a.isAdded}
+                                                        onClick={async () => {
+                                                            if (!session?.user?.id) {
+                                                                router.push(`/login?redirect=${encodeURIComponent('/coach/discovery')}`);
+                                                                return;
+                                                            }
+                                                            try {
+                                                                await publicActionLibService.addToMyLib({ actionId: a.id });
+                                                                showToast({ severity: 'success', summary: '已加入动作库' });
+                                                                setRecommendedActions((prev) =>
+                                                                    prev.map((x) => (x.id === a.id ? { ...x, isAdded: true } : x)),
+                                                                );
+                                                            } catch (e: any) {
+                                                                showToast({ severity: 'error', summary: '加入失败', detail: e?.message || '请稍后重试' });
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="mb-4 flex items-center justify-between">
                     <div className="text-xs font-bold text-surface-400 tracking-wider">
