@@ -21,7 +21,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const { page = 1, limit = 12, search, type } =
+        const { page = 1, limit = 12, search, type, viewerActionType = "student" } =
             (await req.json()) as ListPublicActionsDto;
 
         let query = supabase
@@ -76,13 +76,18 @@ export async function POST(req: Request) {
             likedIds = new Set((likesData || []).map((x: any) => x.action_id));
         }
 
-        // 2) isAdded (by name: aligns with existing unique constraint user_id+name)
+        // 2) isAdded (by name: aligns with existing unique constraint)
         let addedNames = new Set<string>();
         if (actionNames.length > 0) {
+            const targetTable =
+                viewerActionType === "coach" ? "coach_actions" : "student_actions";
+            const ownerColumn =
+                viewerActionType === "coach" ? "coach_id" : "user_id";
+
             const { data: addedData } = await supabase
-                .from("student_actions")
+                .from(targetTable)
                 .select("name")
-                .eq("user_id", userId)
+                .eq(ownerColumn, userId)
                 .in("name", actionNames);
             addedNames = new Set((addedData || []).map((x: any) => x.name));
         }
