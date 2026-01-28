@@ -7,6 +7,7 @@ export interface StreetliftingListSubmissionsDto {
 export interface StreetliftingSubmission {
     id: string;
     created_at: string;
+    user_id: string | null;
     gender: "Male" | "Female";
     bodyweight: number;
     added_weight: number;

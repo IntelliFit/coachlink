@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Filter, Plus, User, Video, Search } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { Dialog } from "primereact/dialog";
@@ -16,6 +17,7 @@ import { Slider } from "primereact/slider";
 
 import { useToastContext } from "@/context/ToastContext";
 import { streetliftingIndexService } from "@/app/service/streetliftingIndexService";
+import { studentService } from "@/app/service/studentService";
 
 import type { StreetliftingFormula } from "@/app/api/streetlifting-index/formulas/list/entity";
 import type { StreetliftingSubmission } from "@/app/api/streetlifting-index/submissions/list/entity";
@@ -52,6 +54,7 @@ function qualityLabel(quality: StreetliftingSubmission["form_quality"]) {
 export default function StreetliftingDataPage() {
     const router = useRouter();
     const { showToast } = useToastContext();
+    const { data: session } = useSession();
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -70,6 +73,7 @@ export default function StreetliftingDataPage() {
     const [sortBy, setSortBy] = useState<SortBy>("weight");
 
     const [formOpen, setFormOpen] = useState(false);
+    const [profileLocked, setProfileLocked] = useState(false);
     const [form, setForm] = useState<{
         exercise_type: "weighted_pullup" | "weighted_dips";
         gender: "" | "Male" | "Female";
@@ -229,6 +233,7 @@ export default function StreetliftingDataPage() {
     }, [filtered]);
 
     const resetForm = () => {
+        setProfileLocked(false);
         setForm({
             exercise_type: "weighted_pullup",
             gender: "",
@@ -243,8 +248,53 @@ export default function StreetliftingDataPage() {
         });
     };
 
+    const normalizeGender = (raw: any): "" | "Male" | "Female" => {
+        const s = String(raw || "").toLowerCase();
+        if (!s) return "";
+        if (s.includes("male") || s.includes("man") || s.includes("男")) return "Male";
+        if (s.includes("female") || s.includes("woman") || s.includes("女")) return "Female";
+        return "";
+    };
+
+    const openSubmitDialog = async () => {
+        if (!session?.user?.id) {
+            showToast({ severity: "warn", summary: "请先登录", detail: "登录后才能提交数据" });
+            return;
+        }
+        try {
+            const profileData = await studentService.getStudentProfile();
+            const profile = (profileData as any)?.profile || null;
+            const gender = normalizeGender(profile?.gender);
+            const weight = typeof profile?.weight === "number" && Number.isFinite(profile.weight) ? profile.weight : null;
+
+            if (!gender || !weight) {
+                showToast({
+                    severity: "warn",
+                    summary: "请先完善个人档案",
+                    detail: "需要从档案读取性别与体重后才能提交数据",
+                });
+                return;
+            }
+
+            setProfileLocked(true);
+            setForm((p) => ({
+                ...p,
+                user_name: p.user_name || (session?.user?.name as any) || "",
+                gender,
+                bodyweight: weight,
+            }));
+            setFormOpen(true);
+        } catch (e: any) {
+            showToast({ severity: "warn", summary: "读取档案失败", detail: e?.message || "请稍后重试" });
+        }
+    };
+
     const handleSubmit = async () => {
         try {
+            if (!session?.user?.id) {
+                showToast({ severity: "warn", summary: "请先登录", detail: "登录后才能提交数据" });
+                return;
+            }
             setSubmitting(true);
 
             if (!form.gender) throw new Error("请选择性别");
@@ -301,7 +351,7 @@ export default function StreetliftingDataPage() {
                                 label="提交我的数据"
                                 icon="pi pi-plus"
                                 className="h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
-                                onClick={() => setFormOpen(true)}
+                                onClick={openSubmitDialog}
                             />
                         </div>
 
@@ -612,7 +662,7 @@ export default function StreetliftingDataPage() {
             <Button
                 className="md:hidden fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] z-40 h-14 w-14 !rounded-full bg-surface-900 border-none text-surface-0 shadow-lg shadow-primary-100/60 active:scale-[0.98] transition-all"
                 icon="pi pi-plus"
-                onClick={() => setFormOpen(true)}
+                onClick={openSubmitDialog}
             />
 
             {/* 提交表单 */}
@@ -625,7 +675,6 @@ export default function StreetliftingDataPage() {
                 }}
                 className="aero-dialog w-[95vw] md:w-[32rem]"
                 draggable={false}
-                position="bottom"
                 style={{ maxHeight: "90vh" }}
             >
                 <div className="space-y-4">
@@ -667,8 +716,12 @@ export default function StreetliftingDataPage() {
                                     pt={dropdownPt}
                                     valueTemplate={renderAeroDropdownValue}
                                     itemTemplate={makeAeroDropdownItemTemplate(form.gender)}
+                                    disabled={profileLocked}
                                     onChange={(e) => setForm((p) => ({ ...p, gender: e.value }))}
                                 />
+                                {profileLocked && (
+                                    <div className="mt-1 text-[12px] text-surface-500/50">已从登录用户档案自动读取</div>
+                                )}
                             </div>
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">体重（kg）</div>
@@ -677,9 +730,13 @@ export default function StreetliftingDataPage() {
                                     onValueChange={(e) => setForm((p) => ({ ...p, bodyweight: e.value ?? null }))}
                                     className="w-full"
                                     inputClassName={numberInputClassName}
+                                    disabled={profileLocked}
                                     min={1}
                                     maxFractionDigits={1}
                                 />
+                                {profileLocked && (
+                                    <div className="mt-1 text-[12px] text-surface-500/50">已从登录用户档案自动读取</div>
+                                )}
                             </div>
                         </div>
 
