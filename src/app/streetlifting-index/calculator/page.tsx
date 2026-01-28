@@ -29,6 +29,7 @@ import {
     estimateTotal1RMFromTotalWeightAndReps,
     getScoreLevel,
 } from "@/app/streetlifting-index/_utils";
+import { AERO_CARD, AERO_CONTAINER_4XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
 
 type CalcResult = {
     estimated_1rm: number;
@@ -535,16 +536,13 @@ export default function StreetliftingCalculatorPage() {
                 : [20, 50];
 
     return (
-        <div className="min-h-screen bg-surface-50">
-            <div className="max-w-4xl mx-auto px-4 py-6">
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+        <div className={`${AERO_CONTAINER_4XL} py-6`}>
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-5">
                         <div className="flex items-center justify-between gap-4">
                             <div>
-                                <div className="text-xl font-bold tracking-tight text-surface-900">在线力量分计算器</div>
-                                <div className="text-sm text-surface-600 mt-1">
-                                    输入数据，获得力量评估（引体/臂屈伸满分500；三大项为DOTS分）。
-                                </div>
+                                <div className={AERO_TITLE}>在线力量分计算器</div>
+                                <div className={AERO_SUBTITLE}>输入数据，获得力量评估（引体/臂屈伸满分500；三大项为DOTS分）。</div>
                             </div>
                             <Link href="/streetlifting-index/data" className="hidden md:block">
                                 <Button label="去数据社区" className="p-button-outlined" />
@@ -995,7 +993,6 @@ export default function StreetliftingCalculatorPage() {
                         )}
                     </div>
                 </Card>
-            </div>
         </div>
     );
 }

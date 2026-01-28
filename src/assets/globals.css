@@ -539,3 +539,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .aero-input-container input {
     @apply rounded-2xl rounded-2xl py-3 border bg-surface-50/50;
 }
+
+/* Streetlifting Index（Aero-Productivity）— scoped interactions */
+.streetlifting-scope .p-button {
+    transition:
+        transform 120ms ease,
+        box-shadow 200ms ease,
+        background-color 200ms ease,
+        color 200ms ease,
+        border-color 200ms ease !important;
+}
+
+.streetlifting-scope .p-button:active {
+    transform: scale(0.98);
+}
+
+.streetlifting-scope a:active {
+    transform: scale(0.995);
+}

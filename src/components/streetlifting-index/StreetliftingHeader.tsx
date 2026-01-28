@@ -1,15 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 
-const NAV_ITEMS = [
-    { href: "/streetlifting-index", key: "home", label: "首页" },
-    { href: "/streetlifting-index/locations", key: "locations", label: "寻找单杠" },
-    { href: "/streetlifting-index/calculator", key: "calculator", label: "力量计算器" },
-    { href: "/streetlifting-index/data", key: "data", label: "数据社区" },
-    { href: "/streetlifting-index/stories", key: "stories", label: "社区故事" },
-];
+import { STREETLIFTING_NAV_ITEMS, getStreetliftingActiveIndex } from "@/components/streetlifting-index/StreetliftingNavItems";
 
 export function StreetliftingHeader({
     currentPage,
@@ -18,6 +14,12 @@ export function StreetliftingHeader({
     currentPage?: string;
     title?: string;
 }) {
+    const pathname = usePathname();
+
+    const activeIndex = useMemo(() => getStreetliftingActiveIndex(pathname), [pathname]);
+    const activeKey = STREETLIFTING_NAV_ITEMS[activeIndex]?.key;
+    const mobileTitle = title || STREETLIFTING_NAV_ITEMS[activeIndex]?.label || "街健力量指数";
+
     return (
         <header className="bg-surface-0 border-b border-surface-100">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -33,12 +35,12 @@ export function StreetliftingHeader({
                     </Link>
 
                     <nav className="hidden md:flex items-center gap-6 text-sm">
-                        {NAV_ITEMS.map((item) => (
+                        {STREETLIFTING_NAV_ITEMS.map((item) => (
                             <Link
                                 key={item.key}
                                 href={item.href}
                                 className={`transition-colors ${
-                                    currentPage === item.key
+                                    (currentPage || activeKey) === item.key
                                         ? "text-surface-900 font-semibold"
                                         : "text-surface-600 hover:text-surface-900"
                                 }`}
@@ -49,7 +51,7 @@ export function StreetliftingHeader({
                     </nav>
 
                     <div className="md:hidden text-sm font-semibold text-surface-900">
-                        {title || "街健力量指数"}
+                        {mobileTitle}
                     </div>
                 </div>
             </div>

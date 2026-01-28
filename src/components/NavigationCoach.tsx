@@ -32,18 +32,13 @@ import {
     Sun,
     Bell,
     Search,
-    User,
-    Activity,
-    Calculator,
-    TrendingUp,
-    MapPin,
-    BookOpen
+    User
 } from 'lucide-react';
-import { STREETLIFTING_NAV_ITEMS } from '@/components/streetlifting-index/StreetliftingNavItems';
 
 export default function NavigationCoach() {
     const pathname = usePathname();
     const router = useRouter();
+    const isStreetlifting = pathname.startsWith('/streetlifting-index');
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { data: session, status, update: updateSession } = useSession();
@@ -52,7 +47,6 @@ export default function NavigationCoach() {
     const [visibleLeft, setVisibleLeft] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
     const [profile, setProfile] = useState<Partial<UserProfilesRow> | null>(null);
-    const isStreetlifting = pathname.startsWith('/streetlifting-index');
 
     useEffect(() => {
         setIsClient(true);
@@ -103,54 +97,15 @@ export default function NavigationCoach() {
 
     // 移动端顶部 Tab 定义
     const mobileTopTabs = useMemo(() => {
-        if (isStreetlifting) {
-            return [
-                { label: '首页', url: '/streetlifting-index' },
-                { label: '计算器', url: '/streetlifting-index/calculator' },
-                { label: '数据', url: '/streetlifting-index/data' },
-            ];
-        }
         return [
             { label: '概览', url: '/dashboard/overview' },
             { label: '点评', url: '/dashboard/videos' },
             { label: '学员', url: '/dashboard/students' },
         ];
-    }, [isStreetlifting]);
+    }, []);
 
     // 移动端底部 Tab 定义
     const mobileBottomTabs = useMemo(() => {
-        if (isStreetlifting) {
-            return [
-                {
-                    key: 'sl-home',
-                    label: '首页',
-                    icon: Activity,
-                    active: pathname === '/streetlifting-index',
-                    onClick: () => router.push('/streetlifting-index'),
-                },
-                {
-                    key: 'sl-calc',
-                    label: '计算',
-                    icon: Calculator,
-                    active: pathname.startsWith('/streetlifting-index/calculator'),
-                    onClick: () => router.push('/streetlifting-index/calculator'),
-                },
-                {
-                    key: 'sl-data',
-                    label: '数据',
-                    icon: TrendingUp,
-                    active: pathname.startsWith('/streetlifting-index/data'),
-                    onClick: () => router.push('/streetlifting-index/data'),
-                },
-                {
-                    key: 'profile',
-                    label: '我',
-                    icon: User,
-                    active: pathname.startsWith('/me/profile'),
-                    onClick: () => router.push('/me/profile'),
-                },
-            ];
-        }
         return [
             {
                 key: 'content',
@@ -182,7 +137,7 @@ export default function NavigationCoach() {
                 onClick: () => router.push('/me/profile'),
             },
         ];
-    }, [pathname, router, visibleLeft, isStreetlifting]);
+    }, [pathname, router, visibleLeft]);
 
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;
@@ -195,23 +150,6 @@ export default function NavigationCoach() {
     };
 
     const coachMenuItems = useMemo(() => {
-        if (isStreetlifting) {
-            const iconMap: Record<string, any> = {
-                home: Activity,
-                calculator: Calculator,
-                data: TrendingUp,
-                locations: MapPin,
-                stories: BookOpen,
-                methodology: ClipboardList,
-            };
-            return STREETLIFTING_NAV_ITEMS.map((x) => ({
-                label: x.label,
-                icon: iconMap[x.key] || Activity,
-                url: x.href,
-                command: () => router.push(x.href),
-                template: itemRenderer,
-            }));
-        }
         return [
             { label: '概览', icon: LayoutDashboard, url: '/dashboard/overview', command: () => router.push('/dashboard/overview'), template: itemRenderer },
             { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
@@ -219,7 +157,7 @@ export default function NavigationCoach() {
             { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
             { label: '计划库', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
         ];
-    }, [router, pathname, isStreetlifting]);
+    }, [router, pathname]);
 
     const userMenuItems = useMemo(() => [
         { label: '我的主页', icon: 'pi pi-home', command: () => { gotoCoachDisplayPage(); setVisibleLeft(false); } },
@@ -353,30 +291,45 @@ export default function NavigationCoach() {
                 </div>
             </Sidebar>
 
-            {/* Mobile Top Nav */}
-            <div className="md:hidden sticky top-0 z-50 w-full bg-surface/80 backdrop-blur-md border-b border-surface-100">
-                <div className="flex items-center h-14 px-4">
-                    <div className="flex-1">
-                        <button onClick={() => setVisibleLeft(true)} className="p-2 -ml-2 text-surface-600 active:scale-90 transition-transform">
-                            <MenuIcon size={24} />
-                        </button>
-                    </div>
-                    <div className="flex-[3] flex justify-center gap-6">
-                        {mobileTopTabs.map((tab) => {
-                            const isActive = pathname === tab.url;
-                            return (
-                                <button key={tab.url} onClick={() => router.push(tab.url)} className="relative flex flex-col items-center justify-center h-14">
-                                    <span className={`text-[15px] transition-all ${isActive ? 'text-surface-900 font-bold scale-110' : 'text-surface-500 font-medium'}`}>{tab.label}</span>
-                                    {isActive && <div className="absolute bottom-2 w-4 h-0.5 bg-primary-500 rounded-full" />}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <div className="flex-1 flex justify-end">
-                        <div className="w-10 h-10" /> {/* Symmetry spacer */}
+            {/* Mobile Top Nav（/streetlifting-index 下不显示：首页只靠内部板块导航） */}
+            {!isStreetlifting && (
+                <div className="md:hidden sticky top-0 z-50 w-full bg-surface/80 backdrop-blur-md border-b border-surface-100">
+                    <div className="flex items-center h-14 px-4">
+                        <div className="flex-1">
+                            <button
+                                onClick={() => setVisibleLeft(true)}
+                                className="p-2 -ml-2 text-surface-600 active:scale-90 transition-transform"
+                            >
+                                <MenuIcon size={24} />
+                            </button>
+                        </div>
+                        <div className="flex-[3] flex justify-center gap-6">
+                            {mobileTopTabs.map((tab) => {
+                                const isActive = pathname === tab.url;
+                                return (
+                                    <button
+                                        key={tab.url}
+                                        onClick={() => router.push(tab.url)}
+                                        className="relative flex flex-col items-center justify-center h-14"
+                                    >
+                                        <span
+                                            className={`text-[15px] transition-all ${
+                                                isActive ? 'text-surface-900 font-bold scale-110' : 'text-surface-500 font-medium'
+                                            }`}
+                                        >
+                                            {tab.label}
+                                        </span>
+                                        {isActive && <div className="absolute bottom-2 w-4 h-0.5 bg-primary-500 rounded-full" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex-1 flex justify-end">
+                            <div className="w-10 h-10" /> {/* Symmetry spacer */}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Desktop Menubar */}
             <div className="hidden md:block sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">

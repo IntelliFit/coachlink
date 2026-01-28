@@ -12,6 +12,7 @@ import { Skeleton } from "primereact/skeleton";
 
 import { useToastContext } from "@/context/ToastContext";
 import { streetliftingIndexService } from "@/app/service/streetliftingIndexService";
+import { AERO_CARD, AERO_CONTAINER_6XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
 
 import type { StreetliftingLocation } from "@/app/api/streetlifting-index/locations/list/entity";
 
@@ -220,14 +221,13 @@ export default function StreetliftingLocationsPage() {
     const prevImg = () => setGalleryIndex((p) => (p - 1 + galleryImages.length) % galleryImages.length);
 
     return (
-        <div className="min-h-screen bg-surface-50">
-            <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+        <div className={`${AERO_CONTAINER_6XL} py-6 space-y-6`}>
+            <Card className={AERO_CARD}>
                     <div className="p-6 space-y-4">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div>
-                                <div className="text-xl font-bold tracking-tight text-surface-900">寻找单杠</div>
-                                <div className="text-sm text-surface-600 mt-1">分享你发现的训练点，帮助更多人找到场地。</div>
+                                <div className={AERO_TITLE}>寻找单杠</div>
+                                <div className={AERO_SUBTITLE}>分享你发现的训练点，帮助更多人找到场地。</div>
                             </div>
                             <Button label="分享单杠位置" icon="pi pi-plus" onClick={openCreate} />
                         </div>
@@ -255,12 +255,12 @@ export default function StreetliftingLocationsPage() {
 
                         <div className="text-sm text-surface-500">找到 {filtered.length} 个地点</div>
                     </div>
-                </Card>
+            </Card>
 
                 {loading ? (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Array.from({ length: 6 }).map((_, i) => (
-                            <Card key={i} className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                            <Card key={i} className={AERO_CARD}>
                                 <div className="p-4 space-y-3">
                                     <Skeleton width="100%" height="9rem" />
                                     <Skeleton width="60%" height="1rem" />
@@ -287,7 +287,6 @@ export default function StreetliftingLocationsPage() {
                         ))}
                     </div>
                 )}
-            </div>
 
             {/* 新增/编辑 */}
             <Dialog
@@ -297,7 +296,7 @@ export default function StreetliftingLocationsPage() {
                     setDialogOpen(false);
                     resetForm();
                 }}
-                className="w-[95vw] md:w-[34rem]"
+                className="aero-dialog w-[95vw] md:w-[34rem]"
                 draggable={false}
                 style={{ maxHeight: "90vh" }}
             >
@@ -430,7 +429,7 @@ export default function StreetliftingLocationsPage() {
                 header="图片预览"
                 visible={galleryOpen}
                 onHide={() => setGalleryOpen(false)}
-                className="w-[95vw] md:w-[48rem]"
+                className="aero-dialog w-[95vw] md:w-[48rem]"
                 draggable={false}
             >
                 {galleryImages.length > 0 && (
@@ -506,7 +505,7 @@ function LocationCard({
     const prev = () => setIdx((p) => (p - 1 + images.length) % images.length);
 
     return (
-        <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm overflow-hidden">
+        <Card className={`${AERO_CARD} overflow-hidden`}>
             <div
                 className="relative aspect-video bg-surface-100 cursor-pointer"
                 onClick={() => (images.length ? onOpenGallery(images, idx) : onEdit(loc))}
@@ -561,7 +560,7 @@ function LocationCard({
                             <MapPin className="h-5 w-5" />
                         </div>
                         <div>
-                            <div className="font-semibold text-surface-900">{loc.name}</div>
+                            <div className="font-semibold text-surface-900 line-clamp-1">{loc.name}</div>
                             <div className="text-xs text-surface-500">
                                 {[loc.province, loc.city].filter(Boolean).join(" · ")}
                             </div>
