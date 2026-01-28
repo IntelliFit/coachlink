@@ -476,11 +476,11 @@
 ### work: Coach Dashboard（教练端优化）
 
 - **需求**：
-  - `./work/roadmap/features/coach/问卷系统优化-20260127.md`
+  - `./work/roadmap/features/coach/questionnaire-optimization-20260127.md`
   - `./work/roadmap/features/coach/动作库优化-20260127.md`
   - `./work/roadmap/features/coach/模板库优化-20260127.md`
-  - `./work/roadmap/features/coach/学员执行体系优化-20260127.md`
-  - `./work/roadmap/features/coach/长时间不使用自动关闭-20260127.md`
+  - `./work/roadmap/features/coach/student-execution-system-optimization-20260127.md`
+  - `./work/roadmap/features/coach/inactivity-auto-close-20260127.md`
 
 ---
 
@@ -488,7 +488,7 @@
 
 - **需求**：
   - `./work/roadmap/features/growth/提醒签到鼓励活跃度-20260127.md`
-  - `./work/roadmap/features/growth/分享功能升级-20260127.md`
+  - `./work/roadmap/features/growth/sharing-upgrade-20260127.md`
 
 ---
 

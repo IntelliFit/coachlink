@@ -1,0 +1,53 @@
+{
+    "actions": [
+        {
+            "name": "负重引体（底部暂停）",
+            "matchedExistingId": "825b9538-badb-428c-a154-dff420ae095f",
+            "needsAutoCompute": true,
+            "includesBodyWeight": true,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "锤式弯举",
+            "matchedExistingId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "普通弯举",
+            "matchedExistingId": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "负重引体（底部暂停+顶端暂停）",
+            "matchedExistingId": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+            "needsAutoCompute": true,
+            "includesBodyWeight": true,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "反手负重引体（底部暂停+顶端暂停）",
+            "matchedExistingId": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+            "needsAutoCompute": true,
+            "includesBodyWeight": true,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "海豹划船",
+            "matchedExistingId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "高位引体",
+            "matchedExistingId": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+            "needsAutoCompute": false,
+            "includesBodyWeight": true,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        }
+    ]
+}

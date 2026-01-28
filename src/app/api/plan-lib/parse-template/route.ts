@@ -13,6 +13,14 @@ import {
     lineHasExplicitReps,
     splitPlanGlobalPreface,
 } from "@/lib/planImportText";
+import {
+    getSmartImportTraceIdFromHeaders,
+    isSmartImportTraceEnabled,
+    tryTrace,
+    writeTraceJson,
+    writeTraceMetaOnce,
+    writeTraceText,
+} from "@/lib/smartImportTrace";
 
 /**
  * 简单的中文数字转数字（支持到二十内，满足周数场景）
@@ -185,6 +193,8 @@ export async function POST(req: Request) {
     }
 
     const { text, actions } = payload;
+    const traceEnabled = isSmartImportTraceEnabled();
+    const traceId = getSmartImportTraceIdFromHeaders(req.headers);
 
     // 检查用户登录和教练权限
     const session = await getServerSession();
@@ -219,9 +229,22 @@ export async function POST(req: Request) {
     }
 
     try {
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceMetaOnce(id, {
+                createdAt: new Date().toISOString(),
+                stage: "parse-template",
+                model: "deepseek-chat",
+            });
+            await writeTraceText(id, "stage2.input.txt", String(text ?? ""));
+        });
+
         // 提取“全局说明”（如热身/执行说明），并用正文做结构解析，避免说明污染解析结果
-        const { globalDescription, bodyText } = splitPlanGlobalPreface(text);
+        const split = splitPlanGlobalPreface(text);
+        const { globalDescription, bodyText } = split;
         const planText = bodyText.trim() ? bodyText : text;
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceJson(id, "stage2.splitPreface.json", split);
+        });
 
         // 按周拆分，逐段解析，减少截断风险并加速
         const sections = splitPlanByWeekSections(planText);
@@ -235,14 +258,40 @@ export async function POST(req: Request) {
                     actions,
                     section.weekIndex,
                 );
+                await tryTrace(traceEnabled, traceId, async (id) => {
+                    await writeTraceText(
+                        id,
+                        `stage2.week-${section.weekIndex}.prompt.txt`,
+                        prompt,
+                    );
+                    await writeTraceText(
+                        id,
+                        `stage2.week-${section.weekIndex}.input.txt`,
+                        section.text,
+                    );
+                });
 
                 const response = await callDeepSeek(prompt, {
                     maxTokens: 3500,
+                });
+                await tryTrace(traceEnabled, traceId, async (id) => {
+                    await writeTraceText(
+                        id,
+                        `stage2.week-${section.weekIndex}.raw.txt`,
+                        response,
+                    );
                 });
                 const parsedResult = parseJsonResponse<GeminiParsedTemplate>(
                     response,
                     `parse-template-week-${section.weekIndex}`,
                 );
+                await tryTrace(traceEnabled, traceId, async (id) => {
+                    await writeTraceJson(
+                        id,
+                        `stage2.week-${section.weekIndex}.parsed.json`,
+                        parsedResult,
+                    );
+                });
 
                 const sectionDaysRaw = (parsedResult.trainingDays || []).map(
                     (day, idx) => ({
@@ -331,6 +380,17 @@ export async function POST(req: Request) {
                     sectionDaysRaw,
                     section.weekIndex,
                 );
+                await tryTrace(traceEnabled, traceId, async (id) => {
+                    await writeTraceJson(
+                        id,
+                        `stage2.week-${section.weekIndex}.postprocessed.json`,
+                        {
+                            weekIndex: section.weekIndex,
+                            weeks: parsedResult.weeks || section.weekIndex,
+                            trainingDays: normalizedDays,
+                        },
+                    );
+                });
 
                 return {
                     days: normalizedDays,
@@ -346,6 +406,14 @@ export async function POST(req: Request) {
             allTrainingDays.push(...chunk.days);
             maxWeek = Math.max(maxWeek, chunk.weeks, chunk.weekIndex);
         }
+
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceJson(id, "stage2.merged.json", {
+                weeks: maxWeek || 1,
+                trainingDays: allTrainingDays,
+                globalDescription,
+            });
+        });
 
         return NextResponse.json<ApiData<ParseTemplateResponseDto>>({
             success: true,
