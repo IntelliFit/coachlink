@@ -2,15 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Filter, Plus, User, Video } from "lucide-react";
+import { ExternalLink, Filter, Plus, User, Video, Search } from "lucide-react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
+import { IconField } from "primereact/iconfield";
 import { InputNumber } from "primereact/inputnumber";
+import { InputIcon } from "primereact/inputicon";
 import { InputText } from "primereact/inputtext";
 import { Skeleton } from "primereact/skeleton";
-import { Tag } from "primereact/tag";
 import { Slider } from "primereact/slider";
 
 import { useToastContext } from "@/context/ToastContext";
@@ -33,18 +34,18 @@ type Filters = {
 
 type SortBy = "date" | "weight" | "score";
 
-function qualityTag(quality: StreetliftingSubmission["form_quality"]) {
+function qualityLabel(quality: StreetliftingSubmission["form_quality"]) {
     switch (quality) {
         case "Competition":
-            return { severity: "success" as const, label: "比赛级" };
+            return "比赛级";
         case "Minor_Cheat":
-            return { severity: "warning" as const, label: "轻微借力" };
+            return "轻微借力";
         case "Major_Cheat":
-            return { severity: "danger" as const, label: "严重借力" };
+            return "严重借力";
         case "Extreme_Cheat":
-            return { severity: "danger" as const, label: "超严重借力" };
+            return "超严重借力";
         default:
-            return { severity: "info" as const, label: quality };
+            return quality;
     }
 }
 
@@ -100,6 +101,47 @@ export default function StreetliftingDataPage() {
             : form.form_quality === "Major_Cheat"
                 ? [5, 20]
                 : [20, 50];
+
+    const dropdownClassName = "w-full h-10 rounded-2xl bg-surface-0 border border-surface-200";
+    const dropdownPanelClassName = "rounded-2xl border border-surface-100 bg-surface-0 shadow-xl";
+    const dropdownIcon = () => <span className="pi pi-chevron-down text-surface-400" />;
+    const dropdownPt = {
+        input: { className: "py-2 px-3 text-sm font-semibold text-surface-800" },
+        trigger: { className: "w-10" },
+    } as const;
+
+    const renderAeroDropdownValue = (option: any, props?: any) => {
+        const label = option?.label ?? props?.placeholder ?? "请选择";
+        const isPlaceholder = !option;
+        return (
+            <div className="min-w-0 flex items-center gap-2">
+                <span className={`truncate text-sm font-semibold ${isPlaceholder ? "text-surface-500" : "text-surface-800"}`}>{label}</span>
+            </div>
+        );
+    };
+
+    const makeAeroDropdownItemTemplate =
+        (currentValue: any) =>
+        (option: any) => {
+            const label = option?.label ?? String(option ?? "");
+            const value = option?.value ?? option;
+            const isActive = currentValue === value;
+            return (
+                <div
+                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl ${
+                        isActive ? "bg-surface-100 text-surface-900" : "text-surface-700"
+                    }`}
+                >
+                    <span className={`min-w-0 truncate text-sm ${isActive ? "font-bold" : "font-medium"}`}>{label}</span>
+                    <span className={`shrink-0 text-[10px] font-black ${isActive ? "text-primary-600" : "text-surface-300"}`}>●</span>
+                </div>
+            );
+        };
+
+    const numberInputClassName =
+        "w-full !h-10 rounded-2xl border border-surface-200 bg-surface-0 !px-3 !py-2 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:shadow-none focus:border-primary-200";
+    const textInputClassName =
+        "w-full h-10 rounded-2xl border border-surface-200 bg-surface-0 px-3 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:outline-none focus:border-primary-200";
 
     useEffect(() => {
         const run = async () => {
@@ -258,6 +300,7 @@ export default function StreetliftingDataPage() {
                             <Button
                                 label="提交我的数据"
                                 icon="pi pi-plus"
+                                className="h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
                                 onClick={() => setFormOpen(true)}
                             />
                         </div>
@@ -274,19 +317,22 @@ export default function StreetliftingDataPage() {
                             ) : (
                                 <>
                                     <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                                        <div className="text-2xl font-bold text-primary-700">{stats.total}</div>
+                                        <div className="flex items-baseline justify-between">
+                                            <div className="text-2xl font-black text-surface-900">{stats.total}</div>
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500" />
+                                        </div>
                                         <div className="text-xs text-surface-500 mt-1">筛选结果</div>
                                     </div>
                                     <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                                        <div className="text-2xl font-bold text-green-600">{stats.withVideo}</div>
+                                        <div className="text-2xl font-black text-surface-900">{stats.withVideo}</div>
                                         <div className="text-xs text-surface-500 mt-1">包含视频</div>
                                     </div>
                                     <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                                        <div className="text-2xl font-bold text-blue-600">{stats.pullup}</div>
+                                        <div className="text-2xl font-black text-surface-900">{stats.pullup}</div>
                                         <div className="text-xs text-surface-500 mt-1">负重引体</div>
                                     </div>
                                     <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                                        <div className="text-2xl font-bold text-orange-600">{stats.dips}</div>
+                                        <div className="text-2xl font-black text-surface-900">{stats.dips}</div>
                                         <div className="text-xs text-surface-500 mt-1">负重臂屈伸</div>
                                     </div>
                                 </>
@@ -300,14 +346,16 @@ export default function StreetliftingDataPage() {
                     <div className="p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-surface-900 font-semibold">
-                                <Filter className="h-5 w-5 text-primary-600" />
+                                <Filter className="h-5 w-5 text-surface-500" />
                                 筛选与排序
                             </div>
                             {activeFiltersCount > 0 && (
                                 <Button
                                     text
+                                    severity="secondary"
                                     size="small"
                                     label={`重置（${activeFiltersCount}）`}
+                                    className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
                                     onClick={() =>
                                         setFilters({
                                             exerciseType: "all",
@@ -330,7 +378,14 @@ export default function StreetliftingDataPage() {
                                     { label: "负重引体", value: "weighted_pullup" },
                                     { label: "负重臂屈伸", value: "weighted_dips" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(filters.exerciseType)}
                                 onChange={(e) => setFilters((p) => ({ ...p, exerciseType: e.value }))}
                                 placeholder="动作"
                             />
@@ -341,7 +396,14 @@ export default function StreetliftingDataPage() {
                                     { label: "男性", value: "Male" },
                                     { label: "女性", value: "Female" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(filters.gender)}
                                 onChange={(e) => setFilters((p) => ({ ...p, gender: e.value }))}
                                 placeholder="性别"
                             />
@@ -352,7 +414,14 @@ export default function StreetliftingDataPage() {
                                     { label: "正手", value: "Overhand" },
                                     { label: "反手", value: "Underhand" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(filters.pullupType)}
                                 onChange={(e) => setFilters((p) => ({ ...p, pullupType: e.value }))}
                                 placeholder="握法"
                             />
@@ -365,7 +434,14 @@ export default function StreetliftingDataPage() {
                                     { label: "严重借力", value: "Major_Cheat" },
                                     { label: "超严重借力", value: "Extreme_Cheat" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(filters.formQuality)}
                                 onChange={(e) => setFilters((p) => ({ ...p, formQuality: e.value }))}
                                 placeholder="质量"
                             />
@@ -376,7 +452,14 @@ export default function StreetliftingDataPage() {
                                     { label: "有视频", value: "with_video" },
                                     { label: "无视频", value: "without_video" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(filters.hasVideo)}
                                 onChange={(e) => setFilters((p) => ({ ...p, hasVideo: e.value }))}
                                 placeholder="视频"
                             />
@@ -387,22 +470,31 @@ export default function StreetliftingDataPage() {
                                     { label: "按 力量分", value: "score" },
                                     { label: "按 时间", value: "date" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(sortBy)}
                                 onChange={(e) => setSortBy(e.value)}
                                 placeholder="排序"
                             />
                         </div>
 
                         <div className="flex gap-3 items-center">
-                            <span className="p-input-icon-left flex-1">
-                                <i className="pi pi-search" />
+                            <IconField iconPosition="left" className="w-full group">
+                                <InputIcon className="z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                    <Search size={18} strokeWidth={2.5} />
+                                </InputIcon>
                                 <InputText
                                     value={filters.search}
                                     onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
-                                    className="w-full"
+                                    className={`${textInputClassName} pl-11`}
                                     placeholder="搜索用户名（可选）"
                                 />
-                            </span>
+                            </IconField>
                         </div>
                     </div>
                 </Card>
@@ -431,7 +523,7 @@ export default function StreetliftingDataPage() {
                         {filtered.map((s) => {
                             const rm = compute1RM(s);
                             const score = computeScore(s);
-                            const q = qualityTag(s.form_quality);
+                            const q = qualityLabel(s.form_quality);
                             return (
                                 <Card key={s.id} className={AERO_CARD}>
                                     <div className="p-4 space-y-3">
@@ -442,18 +534,24 @@ export default function StreetliftingDataPage() {
                                                     {s.user_name || "匿名"}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Tag severity={s.gender === "Male" ? "info" : "success"} value={s.gender === "Male" ? "男" : "女"} />
-                                            </div>
+                                            <span className="inline-flex items-center rounded-full bg-surface-50 border border-surface-100 px-2.5 py-1 text-[11px] font-bold text-surface-600">
+                                                {s.gender === "Male" ? "男" : "女"}
+                                            </span>
                                         </div>
 
                                         <div className="flex flex-wrap gap-2">
-                                            <Tag
-                                                severity={s.exercise_type === "weighted_pullup" ? "info" : "warning"}
-                                                value={s.exercise_type === "weighted_pullup" ? "负重引体" : "负重臂屈伸"}
-                                            />
-                                            {s.pullup_type && <Tag value={s.pullup_type === "Overhand" ? "正手" : "反手"} />}
-                                            <Tag severity={q.severity} value={q.label} />
+                                            <span className="inline-flex items-center rounded-full bg-surface-50 border border-surface-100 px-2.5 py-1 text-[11px] font-bold text-surface-600">
+                                                {s.exercise_type === "weighted_pullup" ? "负重引体" : "负重臂屈伸"}
+                                            </span>
+                                            {s.pullup_type && (
+                                                <span className="inline-flex items-center rounded-full bg-surface-50 border border-surface-100 px-2.5 py-1 text-[11px] font-bold text-surface-600">
+                                                    {s.pullup_type === "Overhand" ? "正手" : "反手"}
+                                                </span>
+                                            )}
+                                            <span className="inline-flex items-center rounded-full bg-surface-0 border border-surface-200 px-2.5 py-1 text-[11px] font-bold text-surface-700">
+                                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500 mr-2" />
+                                                {q}
+                                            </span>
                                         </div>
 
                                         <div className="grid grid-cols-4 gap-2 text-center">
@@ -470,22 +568,23 @@ export default function StreetliftingDataPage() {
                                             ))}
                                         </div>
 
-                                        <div className="rounded-2xl border border-surface-100 bg-primary-50 p-3 text-center">
+                                        <div className="rounded-2xl border border-primary-200/60 bg-surface-0 p-3 text-center">
                                             <div className="text-[11px] text-surface-600">力量分</div>
-                                            <div className="text-xl font-bold text-primary-700">{score.toFixed(1)}</div>
+                                            <div className="text-xl font-black text-primary-700">{score.toFixed(1)}</div>
                                         </div>
 
                                         {s.penalty_weight > 0 && (
-                                            <div className="text-xs text-orange-700 bg-orange-50 border border-orange-100 rounded-2xl p-2 text-center">
-                                                惩罚：-{s.penalty_weight}kg
+                                            <div className="text-xs text-surface-700 bg-surface-50 border border-surface-200 rounded-2xl p-2 text-center">
+                                                惩罚：<span className="font-bold text-surface-900">-{s.penalty_weight}kg</span>
                                             </div>
                                         )}
 
                                         {s.video_url && (
                                             <Button
                                                 outlined
+                                                severity="secondary"
                                                 size="small"
-                                                className="w-full"
+                                                className="w-full h-10 rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
                                                 onClick={() => window.open(s.video_url || "", "_blank")}
                                             >
                                                 <Video className="h-4 w-4 mr-2" />
@@ -511,7 +610,7 @@ export default function StreetliftingDataPage() {
 
             {/* 移动端浮动按钮 */}
             <Button
-                className="md:hidden fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] z-40 h-14 w-14 !rounded-full shadow-lg"
+                className="md:hidden fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] z-40 h-14 w-14 !rounded-full bg-surface-900 border-none text-surface-0 shadow-lg shadow-primary-100/60 active:scale-[0.98] transition-all"
                 icon="pi pi-plus"
                 onClick={() => setFormOpen(true)}
             />
@@ -539,7 +638,14 @@ export default function StreetliftingDataPage() {
                                     { label: "💪 负重引体向上", value: "weighted_pullup" },
                                     { label: "💪 负重双杠臂屈伸", value: "weighted_dips" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(form.exercise_type)}
                                 onChange={(e) => setForm((p) => ({ ...p, exercise_type: e.value, pullup_type: "" }))}
                             />
                         </div>
@@ -553,7 +659,14 @@ export default function StreetliftingDataPage() {
                                         { label: "男性", value: "Male" },
                                         { label: "女性", value: "Female" },
                                     ]}
-                                    className="w-full"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    className={dropdownClassName}
+                                    panelClassName={dropdownPanelClassName}
+                                    dropdownIcon={dropdownIcon}
+                                    pt={dropdownPt}
+                                    valueTemplate={renderAeroDropdownValue}
+                                    itemTemplate={makeAeroDropdownItemTemplate(form.gender)}
                                     onChange={(e) => setForm((p) => ({ ...p, gender: e.value }))}
                                 />
                             </div>
@@ -563,6 +676,7 @@ export default function StreetliftingDataPage() {
                                     value={form.bodyweight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, bodyweight: e.value ?? null }))}
                                     className="w-full"
+                                    inputClassName={numberInputClassName}
                                     min={1}
                                     maxFractionDigits={1}
                                 />
@@ -576,6 +690,7 @@ export default function StreetliftingDataPage() {
                                     value={form.added_weight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, added_weight: e.value ?? null }))}
                                     className="w-full"
+                                    inputClassName={numberInputClassName}
                                     maxFractionDigits={1}
                                 />
                             </div>
@@ -585,6 +700,7 @@ export default function StreetliftingDataPage() {
                                     value={form.reps}
                                     onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
                                     className="w-full"
+                                    inputClassName={numberInputClassName}
                                     min={1}
                                     max={36}
                                 />
@@ -601,7 +717,14 @@ export default function StreetliftingDataPage() {
                                     { label: "严重借力（5-20kg）", value: "Major_Cheat" },
                                     { label: "超严重借力（20-50kg）", value: "Extreme_Cheat" },
                                 ]}
-                                className="w-full"
+                                optionLabel="label"
+                                optionValue="value"
+                                className={dropdownClassName}
+                                panelClassName={dropdownPanelClassName}
+                                dropdownIcon={dropdownIcon}
+                                pt={dropdownPt}
+                                valueTemplate={renderAeroDropdownValue}
+                                itemTemplate={makeAeroDropdownItemTemplate(form.form_quality)}
                                 onChange={(e) => setForm((p) => ({ ...p, form_quality: e.value }))}
                             />
                         </div>
@@ -615,7 +738,14 @@ export default function StreetliftingDataPage() {
                                         { label: "正手", value: "Overhand" },
                                         { label: "反手", value: "Underhand" },
                                     ]}
-                                    className="w-full"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    className={dropdownClassName}
+                                    panelClassName={dropdownPanelClassName}
+                                    dropdownIcon={dropdownIcon}
+                                    pt={dropdownPt}
+                                    valueTemplate={renderAeroDropdownValue}
+                                    itemTemplate={makeAeroDropdownItemTemplate(form.pullup_type)}
                                     onChange={(e) => setForm((p) => ({ ...p, pullup_type: e.value }))}
                                 />
                             </div>
@@ -647,7 +777,7 @@ export default function StreetliftingDataPage() {
                                 <InputText
                                     value={form.user_name}
                                     onChange={(e) => setForm((p) => ({ ...p, user_name: e.target.value }))}
-                                    className="w-full"
+                                    className={textInputClassName}
                                     placeholder="张三 或 @your_handle"
                                 />
                             </div>
@@ -656,7 +786,7 @@ export default function StreetliftingDataPage() {
                                 <InputText
                                     value={form.video_url}
                                     onChange={(e) => setForm((p) => ({ ...p, video_url: e.target.value }))}
-                                    className="w-full"
+                                    className={textInputClassName}
                                     placeholder="https://..."
                                 />
                             </div>
@@ -664,9 +794,9 @@ export default function StreetliftingDataPage() {
 
                         <Button
                             label={submitting ? "提交中..." : "提交数据"}
-                            className="w-full"
+                            disabled={submitting}
+                            className="w-full h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
                             onClick={handleSubmit}
-                            loading={submitting}
                         />
                     </div>
                 </div>
