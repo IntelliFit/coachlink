@@ -52,15 +52,6 @@ export default function CoachWalletPage() {
                     </div>
                 </div>
 
-                <div className="bg-surface-0 border border-surface-200 rounded-xl p-6 shadow-sm">
-                    <div className="mb-4">
-                        <h3 className="text-base font-medium text-surface-500">今日预估收入</h3>
-                    </div>
-                    <div>
-                        <div className="text-2xl font-bold text-surface-900">¥ 0.00</div>
-                        <p className="text-xs text-surface-400 mt-2">昨日: ¥ 0.00</p>
-                    </div>
-                </div>
             </div>
 
             <div className="bg-surface-0 border border-surface-200 rounded-xl p-6 shadow-sm">

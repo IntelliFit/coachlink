@@ -9,6 +9,66 @@ import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } fr
 import { sendSystemMessage } from '@/lib/chat';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
+const updateTransactionAndWallet = async (order: any) => {
+    try {
+        const orderData: any = order.order_data || {};
+        const coachId = orderData?.coachId || order.coach_id || null;
+        const amount = Number(order.total_amount || order.amount || orderData?.amount || 0);
+        if (!coachId || !amount || amount <= 0) {
+            return;
+        }
+
+        // 防止重复插入流水（以 related_order_id 为幂等键）
+        const { data: existTx } = await serviceRoleSupabase
+            .from('wallet_transactions')
+            .select('id')
+            .eq('related_order_id', order.id)
+            .single();
+        if (existTx) {
+            return;
+        }
+
+        // 确保钱包存在，否则创建
+        const { data: wallet } = await serviceRoleSupabase
+            .from('coach_wallets')
+            .select('*')
+            .eq('coach_id', coachId)
+            .single();
+
+        if (!wallet) {
+            // 创建新钱包并初始化余额与总收入
+            await serviceRoleSupabase.from('coach_wallets').insert({
+                coach_id: coachId,
+                balance: amount,
+                total_income: amount,
+                frozen_amount: 0,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+        } else {
+            // 更新已有钱包的余额与总收入
+            const newBalance = (Number(wallet.balance || 0) + amount);
+            const newTotalIncome = (Number(wallet.total_income || 0) + amount);
+            await serviceRoleSupabase.from('coach_wallets').update({
+                balance: newBalance,
+                total_income: newTotalIncome,
+                updated_at: new Date().toISOString()
+            }).eq('coach_id', coachId);
+        }
+
+        // 插入流水记录（收入）
+        await serviceRoleSupabase.from('wallet_transactions').insert({
+            wallet_id: coachId,
+            amount: amount,
+            type: 'income',
+            related_order_id: order.id,
+            description: `支付宝订单 ${order.id}`,
+            created_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error('[Alipay Query] updateTransactionAndWallet error:', e);
+    }
+}
 
 const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string | null; tradeStatus: string | null }> => {
     if (process.env.NODE_ENV !== 'production') {
@@ -198,6 +258,11 @@ export async function POST(req: Request) {
     // Auto-confirm subscription/renew (useful in dev where notify may not fire)
     if (orderStatus === 'paid' && order?.order_type && (order.order_type === 'subscription' || order.order_type === 'subscription_renew')) {
         await handleNewPaidSuccess(order, orderId, userId);
+    }
+
+    // 同步钱包与流水（若适用）
+    if (orderStatus === 'paid') {
+        await updateTransactionAndWallet(order);
     }
 
     return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
