@@ -20,6 +20,7 @@ import type { StreetliftingFormula } from "@/app/api/streetlifting-index/formula
 import type { StreetliftingSubmission } from "@/app/api/streetlifting-index/submissions/list/entity";
 import type { StreetliftingCreateSubmissionDto } from "@/app/api/streetlifting-index/submissions/create/entity";
 import { calculateAdded1RM, computeCoefficient } from "@/app/streetlifting-index/_utils";
+import { AERO_CARD, AERO_CONTAINER_7XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
 
 type Filters = {
     exerciseType: "all" | "weighted_pullup" | "weighted_dips";
@@ -246,16 +247,13 @@ export default function StreetliftingDataPage() {
     }, [filters]);
 
     return (
-        <div className="min-h-screen bg-surface-50">
-            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+        <div className={`${AERO_CONTAINER_7XL} py-6 space-y-6`}>
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-4">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div>
-                                <div className="text-xl font-bold tracking-tight text-surface-900">数据提交与社区排行</div>
-                                <div className="text-sm text-surface-600 mt-1">
-                                    提交你的训练数据，或浏览社区数据（按 1RM / 力量分排序）。
-                                </div>
+                                <div className={AERO_TITLE}>数据提交与社区排行</div>
+                                <div className={AERO_SUBTITLE}>提交你的训练数据，或浏览社区数据（按 1RM / 力量分排序）。</div>
                             </div>
                             <Button
                                 label="提交我的数据"
@@ -298,7 +296,7 @@ export default function StreetliftingDataPage() {
                 </Card>
 
                 {/* 筛选 */}
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-surface-900 font-semibold">
@@ -324,7 +322,7 @@ export default function StreetliftingDataPage() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
                             <Dropdown
                                 value={filters.exerciseType}
                                 options={[
@@ -413,7 +411,7 @@ export default function StreetliftingDataPage() {
                 {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Array.from({ length: 9 }).map((_, i) => (
-                            <Card key={i} className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                            <Card key={i} className={AERO_CARD}>
                                 <div className="p-4 space-y-3">
                                     <Skeleton width="45%" height="1rem" />
                                     <Skeleton width="70%" height="0.8rem" />
@@ -435,7 +433,7 @@ export default function StreetliftingDataPage() {
                             const score = computeScore(s);
                             const q = qualityTag(s.form_quality);
                             return (
-                                <Card key={s.id} className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                                <Card key={s.id} className={AERO_CARD}>
                                     <div className="p-4 space-y-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 text-xs text-surface-600">
@@ -510,11 +508,10 @@ export default function StreetliftingDataPage() {
                         })}
                     </div>
                 )}
-            </div>
 
             {/* 移动端浮动按钮 */}
             <Button
-                className="md:hidden fixed right-5 bottom-24 z-40 h-14 w-14 !rounded-full shadow-lg"
+                className="md:hidden fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+6.25rem)] z-40 h-14 w-14 !rounded-full shadow-lg"
                 icon="pi pi-plus"
                 onClick={() => setFormOpen(true)}
             />
@@ -527,7 +524,7 @@ export default function StreetliftingDataPage() {
                     setFormOpen(false);
                     resetForm();
                 }}
-                className="w-[95vw] md:w-[32rem]"
+                className="aero-dialog w-[95vw] md:w-[32rem]"
                 draggable={false}
                 position="bottom"
                 style={{ maxHeight: "90vh" }}

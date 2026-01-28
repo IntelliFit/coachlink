@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { BarChart3, Calculator, Database, Shield, TrendingUp, Users } from "lucide-react";
 import { Card } from "primereact/card";
+import { AERO_CARD, AERO_CONTAINER_4XL } from "@/components/streetlifting-index/aero";
 
 export default function StreetliftingMethodologyPage() {
     return (
-        <div className="min-h-screen bg-surface-50">
-            <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+        <div className={`${AERO_CONTAINER_4XL} py-6 space-y-6`}>
+                <Card className={AERO_CARD}>
                     <div className="p-6 text-center">
                         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-50 text-primary-700">
                             <TrendingUp className="h-7 w-7" />
@@ -28,7 +28,7 @@ export default function StreetliftingMethodologyPage() {
                     </div>
                 </Card>
 
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-3">
                         <div className="flex items-center gap-2 font-semibold text-surface-900">
                             <Users className="h-5 w-5 text-primary-600" />
@@ -42,24 +42,24 @@ export default function StreetliftingMethodologyPage() {
                             <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
                                 <div className="text-sm font-semibold text-surface-900">核心目标</div>
                                 <ul className="mt-2 text-sm text-surface-600 space-y-1">
-                                    <li>- 体重标准化的力量评估体系</li>
-                                    <li>- 公开可验证的计算方法</li>
-                                    <li>- 公式可随数据增长持续优化</li>
+                                    <li>体重标准化的力量评估体系</li>
+                                    <li>公开可验证的计算方法</li>
+                                    <li>公式可随数据增长持续优化</li>
                                 </ul>
                             </div>
                             <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
                                 <div className="text-sm font-semibold text-surface-900">社区价值</div>
                                 <ul className="mt-2 text-sm text-surface-600 space-y-1">
-                                    <li>- 每个人的数据都有价值</li>
-                                    <li>- 数据与算法透明可追溯</li>
-                                    <li>- 共同推动街健科学化</li>
+                                    <li>每个人的数据都有价值</li>
+                                    <li>数据与算法透明可追溯</li>
+                                    <li>共同推动街健科学化</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
                 </Card>
 
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-3">
                         <div className="flex items-center gap-2 font-semibold text-surface-900">
                             <Database className="h-5 w-5 text-primary-600" />
@@ -80,7 +80,7 @@ export default function StreetliftingMethodologyPage() {
                     </div>
                 </Card>
 
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-3">
                         <div className="flex items-center gap-2 font-semibold text-surface-900">
                             <Shield className="h-5 w-5 text-primary-600" />
@@ -109,7 +109,7 @@ export default function StreetliftingMethodologyPage() {
                     </div>
                 </Card>
 
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-3">
                         <div className="flex items-center gap-2 font-semibold text-surface-900">
                             <Calculator className="h-5 w-5 text-primary-600" />
@@ -131,7 +131,7 @@ export default function StreetliftingMethodologyPage() {
                     </div>
                 </Card>
 
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                <Card className={AERO_CARD}>
                     <div className="p-6 space-y-3">
                         <div className="flex items-center gap-2 font-semibold text-surface-900">
                             <BarChart3 className="h-5 w-5 text-primary-600" />
@@ -148,7 +148,6 @@ export default function StreetliftingMethodologyPage() {
                         </div>
                     </div>
                 </Card>
-            </div>
         </div>
     );
 }

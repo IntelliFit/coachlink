@@ -21,7 +21,7 @@ export function StreetliftingDonationSection({
                     <img
                         src="/streetlifting-index/donation-qr.png"
                         alt="赞赏码"
-                        className="w-56 h-56 rounded-2xl border border-surface-100 shadow-sm cursor-zoom-in"
+                        className="w-56 h-56 rounded-2xl border border-surface-100 bg-surface-0 shadow-sm cursor-zoom-in transition-transform active:scale-[0.98]"
                         onClick={() => setShowDialog(true)}
                     />
                     <div className="absolute top-2 right-2 bg-surface-900/70 text-surface-0 rounded-full p-1.5">
@@ -45,11 +45,11 @@ export function StreetliftingDonationSection({
                             <Button
                                 label={expanded ? "收起打赏信息" : "支持项目发展"}
                                 icon="pi pi-heart"
-                                className="p-button-rounded p-button-text !text-primary-600"
+                                className="p-button-rounded p-button-text !text-primary-600 transition-transform active:scale-[0.98]"
                                 onClick={() => setExpanded((prev) => !prev)}
                             />
                             {expanded && (
-                                <Card className="w-full md:w-2/3 rounded-2xl border border-surface-100 shadow-sm">
+                                <Card className="w-full md:w-2/3 rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
                                     <div className="p-6">{content}</div>
                                 </Card>
                             )}
@@ -59,7 +59,7 @@ export function StreetliftingDonationSection({
             )}
 
             {variant !== "footer" && (
-                <Card className="rounded-2xl border border-surface-100 shadow-sm">
+                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
                     <div className="p-6">
                         <div className="flex items-center justify-center gap-2 text-surface-900 font-semibold mb-4">
                             <Heart className="h-5 w-5 text-primary-600" />
@@ -81,7 +81,7 @@ export function StreetliftingDonationSection({
                     <img
                         src="/streetlifting-index/donation-qr.png"
                         alt="赞赏码大图"
-                        className="w-72 h-72 rounded-2xl border border-surface-100"
+                        className="w-72 h-72 rounded-2xl border border-surface-100 bg-surface-0"
                     />
                 </div>
             </Dialog>

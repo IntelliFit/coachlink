@@ -65,7 +65,7 @@ export function StreetliftingRecentSubmissions() {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {Array.from({ length: 5 }).map((_, index) => (
-                    <Card key={index} className="rounded-2xl border border-surface-100 shadow-sm">
+                    <Card key={index} className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
                         <div className="p-4 space-y-3">
                             <Skeleton width="60%" height="1rem" />
                             <Skeleton width="100%" height="0.75rem" />
@@ -107,7 +107,7 @@ export function StreetliftingRecentSubmissions() {
                         const tagInfo = qualityTag(item.form_quality);
 
                         return (
-                            <Card key={item.id} className="rounded-2xl border border-surface-100 shadow-sm">
+                            <Card key={item.id} className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
                                 <div className="p-4 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-xs text-surface-500">
