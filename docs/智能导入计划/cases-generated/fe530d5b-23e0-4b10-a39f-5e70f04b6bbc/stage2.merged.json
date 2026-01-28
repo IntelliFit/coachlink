@@ -1,0 +1,556 @@
+{
+  "weeks": 4,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 3,
+          "reps": 3,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 5
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        },
+        {
+          "actionId": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+          "sets": 5,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 30,
+          "intensityConfig": null,
+          "note": "力竭"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "e0c5069a-ec7a-4830-81d6-92d5b92e713a",
+          "sets": 5,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "note": "每组拉到降速临界点"
+        },
+        {
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "sets": 2,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "力竭然后双手悬垂力竭"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 5,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 5
+          },
+          "note": "累积（极限个数×5）个，每组RPE9，累积够即可"
+        },
+        {
+          "actionId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+          "sets": null,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "累积30个"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 3,
+          "reps": 5,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 5
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        },
+        {
+          "actionId": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+          "sets": 7,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 30,
+          "intensityConfig": null,
+          "note": "力竭"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "e0c5069a-ec7a-4830-81d6-92d5b92e713a",
+          "sets": 6,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "note": "每组拉到降速临界点"
+        },
+        {
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "力竭然后双手悬垂力竭"
+        },
+        {
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 6,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 5
+          },
+          "note": "累积（极限个数×6）个，每组RPE9，累积够即可"
+        },
+        {
+          "actionId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+          "sets": null,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "累积40个"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 7,
+          "reps": 3,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 5
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        },
+        {
+          "actionId": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+          "sets": 8,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 30,
+          "intensityConfig": null,
+          "note": "力竭"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 7,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "note": "每组拉到降速临界点"
+        },
+        {
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "sets": 4,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "力竭然后双手悬垂力竭"
+        },
+        {
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 8,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 5
+          },
+          "note": "累积（极限个数×8）个，每组RPE9，累积够即可"
+        },
+        {
+          "actionId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+          "sets": null,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "累积60个"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 3,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 5
+            }
+          },
+          "note": "10×3"
+        },
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 4,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        },
+        {
+          "actionId": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+          "sets": 10,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 30,
+          "intensityConfig": null,
+          "note": "力竭"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 9,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "note": "每组拉到降速临界点"
+        },
+        {
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "sets": 5,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "力竭然后双手悬垂力竭"
+        },
+        {
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "RPE9"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休一天"
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 9,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 5
+          },
+          "note": "累积（极限个数×9）个，每组RPE9，累积够即可"
+        },
+        {
+          "actionId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+          "sets": null,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "累积90个"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    },
+    {
+      "weekIndex": 4,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休两天"
+    }
+  ],
+  "globalDescription": "适合30+"
+}
