@@ -1,0 +1,37 @@
+{
+  "notes": [
+    "本用例用于验证：attrs 不让模型自由生成，而是从少量 Profiles 里选择（次数型 vs 计时型）。",
+    "断言应优先看 attrs/profile 选择是否正确，而不是死盯 reps 是否为 null。"
+  ],
+  "assumptions": [
+    "私有动作库中存在：卧推、平板支撑、引体悬挂、引体向上（名称可略有差异，允许匹配到最相近动作）。",
+    "计时/静力类动作（平板支撑/引体悬挂）应配置为 TIME_STRENGTH：attrs 包含“持续时间”且不包含“次数”。",
+    "常规力量动作（卧推/引体向上）应配置为 COUNT_STRENGTH：attrs 包含“次数”。"
+  ],
+  "expectedProfiles": [
+    {
+      "actionName": "卧推",
+      "profile": "COUNT_STRENGTH",
+      "attrsMustInclude": ["组数", "次数", "休息时间"],
+      "attrsShouldInclude": ["强度"]
+    },
+    {
+      "actionName": "平板支撑",
+      "profile": "TIME_STRENGTH",
+      "attrsMustInclude": ["组数", "持续时间", "休息时间"],
+      "attrsMustNotInclude": ["次数"]
+    },
+    {
+      "actionName": "引体悬挂",
+      "profile": "TIME_STRENGTH",
+      "attrsMustInclude": ["组数", "持续时间", "休息时间"],
+      "attrsMustNotInclude": ["次数"]
+    },
+    {
+      "actionName": "引体向上",
+      "profile": "COUNT_STRENGTH",
+      "attrsMustInclude": ["组数", "次数", "休息时间"]
+    }
+  ]
+}
+

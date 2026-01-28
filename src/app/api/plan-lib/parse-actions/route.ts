@@ -20,6 +20,14 @@ import {
     sanitizeActionName,
     splitPlanGlobalPreface,
 } from "@/lib/planImportText";
+import {
+    getSmartImportTraceIdFromHeaders,
+    isSmartImportTraceEnabled,
+    tryTrace,
+    writeTraceJson,
+    writeTraceMetaOnce,
+    writeTraceText,
+} from "@/lib/smartImportTrace";
 
 /**
  * 阶段1：解析动作
@@ -27,6 +35,8 @@ import {
  */
 export async function POST(req: Request) {
     const { text } = await req.json() as ParseActionsDto;
+    const traceEnabled = isSmartImportTraceEnabled();
+    const traceId = getSmartImportTraceIdFromHeaders(req.headers);
 
     // 检查用户登录和教练权限
     const session = await getServerSession();
@@ -54,6 +64,15 @@ export async function POST(req: Request) {
     }
 
     try {
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceMetaOnce(id, {
+                createdAt: new Date().toISOString(),
+                stage: "parse-actions",
+                model: "deepseek-chat",
+            });
+            await writeTraceText(id, "stage1.input.txt", String(text ?? ""));
+        });
+
         // 获取当前教练的所有动作
         const { data: existingActions, error: actionsError } = await supabase
             .from("coach_actions")
@@ -69,23 +88,37 @@ export async function POST(req: Request) {
         }
 
         // 仅用于动作提取阶段：将“全局说明”与正文拆分，避免热身/说明污染动作库
-        const { bodyText } = splitPlanGlobalPreface(text);
+        const split = splitPlanGlobalPreface(text);
+        const { bodyText } = split;
         const textForActions = bodyText.trim() ? bodyText : text;
 
         // 对文本做轻量规则化，减少 “动作名+强度” 被黏在一起的情况
         const normalizedText = normalizeTextForActionExtraction(textForActions);
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceJson(id, "stage1.splitPreface.json", split);
+            await writeTraceText(id, "stage1.normalized.txt", normalizedText);
+        });
 
         // 构建 Prompt
         const prompt = buildParseActionsPrompt(
             normalizedText,
             existingActions || [],
         );
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceText(id, "stage1.prompt.txt", prompt);
+        });
 
         // 调用 DeepSeek API
         const response = await callDeepSeek(prompt);
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceText(id, "stage1.raw.txt", response);
+        });
         const parsedResult = parseJsonResponse<
             { actions: GeminiParsedAction[] }
         >(response);
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceJson(id, "stage1.parsed.json", parsedResult);
+        });
 
         // 后处理：去掉动作名中误包含的强度/组次/休息等描述，并过滤明显非动作的条目
         const cleanedActions = (parsedResult.actions || [])
@@ -174,6 +207,12 @@ export async function POST(req: Request) {
         const actions: ParsedActionInfo[] = Array.from(merged.values())
             .sort((a, b) => a._idx - b._idx)
             .map(({ _idx, ...rest }) => rest);
+
+        await tryTrace(traceEnabled, traceId, async (id) => {
+            await writeTraceJson(id, "stage1.postprocessed.json", {
+                actions,
+            });
+        });
 
         return NextResponse.json<ApiData<ParseActionsResponseDto>>({
             success: true,

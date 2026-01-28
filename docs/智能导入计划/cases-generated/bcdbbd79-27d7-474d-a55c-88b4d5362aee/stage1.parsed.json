@@ -1,0 +1,136 @@
+{
+  "actions": [
+    {
+      "name": "深蹲",
+      "matchedExistingId": null,
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "卧推",
+      "matchedExistingId": null,
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "平板支撑",
+      "matchedExistingId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "引体向上",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "引体悬挂",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "自重引体",
+      "matchedExistingId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "双手悬垂",
+      "matchedExistingId": "9f420250-5148-4dc0-a004-f3df72e7a15c",
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "负重引体",
+      "matchedExistingId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+      "needsAutoCompute": true,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "锤式弯举",
+      "matchedExistingId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "硬拉",
+      "matchedExistingId": null,
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    },
+    {
+      "name": "折刀撑",
+      "matchedExistingId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ]
+    }
+  ]
+}

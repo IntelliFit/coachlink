@@ -1,0 +1,1259 @@
+{
+  "capturedAt": "2026-01-28T08:32:32.267Z",
+  "inputText": "### 第一周 (W1)\n\nW1D1\n- 负重引体（底部暂停） 4组9次（使用11RM的重量）（组休4-5分钟）\n- 锤式弯举 3组8次\n- 普通弯举 3组8次\n\n休息1天\n- 拉伸、松解、低强度有氧\n- 冷热交替洗澡（3分钟热水，1分钟冷水，重复3次以上）\n\nW1D2\n- 负重引体（底部暂停+顶端暂停） 3组3次（使用4RM的重量）（组休4-5分钟）\n- 反手负重引体（底部暂停+顶端暂停） 2组5次（使用7RM的重量）（组休4-5分钟）\n- 海豹划船 4组10次（组休3分钟）\n- 可选：练后半小时可尝试自重动作，3组以内。推荐高位引体，每组2-3次，尽力拉高。\n\n休息1天\n\nW1D3\n- 负重引体（底部暂停） 4组4次（使用5RM的重量）\n- 锤式弯举 4组8次\n- 海豹划船 6组10次\n\n休息2天",
+  "editableActions": [
+    {
+      "name": "负重引体（底部暂停）",
+      "matchedExistingId": "825b9538-badb-428c-a154-dff420ae095f",
+      "needsAutoCompute": true,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "825b9538-badb-428c-a154-dff420ae095f",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "锤式弯举",
+      "matchedExistingId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "普通弯举",
+      "matchedExistingId": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "负重引体（底部暂停+顶端暂停）",
+      "matchedExistingId": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+      "needsAutoCompute": true,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "反手负重引体（底部暂停+顶端暂停）",
+      "matchedExistingId": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+      "needsAutoCompute": true,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "海豹划船",
+      "matchedExistingId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "高位引体",
+      "matchedExistingId": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    }
+  ],
+  "mergedActions": [
+    {
+      "id": "942bd41b-af64-4bef-923f-6411b4901ec3",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "窄距划船",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T09:01:07.82+00:00",
+      "updated_at": "2026-01-27T09:01:07.82+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "7f51c6e9-5a0e-425c-bd17-6370b7fb7b8e",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "正握弯举",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T09:01:07.82+00:00",
+      "updated_at": "2026-01-27T09:01:07.82+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "19dccfe4-42a3-401d-a884-d0802e2121cc",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "下半程引体",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-01-27T07:37:00.943+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "424c6a40-1bc9-4875-934a-e273debb0f11",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "折刀撑",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-01-27T07:37:00.943+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "9f420250-5148-4dc0-a004-f3df72e7a15c",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "双手悬垂",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-01-27T07:37:00.943+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "持续时间",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "自重引体",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-01-27T07:37:00.943+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "4a803b2a-296e-4177-a410-ac069d40afc5",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "双杠臂屈伸",
+      "url": null,
+      "detail": "智能导入创建的动作: 双杠臂屈伸",
+      "created_at": "2026-01-17T20:46:05.99+00:00",
+      "updated_at": "2026-01-17T20:46:05.99+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "22074266-bcae-4499-affe-9d34bce5c559",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "滚动平板支撑",
+      "url": null,
+      "detail": "智能导入创建的动作: 滚动平板支撑",
+      "created_at": "2026-01-14T18:22:21.086+00:00",
+      "updated_at": "2026-01-14T18:22:21.086+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "95bf83ff-235a-4994-a781-2c0413156124",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "侧支撑",
+      "url": null,
+      "detail": "智能导入创建的动作: 侧支撑",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-01-14T05:24:51.047+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "单手交替悬挂",
+      "url": null,
+      "detail": "智能导入创建的动作: 单手交替悬挂",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-01-14T05:24:51.047+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "bd4fde76-a95b-4ab1-b587-874023221757",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "站姿过头推举",
+      "url": null,
+      "detail": "智能导入创建的动作: 站姿过头推举",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-01-14T05:24:51.047+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "34fb6eff-be4d-41c5-b468-ebe2b99aab7f",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "鸟狗式",
+      "url": null,
+      "detail": "智能导入创建的动作: 鸟狗式",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-01-14T05:24:51.047+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "274fd83d-0a52-487c-a337-4fe327c513c1",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "平板支撑",
+      "url": null,
+      "detail": "智能导入创建的动作: 平板支撑",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-01-14T05:24:51.047+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "07c39583-276d-44b7-9c17-402fef4eafda",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "反手负重引体（底部暂停）",
+      "url": null,
+      "detail": "智能导入创建的动作: 反手负重引体（底部暂停）",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-01-11T17:29:32.449+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "高位引体",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1768175936073-704a8dfc-62b3-41ad-9d51-983450d6b323.mp4",
+      "detail": "智能导入创建的动作: 高位引体",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-01-11T23:59:01.90363+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "b51237e4-daf1-4df8-bdf7-31c855a5fd3b",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "二头弯举",
+      "url": null,
+      "detail": "智能导入创建的动作: 二头弯举",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-01-11T17:29:32.449+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "e0c5069a-ec7a-4830-81d6-92d5b92e713a",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "划船类动作",
+      "url": null,
+      "detail": "智能导入创建的动作: 划船类动作",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-01-11T17:29:32.449+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "喝水",
+      "url": "",
+      "detail": "111",
+      "created_at": "2026-01-06T22:09:52.899+00:00",
+      "updated_at": "2026-01-06T22:09:52.899+00:00",
+      "positions": [],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "HABIT",
+      "item_schema": {
+        "target_duration": 111
+      },
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "跑步",
+      "url": "",
+      "detail": "111",
+      "created_at": "2026-01-06T22:09:34.757+00:00",
+      "updated_at": "2026-01-06T22:09:34.757+00:00",
+      "positions": [],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "CARDIO",
+      "item_schema": {
+        "pace": 11,
+        "distance": 111000,
+        "duration": 6660
+      },
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "434fd22c-304c-4d90-8abe-5c21adf6b27e",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "水果",
+      "url": "",
+      "detail": "111",
+      "created_at": "2026-01-06T22:08:52.164+00:00",
+      "updated_at": "2026-01-06T22:08:52.164+00:00",
+      "positions": [],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "DIET",
+      "item_schema": {
+        "calories": 222
+      },
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "03e0beda-65ce-4949-aec1-afe881f24cef",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体",
+      "url": null,
+      "detail": "智能导入创建的动作: 负重引体",
+      "created_at": "2026-01-05T19:14:31.14+00:00",
+      "updated_at": "2026-01-05T19:14:31.14+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "反手负重引体（底部暂停+顶端暂停）",
+      "url": null,
+      "detail": "负重引体反手（底部暂停+顶端暂停）",
+      "created_at": "2026-01-04T01:17:38.685+00:00",
+      "updated_at": "2026-01-27T11:16:05.159684+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "825b9538-badb-428c-a154-dff420ae095f",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体（底部暂停）",
+      "url": "https://www.wolai.com/vU6ud6DY97LMUoF1JiQtDU",
+      "detail": "底部停顿1s即可，不用停顿很久",
+      "created_at": "2026-01-04T01:17:38.685+00:00",
+      "updated_at": "2026-01-11T23:53:31.972525+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体（底部暂停+顶端暂停）",
+      "url": "https://www.wolai.com/6DkCwyJHA9Ze6AqXzbjLKt",
+      "detail": "底部顶端1s  顶端停顿0.5s即可",
+      "created_at": "2026-01-04T01:17:38.685+00:00",
+      "updated_at": "2026-01-11T23:52:59.082709+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "ad997e55-2e62-4bbc-b33c-62c84359c4df",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体反手",
+      "url": null,
+      "detail": "智能导入创建的动作: 负重引体反手",
+      "created_at": "2026-01-03T23:37:34.621+00:00",
+      "updated_at": "2026-01-03T23:37:34.621+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "普通弯举",
+      "url": "https://www.wolai.com/7P5FjPti2isGHrbAgMG4dd",
+      "detail": "尽量保持幅度和动作标准  可以适当借力 但不要刻意大幅度后仰身体借力 示例视频是最低要求",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-11T23:55:18.864651+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "4bca4467-89c2-4d87-af67-c19651587c0f",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "海豹划船",
+      "url": "https://www.wolai.com/sH92Pd2WQUbtzzt4XsRo3Z",
+      "detail": "我一般在力量充沛的情况下 拉到腹部会做刻意的暂停",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-11T23:54:47.673074+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "锤式弯举",
+      "url": "https://www.wolai.com/e7Z9Wnqznhtp1ie69gZ1z5",
+      "detail": "智能导入创建的动作: 锤式弯举",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-11T23:53:57.44151+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "9c6ee6a9-18e4-47cf-afb5-939261808c71",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "哑铃推肩",
+      "url": null,
+      "detail": "智能导入创建的动作: 哑铃推肩",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-03T23:25:53.55+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "5f84810c-8fb3-4853-8d33-d7314b38874e",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重臂屈伸",
+      "url": null,
+      "detail": "智能导入创建的动作: 负重臂屈伸",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-03T23:25:53.55+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    }
+  ],
+  "templateResult": {
+    "weeks": 1,
+    "trainingDays": [
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 1,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+            "sets": 4,
+            "reps": 9,
+            "durationSeconds": null,
+            "restSeconds": 270,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 11
+              }
+            },
+            "note": ""
+          },
+          {
+            "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+            "sets": 3,
+            "reps": 8,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": ""
+          },
+          {
+            "actionId": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+            "sets": 3,
+            "reps": 8,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": ""
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 2,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "拉伸、松解、低强度有氧；冷热交替洗澡（3分钟热水，1分钟冷水，重复3次以上）"
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 3,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+            "sets": 3,
+            "reps": 3,
+            "durationSeconds": null,
+            "restSeconds": 270,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 4
+              }
+            },
+            "note": ""
+          },
+          {
+            "actionId": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+            "sets": 2,
+            "reps": 5,
+            "durationSeconds": null,
+            "restSeconds": 270,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 7
+              }
+            },
+            "note": ""
+          },
+          {
+            "actionId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+            "sets": 4,
+            "reps": 10,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": ""
+          },
+          {
+            "actionId": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+            "sets": 3,
+            "reps": 2,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": "可选：练后半小时可尝试自重动作，3组以内。推荐高位引体，每组2-3次，尽力拉高。"
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 4,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "休息1天"
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 5,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+            "sets": 4,
+            "reps": 4,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 5
+              }
+            },
+            "note": ""
+          },
+          {
+            "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+            "sets": 4,
+            "reps": 8,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": ""
+          },
+          {
+            "actionId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+            "sets": 6,
+            "reps": 10,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": ""
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 6,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "休息2天"
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 7,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "休息2天"
+      }
+    ],
+    "globalDescription": null
+  },
+  "convertedTrainingDays": [
+    {
+      "dayIndex": 1,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "setName": "动作1",
+          "params": {
+            "组数": 4,
+            "次数": 9,
+            "持续时间": "",
+            "休息时间": 270,
+            "强度": 11,
+            "load": null,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 11
+              }
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "setName": "动作2",
+          "params": {
+            "组数": 3,
+            "次数": 8,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+          "setName": "动作3",
+          "params": {
+            "组数": 3,
+            "次数": 8,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 2,
+      "type": "rest",
+      "note": "拉伸、松解、低强度有氧；冷热交替洗澡（3分钟热水，1分钟冷水，重复3次以上）",
+      "actionSets": []
+    },
+    {
+      "dayIndex": 3,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+          "setName": "动作1",
+          "params": {
+            "组数": 3,
+            "次数": 3,
+            "持续时间": "",
+            "休息时间": 270,
+            "强度": 4,
+            "load": null,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 4
+              }
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+          "setName": "动作2",
+          "params": {
+            "组数": 2,
+            "次数": 5,
+            "持续时间": "",
+            "休息时间": 270,
+            "强度": 7,
+            "load": null,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 7
+              }
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+          "setName": "动作3",
+          "params": {
+            "组数": 4,
+            "次数": 10,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+          "setName": "动作4",
+          "params": {
+            "组数": 3,
+            "次数": 2,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": "可选：练后半小时可尝试自重动作，3组以内。推荐高位引体，每组2-3次，尽力拉高。"
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 4,
+      "type": "rest",
+      "note": "休息1天",
+      "actionSets": []
+    },
+    {
+      "dayIndex": 5,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "setName": "动作1",
+          "params": {
+            "组数": 4,
+            "次数": 4,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": 5,
+            "load": null,
+            "intensityConfig": {
+              "relativeIntensity": {
+                "type": "rm",
+                "value": 5
+              }
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "setName": "动作2",
+          "params": {
+            "组数": 4,
+            "次数": 8,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+          "setName": "动作3",
+          "params": {
+            "组数": 6,
+            "次数": 10,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 6,
+      "type": "rest",
+      "note": "休息2天",
+      "actionSets": []
+    },
+    {
+      "dayIndex": 7,
+      "type": "rest",
+      "note": "休息2天",
+      "actionSets": []
+    }
+  ]
+}

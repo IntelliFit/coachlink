@@ -1,0 +1,32 @@
+{
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "mustContainActionNames": ["负重引体", "锤式弯举"],
+      "mustHaveRepsFor": ["负重引体", "锤式弯举"],
+      "notes": [
+        "负重引体应识别到 3x3 与 5RM 强度（强度进入 intensityConfig）。"
+      ]
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "mustContainDayNoteSubstrings": ["休息1天", "拉伸", "松解", "低强度有氧"]
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 3,
+      "type": "training",
+      "mustContainActionNames": ["反手负重引体"],
+      "notes": [
+        "70% 应进入 intensityConfig.relativeIntensity（percentage）。",
+        "组休 2 分钟应转成 restSeconds=120（或取平均/近似）。"
+      ]
+    }
+  ]
+}
+
