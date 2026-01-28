@@ -3593,6 +3593,171 @@ export type Database = {
           },
         ]
       }
+      streetlifting_formulas: {
+        Row: {
+          coeff_a: number
+          coeff_b: number
+          coeff_c: number
+          coeff_d: number
+          coeff_e: number
+          coeff_f: number
+          exercise_type: "weighted_pullup" | "weighted_dips"
+          gender: "Male" | "Female"
+          id: number
+          last_updated: string
+          total_submissions_used: number
+        }
+        Insert: {
+          coeff_a?: number
+          coeff_b: number
+          coeff_c: number
+          coeff_d: number
+          coeff_e: number
+          coeff_f: number
+          exercise_type?: "weighted_pullup" | "weighted_dips"
+          gender: "Male" | "Female"
+          id?: number
+          last_updated?: string
+          total_submissions_used?: number
+        }
+        Update: {
+          coeff_a?: number
+          coeff_b?: number
+          coeff_c?: number
+          coeff_d?: number
+          coeff_e?: number
+          coeff_f?: number
+          exercise_type?: "weighted_pullup" | "weighted_dips"
+          gender?: "Male" | "Female"
+          id?: number
+          last_updated?: string
+          total_submissions_used?: number
+        }
+        Relationships: []
+      }
+      streetlifting_locations: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          image_urls: string[] | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          province: string | null
+          user_contact: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          image_urls?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          province?: string | null
+          user_contact?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          image_urls?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          province?: string | null
+          user_contact?: string | null
+        }
+        Relationships: []
+      }
+      streetlifting_stories: {
+        Row: {
+          content: string | null
+          created_at: string
+          event_date: string | null
+          id: string
+          title: string
+          type: "story" | "event"
+          user_contact: string | null
+          video_url: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          title: string
+          type?: "story" | "event"
+          user_contact?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          title?: string
+          type?: "story" | "event"
+          user_contact?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      streetlifting_submissions: {
+        Row: {
+          added_weight: number
+          bodyweight: number
+          created_at: string
+          exercise_type: "weighted_pullup" | "weighted_dips"
+          form_quality: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat"
+          gender: "Male" | "Female"
+          id: string
+          penalty_weight: number
+          pullup_type: "Overhand" | "Underhand" | null
+          reps: number
+          user_name: string | null
+          video_url: string | null
+        }
+        Insert: {
+          added_weight: number
+          bodyweight: number
+          created_at?: string
+          exercise_type?: "weighted_pullup" | "weighted_dips"
+          form_quality: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat"
+          gender: "Male" | "Female"
+          id?: string
+          penalty_weight?: number
+          pullup_type?: "Overhand" | "Underhand" | null
+          reps: number
+          user_name?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          added_weight?: number
+          bodyweight?: number
+          created_at?: string
+          exercise_type?: "weighted_pullup" | "weighted_dips"
+          form_quality?: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat"
+          gender?: "Male" | "Female"
+          id?: string
+          penalty_weight?: number
+          pullup_type?: "Overhand" | "Underhand" | null
+          reps?: number
+          user_name?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       coach_pending_reviews: {

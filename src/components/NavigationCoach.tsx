@@ -32,8 +32,14 @@ import {
     Sun,
     Bell,
     Search,
-    User
+    User,
+    Activity,
+    Calculator,
+    TrendingUp,
+    MapPin,
+    BookOpen
 } from 'lucide-react';
+import { STREETLIFTING_NAV_ITEMS } from '@/components/streetlifting-index/StreetliftingNavItems';
 
 export default function NavigationCoach() {
     const pathname = usePathname();
@@ -45,7 +51,8 @@ export default function NavigationCoach() {
     const [isClient, setIsClient] = useState(false);
     const [visibleLeft, setVisibleLeft] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
-    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+    const [profile, setProfile] = useState<Partial<UserProfilesRow> | null>(null);
+    const isStreetlifting = pathname.startsWith('/streetlifting-index');
 
     useEffect(() => {
         setIsClient(true);
@@ -95,44 +102,87 @@ export default function NavigationCoach() {
     };
 
     // 移动端顶部 Tab 定义
-    const mobileTopTabs = useMemo(() => [
-        { label: '概览', url: '/dashboard/overview' },
-        { label: '点评', url: '/dashboard/videos' },
-        { label: '学员', url: '/dashboard/students' },
-    ], []);
+    const mobileTopTabs = useMemo(() => {
+        if (isStreetlifting) {
+            return [
+                { label: '首页', url: '/streetlifting-index' },
+                { label: '计算器', url: '/streetlifting-index/calculator' },
+                { label: '数据', url: '/streetlifting-index/data' },
+            ];
+        }
+        return [
+            { label: '概览', url: '/dashboard/overview' },
+            { label: '点评', url: '/dashboard/videos' },
+            { label: '学员', url: '/dashboard/students' },
+        ];
+    }, [isStreetlifting]);
 
     // 移动端底部 Tab 定义
-    const mobileBottomTabs = useMemo(() => [
-        {
-            key: 'content',
-            label: '内容',
-            icon: FileEdit,
-            active: pathname.startsWith('/dashboard/content'),
-            onClick: () => router.push('/dashboard/content'),
-        },
-        {
-            key: 'planlib',
-            label: '计划库',
-            icon: ClipboardList,
-            active: pathname.startsWith('/dashboard/plan-lib'),
-            onClick: () => router.push('/dashboard/plan-lib'),
-        },
-        {
-            key: 'messages',
-            label: '消息',
-            icon: Bell,
-            active: pathname === '/messages',
-            onClick: () => router.push('/messages'),
-            isMessage: true
-        },
-        {
-            key: 'profile',
-            label: '我',
-            icon: User,
-            active: pathname.startsWith('/me/profile'),
-            onClick: () => router.push('/me/profile'),
-        },
-    ], [pathname, router, visibleLeft]);
+    const mobileBottomTabs = useMemo(() => {
+        if (isStreetlifting) {
+            return [
+                {
+                    key: 'sl-home',
+                    label: '首页',
+                    icon: Activity,
+                    active: pathname === '/streetlifting-index',
+                    onClick: () => router.push('/streetlifting-index'),
+                },
+                {
+                    key: 'sl-calc',
+                    label: '计算',
+                    icon: Calculator,
+                    active: pathname.startsWith('/streetlifting-index/calculator'),
+                    onClick: () => router.push('/streetlifting-index/calculator'),
+                },
+                {
+                    key: 'sl-data',
+                    label: '数据',
+                    icon: TrendingUp,
+                    active: pathname.startsWith('/streetlifting-index/data'),
+                    onClick: () => router.push('/streetlifting-index/data'),
+                },
+                {
+                    key: 'profile',
+                    label: '我',
+                    icon: User,
+                    active: pathname.startsWith('/me/profile'),
+                    onClick: () => router.push('/me/profile'),
+                },
+            ];
+        }
+        return [
+            {
+                key: 'content',
+                label: '内容',
+                icon: FileEdit,
+                active: pathname.startsWith('/dashboard/content'),
+                onClick: () => router.push('/dashboard/content'),
+            },
+            {
+                key: 'planlib',
+                label: '计划库',
+                icon: ClipboardList,
+                active: pathname.startsWith('/dashboard/plan-lib'),
+                onClick: () => router.push('/dashboard/plan-lib'),
+            },
+            {
+                key: 'messages',
+                label: '消息',
+                icon: Bell,
+                active: pathname === '/messages',
+                onClick: () => router.push('/messages'),
+                isMessage: true
+            },
+            {
+                key: 'profile',
+                label: '我',
+                icon: User,
+                active: pathname.startsWith('/me/profile'),
+                onClick: () => router.push('/me/profile'),
+            },
+        ];
+    }, [pathname, router, visibleLeft, isStreetlifting]);
 
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;
@@ -144,13 +194,32 @@ export default function NavigationCoach() {
         );
     };
 
-    const coachMenuItems = useMemo(() => [
-        { label: '概览', icon: LayoutDashboard, url: '/dashboard/overview', command: () => router.push('/dashboard/overview'), template: itemRenderer },
-        { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
-        { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), template: itemRenderer },
-        { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
-        { label: '计划库', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
-    ], [router, pathname]);
+    const coachMenuItems = useMemo(() => {
+        if (isStreetlifting) {
+            const iconMap: Record<string, any> = {
+                home: Activity,
+                calculator: Calculator,
+                data: TrendingUp,
+                locations: MapPin,
+                stories: BookOpen,
+                methodology: ClipboardList,
+            };
+            return STREETLIFTING_NAV_ITEMS.map((x) => ({
+                label: x.label,
+                icon: iconMap[x.key] || Activity,
+                url: x.href,
+                command: () => router.push(x.href),
+                template: itemRenderer,
+            }));
+        }
+        return [
+            { label: '概览', icon: LayoutDashboard, url: '/dashboard/overview', command: () => router.push('/dashboard/overview'), template: itemRenderer },
+            { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
+            { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), template: itemRenderer },
+            { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
+            { label: '计划库', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
+        ];
+    }, [router, pathname, isStreetlifting]);
 
     const userMenuItems = useMemo(() => [
         { label: '我的主页', icon: 'pi pi-home', command: () => { gotoCoachDisplayPage(); setVisibleLeft(false); } },
