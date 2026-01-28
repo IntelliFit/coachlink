@@ -57,12 +57,14 @@ const updateTransactionAndWallet = async (order: any) => {
         }
 
         // 插入流水记录（收入）
+        // 使用 order.subject 优先作为描述
+        const desc = (orderData && orderData.subject) || order.subject || `支付宝订单 ${order.id}`;
         await serviceRoleSupabase.from('wallet_transactions').insert({
             wallet_id: coachId,
             amount: amount,
             type: 'income',
             related_order_id: order.id,
-            description: `支付宝订单 ${order.id}`,
+            description: desc,
             created_at: new Date().toISOString()
         });
     } catch (e) {

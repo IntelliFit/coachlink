@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Button } from 'primereact/button';
 import { WalletData } from '@/app/api/coach/wallet/route';
 import { ArrowUpRight, ArrowDownLeft, Wallet } from 'lucide-react';
@@ -60,22 +61,46 @@ export default function CoachWalletPage() {
                 </div>
                 <div className="space-y-4">
                     {data?.transactions && data.transactions.length > 0 ? (
-                        data.transactions.map((tx) => (
-                            <div key={tx.id} className="flex items-center justify-between py-3 border-b border-surface-100 last:border-0">
-                                <div className="flex items-start gap-3">
-                                    <div className={`p-2 rounded-full ${tx.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
-                                        {tx.type === 'income' ? <ArrowDownLeft className={`w-4 h-4 ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`} /> : <ArrowUpRight className="w-4 h-4 text-red-600" />}
+                        data.transactions.map((tx) => {
+                            const isSubscriptionIncome = tx.type === 'income' && (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew') && Boolean(tx.student_id);
+                            const fallbackTitle = tx.description || (tx.type === 'income' ? '课程收入' : tx.type === 'withdrawal' ? '提现' : '退款');
+                            const primaryContent = isSubscriptionIncome && tx.student_id ? (
+                                // TODO: 由于学生详情页尚未完成，暂时注释掉链接
+                                // <>
+                                //     来自{' '}
+                                //     <Link href={`/dashboard/students/${tx.student_id}`} className="text-primary-600 hover:underline">
+                                //         {tx.student_name || '学员'}
+                                //     </Link>
+                                //     的订阅
+                                // </>
+                                 <>
+                                    来自
+                                        {tx.student_name || '学员'}
+                                    的订阅
+                                </>
+                            ) : fallbackTitle;
+                            const secondaryContent = isSubscriptionIncome && tx.subject ? tx.subject : null;
+
+                            return (
+                                <div key={tx.id} className="flex items-center justify-between py-3 border-b border-surface-100 last:border-0">
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-full ${tx.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
+                                            {tx.type === 'income' ? <ArrowDownLeft className={`w-4 h-4 ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`} /> : <ArrowUpRight className="w-4 h-4 text-red-600" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm text-surface-900">{primaryContent}</p>
+                                            {secondaryContent ? (
+                                                <p className="text-xs text-surface-500">{secondaryContent}</p>
+                                            ) : null}
+                                            <p className="text-xs text-surface-500">{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-sm text-surface-900">{tx.description || (tx.type === 'income' ? '课程收入' : '提现')}</p>
-                                        <p className="text-xs text-surface-500">{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</p>
+                                    <div className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
+                                        {tx.type === 'income' ? '+' : '-'}{tx.amount.toFixed(2)}
                                     </div>
                                 </div>
-                                <div className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
-                                    {tx.type === 'income' ? '+' : '-'}{tx.amount.toFixed(2)}
-                                </div>
-                            </div>
-                        ))
+                            );
+                        })
                     ) : (
                         <div className="text-center py-10 text-surface-500">暂无交易记录</div>
                     )}
