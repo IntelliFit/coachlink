@@ -13,8 +13,19 @@ export interface StreetliftingLocation {
     user_contact: string | null;
 }
 
-export interface StreetliftingListLocationsDto {}
+export interface StreetliftingListLocationsDto {
+    page?: number; // 1-based
+    limit?: number; // max 30
+    search?: string;
+    province?: string; // 'all' means no filter
+}
 
 export interface StreetliftingListLocationsResponseDto {
     locations: StreetliftingLocation[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+    };
+    provinces: string[]; // for filter dropdown
 }

@@ -41,6 +41,31 @@ const CoachDiscoveryPage: React.FC = () => {
     const { showToast } = useToastContext();
     const { addToCart } = useCart();
 
+    const renderSpecialtyValue = (option: any) => {
+        const label = option?.label || '所有专长';
+        const isAll = option?.value === 'all' || label === '所有专长';
+        return (
+            <div className="min-w-0 flex items-center gap-2">
+                <span className={`truncate text-sm font-semibold ${isAll ? 'text-surface-600' : 'text-surface-800'}`}>{label}</span>
+            </div>
+        );
+    };
+
+    const renderSpecialtyItem = (option: any) => {
+        const isActive = selectedSpecialty === option?.value;
+        const isAll = option?.value === 'all';
+        return (
+            <div className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl ${isActive ? 'bg-surface-100 text-surface-900' : 'text-surface-700'}`}>
+                <span className={`min-w-0 truncate text-sm ${isActive ? 'font-bold' : 'font-medium'}`}>{option?.label}</span>
+                {isAll ? (
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-surface-400">全部</span>
+                ) : (
+                    <span className={`shrink-0 text-[10px] font-black ${isActive ? 'text-surface-500' : 'text-surface-300'}`}>●</span>
+                )}
+            </div>
+        );
+    };
+
     // 推荐动作（公共动作库）
     const [recommendedActions, setRecommendedActions] = useState<PublicActionItemDto[]>([]);
     const [recommendedLoading, setRecommendedLoading] = useState(false);
@@ -366,11 +391,10 @@ const CoachDiscoveryPage: React.FC = () => {
                         <Button
                             icon="pi pi-question-circle"
                             label={window.innerWidth < 768 ? "" : "新手引导"}
-                            outlined
                             size="small"
                             onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
                             disabled={isGuideLoading}
-                            className="shrink-0 rounded-2xl border-primary-500 text-primary-500"
+                            className="shrink-0 rounded-2xl bg-surface-900 border-none text-surface-0 hover:bg-surface-800 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                     </div>
 
@@ -394,9 +418,16 @@ const CoachDiscoveryPage: React.FC = () => {
                                     value={selectedSpecialty}
                                     options={specialties}
                                     onChange={(e) => setSelectedSpecialty(e.value)}
-                                    className="hidden md:flex w-44 bg-surface-50 border-none rounded-lg items-center"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    valueTemplate={renderSpecialtyValue}
+                                    itemTemplate={renderSpecialtyItem}
+                                    panelClassName="rounded-2xl border border-surface-100 bg-surface-0 shadow-xl"
+                                    className="hidden md:flex w-44 h-10 bg-surface-50 border border-surface-100 rounded-2xl items-center"
+                                    dropdownIcon={() => <span className="pi pi-chevron-down text-surface-400" />}
                                     pt={{
-                                        input: { className: 'py-2 px-3 text-sm font-medium text-surface-600' }
+                                        input: { className: 'py-2 px-3 text-sm font-semibold text-surface-700' },
+                                        trigger: { className: 'w-9' },
                                     }}
                                 />
                                 {/* 移动端：图标化筛选，宽度收缩 */}
@@ -404,7 +435,12 @@ const CoachDiscoveryPage: React.FC = () => {
                                     value={selectedSpecialty}
                                     options={specialties}
                                     onChange={(e) => setSelectedSpecialty(e.value)}
-                                    className="flex md:hidden bg-surface-50 border-none rounded-xl w-10 h-10 items-center justify-center"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    valueTemplate={renderSpecialtyValue}
+                                    itemTemplate={renderSpecialtyItem}
+                                    panelClassName="rounded-2xl border border-surface-100 bg-surface-0 shadow-xl"
+                                    className="flex md:hidden bg-surface-50 border border-surface-100 rounded-2xl w-10 h-10 items-center justify-center"
                                     dropdownIcon={() => <Filter size={16} className="text-surface-500" />}
                                     pt={{
                                         input: { className: 'hidden' },
@@ -414,17 +450,21 @@ const CoachDiscoveryPage: React.FC = () => {
                             </div>
 
                             {/* 搜索按钮 */}
-                            {/* PC端：文字按钮 */}
+                            {/* PC端：图标按钮（去文本化，降低视觉权重） */}
                             <Button
                                 onClick={onSearchOrFilter}
-                                label="搜索"
-                                className="hidden md:flex bg-primary-500 border-none px-6 py-2 rounded-xl font-bold text-white shadow-sm"
+                                icon="pi pi-search"
+                                tooltip="搜索"
+                                tooltipOptions={{ position: 'top' }}
+                                className="hidden md:flex bg-primary-500 border-none w-10 h-10 rounded-2xl font-bold text-white shadow-sm active:scale-[0.98] transition-all"
                             />
                             {/* 移动端：图标按钮 */}
                             <Button
                                 onClick={onSearchOrFilter}
                                 icon="pi pi-search"
-                                className="flex md:hidden bg-primary-500 border-none w-10 h-10 rounded-xl font-bold text-white shadow-sm active:scale-95"
+                                tooltip="搜索"
+                                tooltipOptions={{ position: 'top' }}
+                                className="flex md:hidden bg-primary-500 border-none w-10 h-10 rounded-2xl font-bold text-white shadow-sm active:scale-[0.98] transition-all"
                             />
                         </div>
                     </div>
@@ -496,8 +536,9 @@ const CoachDiscoveryPage: React.FC = () => {
                                             <div className="mt-3 flex items-center justify-between gap-2">
                                                 <Button
                                                     outlined
+                                                    severity="secondary"
                                                     size="small"
-                                                    className="rounded-2xl border-primary-200 text-primary-700 hover:bg-primary-50 active:scale-[0.98] transition-all font-bold"
+                                                    className="rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 active:scale-[0.98] transition-all font-bold"
                                                     label="订阅"
                                                     onClick={() => {
                                                         const p = new URLSearchParams();
@@ -565,9 +606,13 @@ const CoachDiscoveryPage: React.FC = () => {
                                 </div>
                                 <div className="shrink-0 flex gap-2">
                                     <Button
-                                        outlined
-                                        className="rounded-2xl"
+                                        text
+                                        severity="secondary"
+                                        size="small"
+                                        className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
                                         label="去动作库"
+                                        icon="pi pi-arrow-right"
+                                        iconPos="right"
                                         onClick={() => router.push('/me/action-lib')}
                                     />
                                 </div>
