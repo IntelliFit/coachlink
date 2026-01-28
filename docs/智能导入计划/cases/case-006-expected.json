@@ -1,0 +1,24 @@
+{
+  "expectedCurrent": {
+    "notes": [
+      "当前实现主要面向 STRENGTH；对 CARDIO/DIET/HABIT 尚未形成端到端结构化导入。",
+      "最低要求：导入不应报错；非力量内容至少不应污染动作名（不要把“[有氧]”拼进动作名）。"
+    ],
+    "mustNotIncludeActions": ["[力量]", "[有氧]", "[饮食]", "[习惯]"]
+  },
+  "expectedTarget": {
+    "trainingDay": {
+      "type": "training",
+      "items": [
+        { "itemType": "STRENGTH", "actionName": "负重引体" },
+        { "itemType": "CARDIO", "custom_data.duration": 1800, "custom_data.contentContains": ["慢跑"] },
+        { "itemType": "DIET", "custom_data.contentContains": ["早餐", "高蛋白", "水果"] },
+        { "itemType": "HABIT", "custom_data.contentContains": ["睡眠", "8小时"] }
+      ]
+    },
+    "notes": [
+      "如果要支持多类型：需要在 parse-actions/parse-template 的 Prompt 与后处理里引入 itemType，且模板编辑器的数据转换要能生成对应的非力量 actionSet item。"
+    ]
+  }
+}
+
