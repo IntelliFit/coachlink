@@ -10,7 +10,18 @@ import type {
 
 export async function POST(req: Request) {
     try {
-        await getServerSession();
+        const session = await getServerSession();
+        const userId = session?.user?.id;
+        if (!userId) {
+            return NextResponse.json<ApiData<StreetliftingCreateSubmissionResponseDto>>(
+                {
+                    success: false,
+                    message: "请先登录后再提交",
+                    data: null,
+                },
+                { status: 401 },
+            );
+        }
         const body = await req.json() as StreetliftingCreateSubmissionDto;
 
         const {
@@ -70,6 +81,7 @@ export async function POST(req: Request) {
         const { data, error } = await db
             .from("streetlifting_submissions")
             .insert([{
+                user_id: userId,
                 gender,
                 bodyweight,
                 added_weight,

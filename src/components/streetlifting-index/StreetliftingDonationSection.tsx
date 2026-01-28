@@ -60,15 +60,13 @@ export function StreetliftingDonationSection({
             )}
 
             {variant !== "footer" && (
-                <Card className={AERO_CARD}>
-                    <div className="p-6">
-                        <div className="flex items-center justify-center gap-2 text-surface-900 font-semibold mb-4">
-                            <Heart className="h-5 w-5 text-surface-700" />
-                            支持项目持续运行
-                        </div>
-                        {content}
+                <div className="p-6">
+                    <div className="flex items-center justify-center gap-2 text-surface-900 font-semibold mb-4">
+                        <Heart className="h-5 w-5 text-surface-700" />
+                        支持项目持续运行
                     </div>
-                </Card>
+                    {content}
+                </div>
             )}
 
             <Dialog
