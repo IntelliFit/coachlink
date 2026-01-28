@@ -49,11 +49,20 @@ class StreetliftingIndexService extends BaseService {
     }
 
     async listFormulas(reqData?: StreetliftingListFormulasDto) {
-        const res = await this.post<StreetliftingListFormulasResponseDto>("formulas/list", reqData || {});
-        if (res.data && res.data.success) {
-            return res.data.data || null;
+        // 兼容：允许外部传 exerciseType（camelCase）
+        const payload = reqData
+            ? ({
+                  ...reqData,
+                  exercise_type: (reqData as any).exercise_type || (reqData as any).exerciseType,
+              } as StreetliftingListFormulasDto)
+            : {};
+
+        const res = await this.post<StreetliftingListFormulasResponseDto>("formulas/list", payload);
+        if (res.data?.success && res.data.data) {
+            return res.data.data;
         }
-        return null;
+        // 不要静默返回 null，否则页面只会在计算时提示“未找到公式”
+        throw new Error(res.data?.message || "获取公式失败");
     }
 
     async listSubmissions(reqData?: StreetliftingListSubmissionsDto) {

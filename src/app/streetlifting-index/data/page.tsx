@@ -158,12 +158,12 @@ export default function StreetliftingDataPage() {
                 setSubmissions(subData?.submissions || []);
                 const next: Record<string, StreetliftingFormula> = {};
                 (formulaData?.formulas || []).forEach((f) => {
-                    next[`${f.gender}:${f.exercise_type}`] = f;
+                    next[`${f.gender}`] = f;
                 });
                 setFormulaMap(next);
             } catch (e: any) {
                 console.error("[streetlifting-index][data] init error:", e);
-                showToast({ severity: "warn", summary: "提示", detail: "数据加载失败" });
+                showToast({ severity: "warn", summary: "提示", detail: e?.message || "数据加载失败" });
             } finally {
                 setLoading(false);
             }
@@ -183,17 +183,35 @@ export default function StreetliftingDataPage() {
     }, [form.form_quality]);
 
     const computeScore = (s: StreetliftingSubmission) => {
-        const f = formulaMap[`${s.gender}:${s.exercise_type}`];
+        const f = formulaMap[`${s.gender}`];
         if (!f) return 0;
-        const total1rm = s.bodyweight + calculateAdded1RM(s.bodyweight, s.added_weight, s.reps, s.penalty_weight);
+        // 兼容：后端可能返回 string（避免 `70 + 30` 变成 "7030" 导致 isFinite 失败）
+        const bodyweight = Number((s as any).bodyweight);
+        const addedWeight = Number((s as any).added_weight);
+        const reps = Number((s as any).reps);
+        const penaltyWeight = Number((s as any).penalty_weight ?? 0);
+
+        if (!Number.isFinite(bodyweight) || bodyweight <= 0) return 0;
+        if (!Number.isFinite(addedWeight)) return 0;
+        if (!Number.isFinite(reps) || reps < 1 || reps > 36) return 0;
+        if (!Number.isFinite(penaltyWeight) || penaltyWeight < 0) return 0;
+
+        const total1rm = bodyweight + calculateAdded1RM(bodyweight, addedWeight, reps, penaltyWeight);
         if (!Number.isFinite(total1rm) || total1rm <= 0) return 0;
-        const coeff = computeCoefficient(s.bodyweight, f);
+
+        const coeff = computeCoefficient(bodyweight, f);
+        if (!Number.isFinite(coeff) || coeff <= 0) return 0;
         const raw = total1rm * coeff;
         return s.exercise_type === "weighted_dips" ? raw / 1.3 : raw;
     };
 
     const compute1RM = (s: StreetliftingSubmission) => {
-        return calculateAdded1RM(s.bodyweight, s.added_weight, s.reps, s.penalty_weight);
+        const bodyweight = Number((s as any).bodyweight);
+        const addedWeight = Number((s as any).added_weight);
+        const reps = Number((s as any).reps);
+        const penaltyWeight = Number((s as any).penalty_weight ?? 0);
+        if (!Number.isFinite(bodyweight) || !Number.isFinite(addedWeight) || !Number.isFinite(reps) || !Number.isFinite(penaltyWeight)) return 0;
+        return calculateAdded1RM(bodyweight, addedWeight, reps, penaltyWeight);
     };
 
     const filtered = useMemo(() => {

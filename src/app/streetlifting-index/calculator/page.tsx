@@ -222,12 +222,12 @@ export default function StreetliftingCalculatorPage() {
                 const data = await streetliftingIndexService.listFormulas();
                 const next: Record<string, StreetliftingFormula> = {};
                 (data?.formulas || []).forEach((f) => {
-                    next[`${f.gender}:${f.exercise_type}`] = f;
+                    next[`${f.gender}`] = f;
                 });
                 setFormulaMap(next);
             } catch (e: any) {
                 console.error("[streetlifting-index][calculator] listFormulas error:", e);
-                showToast({ severity: "warn", summary: "提示", detail: "公式获取失败（可稍后重试）" });
+                showToast({ severity: "warn", summary: "提示", detail: e?.message || "公式获取失败（可稍后重试）" });
             } finally {
                 setLoadingFormula(false);
             }
@@ -255,7 +255,7 @@ export default function StreetliftingCalculatorPage() {
     const currentFormula = useMemo(() => {
         if (!form.gender) return null;
         if (!isUpperBodyExercise(exerciseType)) return null;
-        return formulaMap[`${form.gender}:${exerciseType}`] || null;
+        return formulaMap[`${form.gender}`] || null;
     }, [exerciseType, form.gender, formulaMap]);
 
     const canUseDayMax = isUpperBodyExercise(exerciseType);
@@ -266,7 +266,7 @@ export default function StreetliftingCalculatorPage() {
 
         try {
             const gender = form.gender;
-            const bodyweight = form.bodyweight ?? NaN;
+            const bodyweight = Number((form as any).bodyweight);
             const isMale = gender === "Male";
 
             if (!gender || !Number.isFinite(bodyweight) || bodyweight <= 0) {
@@ -281,8 +281,8 @@ export default function StreetliftingCalculatorPage() {
                 const coeff = computeDOTSCoefficient(bodyweight, isMale);
 
                 if (mode === "forward") {
-                    const liftWeight = form.liftWeight ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const liftWeight = Number((form as any).liftWeight);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(liftWeight) || liftWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
 
@@ -301,8 +301,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_weight") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
@@ -316,8 +316,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_reps") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const workingWeight = form.workingLiftWeight ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const workingWeight = Number((form as any).workingLiftWeight);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
@@ -342,8 +342,8 @@ export default function StreetliftingCalculatorPage() {
                 const multiplier = exerciseType === "strict_press" ? STRICT_PRESS_MULTIPLIER : BARBELL_CURL_MULTIPLIER;
 
                 if (mode === "forward") {
-                    const liftWeight = form.liftWeight ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const liftWeight = Number((form as any).liftWeight);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(liftWeight) || liftWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const adjusted = liftWeight - penalty;
@@ -360,8 +360,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_weight") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
@@ -375,8 +375,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_reps") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const workingWeight = form.workingLiftWeight ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const workingWeight = Number((form as any).workingLiftWeight);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
@@ -408,8 +408,8 @@ export default function StreetliftingCalculatorPage() {
             const coefficient = computeCoefficient(bodyweight, currentFormula);
 
             if (mode === "forward") {
-                const added = form.addedWeight ?? NaN;
-                const reps = form.reps ?? NaN;
+                const added = Number((form as any).addedWeight);
+                const reps = Number((form as any).reps);
                 if (!Number.isFinite(added)) throw new Error("请填写附加负重");
                 if (!Number.isFinite(reps) || reps < 1 || reps > 36) throw new Error("完成次数必须在 1-36 之间");
                 const adjustedAdded = added - penalty;
@@ -431,8 +431,8 @@ export default function StreetliftingCalculatorPage() {
             }
 
             if (mode === "reverse_weight") {
-                const added1RM = form.added1RM ?? NaN;
-                const reps = form.reps ?? NaN;
+                const added1RM = Number((form as any).added1RM);
+                const reps = Number((form as any).reps);
                 if (!Number.isFinite(added1RM)) throw new Error("请填写负重1RM");
                 if (!Number.isFinite(reps) || reps < 1 || reps > 36) throw new Error("完成次数必须在 1-36 之间");
                 const targetTotal1RM = bodyweight + added1RM;
@@ -454,8 +454,8 @@ export default function StreetliftingCalculatorPage() {
             }
 
             if (mode === "reverse_reps") {
-                const added1RM = form.added1RM ?? NaN;
-                const workingAdded = form.workingAddedWeight ?? NaN;
+                const added1RM = Number((form as any).added1RM);
+                const workingAdded = Number((form as any).workingAddedWeight);
                 if (!Number.isFinite(added1RM)) throw new Error("请填写负重1RM");
                 if (!Number.isFinite(workingAdded)) throw new Error("请填写做组重量（附加负重）");
 
@@ -479,20 +479,20 @@ export default function StreetliftingCalculatorPage() {
             }
 
             if (mode === "day_max") {
-                const sets = form.sets ?? NaN;
-                const reps = form.reps ?? NaN;
-                const added = form.addedWeight ?? NaN;
+                const sets = Number((form as any).sets);
+                const reps = Number((form as any).reps);
+                const added = Number((form as any).addedWeight);
                 if (!Number.isFinite(sets) || sets <= 0) throw new Error("请填写有效的组数");
                 if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的每组次数");
                 if (!Number.isFinite(added)) throw new Error("请填写做组重量（附加负重）");
                 const restCat = (form.restCat || "long") as NonNullable<FormState["restCat"]>;
 
                 const firstSet =
-                    form.dayFirstType && Number.isFinite(form.dayFirstValue ?? NaN)
+                    form.dayFirstType && Number.isFinite(Number((form as any).dayFirstValue))
                         ? { type: form.dayFirstType, value: form.dayFirstValue as number }
                         : undefined;
                 const lastSet =
-                    form.dayLastType && Number.isFinite(form.dayLastValue ?? NaN)
+                    form.dayLastType && Number.isFinite(Number((form as any).dayLastValue))
                         ? { type: form.dayLastType, value: form.dayLastValue as number }
                         : undefined;
                 if (!firstSet && !lastSet) throw new Error("请至少输入第一组或最后一组的信息");
