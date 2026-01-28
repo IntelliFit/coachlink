@@ -12,7 +12,8 @@ export async function POST(req: Request) {
     try {
         await getServerSession();
         const body = await req.json().catch(() => ({} as StreetliftingListFormulasDto));
-        const { exercise_type } = body;
+        // 兼容：支持 snake_case / camelCase 两种字段名
+        const exercise_type = body.exercise_type || body.exerciseType;
 
         const db = serviceRoleSupabase;
         let query = db
@@ -21,10 +22,11 @@ export async function POST(req: Request) {
             .order("last_updated", { ascending: false });
 
         if (exercise_type) {
-            query = query.eq("exercise_type", exercise_type);
+            // Supabase TS 在这里容易出现“类型实例化过深”的推导问题；route 内无需强类型推导
+            query = (query as any).eq("exercise_type", exercise_type);
         }
 
-        const { data, error } = await query;
+        const { data, error } = await (query as any);
 
         if (error) {
             console.error("[streetlifting-index][formulas] error:", error);
@@ -35,11 +37,20 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
+        // 公式表为空时，视为未初始化（否则前端会表现为“力量分全是0/未找到公式”）
+        if (!data || data.length === 0) {
+            return NextResponse.json<ApiData<StreetliftingListFormulasResponseDto>>({
+                success: false,
+                message: "公式未初始化：streetlifting_formulas 为空，请先执行迁移/seed",
+                data: null,
+            }, { status: 500 });
+        }
+
         return NextResponse.json<ApiData<StreetliftingListFormulasResponseDto>>({
             success: true,
             message: "获取公式成功",
             data: {
-                formulas: data || [],
+                formulas: (data || []) as any,
             },
         });
     } catch (error) {

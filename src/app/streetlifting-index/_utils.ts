@@ -42,6 +42,7 @@ export function computeDOTSCoefficient(weight: number, isMale: boolean) {
 export function computeCoefficient(
     bodyweight: number,
     formula: {
+        coeff_a?: number;
         coeff_b: number;
         coeff_c: number;
         coeff_d: number;
@@ -49,14 +50,19 @@ export function computeCoefficient(
         coeff_f: number;
     },
 ) {
-    const W = bodyweight;
-    return (
-        formula.coeff_b * Math.pow(W, 4) +
-        formula.coeff_c * Math.pow(W, 3) +
-        formula.coeff_d * Math.pow(W, 2) +
-        formula.coeff_e * W +
-        formula.coeff_f
-    );
+    // 兼容：后端可能返回 string / null（或未来公式引入 coeff_a）
+    const W = Number(bodyweight);
+    if (!Number.isFinite(W)) return 0;
+
+    const a = Number((formula as any)?.coeff_a ?? 0);
+    const b = Number((formula as any)?.coeff_b ?? 0);
+    const c = Number((formula as any)?.coeff_c ?? 0);
+    const d = Number((formula as any)?.coeff_d ?? 0);
+    const e = Number((formula as any)?.coeff_e ?? 0);
+    const f = Number((formula as any)?.coeff_f ?? 0);
+
+    const coeff = a * Math.pow(W, 5) + b * Math.pow(W, 4) + c * Math.pow(W, 3) + d * Math.pow(W, 2) + e * W + f;
+    return Number.isFinite(coeff) ? coeff : 0;
 }
 
 export function estimateTotal1RMFromTotalWeightAndReps(totalWeight: number, reps: number) {
