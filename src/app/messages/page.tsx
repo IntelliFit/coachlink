@@ -196,6 +196,7 @@ export default function MessagesPage() {
         setChatDialogVisible(true);
     };
 
+
     // 支持从「在线咨询」深链直达：/messages?peerUserId=xxx 或 /messages?coachId=xxx
     useEffect(() => {
         const userId = session?.user?.id;

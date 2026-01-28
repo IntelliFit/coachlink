@@ -59,11 +59,11 @@ export function GuideManager({ userRole }: GuideManagerProps) {
 
   // Debug logging
   useEffect(() => {
-    console.log('[GuideManager] userRole:', userRole, 'pathname:', pathname);
-    console.log('[GuideManager] completedGuides:', completedGuides);
-    console.log('[GuideManager] isLoading:', isLoading, 'isGuideActive:', isGuideActive);
-    console.log('[GuideManager] pause:', shouldPauseGuides, 'profileIncomplete:', isStudentProfileIncomplete);
-    console.log('[GuideManager] isInitialized:', isInitialized);
+    // console.log('[GuideManager] userRole:', userRole, 'pathname:', pathname);
+    // console.log('[GuideManager] completedGuides:', completedGuides);
+    // console.log('[GuideManager] isLoading:', isLoading, 'isGuideActive:', isGuideActive);
+    // console.log('[GuideManager] pause:', shouldPauseGuides, 'profileIncomplete:', isStudentProfileIncomplete);
+    // console.log('[GuideManager] isInitialized:', isInitialized);
   }, [userRole, pathname, completedGuides, isLoading, isGuideActive, shouldPauseGuides, isStudentProfileIncomplete, isInitialized]);
 
   // Trigger onboarding guide based on role

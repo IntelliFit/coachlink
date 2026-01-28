@@ -10,6 +10,7 @@ import { GuideProvider } from '@/stores/useGuideStore';
 import { GuideManager } from '@/components/guide/GuideManager';
 import { ChatProvider } from '@/context/ChatContext';
 import { NotificationPermissionProvider } from '@/context/NotificationPermissionContext';
+import { NotificationProvider } from '@/context/NotificationContext';
 import { CartProvider } from '@/context/CartContext';
 import Footer from './Footer';
 import { registerSw } from '@/lib/swRegistration';
@@ -76,21 +77,23 @@ export default function ClientLayout({
             <ToastContextProvider>
                 <LoginModalProvider>
                     <OnboardingModalProvider>
-                        <ChatProvider>
-                            <NotificationPermissionProvider>
-                                <CartProvider>
-                                    <GuideWrapper>
-                                    <div className="flex flex-col">
-                                        {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
-                                        <main className="flex-grow pb-24 min-h-screen">
-                                            {children}
-                                        </main>
-                                        <Footer />
-                                    </div>
-                                    </GuideWrapper>
-                                </CartProvider>
-                            </NotificationPermissionProvider>
-                        </ChatProvider>
+                        <NotificationProvider>
+                            <ChatProvider>
+                                <NotificationPermissionProvider>
+                                    <CartProvider>
+                                        <GuideWrapper>
+                                        <div className="flex flex-col">
+                                            {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
+                                            <main className="flex-grow pb-24 min-h-screen">
+                                                {children}
+                                            </main>
+                                            <Footer />
+                                        </div>
+                                        </GuideWrapper>
+                                    </CartProvider>
+                                </NotificationPermissionProvider>
+                            </ChatProvider>
+                        </NotificationProvider>
                     </OnboardingModalProvider>
                 </LoginModalProvider>
             </ToastContextProvider>

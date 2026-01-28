@@ -1,7 +1,7 @@
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { NextRequest } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import { sendPushToUser } from '@/lib/pushNotify';
+// 推送通知现在完全由前端通过 Service Worker 处理，不再需要后端推送
 
 export const runtime = 'nodejs'; // ⚠️ 不能是 edge
 
@@ -73,59 +73,10 @@ export async function GET(req: NextRequest) {
                                     // 这样可以确保即使数据库触发器没有正确触发事件，前端也能收到更新
                                     // 只有当消息不是当前用户发送的时才更新未读数
                                     const isIncomingMessage = payload.new?.sender_id !== userId;
-                                    console.log('isIncomingMessage', isIncomingMessage);
+                                    console.log(`[unified-stream] 收到消息事件 - 用户ID: ${userId}, 发送者ID: ${payload.new?.sender_id}, 是否接收消息: ${isIncomingMessage}`);
                                     
-                                    if (isIncomingMessage) {
-                                        // 触发 Web Push 系统通知（后台/锁屏推送）
-                                        // fire-and-forget，不阻塞 SSE 响应
-                                        try {
-                                            const messageContent = payload.new?.content || '';
-                                            const messageType = payload.new?.message_type || 'text';
-                                            let body = messageContent;
-                                            if (messageType === 'image') body = '[图片]';
-                                            else if (messageType === 'video_reference') body = messageContent || '[视频]';
-                                            else if (messageType === 'file') body = '[文件]';
-                                            
-                                            // 获取发送者信息（用于通知标题）
-                                            const senderId = payload.new?.sender_id;
-                                            let senderName = 'CoachLink';
-                                            if (senderId) {
-                                                try {
-                                                    const { data: senderProfile } = await supabase
-                                                        .from('user_profiles')
-                                                        .select('nickname, full_name')
-                                                        .eq('user_id', senderId)
-                                                        .single();
-                                                    if (senderProfile) {
-                                                        senderName = senderProfile.nickname || senderProfile.full_name || 'CoachLink';
-                                                    }
-                                                } catch {
-                                                    // 忽略获取发送者信息失败
-                                                }
-                                            }
-
-                                            sendPushToUser(userId, {
-                                                title: `${senderName}`,
-                                                body: body.slice(0, 80),
-                                                url: `/messages?peerUserId=${senderId}`,
-                                                tag: `chat-${messageRoomId}`,
-                                            }).then((result) => {
-                                                if (result.sent > 0) {
-                                                    console.log(`[unified-stream] 推送通知已发送给用户 ${userId}: ${result.sent} 条成功`);
-                                                } else if (result.failed > 0) {
-                                                    console.warn(`[unified-stream] 推送通知发送失败给用户 ${userId}: ${result.failed} 条失败`);
-                                                } else {
-                                                    console.log(`[unified-stream] 用户 ${userId} 没有推送订阅，跳过推送`);
-                                                }
-                                            }).catch((error) => {
-                                                // 记录错误但不阻塞 SSE
-                                                console.error(`[unified-stream] 推送通知异常 (用户 ${userId}):`, error?.message || error);
-                                            });
-                                        } catch (error) {
-                                            // 记录错误但不阻塞 SSE
-                                            console.error(`[unified-stream] 准备推送通知时出错 (用户 ${userId}):`, error);
-                                        }
-                                    }
+                                    // 注意：推送通知现在完全由前端通过 Service Worker 处理
+                                    // 前端通过 SSE 接收到消息后，会在 ChatContext 中自动显示通知
                                     
                                     if (isIncomingMessage) {
                                         try {
