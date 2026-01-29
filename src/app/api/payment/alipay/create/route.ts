@@ -22,13 +22,42 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
 
-    // Build a public baseUrl for Alipay callbacks (ngrok/prod) from request headers.
-    // This avoids relying on Alipay后台配置 when testing with ngrok.
-    const xfProto = req.headers.get("x-forwarded-proto");
-    const xfHost = req.headers.get("x-forwarded-host");
-    const host = req.headers.get("host");
-    const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
-    const baseUrl = `${proto}://${xfHost || host}`;
+    // 构建回调地址：优先使用环境变量（本地开发时可指向线上），否则从请求头推断
+    // 环境变量格式：ALIPAY_NOTIFY_URL=https://your-domain.com/api/payment/alipay/notify
+    //              ALIPAY_RETURN_URL=https://your-domain.com/api/payment/alipay/return
+    const envNotifyUrl = process.env.ALIPAY_NOTIFY_URL;
+    const envReturnUrl = process.env.ALIPAY_RETURN_URL;
+    
+    let notifyUrl: string;
+    let returnUrl: string;
+    
+    if (envNotifyUrl && envReturnUrl) {
+        // 使用环境变量（本地开发时指向线上地址，或使用 ngrok 等内网穿透）
+        notifyUrl = envNotifyUrl;
+        returnUrl = envReturnUrl;
+        console.log(`[Alipay Create] 使用环境变量回调地址: notify=${notifyUrl}, return=${returnUrl}`);
+    } else {
+        // 从请求头推断（适用于生产环境或 ngrok）
+        const xfProto = req.headers.get("x-forwarded-proto");
+        const xfHost = req.headers.get("x-forwarded-host");
+        const host = req.headers.get("host");
+        const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
+        const baseUrl = `${proto}://${xfHost || host}`;
+        notifyUrl = `${baseUrl}/api/payment/alipay/notify`;
+        returnUrl = `${baseUrl}/api/payment/alipay/return`;
+        console.log(`[Alipay Create] 从请求头推断回调地址: notify=${notifyUrl}, return=${returnUrl}`);
+        
+        // 警告：本地开发时支付宝无法访问 localhost，建议设置环境变量
+        if (host?.includes("localhost") || host?.includes("127.0.0.1")) {
+            console.warn(
+                `[Alipay Create] ⚠️  检测到本地开发环境，支付宝无法访问 localhost！\n` +
+                `建议设置环境变量：\n` +
+                `  ALIPAY_NOTIFY_URL=https://你的线上域名/api/payment/alipay/notify\n` +
+                `  ALIPAY_RETURN_URL=https://你的线上域名/api/payment/alipay/return\n` +
+                `或者使用 ngrok 等内网穿透工具，并设置 x-forwarded-host 头。`
+            );
+        }
+    }
 
     // 读取参数
     const {
@@ -178,8 +207,8 @@ export async function POST(req: Request) {
     if (isMobile) {
         // 移动端使用 wap.pay，可以唤起支付宝APP
         result = alipaySdk.pageExec("alipay.trade.wap.pay", {
-            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
-            returnUrl: `${baseUrl}/api/payment/alipay/return`,
+            notifyUrl,
+            returnUrl,
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: resolvedTotalAmount.toFixed(2),
@@ -190,8 +219,8 @@ export async function POST(req: Request) {
     } else {
         // PC端使用 page.pay，显示二维码
         result = alipaySdk.pageExec("alipay.trade.page.pay", {
-            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
-            returnUrl: `${baseUrl}/api/payment/alipay/return`,
+            notifyUrl,
+            returnUrl,
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: resolvedTotalAmount.toFixed(2),
