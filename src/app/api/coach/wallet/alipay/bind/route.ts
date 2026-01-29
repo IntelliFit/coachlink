@@ -59,6 +59,27 @@ export async function POST(req: Request) {
     const { data: coach } = await supabase.from("coaches").select("id").eq("user_id", session.user.id).single();
     if (!coach) return NextResponse.json({ success: false, message: "未找到教练信息", data: null }, { status: 404 });
 
+    // 检查是否有未完成的提现（pending 状态）
+    const { data: pendingWithdrawals, error: checkErr } = await supabase
+        .from("alipay_withdrawals")
+        .select("id")
+        .eq("coach_id", coach.id)
+        .eq("status", "pending")
+        .limit(1);
+
+    if (checkErr) {
+        console.error("[Alipay Bind] Check pending withdrawals error", checkErr);
+        return NextResponse.json({ success: false, message: "检查提现状态失败", data: null }, { status: 500 });
+    }
+
+    if (pendingWithdrawals && pendingWithdrawals.length > 0) {
+        return NextResponse.json({
+            success: false,
+            message: "您有未完成的提现申请，请先完成或撤回后再修改支付宝信息",
+            data: null,
+        }, { status: 400 });
+    }
+
     const now = new Date().toISOString();
     const payeeType = normalizePayeeType(body.payee_type);
     if (payeeType === "ALIPAY_LOGON_ID" && !body.real_name) {

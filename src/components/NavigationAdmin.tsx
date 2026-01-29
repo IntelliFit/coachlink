@@ -16,7 +16,7 @@ import { adminService } from '@/app/service/adminService';
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
 import type { UserProfilesRow } from '@/types';
-import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings } from 'lucide-react';
+import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings, Banknote } from 'lucide-react';
 
 export default function NavigationAdmin() {
     const pathname = usePathname();
@@ -105,6 +105,13 @@ export default function NavigationAdmin() {
             url: '/admin/payments',
             command: () => router.push('/admin/payments'),
             badge: navData?.paymentUnreviewed || 0,
+            template: itemRenderer
+        },
+        {
+            label: '提现管理',
+            icon: Banknote,
+            url: '/admin/withdrawals',
+            command: () => router.push('/admin/withdrawals'),
             template: itemRenderer
         },
         {

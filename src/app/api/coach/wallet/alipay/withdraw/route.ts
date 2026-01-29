@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
 import type { WithdrawDto, WithdrawResponse } from "../entity";
-import { AlipaySdk } from "alipay-sdk";
 
 const normalizePayeeType = (input?: string | null) => {
     if (!input) return "ALIPAY_LOGON_ID";
@@ -15,6 +15,7 @@ async function getCoachIdByUser(userId: string) {
     return coach?.id || null;
 }
 
+/** 教练发起提现：发起即扣款，人工转账，48 小时内到账 */
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -34,14 +35,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "单笔提现金额不能低于 0.10 元", data: null }, { status: 400 });
     }
 
-    // Load wallet
     const { data: wallet } = await supabase.from("coach_wallets").select("balance, frozen_amount").eq("coach_id", coachId).single();
     const balance = Number(wallet?.balance || 0);
     if (balance < amount) {
         return NextResponse.json({ success: false, message: "余额不足", data: null }, { status: 400 });
     }
 
-    // Find account to pay to
     const { data: account } = await supabase.from("alipay_accounts").select("id, payee_account, payee_type, real_name, verified").eq("coach_id", coachId).single();
     if (!account) {
         return NextResponse.json({ success: false, message: "未绑定支付宝账户，请先绑定", data: null }, { status: 400 });
@@ -52,111 +51,72 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "该支付宝账号缺少实名信息，请重新绑定并填写真实姓名", data: null }, { status: 400 });
     }
 
-    // create withdrawal record and deduct balance
     const out_biz_no = `wd_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
 
-    // 1) Create withdrawal record
+    // 1) 创建提现记录（pending）
     const { data: withdrawal, error: werr } = await serviceRoleSupabase.from("alipay_withdrawals").insert({
         wallet_id: coachId,
         coach_id: coachId,
         amount,
         fee: 0,
-        status: 'pending',
+        status: "pending",
         out_biz_no,
-        created_at: new Date().toISOString()
+        created_at: now,
     }).select().single();
 
     if (werr || !withdrawal) {
-        return NextResponse.json({ success: false, message: werr?.message || '创建提现记录失败', data: null }, { status: 500 });
+        return NextResponse.json({ success: false, message: werr?.message || "创建提现记录失败", data: null }, { status: 500 });
     }
 
-    // 2) Deduct wallet balance and insert withdrawal transaction
+    // 2) 扣减余额并写入提现流水（发起即扣款，防止重复提现同一笔余额）
     try {
-        await serviceRoleSupabase.from("coach_wallets").update({ balance: balance - amount, updated_at: new Date().toISOString() }).eq('coach_id', coachId);
-        await serviceRoleSupabase.from('wallet_transactions').insert({ wallet_id: coachId, amount: -Math.abs(amount), type: 'withdrawal', description: `提现 ${amount.toFixed(2)}`, created_at: new Date().toISOString() });
+        await serviceRoleSupabase.from("coach_wallets").update({ balance: balance - amount, updated_at: now }).eq("coach_id", coachId);
+        await serviceRoleSupabase.from("wallet_transactions").insert({
+            wallet_id: coachId,
+            amount: -Math.abs(amount),
+            type: "withdrawal",
+            description: `提现 ${amount.toFixed(2)}（待到账）`,
+            related_withdrawal_id: withdrawal.id,
+            created_at: now,
+        });
     } catch (err) {
-        console.error('[Withdraw] Deduct wallet failed', err);
-        await serviceRoleSupabase.from('alipay_withdrawals').update({ status: 'failed', processed_at: new Date().toISOString() }).eq('id', withdrawal.id);
-        return NextResponse.json({ success: false, message: '钱包扣款失败', data: null }, { status: 500 });
+        console.error("[Withdraw] Deduct wallet failed", err);
+        await serviceRoleSupabase.from("alipay_withdrawals").update({ status: "failed", processed_at: now }).eq("id", withdrawal.id);
+        return NextResponse.json({ success: false, message: "钱包扣款失败", data: null }, { status: 500 });
     }
 
-    // 3) Call Alipay transfer API (or mock in dev)
-
-    const { ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY, ALIPAY_GATEWAY } = process.env;
-    if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
-        // Refund and fail: configuration incomplete
-        await serviceRoleSupabase.from('alipay_withdrawals').update({ status: 'failed', alipay_response: { error: 'missing_alipay_config' }, processed_at: new Date().toISOString() }).eq('id', withdrawal.id);
-        // refund
-        await serviceRoleSupabase.from('coach_wallets').update({ balance: balance, updated_at: new Date().toISOString() }).eq('coach_id', coachId);
-        await serviceRoleSupabase.from('wallet_transactions').insert({ wallet_id: coachId, amount: amount, type: 'refund', description: '提现失败，退款', created_at: new Date().toISOString() });
-        return NextResponse.json({ success: false, message: '支付宝未配置，无法发起提现', data: null }, { status: 500 });
-    }
-
-    const alipaySdk = new AlipaySdk({ appId: ALIPAY_APP_ID, privateKey: ALIPAY_PRIVATE_KEY, alipayPublicKey: ALIPAY_PUBLIC_KEY, gateway: ALIPAY_GATEWAY });
-
-    try {
-        const payeeInfo: Record<string, string> = {
-            identity: account.payee_account,
-            identity_type: identityType,
-        };
-        if (account.real_name) {
-            payeeInfo.name = account.real_name;
-        }
-
-        const bizContent = {
-            out_biz_no,
-            trans_amount: amount.toFixed(2),
-            biz_scene: 'DIRECT_TRANSFER',
-            product_code: 'TRANS_ACCOUNT_NO_PWD',
-            order_title: '教练钱包提现',
-            payee_info: payeeInfo,
-            remark: `教练提现 ${coachId}`,
-        } as const;
-
-        const resp = await alipaySdk.exec('alipay.fund.trans.uni.transfer', { bizContent });
-        const transferResponse = (resp as any)?.alipay_fund_trans_uni_transfer_response ?? resp;
-
-        if (transferResponse?.code === '10000' && transferResponse?.status === 'SUCCESS') {
-            await serviceRoleSupabase
-                .from('alipay_withdrawals')
-                .update({
-                    status: 'success',
-                    alipay_order_id: transferResponse.order_id || null,
-                    alipay_response: transferResponse,
-                    processed_at: new Date().toISOString(),
-                })
-                .eq('id', withdrawal.id);
-
-            return NextResponse.json({ success: true, message: '提现成功', data: { id: withdrawal.id, status: 'success', out_biz_no } as WithdrawResponse });
-        }
-
-        const failMsg =  '提现失败，请稍后再试';
-        console.error('[Alipay Transfer] failed:', transferResponse);
-        await serviceRoleSupabase
-            .from('alipay_withdrawals')
-            .update({ status: 'failed', alipay_response: transferResponse, processed_at: new Date().toISOString() })
-            .eq('id', withdrawal.id);
-        await serviceRoleSupabase.from('coach_wallets').update({ balance: balance, updated_at: new Date().toISOString() }).eq('coach_id', coachId);
-        await serviceRoleSupabase.from('wallet_transactions').insert({ wallet_id: coachId, amount: amount, type: 'refund', description: '提现失败，退款', created_at: new Date().toISOString() });
-        return NextResponse.json({ success: false, message: failMsg, data: null }, { status: 500 });
-    } catch (err) {
-        console.error('[Alipay Transfer] error:', err);
-        await serviceRoleSupabase.from('alipay_withdrawals').update({ status: 'failed', alipay_response: { error: String(err) }, processed_at: new Date().toISOString() }).eq('id', withdrawal.id);
-        await serviceRoleSupabase.from('coach_wallets').update({ balance: balance, updated_at: new Date().toISOString() }).eq('coach_id', coachId);
-        await serviceRoleSupabase.from('wallet_transactions').insert({ wallet_id: coachId, amount: amount, type: 'refund', description: '提现失败，退款', created_at: new Date().toISOString() });
-        return NextResponse.json({ success: false, message: '调用支付宝接口异常，已退款', data: null }, { status: 500 });
-    }
+    return NextResponse.json<ApiData<WithdrawResponse>>({
+        success: true,
+        message: "提现申请已提交，预计 48 小时内到账",
+        data: { id: withdrawal.id, status: "pending", out_biz_no },
+    });
 }
 
+/** 单条提现详情（仅本人） */
 export async function GET(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({ success: false, message: "用户未登录", data: null }, { status: 401 });
     }
+    const coachId = await getCoachIdByUser(session.user.id);
+    if (!coachId) return NextResponse.json({ success: false, message: "未找到教练信息", data: null }, { status: 404 });
+
     const url = new URL(req.url);
-    const id = url.searchParams.get('id');
-    if (!id) return NextResponse.json({ success: false, message: '缺少提现ID', data: null }, { status: 400 });
-    const { data } = await supabase.from('alipay_withdrawals').select('*').eq('id', id).single();
-    if (!data) return NextResponse.json({ success: false, message: '未找到记录', data: null }, { status: 404 });
-    return NextResponse.json({ success: true, message: '提现记录', data });
+    const id = url.searchParams.get("id");
+    if (!id) {
+        // 列表：该教练所有提现记录
+        const { data: rows, error } = await supabase
+            .from("alipay_withdrawals")
+            .select("id, amount, fee, status, out_biz_no, alipay_order_id, created_at, processed_at")
+            .eq("coach_id", coachId)
+            .order("created_at", { ascending: false })
+            .limit(100);
+        if (error) return NextResponse.json({ success: false, message: error.message, data: null }, { status: 500 });
+        return NextResponse.json({ success: true, message: "提现记录", data: rows ?? [] });
+    }
+
+    const { data } = await supabase.from("alipay_withdrawals").select("*").eq("id", id).eq("coach_id", coachId).single();
+    if (!data) return NextResponse.json({ success: false, message: "未找到记录", data: null }, { status: 404 });
+    return NextResponse.json({ success: true, message: "提现记录", data });
 }
