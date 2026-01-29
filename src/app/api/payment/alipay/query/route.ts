@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
-import { AlipaySdk } from 'alipay-sdk';
+import { createAlipaySdk } from '@/lib/alipaySdk';
 
 import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
@@ -73,7 +73,7 @@ const updateTransactionAndWallet = async (order: any) => {
 }
 
 const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string | null; tradeStatus: string | null }> => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (false) {
         // Mock response for non-production environments
         console.log('[Alipay Query] 开发环境无法调用真实接口，直接认为支付成功');
         return {
@@ -81,12 +81,8 @@ const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string |
             tradeStatus: 'TRADE_SUCCESS'
         }
     } else {
-        const alipaySdk = new AlipaySdk({
-            appId: process.env.ALIPAY_APP_ID,
-            privateKey: process.env.ALIPAY_PRIVATE_KEY,
-            alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
-            gateway: process.env.ALIPAY_GATEWAY
-        });
+        // 使用统一的初始化工具，支持代理配置
+        const alipaySdk = createAlipaySdk();
 
         const response = await alipaySdk.exec('alipay.trade.query', {
             bizContent: {

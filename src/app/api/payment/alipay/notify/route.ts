@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { fulfillmentService } from "@/app/service/fulfillmentService";
-import { AlipaySdk } from "alipay-sdk";
+import { createAlipaySdk } from "@/lib/alipaySdk";
 import { sendSystemMessage } from "@/lib/chat";
 
 export async function POST(req: Request) {
@@ -34,14 +34,10 @@ export async function POST(req: Request) {
         console.log("[Alipay Notify] Received params:", params);
 
         // Verify Signature
-        const { ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY } =
-            process.env;
+        const { ALIPAY_PUBLIC_KEY } = process.env;
         if (ALIPAY_PUBLIC_KEY) {
-            const alipaySdk = new AlipaySdk({
-                appId: ALIPAY_APP_ID!,
-                privateKey: ALIPAY_PRIVATE_KEY!,
-                alipayPublicKey: ALIPAY_PUBLIC_KEY,
-            });
+            // 使用统一的初始化工具，支持代理配置
+            const alipaySdk = createAlipaySdk();
             // Try/Catch checking signature to prevent crashing
             try {
                 const valid = alipaySdk.checkNotifySign(params);
