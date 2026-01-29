@@ -40,25 +40,9 @@ export async function POST(req: Request) {
         isMobile = false,
     } = (await req.json()) as CreateAlipayOrderDto;
 
-    if (!subject || !totalAmount) {
+    if (!totalAmount) {
         return NextResponse.json(
             { success: false, message: "缺少必要参数", data: null },
-            { status: 400 },
-        );
-    }
-
-    // Guardrail: prevent 1-cent undercharge in production unless explicitly enabled for testing.
-    // This endpoint is used for coach subscription payments; amounts should never be test values online.
-    const testPricingEnabled =
-        process.env.NODE_ENV !== "production" &&
-        process.env.PAYMENT_TEST_PRICING === "true";
-    if (
-        process.env.NODE_ENV === "production" &&
-        !testPricingEnabled &&
-        Number(totalAmount) < 1
-    ) {
-        return NextResponse.json(
-            { success: false, message: "支付金额异常，请联系管理员", data: null },
             { status: 400 },
         );
     }
@@ -68,10 +52,18 @@ export async function POST(req: Request) {
     const od: any = orderData || {};
     const subscriptionId = od.subscriptionId as string | undefined;
     const coachId = od.coachId as string | undefined;
+    const contentId = od.contentId as string | undefined;
 
+    let subjectText = String(subject || "");
     let resolvedTotalAmount = Number(totalAmount);
 
     if (orderType === "subscription" || orderType === "subscription_renew") {
+        if (!subjectText) {
+            return NextResponse.json(
+                { success: false, message: "缺少必要参数", data: null },
+                { status: 400 },
+            );
+        }
         if (!subscriptionId) {
             return NextResponse.json(
                 { success: false, message: "缺少订阅ID，无法创建平台支付订单", data: null },
@@ -113,6 +105,68 @@ export async function POST(req: Request) {
         }
     }
 
+    // Content purchase: never trust client-provided amount/subject.
+    if (orderType === "content_purchase") {
+        if (!contentId) {
+            return NextResponse.json(
+                { success: false, message: "缺少内容ID，无法创建支付订单", data: null },
+                { status: 400 },
+            );
+        }
+
+        const { data: content, error: contentErr } = await serviceRoleSupabase
+            .from("coach_contents")
+            .select(
+                `
+                id,
+                title,
+                price_cents,
+                coach:coaches(status)
+            `,
+            )
+            .eq("id", contentId)
+            .maybeSingle();
+
+        if (contentErr || !content) {
+            return NextResponse.json(
+                { success: false, message: "内容不存在，无法创建支付订单", data: null },
+                { status: 400 },
+            );
+        }
+        if ((content as any)?.coach?.status !== "approved") {
+            return NextResponse.json(
+                { success: false, message: "内容不可购买", data: null },
+                { status: 400 },
+            );
+        }
+
+        const priceCents = Number((content as any).price_cents ?? 0);
+        if (!priceCents || priceCents <= 0) {
+            return NextResponse.json(
+                { success: false, message: "该内容为免费内容，无需支付", data: null },
+                { status: 400 },
+            );
+        }
+
+        resolvedTotalAmount = priceCents / 100;
+        subjectText = `购买文章 ${(content as any).title || ""}`.trim();
+    }
+
+    // Guardrail: prevent 1-cent undercharge in production unless explicitly enabled for testing.
+    const testPricingEnabled =
+        process.env.NODE_ENV !== "production" &&
+        process.env.PAYMENT_TEST_PRICING === "true";
+    if (
+        process.env.NODE_ENV === "production" &&
+        !testPricingEnabled &&
+        Number(resolvedTotalAmount) < 1
+    ) {
+        return NextResponse.json(
+            { success: false, message: "支付金额异常，请联系管理员", data: null },
+            { status: 400 },
+        );
+    }
+
     // 读取支付宝配置
     const {
         ALIPAY_APP_ID,
@@ -140,7 +194,7 @@ export async function POST(req: Request) {
     const { data: order, error: orderError } = await supabase
         .from("alipay_orders")
         .insert({
-            subject,
+            subject: subjectText,
             total_amount: resolvedTotalAmount,
             order_type: orderType,
             order_data: orderData,
@@ -188,7 +242,7 @@ export async function POST(req: Request) {
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: resolvedTotalAmount.toFixed(2),
-                subject,
+                subject: subjectText,
                 product_code: "QUICK_WAP_WAY",
             },
         });
@@ -200,7 +254,7 @@ export async function POST(req: Request) {
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: resolvedTotalAmount.toFixed(2),
-                subject,
+                subject: subjectText,
                 product_code: "FAST_INSTANT_TRADE_PAY",
                 qr_pay_mode: "0",
             },

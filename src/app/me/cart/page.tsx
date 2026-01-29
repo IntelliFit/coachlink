@@ -168,9 +168,9 @@ export default function CartPage() {
                         <div className="py-20 text-center">
                             <Package className="w-16 h-16 text-surface-200 mx-auto mb-4" />
                             <h3 className="text-xl font-black text-surface-900 tracking-tight mb-2">购物车是空的</h3>
-                            <p className="text-surface-500 mb-6">快去发现教练，添加服务到购物车吧</p>
+                            <p className="text-surface-500 mb-6">快去发现，添加服务到购物车吧</p>
                             <Button
-                                label="发现教练"
+                                label="去发现"
                                 icon="pi pi-search"
                                 onClick={() => router.push('/coach/discovery')}
                                 className="rounded-2xl"

@@ -98,7 +98,7 @@ export const MyCoachesList: React.FC<MyCoachesListProps> = ({}) => {
                 <div className="text-center py-8 bg-surface-50 rounded-xl border border-dashed border-surface-200">
                     <p className="text-surface-500 mb-4">暂无订阅的教练</p>
                     <Button 
-                        label="发现教练" 
+                        label="发现" 
                         icon="pi pi-search" 
                         size="small" 
                         onClick={() => router.push('/coach/discovery')}
