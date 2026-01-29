@@ -6,7 +6,7 @@ import type {
     CreateAlipayOrderDto,
     CreateAlipayOrderResponseDto,
 } from "./entity";
-import { AlipaySdk } from "alipay-sdk";
+import { createAlipaySdk } from "@/lib/alipaySdk";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
@@ -128,13 +128,8 @@ export async function POST(req: Request) {
         );
     }
 
-    // 初始化 alipay-sdk
-    const alipaySdk = new AlipaySdk({
-        appId: ALIPAY_APP_ID,
-        privateKey: ALIPAY_PRIVATE_KEY,
-        alipayPublicKey: ALIPAY_PUBLIC_KEY,
-        gateway: ALIPAY_GATEWAY,
-    });
+    // 初始化 alipay-sdk（使用统一的初始化工具，支持代理配置）
+    const alipaySdk = createAlipaySdk();
 
     // 写入订单到数据库
     const { data: order, error: orderError } = await supabase
