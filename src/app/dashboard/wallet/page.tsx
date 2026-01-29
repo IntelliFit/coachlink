@@ -222,7 +222,7 @@ export default function CoachWalletPage() {
                                         </div>
                                     </div>
                                     <div className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
-                                        {tx.type === 'income' ? '+' : '-'}{tx.amount.toFixed(2)}
+                                        {tx.type === 'income' ? '+' : '-'}{Math.abs(tx.amount).toFixed(2)}
                                     </div>
                                 </div>
                             );
