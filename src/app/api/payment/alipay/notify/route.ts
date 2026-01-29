@@ -40,25 +40,22 @@ export async function POST(req: Request) {
 
         console.log("[Alipay Notify] Received params:", params);
 
-        // 验签：生产环境必须通过，否则返回 fail 让支付宝重试
+        // 安全：必须验签。支付宝用私钥对通知参数签名，我方用公钥校验，伪造请求无法通过
         const { ALIPAY_PUBLIC_KEY } = process.env;
-        if (ALIPAY_PUBLIC_KEY) {
-            const alipaySdk = createAlipaySdk();
-            try {
-                const valid = alipaySdk.checkNotifySign(params);
-                const isMock = params.sign === "mock_sign";
-                const isProd = process.env.NODE_ENV === "production";
-                if (!valid) {
-                    if (isProd || !isMock) {
-                        console.error("[Alipay Notify] Signature invalid, returning fail");
-                        return new Response("fail", { status: 400 });
-                    }
-                    console.warn("[Alipay Notify] Signature invalid but proceeding (non-prod mock)");
-                }
-            } catch (err) {
-                console.error("[Alipay Notify] Sign check error:", err);
+        if (!ALIPAY_PUBLIC_KEY) {
+            console.error("[Alipay Notify] ALIPAY_PUBLIC_KEY 未配置，拒绝处理");
+            return new Response("fail", { status: 500 });
+        }
+        const alipaySdk = createAlipaySdk();
+        try {
+            const valid = alipaySdk.checkNotifySign(params);
+            if (!valid) {
+                console.error("[Alipay Notify] 验签失败，拒绝处理（可能为伪造请求）");
                 return new Response("fail", { status: 400 });
             }
+        } catch (err) {
+            console.error("[Alipay Notify] 验签异常:", err);
+            return new Response("fail", { status: 400 });
         }
 
         const { out_trade_no, trade_status, trade_no, total_amount } = params;
