@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter, ShoppingCart, Package } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter, ShoppingCart, Package, User, Layers, BookOpen, ShieldCheck } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -40,6 +40,40 @@ const CoachDiscoveryPage: React.FC = () => {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
     const { addToCart } = useCart();
+
+    const categories = useMemo(
+        () => [
+            {
+                title: '服务商品',
+                desc: '教练订阅/计划服务商品',
+                icon: Layers,
+                href: '/market',
+                color: 'bg-primary-50 text-primary-700',
+            },
+            {
+                title: '发现',
+                desc: '教练/商品/内容一站式',
+                icon: Users,
+                href: '/coach/discovery',
+                color: 'bg-amber-50 text-amber-700',
+            },
+            {
+                title: '健身资讯',
+                desc: '训练相关内容与实践',
+                icon: BookOpen,
+                href: '/articles',
+                color: 'bg-indigo-50 text-indigo-700',
+            },
+            {
+                title: '入驻流程',
+                desc: '教练/健身房入驻教程',
+                icon: ShieldCheck,
+                href: '/onboarding',
+                color: 'bg-emerald-50 text-emerald-700',
+            },
+        ],
+        [],
+    );
 
     // 推荐动作（公共动作库）
     const [recommendedActions, setRecommendedActions] = useState<PublicActionItemDto[]>([]);
@@ -103,7 +137,7 @@ const CoachDiscoveryPage: React.FC = () => {
                 });
                 if (!cancelled) setRecommendedActions(res?.actions || []);
             } catch (e) {
-                // 静默失败：不影响核心发现教练流程
+        // 静默失败：不影响核心发现流程
                 if (!cancelled) setRecommendedActions([]);
             } finally {
                 if (!cancelled) setRecommendedLoading(false);
@@ -173,7 +207,7 @@ const CoachDiscoveryPage: React.FC = () => {
         if (!coaches || coaches.length === 0) return;
         if (isGuideLoading) return;
         if (hasCompletedGuide('student_find_coach')) return;
-        // 专注模式下不显示发现教练的引导
+        // 专注模式下不显示发现的引导
         if (visibilityStatus?.focusMode) return;
         const t = setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 600);
         return () => clearTimeout(t);
@@ -356,79 +390,213 @@ const CoachDiscoveryPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-surface-50/50 py-4 md:py-8 px-4">
             <div className="max-w-5xl mx-auto">
-                {/* 头部标题区 */}
-                <header className="mb-6">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-surface-900 tracking-tight">发现教练</h1>
-                            <p className="text-surface-500 text-sm mt-1">找到最适合你的专业健身伙伴</p>
-                        </div>
-                        <Button
-                            icon="pi pi-question-circle"
-                            label={window.innerWidth < 768 ? "" : "新手引导"}
-                            outlined
-                            size="small"
-                            onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
-                            disabled={isGuideLoading}
-                            className="shrink-0 rounded-2xl border-primary-500 text-primary-500"
-                        />
-                    </div>
+                {/* 顶部栏：淘宝式搜索与入口（合并“首页+发现”） */}
+                <div className="sticky top-0 z-30 bg-surface-0/90 backdrop-blur border-b border-surface-100 rounded-2xl">
+                    <div className="px-4 py-3 flex items-center gap-3">
+                        <button
+                            onClick={() => router.push('/coach/discovery')}
+                            className="flex items-center gap-2 font-black tracking-tight text-surface-900"
+                        >
+                            <img src="/favicon.jpg" alt="" className="w-9 h-9 rounded-xl" />
+                            <span className="hidden sm:inline">发现</span>
+                        </button>
 
-                    {/* 搜索与筛选区域 - 响应式单行布局 */}
-                    <div className="mt-6 flex items-center gap-2 p-1.5 bg-surface-0 dark:bg-surface-50 rounded-2xl md:rounded-2xl shadow-sm border border-surface-100">
-                        {/* 搜索输入框 */}
-                        <div id="guide-discovery-search" className="flex-1 relative flex items-center">
-                            <InputText
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="搜索姓名或专长..."
-                                className="w-full border-none shadow-none bg-transparent py-2 text-surface-700"
-                            />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            {/* 筛选区域 */}
-                            <div id="guide-discovery-filter">
-                                {/* PC端：保持文字显示 */}
+                        <div className="flex-1 flex items-center gap-2">
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                                <InputText
+                                    id="guide-discovery-search"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') onSearchOrFilter();
+                                    }}
+                                    placeholder="搜索教练 / 专长 / 训练关键词"
+                                    className="w-full pl-10 rounded-2xl border-surface-200 bg-surface-50/70"
+                                />
+                            </div>
+                            <div id="guide-discovery-filter" className="hidden md:block">
                                 <Dropdown
                                     value={selectedSpecialty}
                                     options={specialties}
                                     onChange={(e) => setSelectedSpecialty(e.value)}
-                                    className="hidden md:flex w-44 bg-surface-50 border-none rounded-lg items-center"
+                                    className="w-44 bg-surface-50 border-none rounded-2xl items-center"
                                     pt={{
                                         input: { className: 'py-2 px-3 text-sm font-medium text-surface-600' }
                                     }}
                                 />
-                                {/* 移动端：图标化筛选，宽度收缩 */}
-                                <Dropdown
-                                    value={selectedSpecialty}
-                                    options={specialties}
-                                    onChange={(e) => setSelectedSpecialty(e.value)}
-                                    className="flex md:hidden bg-surface-50 border-none rounded-xl w-10 h-10 items-center justify-center"
-                                    dropdownIcon={() => <Filter size={16} className="text-surface-500" />}
-                                    pt={{
-                                        input: { className: 'hidden' },
-                                        trigger: { className: 'w-full h-full' }
-                                    }}
-                                />
                             </div>
-
-                            {/* 搜索按钮 */}
-                            {/* PC端：文字按钮 */}
                             <Button
-                                onClick={onSearchOrFilter}
+                                className="rounded-2xl"
                                 label="搜索"
-                                className="hidden md:flex bg-primary-500 border-none px-6 py-2 rounded-xl font-bold text-white shadow-sm"
-                            />
-                            {/* 移动端：图标按钮 */}
-                            <Button
                                 onClick={onSearchOrFilter}
-                                icon="pi pi-search"
-                                className="flex md:hidden bg-primary-500 border-none w-10 h-10 rounded-xl font-bold text-white shadow-sm active:scale-95"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-surface-50 active:scale-[0.99] transition"
+                                onClick={() => router.push('/me/cart')}
+                                aria-label="购物车"
+                            >
+                                <ShoppingCart className="w-5 h-5 text-surface-700" />
+                            </button>
+                            <button
+                                type="button"
+                                className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-surface-50 active:scale-[0.99] transition"
+                                onClick={() => (session?.user ? router.push('/today-training') : router.push('/login'))}
+                                aria-label="个人中心"
+                            >
+                                <User className="w-5 h-5 text-surface-700" />
+                            </button>
+                            <Button
+                                icon="pi pi-question-circle"
+                                label={""}
+                                outlined
+                                size="small"
+                                onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
+                                disabled={isGuideLoading}
+                                className="shrink-0 rounded-2xl border-primary-500 text-primary-500 hidden md:inline-flex"
                             />
                         </div>
                     </div>
-                </header>
+                </div>
+
+                {/* 首屏：PC 三栏 / 移动端栅格 */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* 左：分类（PC） */}
+                    <div className="hidden md:block md:col-span-3">
+                        <div className="rounded-3xl bg-surface border border-surface-100 p-4">
+                            <div className="text-xs font-black uppercase tracking-widest text-surface-500">
+                                分类
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                {categories.map((c) => (
+                                    <button
+                                        key={c.href}
+                                        onClick={() => router.push(c.href)}
+                                        className="w-full text-left rounded-2xl p-3 hover:bg-surface-50 transition flex items-center justify-between gap-3"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="font-black text-surface-900 tracking-tight">{c.title}</div>
+                                            <div className="text-xs text-surface-500 mt-0.5 line-clamp-1">{c.desc}</div>
+                                        </div>
+                                        <ArrowRight className="w-4 h-4 text-surface-300" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 中：理念 Banner + 移动端分类 */}
+                    <div className="md:col-span-6">
+                        <div className="rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white p-6 md:p-8 overflow-hidden relative">
+                            <div className="absolute -right-24 -top-24 w-64 h-64 bg-white/10 rounded-full blur-2xl" />
+                            <div className="relative">
+                                <div className="text-xs font-black uppercase tracking-widest text-white/80">
+                                    平台理念
+                                </div>
+                                <div className="mt-2 text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                                    打造高质量内容知识库
+                                    <br />
+                                    让小白到高手都能有所收获
+                                </div>
+                                <div className="mt-3 text-sm text-white/90 leading-relaxed">
+                                    我们用「体系化知识库 + 智能化执行记录」帮助你匹配高质量教练与训练内容。
+                                    <br />
+                                    教练分级认证（L1/L2/L3），价格透明、踏踏实实做教学，不鼓励议价套利。
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap gap-2 text-xs font-black tracking-tight">
+                                    {[
+                                        '智能化执行记录',
+                                        '高质量健身教学',
+                                        '健身资讯（非时事新闻）',
+                                        '匹配健身教练/搭子',
+                                        '三级教练分级（L1/L2/L3）',
+                                    ].map((t) => (
+                                        <span
+                                            key={t}
+                                            className="px-3 py-1 rounded-full bg-white/15 border border-white/20"
+                                        >
+                                            {t}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                <div className="mt-5 flex flex-wrap gap-2">
+                                    <Button
+                                        className="rounded-2xl bg-surface-0 text-surface-900 border-none"
+                                        label={session?.user ? '继续训练' : '登录后开始训练'}
+                                        onClick={() => (session?.user ? router.push('/today-training') : router.push('/login'))}
+                                    />
+                                    <Button
+                                        outlined
+                                        className="rounded-2xl border-white/40 text-white"
+                                        label="入驻成为教练"
+                                        onClick={() => router.push('/onboarding')}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 移动端：分类栅格 */}
+                        <div className="md:hidden mt-4 grid grid-cols-2 gap-3">
+                            {categories.map((c) => (
+                                <button
+                                    key={c.href}
+                                    onClick={() => router.push(c.href)}
+                                    className="text-left rounded-2xl bg-surface border border-surface-100 p-4 active:scale-[0.99] transition"
+                                >
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.color} mb-3`}>
+                                        <c.icon className="w-5 h-5" />
+                                    </div>
+                                    <div className="font-black text-surface-900 tracking-tight">{c.title}</div>
+                                    <div className="text-xs text-surface-500 mt-1 line-clamp-1">{c.desc}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 右：用户卡片（PC） */}
+                    <div className="hidden md:block md:col-span-3">
+                        <div className="rounded-3xl bg-surface border border-surface-100 p-5">
+                            <div className="text-xs font-black uppercase tracking-widest text-surface-500">
+                                账户
+                            </div>
+                            <div className="mt-3">
+                                {session?.user ? (
+                                    <>
+                                        <div className="font-black text-surface-900 tracking-tight">
+                                            欢迎回来
+                                        </div>
+                                        <div className="text-sm text-surface-500 mt-1">
+                                            去继续你的训练或查看订阅/订单。
+                                        </div>
+                                        <div className="mt-4 flex flex-col gap-2">
+                                            <Button className="rounded-2xl" label="继续训练" onClick={() => router.push('/today-training')} />
+                                            <Button outlined className="rounded-2xl" label="我的购物车" onClick={() => router.push('/me/cart')} />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="font-black text-surface-900 tracking-tight">
+                                            登录获取更多
+                                        </div>
+                                        <div className="text-sm text-surface-500 mt-1">
+                                            订阅教练、购买付费文章、查看训练档案。
+                                        </div>
+                                        <div className="mt-4 flex flex-col gap-2">
+                                            <Button className="rounded-2xl" label="立即登录" onClick={() => router.push('/login')} />
+                                            <Button outlined className="rounded-2xl" label="注册账号" onClick={() => router.push('/register')} />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {/* 混合流：推荐服务商品（类似电商首页的“推荐商品”区块） */}
                 <div className="mb-6">
@@ -472,7 +640,7 @@ const CoachDiscoveryPage: React.FC = () => {
                                 <div className="py-10 text-center bg-surface-50 rounded-2xl border border-dashed border-surface-200">
                                     <Package className="w-10 h-10 text-surface-200 mx-auto mb-2" />
                                     <div className="text-sm font-bold text-surface-700">暂无可推荐的服务商品</div>
-                                    <div className="text-xs text-surface-500 mt-1">你也可以先从下方列表发现教练</div>
+                                    <div className="text-xs text-surface-500 mt-1">你也可以先从下方列表继续发现</div>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

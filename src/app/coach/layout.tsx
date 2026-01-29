@@ -12,7 +12,7 @@ interface CoachLayoutProps {
 
 const COACH_TABS: { label: string; path: string }[] = [
     { label: '我的订阅', path: '/coach/subscription' },
-    { label: '发现教练', path: '/coach/discovery' }
+    { label: '发现', path: '/coach/discovery' }
 ];
 
 const CoachLayout: React.FC<CoachLayoutProps> = ({ children }) => {

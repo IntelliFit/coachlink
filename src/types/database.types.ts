@@ -505,6 +505,7 @@ export type Database = {
           is_featured: boolean | null
           likes_count: number | null
           media_urls: string[] | null
+          price_cents: number
           required_tier: number | null
           tags: string[] | null
           thumbnail_url: string | null
@@ -522,6 +523,7 @@ export type Database = {
           is_featured?: boolean | null
           likes_count?: number | null
           media_urls?: string[] | null
+          price_cents?: number
           required_tier?: number | null
           tags?: string[] | null
           thumbnail_url?: string | null
@@ -539,6 +541,7 @@ export type Database = {
           is_featured?: boolean | null
           likes_count?: number | null
           media_urls?: string[] | null
+          price_cents?: number
           required_tier?: number | null
           tags?: string[] | null
           thumbnail_url?: string | null
@@ -552,6 +555,61 @@ export type Database = {
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_purchases: {
+        Row: {
+          content_id: string
+          created_at: string
+          id: string
+          order_id: string | null
+          paid_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_id: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_purchases_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "coach_contents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_purchases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "alipay_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

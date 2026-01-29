@@ -142,6 +142,7 @@ export async function POST(req: Request) {
             const orderData = (alipayOrder.order_data || {}) as any;
             const subscriptionId = orderData?.subscriptionId as string | undefined;
             const coachId = orderData?.coachId as string | undefined;
+            const contentId = orderData?.contentId as string | undefined;
 
             if (
                 subscriptionId &&
@@ -204,6 +205,29 @@ export async function POST(req: Request) {
                             }
                         }
                     }
+                }
+            }
+
+            // 4. Content purchase (single-article unlock)
+            if (orderType === "content_purchase" && contentId) {
+                try {
+                    const nowIso = new Date().toISOString();
+                    await serviceRoleSupabase
+                        .from("content_purchases" as any)
+                        .upsert(
+                            {
+                                content_id: contentId,
+                                user_id: alipayOrder.user_id,
+                                order_id: alipayOrder.id,
+                                status: "paid",
+                                paid_at: nowIso,
+                                updated_at: nowIso,
+                            },
+                            { onConflict: "user_id,content_id" },
+                        );
+                } catch (e) {
+                    // Do not fail the callback; Alipay will retry if we return non-success.
+                    console.error("[Alipay Notify] Content purchase fulfill failed:", e);
                 }
             }
         }

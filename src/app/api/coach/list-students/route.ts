@@ -107,7 +107,7 @@ export async function POST(req: Request) {
         });
     }
 
-    const { pagination } = await req.json() as GetStudentsDto;
+    const { pagination, search, sort } = await req.json() as GetStudentsDto;
 
     // 1. 获取教练身份
     const { data: coachRow } = await supabase
@@ -129,16 +129,72 @@ export async function POST(req: Request) {
     const from = page * limit;
     const to = from + limit - 1;
 
-    const { data: subs, count, error: subsErr } = await supabase
+    // 2.1 可选：按昵称/手机号搜索学员（先在 user_profiles 找 user_id，再 in 查询订阅）
+    let filteredStudentIds: string[] | null = null;
+    // PostgREST 的 `or()` 过滤对逗号等字符较敏感；这里做一次轻量清洗，避免语法错误/性能问题
+    const q = (search || "")
+        .trim()
+        .replace(/[,\n\r\t]/g, " ")
+        .slice(0, 64);
+    if (q) {
+        const { data: matchedProfiles, error: profileErr } = await supabase
+            .from("user_profiles")
+            .select("user_id")
+            .or(`nickname.ilike.%${q}%,phone.ilike.%${q}%`)
+            .limit(5000);
+
+        if (profileErr) {
+            return NextResponse.json({ success: false, message: profileErr.message }, { status: 500 });
+        }
+
+        filteredStudentIds = Array.from(
+            new Set((matchedProfiles || []).map((p: any) => p.user_id).filter(Boolean)),
+        );
+
+        // 没有任何匹配：直接返回空列表（避免走订阅查询）
+        if (filteredStudentIds.length === 0) {
+            return NextResponse.json<ApiData<ListStudentsResponseDto>>({
+                success: true,
+                message: "ok",
+                data: {
+                    students: [],
+                    pagination: { page, limit, total: 0 },
+                },
+            });
+        }
+    }
+
+    // 2.2 固定且可控的排序：默认按订阅创建时间（created_at）排序，避免 updated_at 引起“顺序飘”
+    const sortMode = sort?.mode || "subscription_created_desc";
+    let subsQuery = supabase
         .from("coach_subscriptions")
         .select(
-            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks",
+            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, created_at",
             { count: "exact" },
         )
         .eq("coach_id", coachRow.id)
-        .eq("status", "active")
-        .order("updated_at", { ascending: false })
-        .range(from, to);
+        .eq("status", "active");
+
+    if (filteredStudentIds) {
+        subsQuery = subsQuery.in("student_id", filteredStudentIds);
+    }
+
+    if (sortMode === "subscription_created_asc") {
+        subsQuery = subsQuery
+            .order("created_at", { ascending: true, nullsFirst: false })
+            .order("id", { ascending: true });
+    } else if (sortMode === "subscription_updated_desc") {
+        subsQuery = subsQuery
+            .order("updated_at", { ascending: false, nullsFirst: false })
+            .order("id", { ascending: false });
+    } else {
+        // default: subscription_created_desc
+        subsQuery = subsQuery
+            .order("created_at", { ascending: false, nullsFirst: false })
+            .order("id", { ascending: false });
+    }
+
+    const { data: subs, count, error: subsErr } = await subsQuery.range(from, to);
 
     if (subsErr) {
         return NextResponse.json({ success: false, message: subsErr.message }, {

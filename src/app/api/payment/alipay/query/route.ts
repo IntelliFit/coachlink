@@ -168,6 +168,32 @@ response 成功输出
         }
     }
 
+    // Content purchase fulfill (dev fallback when notify may not fire)
+    if (orderStatus === 'paid' && order?.order_type === 'content_purchase') {
+        const orderData: any = order.order_data || {};
+        const contentId = orderData?.contentId as string | undefined;
+        if (contentId) {
+            try {
+                const nowIso = new Date().toISOString();
+                await serviceRoleSupabase
+                    .from('content_purchases' as any)
+                    .upsert(
+                        {
+                            content_id: contentId,
+                            user_id: userId,
+                            order_id: order.id,
+                            status: 'paid',
+                            paid_at: nowIso,
+                            updated_at: nowIso,
+                        },
+                        { onConflict: 'user_id,content_id' },
+                    );
+            } catch (e) {
+                console.error('[Alipay Query] Content purchase fulfill failed:', e);
+            }
+        }
+    }
+
     return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
         success: true,
         message: '支付状态',
