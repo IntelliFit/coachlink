@@ -113,6 +113,50 @@ export type Database = {
           },
         ]
       }
+      alipay_accounts: {
+        Row: {
+          coach_id: string
+          created_at: string | null
+          id: string
+          payee_account: string
+          payee_type: string | null
+          real_name: string | null
+          updated_at: string | null
+          verification_method: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string | null
+          id?: string
+          payee_account: string
+          payee_type?: string | null
+          real_name?: string | null
+          updated_at?: string | null
+          verification_method?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string | null
+          id?: string
+          payee_account?: string
+          payee_type?: string | null
+          real_name?: string | null
+          updated_at?: string | null
+          verification_method?: string | null
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alipay_accounts_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alipay_orders: {
         Row: {
           alipay_trade_no: string | null
@@ -169,6 +213,56 @@ export type Database = {
           },
         ]
       }
+      alipay_withdrawals: {
+        Row: {
+          alipay_order_id: string | null
+          alipay_response: Json | null
+          amount: number
+          coach_id: string
+          created_at: string | null
+          fee: number | null
+          id: string
+          out_biz_no: string | null
+          processed_at: string | null
+          status: string
+          wallet_id: string
+        }
+        Insert: {
+          alipay_order_id?: string | null
+          alipay_response?: Json | null
+          amount: number
+          coach_id: string
+          created_at?: string | null
+          fee?: number | null
+          id?: string
+          out_biz_no?: string | null
+          processed_at?: string | null
+          status?: string
+          wallet_id: string
+        }
+        Update: {
+          alipay_order_id?: string | null
+          alipay_response?: Json | null
+          amount?: number
+          coach_id?: string
+          created_at?: string | null
+          fee?: number | null
+          id?: string
+          out_biz_no?: string | null
+          processed_at?: string | null
+          status?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alipay_withdrawals_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       canonical_actions: {
         Row: {
           aliases: string[] | null
@@ -192,6 +286,63 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      cart_items: {
+        Row: {
+          coach_id: string
+          coach_name: string
+          created_at: string
+          duration_months: number
+          id: string
+          price: number
+          product_id: string
+          product_name: string
+          product_tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coach_id: string
+          coach_name: string
+          created_at?: string
+          duration_months: number
+          id?: string
+          price: number
+          product_id: string
+          product_name: string
+          product_tier: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coach_id?: string
+          coach_name?: string
+          created_at?: string
+          duration_months?: number
+          id?: string
+          price?: number
+          product_id?: string
+          product_name?: string
+          product_tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_messages: {
         Row: {
@@ -1241,6 +1392,114 @@ export type Database = {
             foreignKeyName: "coaches_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_action_likes: {
+        Row: {
+          action_id: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_id: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_id?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_action_likes_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "community_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_action_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_actions: {
+        Row: {
+          attrs: string[] | null
+          canonical_action_id: string | null
+          contributor_user_id: string
+          created_at: string | null
+          detail: string | null
+          enableAutoWeightCompute: boolean | null
+          id: string
+          includesBodyWeight: boolean | null
+          item_schema: Json | null
+          like_count: number
+          name: string
+          positions: string[] | null
+          suggested_time: string | null
+          type: string | null
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          attrs?: string[] | null
+          canonical_action_id?: string | null
+          contributor_user_id: string
+          created_at?: string | null
+          detail?: string | null
+          enableAutoWeightCompute?: boolean | null
+          id?: string
+          includesBodyWeight?: boolean | null
+          item_schema?: Json | null
+          like_count?: number
+          name: string
+          positions?: string[] | null
+          suggested_time?: string | null
+          type?: string | null
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          attrs?: string[] | null
+          canonical_action_id?: string | null
+          contributor_user_id?: string
+          created_at?: string | null
+          detail?: string | null
+          enableAutoWeightCompute?: boolean | null
+          id?: string
+          includesBodyWeight?: boolean | null
+          item_schema?: Json | null
+          like_count?: number
+          name?: string
+          positions?: string[] | null
+          suggested_time?: string | null
+          type?: string | null
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_actions_canonical_action_id_fkey"
+            columns: ["canonical_action_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_actions_contributor_user_id_fkey"
+            columns: ["contributor_user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2596,6 +2855,182 @@ export type Database = {
         }
         Relationships: []
       }
+      streetlifting_formulas: {
+        Row: {
+          coeff_a: number
+          coeff_b: number
+          coeff_c: number
+          coeff_d: number
+          coeff_e: number
+          coeff_f: number
+          gender: string
+          id: number
+          last_updated: string | null
+          total_submissions_used: number
+        }
+        Insert: {
+          coeff_a: number
+          coeff_b: number
+          coeff_c: number
+          coeff_d: number
+          coeff_e: number
+          coeff_f: number
+          gender: string
+          id?: number
+          last_updated?: string | null
+          total_submissions_used?: number
+        }
+        Update: {
+          coeff_a?: number
+          coeff_b?: number
+          coeff_c?: number
+          coeff_d?: number
+          coeff_e?: number
+          coeff_f?: number
+          gender?: string
+          id?: number
+          last_updated?: string | null
+          total_submissions_used?: number
+        }
+        Relationships: []
+      }
+      streetlifting_locations: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          image_urls: string[] | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          province: string | null
+          user_contact: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          image_urls?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          province?: string | null
+          user_contact?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          image_urls?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          province?: string | null
+          user_contact?: string | null
+        }
+        Relationships: []
+      }
+      streetlifting_stories: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          event_date: string | null
+          id: string
+          title: string
+          type: string | null
+          user_contact: string | null
+          video_url: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          event_date?: string | null
+          id?: string
+          title: string
+          type?: string | null
+          user_contact?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          event_date?: string | null
+          id?: string
+          title?: string
+          type?: string | null
+          user_contact?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      streetlifting_submissions: {
+        Row: {
+          added_weight: number
+          bodyweight: number
+          created_at: string | null
+          exercise_type: string
+          form_quality: string
+          gender: string
+          id: string
+          is_processed: boolean
+          penalty_weight: number
+          pullup_type: string | null
+          reps: number
+          user_id: string | null
+          user_name: string | null
+          video_url: string | null
+        }
+        Insert: {
+          added_weight: number
+          bodyweight: number
+          created_at?: string | null
+          exercise_type?: string
+          form_quality: string
+          gender: string
+          id?: string
+          is_processed?: boolean
+          penalty_weight?: number
+          pullup_type?: string | null
+          reps: number
+          user_id?: string | null
+          user_name?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          added_weight?: number
+          bodyweight?: number
+          created_at?: string | null
+          exercise_type?: string
+          form_quality?: string
+          gender?: string
+          id?: string
+          is_processed?: boolean
+          penalty_weight?: number
+          pullup_type?: string | null
+          reps?: number
+          user_id?: string | null
+          user_name?: string | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streetlifting_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_actions: {
         Row: {
           attrs: string[] | null
@@ -3650,171 +4085,6 @@ export type Database = {
             referencedColumns: ["coach_id"]
           },
         ]
-      }
-      streetlifting_formulas: {
-        Row: {
-          coeff_a: number
-          coeff_b: number
-          coeff_c: number
-          coeff_d: number
-          coeff_e: number
-          coeff_f: number
-          exercise_type: "weighted_pullup" | "weighted_dips"
-          gender: "Male" | "Female"
-          id: number
-          last_updated: string
-          total_submissions_used: number
-        }
-        Insert: {
-          coeff_a?: number
-          coeff_b: number
-          coeff_c: number
-          coeff_d: number
-          coeff_e: number
-          coeff_f: number
-          exercise_type?: "weighted_pullup" | "weighted_dips"
-          gender: "Male" | "Female"
-          id?: number
-          last_updated?: string
-          total_submissions_used?: number
-        }
-        Update: {
-          coeff_a?: number
-          coeff_b?: number
-          coeff_c?: number
-          coeff_d?: number
-          coeff_e?: number
-          coeff_f?: number
-          exercise_type?: "weighted_pullup" | "weighted_dips"
-          gender?: "Male" | "Female"
-          id?: number
-          last_updated?: string
-          total_submissions_used?: number
-        }
-        Relationships: []
-      }
-      streetlifting_locations: {
-        Row: {
-          address: string | null
-          city: string | null
-          created_at: string
-          description: string | null
-          id: string
-          image_url: string | null
-          image_urls: string[] | null
-          latitude: number | null
-          longitude: number | null
-          name: string
-          province: string | null
-          user_contact: string | null
-        }
-        Insert: {
-          address?: string | null
-          city?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          image_urls?: string[] | null
-          latitude?: number | null
-          longitude?: number | null
-          name: string
-          province?: string | null
-          user_contact?: string | null
-        }
-        Update: {
-          address?: string | null
-          city?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          image_urls?: string[] | null
-          latitude?: number | null
-          longitude?: number | null
-          name?: string
-          province?: string | null
-          user_contact?: string | null
-        }
-        Relationships: []
-      }
-      streetlifting_stories: {
-        Row: {
-          content: string | null
-          created_at: string
-          event_date: string | null
-          id: string
-          title: string
-          type: "story" | "event"
-          user_contact: string | null
-          video_url: string | null
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string
-          event_date?: string | null
-          id?: string
-          title: string
-          type?: "story" | "event"
-          user_contact?: string | null
-          video_url?: string | null
-        }
-        Update: {
-          content?: string | null
-          created_at?: string
-          event_date?: string | null
-          id?: string
-          title?: string
-          type?: "story" | "event"
-          user_contact?: string | null
-          video_url?: string | null
-        }
-        Relationships: []
-      }
-      streetlifting_submissions: {
-        Row: {
-          added_weight: number
-          bodyweight: number
-          created_at: string
-          exercise_type: "weighted_pullup" | "weighted_dips"
-          form_quality: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat"
-          gender: "Male" | "Female"
-          id: string
-          penalty_weight: number
-          pullup_type: "Overhand" | "Underhand" | null
-          reps: number
-          user_name: string | null
-          video_url: string | null
-        }
-        Insert: {
-          added_weight: number
-          bodyweight: number
-          created_at?: string
-          exercise_type?: "weighted_pullup" | "weighted_dips"
-          form_quality: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat"
-          gender: "Male" | "Female"
-          id?: string
-          penalty_weight?: number
-          pullup_type?: "Overhand" | "Underhand" | null
-          reps: number
-          user_name?: string | null
-          video_url?: string | null
-        }
-        Update: {
-          added_weight?: number
-          bodyweight?: number
-          created_at?: string
-          exercise_type?: "weighted_pullup" | "weighted_dips"
-          form_quality?: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat"
-          gender?: "Male" | "Female"
-          id?: string
-          penalty_weight?: number
-          pullup_type?: "Overhand" | "Underhand" | null
-          reps?: number
-          user_name?: string | null
-          video_url?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {

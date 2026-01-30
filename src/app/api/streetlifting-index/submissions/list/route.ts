@@ -39,11 +39,34 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
+        const submissions = (data || []) as any[];
+        const userIds = Array.from(new Set(submissions.map((s) => s.user_id).filter(Boolean)));
+        let nameMap = new Map<string, string>();
+        if (userIds.length > 0) {
+            const { data: profiles } = await db
+                .from("user_profiles")
+                .select("user_id,nickname,full_name")
+                .in("user_id", userIds);
+            (profiles || []).forEach((p: any) => {
+                const uid = p.user_id as string | null;
+                const name = (p.nickname || p.full_name) as string | null;
+                if (uid && name) nameMap.set(uid, name);
+            });
+        }
+
+        const resolved = submissions.map((s) => {
+            const uid = s.user_id as string | null;
+            if (uid) {
+                return { ...s, user_name: nameMap.get(uid) || s.user_name || null };
+            }
+            return s;
+        });
+
         return NextResponse.json<ApiData<StreetliftingListSubmissionsResponseDto>>({
             success: true,
             message: "获取数据成功",
             data: {
-                submissions: data || [],
+                submissions: resolved,
             },
         });
     } catch (error) {

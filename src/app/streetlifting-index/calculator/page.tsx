@@ -222,12 +222,12 @@ export default function StreetliftingCalculatorPage() {
                 const data = await streetliftingIndexService.listFormulas();
                 const next: Record<string, StreetliftingFormula> = {};
                 (data?.formulas || []).forEach((f) => {
-                    next[`${f.gender}:${f.exercise_type}`] = f;
+                    next[`${f.gender}`] = f;
                 });
                 setFormulaMap(next);
             } catch (e: any) {
                 console.error("[streetlifting-index][calculator] listFormulas error:", e);
-                showToast({ severity: "warn", summary: "提示", detail: "公式获取失败（可稍后重试）" });
+                showToast({ severity: "warn", summary: "提示", detail: e?.message || "公式获取失败（可稍后重试）" });
             } finally {
                 setLoadingFormula(false);
             }
@@ -255,7 +255,7 @@ export default function StreetliftingCalculatorPage() {
     const currentFormula = useMemo(() => {
         if (!form.gender) return null;
         if (!isUpperBodyExercise(exerciseType)) return null;
-        return formulaMap[`${form.gender}:${exerciseType}`] || null;
+        return formulaMap[`${form.gender}`] || null;
     }, [exerciseType, form.gender, formulaMap]);
 
     const canUseDayMax = isUpperBodyExercise(exerciseType);
@@ -266,7 +266,7 @@ export default function StreetliftingCalculatorPage() {
 
         try {
             const gender = form.gender;
-            const bodyweight = form.bodyweight ?? NaN;
+            const bodyweight = Number((form as any).bodyweight);
             const isMale = gender === "Male";
 
             if (!gender || !Number.isFinite(bodyweight) || bodyweight <= 0) {
@@ -281,8 +281,8 @@ export default function StreetliftingCalculatorPage() {
                 const coeff = computeDOTSCoefficient(bodyweight, isMale);
 
                 if (mode === "forward") {
-                    const liftWeight = form.liftWeight ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const liftWeight = Number((form as any).liftWeight);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(liftWeight) || liftWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
 
@@ -301,8 +301,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_weight") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
@@ -316,8 +316,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_reps") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const workingWeight = form.workingLiftWeight ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const workingWeight = Number((form as any).workingLiftWeight);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
@@ -342,8 +342,8 @@ export default function StreetliftingCalculatorPage() {
                 const multiplier = exerciseType === "strict_press" ? STRICT_PRESS_MULTIPLIER : BARBELL_CURL_MULTIPLIER;
 
                 if (mode === "forward") {
-                    const liftWeight = form.liftWeight ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const liftWeight = Number((form as any).liftWeight);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(liftWeight) || liftWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const adjusted = liftWeight - penalty;
@@ -360,8 +360,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_weight") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const reps = form.reps ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const reps = Number((form as any).reps);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
@@ -375,8 +375,8 @@ export default function StreetliftingCalculatorPage() {
                 }
 
                 if (mode === "reverse_reps") {
-                    const target1RM = form.target1RM ?? NaN;
-                    const workingWeight = form.workingLiftWeight ?? NaN;
+                    const target1RM = Number((form as any).target1RM);
+                    const workingWeight = Number((form as any).workingLiftWeight);
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
@@ -408,8 +408,8 @@ export default function StreetliftingCalculatorPage() {
             const coefficient = computeCoefficient(bodyweight, currentFormula);
 
             if (mode === "forward") {
-                const added = form.addedWeight ?? NaN;
-                const reps = form.reps ?? NaN;
+                const added = Number((form as any).addedWeight);
+                const reps = Number((form as any).reps);
                 if (!Number.isFinite(added)) throw new Error("请填写附加负重");
                 if (!Number.isFinite(reps) || reps < 1 || reps > 36) throw new Error("完成次数必须在 1-36 之间");
                 const adjustedAdded = added - penalty;
@@ -431,8 +431,8 @@ export default function StreetliftingCalculatorPage() {
             }
 
             if (mode === "reverse_weight") {
-                const added1RM = form.added1RM ?? NaN;
-                const reps = form.reps ?? NaN;
+                const added1RM = Number((form as any).added1RM);
+                const reps = Number((form as any).reps);
                 if (!Number.isFinite(added1RM)) throw new Error("请填写负重1RM");
                 if (!Number.isFinite(reps) || reps < 1 || reps > 36) throw new Error("完成次数必须在 1-36 之间");
                 const targetTotal1RM = bodyweight + added1RM;
@@ -454,8 +454,8 @@ export default function StreetliftingCalculatorPage() {
             }
 
             if (mode === "reverse_reps") {
-                const added1RM = form.added1RM ?? NaN;
-                const workingAdded = form.workingAddedWeight ?? NaN;
+                const added1RM = Number((form as any).added1RM);
+                const workingAdded = Number((form as any).workingAddedWeight);
                 if (!Number.isFinite(added1RM)) throw new Error("请填写负重1RM");
                 if (!Number.isFinite(workingAdded)) throw new Error("请填写做组重量（附加负重）");
 
@@ -479,20 +479,20 @@ export default function StreetliftingCalculatorPage() {
             }
 
             if (mode === "day_max") {
-                const sets = form.sets ?? NaN;
-                const reps = form.reps ?? NaN;
-                const added = form.addedWeight ?? NaN;
+                const sets = Number((form as any).sets);
+                const reps = Number((form as any).reps);
+                const added = Number((form as any).addedWeight);
                 if (!Number.isFinite(sets) || sets <= 0) throw new Error("请填写有效的组数");
                 if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的每组次数");
                 if (!Number.isFinite(added)) throw new Error("请填写做组重量（附加负重）");
                 const restCat = (form.restCat || "long") as NonNullable<FormState["restCat"]>;
 
                 const firstSet =
-                    form.dayFirstType && Number.isFinite(form.dayFirstValue ?? NaN)
+                    form.dayFirstType && Number.isFinite(Number((form as any).dayFirstValue))
                         ? { type: form.dayFirstType, value: form.dayFirstValue as number }
                         : undefined;
                 const lastSet =
-                    form.dayLastType && Number.isFinite(form.dayLastValue ?? NaN)
+                    form.dayLastType && Number.isFinite(Number((form as any).dayLastValue))
                         ? { type: form.dayLastType, value: form.dayLastValue as number }
                         : undefined;
                 if (!firstSet && !lastSet) throw new Error("请至少输入第一组或最后一组的信息");
@@ -535,6 +535,45 @@ export default function StreetliftingCalculatorPage() {
                 ? [5, 20]
                 : [20, 50];
 
+    const dropdownClassName = "w-full h-10 rounded-2xl bg-surface-0 border border-surface-200";
+    const dropdownPanelClassName = "rounded-2xl border border-surface-100 bg-surface-0 shadow-xl";
+    const dropdownIcon = () => <span className="pi pi-chevron-down text-surface-400" />;
+    const dropdownPt = {
+        input: { className: "py-2 px-3 text-sm font-semibold text-surface-800" },
+        trigger: { className: "w-10" },
+    } as const;
+
+    const renderAeroDropdownValue = (option: any, props?: any) => {
+        const label = option?.label ?? props?.placeholder ?? "请选择";
+        const isPlaceholder = !option;
+        return (
+            <div className="min-w-0 flex items-center gap-2">
+                <span className={`truncate text-sm font-semibold ${isPlaceholder ? "text-surface-500" : "text-surface-800"}`}>{label}</span>
+            </div>
+        );
+    };
+
+    const makeAeroDropdownItemTemplate =
+        (currentValue: any) =>
+        (option: any) => {
+            const label = option?.label ?? String(option ?? "");
+            const value = option?.value ?? option;
+            const isActive = currentValue === value;
+            return (
+                <div
+                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl ${
+                        isActive ? "bg-surface-100 text-surface-900" : "text-surface-700"
+                    }`}
+                >
+                    <span className={`min-w-0 truncate text-sm ${isActive ? "font-bold" : "font-medium"}`}>{label}</span>
+                    <span className={`shrink-0 text-[10px] font-black ${isActive ? "text-primary-600" : "text-surface-300"}`}>●</span>
+                </div>
+            );
+        };
+
+    const numberInputClassName =
+        "w-full !h-10 rounded-2xl border border-surface-200 bg-surface-0 !px-3 !py-2 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:shadow-none focus:border-primary-200";
+
     return (
         <div className={`${AERO_CONTAINER_4XL} py-6`}>
                 <Card className={AERO_CARD}>
@@ -545,7 +584,13 @@ export default function StreetliftingCalculatorPage() {
                                 <div className={AERO_SUBTITLE}>输入数据，获得力量评估（引体/臂屈伸满分500；三大项为DOTS分）。</div>
                             </div>
                             <Link href="/streetlifting-index/data" className="hidden md:block">
-                                <Button label="去数据社区" className="p-button-outlined" />
+                                <Button
+                                    outlined
+                                    severity="secondary"
+                                    size="small"
+                                    label="去数据社区"
+                                    className="h-10 rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
+                                />
                             </Link>
                         </div>
 
@@ -557,7 +602,12 @@ export default function StreetliftingCalculatorPage() {
                                     options={EXERCISE_OPTIONS}
                                     optionLabel="label"
                                     optionValue="value"
-                                    className="w-full"
+                                    className={dropdownClassName}
+                                    panelClassName={dropdownPanelClassName}
+                                    dropdownIcon={dropdownIcon}
+                                    pt={dropdownPt}
+                                    valueTemplate={renderAeroDropdownValue}
+                                    itemTemplate={makeAeroDropdownItemTemplate(exerciseType)}
                                     onChange={(e) => {
                                         setExerciseType(e.value);
                                         setResult(null);
@@ -567,8 +617,8 @@ export default function StreetliftingCalculatorPage() {
                                     }}
                                 />
                                 {isUpperBodyExercise(exerciseType) && (
-                                    <div className="mt-2 flex items-start gap-2 text-xs text-orange-700 bg-orange-50 border border-orange-100 rounded-2xl p-3">
-                                        <AlertTriangle className="h-4 w-4 mt-0.5" />
+                                    <div className="mt-2 flex items-start gap-2 text-xs text-surface-700 bg-surface-50 border border-surface-200 rounded-2xl p-3">
+                                        <AlertTriangle className="h-4 w-4 mt-0.5 text-surface-500" />
                                         <div>提示：100kg以上体重样本较少，估算可能偏差更大。</div>
                                     </div>
                                 )}
@@ -581,7 +631,12 @@ export default function StreetliftingCalculatorPage() {
                                     options={MODE_OPTIONS.filter((m) => (m.value === "day_max" ? canUseDayMax : true))}
                                     optionLabel="label"
                                     optionValue="value"
-                                    className="w-full"
+                                    className={dropdownClassName}
+                                    panelClassName={dropdownPanelClassName}
+                                    dropdownIcon={dropdownIcon}
+                                    pt={dropdownPt}
+                                    valueTemplate={renderAeroDropdownValue}
+                                    itemTemplate={makeAeroDropdownItemTemplate(mode)}
                                     onChange={(e) => {
                                         setMode(e.value);
                                         setResult(null);
@@ -599,7 +654,14 @@ export default function StreetliftingCalculatorPage() {
                                         { label: "男性", value: "Male" },
                                         { label: "女性", value: "Female" },
                                     ]}
-                                    className="w-full"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    className={dropdownClassName}
+                                    panelClassName={dropdownPanelClassName}
+                                    dropdownIcon={dropdownIcon}
+                                    pt={dropdownPt}
+                                    valueTemplate={renderAeroDropdownValue}
+                                    itemTemplate={makeAeroDropdownItemTemplate(form.gender)}
                                     onChange={(e) => setForm((p) => ({ ...p, gender: e.value }))}
                                 />
                             </div>
@@ -609,6 +671,7 @@ export default function StreetliftingCalculatorPage() {
                                     value={form.bodyweight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, bodyweight: e.value ?? null }))}
                                     className="w-full"
+                                    inputClassName={numberInputClassName}
                                     min={1}
                                     maxFractionDigits={1}
                                     placeholder="例如 70.5"
@@ -626,6 +689,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.addedWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, addedWeight: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 20"
                                     />
@@ -640,6 +704,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.added1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, added1RM: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 50"
                                     />
@@ -654,6 +719,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.added1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, added1RM: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 50"
                                     />
@@ -668,6 +734,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.liftWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, liftWeight: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 100"
                                     />
@@ -682,6 +749,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.target1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, target1RM: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 200"
                                     />
@@ -696,6 +764,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.target1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, target1RM: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 200"
                                     />
@@ -710,6 +779,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.workingLiftWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, workingLiftWeight: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 150"
                                     />
@@ -724,6 +794,7 @@ export default function StreetliftingCalculatorPage() {
                                         value={form.workingAddedWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, workingAddedWeight: e.value ?? null }))}
                                         className="w-full"
+                                        inputClassName={numberInputClassName}
                                         maxFractionDigits={1}
                                         placeholder="例如 20"
                                     />
@@ -741,6 +812,7 @@ export default function StreetliftingCalculatorPage() {
                                     value={form.reps}
                                     onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
                                     className="w-full"
+                                    inputClassName={numberInputClassName}
                                     min={1}
                                     max={36}
                                     placeholder="例如 5"
@@ -755,7 +827,12 @@ export default function StreetliftingCalculatorPage() {
                                     options={QUALITY_OPTIONS}
                                     optionLabel="label"
                                     optionValue="value"
-                                    className="w-full"
+                                    className={dropdownClassName}
+                                    panelClassName={dropdownPanelClassName}
+                                    dropdownIcon={dropdownIcon}
+                                    pt={dropdownPt}
+                                    valueTemplate={renderAeroDropdownValue}
+                                    itemTemplate={makeAeroDropdownItemTemplate(form.formQuality)}
                                     onChange={(e) => setForm((p) => ({ ...p, formQuality: e.value }))}
                                 />
                             </div>
@@ -799,6 +876,7 @@ export default function StreetliftingCalculatorPage() {
                                             value={form.addedWeight}
                                             onValueChange={(e) => setForm((p) => ({ ...p, addedWeight: e.value ?? null }))}
                                             className="w-full"
+                                            inputClassName={numberInputClassName}
                                             maxFractionDigits={1}
                                         />
                                     </div>
@@ -808,6 +886,7 @@ export default function StreetliftingCalculatorPage() {
                                             value={form.sets}
                                             onValueChange={(e) => setForm((p) => ({ ...p, sets: e.value ?? null }))}
                                             className="w-full"
+                                            inputClassName={numberInputClassName}
                                             min={1}
                                         />
                                     </div>
@@ -821,7 +900,12 @@ export default function StreetliftingCalculatorPage() {
                                             options={REST_OPTIONS}
                                             optionLabel="label"
                                             optionValue="value"
-                                            className="w-full"
+                                            className={dropdownClassName}
+                                            panelClassName={dropdownPanelClassName}
+                                            dropdownIcon={dropdownIcon}
+                                            pt={dropdownPt}
+                                            valueTemplate={renderAeroDropdownValue}
+                                            itemTemplate={makeAeroDropdownItemTemplate(form.restCat)}
                                             onChange={(e) => setForm((p) => ({ ...p, restCat: e.value }))}
                                         />
                                     </div>
@@ -837,7 +921,14 @@ export default function StreetliftingCalculatorPage() {
                                                     { label: "RIR", value: "RIR" },
                                                     { label: "实际次数", value: "Achieved" },
                                                 ]}
-                                                className="w-full"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                className={dropdownClassName}
+                                                panelClassName={dropdownPanelClassName}
+                                                dropdownIcon={dropdownIcon}
+                                                pt={dropdownPt}
+                                                valueTemplate={renderAeroDropdownValue}
+                                                itemTemplate={makeAeroDropdownItemTemplate(form.dayFirstType)}
                                                 onChange={(e) => setForm((p) => ({ ...p, dayFirstType: e.value }))}
                                                 placeholder="类型"
                                             />
@@ -845,6 +936,7 @@ export default function StreetliftingCalculatorPage() {
                                                 value={form.dayFirstValue}
                                                 onValueChange={(e) => setForm((p) => ({ ...p, dayFirstValue: e.value ?? null }))}
                                                 className="w-full"
+                                                inputClassName={numberInputClassName}
                                                 placeholder="数值"
                                                 maxFractionDigits={1}
                                             />
@@ -860,7 +952,14 @@ export default function StreetliftingCalculatorPage() {
                                                     { label: "RIR", value: "RIR" },
                                                     { label: "实际次数", value: "Achieved" },
                                                 ]}
-                                                className="w-full"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                className={dropdownClassName}
+                                                panelClassName={dropdownPanelClassName}
+                                                dropdownIcon={dropdownIcon}
+                                                pt={dropdownPt}
+                                                valueTemplate={renderAeroDropdownValue}
+                                                itemTemplate={makeAeroDropdownItemTemplate(form.dayLastType)}
                                                 onChange={(e) => setForm((p) => ({ ...p, dayLastType: e.value }))}
                                                 placeholder="类型"
                                             />
@@ -868,6 +967,7 @@ export default function StreetliftingCalculatorPage() {
                                                 value={form.dayLastValue}
                                                 onValueChange={(e) => setForm((p) => ({ ...p, dayLastValue: e.value ?? null }))}
                                                 className="w-full"
+                                                inputClassName={numberInputClassName}
                                                 placeholder="数值"
                                                 maxFractionDigits={1}
                                             />
@@ -881,12 +981,18 @@ export default function StreetliftingCalculatorPage() {
                             <Button
                                 label={submitting ? "计算中..." : "开始计算"}
                                 icon={<CalcIcon className="h-4 w-4" />}
-                                className="w-full md:w-auto"
+                                disabled={submitting}
+                                className="w-full md:w-auto h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
                                 onClick={handleCalculate}
-                                loading={submitting}
                             />
                             <Link href="/streetlifting-index/methodology" className="w-full md:w-auto">
-                                <Button className="w-full md:w-auto p-button-outlined" label="查看方法论" />
+                                <Button
+                                    outlined
+                                    severity="secondary"
+                                    size="small"
+                                    className="w-full md:w-auto h-10 rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
+                                    label="查看方法论"
+                                />
                             </Link>
                         </div>
 
@@ -904,7 +1010,10 @@ export default function StreetliftingCalculatorPage() {
                                         {new Date(currentFormula.last_updated).toLocaleDateString("zh-CN")}）
                                     </span>
                                 ) : (
-                                    <span className="text-orange-600">未找到对应公式（可联系管理员初始化公式表）</span>
+                                    <span className="text-surface-600">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500 mr-2 align-middle" />
+                                        未找到对应公式（可联系管理员初始化公式表）
+                                    </span>
                                 )}
                             </div>
                         )}
@@ -915,15 +1024,16 @@ export default function StreetliftingCalculatorPage() {
                                 <div className="flex items-center justify-between">
                                     <div className="text-base font-semibold text-surface-900">计算结果</div>
                                     {scoreLevel && (
-                                        <div className={`text-sm font-semibold ${scoreLevel.colorClass}`}>
+                                        <div className="flex items-center gap-2 text-xs font-black text-surface-700 bg-surface-0 border border-surface-200 rounded-full px-3 py-1">
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500" />
                                             {scoreLevel.level}
                                         </div>
                                     )}
                                 </div>
 
                                 {showPenalty && (
-                                    <div className="text-sm text-orange-700">
-                                        惩罚重量：-{penalty} kg
+                                    <div className="text-sm text-surface-700">
+                                        惩罚重量：<span className="font-semibold text-surface-900">-{penalty} kg</span>
                                     </div>
                                 )}
 

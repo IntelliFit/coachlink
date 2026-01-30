@@ -5,6 +5,7 @@ import { Heart, Maximize2 } from "lucide-react";
 import { Card } from "primereact/card";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
+import { AERO_CARD } from "@/components/streetlifting-index/aero";
 
 export function StreetliftingDonationSection({
     variant = "footer",
@@ -45,11 +46,11 @@ export function StreetliftingDonationSection({
                             <Button
                                 label={expanded ? "收起打赏信息" : "支持项目发展"}
                                 icon="pi pi-heart"
-                                className="p-button-rounded p-button-text !text-primary-600 transition-transform active:scale-[0.98]"
+                                className="p-button-rounded p-button-text !text-surface-700 hover:!text-surface-900 transition-transform active:scale-[0.98]"
                                 onClick={() => setExpanded((prev) => !prev)}
                             />
                             {expanded && (
-                                <Card className="w-full md:w-2/3 rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
+                                <Card className={`w-full md:w-2/3 ${AERO_CARD}`}>
                                     <div className="p-6">{content}</div>
                                 </Card>
                             )}
@@ -59,15 +60,13 @@ export function StreetliftingDonationSection({
             )}
 
             {variant !== "footer" && (
-                <Card className="rounded-2xl border border-surface-100 bg-surface-0 shadow-sm">
-                    <div className="p-6">
-                        <div className="flex items-center justify-center gap-2 text-surface-900 font-semibold mb-4">
-                            <Heart className="h-5 w-5 text-primary-600" />
-                            支持项目持续运行
-                        </div>
-                        {content}
+                <div className="p-6">
+                    <div className="flex items-center justify-center gap-2 text-surface-900 font-semibold mb-4">
+                        <Heart className="h-5 w-5 text-surface-700" />
+                        支持项目持续运行
                     </div>
-                </Card>
+                    {content}
+                </div>
             )}
 
             <Dialog
