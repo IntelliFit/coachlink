@@ -4,76 +4,6 @@ import * as apiTrace from "@/app/api/middleware/api-trace";
 import { getToken } from "next-auth/jwt";
 import { verifyToken } from "./lib/jwt";
 
-function getSupabaseRestConfig() {
-    const supabaseUrl =
-        process.env.NEXT_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.SUPABASE_URL ||
-        "";
-    const serviceKey =
-        process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY ||
-        process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        "";
-
-    return { supabaseUrl: supabaseUrl.replace(/\/+$/, ""), serviceKey };
-}
-
-async function hasActivePlanInstanceForStudent(userId: string): Promise<boolean> {
-    const { supabaseUrl, serviceKey } = getSupabaseRestConfig();
-    if (!supabaseUrl || !serviceKey) {
-        // If env is missing, we can't detect. Prefer conservative default: assume user has plan.
-        return true;
-    }
-
-    const headers: Record<string, string> = {
-        apikey: serviceKey,
-        authorization: `Bearer ${serviceKey}`,
-        accept: "application/json",
-    };
-
-    // 1) Fast path: instances linked directly to student_id
-    try {
-        const u = new URL(`${supabaseUrl}/rest/v1/coach_plan_instances`);
-        u.searchParams.set("select", "id");
-        u.searchParams.set("student_id", `eq.${userId}`);
-        u.searchParams.set("status", "in.(active,paused)");
-        u.searchParams.set("limit", "1");
-        const r = await fetch(u.toString(), { headers, cache: "no-store" as any });
-        if (r.ok) {
-            const json = (await r.json()) as any[];
-            if (Array.isArray(json) && json.length > 0) return true;
-        }
-    } catch {
-        // ignore
-    }
-
-    // 2) Fallback: old instances may only link to coach_subscription_id
-    try {
-        const su = new URL(`${supabaseUrl}/rest/v1/coach_subscriptions`);
-        su.searchParams.set("select", "id");
-        su.searchParams.set("student_id", `eq.${userId}`);
-        su.searchParams.set("status", "eq.active");
-        su.searchParams.set("limit", "20");
-        const sr = await fetch(su.toString(), { headers, cache: "no-store" as any });
-        if (!sr.ok) return false;
-        const subs = (await sr.json()) as any[];
-        const ids = (subs || []).map((s) => s?.id).filter(Boolean).slice(0, 20);
-        if (ids.length === 0) return false;
-
-        const iu = new URL(`${supabaseUrl}/rest/v1/coach_plan_instances`);
-        iu.searchParams.set("select", "id");
-        iu.searchParams.set("coach_subscription_id", `in.(${ids.join(",")})`);
-        iu.searchParams.set("status", "in.(active,paused)");
-        iu.searchParams.set("limit", "1");
-        const ir = await fetch(iu.toString(), { headers, cache: "no-store" as any });
-        if (!ir.ok) return false;
-        const json = (await ir.json()) as any[];
-        return Array.isArray(json) && json.length > 0;
-    } catch {
-        return false;
-    }
-}
-
 const PUBLIC_PATHS = new Set([
     "/",
     "/market",
@@ -99,7 +29,6 @@ const PUBLIC_PATHS = new Set([
     '/api/captcha/slider/create',
     '/api/captcha/slider/verify',
     "/api/payment/alipay/notify", // Alipay callback - must be public
-    "/api/payment/alipay/return", // Alipay return - browser redirect without session
     "/docs/agreement",
     "/docs/disclaimer",
     "/disclaimer",
@@ -146,7 +75,6 @@ export async function proxy(request: NextRequest) {
 
     handleMiddleware(request);
     const { pathname, origin } = request.nextUrl;
-    const fullPath = `${pathname}${request.nextUrl.search || ""}`;
     // Internal server-to-server calls (e.g. background poster rendering) can bypass auth for specific endpoints.
     // This prevents middleware from returning 401 when the caller is the backend itself (no browser session).
     if (pathname.startsWith("/api/og/")) {
@@ -160,31 +88,6 @@ export async function proxy(request: NextRequest) {
     // 如果是 /icons/ 开头的，直接放行
     if (pathname.startsWith("/icons/")) {
         return NextResponse.next();
-    }
-
-    // Root entry routing:
-    // - unauthenticated: go to Discover
-    // - coach: go to coach dashboard
-    // - student: if has active plan instance -> today-training, else discover
-    if (pathname === "/") {
-        const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
-        const isAuthenticated = !!token;
-        if (!isAuthenticated) {
-            return NextResponse.redirect(`${origin}/coach/discovery`);
-        }
-
-        const isCoachView = token?.user?.is_coach && token?.user?.primary_role === "coach";
-        if (isCoachView) {
-            return NextResponse.redirect(`${origin}/dashboard/overview`);
-        }
-
-        const userId = token?.user?.id as string | undefined;
-        if (!userId) {
-            return NextResponse.redirect(`${origin}/today-training`);
-        }
-
-        const hasPlan = await hasActivePlanInstanceForStudent(userId);
-        return NextResponse.redirect(hasPlan ? `${origin}/today-training` : `${origin}/coach/discovery`);
     }
 
     // E2E test helper APIs: allow bypassing auth in dev/test when the secret matches.
@@ -203,14 +106,25 @@ export async function proxy(request: NextRequest) {
     // 先检查是否是公共路径（包括登录接口/微信回调桥接页），如果是则直接放行
     if (
         PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith("/articles") ||
         // 公开 API（分享/公开文章等）
         pathname.startsWith("/api/public/") ||
-        // 公开可浏览：发现/教练主页（动作在页面内再做登录保护）
+        // 公开可浏览：发现教练/教练主页（动作在页面内再做登录保护）
         pathname.startsWith("/coach/discovery") ||
         pathname.startsWith("/coach/profile") ||
         pathname.startsWith(AUTH_BASE_URL) ||
         pathname.startsWith(WECHAT_AUTH_BASE_URL)
     ) {
+        if (pathname === "/") {
+            const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+            const isAuthenticated = !!token;
+            if (isAuthenticated) {
+                const isCoachView = token?.user?.is_coach && token?.user?.primary_role === "coach";
+                return NextResponse.redirect(
+                    isCoachView ? `${origin}/dashboard/overview` : `${origin}/today-training`
+                );
+            }
+        }
         return NextResponse.next();
     }
 
@@ -248,12 +162,6 @@ export async function proxy(request: NextRequest) {
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {
-        // 资讯文章：未登录允许看列表，但点进详情必须先登录
-        if (pathname.startsWith("/articles/")) {
-            return NextResponse.redirect(
-                `${origin}/login?redirect=${encodeURIComponent(fullPath)}`,
-            );
-        }
         return NextResponse.redirect(`${origin}/login`);
     }
 

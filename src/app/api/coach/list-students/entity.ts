@@ -6,19 +6,6 @@ export interface GetStudentsDto {
         limit: number;
     };
     needTrainingDetails?: boolean;
-    /**
-     * 搜索关键词（建议用于昵称/手机号）
-     */
-    search?: string;
-    /**
-     * 排序模式
-     */
-    sort?: {
-        mode:
-            | 'subscription_created_desc'
-            | 'subscription_created_asc'
-            | 'subscription_updated_desc';
-    };
 }
 
 export interface SubscribeData {
@@ -39,11 +26,6 @@ export interface StudentSubscription {
     monthly_price: number;
     subscribe_data: SubscribeData | null;
     subscribed_weeks: number | null;
-
-    /** 平台支付订单 id（支付宝 alipay_orders.id），用于退款 */
-    order_id: string | null;
-    last_payment_order_id: string | null;
-    payment_method: string | null;
 
     // 学员迁入平台前已跟随教练训练的周数
     prior_training_weeks: number | null;
@@ -67,8 +49,6 @@ export interface ListStudentsDto {
         page: number;
         limit: number;
     };
-    search?: string;
-    sort?: GetStudentsDto['sort'];
 }
 
 export interface ListStudentsResponseDto {

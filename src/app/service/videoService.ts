@@ -28,75 +28,6 @@ function getApiErrorMessage(err: unknown): string | null {
 
 class VideoService extends BaseService {
 
-    private buildSignedUploadUrl(bucket: string, path: string, token: string) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-        if (!supabaseUrl) {
-            throw new Error(
-                "Supabase 客户端未初始化（缺少 NEXT_PUBLIC_SUPABASE_URL）",
-            );
-        }
-
-        const encodedPath = path
-            .split("/")
-            .map((seg) => encodeURIComponent(seg))
-            .join("/");
-
-        return `${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}?token=${encodeURIComponent(
-            token,
-        )}`;
-    }
-
-    private async putWithProgress(
-        url: string,
-        file: File,
-        onUploadProgress?: (progress: VideoUploadProgress) => void,
-    ) {
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-        const contentType = file.type || "application/octet-stream";
-
-        return await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", url);
-            xhr.setRequestHeader("Content-Type", contentType);
-
-            // Some environments require apikey/Authorization headers even with token
-            if (anonKey) {
-                xhr.setRequestHeader("apikey", anonKey);
-                xhr.setRequestHeader("Authorization", `Bearer ${anonKey}`);
-            }
-
-            xhr.upload.onprogress = (evt) => {
-                if (!evt.lengthComputable) return;
-                const total = evt.total || file.size || 0;
-                const loaded = evt.loaded || 0;
-                const percentage = total
-                    ? Math.min(99, Math.max(0, Math.round((loaded / total) * 100)))
-                    : 0;
-                onUploadProgress?.({ loaded, total, percentage });
-            };
-
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    onUploadProgress?.({
-                        loaded: file.size,
-                        total: file.size,
-                        percentage: 100,
-                    });
-                    resolve();
-                    return;
-                }
-                const detail = xhr.responseText
-                    ? `（${xhr.status}）${xhr.responseText}`
-                    : `（${xhr.status}）直传失败`;
-                reject(new Error(detail));
-            };
-            xhr.onerror = () => reject(new Error("网络错误：上传中断"));
-            xhr.onabort = () => reject(new Error("上传已取消"));
-
-            xhr.send(file);
-        });
-    }
-
     // 上传视频文件
     async uploadVideo(reqData: UploadVideoDto) {
         const res = await this.post<UploadVideoResponseDto>('upload-video', reqData);
@@ -123,6 +54,7 @@ class VideoService extends BaseService {
                 throw new Error("Supabase 客户端未初始化（缺少 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY）");
             }
 
+            // best-effort progress for UI (no chunk progress with signed upload in SDK)
             onUploadProgress?.({ loaded: 0, total: file.size, percentage: 0 });
 
             const signRes = await this.post<CreateVideoUploadUrlResponseDto>(
@@ -140,9 +72,19 @@ class VideoService extends BaseService {
 
             const { path, token, publicUrl } = signRes.data.data;
 
-            // 使用 signed 上传接口 + XHR，拿到真实进度
-            const signedUploadUrl = this.buildSignedUploadUrl("videos", path, token);
-            await this.putWithProgress(signedUploadUrl, file, onUploadProgress);
+            const { error: uploadErr } = await supabaseBrowser.storage
+                .from("videos")
+                // @ts-expect-error: SDK typing differs across versions; runtime method exists in supabase-js v2
+                .uploadToSignedUrl(path, token, file, {
+                    contentType: file.type || "application/octet-stream",
+                    upsert: false,
+                });
+
+            if (uploadErr) {
+                throw new Error(uploadErr.message || "直传失败");
+            }
+
+            onUploadProgress?.({ loaded: file.size, total: file.size, percentage: 100 });
 
             // 写入数据库记录（并进行配额扣减/记录元数据）
             const record = await this.submitVideoUrl({

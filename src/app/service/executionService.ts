@@ -134,6 +134,11 @@ class ExecutionService extends BaseService {
         const res = await this.post<UploadSetVideoResponseDto>(
             "upload-set-video",
             formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            },
         );
 
         if (res.data && res.data.success) {

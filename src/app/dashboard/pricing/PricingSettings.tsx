@@ -78,11 +78,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     const handleSaveProduct = () => {
         if (!currentProduct) return;
         if (!currentProduct.name.trim()) { showToast({ severity: 'error', summary: '请输入产品名称' }); return; }
-        console.log(currentProduct.duration_options);
-        if (currentProduct.duration_options.some(opt => {
-            const price = typeof opt.price === 'string' ? parseFloat(opt.price) : opt.price;
-            return isNaN(price) || price <= 0;
-        })) { showToast({ severity: 'error', summary: '价格必须大于0' }); return; }
+        if (currentProduct.duration_options.some(opt => opt.price <= 0)) { showToast({ severity: 'error', summary: '价格必须大于0' }); return; }
         
         const existingIndex = products.findIndex(p => p.id === currentProduct.id);
         if (existingIndex >= 0) {
@@ -322,9 +318,8 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                             value={opt.price}
                                             onValueChange={(e) => updateDurationOption(idx, 'price', e.value || 0)}
                                             min={0}
-                                            mode="decimal"
-                                            maxFractionDigits={2}
-                                            placeholder="0.00"
+                                            mode="currency"
+                                            currency="CNY"
                                             className="w-full"
                                             inputClassName="border-none font-bold"
                                         />

@@ -54,20 +54,12 @@ export async function POST(req: Request) {
   }
 
   const coachUserId = session.user.id;
-  const { sendToAll, studentUserIds, content, messageType, mediaUrl, fileName, fileSize } =
+  const { sendToAll, studentUserIds, content } =
     (await req.json()) as BroadcastMessageDto;
 
-  // Validate: text messages require content, image messages require mediaUrl
-  const isImageMessage = messageType === 'image';
-  if (!isImageMessage && (!content || !content.trim())) {
+  if (!content || !content.trim()) {
     return NextResponse.json(
       { success: false, message: "缺少通知内容", data: null },
-      { status: 400 },
-    );
-  }
-  if (isImageMessage && !mediaUrl) {
-    return NextResponse.json(
-      { success: false, message: "缺少图片URL", data: null },
       { status: 400 },
     );
   }
@@ -184,11 +176,8 @@ export async function POST(req: Request) {
           .insert({
             room_id: roomId,
             sender_id: coachUserId,
-            message_type: messageType || "text",
+            message_type: "text",
             content: trimmedContent,
-            media_url: mediaUrl || null,
-            file_name: fileName || null,
-            file_size: fileSize || null,
             created_at: now,
             content_metadata: { broadcast: true },
           } as any)
@@ -203,9 +192,7 @@ export async function POST(req: Request) {
         const { error: updateRoomErr } = await supabase
           .from("chat_rooms")
           .update({
-            last_message: isImageMessage 
-              ? (trimmedContent || '[图片]')
-              : trimmedContent,
+            last_message: trimmedContent,
             last_message_at: now,
             unread_members: [studentUserId],
             updated_at: now,

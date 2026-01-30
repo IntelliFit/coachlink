@@ -16,7 +16,7 @@ import { adminService } from '@/app/service/adminService';
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
 import type { UserProfilesRow } from '@/types';
-import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings, FileText } from 'lucide-react';
+import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings } from 'lucide-react';
 
 export default function NavigationAdmin() {
     const pathname = usePathname();
@@ -104,13 +104,6 @@ export default function NavigationAdmin() {
             icon: CreditCard,
             url: '/admin/payments',
             command: () => router.push('/admin/payments'),
-            template: itemRenderer
-        },
-        {
-            label: '订阅管理',
-            icon: FileText,
-            url: '/admin/subscriptions',
-            command: () => router.push('/admin/subscriptions'),
             badge: navData?.paymentUnreviewed || 0,
             template: itemRenderer
         },

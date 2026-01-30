@@ -1,19 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Skeleton } from 'primereact/skeleton';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { Dialog } from 'primereact/dialog';
-import { Info, Target } from 'lucide-react';
+import { Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
-import { useGuideStore } from '@/stores/useGuideStore';
 
 import TodayTrainingCard from './TodayTrainingCard';
 import RestDayCard from './RestDayCard';
@@ -25,10 +23,7 @@ import { Avatar } from 'primereact/avatar';
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { showToast } = useToastContext();
-    const { startGuide } = useGuideStore();
-    const hasShownReturnToastRef = useRef(false);
 
     // 教练分配的计划
     const [coachInstance, setCoachInstance] = useState<any>(null);
@@ -60,7 +55,6 @@ const TodayTrainingPage: React.FC = () => {
     // 计划完成弹窗状态
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [completedPlanInfo, setCompletedPlanInfo] = useState<{ name: string, rate: number } | null>(null);
-    const [showExplainDialog, setShowExplainDialog] = useState(false);
 
     // 当前激活的计划（根据 planMode 动态选择）
     const instance = planMode === 'coach' ? coachInstance : selfInstance;
@@ -112,30 +106,6 @@ const TodayTrainingPage: React.FC = () => {
             loadData();
         }
     }, [session?.user?.id]);
-
-    // 完成训练回跳：强化“确认/校准/分享”的意义（只弹一次）
-    useEffect(() => {
-        if (hasShownReturnToastRef.current) return;
-        const justConfirmed = searchParams?.get('justConfirmed');
-        const diStr = searchParams?.get('dayIndex');
-        const di = diStr ? Number(diStr) : null;
-        if (justConfirmed === '1') {
-            hasShownReturnToastRef.current = true;
-            showToast({
-                severity: 'success',
-                summary: '已确认训练日',
-                detail: di
-                    ? `已确认第${di}天：记录/视频/备注会沉淀；输入的真实重量会帮助系统更新 e1RM，让下次自动算重量更准。`
-                    : '本次训练已确认：记录会沉淀；输入的真实重量会帮助系统让下次自动算重量更准。',
-            });
-
-            // 清理 query，避免刷新重复弹出
-            setTimeout(() => {
-                router.replace('/today-training');
-            }, 0);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams]);
 
     const loadData = async () => {
         try {
@@ -602,19 +572,12 @@ const TodayTrainingPage: React.FC = () => {
         return todayDayIndex;
     })();
 
-    // -----------------------------
-    // 今日推进日（progress day）：
-    // - 休息日：按自然日顺延（calendarDayIndex）
-    // - 到达推荐训练日（todayDayIndex）后：若未确认（completed/abandoned），则指针停住
-    // 口径：progressDayIndex = min(calendarDayIndex, todayDayIndex)
-    // -----------------------------
-    const progressDayIndex = Math.min(calendarDayIndex, todayDayIndex);
-    const progressDay = trainingDays.find(d => d.dayIndex === progressDayIndex);
-    const progressExec = (executionsByDayIndex || {})[progressDayIndex];
-    const progressExecutionStatus: 'none' | 'in_progress' | 'completed' =
-        progressExec?.status === 'completed'
+    const calendarDay = trainingDays.find(d => d.dayIndex === calendarDayIndex);
+    const calendarExec = (executionsByDayIndex || {})[calendarDayIndex];
+    const calendarExecutionStatus: 'none' | 'in_progress' | 'completed' =
+        calendarExec?.status === 'completed'
             ? 'completed'
-            : progressExec?.status === 'in_progress'
+            : calendarExec?.status === 'in_progress'
                 ? 'in_progress'
                 : 'none';
 
@@ -771,20 +734,10 @@ const TodayTrainingPage: React.FC = () => {
                                 <h3 className="text-xl sm:text-2xl font-black text-surface-900 tracking-tight">
                                     今日任务
                                 </h3>
-                                <p id="guide-today-progress" className="text-surface-500 text-sm flex items-center gap-2">
-                                    <span>
-                                        今日推进：第{progressDayIndex}天 · {progressDay?.type === 'rest' ? '休息日' : '训练日'}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center justify-center w-6 h-6 rounded-full hover:bg-surface-100 transition-all active:scale-[0.98]"
-                                        onClick={() => setShowExplainDialog(true)}
-                                        title="为什么要点完成？为什么要输入重量？"
-                                    >
-                                        <Info className="w-4 h-4 text-surface-500" />
-                                    </button>
-                                    {progressExecutionStatus === 'in_progress' && progressExec?.started_at ? `（开始于 ${formatShortDate(progressExec.started_at)}）` : ''}
-                                    {progressExecutionStatus === 'completed' && progressExec?.completed_at ? `（完成于 ${formatShortDate(progressExec.completed_at)}）` : ''}
+                                <p className="text-surface-500 text-sm">
+                                    今日（日历）：第{calendarDayIndex}天 · {calendarDay?.type === 'rest' ? '休息日' : '训练日'}
+                                    {calendarExecutionStatus === 'in_progress' && calendarExec?.started_at ? `（开始于 ${formatShortDate(calendarExec.started_at)}）` : ''}
+                                    {calendarExecutionStatus === 'completed' && calendarExec?.completed_at ? `（完成于 ${formatShortDate(calendarExec.completed_at)}）` : ''}
                                 </p>
                             </div>
                             <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full tracking-tight ${todayCompleted
@@ -801,66 +754,56 @@ const TodayTrainingPage: React.FC = () => {
                             即使你今天完成过其它训练日，也不要用一个“今日已完成”卡片把未完成的训练日盖掉，避免混乱。
                         */}
                         <div className="transform transition-all sm:hover:translate-y-[-4px]">
-                            <div id="guide-missing-days">
-                                {missingDays.length > 0 && (
-                                    <div className="mb-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                            <div>
-                                                ⚠️ 你有 <b>{missingDays.length}</b> 天训练日未确认/未完成（允许跳过，不会影响今日推荐）。
-                                                <span className="ml-2 text-xs text-amber-800/80">
-                                                    跳过=确认推进（会标记为跳过，教练可见）；补练=补齐缺口。
-                                                </span>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {missingDays.slice(0, 3).map((di) => (
-                                                    <div key={di} className="flex items-center gap-1.5">
-                                                        <button
-                                                            className="px-2 py-1 rounded-xl bg-surface border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-50 transition-all active:scale-[0.98]"
-                                                            onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${di}&focus=weight`)}
-                                                            title="补练：输入真实重量/次数会帮助系统校准推荐"
-                                                        >
-                                                            去补练 第{di}天
-                                                        </button>
-                                                        <button
-                                                            className="px-2 py-1 rounded-xl bg-surface-900 text-surface text-xs font-semibold hover:bg-surface-700 transition-all active:scale-[0.98]"
-                                                            onClick={() => handleSkipDay(di)}
-                                                            title="跳过也算确认：会推进到下一天，但会标记为跳过（教练可见）"
-                                                        >
-                                                            跳过
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                {missingDays.length > 3 && (
-                                                    <span className="text-xs text-amber-700">…</span>
-                                                )}
-                                            </div>
+                            {missingDays.length > 0 && (
+                                <div className="mb-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <div>
+                                            ⚠️ 你有 <b>{missingDays.length}</b> 天训练日未确认/未完成（允许跳过，不会影响今日推荐）。
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {missingDays.slice(0, 3).map((di) => (
+                                                <div key={di} className="flex items-center gap-1.5">
+                                                    <button
+                                                        className="px-2 py-1 rounded-xl bg-surface border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-50 transition-all active:scale-[0.98]"
+                                                        onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${di}`)}
+                                                    >
+                                                        去补练 第{di}天
+                                                    </button>
+                                                    <button
+                                                        className="px-2 py-1 rounded-xl bg-surface-900 text-surface text-xs font-semibold hover:bg-surface-700 transition-all active:scale-[0.98]"
+                                                        onClick={() => handleSkipDay(di)}
+                                                    >
+                                                        跳过
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {missingDays.length > 3 && (
+                                                <span className="text-xs text-amber-700">…</span>
+                                            )}
                                         </div>
                                     </div>
-                                )}
-                                {todayCompleted && (
-                                    <div className="mb-4 rounded-2xl border border-green-100/50 bg-green-50 px-4 py-3 text-green-800 text-sm">
-                                        ✅ 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。
-                                        <span className="ml-2 text-xs text-green-800/80">
-                                            完成训练后可分享打卡；输入的真实重量会帮助系统让下次自动算更准。
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            {progressDay && progressDay.type === 'training' ? (
+                                </div>
+                            )}
+                            {todayCompleted && (
+                                <div className="mb-4 rounded-2xl border border-green-100/50 bg-green-50 px-4 py-3 text-green-800 text-sm">
+                                    ✅ 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。
+                                </div>
+                            )}
+                            {calendarDay && calendarDay.type === 'training' ? (
                                 <TodayTrainingCard
-                                    day={progressDay}
+                                    day={calendarDay}
                                     actions={actions}
                                     instanceId={instance.id}
-                                    dayIndex={progressDayIndex}
-                                    executionStatus={progressExecutionStatus}
-                                    completedSets={Number(progressExec?.completed_sets || 0)}
-                                    totalSets={Number(progressExec?.total_sets || 0)}
+                                    dayIndex={calendarDayIndex}
+                                    executionStatus={calendarExecutionStatus}
+                                    completedSets={Number(calendarExec?.completed_sets || 0)}
+                                    totalSets={Number(calendarExec?.total_sets || 0)}
                                 />
                             ) : (
-                                <RestDayCard dayIndex={progressDayIndex} />
+                                <RestDayCard dayIndex={calendarDayIndex} />
                             )}
 
-                            {progressDay?.type === 'rest' && inProgressExec && (
+                            {calendarDay?.type === 'rest' && inProgressExec && (
                                 <div className="mt-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
                                     你有进行中的训练：第{inProgressExec.day_index}天（开始于 {formatShortDate(inProgressExec.started_at)}）。
                                     <button
@@ -892,65 +835,13 @@ const TodayTrainingPage: React.FC = () => {
                             completionDates={completionDates}
                             executionsByDayIndex={executionsByDayIndex}
                             todayCompleted={todayCompleted}
-                            initialSelectedDayIndex={progressDayIndex}
-                            progressDayIndex={progressDayIndex}
+                            initialSelectedDayIndex={calendarDayIndex}
+                            calendarDayIndex={calendarDayIndex}
                             effectiveStartDate={instance.start_date || subscription?.start_date}
                         />
                     </section>
                 </div>
             </div>
-
-            <Dialog
-                header="为什么要点完成？为什么要输入重量？"
-                visible={showExplainDialog}
-                onHide={() => setShowExplainDialog(false)}
-                draggable={false}
-                resizable={false}
-                className="w-[min(92vw,680px)]"
-            >
-                <div className="space-y-4 text-sm text-surface-700 leading-relaxed">
-                    <div className="space-y-2">
-                        <div className="font-bold text-surface-900">1) 今日推进规则</div>
-                        <div>休息日会自动顺延；到训练日会停住，直到你完成/跳过（避免因为延迟执行而“看起来进度被推走”）。</div>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="font-bold text-surface-900">2) 输入真实重量/次数的意义（不止是记录）</div>
-                        <ul className="list-disc pl-5 space-y-1">
-                            <li>当次训练内：你输入的真实重量会让后续组推荐联动更贴合。</li>
-                            <li>跨天/下次训练：系统会用你的输入更新 e1RM（估算极限），下次自动算重量会更准。</li>
-                        </ul>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="font-bold text-surface-900">3) 完成/分享打卡</div>
-                        <div>完成会沉淀训练记录/视频/备注，方便复盘与给教练看；也支持一键分享打卡。</div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                        <Button
-                            label="查看引导"
-                            severity="secondary"
-                            outlined
-                            onClick={() => {
-                                setShowExplainDialog(false);
-                                startGuide('STUDENT_TODAY_TRAINING_PROGRESS_GUIDE', true);
-                            }}
-                        />
-                        <Button
-                            label="去输入并校准"
-                            severity="success"
-                            onClick={() => {
-                                setShowExplainDialog(false);
-                                if (!instance?.id) return;
-                                router.push(`/training-execution/${instance.id}?dayIndex=${todayDayIndex}&focus=weight`);
-                            }}
-                        />
-                        <Button
-                            label="我知道了"
-                            onClick={() => setShowExplainDialog(false)}
-                        />
-                    </div>
-                </div>
-            </Dialog>
 
             {/* 适配 Tailwind 配置的额外样式 */}
             <style jsx global>{`

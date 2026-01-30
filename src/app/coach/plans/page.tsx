@@ -805,11 +805,6 @@ const TrainingPlansHome: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-surface-100 bg-surface-50 px-4 py-3 text-sm text-surface-700">
-                    <span className="font-bold"><i className="pi pi-info-circle mr-2" />小提示：</span>
-                    在「今日训练」里输入真实重量/次数不仅是记录，还会更新你的 e1RM，让下次自动算重量更准；推进口径为“休息顺延、训练需确认（完成/跳过）才继续”。
-                </div>
-
                 <div className="flex gap-3">
                     <Button label="开始今日训练" icon="pi pi-play" className="p-button-raised p-button-rounded px-6 py-3 font-bold transition-transform active:scale-95" disabled={instance.status !== 'active'} onClick={() => window.location.href = '/today-training'} />
                     <Button label="趋势分析" icon="pi pi-chart-line" className="p-button-text p-button-rounded font-semibold" />

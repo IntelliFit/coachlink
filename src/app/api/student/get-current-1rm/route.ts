@@ -57,7 +57,7 @@ export async function getCurrent1RMRecords(
         prQuery,
         supabase
             .from("coach_subscriptions")
-            .select("subscribe_data, updated_at")
+            .select("subscribe_data")
             .eq("student_id", queryUserId)
             .eq("status", "active")
             .maybeSingle()
@@ -69,11 +69,6 @@ export async function getCurrent1RMRecords(
     const questionnaireRMMap: Record<string, number> = {};
     const subscribeData = questionnaireResult.data?.subscribe_data as any[];
     const rmItem = subscribeData?.find(item => item.type === "rm");
-    const questionnaireUpdatedAtIso =
-        (questionnaireResult.data as any)?.updated_at as string | undefined;
-    const questionnaireUpdatedAtMs = questionnaireUpdatedAtIso
-        ? new Date(questionnaireUpdatedAtIso).getTime()
-        : 0;
 
     if (rmItem?.userInputs) {
         Object.entries(rmItem.userInputs).forEach(([id, val]) => {
@@ -115,31 +110,14 @@ export async function getCurrent1RMRecords(
     for (const [k, v] of latestMap.entries()) recordsMap.set(k, v);
     for (const [k, v] of stateMap.entries()) recordsMap.set(k, v);
 
-    // 合并问卷数据
-    // 规则（更符合直觉）：
-    // - 如果该动作没有任何历史记录：用问卷值初始化
-    // - 如果问卷更新时间晚于当前记录的 lastUpdated：用问卷值覆盖当前值（实现“更新问卷立即生效”）
+    // 合并问卷数据（初始化基线：只在没有任何记录时使用）
     Object.entries(questionnaireRMMap).forEach(([id, rmValue]) => {
-        const existing = recordsMap.get(id);
-        if (!existing) {
+        if (!recordsMap.has(id)) {
             recordsMap.set(id, {
                 actionId: id,
                 actionName: id,
                 current1RM: rmValue,
-                lastUpdated: questionnaireUpdatedAtIso || new Date().toISOString(),
-                isAutoCalculated: false,
-            });
-            return;
-        }
-
-        const existingUpdatedMs = existing.lastUpdated
-            ? new Date(existing.lastUpdated).getTime()
-            : 0;
-        if (questionnaireUpdatedAtMs && questionnaireUpdatedAtMs > existingUpdatedMs) {
-            recordsMap.set(id, {
-                ...existing,
-                current1RM: rmValue,
-                lastUpdated: questionnaireUpdatedAtIso || new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
                 isAutoCalculated: false,
             });
         }

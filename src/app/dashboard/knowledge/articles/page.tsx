@@ -6,7 +6,7 @@ import { Card } from "primereact/card";
 import { Button } from "primereact/button";
 import { Paginator, PaginatorPageChangeEvent } from "primereact/paginator";
 import { Skeleton } from "primereact/skeleton";
-import { ArrowRight } from "lucide-react";
+import { Lock, ArrowRight } from "lucide-react";
 import { useToastContext } from "@/context/ToastContext";
 import type { CoachContentRow } from "@/types";
 
@@ -77,6 +77,19 @@ export default function KnowledgeArticlesPage() {
         load(event.page, event.rows);
     };
 
+    const getTierLabel = (tier: number) => {
+        switch (tier) {
+            case 1:
+                return "基础订阅";
+            case 2:
+                return "进阶订阅";
+            case 3:
+                return "高级特权";
+            default:
+                return "公开内容";
+        }
+    };
+
     return (
         <div className="p-4">
             <div className="mb-6">
@@ -85,7 +98,7 @@ export default function KnowledgeArticlesPage() {
                     技术文章
                 </h1>
                 <p className="mt-2 text-surface-600 dark:text-surface-300">
-                    这里汇总教练在“内容管理”里发布的文章/记录。
+                    这里汇总教练在“内容管理”里发布的文章/记录（按权限解锁）。
                 </p>
                 <div className="mt-2 text-xs font-black text-surface-400">
                     共 {total} 篇
@@ -93,79 +106,80 @@ export default function KnowledgeArticlesPage() {
             </div>
 
             {loading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="space-y-4">
                     {[...Array(6)].map((_, idx) => (
-                        <div key={idx} className="bg-surface-0 rounded-2xl p-4 border border-surface-100 h-[240px] flex flex-col justify-between">
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Skeleton shape="circle" size="20px" />
-                                    <Skeleton width="60px" height="12px" />
-                                </div>
-                                <Skeleton width="90%" height="1.2rem" className="mb-2" />
-                                <Skeleton width="60%" height="1.2rem" className="mb-3" />
-                                <Skeleton width="100%" height="0.8rem" className="mb-1" />
-                                <Skeleton width="80%" height="0.8rem" />
+                        <Card key={idx} className="border-round-xl">
+                            <div className="p-4">
+                                <Skeleton width="40%" height="1.2rem" className="mb-3" />
+                                <Skeleton width="80%" height="1rem" className="mb-2" />
+                                <Skeleton width="60%" height="1rem" />
                             </div>
-                            <div className="pt-3 border-t border-surface-50 flex justify-between">
-                                 <Skeleton width="60px" height="10px" />
-                                 <Skeleton width="40px" height="10px" />
-                            </div>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             ) : items.length === 0 ? (
                 <div className="text-center py-16 text-surface-500">暂无内容</div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="space-y-4">
                     {items.map((it) => {
                         const c = it.content;
-                        // const requiredTier = (c.required_tier ?? 0) as number; // 不再强调 Tier，而是强调付不付费
+                        const requiredTier = (c.required_tier ?? 0) as number;
                         const snippet = (c.content || "").replace(/<[^>]*>/g, "");
-                        const priceCents = (c as any).price_cents ?? 0; // 确保取到价格
-
                         return (
-                            <div 
-                                key={c.id} 
-                                className="bg-surface-0 rounded-2xl p-4 border border-surface-100 hover:border-primary-200 transition-all cursor-pointer flex flex-col justify-between h-full min-h-[180px]"
-                                onClick={() => router.push(`/articles/${c.id}`)}
-                            >
-                                <div>
-                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-5 h-5 rounded-full bg-surface-100 overflow-hidden shrink-0">
-                                            {it.coach.avatar_url ? (
-                                                <img src={it.coach.avatar_url} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-surface-500">
-                                                    {it.coach.name?.[0]}
-                                                </div>
-                                            )}
+                            <Card key={c.id} className="border-round-xl">
+                                <div className="p-4 flex flex-col md:flex-row gap-4 md:items-center">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[11px] font-black text-surface-500 bg-surface-100 px-2 py-0.5 rounded-lg">
+                                                {getTierLabel(requiredTier)}
+                                            </span>
+                                            <span className="text-xs text-surface-400">
+                                                {it.coach?.name || "教练"}
+                                            </span>
+                                            <span className="ml-auto text-xs text-surface-400">
+                                                {c.created_at
+                                                    ? new Date(c.created_at).toLocaleDateString("zh-CN")
+                                                    : ""}
+                                            </span>
                                         </div>
-                                        <span className="text-xs text-surface-500 font-medium truncate max-w-[120px]">{it.coach.name}</span>
-                                        {priceCents > 0 ? (
-                                            <span className="ml-auto px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">
-                                                付费
-                                            </span>
+                                        <div className="text-lg font-bold text-surface-900 dark:text-surface-0 line-clamp-1">
+                                            {c.title}
+                                        </div>
+                                        <div className="mt-2 text-sm text-surface-600 dark:text-surface-300 line-clamp-2">
+                                            {snippet}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2 shrink-0">
+                                        {it.canView ? (
+                                            <Button
+                                                label="阅读"
+                                                className="rounded-2xl"
+                                                onClick={() => router.push(`/coach/content/${c.id}`)}
+                                            />
                                         ) : (
-                                            <span className="ml-auto px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded">
-                                                免费
-                                            </span>
+                                            <Button
+                                                label="去订阅解锁"
+                                                icon={<Lock className="w-4 h-4" />}
+                                                className="rounded-2xl p-button-outlined"
+                                                onClick={() =>
+                                                    router.push(
+                                                        `/coach/profile/${c.coach_id}?tab=1#choose-pricing`,
+                                                    )
+                                                }
+                                            />
                                         )}
-                                     </div>
-                                     <h3 className="text-sm font-bold text-surface-900 line-clamp-2 leading-snug mb-2 min-h-[2.5em]">
-                                         {c.title || "未命名文章"}
-                                     </h3>
-                                     <p className="text-xs text-surface-500 line-clamp-3 h-12 mb-0">
-                                         {snippet || "暂无预览"}
-                                     </p>
+                                        <Button
+                                            label="查看教练"
+                                            icon={<ArrowRight className="w-4 h-4" />}
+                                            className="rounded-2xl p-button-text"
+                                            onClick={() =>
+                                                router.push(`/coach/profile/${c.coach_id}?tab=1#choose-pricing`)
+                                            }
+                                        />
+                                    </div>
                                 </div>
-                                <div className="mt-3 pt-3 border-t border-surface-50 flex items-center justify-between text-[10px] text-surface-400">
-                                     <span>{c.created_at ? new Date(c.created_at).toLocaleDateString('zh-CN') : ''}</span>
-                                     <div className="flex items-center gap-1 text-primary-600 font-bold hover:underline">
-                                        <span>阅读</span>
-                                        <ArrowRight size={10} />
-                                     </div>
-                                </div>
-                            </div>
+                            </Card>
                         );
                     })}
 

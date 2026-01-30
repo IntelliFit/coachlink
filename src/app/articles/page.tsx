@@ -13,7 +13,6 @@ type PublicArticleListItem = {
     summary: string;
     contentType: string;
     requiredTier: number;
-    priceCents: number;
     publishedAt: string | null;
 };
 
@@ -38,7 +37,7 @@ export default async function ArticlesPage() {
             <div className="max-w-5xl mx-auto">
                 <div className="mb-8">
                     <div className="text-xs font-black uppercase tracking-widest text-surface-500">
-                        健身资讯
+                        技术文章
                     </div>
                     <h1 className="mt-2 text-3xl md:text-4xl font-black text-surface-900 tracking-tight">
                         教练内容 · 公开资讯
@@ -60,13 +59,13 @@ export default async function ArticlesPage() {
                                         <div className="min-w-0">
                                             <div className="text-xs font-black text-surface-400">
                                                 {a.coachName}
-                                                {a.priceCents > 0 ? (
-                                                    <span className="ml-2 text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                                                        付费 ¥{(a.priceCents / 100).toFixed(2)}
+                                                {a.requiredTier > 0 ? (
+                                                    <span className="ml-2 text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                                                        需解锁
                                                     </span>
                                                 ) : (
-                                                    <span className="ml-2 text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                                        免费
+                                                    <span className="ml-2 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                        公开
                                                     </span>
                                                 )}
                                             </div>

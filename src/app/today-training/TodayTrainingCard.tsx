@@ -296,13 +296,6 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     </button>
                 )}
 
-                {/* Why input matters */}
-                {executionStatus !== 'completed' && (
-                    <div className="text-xs text-surface-600 bg-surface-50 border border-surface-100/50 rounded-2xl px-3 py-2">
-                        请输入真实重量/次数：本次后续组会联动校准；系统也会据此更新 e1RM，让下次自动算重量更准。完成后还可分享打卡。
-                    </div>
-                )}
-
                 {/* Button based on status */}
                 {isCompleted ? (
                         <Button

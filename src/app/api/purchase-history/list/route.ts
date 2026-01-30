@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
-import { fenToYuan } from '@/lib/moneyUtils';
 import type { ApiData } from '@/types/api';
 
 export interface PurchaseHistoryItem {
@@ -99,7 +98,7 @@ export async function GET(req: Request) {
                     id: order.id,
                     orderType: (order.order_type as any) || 'other',
                     subject: order.subject,
-                    amount: fenToYuan(order.total_amount ?? 0),
+                    amount: Number(order.total_amount),
                     status: order.status as any,
                     createdAt: order.created_at,
                     paidAt: order.status === 'paid' ? order.updated_at : undefined,
@@ -118,7 +117,7 @@ export async function GET(req: Request) {
                     id: order.id,
                     orderType: 'student_membership',
                     subject: `会员服务 - ${order.product_key}`,
-                    amount: fenToYuan(order.amount ?? 0),
+                    amount: Number(order.amount),
                     status: order.status as any,
                     createdAt: order.created_at,
                     paidAt: order.paid_at || undefined,

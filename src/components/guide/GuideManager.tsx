@@ -108,14 +108,6 @@ export function GuideManager({ userRole }: GuideManagerProps) {
     if (isGuideActive) return;
     if (shouldPauseGuides) return;
 
-    // Student: Today training progress guide (today-training page)
-    if (pathname === '/today-training') {
-      if (!hasCompletedGuide('student_today_training_progress') && !hasTriggeredContextual['student_today_training_progress']) {
-        setHasTriggeredContextual((prev) => ({ ...prev, student_today_training_progress: true }));
-        setTimeout(() => startGuide('STUDENT_TODAY_TRAINING_PROGRESS_GUIDE'), 800);
-      }
-    }
-
     // Student: Find coach guide (discovery page)
     if (pathname === '/coach/discovery') {
       if (!hasCompletedGuide('student_find_coach') && !hasTriggeredContextual['student_find_coach']) {

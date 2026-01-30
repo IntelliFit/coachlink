@@ -134,7 +134,7 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
               <Button
                 outlined
                 className="rounded-2xl"
-                label="去发现"
+                label="去发现教练"
                 onClick={() => router.push('/coach/discovery')}
               />
             </div>
@@ -174,10 +174,10 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
             </div>
             <div className="text-surface-900 font-black">暂无可展示的服务商品</div>
             <div className="text-surface-500 text-sm mt-2 font-medium">
-              你可以先去发现，进入教练主页查看其订阅方案。
+              你可以先去发现教练，进入教练主页查看其订阅方案。
             </div>
             <div className="mt-6">
-              <Button className="rounded-2xl" label="去发现" onClick={() => router.push('/coach/discovery')} />
+              <Button className="rounded-2xl" label="去发现教练" onClick={() => router.push('/coach/discovery')} />
             </div>
           </div>
         ) : (
