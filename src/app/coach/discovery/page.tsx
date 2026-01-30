@@ -201,8 +201,9 @@ const CoachDiscoveryPage: React.FC = () => {
         };
     }, [coaches, visibilityLoading, visibilityStatus?.focusMode]);
 
-    // Auto start guide once after list is available (action-oriented, not just nav overview)
+    // Auto start guide once after list is available (action-oriented, not just nav overview). 仅已登录学员展示新手指引
     useEffect(() => {
+        if (!session?.user) return;
         if (isLoading) return;
         if (!coaches || coaches.length === 0) return;
         if (isGuideLoading) return;
@@ -211,7 +212,7 @@ const CoachDiscoveryPage: React.FC = () => {
         if (visibilityStatus?.focusMode) return;
         const t = setTimeout(() => startGuide('STUDENT_FIND_COACH_GUIDE'), 600);
         return () => clearTimeout(t);
-    }, [isLoading, coaches, hasCompletedGuide, startGuide, isGuideLoading, visibilityStatus]);
+    }, [session?.user, isLoading, coaches, hasCompletedGuide, startGuide, isGuideLoading, visibilityStatus]);
 
     const loadSpecialties = async () => {
         try {
@@ -450,15 +451,17 @@ const CoachDiscoveryPage: React.FC = () => {
                             >
                                 <User className="w-5 h-5 text-surface-700" />
                             </button>
-                            <Button
-                                icon="pi pi-question-circle"
-                                label={""}
-                                outlined
-                                size="small"
-                                onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
-                                disabled={isGuideLoading}
-                                className="shrink-0 rounded-2xl border-primary-500 text-primary-500 hidden md:inline-flex"
-                            />
+                            {session?.user && (
+                                <Button
+                                    icon="pi pi-question-circle"
+                                    label={""}
+                                    outlined
+                                    size="small"
+                                    onClick={() => !isGuideLoading && startGuide('STUDENT_FIND_COACH_GUIDE', true)}
+                                    disabled={isGuideLoading}
+                                    className="shrink-0 rounded-2xl border-primary-500 text-primary-500 hidden md:inline-flex"
+                                />
+                            )}
                         </div>
                     </div>
                 </div>

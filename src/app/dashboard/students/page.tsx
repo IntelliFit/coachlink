@@ -1046,6 +1046,7 @@ export default function StudentsPage() {
                     setReviewDialogVisible(true);
                 }}
                 onShowChatDialog={contactStudent}
+                onRefundSuccess={() => loadStudents(Math.floor(first / rows), rows)}
             />
             <CoachReviewDialog visible={reviewDialogVisible} coach={coach} student={selectedStudent} onHide={() => setReviewDialogVisible(false)} onSave={() => loadStudents()} />
             <ChatDialog
