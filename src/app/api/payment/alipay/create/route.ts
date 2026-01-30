@@ -7,6 +7,7 @@ import type {
     CreateAlipayOrderResponseDto,
 } from "./entity";
 import { createAlipaySdk } from "@/lib/alipaySdk";
+import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
@@ -135,8 +136,8 @@ export async function POST(req: Request) {
             );
         }
 
-        // Initial subscription must use server-stored price.
-        // Renewals may have different tiered discounts; we keep client-provided totalAmount but still guard against abnormal small values above.
+        // Initial subscription: monthly_price 在 DB 中已存为分（整数），直接作为订单金额（分）
+        // Renewals may have different tiered discounts; we keep client-provided totalAmount (yuan) and convert to fen below.
         if (orderType === "subscription") {
             resolvedTotalAmount = Number(sub.monthly_price);
         }
@@ -160,12 +161,17 @@ export async function POST(req: Request) {
     // 初始化 alipay-sdk（使用统一的初始化工具，支持代理配置）
     const alipaySdk = createAlipaySdk();
 
-    // 写入订单到数据库
+    // 写入订单到数据库，金额存储为分（整数）
+    // 订阅首单：resolvedTotalAmount 已是 sub.monthly_price（分）；其他/续费：前端传的是元，需转分
+    const totalAmountFen =
+        orderType === "subscription"
+            ? Math.round(Number(resolvedTotalAmount))
+            : yuanToFen(resolvedTotalAmount);
     const { data: order, error: orderError } = await supabase
         .from("alipay_orders")
         .insert({
             subject,
-            total_amount: resolvedTotalAmount,
+            total_amount: totalAmountFen, // 存储分（整数）
             order_type: orderType,
             order_data: orderData,
             user_id: userId,
@@ -206,24 +212,28 @@ export async function POST(req: Request) {
     let result: string;
     if (isMobile) {
         // 移动端使用 wap.pay，可以唤起支付宝APP
-        result = alipaySdk.pageExec("alipay.trade.wap.pay", {
+            // 支付宝接口需要元（字符串，保留两位小数）
+            const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
+            result = alipaySdk.pageExec("alipay.trade.wap.pay", {
             notifyUrl,
             returnUrl,
             bizContent: {
                 out_trade_no: order.id,
-                total_amount: resolvedTotalAmount.toFixed(2),
+                total_amount: totalAmountYuanStr,
                 subject,
                 product_code: "QUICK_WAP_WAY",
             },
         });
     } else {
         // PC端使用 page.pay，显示二维码
+        // 支付宝接口需要元（字符串，保留两位小数）
+        const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
         result = alipaySdk.pageExec("alipay.trade.page.pay", {
             notifyUrl,
             returnUrl,
             bizContent: {
                 out_trade_no: order.id,
-                total_amount: resolvedTotalAmount.toFixed(2),
+                total_amount: totalAmountYuanStr,
                 subject,
                 product_code: "FAST_INSTANT_TRADE_PAY",
                 qr_pay_mode: "0",
@@ -266,7 +276,7 @@ export async function POST(req: Request) {
                 // `alipay_orders` table uses `id` as out_trade_no for Alipay tracking
                 out_trade_no: order.id.toString(),
                 subject: order.subject,
-                total_amount: order.total_amount,
+                total_amount: fenToYuan(order.total_amount), // 转换为元返回给前端
                 status: order.status,
                 created_at: order.created_at,
             },

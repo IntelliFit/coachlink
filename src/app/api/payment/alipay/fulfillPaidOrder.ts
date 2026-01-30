@@ -5,6 +5,7 @@
  */
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { sendSystemMessage } from "@/lib/chat";
+import { addFen } from "@/lib/moneyUtils";
 
 /** 教练钱包入账 + 流水记录，按 related_order_id 幂等 */
 export async function updateTransactionAndWallet(order: {
@@ -17,10 +18,9 @@ export async function updateTransactionAndWallet(order: {
     try {
         const orderData = (order.order_data && typeof order.order_data === "object" ? order.order_data : {}) as Record<string, unknown>;
         const coachId = orderData?.coachId as string | undefined;
-        const amount = Number(
-            order.total_amount ?? order.amount ?? orderData?.amount ?? 0
-        );
-        if (!coachId || !amount || amount <= 0) return;
+        // alipay_orders.total_amount 在 DB 中已存为分（整数），直接使用
+        const amountFen = Math.round(Number(order.total_amount ?? order.amount ?? orderData?.amount ?? 0));
+        if (!coachId || !amountFen || amountFen <= 0) return;
 
         const { data: existTx } = await serviceRoleSupabase
             .from("wallet_transactions")
@@ -36,22 +36,27 @@ export async function updateTransactionAndWallet(order: {
             .single();
 
         if (!wallet) {
+            // 新钱包：直接存储分（整数）
             await serviceRoleSupabase.from("coach_wallets").insert({
                 coach_id: coachId,
-                balance: amount,
-                total_income: amount,
+                balance: amountFen,
+                total_income: amountFen,
                 frozen_amount: 0,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             });
         } else {
-            const newBalance = Number(wallet.balance || 0) + amount;
-            const newTotalIncome = Number(wallet.total_income || 0) + amount;
+            // 现有钱包：DB 中 balance/total_income 已是分，直接整数相加
+            const currentBalanceFen = Number(wallet.balance ?? 0);
+            const currentTotalIncomeFen = Number(wallet.total_income ?? 0);
+            const newBalanceFen = addFen(currentBalanceFen, amountFen);
+            const newTotalIncomeFen = addFen(currentTotalIncomeFen, amountFen);
+
             await serviceRoleSupabase
                 .from("coach_wallets")
                 .update({
-                    balance: newBalance,
-                    total_income: newTotalIncome,
+                    balance: newBalanceFen,
+                    total_income: newTotalIncomeFen,
                     updated_at: new Date().toISOString(),
                 })
                 .eq("coach_id", coachId);
@@ -61,14 +66,18 @@ export async function updateTransactionAndWallet(order: {
             (orderData?.subject as string) ||
             (order.subject as string) ||
             `支付宝订单 ${order.id}`;
-        await serviceRoleSupabase.from("wallet_transactions").insert({
+        // 流水记录也存储分（整数）；重复 related_order_id 由 DB 唯一约束拦截
+        const { error: insertErr } = await serviceRoleSupabase.from("wallet_transactions").insert({
             wallet_id: coachId,
-            amount,
+            amount: amountFen,
             type: "income",
             related_order_id: order.id,
             description: desc,
             created_at: new Date().toISOString(),
         });
+        // 唯一约束冲突：说明 notify/return/query 已入账过，幂等成功
+        if (insertErr?.code === "23505") return;
+        if (insertErr) throw insertErr;
     } catch (e) {
         console.error("[Alipay fulfillPaidOrder] updateTransactionAndWallet:", e);
     }

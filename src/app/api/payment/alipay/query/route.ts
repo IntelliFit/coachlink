@@ -10,6 +10,7 @@ import {
 
 import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
+import { fenToYuan } from '@/lib/moneyUtils';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
 
@@ -72,11 +73,16 @@ export async function POST(req: Request) {
         .single();
 
     if (!existOrderError && existOrder.status === 'paid') {
+        // 将金额从分转换为元返回给前端
+        const orderWithYuan = {
+            ...existOrder,
+            total_amount: fenToYuan(existOrder.total_amount ?? 0),
+        };
         return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
             success: true,
             message: '订单已支付',
             data: {
-                order: existOrder,
+                order: orderWithYuan,
                 tradeStatus: existOrder.trade_status as TradeStatus
             }
         });
@@ -152,11 +158,17 @@ export async function POST(req: Request) {
         await updateTransactionAndWallet(order);
     }
 
+    // 将金额从分转换为元返回给前端
+    const orderWithYuan = {
+        ...order,
+        total_amount: fenToYuan(order.total_amount ?? 0),
+    };
+    
     return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
         success: true,
         message: '支付状态',
         data: {
-            order: order,
+            order: orderWithYuan,
             tradeStatus: tradeStatus as TradeStatus
         }
     });

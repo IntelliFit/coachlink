@@ -9,6 +9,7 @@ import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import type { ApiData } from "@/types/api";
 import type { RefundAlipayOrderDto, RefundAlipayOrderResponseDto } from "./entity";
+import { fenToYuan, subtractFen, ensureNonNegativeFen, formatYuanFromFen } from "@/lib/moneyUtils";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     // 1. 查询订单
     const { data: order, error: orderErr } = await serviceRoleSupabase
         .from("alipay_orders")
-        .select("id, status, total_amount, order_type, order_data, user_id")
+        .select("id, status, total_amount, order_type, order_data, user_id, subject")
         .eq("id", orderId)
         .single();
 
@@ -71,10 +72,9 @@ export async function POST(req: Request) {
         }
     }
 
-    // 3. 调用支付宝退款
-    const alipaySdk = createAlipaySdk();
-    const refundAmount = Number(order.total_amount);
-    if (!(refundAmount > 0)) {
+    // alipay_orders.total_amount 在 DB 中已存为分（整数）
+    const refundAmountFen = Math.round(Number(order.total_amount));
+    if (!(refundAmountFen > 0)) {
         return NextResponse.json<ApiData<RefundAlipayOrderResponseDto>>({
             success: false,
             message: "订单金额异常",
@@ -82,11 +82,56 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    // 3. 检查教练钱包余额（如果有教练ID）
+    if (orderCoachId) {
+        // 查询或创建钱包
+        let { data: wallet } = await serviceRoleSupabase
+            .from("coach_wallets")
+            .select("balance, total_income")
+            .eq("coach_id", orderCoachId)
+            .maybeSingle();
+
+        // 如果钱包不存在，创建一个（余额为0）
+        if (!wallet) {
+            const { data: newWallet } = await serviceRoleSupabase
+                .from("coach_wallets")
+                .insert({
+                    coach_id: orderCoachId,
+                    balance: 0,
+                    total_income: 0,
+                    frozen_amount: 0,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
+                .select("balance, total_income")
+                .single();
+            wallet = newWallet;
+        }
+
+        if (wallet) {
+            // 钱包余额在 DB 中已存为分（整数）
+            const currentBalanceFen = Number(wallet.balance ?? 0);
+            // 检查余额是否足够（管理员退款时）
+            if (isAdmin && currentBalanceFen < refundAmountFen) {
+                return NextResponse.json<ApiData<RefundAlipayOrderResponseDto>>({
+                    success: false,
+                    message: `教练钱包余额不足，当前余额：¥${formatYuanFromFen(currentBalanceFen)}，退款金额：¥${formatYuanFromFen(refundAmountFen)}`,
+                    data: null,
+                }, { status: 400 });
+            }
+        }
+    }
+
+    // 4. 调用支付宝退款
+    const alipaySdk = createAlipaySdk();
+
     try {
+        // 支付宝接口需要元（字符串，保留两位小数）
+        const refundAmountYuanStr = fenToYuan(refundAmountFen).toFixed(2);
         const response = await alipaySdk.exec("alipay.trade.refund", {
             bizContent: {
                 out_trade_no: orderId,
-                refund_amount: refundAmount.toFixed(2),
+                refund_amount: refundAmountYuanStr,
                 refund_reason: body.refundReason || "用户申请退款",
                 out_request_no: `${orderId}_refund`,
             },
@@ -111,7 +156,7 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 4. 更新订单状态
+    // 5. 更新订单状态
     await serviceRoleSupabase
         .from("alipay_orders")
         .update({
@@ -120,7 +165,7 @@ export async function POST(req: Request) {
         })
         .eq("id", orderId);
 
-    // 5. 取消关联订阅（platform 支付的订阅/续费）
+    // 6. 取消关联订阅（platform 支付的订阅/续费）
     if (
         order.order_type === "subscription" || order.order_type === "subscription_renew"
     ) {
@@ -130,64 +175,92 @@ export async function POST(req: Request) {
                 .from("coach_subscriptions")
                 .update({
                     status: "cancelled",
+                    end_date: new Date().toISOString(), // 立即结束订阅
                     order_id: null,
                     last_payment_order_id: null,
                     payment_method: null,
                     payment_confirmed_at: null,
                     payment_confirmed_by: null,
+                    cancellation_reason: isAdmin ? "管理员操作退款" : "用户申请退款",
                     updated_at: new Date().toISOString(),
                 })
                 .eq("id", subscriptionId);
         } else {
+            // 如果没有subscriptionId，通过订单ID查找订阅
             await serviceRoleSupabase
                 .from("coach_subscriptions")
                 .update({
                     status: "cancelled",
+                    end_date: new Date().toISOString(), // 立即结束订阅
                     order_id: null,
                     last_payment_order_id: null,
                     payment_method: null,
                     payment_confirmed_at: null,
                     payment_confirmed_by: null,
+                    cancellation_reason: isAdmin ? "管理员操作退款" : "用户申请退款",
                     updated_at: new Date().toISOString(),
                 })
                 .or(`last_payment_order_id.eq.${orderId},order_id.eq.${orderId}`);
         }
     }
 
-    // 6. 教练钱包冲正：扣减余额并记一笔退款流水
+    // 7. 教练钱包冲正：扣减余额并记一笔退款流水
     if (orderCoachId) {
-        const { data: incomeTx } = await serviceRoleSupabase
-            .from("wallet_transactions")
-            .select("id, amount, wallet_id")
-            .eq("related_order_id", orderId)
-            .eq("type", "income")
+        // 查询或创建钱包
+        let { data: wallet } = await serviceRoleSupabase
+            .from("coach_wallets")
+            .select("balance, total_income")
+            .eq("coach_id", orderCoachId)
             .maybeSingle();
 
-        if (incomeTx) {
-            const { data: wallet } = await serviceRoleSupabase
+        // 如果钱包不存在，创建一个（余额为0）
+        if (!wallet) {
+            const { data: newWallet } = await serviceRoleSupabase
                 .from("coach_wallets")
+                .insert({
+                    coach_id: orderCoachId,
+                    balance: 0,
+                    total_income: 0,
+                    frozen_amount: 0,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
                 .select("balance, total_income")
-                .eq("coach_id", orderCoachId)
                 .single();
+            wallet = newWallet;
+        }
 
-            if (wallet) {
-                const balance = Number(wallet.balance ?? 0);
-                const deduct = refundAmount;
-                const newBalance = Math.max(0, balance - deduct);
-                await serviceRoleSupabase
-                    .from("coach_wallets")
-                    .update({
-                        balance: newBalance,
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq("coach_id", orderCoachId);
+        if (wallet) {
+            // 钱包余额在 DB 中已存为分（整数）
+            const currentBalanceFen = Number(wallet.balance ?? 0);
+            const newBalanceFen = ensureNonNegativeFen(subtractFen(currentBalanceFen, refundAmountFen));
+            
+            // 更新钱包余额（存储分）
+            await serviceRoleSupabase
+                .from("coach_wallets")
+                .update({
+                    balance: newBalanceFen,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("coach_id", orderCoachId);
 
+            // 检查是否已存在退款记录（防止重复插入）
+            const { data: existingRefundTx } = await serviceRoleSupabase
+                .from("wallet_transactions")
+                .select("id")
+                .eq("related_order_id", orderId)
+                .eq("type", "refund")
+                .maybeSingle();
+
+            // 插入退款流水记录（如果不存在），存储分（整数）
+            if (!existingRefundTx) {
+                const orderSubject = (order as { subject?: string | null }).subject;
                 await serviceRoleSupabase.from("wallet_transactions").insert({
                     wallet_id: orderCoachId,
-                    amount: deduct,
+                    amount: refundAmountFen, // 存储分（整数）
                     type: "refund",
                     related_order_id: orderId,
-                    description: `退款：${(orderData?.subject as string) || "支付宝订单"}`,
+                    description: `退款：${(orderData?.subject as string) || orderSubject || "支付宝订单"}`,
                     created_at: new Date().toISOString(),
                 });
             }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
+import { fenToYuan } from "@/lib/moneyUtils";
 import { GetOverviewDataResponseDto } from "./entity";
 
 export async function POST(req: Request) {
@@ -104,10 +105,12 @@ export async function POST(req: Request) {
     const totalStudentCount = activeStudentCountResult.count || 0;
     const pendingReviewCount = pendingReviewResult.count || 0;
 
-    const monthlyRevenue = (activeRevenueResult.data || []).reduce(
+    // monthly_price 在 DB 中为分；求和后转为元返回给前端展示
+    const monthlyRevenueFen = (activeRevenueResult.data || []).reduce(
         (sum, row: any) => sum + (Number(row?.monthly_price) || 0),
         0,
     );
+    const monthlyRevenue = fenToYuan(monthlyRevenueFen);
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;
