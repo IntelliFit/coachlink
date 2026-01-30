@@ -38,7 +38,8 @@ import {
     Headphones,
     MessageSquare,
     Receipt,
-    ShoppingCart
+    ShoppingCart,
+    Briefcase
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -264,15 +265,7 @@ export default function NavigationStudent() {
         { label: '当前计划', icon: 'pi pi-clipboard', command: () => { router.push('/coach/plans'); setVisibleLeft(false); } },
         { label: '我的教练', icon: 'pi pi-star', command: () => { router.push('/coach/subscription'); setVisibleLeft(false); } },
         { label: '我的会员', icon: 'pi pi-crown', command: () => { router.push('/me/membership'); setVisibleLeft(false); } },
-        ...(STUDENT_TOOLBOX_LINKS.length
-            ? [
-                {
-                    label: '工具箱',
-                    icon: 'pi pi-briefcase',
-                    command: () => { router.push('/me/toolbox'); setVisibleLeft(false); },
-                },
-            ]
-            : []),
+        { label: '工具箱', icon: 'pi pi-info-circle', command: () => { router.push('/me/toolbox'); setVisibleLeft(false); } }, // 使用 info-circle 或 briefcase 如果可用
         { separator: true },
         { label: '我的好友', icon: 'pi pi-users', command: () => { router.push('/friends'); setVisibleLeft(false); } },
         { label: '我的动作库', icon: 'pi pi-list', command: () => { router.push('/me/action-lib'); setVisibleLeft(false); } },
@@ -337,11 +330,11 @@ export default function NavigationStudent() {
                 onClick: () => router.push('/coach/discovery'),
             },
             {
-                key: 'plan',
-                label: '计划库',
-                icon: Bookmark,
-                active: pathname.startsWith('/me/plan-lib'),
-                onClick: () => router.push('/me/plan-lib'),
+                key: 'toolbox',
+                label: '工具',
+                icon: Briefcase,
+                active: pathname.startsWith('/me/toolbox'),
+                onClick: () => router.push('/me/toolbox'),
             },
             {
                 key: 'messages',
@@ -359,7 +352,7 @@ export default function NavigationStudent() {
                 onClick: () => router.push('/me/profile'),
             },
         ];
-    }, [pathname, router, visibleLeft]);
+    }, [pathname, router]);
 
     const start = (
         <Link href="/" className="flex items-center gap-3 mr-8 group transition-transform active:scale-95">
