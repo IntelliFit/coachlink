@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         ) {
             orderStatus = "paid";
         } else if (trade_status === "TRADE_CLOSED") {
-            orderStatus = "cancelled";
+            orderStatus = "closed"; // 数据库约束：pending|paid|failed|closed|refunded
         }
 
         // 1. Update `alipay_orders`

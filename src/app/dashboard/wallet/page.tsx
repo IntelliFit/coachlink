@@ -20,6 +20,15 @@ interface WithdrawalRecord {
     processed_at: string | null;
 }
 
+/** 钱包流水项是否支持「退款」：平台支付的订阅/续费收入 */
+function canRefundTx(tx: { type: string; related_order_id?: string | null; order_type?: string | null }): boolean {
+    return (
+        tx.type === 'income' &&
+        Boolean(tx.related_order_id) &&
+        (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew') === true
+    );
+}
+
 export default function CoachWalletPage() {
     const [data, setData] = useState<WalletData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -31,6 +40,7 @@ export default function CoachWalletPage() {
     const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
     const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
     const router = useRouter();
 
     const fetchWallet = async () => {
@@ -92,6 +102,28 @@ export default function CoachWalletPage() {
             setMessage(err?.response?.data?.message || '撤回失败');
         } finally {
             setCancellingId(null);
+        }
+    };
+
+    const handleRefund = async (orderId: string) => {
+        if (!confirm('确定要对该笔订单退款吗？将同步取消关联订阅并扣减您的钱包余额。')) {
+            return;
+        }
+        setRefundingOrderId(orderId);
+        setMessage(null);
+        try {
+            const res = await axios.post('/api/payment/alipay/refund', { orderId });
+            if (res.data && res.data.success) {
+                setMessage('退款成功');
+                await fetchWallet();
+                await fetchWithdrawals();
+            } else {
+                setMessage(res.data?.message || '退款失败');
+            }
+        } catch (err: any) {
+            setMessage(err?.response?.data?.message || '退款失败');
+        } finally {
+            setRefundingOrderId(null);
         }
     };
 
@@ -221,8 +253,20 @@ export default function CoachWalletPage() {
                                             <p className="text-xs text-surface-500">{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</p>
                                         </div>
                                     </div>
-                                    <div className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
-                                        {tx.type === 'income' ? '+' : '-'}{Math.abs(tx.amount).toFixed(2)}
+                                    <div className="flex items-center gap-2">
+                                        {canRefundTx(tx) && tx.related_order_id && (
+                                            <Button
+                                                label="退款"
+                                                icon="pi pi-undo"
+                                                size="small"
+                                                className="p-button-text p-button-sm text-amber-600"
+                                                loading={refundingOrderId === tx.related_order_id}
+                                                onClick={() => handleRefund(tx.related_order_id!)}
+                                            />
+                                        )}
+                                        <span className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
+                                            {tx.type === 'income' ? '+' : '-'}{Math.abs(tx.amount).toFixed(2)}
+                                        </span>
                                     </div>
                                 </div>
                             );

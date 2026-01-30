@@ -20,6 +20,8 @@ export interface Transaction {
     order_type?: string | null;
     student_id?: string | null;
     student_name?: string | null;
+    /** 关联的支付宝订单 id，用于退款等操作 */
+    related_order_id?: string | null;
 }
 
 type WalletTransactionRow = {
@@ -133,6 +135,7 @@ export async function POST(request: Request) {
                 type: tx.type,
                 description: tx.description ?? "",
                 created_at: tx.created_at,
+                related_order_id: tx.related_order_id ?? null,
             };
 
             const order = tx.related_order_id ? ordersById.get(tx.related_order_id) : null;
