@@ -90,8 +90,23 @@ const PaymentPage = () => {
     };
 
     const handlePaymentComplete = () => {
-        const target = redirectTarget && redirectTarget.startsWith('/') ? redirectTarget : '';
-        router.push(target || '/coach/subscription');
+        const baseTarget = redirectTarget && redirectTarget.startsWith('/') ? redirectTarget : '';
+        if (!baseTarget) {
+            router.push('/coach/subscription');
+            return;
+        }
+
+        if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('recentPayAt', String(Date.now()));
+        }
+
+        const [path, qs] = baseTarget.split('?');
+        const params = new URLSearchParams(qs || '');
+        if (!params.has('paid')) {
+            params.set('paid', '1');
+        }
+        const nextTarget = params.toString() ? `${path}?${params.toString()}` : path;
+        router.push(nextTarget);
     };
 
     return (

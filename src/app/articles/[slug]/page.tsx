@@ -7,6 +7,7 @@ import { ARTICLES } from '../articlesData';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import ArticlePurchaseSection from '../ArticlePurchaseSection';
+import RefreshOnPaid from '../RefreshOnPaid';
 
 const md = new MarkdownIt({
   html: true,
@@ -61,6 +62,10 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
     // middleware should already redirect, but keep a server-side safety net
     redirect(`/login?redirect=${encodeURIComponent(`/articles/${slugValue}`)}`);
   }
+
+  // Client-side refresh hook for payment return
+  // (noop in server render, but enables post-payment refresh when ?paid=1)
+  const PaidRefresh = <RefreshOnPaid />;
 
   // 优先：使用“教练内容管理（coach_contents）”作为公开文章来源
   if (isUuid) {
@@ -173,6 +178,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
     return (
       <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+        {PaidRefresh}
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <BackButton />
@@ -240,6 +246,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+        {PaidRefresh}
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <BackButton />
