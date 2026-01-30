@@ -38,7 +38,6 @@ export async function POST(req: Request) {
 
     const coachId = coach.id;
 
-    // 解析请求参数
     let reqData: GetRevenueDetailsDto = {};
     try {
         reqData = await req.json();
@@ -65,38 +64,88 @@ export async function POST(req: Request) {
     const items: RevenueItem[] = [];
 
     // 1. 查询订阅收入（active 订阅）
-    // monthly_price 在 DB 中为分
+    // 注意：订阅是按月计费的，这里简单起见列出所有 active 订阅作为"本月"的预期收入
     const { data: subscriptions } = await supabase
         .from("coach_subscriptions")
         .select(`
             id,
             monthly_price,
             created_at,
-            student_id,
-            users:student_id (
-                id,
-                nickname,
-                profile
-            )
+            student_id
         `)
         .eq("coach_id", coachId)
         .eq("status", "active");
 
+    // 2. 查询内容购买收入
+    // 先获取 content ids
+    const { data: contents } = await serviceRoleSupabase
+        .from("coach_contents")
+        .select("id, title")
+        .eq("coach_id", coachId);
+
+    const contentMap = new Map<string, string>();
+    const contentIds: string[] = [];
+    if (contents) {
+        for (const c of contents) {
+            contentIds.push(c.id);
+            contentMap.set(c.id, c.title || "未命名文章");
+        }
+    }
+
+    let purchases: any[] = [];
+    if (contentIds.length > 0) {
+        const { data: pData } = await serviceRoleSupabase
+            .from("content_purchases" as any)
+            .select(`
+                id,
+                content_id,
+                user_id,
+                order_id,
+                paid_at
+            `)
+            .in("content_id", contentIds)
+            .eq("status", "paid")
+            .gte("paid_at", monthStart.toISOString())
+            .lt("paid_at", nextMonthStart.toISOString());
+        purchases = pData || [];
+    }
+
+    // 3. 收集所有涉及的用户 ID，批量查询 user_profiles 获取名字
+    const userIds = new Set<string>();
+    if (subscriptions) {
+        subscriptions.forEach(sub => sub.student_id && userIds.add(sub.student_id));
+    }
+    purchases.forEach(p => p.user_id && userIds.add(p.user_id));
+
+    const userProfileMap = new Map<string, string>();
+    if (userIds.size > 0) {
+        const { data: profiles } = await supabase
+            .from("user_profiles")
+            .select("user_id, nickname")
+            .in("user_id", Array.from(userIds));
+
+        if (profiles) {
+            profiles.forEach((p: any) => {
+                if (p.user_id && p.nickname) {
+                    userProfileMap.set(p.user_id, p.nickname);
+                }
+            });
+        }
+    }
+
+    // 4. 处理订阅收入数据
     let subscriptionRevenueFen = 0;
     if (subscriptions) {
         for (const sub of subscriptions) {
             const amountFen = Number(sub.monthly_price) || 0;
             subscriptionRevenueFen += amountFen;
 
-            const user = sub.users as any;
-            const studentName = user?.nickname
-                || user?.profile?.name
-                || "未知学员";
+            const studentName = userProfileMap.get(sub.student_id) || "未知学员";
 
             items.push({
                 id: sub.id,
                 type: "subscription",
-                amount: fenToYuan(amountFen),  // 转为元
+                amount: fenToYuan(amountFen),
                 description: `订阅月费 - ${studentName}`,
                 createdAt: sub.created_at,
                 studentName,
@@ -104,94 +153,51 @@ export async function POST(req: Request) {
         }
     }
 
-    // 2. 查询内容购买收入（当月已支付）
+    // 5. 处理内容购买数据
     let contentPurchaseRevenueFen = 0;
-    try {
-        // 获取教练的所有内容 ID
-        const { data: contents } = await serviceRoleSupabase
-            .from("coach_contents")
-            .select("id, title")
-            .eq("coach_id", coachId);
+    if (purchases.length > 0) {
+        const orderIds = purchases
+            .map((p: any) => p.order_id)
+            .filter((id: any) => typeof id === "string" && id.length > 0);
 
-        const contentMap = new Map<string, string>();
-        const contentIds: string[] = [];
-        if (contents) {
-            for (const c of contents) {
-                contentIds.push(c.id);
-                contentMap.set(c.id, c.title || "未命名文章");
-            }
-        }
-
-        if (contentIds.length > 0) {
-            const { data: purchases } = await serviceRoleSupabase
-                .from("content_purchases" as any)
-                .select(`
-                    id,
-                    content_id,
-                    user_id,
-                    order_id,
-                    paid_at,
-                    users:user_id (
-                        id,
-                        nickname,
-                        profile
-                    )
-                `)
-                .in("content_id", contentIds)
+        const orderAmountMap = new Map<string, number>();
+        if (orderIds.length > 0) {
+            const { data: orders } = await serviceRoleSupabase
+                .from("alipay_orders")
+                .select("id, total_amount")
+                .in("id", orderIds)
                 .eq("status", "paid")
-                .gte("paid_at", monthStart.toISOString())
-                .lt("paid_at", nextMonthStart.toISOString());
+                .eq("order_type", "content_purchase");
 
-            if (purchases && purchases.length > 0) {
-                const orderIds = purchases
-                    .map((p: any) => p.order_id)
-                    .filter((id: any) => typeof id === "string" && id.length > 0);
-
-                const orderAmountMap = new Map<string, number>();
-                if (orderIds.length > 0) {
-                    const { data: orders } = await serviceRoleSupabase
-                        .from("alipay_orders")
-                        .select("id, total_amount")
-                        .in("id", orderIds)
-                        .eq("status", "paid")
-                        .eq("order_type", "content_purchase");
-
-                    if (orders) {
-                        for (const o of orders) {
-                            // alipay_orders.total_amount 也可能是分
-                            orderAmountMap.set(o.id, Number(o.total_amount) || 0);
-                        }
-                    }
-                }
-
-                for (const p of purchases as any[]) {
-                    const amountFen = orderAmountMap.get(p.order_id) || 0;
-                    contentPurchaseRevenueFen += amountFen;
-
-                    const contentTitle = contentMap.get(p.content_id) || "未命名文章";
-                    const user = p.users as any;
-                    const buyerName = user?.nickname || user?.profile?.name || "匿名用户";
-
-                    items.push({
-                        id: p.id,
-                        type: "content_purchase",
-                        amount: fenToYuan(amountFen),  // 转为元
-                        description: `文章购买 - ${contentTitle}`,
-                        createdAt: p.paid_at,
-                        studentName: buyerName,
-                        contentTitle,
-                    });
+            if (orders) {
+                for (const o of orders) {
+                    orderAmountMap.set(o.id, Number(o.total_amount) || 0);
                 }
             }
         }
-    } catch (e) {
-        console.error("[get-revenue-details] content purchase query failed:", e);
+
+        for (const p of purchases) {
+            const amountFen = orderAmountMap.get(p.order_id) || 0;
+            contentPurchaseRevenueFen += amountFen;
+
+            const contentTitle = contentMap.get(p.content_id) || "未命名文章";
+            const buyerName = userProfileMap.get(p.user_id) || "匿名用户";
+
+            items.push({
+                id: p.id,
+                type: "content_purchase",
+                amount: fenToYuan(amountFen),
+                description: `文章购买 - ${contentTitle}`,
+                createdAt: p.paid_at,
+                studentName: buyerName,
+                contentTitle,
+            });
+        }
     }
 
-    // 按时间倒序排列
+    // 6. 排序与汇总
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    // 转为元返回（与概览页一致）
     const subscriptionRevenue = fenToYuan(subscriptionRevenueFen);
     const contentPurchaseRevenue = fenToYuan(contentPurchaseRevenueFen);
     const totalRevenue = subscriptionRevenue + contentPurchaseRevenue;
