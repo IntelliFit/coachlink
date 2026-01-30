@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
+import { fenToYuan } from "@/lib/moneyUtils";
 
 export interface WalletData {
     balance: number;
@@ -129,9 +130,11 @@ export async function POST(request: Request) {
         }
 
         enrichedTransactions = transactionRows.map((tx: WalletTransactionRow) => {
+            // 数据库存储的是分（整数），转换为元（小数）返回给前端
+            const amountFen = Number(tx.amount ?? 0);
             const base: Transaction = {
                 id: tx.id,
-                amount: Number(tx.amount ?? 0),
+                amount: fenToYuan(amountFen), // 转换为元显示
                 type: tx.type,
                 description: tx.description ?? "",
                 created_at: tx.created_at,
@@ -179,10 +182,11 @@ export async function POST(request: Request) {
         });
     }
 
+    // 数据库存储的是分（整数），转换为元（小数）返回给前端
     const result: WalletData = {
-        balance: wallet?.balance || 0,
-        total_income: wallet?.total_income || 0,
-        frozen_amount: wallet?.frozen_amount || 0,
+        balance: fenToYuan(wallet?.balance || 0),
+        total_income: fenToYuan(wallet?.total_income || 0),
+        frozen_amount: fenToYuan(wallet?.frozen_amount || 0),
         transactions: enrichedTransactions,
     };
 

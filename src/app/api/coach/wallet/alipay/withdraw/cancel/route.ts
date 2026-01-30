@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
+import { addFen, formatYuanFromFen } from "@/lib/moneyUtils";
 
 async function getCoachIdByUser(userId: string) {
     const { data: coach } = await supabase.from("coaches").select("id").eq("user_id", userId).single();
@@ -42,8 +43,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "只能撤回待处理状态的提现", data: null }, { status: 400 });
     }
 
-    const amount = Number(withdrawal.amount || 0);
-    if (amount <= 0) {
+    // 数据库存储的是分（整数）
+    const amountFen = Number(withdrawal.amount || 0);
+    if (amountFen <= 0) {
         return NextResponse.json({ success: false, message: "提现金额异常", data: null }, { status: 400 });
     }
 
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, message: "撤回失败", data: null }, { status: 500 });
         }
 
-        // 2. 退回余额到钱包
+        // 2. 退回余额到钱包（使用整数相加避免精度问题）
         const { data: wallet } = await serviceRoleSupabase
             .from("coach_wallets")
             .select("balance")
@@ -75,35 +77,37 @@ export async function POST(req: Request) {
             .single();
 
         if (!wallet) {
-            // 如果钱包不存在，创建它
+            // 如果钱包不存在，创建它（存储分）
             await serviceRoleSupabase.from("coach_wallets").insert({
                 coach_id: coachId,
-                balance: amount,
+                balance: amountFen,
                 total_income: 0,
                 frozen_amount: 0,
                 created_at: now,
                 updated_at: now,
             });
         } else {
-            const newBalance = Number(wallet.balance || 0) + amount;
+            const currentBalanceFen = Number(wallet.balance ?? 0);
+            const newBalanceFen = addFen(currentBalanceFen, amountFen);
             await serviceRoleSupabase
                 .from("coach_wallets")
-                .update({ balance: newBalance, updated_at: now })
+                .update({ balance: newBalanceFen, updated_at: now })
                 .eq("coach_id", coachId);
         }
 
         // 3. 将原提现流水的描述改为「已撤回」
+        const amountYuanStr = formatYuanFromFen(amountFen);
         await serviceRoleSupabase
             .from("wallet_transactions")
-            .update({ description: `提现 ${amount.toFixed(2)}（已撤回）` })
+            .update({ description: `提现 ${amountYuanStr}（已撤回）` })
             .eq("related_withdrawal_id", withdrawalId);
 
-        // 4. 记录退回流水
+        // 4. 记录退回流水（存储分）
         await serviceRoleSupabase.from("wallet_transactions").insert({
             wallet_id: coachId,
-            amount: amount,
+            amount: amountFen, // 存储分（整数）
             type: "refund",
-            description: `提现撤回，退回 ${amount.toFixed(2)} 元`,
+            description: `提现撤回，退回 ${amountYuanStr} 元`,
             created_at: now,
         });
 

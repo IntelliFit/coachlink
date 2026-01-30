@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { fenToYuan } from "@/lib/moneyUtils";
 import {
     GetStudentsDto,
     ListStudentsResponseDto,
@@ -175,6 +176,7 @@ export async function POST(req: Request) {
 
         return {
             ...sub,
+            monthly_price: fenToYuan(sub.monthly_price ?? 0),
             tier: Number(sub.tier), // 确保类型为 number
             profile,
             uploaded: view?.uploaded || 0,

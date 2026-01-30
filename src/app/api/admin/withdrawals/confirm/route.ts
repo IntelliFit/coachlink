@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
+import { fenToYuan, formatYuanFromFen } from "@/lib/moneyUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -57,10 +58,12 @@ export async function POST(req: Request) {
     if (updateErr) return NextResponse.json({ success: false, message: updateErr.message ?? "更新失败", data: null }, { status: 500 });
 
     // 更新教练端钱包流水描述为「已到账」，方便账单显示
-    const amount = Number((withdrawal as { amount?: number }).amount ?? 0);
+    // 数据库存储的是分（整数）
+    const amountFen = Number((withdrawal as { amount?: number }).amount ?? 0);
+    const amountYuanStr = formatYuanFromFen(amountFen);
     await serviceRoleSupabase
         .from("wallet_transactions")
-        .update({ description: `提现 ${amount.toFixed(2)}（已到账）` })
+        .update({ description: `提现 ${amountYuanStr}（已到账）` })
         .eq("related_withdrawal_id", id);
 
     return NextResponse.json<ApiData<{ id: string }>>({

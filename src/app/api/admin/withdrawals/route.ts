@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
+import { fenToYuan } from "@/lib/moneyUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,9 @@ export async function GET(req: Request) {
         const confirmedByName = confirmedByUserId ? (confirmerNameByUserId.get(confirmedByUserId) ?? null) : null;
         return {
             ...r,
+            // 将金额从分转换为元返回给前端
+            amount: fenToYuan((r as unknown as { amount: number }).amount ?? 0),
+            fee: fenToYuan((r as unknown as { fee: number }).fee ?? 0),
             coach_name: displayName,
             coach_user_id: coach?.user_id ?? null,
             payee_account: acc?.payee_account ?? null,

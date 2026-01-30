@@ -3,6 +3,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { WithdrawDto, WithdrawResponse } from "../entity";
+import { yuanToFen, fenToYuan, subtractFen, formatYuanFromFen } from "@/lib/moneyUtils";
 
 const normalizePayeeType = (input?: string | null) => {
     if (!input) return "ALIPAY_LOGON_ID";
@@ -27,17 +28,19 @@ export async function POST(req: Request) {
     if (!coachId) return NextResponse.json({ success: false, message: "未找到教练信息", data: null }, { status: 404 });
 
     const body = await req.json() as WithdrawDto;
-    const amount = Number(body?.amount || 0);
-    if (!amount || amount <= 0) {
+    // 前端传入的是元，转换为分进行计算
+    const amountYuan = Number(body?.amount || 0);
+    if (!amountYuan || amountYuan <= 0) {
         return NextResponse.json({ success: false, message: "提现金额不合法", data: null }, { status: 400 });
     }
-    if (amount < 0.1) {
+    if (amountYuan < 0.1) {
         return NextResponse.json({ success: false, message: "单笔提现金额不能低于 0.10 元", data: null }, { status: 400 });
     }
+    const amountFen = yuanToFen(amountYuan);
 
     const { data: wallet } = await supabase.from("coach_wallets").select("balance, frozen_amount").eq("coach_id", coachId).single();
-    const balance = Number(wallet?.balance || 0);
-    if (balance < amount) {
+    const balanceFen = Number(wallet?.balance ?? 0);
+    if (balanceFen < amountFen) {
         return NextResponse.json({ success: false, message: "余额不足", data: null }, { status: 400 });
     }
 
@@ -54,11 +57,11 @@ export async function POST(req: Request) {
     const out_biz_no = `wd_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
 
-    // 1) 创建提现记录（pending）
+    // 1) 创建提现记录（pending），存储分（整数）
     const { data: withdrawal, error: werr } = await serviceRoleSupabase.from("alipay_withdrawals").insert({
         wallet_id: coachId,
         coach_id: coachId,
-        amount,
+        amount: amountFen, // 存储分（整数）
         fee: 0,
         status: "pending",
         out_biz_no,
@@ -71,12 +74,14 @@ export async function POST(req: Request) {
 
     // 2) 扣减余额并写入提现流水（发起即扣款，防止重复提现同一笔余额）
     try {
-        await serviceRoleSupabase.from("coach_wallets").update({ balance: balance - amount, updated_at: now }).eq("coach_id", coachId);
+        // 使用整数相减避免精度问题
+        const newBalanceFen = subtractFen(balanceFen, amountFen);
+        await serviceRoleSupabase.from("coach_wallets").update({ balance: newBalanceFen, updated_at: now }).eq("coach_id", coachId);
         await serviceRoleSupabase.from("wallet_transactions").insert({
             wallet_id: coachId,
-            amount: -Math.abs(amount),
+            amount: -amountFen, // 存储分（整数），负数表示扣款
             type: "withdrawal",
-            description: `提现 ${amount.toFixed(2)}（待到账）`,
+            description: `提现 ${formatYuanFromFen(amountFen)}（待到账）`,
             related_withdrawal_id: withdrawal.id,
             created_at: now,
         });
@@ -113,7 +118,13 @@ export async function GET(req: Request) {
             .order("created_at", { ascending: false })
             .limit(100);
         if (error) return NextResponse.json({ success: false, message: error.message, data: null }, { status: 500 });
-        return NextResponse.json({ success: true, message: "提现记录", data: rows ?? [] });
+        // 将金额从分转换为元返回给前端
+        const convertedRows = (rows ?? []).map(row => ({
+            ...row,
+            amount: fenToYuan(row.amount ?? 0),
+            fee: fenToYuan(row.fee ?? 0),
+        }));
+        return NextResponse.json({ success: true, message: "提现记录", data: convertedRows });
     }
 
     const { data } = await supabase.from("alipay_withdrawals").select("*").eq("id", id).eq("coach_id", coachId).single();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { yuanToFen } from "@/lib/moneyUtils";
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from "@/types/api";
@@ -113,12 +114,12 @@ export async function POST(req: Request) {
     // NOTE (B1): 对外售卖“4周计划”，对内按“训练日次数(credits)”消耗。
     // 有效期从学员第一次实际开始训练（产生第一条 execution）那天开始算，所以创建订阅时不写 start_date / end_date。
 
-    // 构建插入数据
+    // 构建插入数据（前端传元，DB 存分）
     const insertData: Record<string, unknown> = {
         student_id: userId,
         coach_id: coachId,
         tier: tier,
-        monthly_price: monthlyPrice,
+        monthly_price: yuanToFen(monthlyPrice),
         status,
         subscribe_data: subscribeData as unknown as Json,
         start_date: null,

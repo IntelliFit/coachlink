@@ -7,6 +7,7 @@ import type {
     ListPaymentOrdersResponseDto,
     PaymentOrderWithUser,
 } from './entity';
+import { fenToYuan } from '@/lib/moneyUtils';
 
 function requireAdmin(session: Awaited<ReturnType<typeof getServerSession>>) {
     if (!session?.user?.id) return { ok: false as const, status: 401, message: '未登录' };
@@ -68,6 +69,13 @@ export async function POST(req: Request) {
             const p = profileMap.get(order.user_id);
             order.user_nickname = p?.nickname ?? null;
             order.user_full_name = p?.full_name ?? null;
+            // 将金额从分转换为元返回给前端
+            order.total_amount = fenToYuan(order.total_amount ?? 0);
+        }
+    } else {
+        // 即使没有用户信息，也需要转换金额
+        for (const order of orders) {
+            order.total_amount = fenToYuan(order.total_amount ?? 0);
         }
     }
 

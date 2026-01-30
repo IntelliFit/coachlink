@@ -141,12 +141,12 @@ export default function CoachWalletPage() {
                         <p className="text-green-100 flex items-center gap-2 mb-2">
                             <Wallet className="w-4 h-4" /> 可提现余额
                         </p>
-                        <h2 className="text-4xl font-mono font-bold">¥ {data?.balance?.toFixed(2) || '0.00'}</h2>
+                        <h2 className="text-4xl font-mono font-bold">¥ {(data?.balance ?? 0).toFixed(2)}</h2>
                     </div>
                     <div className="mt-6 flex justify-between items-end">
                         <div className="space-y-1">
-                            <p className="text-xs text-green-100">冻结金额: ¥ {data?.frozen_amount.toFixed(2)}</p>
-                            <p className="text-sm font-semibold text-green-50">累计总收入: ¥ {data?.total_income.toFixed(2)}</p>
+                            <p className="text-xs text-green-100">冻结金额: ¥ {(data?.frozen_amount ?? 0).toFixed(2)}</p>
+                            <p className="text-sm font-semibold text-green-50">累计总收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             {boundAccount ? (
@@ -171,7 +171,7 @@ export default function CoachWalletPage() {
                 <div className="space-y-4">
                     {showWithdraw ? (
                         <div className="bg-surface-0 border border-surface-200 rounded-xl p-6">
-                            <div className="mb-3 text-sm text-surface-700">可提现余额: ¥ {data?.balance?.toFixed(2) || '0.00'}</div>
+                            <div className="mb-3 text-sm text-surface-700">可提现余额: ¥ {(data?.balance ?? 0).toFixed(2)}</div>
                             <div className="mb-3 text-xs text-surface-500">提现后预计 48 小时内到账</div>
                             <div className="flex flex-col md:flex-row md:items-center md:gap-4">
                                 <input
@@ -300,7 +300,7 @@ export default function CoachWalletPage() {
                                             <ArrowUpRight className="w-4 h-4 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-sm text-surface-900">提现 ¥{Number(wd.amount).toFixed(2)}</p>
+                                            <p className="font-medium text-sm text-surface-900">提现 ¥{(Number(wd.amount) ?? 0).toFixed(2)}</p>
                                             <p className="text-xs text-surface-500">
                                                 {format(new Date(wd.created_at), 'yyyy-MM-dd HH:mm')}
                                             </p>
