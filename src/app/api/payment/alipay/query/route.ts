@@ -31,6 +31,11 @@ const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string |
         }
     });
 
+    if (response?.code !== '10000') {
+        console.error(`[Alipay Query] alipay.trade.query failed: ${JSON.stringify(response)}`);
+        throw new Error(`[Alipay Query] alipay.trade.query failed: ${response?.msg}`);
+    }
+    console.log('[Alipay Query] alipay.trade.query response:', response);
     const traceNo = response?.traceId as string | null || null;
     const tradeStatus = response?.tradeStatus as string | null || null;
     return { traceNo, tradeStatus };
@@ -98,13 +103,25 @@ export async function POST(req: Request) {
         }
 
     */
-    const { traceNo, tradeStatus } = await getTraceNoAndStatus(orderId);
+    let traceNo: string | null = null;
+    let tradeStatus: string | null = null;
+    try { 
+        const result = await getTraceNoAndStatus(orderId);
+        traceNo = result.traceNo;
+        tradeStatus = result.tradeStatus;
+    } catch (error) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: error instanceof Error ? error.message : '获取支付宝订单状态失败',
+            data: null
+        }, { status: 500 });
+    }
 
-    let orderStatus: 'pending' | 'paid' | 'cancelled' = 'pending';
+    let orderStatus: 'pending' | 'paid' | 'closed' = 'pending';
     if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
         orderStatus = 'paid';
     } else if (tradeStatus === 'TRADE_CLOSED') {
-        orderStatus = 'cancelled';
+        orderStatus = 'closed'; // 数据库约束：pending|paid|failed|closed|refunded
     }
 
     // Update local order status snapshot

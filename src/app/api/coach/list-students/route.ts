@@ -132,7 +132,7 @@ export async function POST(req: Request) {
     const { data: subs, count, error: subsErr } = await supabase
         .from("coach_subscriptions")
         .select(
-            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks",
+            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, order_id, last_payment_order_id, payment_method",
             { count: "exact" },
         )
         .eq("coach_id", coachRow.id)

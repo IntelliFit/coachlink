@@ -68,7 +68,7 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
             if (!isPaid && !isClosed) continue;
 
-            const orderStatus = isPaid ? "paid" : "cancelled";
+            const orderStatus = isPaid ? "paid" : "closed"; // 数据库约束：pending|paid|failed|closed|refunded
             const { data: order, error: updateOrderError } =
                 await serviceRoleSupabase
                     .from("alipay_orders")
