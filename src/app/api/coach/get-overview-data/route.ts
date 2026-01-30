@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
+import { fenToYuan } from "@/lib/moneyUtils";
 import { GetOverviewDataResponseDto } from "./entity";
 
 export async function POST(req: Request) {
@@ -104,14 +105,15 @@ export async function POST(req: Request) {
     const totalStudentCount = activeStudentCountResult.count || 0;
     const pendingReviewCount = pendingReviewResult.count || 0;
 
-    const monthlyRevenue = (activeRevenueResult.data || []).reduce(
+    // monthly_price 在 DB 中为分；求和后转为元返回给前端展示
+    const monthlyRevenueFen = (activeRevenueResult.data || []).reduce(
         (sum, row: any) => sum + (Number(row?.monthly_price) || 0),
         0,
     );
 
     // 单篇文章购买收入（按当月已支付订单汇总到“本月收入”）
     // 说明：目前为 GMV 口径（平台收款，后续结算给教练）；展示在概览中更符合业务预期。
-    let contentPurchaseRevenue = 0;
+    let contentPurchaseRevenueFen = 0;
     try {
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -152,7 +154,7 @@ export async function POST(req: Request) {
                     .eq("status", "paid")
                     .eq("order_type", "content_purchase");
 
-                contentPurchaseRevenue = (orders || []).reduce(
+                contentPurchaseRevenueFen = (orders || []).reduce(
                     (sum: number, o: any) => sum + (Number(o?.total_amount) || 0),
                     0,
                 );
@@ -161,6 +163,9 @@ export async function POST(req: Request) {
     } catch (e) {
         console.error("[coach/overview] content purchase revenue calc failed:", e);
     }
+
+    const monthlyRevenue = fenToYuan(monthlyRevenueFen);
+    const contentPurchaseRevenue = fenToYuan(contentPurchaseRevenueFen);
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;

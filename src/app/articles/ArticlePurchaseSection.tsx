@@ -24,7 +24,7 @@ export default function ArticlePurchaseSection({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const priceYuan = useMemo(() => (priceCents / 100).toFixed(2), [priceCents]);
-  const redirect = `/articles/${contentId}`;
+  const redirect = `/articles/${contentId}?paid=1`;
   const subscribeHint = useMemo(() => {
     if (!requiredTier || requiredTier <= 0) return '订阅该教练后，可免费阅读其付费文章。';
     return `订阅该教练（等级 ≥ ${requiredTier}）后，可免费阅读其文章。`;
