@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -24,6 +25,13 @@ import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetail
 const StudentActionLib = () => {
     const { data: session } = useSession();
     const userId = session?.user?.id;
+    const searchParams = useSearchParams();
+    
+    // 根据查询参数设置默认标签页：tab=public 时显示公共动作库（索引1），否则显示我的动作库（索引0）
+    const [activeTabIndex, setActiveTabIndex] = useState(() => {
+        const tab = searchParams.get('tab');
+        return tab === 'public' ? 1 : 0;
+    });
 
     // 普通分页数据
     const [actions, setActions] = useState<StudentActionRow[]>([]);
@@ -528,7 +536,7 @@ const StudentActionLib = () => {
             />
 
             <Card className="shadow-sm">
-                <TabView>
+                <TabView activeIndex={activeTabIndex} onTabChange={(e) => setActiveTabIndex(e.index)}>
                     <TabPanel header="我的动作库">
                         {/* 顶部区域 */}
                         <div className="border-b border-surface-200 p-4 md:p-6">

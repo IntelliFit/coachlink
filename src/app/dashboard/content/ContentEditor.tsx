@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-    Hash, Type, Users, Lock, Crown, Gem, Eye, Pencil, Send, Save, Star, DollarSign
+    Hash, Type, Users, Lock, Eye, Pencil, Send, Save, Star, DollarSign
 } from 'lucide-react';
 
 // PrimeReact imports
@@ -156,8 +156,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                         />
                     </div>
 
-                    {/* Tier Selection - Physical Button Logic */}
-                    <div className="space-y-4">
+                    {/* Tier Selection UI - 已隐藏，代码保留供后续使用 */}
+                    {/* <div className="space-y-4">
                         <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
                             可见范围
                         </label>
@@ -183,7 +183,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                 );
                             })}
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Price Input */}
                     <div className="space-y-2">
