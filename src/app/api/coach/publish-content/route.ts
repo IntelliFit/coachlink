@@ -10,6 +10,7 @@ export async function POST(req: Request) {
         content,
         content_type,
         required_tier,
+        price_cents,
         is_featured,
         tags,
         media_urls = [],
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    const resolvedPriceCents = Math.max(0, Math.floor(Number(price_cents ?? 0)));
+
     // 验证教练是否存在、状态为 approved 且属于当前用户
     const { data: coach, error: coachError } = await supabase
         .from('coaches')
@@ -72,6 +75,7 @@ export async function POST(req: Request) {
         content: content.trim(),
         content_type,
         required_tier,
+        price_cents: resolvedPriceCents,
         is_featured: is_featured ?? false,
         tags: tags ?? [],
         media_urls: media_urls ?? [],

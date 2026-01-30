@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -19,10 +20,18 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { StudentActionRow } from '@/types/student';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
+import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetailDialog';
 
 const StudentActionLib = () => {
     const { data: session } = useSession();
     const userId = session?.user?.id;
+    const searchParams = useSearchParams();
+    
+    // 根据查询参数设置默认标签页：tab=public 时显示公共动作库（索引1），否则显示我的动作库（索引0）
+    const [activeTabIndex, setActiveTabIndex] = useState(() => {
+        const tab = searchParams.get('tab');
+        return tab === 'public' ? 1 : 0;
+    });
 
     // 普通分页数据
     const [actions, setActions] = useState<StudentActionRow[]>([]);
@@ -48,7 +57,8 @@ const StudentActionLib = () => {
     const [publicSearchTerm, setPublicSearchTerm] = useState('');
     const [publicCurrentPage, setPublicCurrentPage] = useState(1);
     const [publicTotalRecords, setPublicTotalRecords] = useState(0);
-    const [contributeDialogVisible, setContributeDialogVisible] = useState(false);
+    const [publicDetailVisible, setPublicDetailVisible] = useState(false);
+    const [publicDetailAction, setPublicDetailAction] = useState<PublicActionItemDto | null>(null);
 
     // 加载动作列表
     useEffect(() => {
@@ -117,6 +127,20 @@ const StudentActionLib = () => {
         setDialogVisible(true);
     };
 
+    const handlePublishMyAction = async (action: StudentActionRow) => {
+        try {
+            await publicActionLibService.publishFromMyAction({
+                actionType: "student",
+                actionId: action.id,
+            });
+            showToast({ severity: 'success', summary: '贡献成功', detail: '已发布到公共动作库' });
+            // 刷新公共库列表（如果用户正好在公共库 tab 浏览）
+            loadPublicActions();
+        } catch (e: any) {
+            showToast({ severity: 'error', summary: '贡献失败', detail: e?.message || '请稍后再试' });
+        }
+    };
+
     const handleEditAction = async (action: StudentActionRow) => {
         setEditingAction(action);
         setDialogVisible(true);
@@ -169,7 +193,6 @@ const StudentActionLib = () => {
                     suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
-                    canonical_action_id: actionData.canonical_action_id
                 });
                 showToast({ severity: 'success', summary: '更新成功', detail: '动作已更新' });
             } else {
@@ -185,7 +208,6 @@ const StudentActionLib = () => {
                     suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
-                    canonical_action_id: actionData.canonical_action_id
                 });
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
@@ -279,27 +301,6 @@ const StudentActionLib = () => {
         }
     };
 
-    const handleContributePublicAction = async (actionData: Partial<StudentActionRow>) => {
-        await publicActionLibService.addAction({
-            name: actionData.name || '',
-            detail: actionData.detail ?? null,
-            url: actionData.url ?? null,
-            positions: (actionData as any).positions ?? null,
-            attrs: (actionData as any).attrs ?? null,
-            type: (actionData as any).type ?? 'STRENGTH',
-            item_schema: (actionData as any).item_schema ?? null,
-            suggested_time: (actionData as any).suggested_time ?? null,
-            enableAutoWeightCompute: (actionData as any).enableAutoWeightCompute ?? false,
-            includesBodyWeight: (actionData as any).includesBodyWeight ?? false,
-            canonical_action_id: (actionData as any).canonical_action_id ?? null,
-        });
-        showToast({ severity: 'success', summary: '贡献成功', detail: '你的公共动作已发布' });
-        setContributeDialogVisible(false);
-        setPublicCurrentPage(1);
-        setPublicSearchTerm('');
-        loadPublicActions({ page: 1, search: '' });
-    };
-
     const renderActionCard = (action: StudentActionRow) => {
         const positions = action.positions || [];
         const itemType = action.type || 'STRENGTH';
@@ -364,6 +365,12 @@ const StudentActionLib = () => {
 
                     {/* 右侧操作按钮 */}
                     <div className="flex flex-col items-center gap-2 shrink-0">
+                        <Button
+                            icon="pi pi-cloud-upload"
+                            className="p-button-rounded p-button-text"
+                            tooltip="贡献到公共动作库"
+                            onClick={() => handlePublishMyAction(action)}
+                        />
                         <Button
                             icon="pi pi-pencil"
                             className="p-button-rounded p-button-text"
@@ -455,13 +462,24 @@ const StudentActionLib = () => {
                                 <span className="font-medium">贡献者：{contributorName}</span>
                             </div>
 
-                            <Button
-                                label={action.isAdded ? '已加入' : '加入我的动作库'}
-                                icon={action.isAdded ? 'pi pi-check' : 'pi pi-plus'}
-                                className={action.isAdded ? 'p-button-outlined' : ''}
-                                disabled={action.isAdded}
-                                onClick={() => handleAddPublicToMyLib(action.id)}
-                            />
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    label="详情"
+                                    icon="pi pi-eye"
+                                    className="p-button-outlined"
+                                    onClick={() => {
+                                        setPublicDetailAction(action);
+                                        setPublicDetailVisible(true);
+                                    }}
+                                />
+                                <Button
+                                    label={action.isAdded ? '已加入' : '加入我的动作库'}
+                                    icon={action.isAdded ? 'pi pi-check' : 'pi pi-plus'}
+                                    className={action.isAdded ? 'p-button-outlined' : ''}
+                                    disabled={action.isAdded}
+                                    onClick={() => handleAddPublicToMyLib(action.id)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -493,17 +511,16 @@ const StudentActionLib = () => {
     return (
         <div className="mx-auto p-4">
             <ConfirmDialog />
+            <PublicActionDetailDialog
+                visible={publicDetailVisible}
+                action={publicDetailAction}
+                onHide={() => setPublicDetailVisible(false)}
+            />
             <StudentActionEditDialog
                 visible={dialogVisible}
                 action={editingAction}
                 onSave={handleSaveAction}
                 onCancel={() => setDialogVisible(false)}
-            />
-            <StudentActionEditDialog
-                visible={contributeDialogVisible}
-                action={null}
-                onSave={handleContributePublicAction}
-                onCancel={() => setContributeDialogVisible(false)}
             />
             <CopyCoachActionDialog
                 visible={copyDialogVisible}
@@ -519,7 +536,7 @@ const StudentActionLib = () => {
             />
 
             <Card className="shadow-sm">
-                <TabView>
+                <TabView activeIndex={activeTabIndex} onTabChange={(e) => setActiveTabIndex(e.index)}>
                     <TabPanel header="我的动作库">
                         {/* 顶部区域 */}
                         <div className="border-b border-surface-200 p-4 md:p-6">
@@ -631,14 +648,6 @@ const StudentActionLib = () => {
                                     <h2 className="text-2xl font-bold text-900">公共动作库</h2>
                                     <p className="text-600 mt-1">发现好用动作，一键加入你的动作库</p>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        label="我也要贡献动作"
-                                        icon="pi pi-sparkles"
-                                        className="p-button-outlined"
-                                        onClick={() => setContributeDialogVisible(true)}
-                                    />
-                                </div>
                             </div>
 
                             <div className="flex flex-col md:flex-row gap-4 mt-6">
@@ -691,12 +700,7 @@ const StudentActionLib = () => {
                             ) : publicActions.length === 0 ? (
                                 <div className="text-center py-12">
                                     <h3 className="text-lg font-semibold text-900 mb-2">暂无公共动作</h3>
-                                    <p className="text-600 mb-6">你可以先贡献一个动作，或稍后再来看看</p>
-                                    <Button
-                                        label="贡献动作"
-                                        icon="pi pi-sparkles"
-                                        onClick={() => setContributeDialogVisible(true)}
-                                    />
+                                    <p className="text-600 mb-6">先在“我的动作库”创建动作，再点击“贡献到公共动作库”按钮发布</p>
                                 </div>
                             ) : (
                                 <>

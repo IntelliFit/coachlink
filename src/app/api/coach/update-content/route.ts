@@ -10,6 +10,7 @@ export async function POST(req: Request) {
         content,
         content_type,
         required_tier,
+        price_cents,
         is_featured,
         tags,
         media_urls = [],
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
     if (content !== undefined) updateData.content = content?.trim();
     if (content_type !== undefined) updateData.content_type = content_type;
     if (required_tier !== undefined) updateData.required_tier = required_tier;
+    if (price_cents !== undefined) updateData.price_cents = Math.max(0, Math.floor(Number(price_cents ?? 0)));
     if (is_featured !== undefined) updateData.is_featured = is_featured;
     if (tags !== undefined) updateData.tags = tags;
     if (media_urls !== undefined) updateData.media_urls = media_urls;

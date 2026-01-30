@@ -19,7 +19,8 @@ export async function POST(req: Request) {
             );
         }
 
-        const { actionId } = (await req.json()) as AddPublicActionToMyLibDto;
+        const { actionId, targetActionType = "student" } =
+            (await req.json()) as AddPublicActionToMyLibDto;
         if (!actionId) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "缺少 actionId", data: null },
@@ -40,11 +41,15 @@ export async function POST(req: Request) {
             );
         }
 
+        const targetTable =
+            targetActionType === "coach" ? "coach_actions" : "student_actions";
+        const ownerColumn = targetActionType === "coach" ? "coach_id" : "user_id";
+
         // 已添加（用同名约束判断）
         const { data: existing } = await supabase
-            .from("student_actions")
+            .from(targetTable)
             .select("id")
-            .eq("user_id", userId)
+            .eq(ownerColumn, userId)
             .eq("name", (publicAction as any).name)
             .limit(1)
             .single();
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
         }
 
         const insertData: any = {
-            user_id: userId,
+            [ownerColumn]: userId,
             name: (publicAction as any).name,
             detail: (publicAction as any).detail,
             positions: (publicAction as any).positions,
@@ -74,7 +79,7 @@ export async function POST(req: Request) {
         };
 
         const { data: newAction, error: insertError } = await supabase
-            .from("student_actions")
+            .from(targetTable)
             .insert(insertData)
             .select()
             .single();

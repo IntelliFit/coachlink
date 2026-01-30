@@ -27,6 +27,8 @@ import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import { Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
 import { ProgressBar } from 'primereact/progressbar';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
@@ -51,6 +53,11 @@ export default function StudentsPage() {
     const [pricingMap, setPricingMap] = useState<Record<number, { is_ai_plan: boolean }>>({});
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [selectedChatroom, setSelectedChatroom] = useState<ChatroomDetail | null>(null);
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [sortMode, setSortMode] = useState<
+        'subscription_created_desc' | 'subscription_created_asc' | 'subscription_updated_desc'
+    >('subscription_created_desc');
 
     const router = useRouter();
     const { showToast } = useToastContext();
@@ -114,7 +121,9 @@ export default function StudentsPage() {
             setLoading(true);
 
             const data = await coachService.listStudents({
-                pagination: { page, limit }
+                pagination: { page, limit },
+                search: debouncedSearch?.trim() ? debouncedSearch.trim() : undefined,
+                sort: { mode: sortMode },
             });
 
             if (data) {
@@ -144,10 +153,25 @@ export default function StudentsPage() {
             router.push('/login');
             return;
         }
-
-        loadStudents(0, rows);
         loadCoach();
-    }, [status, session, router, rows]);
+    }, [status, session, router]);
+
+    // 搜索输入防抖（避免每个字符都触发请求）
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search), 300);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    // 当 rows / search / sort 变化时，重置到第一页并重新加载
+    useEffect(() => {
+        if (status === 'loading') return;
+        if (!session) return;
+        setFirst(0);
+        setStudents([]);
+        setSelectedStudents([]);
+        loadStudents(0, rows);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [status, session, rows, debouncedSearch, sortMode]);
 
     useEffect(() => {
         if (coach) {
@@ -662,7 +686,26 @@ export default function StudentsPage() {
                     </div>
                 </div>
                 {/* 无论是平台支付还是个人二维码支付，都显示待支付确认按钮 */}
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:w-auto">
+                    <span className="p-input-icon-left w-full sm:w-80">
+                        <i className="pi pi-search" />
+                        <InputText
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="搜索学员昵称/手机号"
+                            className="w-full rounded-2xl"
+                        />
+                    </span>
+                    <Dropdown
+                        value={sortMode}
+                        onChange={(e) => setSortMode(e.value)}
+                        options={[
+                            { label: '订阅时间（新→旧）', value: 'subscription_created_desc' },
+                            { label: '订阅时间（旧→新）', value: 'subscription_created_asc' },
+                            { label: '最近更新（可能会变动）', value: 'subscription_updated_desc' },
+                        ]}
+                        className="w-full sm:w-56 rounded-2xl"
+                    />
                     <Button
                         label="待支付确认"
                         onClick={() => setPaymentDialogVisible(true)}
@@ -1003,6 +1046,7 @@ export default function StudentsPage() {
                     setReviewDialogVisible(true);
                 }}
                 onShowChatDialog={contactStudent}
+                onRefundSuccess={() => loadStudents(Math.floor(first / rows), rows)}
             />
             <CoachReviewDialog visible={reviewDialogVisible} coach={coach} student={selectedStudent} onHide={() => setReviewDialogVisible(false)} onSave={() => loadStudents()} />
             <ChatDialog

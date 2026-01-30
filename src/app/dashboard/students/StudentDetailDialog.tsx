@@ -35,9 +35,11 @@ interface StudentDetailDialogProps {
     onShowReviewDialog?: () => void;
     onShowChatDialog?: () => void;
     onStudentUpdate?: (updatedStudent: Partial<StudentSubscription>) => void;
+    /** 退款成功后回调（用于刷新学员列表） */
+    onRefundSuccess?: () => void;
 }
 
-export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog, onStudentUpdate }: StudentDetailDialogProps) => {
+export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog, onStudentUpdate, onRefundSuccess }: StudentDetailDialogProps) => {
     const profile = student?.profile;
     
     // 编辑prior_training_weeks的状态
@@ -57,6 +59,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [optionMap, setOptionMap] = useState<Record<string, string[]>>({});
     const [autoComputeActions, setAutoComputeActions] = useState<{ id: string; name: string }[]>([]);
     const [loadingActions, setLoadingActions] = useState(false);
+    const [refunding, setRefunding] = useState(false);
 
     const { showToast } = useToastContext();
 
@@ -245,6 +248,36 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         }
     };
 
+    /** 平台支付订单可退款：调用退款 API 并同步取消订阅 */
+    const canRefundSubscription = student?.payment_method === 'platform_alipay' && (student?.order_id || student?.last_payment_order_id);
+    const refundOrderId = student?.last_payment_order_id ?? student?.order_id ?? null;
+
+    const handleRefund = async () => {
+        if (!refundOrderId || !student) return;
+        if (!confirm('确定要对该学员的该笔订单退款吗？将同步取消其订阅并扣减您的钱包余额。')) return;
+        setRefunding(true);
+        try {
+            const res = await fetch('/api/payment/alipay/refund', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: refundOrderId, refundReason: '教练/学员申请退款' }),
+            });
+            const data = await res.json();
+            if (data?.success) {
+                showToast({ severity: 'success', summary: '退款成功', detail: '已同步取消订阅' });
+                onStudentUpdate?.({ ...student, status: 'cancelled', order_id: null, last_payment_order_id: null, payment_method: null });
+                onRefundSuccess?.();
+                onHide();
+            } else {
+                showToast({ severity: 'error', summary: '退款失败', detail: data?.message || '请稍后重试' });
+            }
+        } catch (e) {
+            showToast({ severity: 'error', summary: '退款失败', detail: (e as Error)?.message });
+        } finally {
+            setRefunding(false);
+        }
+    };
+
     if (!student) return null;
 
     const getPendingReviews = () => student.uploaded - student.reviewed;
@@ -314,6 +347,15 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             </div>
                         </div>
                         <div className="flex gap-2 flex-wrap justify-end">
+                            {canRefundSubscription && (
+                                <Button
+                                    label="退款"
+                                    icon="pi pi-undo"
+                                    className="text-xs uppercase rounded-xl text-amber-600 hover:bg-amber-50 border-amber-200 transition-all active:scale-95 [&_.p-button-label]:hidden sm:[&_.p-button-label]:inline"
+                                    loading={refunding}
+                                    onClick={handleRefund}
+                                />
+                            )}
                             <Button
                                 label="评价"
                                 icon={<MessageSquare size={16} className="mr-2" />}

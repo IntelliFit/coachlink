@@ -7,9 +7,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { InputSwitch } from 'primereact/inputswitch';
-import { AutoComplete } from 'primereact/autocomplete';
 import { StudentActionRow, ItemType } from '@/types/student';
-import { CanonicalAction } from '@/types/canonical';
 
 interface StudentActionEditDialogProps {
     visible: boolean;
@@ -50,12 +48,6 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
     const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
     
-    // 新增状态：公共动作库关联
-    const [canonicalActionId, setCanonicalActionId] = useState<string | null>(null);
-    const [canonicalActions, setCanonicalActions] = useState<CanonicalAction[]>([]);
-    const [filteredCanonicalActions, setFilteredCanonicalActions] = useState<CanonicalAction[]>([]);
-    const [selectedCanonical, setSelectedCanonical] = useState<CanonicalAction | null>(null);
-
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -92,30 +84,6 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
         { label: '习惯打卡', value: 'HABIT', icon: 'pi-heart', color: 'text-purple-500' }
     ];
 
-    // 加载公共动作库
-    useEffect(() => {
-        const fetchCanonicalActions = async () => {
-            try {
-                const res = await fetch('/api/canonical-actions/list');
-                const data = await res.json();
-                if (data.success) {
-                    setCanonicalActions(data.data);
-                    // 如果当前动作已关联公共动作，找到对应项
-                    if (action?.canonical_action_id) {
-                        const linked = data.data.find((c: CanonicalAction) => c.id === action.canonical_action_id);
-                        setSelectedCanonical(linked || null);
-                        setCanonicalActionId(action.canonical_action_id);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch canonical actions:', error);
-            }
-        };
-        if (visible) {
-            fetchCanonicalActions();
-        }
-    }, [visible, action]);
-
     useEffect(() => {
         if (action) {
             setName(action.name);
@@ -126,7 +94,6 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setItemType((action.type as ItemType) || 'STRENGTH');
             setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
             setIncludesBodyWeight(action.includesBodyWeight || false);
-            setCanonicalActionId(action.canonical_action_id || null);
             setSuggestedTime(action.suggested_time || '');
             
             // 解析 item_schema 中的类型特定字段
@@ -146,8 +113,6 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setItemType('STRENGTH');
             setEnableAutoWeightCompute(false);
             setIncludesBodyWeight(false);
-            setCanonicalActionId(null);
-            setSelectedCanonical(null);
             setSuggestedTime('');
             setCalories(null);
             setDistance(null);
@@ -181,7 +146,6 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                 type: itemType,
                 enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
                 includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
-                canonical_action_id: itemType === 'STRENGTH' ? canonicalActionId : null,
                 suggested_time: itemType === 'DIET' ? (suggestedTime || null) : null,
                 item_schema: Object.keys(itemSchema).length > 0 ? itemSchema : null
             };
@@ -285,61 +249,6 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
 
                 {/* 3) 动态属性区域 */}
                 <div className="bg-surface-50/50 p-4 rounded-[24px] border border-surface-100 flex flex-col gap-5">
-                    {/* 力量：公共动作库关联 */}
-                    {itemType === 'STRENGTH' && (
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="canonicalAction" className="text-[11px] font-bold text-surface-500 ml-1">
-                                关联公共动作库 <span className="text-surface-400">(可选)</span>
-                            </label>
-                            <AutoComplete
-                                id="canonicalAction"
-                                value={selectedCanonical}
-                                suggestions={filteredCanonicalActions}
-                                completeMethod={(e) => {
-                                    const query = e.query.toLowerCase();
-                                    const filtered = canonicalActions.filter(c =>
-                                        c.name.toLowerCase().includes(query) ||
-                                        c.aliases.some(a => a.toLowerCase().includes(query))
-                                    );
-                                    setFilteredCanonicalActions(filtered);
-                                }}
-                                field="name"
-                                onChange={(e) => {
-                                    setSelectedCanonical(e.value);
-                                    setCanonicalActionId(e.value?.id || null);
-                                }}
-                                dropdown
-                                placeholder="搜索公共动作..."
-                                className="w-full"
-                                itemTemplate={(item: CanonicalAction) => (
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{item.name}</span>
-                                        {item.aliases.length > 0 && (
-                                            <span className="text-xs text-surface-500">
-                                                别名: {item.aliases.slice(0, 2).join(', ')}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            />
-                            {selectedCanonical && (
-                                <div className="flex items-center gap-2 text-sm text-green-600">
-                                    <i className="pi pi-link" />
-                                    <span>已关联: {selectedCanonical.name}</span>
-                                    <Button
-                                        icon="pi pi-times"
-                                        className="p-button-text p-button-sm p-button-danger"
-                                        onClick={() => {
-                                            setSelectedCanonical(null);
-                                            setCanonicalActionId(null);
-                                        }}
-                                        tooltip="取消关联"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
-
                     {/* 饮食字段 */}
                     {itemType === 'DIET' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in zoom-in-95 duration-300">
