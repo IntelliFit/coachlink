@@ -16,7 +16,7 @@ const PaymentPage = () => {
     const [paymentId, setPaymentId] = useState('');
     const [amount, setAmount] = useState(0);
     const [orderId, setOrderId] = useState('');
-    const [status, setStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+    const [status, setStatus] = useState<'pending' | 'success' | 'failed' | 'cancelled'>('pending');
     const [isMobile, setIsMobile] = useState(false);
     const [redirectTarget, setRedirectTarget] = useState<string>('');
 
@@ -66,13 +66,24 @@ const PaymentPage = () => {
                 const ts = res.tradeStatus;
                 if (order.status === 'paid' || ts === 'TRADE_SUCCESS' || ts === 'TRADE_FINISHED') {
                     setStatus('success');
-                } else if (order.status === 'cancelled' || ts === 'TRADE_CLOSED') {
+                } else if (order.status === 'closed' || order.status === 'cancelled' || ts === 'TRADE_CLOSED') {
+                    setStatus('cancelled'); // 用户取消支付
+                } else if (order.status === 'failed' || order.status === 'refunded') {
                     setStatus('failed');
                 }
             }
         } catch (error) {
             console.error('Fetch error:', error);
-            if (!isSilent) toast.current?.show({ severity: 'error', summary: '查询失败', detail: '无法同步支付状态' });
+            if (!isSilent) {
+                const msg = error instanceof Error ? error.message : '无法同步支付状态';
+                const isCancelled = /取消|closed|TRADE_CLOSED/i.test(msg);
+                toast.current?.show({
+                    severity: isCancelled ? 'warn' : 'error',
+                    summary: isCancelled ? '支付已取消' : '查询失败',
+                    detail: isCancelled ? '您已取消支付' : msg,
+                });
+                if (isCancelled) setStatus('cancelled');
+            }
         } finally {
             if (!isSilent) setLoading(false);
         }
@@ -117,15 +128,17 @@ const PaymentPage = () => {
                         </div>
                     </div>
                 ) : (
-                    /* 成功/失败状态 */
+                    /* 成功/失败/取消状态 */
                     <div className="py-8 text-center animate-in zoom-in-95 duration-500">
                         <div className={`w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center border ${
-                            status === 'success' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+                            status === 'success' ? 'bg-green-50 text-green-600 border-green-100' :
+                            status === 'cancelled' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-red-50 text-red-600 border-red-100'
                         }`}>
-                            <i className={`pi ${status === 'success' ? 'pi-check' : 'pi-times'} text-3xl font-bold`}></i>
+                            <i className={`pi ${status === 'success' ? 'pi-check' : status === 'cancelled' ? 'pi-minus-circle' : 'pi-times'} text-3xl font-bold`}></i>
                         </div>
                         <h2 className="text-xl font-bold text-surface-900 tracking-tight">
-                            {status === 'success' ? '支付已成功' : '支付未成功'}
+                            {status === 'success' ? '支付已成功' : status === 'cancelled' ? '您已取消支付' : '支付未成功'}
                         </h2>
                     </div>
                 )}
@@ -164,11 +177,13 @@ const PaymentPage = () => {
                     />
                 )}
 
-                {status === 'failed' && (
+                {(status === 'failed' || status === 'cancelled') && (
                     <Button 
-                        label="重新尝试" 
+                        label={status === 'cancelled' ? '重新订阅' : '重新尝试'} 
                         icon="pi pi-refresh"
-                        className="w-full py-4 rounded-2xl font-bold bg-red-500 border-none transition-transform active:scale-[0.98]"
+                        className={`w-full py-4 rounded-2xl font-bold border-none transition-transform active:scale-[0.98] ${
+                            status === 'cancelled' ? 'bg-amber-500' : 'bg-red-500'
+                        }`}
                         onClick={() => router.push('/coach/subscription')}
                     />
                 )}

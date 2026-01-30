@@ -40,6 +40,11 @@ export interface StudentSubscription {
     subscribe_data: SubscribeData | null;
     subscribed_weeks: number | null;
 
+    /** 平台支付订单 id（支付宝 alipay_orders.id），用于退款 */
+    order_id: string | null;
+    last_payment_order_id: string | null;
+    payment_method: string | null;
+
     // 学员迁入平台前已跟随教练训练的周数
     prior_training_weeks: number | null;
 
