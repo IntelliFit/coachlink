@@ -7,6 +7,7 @@ interface ActionCardProps {
     action: CoachActionRow;
     onEditAction: (action: CoachActionRow) => void;
     onDeleteAction: (action: CoachActionRow) => void;
+    onPublishAction?: (action: CoachActionRow) => void;
     selectionEnabled?: boolean;
     selected?: boolean;
     onToggleSelect?: (action: CoachActionRow, selected: boolean) => void;
@@ -41,6 +42,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
     action,
     onEditAction,
     onDeleteAction,
+    onPublishAction,
     selectionEnabled = false,
     selected = false,
     onToggleSelect,
@@ -84,7 +86,6 @@ const ActionCard: React.FC<ActionCardProps> = ({
                         <h3 className="font-bold text-surface-900 dark:text-surface-0 tracking-tight truncate">
                             {action.name}
                         </h3>
-                        {action.canonical_action_id && <i className="pi pi-verified text-primary-500 text-[10px]" />}
                     </div>
 
                     {/* 动态时间标签：根据状态切换图标与文案 */}
@@ -132,6 +133,16 @@ const ActionCard: React.FC<ActionCardProps> = ({
             {/* 操作区 (逻辑保持不变) */}
             {/* 移动端没有 hover：小屏常显操作按钮，避免不可用 */}
             <div className="flex items-center gap-1 opacity-100 translate-x-0 pointer-events-auto sm:opacity-0 sm:translate-x-2 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:translate-x-0 sm:group-hover:pointer-events-auto transition-all duration-300">
+                {onPublishAction && (
+                    <Button
+                        icon="pi pi-cloud-upload"
+                        text
+                        rounded
+                        className="w-9 h-9 text-surface-500 hover:bg-surface-100"
+                        tooltip="贡献到公共动作库"
+                        onClick={() => onPublishAction(action)}
+                    />
+                )}
                 <Button icon="pi pi-pencil" text rounded className="w-9 h-9 text-surface-500 hover:bg-surface-100" onClick={() => onEditAction(action)} />
                 <Button icon="pi pi-trash" text rounded severity="danger" className="w-9 h-9 hover:bg-red-50" onClick={() => onDeleteAction(action)} />
             </div>

@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-    Hash, Type, Users, Lock, Crown, Gem, Eye, Pencil, Send, Save, Star
+    Hash, Type, Users, Lock, Eye, Pencil, Send, Save, Star, DollarSign
 } from 'lucide-react';
 
 // PrimeReact imports
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { InputNumber } from 'primereact/inputnumber';
 import { Chip } from 'primereact/chip';
 import { Checkbox } from 'primereact/checkbox';
 import { useToastContext } from '@/context/ToastContext';
@@ -21,6 +22,7 @@ interface ContentForm {
     content: string;
     content_type: 'text' | 'video' | 'image' | 'live' | 'plan';
     required_tier: ContentTier;
+    price_cents?: number;
     is_featured: boolean;
     tags: string[];
     media_urls: string[];
@@ -37,7 +39,7 @@ interface ContentEditorProps {
 const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSaveDraft, initialContent = null }) => {
     const [form, setForm] = useState<ContentForm>({
         title: '', content: '', content_type: 'text', required_tier: ContentTier.FREE,
-        is_featured: false, tags: [], media_urls: []
+        is_featured: false, tags: [], media_urls: [], price_cents: 0
     });
     const [currentTag, setCurrentTag] = useState('');
     const [isPreview, setIsPreview] = useState(false);
@@ -58,7 +60,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                 required_tier: initialContent.required_tier,
                 is_featured: initialContent.is_featured || false,
                 tags: initialContent.tags || [],
-                media_urls: initialContent.media_urls || []
+                media_urls: initialContent.media_urls || [],
+                price_cents: (initialContent as any).price_cents ?? 0
             });
         }
     }, [initialContent]);
@@ -88,7 +91,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
         }
     };
 
-        const handleSaveDraft = async () => {
+    const handleSaveDraft = async () => {
         try {
             await onSaveDraft(form);
             showToast({
@@ -106,6 +109,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
 
     const selectedTier = tierOptions.find(t => t.value === form.required_tier);
     const TierIcon = selectedTier?.icon || Users;
+    const priceYuan = form.price_cents ? (form.price_cents / 100).toFixed(2) : '0.00';
 
     return (
         <div className="bg-transparent space-y-10 py-6">
@@ -152,8 +156,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                         />
                     </div>
 
-                    {/* Tier Selection - Physical Button Logic */}
-                    <div className="space-y-4">
+                    {/* Tier Selection UI - 已隐藏，代码保留供后续使用 */}
+                    {/* <div className="space-y-4">
                         <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
                             可见范围
                         </label>
@@ -167,8 +171,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                         onClick={() => handleInputChange('required_tier', tier.value)}
                                         className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 active:scale-95 ${
                                             isSelected 
-                                            ? `border-primary bg-primary-50/30 ring-4 ring-primary-50` 
-                                            : 'border-surface-100 bg-white hover:border-surface-200'
+                                                ? `border-primary bg-primary-50/30 ring-4 ring-primary-50` 
+                                                : 'border-surface-100 bg-white hover:border-surface-200'
                                         }`}
                                     >
                                         <Icon size={20} className={`mb-2 ${isSelected ? 'text-primary' : 'text-surface-300'}`} />
@@ -179,6 +183,39 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                 );
                             })}
                         </div>
+                    </div> */}
+
+                    {/* Price Input */}
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                            <DollarSign size={14} /> 单篇价格（元）
+                        </label>
+                        <div className="flex items-center gap-3">
+                            <InputNumber
+                                value={form.price_cents ? form.price_cents / 100 : 0}
+                                onValueChange={(e) => {
+                                    const yuan = e.value ?? 0;
+                                    handleInputChange('price_cents', Math.max(0, Math.floor(yuan * 100)));
+                                }}
+                                mode="decimal"
+                                min={0}
+                                max={9999.99}
+                                step={0.01}
+                                suffix=" 元"
+                                placeholder="0.00"
+                                className="flex-1 border-none bg-surface-50/50 focus:bg-white focus:ring-2 focus:ring-primary-100 rounded-2xl py-3 transition-all"
+                            />
+                            <div className="text-xs text-surface-500 font-medium">
+                                {form.price_cents && form.price_cents > 0 ? (
+                                    <span className="text-amber-600 font-bold">付费内容 ¥{priceYuan}</span>
+                                ) : (
+                                    <span className="text-green-600 font-bold">免费内容</span>
+                                )}
+                            </div>
+                        </div>
+                        <p className="text-xs text-surface-400 px-1">
+                            设置单篇购买价格。0 元表示免费，用户无需支付即可阅读。已订阅该教练的用户可免费阅读所有内容。
+                        </p>
                     </div>
 
                     {/* Tags & Settings */}
@@ -206,6 +243,21 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                 ))}
                             </div>
                         </div>
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                                <Star size={14} /> 内容设置
+                            </label>
+                            <div className="flex items-center gap-3 p-4 bg-surface-50/30 rounded-xl">
+                                <Checkbox
+                                    inputId="featured"
+                                    checked={form.is_featured}
+                                    onChange={(e) => handleInputChange('is_featured', e.checked ?? false)}
+                                />
+                                <label htmlFor="featured" className="text-sm font-bold text-surface-700 cursor-pointer">
+                                    设为精选内容
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -219,6 +271,11 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                     {selectedTier?.label}
                                 </span>
                             </div>
+                            {form.price_cents && form.price_cents > 0 && (
+                                <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                                    付费 ¥{priceYuan}
+                                </span>
+                            )}
                             {form.is_featured && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1"><Star size={12} fill="currentColor" /> 精选</span>}
                         </div>
                         <h1 className="text-3xl font-black tracking-tight text-surface-900 mb-6 leading-tight">
@@ -265,3 +322,4 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
 };
 
 export default ContentEditor;
+

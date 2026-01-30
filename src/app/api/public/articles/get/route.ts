@@ -29,9 +29,18 @@ function previewText(input: string, maxChars = 900) {
 /**
  * GET /api/public/articles/get?id={uuid}
  *
- * 公开访问：返回文章详情（免费内容返回全文；付费内容返回预览）。
+ * 公开访问：仅用于兼容（不提供详情阅读）。
+ * 说明：根据产品规则，文章详情需登录后访问，请使用 /api/articles/get。
  */
 export async function GET(req: NextRequest) {
+    return NextResponse.json<PublicArticleDetailResponseDto>(
+        { success: false, message: "请先登录查看文章详情", data: null },
+        { status: 401 },
+    );
+}
+
+// Legacy implementation kept below for reference (disabled by early return).
+export async function __LEGACY_DISABLED_GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id") || "";
     if (!id) {

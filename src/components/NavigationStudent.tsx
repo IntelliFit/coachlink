@@ -254,7 +254,7 @@ export default function NavigationStudent() {
         return [
             { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
             { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
-            { label: '发现教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
+            { label: '发现', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
             { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
             { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
         ];
@@ -324,7 +324,7 @@ export default function NavigationStudent() {
         return [
             {
                 key: 'discover',
-                label: '发现教练',
+                label: '发现',
                 icon: Search,
                 active: pathname.startsWith('/coach/discovery'),
                 onClick: () => router.push('/coach/discovery'),

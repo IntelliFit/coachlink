@@ -1,12 +1,21 @@
 import { BaseService } from "@/lib/baseService";
-import { ApiData } from "@/types/api";
-import { Coach, CoachStudentItem } from "@/types/coach";
 import { AdminNavDataDto, AdminNavDataResponseDto } from "../api/admin/admin-nav-data/entity";
-
+import {
+    ListPaymentOrdersDto,
+    ListPaymentOrdersResponseDto,
+} from "../api/admin/payment-orders/entity";
 
 class AdminService extends BaseService {
     async adminNavData(reqData: AdminNavDataDto) {
         const res = await this.post<AdminNavDataResponseDto>('admin-nav-data', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async listPaymentOrders(reqData: ListPaymentOrdersDto) {
+        const res = await this.post<ListPaymentOrdersResponseDto>('payment-orders', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

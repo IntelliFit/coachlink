@@ -173,6 +173,7 @@ const Overview = () => {
             value: `¥${overviewData?.monthlyRevenue?.toLocaleString() || 0}`,
             icon: TrendingUp,
             colorClass: "bg-purple-50 text-purple-600",
+            href: "/dashboard/revenue"
         }
     ];
 
