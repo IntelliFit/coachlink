@@ -49,6 +49,11 @@ export default function MessagesPage() {
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [broadcastContent, setBroadcastContent] = useState('');
     const [students, setStudents] = useState<StudentSubscription[]>([]);
+    const [broadcastImageUrl, setBroadcastImageUrl] = useState<string | null>(null);
+    const [broadcastFileName, setBroadcastFileName] = useState<string | null>(null);
+    const [broadcastFileSize, setBroadcastFileSize] = useState<number | null>(null);
+    const [uploadingBroadcastImage, setUploadingBroadcastImage] = useState(false);
+    const broadcastFileInputRef = useRef<HTMLInputElement>(null);
 
     const loadConversations = async () => {
         setLoading(true);
@@ -141,12 +146,78 @@ export default function MessagesPage() {
         setSendToAll(true);
         setSelectedStudentIds([]);
         setBroadcastContent('');
+        setBroadcastImageUrl(null);
+        setBroadcastFileName(null);
+        setBroadcastFileSize(null);
         await loadAllStudentsForBroadcast();
     };
 
+    const handleBroadcastImageUpload = async (file: File) => {
+        if (uploadingBroadcastImage) return;
+
+        // 验证文件类型
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+            showToast({ severity: 'error', summary: '仅支持 PNG/JPEG/WEBP/GIF 格式的图片' });
+            return;
+        }
+
+        // 验证文件大小（10MB）
+        if (file.size > 10 * 1024 * 1024) {
+            showToast({ severity: 'error', summary: '图片大小不能超过 10MB' });
+            return;
+        }
+
+        setUploadingBroadcastImage(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadRes = await fetch('/api/upload/chat-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const uploadData = await uploadRes.json();
+
+            if (!uploadData.success || !uploadData.data?.url) {
+                showToast({ severity: 'error', summary: uploadData.message || '上传失败' });
+                return;
+            }
+
+            setBroadcastImageUrl(uploadData.data.url);
+            setBroadcastFileName(file.name);
+            setBroadcastFileSize(file.size);
+            showToast({ severity: 'success', summary: '图片上传成功' });
+        } catch (error) {
+            console.error('上传图片失败:', error);
+            showToast({ severity: 'error', summary: '上传失败，请稍后重试' });
+        } finally {
+            setUploadingBroadcastImage(false);
+        }
+    };
+
+    const handleBroadcastFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleBroadcastImageUpload(file);
+        }
+        if (broadcastFileInputRef.current) {
+            broadcastFileInputRef.current.value = '';
+        }
+    };
+
+    const removeBroadcastImage = () => {
+        setBroadcastImageUrl(null);
+        setBroadcastFileName(null);
+        setBroadcastFileSize(null);
+    };
+
     const handleBroadcastSend = async () => {
-        if (!broadcastContent.trim()) {
-            showToast({ severity: 'warn', summary: '提示', detail: '请输入通知内容' });
+        // 修改验证：如果有图片，文字可选；如果没图片，必须有文字
+        if (!broadcastImageUrl && !broadcastContent.trim()) {
+            showToast({ severity: 'warn', summary: '提示', detail: '请输入通知内容或上传图片' });
             return;
         }
         if (!sendToAll && selectedStudentIds.length === 0) {
@@ -160,6 +231,10 @@ export default function MessagesPage() {
                 sendToAll,
                 studentUserIds: sendToAll ? undefined : selectedStudentIds,
                 content: broadcastContent.trim(),
+                messageType: broadcastImageUrl ? 'image' : 'text',
+                mediaUrl: broadcastImageUrl || undefined,
+                fileName: broadcastFileName || undefined,
+                fileSize: broadcastFileSize || undefined,
             });
             if (!res) {
                 showToast({ severity: 'error', summary: '失败', detail: '发送失败' });
@@ -386,6 +461,54 @@ export default function MessagesPage() {
                         </div>
                     )}
 
+                    {/* 图片上传区域 */}
+                    <div className="space-y-2">
+                        <div className="text-sm font-semibold text-surface-700">图片（可选）</div>
+                        
+                        <input
+                            ref={broadcastFileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handleBroadcastFileSelect}
+                            disabled={uploadingBroadcastImage || broadcastLoading}
+                        />
+                        
+                        {!broadcastImageUrl ? (
+                            <Button
+                                label={uploadingBroadcastImage ? "上传中..." : "选择图片"}
+                                icon={uploadingBroadcastImage ? "pi pi-spin pi-spinner" : "pi pi-image"}
+                                className="p-button-outlined rounded-2xl"
+                                onClick={() => broadcastFileInputRef.current?.click()}
+                                disabled={uploadingBroadcastImage || broadcastLoading}
+                            />
+                        ) : (
+                            <div className="border border-surface-200 rounded-xl p-3 space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <i className="pi pi-image text-primary-500"></i>
+                                    <span className="text-sm text-surface-700 font-medium flex-1">
+                                        {broadcastFileName}
+                                    </span>
+                                    <Button
+                                        icon="pi pi-times"
+                                        className="p-button-text p-button-sm p-button-rounded p-button-danger"
+                                        onClick={removeBroadcastImage}
+                                        disabled={broadcastLoading}
+                                    />
+                                </div>
+                                <img 
+                                    src={broadcastImageUrl} 
+                                    alt="预览" 
+                                    className="w-full max-h-48 object-contain rounded-lg bg-surface-50"
+                                />
+                            </div>
+                        )}
+                        
+                        <div className="text-xs text-surface-500">
+                            支持 PNG、JPEG、WEBP、GIF 格式，最大 10MB
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <div className="text-sm font-semibold text-surface-700">通知内容</div>
                         <InputTextarea
@@ -397,7 +520,9 @@ export default function MessagesPage() {
                             placeholder="请输入要发送的通知内容..."
                         />
                         <div className="text-xs text-surface-500">
-                            将以聊天消息形式发送到每位学员与您的私聊窗口中（不会互相看到收件人）。
+                            {broadcastImageUrl 
+                                ? '可以为图片添加文字说明（可选）' 
+                                : '将以聊天消息形式发送到每位学员与您的私聊窗口中（不会互相看到收件人）。'}
                         </div>
                     </div>
 

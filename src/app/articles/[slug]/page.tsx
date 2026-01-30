@@ -49,16 +49,17 @@ function previewText(input: string, maxChars = 900) {
   return txt.slice(0, maxChars).trimEnd() + '…';
 }
 
-export default async function ArticleDetailPage({ params }: { params: { slug: string } }) {
-  const slug = params.slug || '';
+export default async function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const slugValue = slug || '';
   const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugValue);
 
   const session = await getServerSession();
   const userId = session?.user?.id;
   if (!userId) {
     // middleware should already redirect, but keep a server-side safety net
-    redirect(`/login?redirect=${encodeURIComponent(`/articles/${slug}`)}`);
+    redirect(`/login?redirect=${encodeURIComponent(`/articles/${slugValue}`)}`);
   }
 
   // 优先：使用“教练内容管理（coach_contents）”作为公开文章来源
@@ -78,11 +79,57 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
         coach:coaches(id,name,avatar_url,status)
       `,
       )
-      .eq('id', slug)
+      .eq('id', slugValue)
       .maybeSingle();
 
-    if (error || !data) notFound();
-    if ((data as any)?.coach?.status !== 'approved') notFound();
+    const coachStatus = (data as any)?.coach?.status || null;
+    if (error || !data) {
+      return (
+        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <BackButton />
+            </div>
+            <Card className="shadow-lg rounded-2xl border-none">
+              <div className="p-6 md:p-10">
+                <div className="text-xs font-black uppercase tracking-widest text-surface-400">文章不可用</div>
+                <h1 className="mt-3 text-2xl md:text-3xl font-black text-surface-900 tracking-tight">
+                  该文章不存在或已下线
+                </h1>
+                <div className="mt-4 text-sm text-surface-600">
+                  文章 ID：<span className="font-black">{slugValue}</span>
+                </div>
+                <div className="mt-2 text-xs text-surface-500">
+                  如果你刚刚发布内容但这里打不开，通常是发布到不同环境或内容未成功保存导致。
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    if (coachStatus !== 'approved') {
+      return (
+        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <BackButton />
+            </div>
+            <Card className="shadow-lg rounded-2xl border-none">
+              <div className="p-6 md:p-10">
+                <div className="text-xs font-black uppercase tracking-widest text-surface-400">文章暂不可见</div>
+                <h1 className="mt-3 text-2xl md:text-3xl font-black text-surface-900 tracking-tight">
+                  该文章当前不可公开访问
+                </h1>
+                <div className="mt-4 text-sm text-surface-600">
+                  可能原因：教练未通过审核、教练状态异常或内容被下线。
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
 
     const raw = String((data as any).content || '');
     const requiredTier = Number((data as any).required_tier ?? 0);
@@ -94,7 +141,7 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
       const { data: purchase } = await serviceRoleSupabase
         .from('content_purchases' as any)
         .select('id,status')
-        .eq('content_id', slug)
+        .eq('content_id', slugValue)
         .eq('user_id', userId)
         .eq('status', 'paid')
         .maybeSingle();
@@ -182,7 +229,7 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
   }
 
   // 兼容：旧的 markdown 静态文章（用于审核示例/历史链接）
-  const meta = ARTICLES.find((a) => a.slug === slug);
+  const meta = ARTICLES.find((a) => a.slug === slugValue);
   if (!meta) notFound();
 
   const content = await getDocContent(meta.filename);
