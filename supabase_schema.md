@@ -1,7 +1,7 @@
 # Supabase 数据库结构文档（public schema）
 
 - **生成时间**：2026-01-26
-- **最后更新**：2026-01-30（通过 MCP 从 Supabase 云端数据库实时获取）
+- **最后更新**：2026-01-26（通过 MCP 从 Supabase 云端数据库实时获取）
 - **数据库版本**：PostgreSQL (Supabase)
 - **Schema**：public
 
@@ -17,7 +17,7 @@
 > - 2025-12-29：执行集视频与计划实例等字段优化，新增学员自建动作与常用计划表
 > - 2025-12-26：聊天系统重构、训练执行系统优化、排行榜系统上线
 > - 根据数据库分析报告（2025-12-04），已删除6个冗余表
-> - 当前保留 **75个表 + 3个视图 = 78个数据库对象**
+> - 当前保留 **68个表 + 3个视图 = 71个数据库对象**
 
 ## 目录
 
@@ -46,7 +46,7 @@
 - `admin_trace_events` ⭐ 新增 - 管理员操作追踪表
 - `push_subscriptions` ⭐ 新增 - 推送订阅表（Web Push）
 
-### 教练与订阅/钱包（18个）
+### 教练与订阅/钱包（16个）
 
 - `coaches` - 教练基本信息表
 - `coach_subscriptions` - 教练订阅关系表
@@ -61,13 +61,11 @@
 - `coach_wallets` ⭐ 新增 - 教练钱包
 - `wallet_transactions` ⭐ 新增 - 教练钱包流水
 - `payout_requests` ⭐ 新增 - 教练提现申请
-- `alipay_accounts` ⭐ 新增 - 教练支付宝账号绑定表
-- `alipay_withdrawals` ⭐ 新增 - 教练提现记录表
 - `coach_questionnaires` - 教练专属问卷表
 - `coach_posters` ⭐ 新增 - 教练海报/宣传素材表
 - `canonical_actions` ⭐ 新增 - 标准动作库表（平台统一动作库）
 
-### 训练与执行（15个）
+### 训练与执行（16个）
 
 - `training_plans` - 学员训练计划表
 - `training_plan_details` - 核心计划明细表（每日/每周动作 JSONB）
@@ -77,6 +75,7 @@
 - `set_videos` - 训练组视频表（旧版，逐步被替代）
 - `plan_instance_executions` - 计划实例执行记录表（新版执行）
 - `execution_set_videos` - 执行组视频表（新版）
+- `personal_records` - 个人记录表（已废弃，保留历史）
 - `personal_records_history` - 个人记录历史表
 - `training_items` - 训练项目库
 - `student_actions` - 学员个人动作库
@@ -85,7 +84,7 @@
 - `onboarding_questionnaires` - 新用户入职问卷表
 - `questionnaire_responses` ⭐ 新增 - 问卷回答历史快照
 
-### 会员 / 交易 / 增长（8个）
+### 会员 / 交易 / 增长（7个）
 
 - `alipay_orders` - 支付订单记录表
 - `student_memberships` ⭐ 新增 - 学员会员状态
@@ -94,12 +93,10 @@
 - `student_membership_orders` ⭐ 新增 - 会员/增值包订单
 - `referral_rewards` ⭐ 新增 - 拉新奖励记录
 - `promotion_submissions` ⭐ 新增 - 推广投稿记录
-- `cart_items` ⭐ 新增 - 用户购物车商品表
 
-### 内容互动与消息（6个）
+### 内容互动与消息（5个）
 
 - `content_interactions` - 内容交互（点赞、收藏）
-- `content_purchases` ⭐ 新增 - 内容购买记录表（单篇付费解锁）
 - `chat_rooms` - 聊天室表（支持多成员）
 - `chat_messages` - 聊天消息表（支持多媒体与 video_reference）
 - `chat_room_unreads` - 聊天室未读消息表
@@ -125,109 +122,15 @@
 - `growth_share_events` ⭐ 新增 - 增长分享事件表
 - `feature_releases` ⭐ 新增 - 功能发布记录表
 
-### 街健力量指数（4个）
-
-- `streetlifting_formulas` ⭐ 新增 - 街健力量指数公式表
-- `streetlifting_submissions` ⭐ 新增 - 街健力量指数提交表
-- `streetlifting_stories` ⭐ 新增 - 街健力量指数故事表
-- `streetlifting_locations` ⭐ 新增 - 街健力量指数位置表
-
-### 社区共建（2个）
-
-- `community_actions` ⭐ 新增 - 公共动作库（共建生态）
-- `community_action_likes` ⭐ 新增 - 公共动作点赞关系表
-
 ### 其他（2个）
 
 - `specialties` - 教练专业领域表
 - `lifestyle_logs` - 学员生活日志表
 
-**总计：75个表**（用户与平台9 + 教练18 + 训练15 + 会员交易8 + 内容互动6 +
-排行榜3 + 知识库5 + 增长运营3 + 街健4 + 社区共建2 + 其他2 = 75）
+**总计：68个表**（用户与平台9 + 教练16 + 训练16 + 会员交易7 + 内容互动5 +
+排行榜3 + 知识库5 + 增长运营3 + 其他2 = 68）
 
 ---
-
-## 行数快照（2026-01-30）
-
-说明：以下为通过 MCP 从 Supabase 云端数据库实时获取的 **public schema** 各表行数快照。
-
-| 表 | 行数 | RLS |
-| --- | ---: | --- |
-| `admin_trace_events` | 4416 | enabled |
-| `admin_users` | 1 | disabled |
-| `alipay_accounts` | 1 | disabled |
-| `alipay_orders` | 141 | disabled |
-| `alipay_withdrawals` | 0 | disabled |
-| `canonical_actions` | 20 | disabled |
-| `cart_items` | 9 | disabled |
-| `chat_messages` | 736 | disabled |
-| `chat_room_unreads` | 254 | disabled |
-| `chat_rooms` | 127 | disabled |
-| `coach_actions` | 92 | disabled |
-| `coach_applications` | 11 | disabled |
-| `coach_contents` | 9 | disabled |
-| `coach_plan_instances` | 66 | disabled |
-| `coach_plan_templates` | 23 | disabled |
-| `coach_pricing` | 2 | disabled |
-| `coach_posters` | 2 | disabled |
-| `coach_questionnaires` | 7 | disabled |
-| `coach_reviews` | 0 | disabled |
-| `coach_rulepacks` | 0 | disabled |
-| `coach_subscriptions` | 85 | disabled |
-| `coach_wallets` | 1 | disabled |
-| `coaches` | 13 | disabled |
-| `community_action_likes` | 0 | disabled |
-| `community_actions` | 2 | disabled |
-| `content_interactions` | 11 | disabled |
-| `content_purchases` | 0 | disabled |
-| `execution_set_videos` | 7 | disabled |
-| `feedbacks` | 2 | disabled |
-| `feature_releases` | 1 | enabled |
-| `growth_share_events` | 19 | disabled |
-| `growth_share_links` | 110 | disabled |
-| `knowledge_books` | 0 | disabled |
-| `knowledge_progress` | 0 | disabled |
-| `knowledge_subscriptions` | 0 | disabled |
-| `knowledge_videos` | 0 | disabled |
-| `leaderboard_entries` | 80 | disabled |
-| `leaderboard_templates` | 3 | disabled |
-| `lifestyle_logs` | 1 | disabled |
-| `onboarding_questionnaires` | 0 | disabled |
-| `payout_requests` | 0 | disabled |
-| `personal_records_history` | 148 | disabled |
-| `plan_instance_executions` | 216 | disabled |
-| `platform_settings` | 1 | disabled |
-| `promotion_submissions` | 0 | disabled |
-| `pullup_leaderboard` | 68 | disabled |
-| `push_subscriptions` | 2 | enabled |
-| `questionnaire_responses` | 3 | disabled |
-| `referral_rewards` | 3 | disabled |
-| `set_videos` | 0 | disabled |
-| `shipping_info` | 0 | disabled |
-| `social_friendships` | 11 | disabled |
-| `specialties` | 11 | disabled |
-| `streetlifting_formulas` | 2 | disabled |
-| `streetlifting_locations` | 217 | disabled |
-| `streetlifting_stories` | 2 | disabled |
-| `streetlifting_submissions` | 229 | disabled |
-| `student_actions` | 147 | disabled |
-| `student_comments` | 0 | disabled |
-| `student_coupons` | 0 | disabled |
-| `student_membership_orders` | 16 | disabled |
-| `student_memberships` | 1 | disabled |
-| `student_plan_favorites` | 12 | disabled |
-| `student_quotas` | 71 | disabled |
-| `student_video_collections` | 22 | disabled |
-| `training_items` | 19 | disabled |
-| `training_plan_details` | 0 | disabled |
-| `training_plans` | 0 | disabled |
-| `training_records` | 0 | disabled |
-| `training_sessions` | 0 | disabled |
-| `training_videos` | 27 | disabled |
-| `user_behavior_events` | 749 | enabled |
-| `user_profiles` | 467 | disabled |
-| `users` | 472 | disabled |
-| `wallet_transactions` | 0 | disabled |
 
 ## 视图清单
 
@@ -334,7 +237,7 @@
 
 **基本信息**
 
-- 行数：~472
+- 行数：~111
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -388,7 +291,7 @@
 
 **基本信息**
 
-- 行数：~467
+- 行数：~108
 - RLS：未启用
 - 主键：`id` (uuid)
 - 状态：✅ 正常使用
@@ -626,8 +529,6 @@
 | notes            | text        | YES  |                   |                                           |
 | created_at       | timestamptz | NO   | now()             |                                           |
 | updated_at       | timestamptz | NO   | now()             |                                           |
-| visibility       | text        | YES  | 'friends'         | ⭐ **新增**：分享可见性（private/friends/public） |
-| share_token      | uuid        | YES  | gen_random_uuid() | ⭐ **新增**：分享令牌，用于生成分享链接           |
 
 **外键**
 
@@ -817,8 +718,8 @@
 - 行数：~0
 - RLS：未启用
 - 主键：`id` (uuid)
-- 状态：❌ **已下线（当前数据库无此表）**
-- 说明：历史设计为“仅存最大记录”，已被 `personal_records_history` 替代，本文保留仅作历史参考
+- 状态：❌ **已废弃**
+- 说明：仅存最大记录，缺历史。建议用 `user_1rm_history` 替代
 
 **字段说明**
 
@@ -858,8 +759,8 @@
 - 行数：~5
 - RLS：未启用
 - 主键：`id` (uuid)
-- 状态：❌ **已下线（当前数据库无此表）**
-- 注释：已由 `chat_rooms` / `chat_messages` / `chat_room_unreads` 替代，本文保留仅作历史参考
+- 状态：✅ 正常使用
+- 注释：学员-教练会话表，记录聊天历史
 
 **字段说明**
 
@@ -919,7 +820,7 @@
 | start_date           | timestamptz | YES  | now()             |                                                                 |
 | end_date             | timestamptz | YES  |                   |                                                                 |
 | auto_renew           | boolean     | YES  | true              |                                                                 |
-| monthly_price        | bigint      | NO   |                   | 月费（单位：分，整数）                                          |
+| monthly_price        | numeric     | NO   |                   |                                                                 |
 | order_id             | uuid        | YES  |                   | 订单编号                                                        |
 | subscribe_data       | jsonb       | YES  |                   | 订阅附带的一些基础信息                                          |
 | has_remind_coach     | boolean     | YES  | false             | ⭐ **新增**：是否已提醒教练                                     |
@@ -929,12 +830,6 @@
 | product_tier         | text        | YES  |                   | ⭐ **新增**：订阅时的产品层级(basic/standard/vip)               |
 | subscribed_weeks     | integer     | YES  | 4                 | ⭐ **新增**：订阅包含的总周数                                   |
 | prior_training_weeks | integer     | YES  | 0                 | ⭐ **新增**：学员迁入平台前已跟随教练训练的周数，用于计算总时长 |
-| payment_method       | text        | YES  |                   | ⭐ **新增**：支付方式（如 alipay/wechat/manual）                |
-| payment_confirmed_by | text        | YES  |                   | ⭐ **新增**：支付确认人/渠道标识                                 |
-| payment_confirmed_at | timestamptz | YES  |                   | ⭐ **新增**：支付确认时间                                       |
-| coach_seen_at        | timestamptz | YES  |                   | ⭐ **新增**：教练已查看时间                                     |
-| last_payment_order_id | text       | YES  |                   | ⭐ **新增**：最近一次支付订单ID（文本）                          |
-| payment_data         | jsonb       | YES  | '{}'              | ⭐ **新增**：支付扩展信息                                       |
 | created_at           | timestamptz | YES  | now()             |                                                                 |
 | updated_at           | timestamptz | YES  | now()             |                                                                 |
 
@@ -1661,8 +1556,8 @@
 | user_id              | uuid        | NO   |                   | 外键 → users.id                                 |
 | action_id            | uuid        | YES  |                   | 动作ID                                          |
 | exercise_name        | varchar     | NO   |                   | 动作名称                                        |
-| weight               | numeric     | YES  |                   | 实际训练重量（kg）                               |
-| reps                 | integer     | YES  |                   | 实际完成次数                                     |
+| max_weight           | numeric     | YES  |                   | 最大重量                                        |
+| max_reps             | integer     | YES  |                   | 最大次数                                        |
 | load_formula         | varchar     | YES  |                   | ⭐ **新增**：计算公式，如 "60kg × 10次 @ RPE 8" |
 | execution_id         | uuid        | YES  |                   | ⭐ **新增**：外键 → plan_instance_executions.id |
 | execution_set_number | integer     | YES  |                   | ⭐ **新增**：执行组号                           |
@@ -1670,11 +1565,6 @@
 | notes                | text        | YES  |                   | 备注                                            |
 | video_url            | text        | YES  |                   | ⭐ **新增**：视频URL                            |
 | is_verified          | boolean     | YES  | false             | ⭐ **新增**：是否已验证                         |
-| is_auto_calculated   | boolean     | YES  | false             | ⭐ **新增**：是否系统自动计算的 e1RM            |
-| estimated_from       | jsonb       | YES  |                   | ⭐ **新增**：估算来源数据（jsonb）              |
-| e1rm                 | numeric     | YES  |                   | ⭐ **新增**：估算极限（e1RM）                   |
-| source_type          | text        | YES  | 'coach'           | ⭐ **新增**：来源类型（coach/self）             |
-| source_coach_id      | uuid        | YES  |                   | ⭐ **新增**：归属教练ID（自训为 NULL）          |
 | created_at           | timestamptz | YES  | now()             |                                                 |
 
 **索引**
@@ -1734,10 +1624,6 @@
 | sort_order    | text        | YES  | 'desc'            | ∈ {'asc','desc'} 排序方式 |
 | remarks       | text        | YES  |                   | 备注                      |
 | initiator     | text        | YES  |                   | 发起者                    |
-| video_url     | text        | YES  |                   | 视频URL                   |
-| video_storage_bucket | text  | YES  |                   | 视频存储桶                |
-| video_storage_path   | text  | YES  |                   | 视频存储路径              |
-| needReview    | boolean     | YES  |                   | 是否需要审核              |
 | created_at    | timestamptz | YES  | now()             |                           |
 
 **索引**
@@ -2120,15 +2006,14 @@
 - 行数：~0
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
-- 说明：知识库视频内容（可独立作为知识条目/素材）
+- 外键：`book_id → knowledge_books.id`
+- 说明：知识书籍中的视频内容
 
 **字段要点**
 
-- `source` / `source_url`：来源信息（如平台/外部链接）
-- `cover_image` / `summary` / `transcript`：封面、摘要、转写
-- `content`：结构化内容（jsonb，可选）
-- `duration_seconds`：时长（秒）
-- `is_free` / `is_published` / `sort_order`：权限与发布/排序
+- `book_id`：所属书籍ID
+- `title`，`video_url`，`duration`
+- `order_index`：在书籍中的顺序
 
 ---
 
@@ -2136,16 +2021,15 @@
 
 - 行数：~0
 - 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`user_id → users.id`
-- 说明：记录学员对任意知识内容（按 `content_type` + `content_id`）的学习进度
+- 主键：`(user_id, book_id)` 或 `id` (uuid)
+- 外键：`user_id → users.id`, `book_id → knowledge_books.id`
+- 说明：记录学员对知识书籍的学习进度
 
 **字段要点**
 
-- `content_type` / `content_id`：学习对象（类型与ID）
-- `progress`：进度（0~1 或 0~100，按产品约定）
-- `last_position`：上次学习位置（jsonb）
-- `completed_at`：完成时间（可空）
+- `progress_percent`：学习进度百分比
+- `last_learned_at`：最后学习时间
+- `completed_chapters`：已完成的章节列表
 
 ---
 
@@ -2154,15 +2038,14 @@
 - 行数：~0
 - 状态：✅ 正常使用
 - 主键：`id` (uuid)
-- 外键：`user_id → users.id`, `order_id → alipay_orders.id`
-- 说明：知识订阅关系（面向用户的订阅/权益记录）
+- 外键：`user_id → users.id`, `book_id → knowledge_books.id`
+- 说明：学员订阅知识书籍的关系表
 
 **字段要点**
 
-- `plan`：订阅档位（如 basic）
-- `status`：订阅状态（如 active）
-- `started_at` / `expires_at`：生效/到期时间
-- `ai_quota_used` / `ai_quota_reset_at`：配额使用与重置时间
+- `status` ∈ {active, expired, cancelled}
+- `start_date`，`end_date`
+- `order_id`：关联订单ID
 
 ---
 
@@ -2298,156 +2181,6 @@
 - `content`：反馈内容
 - `status` ∈ {pending, reviewed, resolved}
 - `admin_response`：管理员回复
-
----
-
-#### 71. cart_items（用户购物车商品表）⭐ 新增
-
-- 行数：~9
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`user_id → users.id`, `coach_id → coaches.id`
-- 说明：用户购物车中的订阅商品快照（产品、价格、时长等）
-
-**字段要点**
-
-- `product_id` / `product_name` / `product_tier`：产品标识与档位
-- `duration_months`：订阅时长（月）
-- `price`：价格（数值）
-- `coach_name`：冗余字段，便于展示
-
----
-
-#### 72. alipay_accounts（教练支付宝账号绑定表）⭐ 新增
-
-- 行数：~1
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`coach_id → coaches.id`
-- 说明：教练绑定的支付宝收款账号信息（用于平台代收/提现）
-
-**字段要点**
-
-- `payee_account`：支付宝账号（手机号/邮箱/UID）
-- `payee_type`：账号类型（如登录号/UID）
-- `real_name`：真实姓名（部分类型必填）
-- `verified`：是否已校验通过
-
----
-
-#### 73. alipay_withdrawals（教练提现记录表）⭐ 新增
-
-- 行数：~0
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`coach_id → coaches.id`, `confirmed_by_user_id → users.id`
-- 说明：提现流水（支持人工转账流程与状态流转）
-
-**字段要点**
-
-- `amount` / `fee`：金额与手续费（单位：分）
-- `status`：`pending|success|failed|cancelled`
-- `out_biz_no`：提现业务单号（系统生成）
-- `alipay_order_id`：管理员填写的人工转账订单号
-- `alipay_response`：回执信息（jsonb）
-
----
-
-#### 74. content_purchases（单篇内容购买记录表）⭐ 新增
-
-- 行数：~0
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`content_id → coach_contents.id`, `user_id → users.id`, `order_id → alipay_orders.id`
-- 说明：记录用户对 `coach_contents` 单篇付费解锁的购买关系
-
-**字段要点**
-
-- `status`：`pending|paid`（以及可能的失败/关闭状态，按业务扩展）
-- `paid_at`：支付成功时间
-- `updated_at`：状态变更时间
-
----
-
-#### 75. streetlifting_formulas（街健力量指数公式表）⭐ 新增
-
-- 行数：~2
-- 状态：✅ 正常使用
-- 主键：`id` (int)
-- 说明：街健力量指数的系数配置（可按性别/动作类型扩展）
-
-**字段要点**
-
-- `gender`：`Male|Female`
-- `coeff_a..coeff_f`：公式系数
-- `total_submissions_used`：被用于拟合/统计的提交量
-
----
-
-#### 76. streetlifting_submissions（街健力量指数提交表）⭐ 新增
-
-- 行数：~229
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`user_id → users.id`（可空）
-- 说明：用户公开提交的街健训练数据（用于计算指数/社区展示）
-
-**字段要点**
-
-- `bodyweight` / `added_weight` / `reps`：体重、外加重量、次数
-- `exercise_type`：如 `weighted_pullup|weighted_dips`
-- `form_quality`：动作质量分级
-- `penalty_weight`：作弊/质量惩罚
-
----
-
-#### 77. streetlifting_stories（街健力量指数故事/事件表）⭐ 新增
-
-- 行数：~2
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 说明：街健活动故事/事件内容（可用于运营展示）
-
----
-
-#### 78. streetlifting_locations（街健训练点位表）⭐ 新增
-
-- 行数：~217
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 说明：训练点位置信息（公开社区数据）
-
-**字段要点**
-
-- `name` / `address` / `city` / `province`
-- `latitude` / `longitude`
-- `image_url` / `image_urls`
-
----
-
-#### 79. community_actions（公共动作库：共建生态表）⭐ 新增
-
-- 行数：~2
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`contributor_user_id → users.id`, `canonical_action_id → canonical_actions.id`
-- 说明：平台公共动作资产（共建生态，阶段性能力：投稿/点赞）
-
-**字段要点**
-
-- `name` / `detail` / `positions` / `attrs`：动作信息
-- `like_count`：点赞数（触发器/聚合维护）
-- `enableAutoWeightCompute` / `includesBodyWeight`：训练计算相关开关
-
----
-
-#### 80. community_action_likes（公共动作点赞关系表）⭐ 新增
-
-- 行数：~0
-- 状态：✅ 正常使用
-- 主键：`id` (uuid)
-- 外键：`action_id → community_actions.id`, `user_id → users.id`
-- 说明：用户对公共动作的点赞关系（0/1）
 
 ---
 
@@ -2650,22 +2383,6 @@ GROUP BY user_id, plan_id;
 
 ## 数据库变更历史
 
-**最新变更（2026-01-30）：**
-
-1. ⭐ **新增/补齐表（10个）**：
-   - 支付与结算：`alipay_accounts`, `alipay_withdrawals`, `cart_items`
-   - 单篇付费：`content_purchases`
-   - 街健力量指数：`streetlifting_formulas`, `streetlifting_submissions`, `streetlifting_stories`, `streetlifting_locations`
-   - 社区共建：`community_actions`, `community_action_likes`
-2. 📝 **字段对齐/补充**：
-   - `coach_subscriptions`：补齐 `payment_*`、`coach_seen_at`、`payment_data` 等支付信息字段
-   - `training_records`：补齐 `visibility`、`share_token`（分享能力）
-   - `personal_records_history`：补齐 `e1rm`、`estimated_from`、`is_auto_calculated` 等字段
-   - `leaderboard_templates`：补齐视频相关字段（`video_url` 等）
-   - `knowledge_videos / knowledge_progress / knowledge_subscriptions`：按当前数据库结构修正文档描述
-3. 📊 **数据库对象统计（当前）**：
-   - **75 个表 + 3 个视图 = 78 个数据库对象**
-
 **最新变更（2026-01-26）：**
 
 1. ⭐ **知识库系统新增 4 表**：
@@ -2701,7 +2418,8 @@ GROUP BY user_id, plan_id;
    - `user_profiles` 新增 `guides_completed`（已完成的新手引导），用于引导系统
 
 7. 📊 **数据库统计更新**：
-   - 当前口径以“行数快照（2026-01-30）”为准：**75 个表 + 3 个视图 = 78 个数据库对象**
+   - 表总数从 53 个增加到 **68 个表**
+   - 数据库对象总数：**68 个表 + 3 个视图 = 71 个数据库对象**
 
 **最新变更（2026-01-06）：**
 
@@ -2771,7 +2489,7 @@ GROUP BY user_id, plan_id;
 
 本文档包含了 Supabase 数据库中 `public` schema 的完整结构信息，包括：
 
-- ✅ **75个表**的结构说明（含知识库、标准动作库、增长运营、推送追踪、街健指数、共建生态等）
+- ✅ **68个表**的详细说明（含知识库、标准动作库、增长运营、推送追踪等新增表）
 - ✅ **3个视图**的定义
 - ✅ 主要索引与外键信息
 - ✅ 冗余分析和优化建议

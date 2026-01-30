@@ -6,7 +6,7 @@ import {
     CreateOrderDto,
     CreateOrderResponse,
 } from "@/app/service/studentMembershipService";
-import { createAlipaySdk } from "@/lib/alipaySdk";
+import { AlipaySdk } from "alipay-sdk";
 
 /**
  * Product configurations
@@ -121,8 +121,12 @@ export async function POST(request: Request) {
         }, { status: 500 });
     }
 
-    // 使用统一的初始化工具，支持代理配置
-    const alipaySdk = createAlipaySdk();
+    const alipaySdk = new AlipaySdk({
+        appId: ALIPAY_APP_ID,
+        privateKey: ALIPAY_PRIVATE_KEY,
+        alipayPublicKey: ALIPAY_PUBLIC_KEY,
+        gateway: ALIPAY_GATEWAY,
+    });
 
     // Build callback URLs from request headers (works for prod/ngrok, avoids hardcoding).
     const xfProto = request.headers.get("x-forwarded-proto");

@@ -11,7 +11,6 @@ export type PublicArticleListItem = {
     summary: string;
     contentType: string;
     requiredTier: number;
-    priceCents: number;
     publishedAt: string | null;
 };
 
@@ -52,7 +51,6 @@ export async function GET(req: NextRequest) {
             content,
             content_type,
             required_tier,
-            price_cents,
             created_at,
             coach:coaches(
                 id,
@@ -89,7 +87,6 @@ export async function GET(req: NextRequest) {
             summary: summarize(r.content || ""),
             contentType: r.content_type,
             requiredTier: Number(r.required_tier ?? 0),
-            priceCents: Number(r.price_cents ?? 0),
             publishedAt: r.created_at ?? null,
         }));
 

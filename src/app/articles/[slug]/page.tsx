@@ -1,13 +1,11 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Card } from 'primereact/card';
 import MarkdownIt from 'markdown-it';
 import BackButton from '../../../components/BackButton';
 import { getDocContent } from '@/utils/content';
 import { ARTICLES } from '../articlesData';
+import ArticlePaywall from '../ArticlePaywall';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import ArticlePurchaseSection from '../ArticlePurchaseSection';
-import RefreshOnPaid from '../RefreshOnPaid';
 
 const md = new MarkdownIt({
   html: true,
@@ -40,32 +38,10 @@ function getPreviewMarkdown(markdown: string) {
   return previewLines.join('\n').trim();
 }
 
-function stripHtml(input: string) {
-  return (input || '').replace(/<[^>]*>/g, '').trim();
-}
-
-function previewText(input: string, maxChars = 900) {
-  const txt = stripHtml(input);
-  if (txt.length <= maxChars) return txt;
-  return txt.slice(0, maxChars).trimEnd() + '…';
-}
-
-export default async function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const slugValue = slug || '';
+export default async function ArticleDetailPage({ params }: { params: { slug: string } }) {
+  const slug = params.slug || '';
   const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugValue);
-
-  const session = await getServerSession();
-  const userId = session?.user?.id;
-  if (!userId) {
-    // middleware should already redirect, but keep a server-side safety net
-    redirect(`/login?redirect=${encodeURIComponent(`/articles/${slugValue}`)}`);
-  }
-
-  // Client-side refresh hook for payment return
-  // (noop in server render, but enables post-payment refresh when ?paid=1)
-  const PaidRefresh = <RefreshOnPaid />;
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
 
   // 优先：使用“教练内容管理（coach_contents）”作为公开文章来源
   if (isUuid) {
@@ -79,106 +55,22 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         content,
         content_type,
         required_tier,
-        price_cents,
         created_at,
         coach:coaches(id,name,avatar_url,status)
       `,
       )
-      .eq('id', slugValue)
+      .eq('id', slug)
       .maybeSingle();
 
-    const coachStatus = (data as any)?.coach?.status || null;
-    if (error || !data) {
-      return (
-        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <BackButton />
-            </div>
-            <Card className="shadow-lg rounded-2xl border-none">
-              <div className="p-6 md:p-10">
-                <div className="text-xs font-black uppercase tracking-widest text-surface-400">文章不可用</div>
-                <h1 className="mt-3 text-2xl md:text-3xl font-black text-surface-900 tracking-tight">
-                  该文章不存在或已下线
-                </h1>
-                <div className="mt-4 text-sm text-surface-600">
-                  文章 ID：<span className="font-black">{slugValue}</span>
-                </div>
-                <div className="mt-2 text-xs text-surface-500">
-                  如果你刚刚发布内容但这里打不开，通常是发布到不同环境或内容未成功保存导致。
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      );
-    }
-    if (coachStatus !== 'approved') {
-      return (
-        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <BackButton />
-            </div>
-            <Card className="shadow-lg rounded-2xl border-none">
-              <div className="p-6 md:p-10">
-                <div className="text-xs font-black uppercase tracking-widest text-surface-400">文章暂不可见</div>
-                <h1 className="mt-3 text-2xl md:text-3xl font-black text-surface-900 tracking-tight">
-                  该文章当前不可公开访问
-                </h1>
-                <div className="mt-4 text-sm text-surface-600">
-                  可能原因：教练未通过审核、教练状态异常或内容被下线。
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      );
-    }
+    if (error || !data) notFound();
+    if ((data as any)?.coach?.status !== 'approved') notFound();
 
-    const raw = String((data as any).content || '');
     const requiredTier = Number((data as any).required_tier ?? 0);
-    const priceCents = Number((data as any).price_cents ?? 0);
-    const isPaid = priceCents > 0;
-
-    let purchased = false;
-    if (isPaid) {
-      const { data: purchase } = await serviceRoleSupabase
-        .from('content_purchases' as any)
-        .select('id,status')
-        .eq('content_id', slugValue)
-        .eq('user_id', userId)
-        .eq('status', 'paid')
-        .maybeSingle();
-      purchased = !!purchase;
-    }
-
-    let subscriptionUnlocked = false;
-    try {
-      const coachId = String((data as any).coach_id || '');
-      if (coachId) {
-        const { data: sub } = await serviceRoleSupabase
-          .from('coach_subscriptions')
-          .select('id,tier,status')
-          .eq('coach_id', coachId)
-          .eq('student_id', userId)
-          .eq('status', 'active')
-          .gte('tier', requiredTier)
-          .maybeSingle();
-        subscriptionUnlocked = !!sub;
-      }
-    } catch {
-      // ignore
-    }
-
-    const canView = !isPaid || purchased || subscriptionUnlocked;
-    const isPreview = !canView;
-    const display = isPreview ? previewText(raw) : stripHtml(raw);
-    const priceYuan = (priceCents / 100).toFixed(2);
+    const raw = String((data as any).content || '');
+    const isPreview = requiredTier > 0;
 
     return (
       <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
-        {PaidRefresh}
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <BackButton />
@@ -202,31 +94,16 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
               </h1>
 
               <div className="prose max-w-none text-surface-700 mt-6 whitespace-pre-line">
-                {display}
+                {isPreview ? raw.slice(0, 900) + (raw.length > 900 ? '…' : '') : raw}
               </div>
 
               {isPreview ? (
                 <div className="mt-6 text-xs text-surface-500">
-                  以上为预览内容。可单篇购买解锁，也可订阅该教练后免费阅读。
+                  以上为预览内容。解锁后可阅读全文。
                 </div>
               ) : null}
 
-              {isPaid && !canView ? (
-                <ArticlePurchaseSection
-                  contentId={(data as any).id}
-                  title={(data as any).title || '未命名'}
-                  priceCents={priceCents}
-                  coachId={(data as any).coach_id}
-                  coachName={(data as any)?.coach?.name || '教练'}
-                  requiredTier={requiredTier}
-                />
-              ) : null}
-
-              {isPaid && canView ? (
-                <div className="mt-10 text-xs text-surface-400">
-                  已解锁（{subscriptionUnlocked ? '订阅解锁' : `¥${priceYuan}`}）。
-                </div>
-              ) : null}
+              <ArticlePaywall knowledgeHref={`/coach/content/${(data as any).id}`} />
             </div>
           </Card>
         </div>
@@ -235,7 +112,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   }
 
   // 兼容：旧的 markdown 静态文章（用于审核示例/历史链接）
-  const meta = ARTICLES.find((a) => a.slug === slugValue);
+  const meta = ARTICLES.find((a) => a.slug === slug);
   if (!meta) notFound();
 
   const content = await getDocContent(meta.filename);
@@ -246,7 +123,6 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
-        {PaidRefresh}
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <BackButton />
@@ -265,8 +141,10 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
             />
 
             <div className="mt-6 text-xs text-surface-500">
-              以上为预览内容。该页面为历史链接兼容展示。
+              以上为预览内容。登录后可查看更多。
             </div>
+
+            <ArticlePaywall knowledgeHref={`/dashboard/knowledge/articles`} />
           </div>
         </Card>
       </div>

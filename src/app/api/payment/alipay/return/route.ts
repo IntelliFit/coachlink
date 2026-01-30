@@ -1,29 +1,79 @@
 import { NextResponse } from 'next/server';
-import { serviceRoleSupabase } from '@/lib/supabaseClient';
+import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
-import {
-    fulfillSubscriptionOnPaid,
-    updateTransactionAndWallet,
-} from '@/app/api/payment/alipay/fulfillPaidOrder';
+import { sendSystemMessage } from '@/lib/chat';
 
-/** return 同步跳转后的履约（与 notify/query 共用逻辑，幂等） */
-async function fulfillPaidOrderIfNeeded(order: { id: string; user_id?: string | null; order_type?: string | null; order_data?: unknown }) {
-    if (!order?.user_id) return;
-    if (order.order_type === 'subscription' || order.order_type === 'subscription_renew') {
-        await fulfillSubscriptionOnPaid(order, order.id, order.user_id);
-    }
-    await updateTransactionAndWallet(order);
-}
+async function tryAutoConfirmSubscriptionByOrderId(orderId: string) {
+    const { data: order, error: orderErr } = await serviceRoleSupabase
+        .from('alipay_orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-function resolveRedirectBaseUrl(req: Request) {
-    const xfProto = req.headers.get("x-forwarded-proto");
-    const xfHost = req.headers.get("x-forwarded-host");
-    const host = req.headers.get("host");
-    const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
-    if (xfHost || host) {
-        return `${proto}://${xfHost || host}`;
+    if (orderErr || !order) return;
+
+    if (!(order.order_type === 'subscription' || order.order_type === 'subscription_renew')) return;
+    if (order.status !== 'paid') return;
+
+    const orderData: any = order.order_data || {};
+    const subscriptionId = orderData?.subscriptionId as string | undefined;
+    const coachId = orderData?.coachId as string | undefined;
+
+    if (!subscriptionId) return;
+
+    const { data: sub } = await serviceRoleSupabase
+        .from('coach_subscriptions')
+        .select('id, student_id, coach_id, status, start_date, end_date, subscribed_weeks, last_payment_order_id')
+        .eq('id', subscriptionId)
+        .single();
+
+    if (!sub) return;
+    if (coachId && sub.coach_id !== coachId) return;
+
+    if (sub.last_payment_order_id === order.id) return;
+
+    const nowIso = new Date().toISOString();
+    const update: Record<string, unknown> = {
+        payment_method: 'platform_alipay',
+        payment_confirmed_by: 'system',
+        payment_confirmed_at: nowIso,
+        coach_seen_at: null,
+        last_payment_order_id: order.id,
+        order_id: order.id,
+    };
+
+    if (order.order_type === 'subscription') {
+        update.status = 'active';
+        // Do not set end_date here. We start counting only when the coach assigns the first plan.
     }
-    return process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+    if (order.order_type === 'subscription_renew') {
+        const weeks = Number(orderData?.renewAdditionalWeeks || 0);
+        if (weeks > 0) {
+            update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
+            // B1: end_date is estimated completion date, refreshed elsewhere.
+        }
+    }
+
+    await serviceRoleSupabase
+        .from('coach_subscriptions')
+        .update(update)
+        .eq('id', subscriptionId);
+
+    try {
+        const { data: coach } = await serviceRoleSupabase
+            .from('coaches')
+            .select('user_id')
+            .eq('id', sub.coach_id)
+            .single();
+        if (coach?.user_id) {
+            await sendSystemMessage(coach.user_id, {
+                content: `新的学员订阅通过【平台支付】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
+            });
+        }
+    } catch (e) {
+        console.error('[Alipay Return] Failed to send coach system message:', e);
+    }
 }
 
 export async function GET(req: Request) {
@@ -65,15 +115,17 @@ export async function GET(req: Request) {
         }
 
         if (order?.id) {
-            await fulfillPaidOrderIfNeeded(order);
+            await tryAutoConfirmSubscriptionByOrderId(order.id);
         }
         
-        const redirectBaseUrl = resolveRedirectBaseUrl(req);
-        const redirectUrl = `${redirectBaseUrl}/payment/${out_trade_no}`;
+        // 重定向回应用的支付成功页面
+        const redirectUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/payment/${out_trade_no}`;
+        
         return NextResponse.redirect(redirectUrl);
         
     } catch (error) {
         console.error('支付回调处理失败:', error);
+        
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: '回调处理失败',
@@ -131,15 +183,17 @@ export async function POST(req: Request) {
         }
 
         if (order?.id) {
-            await fulfillPaidOrderIfNeeded(order);
+            await tryAutoConfirmSubscriptionByOrderId(order.id);
         }
         
-        const redirectBaseUrl = resolveRedirectBaseUrl(req);
-        const redirectUrl = `${redirectBaseUrl}/payment/${out_trade_no}`;
+        // 重定向回应用的支付成功页面
+        const redirectUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/payment/${out_trade_no}`;
+        
         return NextResponse.redirect(redirectUrl);
         
     } catch (error) {
         console.error('支付回调处理失败:', error);
+        
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: '回调处理失败',

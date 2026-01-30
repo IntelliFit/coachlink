@@ -203,28 +203,15 @@ export function calcIntensityDisplay(
 
         // With RM intensity, body weight is only required for bodyweight-including movements.
         if (ri.type === "rm" && hasOneRM && (!includesBodyWeight || bodyWeight > 0)) {
-            // Keep the original product rule:
-            // - non-bodyweight actions: use simple Brzycki-derived percentage mapping
-            // - bodyweight-including actions: use calcRecommendedLoad (3-formula average)
-            if (!includesBodyWeight) {
-                const percentage = rmToPercentage(ri.value);
-                const displayWeight = oneRM * percentage;
-                return {
-                    displayWeight: Math.round(displayWeight * 10) / 10,
-                    displayUnit: "kg",
-                    source: "calculated",
-                };
-            }
+            const percentage = rmToPercentage(ri.value);
 
-            const displayWeight = calcRecommendedLoad(
-                oneRM,
-                bodyWeight,
-                ri.value,
-                1,
-                "average",
-            );
+            // See note above: for includesBodyWeight, compute on TOTAL weight.
+            const displayWeight = includesBodyWeight
+                ? ((oneRM + bodyWeight) * percentage - bodyWeight)
+                : (oneRM * percentage);
+
             return {
-                displayWeight,
+                displayWeight: Math.round(displayWeight * 10) / 10,
                 displayUnit: "kg",
                 source: "calculated",
             };

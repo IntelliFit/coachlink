@@ -345,7 +345,7 @@ export const GUIDE_CONFIGS = {
                 popover: {
                     title: "智能重量",
                     description:
-                        "默认显示计算好的重量，觉得轻了/重了就改成真实重量：本次后续组会联动校准；系统也会据此更新 e1RM，让下次自动算重量更准。",
+                        "默认显示计算好的重量，觉得轻了？直接手动修改，后续组数会自动联动。",
                     side: "top" as const,
                 },
             },
@@ -362,40 +362,6 @@ export const GUIDE_CONFIGS = {
                 popover: {
                     title: "完成训练",
                     description: "所有动作完成后，别忘了点击这里提交！",
-                    side: "top" as const,
-                },
-            },
-        ],
-    },
-
-    // Student: Today training / progress explanation
-    STUDENT_TODAY_TRAINING_PROGRESS_GUIDE: {
-        key: "student_today_training_progress",
-        steps: [
-            {
-                element: "#guide-today-progress",
-                popover: {
-                    title: "今日推进日（不是日历）",
-                    description:
-                        "休息日会自动顺延；到训练日会停住，直到你完成/跳过。这样不会因为延迟执行而“看起来进度被推走”。",
-                    side: "bottom" as const,
-                },
-            },
-            {
-                element: "#guide-today-card",
-                popover: {
-                    title: "开始训练的意义",
-                    description:
-                        "这里是你下一次需要关注的训练日。进入执行后输入真实重量/次数，不仅是记录，还会校准推荐并更新 e1RM，让下次自动算重量更准。",
-                    side: "bottom" as const,
-                },
-            },
-            {
-                element: "#guide-missing-days",
-                popover: {
-                    title: "漏练也能补（或跳过确认）",
-                    description:
-                        "如果之前有训练日没确认，你可以随时补练；也可以选择跳过（会标记为跳过，教练可见）。漏练不会影响今日推荐的推进逻辑。",
                     side: "top" as const,
                 },
             },

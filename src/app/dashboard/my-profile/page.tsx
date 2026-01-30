@@ -243,7 +243,7 @@ export default function MyProfilePage() {
                         <Users className="w-16 h-16 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium mb-3">暂未订阅教练</p>
                         <Button
-                            label="去发现"
+                            label="发现教练"
                             icon="pi pi-search"
                             size="small"
                             className="bg-gradient-to-r from-blue-500 to-indigo-600 border-0"

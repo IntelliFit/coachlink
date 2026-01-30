@@ -126,10 +126,9 @@ export async function POST(req: Request) {
             },
         });
     } catch (err) {
-        console.error(`[upload-demo-video][${requestId}] 上传教练动作演示视频失败:`, err);
-        const errorMessage = err instanceof Error ? err.message : "服务器错误";
+        console.error("上传教练动作演示视频失败:", err);
         return NextResponse.json<ApiData<null>>(
-            { success: false, message: errorMessage, data: null },
+            { success: false, message: "服务器错误", data: null },
             { status: 500 },
         );
     }

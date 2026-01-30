@@ -13,11 +13,9 @@ class AlipayService extends BaseService {
 
     async queryOrder(reqData: QueryAlipayOrderDto) {
         const res = await this.post<QueryAlipayOrderResponseDto>('query', reqData);
-        if (res.data?.success) {
-            return res.data.data ?? null;
+        if (res.data && res.data.success) {
+            return res.data.data || null;
         }
-        const msg = (res.data as { message?: string })?.message || '查询失败';
-        throw new Error(msg);
     }
 }
 

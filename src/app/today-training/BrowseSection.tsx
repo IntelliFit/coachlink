@@ -16,8 +16,8 @@ interface BrowseSectionProps {
     completionDates?: Record<number, string>;  // 每个训练日的完成日期
     executionsByDayIndex?: Record<number, any>; // dayIndex -> execution (latest started_at per day)
     todayCompleted?: boolean;                  // 今天是否已完成训练
-    initialSelectedDayIndex?: number;          // 默认选中的推进日（用于“今天推进”定格）
-    progressDayIndex?: number;                 // 今日推进日 dayIndex（用于高亮/锚点）
+    initialSelectedDayIndex?: number;          // 默认选中的日历日（用于“今天”定格）
+    calendarDayIndex?: number;                 // 今日（日历日）dayIndex（用于高亮/提示，避免误解）
     effectiveStartDate?: string | Date | null; // 实际生效的开始日期（用于解锁计算）
 }
 
@@ -30,7 +30,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     executionsByDayIndex = {},
     todayCompleted = false,
     initialSelectedDayIndex,
-    progressDayIndex,
+    calendarDayIndex,
     effectiveStartDate
 }) => {
     const router = useRouter();
@@ -79,6 +79,15 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     const isCurrentWeekUnlocked = currentWeek <= unlockedWeek;
     
     const selectedDay = trainingDays.find(d => d.dayIndex === selectedDayIndex);
+    const todayCalendarDay = calendarDayIndex ? trainingDays.find(d => d.dayIndex === calendarDayIndex) : null;
+
+    const handleBackToToday = () => {
+        if (calendarDayIndex) {
+            setSelectedDayIndex(calendarDayIndex);
+            const week = Math.ceil(calendarDayIndex / 7);
+            setCurrentWeek(Math.max(1, Math.min(week, totalWeeks)));
+        }
+    };
 
     const getExec = (dayIndex: number) => (executionsByDayIndex || {})[dayIndex];
 
@@ -137,7 +146,29 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                     </div>
                 </div>
 
-                {/* 仅展示推进口径：不再显示“今日（日历）”块，避免误解 */}
+                {/* 今日 vs 当前查看：明确提示，避免把“正在查看的日”误认为今天 */}
+                {calendarDayIndex && (
+                    <div className="mb-4 rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3 text-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="text-surface-700">
+                                <span className="font-bold">今日（日历）</span>：第{calendarDayIndex}天 · {todayCalendarDay?.type === 'rest' ? '休息日' : '训练日'}
+                                {selectedDayIndex !== calendarDayIndex && (
+                                    <span className="ml-2 text-surface-500">
+                                        （你正在查看：第{selectedDayIndex}天）
+                                    </span>
+                                )}
+                            </div>
+                            {selectedDayIndex !== calendarDayIndex && (
+                                <button
+                                    className="w-fit px-3 py-1 rounded-xl bg-surface border border-surface-200 text-surface-700 text-xs font-semibold hover:bg-surface-100 transition-all active:scale-[0.98]"
+                                    onClick={handleBackToToday}
+                                >
+                                    回到今天
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
                 
                 {/* Week Calendar */}
                 <div className="bg-surface-50 rounded-2xl p-2 sm:p-3 mb-4 relative">
@@ -170,7 +201,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                             const day = trainingDays.find(d => d.dayIndex === dayIndex);
                             const isTrainingDay = day && day.type === 'training';
                             const isRecommended = dayIndex === currentDayIndex; // 推荐的训练日（进度指针）
-                            const isProgressToday = !!progressDayIndex && dayIndex === progressDayIndex; // 今日推进日
+                            const isCalendarToday = !!calendarDayIndex && dayIndex === calendarDayIndex; // 今日（日历）
                             const isSelected = selectedDayIndex === dayIndex;
                             const isBeforeStart = dayIndex < startExecutionDay; // 在起始执行天之前
                             const isStartDay = dayIndex === startExecutionDay && startExecutionDay > 1;
@@ -196,14 +227,14 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                                     ? 'bg-surface-50 hover:bg-surface-100 border border-surface-100/50'
                                                     : 'bg-surface-50 opacity-60 hover:opacity-80 border border-surface-100/50'}
                                         ${isRecommended && !isSelected && !todayCompleted ? 'ring-2 ring-primary-500' : ''}
-                                        ${isProgressToday && !isSelected ? 'ring-2 ring-surface-900' : ''}
+                                        ${isCalendarToday && !isSelected ? 'ring-2 ring-surface-900' : ''}
                                         ${isStartDay && !isSelected ? 'ring-2 ring-green-500' : ''}
                                     `}
                                 >
-                                    {/* 推进日标记 */}
-                                    {isProgressToday && (
+                                    {/* 今日标记 */}
+                                    {isCalendarToday && (
                                         <div className="absolute -top-1 -left-1 bg-surface-900 text-surface text-[8px] px-1 rounded-full">
-                                            推进
+                                            今日
                                         </div>
                                     )}
                                     {/* 起始执行天标记 */}

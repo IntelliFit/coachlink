@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import { fenToYuan } from '@/lib/moneyUtils';
 import type { ApiData } from '@/types/api';
 import type { GetStudentDto, GetStudentResponseDto } from './entity';
 import { getCurrent1RMRecords } from '../../student/get-current-1rm/route';
@@ -106,7 +105,6 @@ export async function POST(req: Request) {
 
     const student = {
         ...sub,
-        monthly_price: fenToYuan(sub.monthly_price ?? 0),
         profile,
         uploaded: videoStats.uploaded,
         reviewed: videoStats.reviewed

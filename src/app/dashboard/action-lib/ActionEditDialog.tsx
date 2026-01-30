@@ -8,8 +8,9 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
-import { ProgressBar } from 'primereact/progressbar';
+import { AutoComplete } from 'primereact/autocomplete';
 import { CoachActionRow, ItemType } from '@/types';
+import { CanonicalAction } from '@/types/canonical';
 import { useToastContext } from '@/context/ToastContext';
 import { actionLibService } from '@/app/service/actionLibService';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -45,14 +46,13 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
     const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
     const [loading, setLoading] = useState(false);
+    const [canonicalActionId, setCanonicalActionId] = useState<string | null>(null);
+    const [canonicalActions, setCanonicalActions] = useState<CanonicalAction[]>([]);
+    const [filteredCanonicalActions, setFilteredCanonicalActions] = useState<CanonicalAction[]>([]);
+    const [selectedCanonical, setSelectedCanonical] = useState<CanonicalAction | null>(null);
 
     const [uploadingDemoVideo, setUploadingDemoVideo] = useState(false);
-    const [demoVideoUploadProgress, setDemoVideoUploadProgress] = useState<number>(0);
     const demoVideoInputRef = React.useRef<HTMLInputElement>(null);
-
-    // 视频预览相关
-    const [videoModalVisible, setVideoModalVisible] = useState(false);
-    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
     const [isMobile, setIsMobile] = useState(false);
 
@@ -84,59 +84,6 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         { label: '休息时间', value: '休息时间' }
     ];
 
-    // 判断URL是否可以在页面内播放
-    const canPlayInlineVideo = (url?: string | null) => {
-        if (!url) return false;
-        if (url.startsWith("blob:")) return true;
-
-        const lower = url.toLowerCase();
-        // 常见可被 <video> 直接播放的直链扩展名
-        if (
-            lower.endsWith(".mp4") ||
-            lower.endsWith(".webm") ||
-            lower.endsWith(".mov") ||
-            lower.endsWith(".m4v") ||
-            lower.endsWith(".ogg") ||
-            lower.includes(".mp4?") ||
-            lower.includes(".webm?") ||
-            lower.includes(".mov?") ||
-            lower.includes(".m4v?") ||
-            lower.includes(".ogg?")
-        ) {
-            return true;
-        }
-
-        // Supabase Storage public / signed URL 一般可直接播放
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (
-            (supabaseUrl && url.includes(supabaseUrl)) ||
-            url.includes("/storage/v1/object/")
-        ) {
-            return true;
-        }
-
-        return false;
-    };
-
-    // 打开视频预览
-    const openVideo = (videoUrl?: string | null) => {
-        if (!videoUrl) return;
-
-        if (canPlayInlineVideo(videoUrl)) {
-            setCurrentVideoUrl(videoUrl);
-            setVideoModalVisible(true);
-            return;
-        }
-
-        // 外站页面链接（B站/抖音/YouTube 等）无法用 <video> 播放：直接跳转
-        showToast({
-            severity: "info",
-            summary: "外部视频链接",
-            detail: "该链接无法在页面内播放，已为你打开新窗口观看",
-        });
-        window.open(videoUrl, "_blank");
-    };
-
     useEffect(() => {
         if (action) {
             setName(action.name);
@@ -162,6 +109,24 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         }
     }, [action, visible]);
 
+    useEffect(() => {
+        const fetchCanonicalActions = async () => {
+            try {
+                const res = await fetch('/api/canonical-actions/list');
+                const data = await res.json();
+                if (data.success) {
+                    setCanonicalActions(data.data);
+                    if (action?.canonical_action_id) {
+                        const linked = data.data.find((c: CanonicalAction) => c.id === action.canonical_action_id);
+                        setSelectedCanonical(linked || null);
+                        setCanonicalActionId(action.canonical_action_id);
+                    }
+                }
+            } catch (e) { }
+        };
+        if (visible) fetchCanonicalActions();
+    }, [visible, action]);
+
     const handleSave = async () => {
         setLoading(true);
         try {
@@ -180,6 +145,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
                 suggested_time: itemType === 'DIET' && suggestedTime ? suggestedTime : null,
                 item_schema: Object.keys(itemSchema).length > 0 ? itemSchema : null,
+                canonical_action_id: canonicalActionId
             };
             await onSave(actionData);
 
@@ -196,10 +162,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         if (!file) return;
         try {
             setUploadingDemoVideo(true);
-            setDemoVideoUploadProgress(0);
-            const res = await actionLibService.uploadDemoVideo(file, (p) => {
-                setDemoVideoUploadProgress(p);
-            });
+            const res = await actionLibService.uploadDemoVideo(file);
             if (res?.url) {
                 setUrl(res.url);
                 
@@ -213,10 +176,6 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                     summary: "上传成功",
                     detail: "已自动回填演示视频链接",
                 });
-                if (demoVideoInputRef.current) {
-                    // 允许重复选择同一个文件触发 onChange
-                    demoVideoInputRef.current.value = "";
-                }
             } else {
                 showToast({
                     severity: "error",
@@ -232,7 +191,6 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             });
         } finally {
             setUploadingDemoVideo(false);
-            setDemoVideoUploadProgress(0);
         }
     };
 
@@ -330,6 +288,28 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
 
                 {/* 3. 动态属性区域 - 使用阴影卡片区分 */}
                 <div className="bg-surface-50/50 p-4 rounded-[24px] border border-surface-100 flex flex-col gap-5">
+
+                    {/* 公共库 - 仅力量 */}
+                    {itemType === 'STRENGTH' && (
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[11px] font-bold text-surface-500 ml-1">关联标准库</label>
+                            <AutoComplete
+                                value={selectedCanonical}
+                                suggestions={filteredCanonicalActions}
+                                completeMethod={(e) => {
+                                    const query = e.query.toLowerCase();
+                                    setFilteredCanonicalActions(canonicalActions.filter(c =>
+                                        c.name.toLowerCase().includes(query) || c.aliases.some(a => a.toLowerCase().includes(query))
+                                    ));
+                                }}
+                                field="name"
+                                onChange={(e) => { setSelectedCanonical(e.value); setCanonicalActionId(e.value?.id || null); }}
+                                dropdown
+                                placeholder="搜索标准动作..."
+                                className="w-full aero-autocomplete"
+                            />
+                        </div>
+                    )}
 
                     {/* 饮食字段 */}
                     {itemType === 'DIET' && (
@@ -448,7 +428,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                             <Button
                                 type="button"
                                 icon="pi pi-upload"
-                                label={uploadingDemoVideo ? `上传中... ${demoVideoUploadProgress}%` : "上传视频"}
+                                label={uploadingDemoVideo ? "上传中..." : "上传视频"}
                                 disabled={uploadingDemoVideo}
                                 loading={uploadingDemoVideo}
                                 className="p-button-outlined rounded-xl"
@@ -468,111 +448,9 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 支持 MP4/WEBM，≤100MB。上传后会自动回填到 URL。
                             </span>
                         </div>
-                        {uploadingDemoVideo && (
-                            <div className="mt-2">
-                                <div className="flex justify-between text-[10px] font-black text-primary-500 uppercase tracking-widest mb-2">
-                                    <span>视频上传中...</span>
-                                    <span>{demoVideoUploadProgress}%</span>
-                                </div>
-                                <ProgressBar
-                                    value={demoVideoUploadProgress}
-                                    showValue={false}
-                                    style={{ height: '6px' }}
-                                    className="rounded-full overflow-hidden bg-surface-100"
-                                />
-                            </div>
-                        )}
-
-                        {/* 视频预览区域 */}
-                        {url && !uploadingDemoVideo && (
-                            <div className="mt-3 p-4 bg-surface-50 rounded-xl border border-surface-200">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-bold text-surface-600">视频预览</span>
-                                    <Button
-                                        type="button"
-                                        icon="pi pi-play"
-                                        label="查看视频"
-                                        size="small"
-                                        className="p-button-text p-button-sm text-primary-500"
-                                        onClick={() => openVideo(url)}
-                                    />
-                                </div>
-                                {canPlayInlineVideo(url) ? (
-                                    <div className="aspect-video rounded-lg overflow-hidden bg-surface-900 relative group cursor-pointer"
-                                        onClick={() => openVideo(url)}>
-                                        <video
-                                            src={url}
-                                            className="w-full h-full object-cover"
-                                            preload="metadata"
-                                            muted
-                                            playsInline
-                                            onLoadedMetadata={(e) => {
-                                                try { e.currentTarget.currentTime = 0.1; } catch { /* ignore */ }
-                                            }}
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = 'none';
-                                            }}
-                                        />
-                                        <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <i className="pi pi-play-circle text-white text-4xl" />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 p-3 bg-surface-100 rounded-lg">
-                                        <i className="pi pi-external-link text-surface-400" />
-                                        <span className="text-xs text-surface-500 flex-1">外部视频链接</span>
-                                        <Button
-                                            type="button"
-                                            icon="pi pi-external-link"
-                                            label="打开链接"
-                                            size="small"
-                                            className="p-button-text p-button-sm"
-                                            onClick={() => window.open(url, "_blank")}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
-
-            {/* 视频播放模态框 */}
-            <Dialog
-                visible={videoModalVisible}
-                onHide={() => {
-                    setVideoModalVisible(false);
-                    setCurrentVideoUrl(null);
-                }}
-                header="查看演示视频"
-                style={isMobile ? { width: '100vw', height: '100dvh', margin: 0 } : { width: '90vw', maxWidth: '800px' }}
-                position={isMobile ? 'bottom' : 'center'}
-                modal
-                dismissableMask
-                pt={isMobile ? {
-                    root: { className: 'm-0 p-0 rounded-none overflow-hidden' },
-                    header: { className: 'px-4 py-3 border-b border-surface-200 bg-surface sticky top-0 z-10' },
-                    content: { className: 'px-4 py-4 bg-surface overflow-auto' },
-                } : {
-                    root: { className: 'rounded-2xl overflow-hidden' },
-                    header: { className: 'px-6 py-4 border-b border-surface-200 bg-surface' },
-                    content: { className: 'px-6 py-5 bg-surface' },
-                }}
-            >
-                {currentVideoUrl && (
-                    <div className="flex justify-center">
-                        <video
-                            src={currentVideoUrl}
-                            controls
-                            autoPlay
-                            className="w-full max-h-[70vh] rounded-lg"
-                            style={{ backgroundColor: '#000' }}
-                        >
-                            您的浏览器不支持视频播放
-                        </video>
-                    </div>
-                )}
-            </Dialog>
         </Dialog>
     );
 };
