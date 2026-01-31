@@ -21,7 +21,7 @@
 - notify、return、query、sync-pending 都调用同一套 **fulfillPaidOrder**（订阅 + 钱包）。
 - **幂等键**：
   - 订阅：`coach_subscriptions.last_payment_order_id`，已等于当前订单则跳过。
-  - 钱包：`wallet_transactions.related_order_id`，已存在该订单的流水则跳过。
+  - 钱包：`wallet_transactions.alipay_order_id`，已存在该支付宝订单的收入流水则跳过。
 - 因此：无论 notify 先执行、query 后执行，还是 query 先、notify 重试后到，或 sync-pending 再跑一遍，**只会生效一次，不会重复加钱或重复开通**。
 
 ## 共享履约逻辑
