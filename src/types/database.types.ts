@@ -4144,29 +4144,32 @@ export type Database = {
       }
       wallet_transactions: {
         Row: {
+          alipay_order_id: string | null
           amount: number
           created_at: string | null
           description: string | null
           id: string
-          related_order_id: string | null
+          related_income_tx_id: string | null
           type: string
           wallet_id: string | null
         }
         Insert: {
+          alipay_order_id?: string | null
           amount: number
           created_at?: string | null
           description?: string | null
           id?: string
-          related_order_id?: string | null
+          related_income_tx_id?: string | null
           type: string
           wallet_id?: string | null
         }
         Update: {
+          alipay_order_id?: string | null
           amount?: number
           created_at?: string | null
           description?: string | null
           id?: string
-          related_order_id?: string | null
+          related_income_tx_id?: string | null
           type?: string
           wallet_id?: string | null
         }

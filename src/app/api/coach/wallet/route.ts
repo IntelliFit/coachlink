@@ -21,8 +21,12 @@ export interface Transaction {
     order_type?: string | null;
     student_id?: string | null;
     student_name?: string | null;
-    /** 关联的支付宝订单 id，用于退款等操作 */
-    related_order_id?: string | null;
+    /** 关联的支付宝账单 id（alipay_orders.id），用于退款、查看订单等 */
+    alipay_order_id?: string | null;
+    /** 仅退款流水：指向被退款的原始收入流水 id，可根据此字段找到原始流水 */
+    related_income_tx_id?: string | null;
+    /** 收入流水被退款时写入，非空表示该笔收入已退款；前端据此隐藏退款按钮及显示「查看原订单」 */
+    refunded_at?: string | null;
 }
 
 type WalletTransactionRow = {
@@ -31,8 +35,10 @@ type WalletTransactionRow = {
     amount: number | null;
     type: "income" | "withdrawal" | "refund";
     description: string | null;
-    related_order_id: string | null;
+    alipay_order_id: string | null;
+    related_income_tx_id: string | null;
     created_at: string;
+    refunded_at?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -62,12 +68,13 @@ export async function POST(request: Request) {
     const { data: wallet } = await supabase.from("coach_wallets").select("*")
         .eq("coach_id", coach.id).single();
 
-    // Get Transactions
-    const { data: transactionRows } = await supabase.from("wallet_transactions")
-        .select("id, wallet_id, amount, type, description, related_order_id, created_at")
+    // Get Transactions（alipay_order_id / related_income_tx_id / refunded_at 见 migrations）
+    const { data: rawRows } = await supabase.from("wallet_transactions")
+        .select("id, wallet_id, amount, type, description, alipay_order_id, related_income_tx_id, created_at, refunded_at")
         .eq("wallet_id", coach.id)
         .order("created_at", { ascending: false })
         .limit(20);
+    const transactionRows = rawRows as unknown as WalletTransactionRow[] | null;
 
     let enrichedTransactions: Transaction[] = [];
 
@@ -75,7 +82,7 @@ export async function POST(request: Request) {
         const orderIds = Array.from(
             new Set(
                 transactionRows
-                    .map((tx) => tx.related_order_id)
+                    .map((tx) => tx.alipay_order_id)
                     .filter((id): id is string => Boolean(id)),
             ),
         );
@@ -138,10 +145,11 @@ export async function POST(request: Request) {
                 type: tx.type,
                 description: tx.description ?? "",
                 created_at: tx.created_at,
-                related_order_id: tx.related_order_id ?? null,
+                alipay_order_id: tx.alipay_order_id ?? null,
+                related_income_tx_id: tx.related_income_tx_id ?? null,
             };
 
-            const order = tx.related_order_id ? ordersById.get(tx.related_order_id) : null;
+            const order = tx.alipay_order_id ? ordersById.get(tx.alipay_order_id) : null;
 
             if (order) {
                 const orderData = (order.order_data ?? {}) as Record<string, unknown>;
@@ -172,11 +180,24 @@ export async function POST(request: Request) {
                 }
 
                 if (order.order_type === "subscription" || order.order_type === "subscription_renew") {
-                    base.description = `来自${displayName}的订阅`;
+                    // 退款流水：显示「已退款」+ 原文（如「已退款：订阅教练 xxx」），便于与收入流水对应；收入流水若已退款则显示「来自xxx的订阅（已退款）」
+                    if (tx.type === "refund") {
+                        base.description = `已退款：${order.subject?.trim() || `来自${displayName}的订阅`}`;
+                    } else {
+                        base.description = tx.refunded_at
+                            ? `来自${displayName}的订阅（已退款）`
+                            : `来自${displayName}的订阅`;
+                    }
                 }
             } else if (!base.description) {
                 base.description = base.type === "income" ? "课程收入" : base.type === "withdrawal" ? "提现" : "退款";
             }
+            // 退款流水若未在 order 分支里设置描述，保留 DB 中的「已退款：xxx」
+            if (tx.type === "refund" && (!base.description || base.description === "退款")) {
+                base.description = (tx.description?.trim() && !/^退款：?$/.test(tx.description)) ? tx.description : "已退款：原订单";
+            }
+
+            base.refunded_at = tx.refunded_at ?? null;
 
             return base;
         });
