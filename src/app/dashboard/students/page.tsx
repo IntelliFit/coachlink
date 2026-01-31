@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
 import { Avatar } from 'primereact/avatar';
-import { OverlayPanel } from 'primereact/overlaypanel';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -25,8 +24,9 @@ import { chatService } from '@/app/service/chatService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
-import { Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreHorizontal, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
 import { ProgressBar } from 'primereact/progressbar';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
@@ -55,6 +55,7 @@ export default function StudentsPage() {
     const router = useRouter();
     const { showToast } = useToastContext();
     const { status, data: session } = useSession();
+    const { trackEvent } = useAnalytics();
 
     const loadPricing = async () => {
         if (!coach) return;
@@ -165,11 +166,12 @@ export default function StudentsPage() {
     };
 
     // 当前页默认选中“未配置计划”的学员；跨页取消通过 excludedNoPlanIds 生效
+    // 注意：这里不要监听 excludedNoPlanIds，否则会在用户点击复选框时立刻“反向覆盖”selection，导致 UI 看起来不变
     useEffect(() => {
         const noPlan = (students || []).filter(s => s.plan === null);
         const excludeSet = new Set(excludedNoPlanIds || []);
         setSelectedStudents(noPlan.filter(s => !excludeSet.has(s.id)));
-    }, [students, excludedNoPlanIds]);
+    }, [students]);
 
     /** 打开AI生成配置对话框 */
     const openAiConfigDialog = (student: StudentSubscription) => {
@@ -193,6 +195,13 @@ export default function StudentsPage() {
             if (res) {
                 if (res.template) {
                     showToast({ severity: 'success', summary: '创建成功', detail: '已创建训练计划' });
+
+                    trackEvent('coach_ai_plan_generate', 'coach', {
+                        is_bulk: false,
+                        student_id: student.id,
+                        start_week: config.startWeek
+                    });
+
                     setAiConfigDialogVisible(false);
                     // 当res.template非空时，更新当前表单
                     const defaultPlanName = `${student.profile?.nickname || '学员'}的计划`;
@@ -249,6 +258,9 @@ export default function StudentsPage() {
                 if (r?.success) successMap.set(r.subscriptionId, r.template);
             });
 
+            const successCount = res?.successCount ?? successMap.size;
+            const failedCount = res?.failedCount ?? 0;
+
             if (successMap.size > 0) {
                 setStudents(prev => prev.map(s => {
                     if (!successMap.has(s.id)) return s;
@@ -262,10 +274,13 @@ export default function StudentsPage() {
                         },
                     };
                 }));
-            }
 
-            const successCount = res?.successCount ?? successMap.size;
-            const failedCount = res?.failedCount ?? 0;
+                trackEvent('coach_ai_plan_generate', 'coach', {
+                    is_bulk: true,
+                    success_count: successCount,
+                    failed_count: failedCount
+                });
+            }
 
             showToast({
                 severity: failedCount > 0 ? 'warn' : 'success',
@@ -418,37 +433,24 @@ export default function StudentsPage() {
         );
     };
     const trainingPlanTemplate = (student: StudentSubscription) => {
-        const op = useRef<OverlayPanel>(null);
         const plan = student.plan;
         const isCompleted = plan?.status === 'completed';
         const isActive = plan && !isCompleted;
         const hasPlan = !!plan; // 是否已有计划
 
-        if (student.plan === undefined) return <Skeleton width="160px" height="48px" borderRadius="12px" />;
-
-        const handleAction = (e: React.MouseEvent, type: 'manual' | 'ai' | 'view') => {
-            e.stopPropagation();
-            op.current?.hide();
-            if (type === 'view') {
-                router.push(`/dashboard/students/plan/${student.id}`);
-            } else if (type === 'manual') {
-                router.push(`/dashboard/students/plan/${student.id}`);
-            } else {
-                openAiConfigDialog(student);
-            }
-        };
+        if (student.plan === undefined) return <Skeleton width="100%" height="48px" borderRadius="12px" />;
 
         return (
-            <div className="inline-block">
+            <div className="w-full">
                 {/* 优化后的呼吸感卡片 */}
                 <div
-                    onClick={() => plan && router.push(`/dashboard/students/plan/${student.id}`)}
+                    onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                     className={`
-                    group flex items-center p-3 rounded-xl border transition-all duration-300 cursor-pointer
-                    ${!plan ? 'border-dashed border-surface-200 bg-surface-50/30' :
-                            isActive ? 'border-primary-100 dark:border-orange-800 bg-surface shadow-sm shadow-primary-50/50 dark:shadow-primary-800/50' : 'border-surface-100 bg-surface-50/20 opacity-80'}
+                    group flex items-center p-3 rounded-xl border transition-all duration-300 cursor-pointer w-full
+                    ${isActive
+                            ? 'border-primary-100 dark:border-orange-800 bg-surface shadow-sm shadow-primary-50/50 dark:shadow-primary-800/50'
+                            : 'border-surface-100 bg-surface-50/20 opacity-80'}
                 `}
-                    style={{ minWidth: '220px' }}
                 >
                     {/* 状态指示区 */}
                     <div className="flex-shrink-0 mr-3">
@@ -490,42 +492,19 @@ export default function StudentsPage() {
                         </div>
                     </div>
 
-                    {/* 更多操作 - 只对已完成和未配置的计划显示 */}
+                    {/* 快速生成图标 - 只对已完成和未配置的计划显示 */}
                     {!isActive && (
                         <Button
-                            icon={<MoreHorizontal size={18} />}
+                            icon={<SparklesIcon size={18} />}
                             className="p-button-rounded p-button-text p-button-secondary ml-1"
                             style={{ width: '2.5rem', height: '2.5rem' }}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                op.current?.toggle(e);
+                                openAiConfigDialog(student);
                             }}
                         />
                     )}
                 </div>
-
-                {/* Popover 菜单 - 只有快速生成和手动创建两个选项 */}
-                <OverlayPanel ref={op} className="p-0 shadow-2xl border border-surface-100 rounded-xl overflow-hidden">
-                    <div className="flex flex-col p-1.5 min-w-[150px] bg-surface dark:bg-surface-50">
-                        <div className="px-3 py-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest border-b border-surface-50 mb-1">
-                            创建计划
-                        </div>
-                        <button
-                            onClick={(e) => handleAction(e, 'ai')}
-                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-primary-50 text-primary-700 rounded-lg transition-all text-xs font-bold active:scale-95"
-                        >
-                            <SparklesIcon size={16} className="text-primary-500" />
-                            快速生成
-                        </button>
-                        <button
-                            onClick={(e) => handleAction(e, 'manual')}
-                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-50 text-surface-600 rounded-lg transition-all text-xs font-bold active:scale-95"
-                        >
-                            <Plus size={16} className="text-surface-400" />
-                            手动创建
-                        </button>
-                    </div>
-                </OverlayPanel>
             </div>
         );
     }; const contactStudent = async () => {
@@ -669,7 +648,7 @@ export default function StudentsPage() {
     }
 
     return (
-        <div className="min-h-screen p-3 sm:p-4 md:p-8 max-w-[1400px] mx-auto animate-in fade-in duration-700">
+        <div className="min-h-screen p-3 sm:p-4 md:p-8 max-w-[1400px] mx-auto">
             {/* Header: 增强生产力氛围 */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4 mb-4 sm:mb-10 px-1 sm:px-2">
                 <div className="space-y-1">
@@ -769,8 +748,8 @@ export default function StudentsPage() {
                                                 className={[
                                                     'px-2 py-0.5 rounded-full border font-bold',
                                                     isActive ? 'bg-primary-50 border-primary-100 text-primary-700' :
-                                                    isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
-                                                    'bg-surface-50 border-surface-100 text-surface-500'
+                                                        isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                                                            'bg-surface-50 border-surface-100 text-surface-500'
                                                 ].join(' ')}
                                             >
                                                 {isActive ? '进行中' : isCompleted ? '已完成' : '未配置'}
@@ -809,9 +788,8 @@ export default function StudentsPage() {
                                 <div
                                     className={[
                                         'mt-2 flex items-center gap-3 p-3 rounded-2xl border transition-all',
-                                        !plan ? 'border-dashed border-surface-200 bg-surface-50/30' :
                                         isActive ? 'border-primary-100 bg-surface shadow-sm shadow-primary-50/50' :
-                                        'border-surface-100 bg-surface-50/20 opacity-90'
+                                            'border-surface-100 bg-surface-50/20 opacity-90'
                                     ].join(' ')}
                                     onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                                 >
@@ -904,67 +882,58 @@ export default function StudentsPage() {
                         onPage={onPage}
                         lazy
                         className="bg-transparent"
-                        pt={{
-                            paginator: { className: 'border-none bg-transparent' },
-                        }}
                     />
                 </div>
 
                 {/* Mobile: 批量操作浮动条 */}
-                <div className="fixed left-0 right-0 bottom-[88px] z-50 md:hidden">
+                {selectedStudents.length > 0 && (
+                    <div className="fixed left-0 right-0 bottom-[88px] z-50 md:hidden">
                         <div className="mx-auto max-w-[1400px] px-3 pb-3">
                             <div className="rounded-2xl border border-surface-100 bg-surface shadow-[0_-10px_30px_rgba(0,0,0,0.06)] p-3 flex items-center justify-between gap-3">
-                                <div className="text-sm font-black text-surface-800">
-                                    将为所有未配置计划学员生成
-                                    {excludedNoPlanIds.length > 0 ? `（已排除 ${excludedNoPlanIds.length} 位）` : ''}
+                                <div className="text-xs font-semibold text-surface-700">
+                                    已选择 <span className="font-black text-primary">{selectedStudents.length}</span> 位学员
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        label="批量生成"
-                                        icon={<Sparkles size={16} />}
-                                        className="rounded-2xl"
-                                        onClick={() => setBulkAiConfigDialogVisible(true)}
-                                        disabled={bulkAiGenerating}
-                                    />
-                                    <Button
-                                        label="清空"
-                                        icon="pi pi-times"
-                                        className="p-button-text rounded-2xl"
-                                        onClick={() => {
-                                            // 清空=把本页“未配置计划的人”全排除（跨页不可知，下一页可继续手动排除）
-                                            const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
-                                            setExcludedNoPlanIds(prev => Array.from(new Set([...(prev || []), ...noPlanIds])));
-                                        }}
-                                        disabled={bulkAiGenerating}
-                                    />
-                                </div>
+                                <Button
+                                    label="批量生成"
+                                    icon={<Sparkles size={14} />}
+                                    className="p-button-sm rounded-xl"
+                                    onClick={() => setBulkAiConfigDialogVisible(true)}
+                                    disabled={bulkAiGenerating}
+                                />
                             </div>
                         </div>
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Desktop: DataTable */}
             <div className="hidden md:block bg-surface rounded-[32px] border border-surface-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-surface-100 flex items-center justify-between">
-                    <div className="text-sm font-bold text-surface-700">
-                        批量操作：已选择 {selectedStudents.length} 位学员
+                <div className="px-6 py-3 border-b border-surface-100 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-surface-700">
+                        {selectedStudents.length > 0 ? (
+                            <span>已选择 <span className="font-black text-primary">{selectedStudents.length}</span> 位未配置计划的学员</span>
+                        ) : (
+                            <span className="text-surface-400">请选择未配置计划的学员进行批量操作</span>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             label="批量快速生成"
-                            icon={<Sparkles size={16} />}
-                            className="rounded-xl"
+                            icon={<Sparkles size={14} />}
+                            className="p-button-sm rounded-xl"
                             disabled={selectedStudents.length === 0 || bulkAiGenerating}
                             onClick={() => setBulkAiConfigDialogVisible(true)}
                         />
                         <Button
-                            label="清空选择"
+                            label="清除"
                             icon="pi pi-times"
-                            className="p-button-text rounded-xl"
+                            className="p-button-sm p-button-text rounded-xl"
                             disabled={selectedStudents.length === 0 || bulkAiGenerating}
                             onClick={() => {
+                                // 清除当前页勾选：把当前页所有“未配置计划”的学员都加入排除列表，并清空 selection
                                 const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
-                                setExcludedNoPlanIds(noPlanIds);
+                                setExcludedNoPlanIds(prev => Array.from(new Set([...(prev || []), ...noPlanIds])));
+                                setSelectedStudents([]);
                             }}
                         />
                     </div>
@@ -984,18 +953,29 @@ export default function StudentsPage() {
                     dataKey="id"
                     selection={selectedStudents}
                     onSelectionChange={(e) => {
-                        // 桌面端：只允许选择“未配置计划”的学员；并把用户的选择转换成 excludedNoPlanIds
+                        // 受控选择：和 PrimeReact demo 一致，selection 直接绑定 setSelectedStudents
+                        const newSelection = (e.value || []) as StudentSubscription[];
+                        setSelectedStudents(newSelection);
+
+                        // 同步更新 excludedNoPlanIds（用于跨页批量生成的排除逻辑；只关心 plan === null 的行）
+                        const selectedIds = new Set(newSelection.map(s => s.id));
                         const noPlanIds = students.filter(s => s.plan === null).map(s => s.id);
-                        const selectedIds = new Set(((e.value || []) as StudentSubscription[]).map(s => s.id));
+
+                        // 计算哪些应该被排除：所有未配置计划的学员中，没有被选中的
                         setExcludedNoPlanIds(prev => {
                             const set = new Set(prev || []);
-                            noPlanIds.forEach((id) => {
-                                if (selectedIds.has(id)) set.delete(id);
-                                else set.add(id);
+                            // 先移除当前页所有未配置计划的学员ID
+                            noPlanIds.forEach(id => set.delete(id));
+                            // 然后添加未被选中的未配置计划学员ID
+                            noPlanIds.forEach(id => {
+                                if (!selectedIds.has(id)) {
+                                    set.add(id);
+                                }
                             });
                             return Array.from(set);
                         });
                     }}
+                    selectionMode="checkbox"
                     pt={{
                         headerRow: { className: 'bg-surface-50/50' },
                         column: {
@@ -1004,7 +984,7 @@ export default function StudentsPage() {
                         }
                     }}
                 >
-                    <Column selectionMode="multiple" headerStyle={{ width: '3.25rem' }} />
+                    <Column selectionMode="multiple" headerStyle={{ width: '3.25rem' }} bodyStyle={{ width: '3.25rem' }} />
                     <Column header="学员信息" body={studentTemplate} style={{ width: '20%' }} />
                     <Column header="订阅状态" body={subscribeTemplate} style={{ width: '12%' }} />
                     <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '23%' }} />
@@ -1023,6 +1003,7 @@ export default function StudentsPage() {
                     setReviewDialogVisible(true);
                 }}
                 onShowChatDialog={contactStudent}
+                onRefundSuccess={() => loadStudents(Math.floor(first / rows), rows)}
             />
             <CoachReviewDialog visible={reviewDialogVisible} coach={coach} student={selectedStudent} onHide={() => setReviewDialogVisible(false)} onSave={() => loadStudents()} />
             <ChatDialog

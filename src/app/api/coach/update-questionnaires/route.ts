@@ -8,6 +8,20 @@ import type {
     UpdateQuestionnairesResponseDto,
 } from "./entity";
 
+function normalizeQuestions(questions: any[]): any[] {
+    return (Array.isArray(questions) ? questions : []).map((q: any) => {
+        if (typeof q === "string") {
+            return { id: crypto.randomUUID(), type: "text", question: q };
+        }
+        if (!q || typeof q !== "object") return q;
+        // 确保保留所有字段，包括 branching、media 等
+        if (!q.id) {
+            return { ...q, id: crypto.randomUUID() };
+        }
+        return q;
+    });
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -23,6 +37,7 @@ export async function POST(req: Request) {
     const {
         id,
         questionnaires,
+        mode = "draft", // 默认保存到草稿版本
     } = await req.json() as UpdateQuestionnairesDto;
 
     if (!session.user.is_coach) {
@@ -33,12 +48,18 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
+    const normalized = normalizeQuestions(questionnaires as any);
+
     if (id) {
         // 更新现有问卷
         const { data, error } = await supabase
             .from("coach_questionnaires")
             .update({
-                questions: questionnaires as any,
+                questions: normalized as any,
+                // 让“线上/草稿”槽位稳定：按 mode 对齐状态（避免误把草稿写成线上或反之）
+                is_active: mode === "online",
+                status: mode === "online" ? "active" : "draft",
+                updated_at: new Date().toISOString(),
             })
             .eq("id", id)
             .select()
@@ -61,10 +82,14 @@ export async function POST(req: Request) {
             },
         });
     } else {
+        // 新建问卷：根据 mode 决定 is_active
+        const isOnline = mode === "online";
         const insertData: CoachQuestionnairesInsert = {
             coach_id: userId,
-            questions: questionnaires as any,
-        };
+            questions: normalized as any,
+            is_active: isOnline,
+            status: isOnline ? "active" : "draft",
+        } as any;
 
         const { data, error } = await supabase
             .from("coach_questionnaires")

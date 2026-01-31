@@ -8,6 +8,32 @@ import type {
 } from "./entity";
 import redis from "@/lib/redisClient";
 
+function stripSensitiveCoachFieldsForPublicView(coach: any) {
+    if (!coach) return coach;
+    const next = { ...(coach || {}) };
+
+    // 支付相关敏感字段（兼容旧字段与新字段）
+    next.payment_qr_code = undefined;
+    next.payment_qr_codes = undefined;
+    next.allow_personal_qrcode = undefined;
+    next.payment_mode = undefined;
+
+    // 邀请码相关（避免公开扩散）
+    next.invitation_code = undefined;
+    next.invitation_mode = undefined;
+
+    // profile 中的联系方式/社交链接等敏感信息
+    if (next.profile && typeof next.profile === "object") {
+        const p = { ...next.profile };
+        delete (p as any).contactEmail;
+        delete (p as any).contactPhone;
+        delete (p as any).socialLinks;
+        next.profile = p;
+    }
+
+    return next;
+}
+
 /**
  * 用于将“教练申请表”的资料补全到 coaches.profile：
  * - 只在 coaches.profile 缺少该字段（undefined）时才补全
@@ -117,17 +143,19 @@ async function getReviewCount(coachId: string) {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: "用户未登录",
-            data: null,
-        }, { status: 401 });
-    }
+    const isAuthenticated = Boolean(session?.user?.id);
 
     const {
         coachId,
     } = await req.json() as GetAggregatedInfoDto;
+
+    if (!coachId) {
+        return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
+            success: false,
+            message: "缺少 coachId",
+            data: null,
+        }, { status: 400 });
+    }
 
     // 获取教练基本信息
     const { data: coach, error: coachError } = await supabase
@@ -229,7 +257,7 @@ export async function POST(req: Request) {
         success: true,
         message: "获取成功",
         data: {
-            coach: enrichedCoach,
+            coach: isAuthenticated ? enrichedCoach : stripSensitiveCoachFieldsForPublicView(enrichedCoach),
             contentCount,
             studentCount,
             reviewCount,

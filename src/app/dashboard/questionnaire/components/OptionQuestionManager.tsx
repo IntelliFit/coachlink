@@ -3,6 +3,7 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { RadioButton } from 'primereact/radiobutton';
 import { TrainingOptionQuestion } from '@/types/questionnaires';
+import { v4 as uuidv4 } from 'uuid';
 
 interface OptionQuestionManagerProps {
     onAddOptionQuestion: (question: TrainingOptionQuestion) => void;
@@ -45,6 +46,7 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
         if (newOptionQuestion.question.trim() &&
             newOptionQuestion.options.some(opt => opt.trim())) {
             const optionQuestion: TrainingOptionQuestion = {
+                id: uuidv4(),
                 type: 'option',
                 question: newOptionQuestion.question,
                 options: newOptionQuestion.options.filter(opt => opt.trim()),

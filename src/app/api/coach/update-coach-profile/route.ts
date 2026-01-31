@@ -5,6 +5,21 @@ import type { UpdateCoachProfileDto, UpdateCoachProfileResponseDto } from "./ent
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { headers } from "next/headers";
+import {
+    upsertCoachPosterQueued,
+    tryAcquireCoachPosterJob,
+    generateInvitationPosterInBackground,
+    INVITATION_POSTER_TYPE,
+} from "@/lib/coachPoster";
+
+async function getRequestOrigin(): Promise<string> {
+    const h = await headers();
+    const proto = h.get("x-forwarded-proto") || "http";
+    const host = h.get("x-forwarded-host") || h.get("host");
+    if (host) return `${proto}://${host}`;
+    return process.env.NEXTAUTH_URL || "http://localhost:3000";
+}
 
 function mergeProfile(base: any, incoming?: UpdateCoachProfileDto["profile"]) {
     if (!incoming) {
@@ -166,6 +181,32 @@ export async function POST(request: Request) {
         if (userProfileError) {
             console.error('同步用户档案头像/昵称失败:', userProfileError);
         }
+    }
+
+    // 触发“邀请高清海报”后台生成（不阻塞主更新流程）
+    try {
+        await upsertCoachPosterQueued({
+            coachId: data.id,
+            posterType: INVITATION_POSTER_TYPE,
+            requestedBy: session.user.id,
+        });
+        const acquired = await tryAcquireCoachPosterJob({
+            coachId: data.id,
+            posterType: INVITATION_POSTER_TYPE,
+            requestedBy: session.user.id,
+        });
+        if (acquired) {
+            const h = await headers();
+            const cookieHeader = h.get("cookie") || undefined;
+            generateInvitationPosterInBackground({
+                coachId: data.id,
+                requestedBy: session.user.id,
+                origin: await getRequestOrigin(),
+                cookieHeader,
+            });
+        }
+    } catch (e) {
+        console.error("[update-coach-profile] enqueue poster generation failed:", e);
     }
 
     return NextResponse.json<ApiData<UpdateCoachProfileResponseDto>>({

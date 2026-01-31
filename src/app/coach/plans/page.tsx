@@ -28,7 +28,9 @@ const TrainingPlansHome: React.FC = () => {
     const [instances, setInstances] = useState<Record<string, CoachPlanInstanceRow | null>>({});
     const [instanceLoading, setInstanceLoading] = useState<Record<string, boolean>>({});
     const [actions, setActions] = useState<Record<string, CoachActionRow>>({});
-    const [executions, setExecutions] = useState<Record<number, any>>({});
+    // 避免“自建计划”和“教练计划”执行记录互相污染：分别维护
+    const [coachExecutionsByDayIndex, setCoachExecutionsByDayIndex] = useState<Record<number, any>>({});
+    const [selfExecutionsByDayIndex, setSelfExecutionsByDayIndex] = useState<Record<number, any>>({});
     const [videoModalVisible, setVideoModalVisible] = useState(false);
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
     // 当前执行天数（用于计算日期）
@@ -90,21 +92,21 @@ const TrainingPlansHome: React.FC = () => {
 
                     // executions + nextDayIndex: prefer get-instance derived fields (fast path)
                     if ((res as any).executionsByDayIndex) {
-                        setExecutions(prev => ({ ...prev, ...(res as any).executionsByDayIndex }));
+                        setSelfExecutionsByDayIndex((res as any).executionsByDayIndex || {});
                     } else {
                         // fallback: legacy API
                         try {
                             const exeRes = await planLibService.getWithExecutions({ instanceId: res.instance.id });
                             if (exeRes) {
-                                setExecutions(prev => ({ ...prev, ...exeRes.executions }));
+                                setSelfExecutionsByDayIndex(exeRes.executions || {});
                             }
                         } catch (e) {
                             console.error('Failed to load self plan executions:', e);
                         }
                     }
 
-                    if (typeof (res as any).nextDayIndex === 'number') {
-                        setCurrentDayIndex((res as any).nextDayIndex);
+                    if (typeof ((res as any).recommendedDayIndex ?? (res as any).nextDayIndex) === 'number') {
+                        setCurrentDayIndex((res as any).recommendedDayIndex ?? (res as any).nextDayIndex);
                     } else {
                         // fallback: legacy API
                         try {
@@ -152,16 +154,16 @@ const TrainingPlansHome: React.FC = () => {
 
                     // executions + nextDayIndex: prefer get-instance derived fields (fast path)
                     if ((res as any).executionsByDayIndex) {
-                        setExecutions((res as any).executionsByDayIndex);
+                        setCoachExecutionsByDayIndex((res as any).executionsByDayIndex || {});
                     } else {
                         const exeRes = await planLibService.getWithExecutions({ subscriptionId: activeSubscriptionId });
                         if (exeRes) {
-                            setExecutions(exeRes.executions);
+                            setCoachExecutionsByDayIndex(exeRes.executions || {});
                         }
                     }
 
-                    if (typeof (res as any).nextDayIndex === 'number') {
-                        setCurrentDayIndex((res as any).nextDayIndex);
+                    if (typeof ((res as any).recommendedDayIndex ?? (res as any).nextDayIndex) === 'number') {
+                        setCurrentDayIndex((res as any).recommendedDayIndex ?? (res as any).nextDayIndex);
                     } else {
                         try {
                             const nextDayData = await executionService.getNextTrainingDay({
@@ -206,45 +208,35 @@ const TrainingPlansHome: React.FC = () => {
         return days[dayIndex] || `第${dayIndex}天`;
     };
 
-    // 计算训练日期
-    // 逻辑：已完成的天显示实际完成日期，未完成的天基于"最后完成日+1"顺延
-    const getTrainingDate = (dayIndex: number) => {
-        // 1. 优先使用实际完成日期
-        const execution = executions[dayIndex];
-        if (execution && execution.status === 'completed' && execution.completed_at) {
-             const date = new Date(execution.completed_at);
-             return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
-        }
+    // 计算“计划日历日期”：统一用 start_date + dayIndex 计算（避免延迟完成导致日期顺延/错乱）
+    const getActualDateLabel = (execution: any): string | null => {
+        if (!execution) return null;
+        const ts = execution.status === 'completed'
+            ? execution.completed_at
+            : execution.status === 'in_progress'
+                ? execution.started_at
+                : null;
+        if (!ts) return null;
+        const dt = new Date(ts);
+        return dt.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
+    };
 
-        // 2. 找到最后一个已完成的训练日及其日期
-        let lastCompletedDayIndex = 0;
-        let lastCompletedDate: Date | null = null;
-        
-        for (const key of Object.keys(executions)) {
-            const exec = executions[parseInt(key)];
-            if (exec && exec.status === 'completed' && exec.completed_at) {
-                const execDayIndex = exec.day_index;
-                if (execDayIndex > lastCompletedDayIndex) {
-                    lastCompletedDayIndex = execDayIndex;
-                    lastCompletedDate = new Date(exec.completed_at);
-                }
-            }
-        }
-
-        // 3. 如果有已完成的日期，基于它计算未来日期
-        if (lastCompletedDate && dayIndex > lastCompletedDayIndex) {
-            const offset = dayIndex - lastCompletedDayIndex;
-            const futureDate = new Date(lastCompletedDate);
-            futureDate.setDate(lastCompletedDate.getDate() + offset);
-            return futureDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
-        }
-
-        // 4. 如果没有完成记录，基于今天和 currentDayIndex 计算
-        const today = new Date();
-        const offset = dayIndex - currentDayIndex;
-        const trainingDate = new Date(today);
-        trainingDate.setDate(today.getDate() + offset);
-        return trainingDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
+    const getPlannedDateLabelByAnchor = (dayIndex: number, executionsByDayIndex: Record<number, any>) => {
+        const execs = executionsByDayIndex || {};
+        const resolved = Object.values(execs).filter((e: any) =>
+            (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
+        ) as any[];
+        if (resolved.length === 0) return null;
+        const maxResolved = Math.max(...resolved.map((e) => Number(e?.day_index ?? 0)).filter(Boolean));
+        if (!maxResolved || dayIndex <= maxResolved) return null;
+        const anchorExec = (execs as any)[maxResolved];
+        const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
+        if (!anchorTs) return null;
+        const anchor = new Date(anchorTs);
+        anchor.setHours(0, 0, 0, 0);
+        const target = new Date(anchor);
+        target.setDate(anchor.getDate() + (dayIndex - maxResolved));
+        return target.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' });
     };
 
     // 骨架屏
@@ -597,7 +589,9 @@ const TrainingPlansHome: React.FC = () => {
     const TrainingDayCard = ({ day, startDate, unlockedWeek }: { day: CoachPlanTrainingImplementationDay; startDate?: string | Date | null; unlockedWeek: number }) => {
         const isRestDay = day.type === 'rest';
         const actionSets = day.actionSets || [];
-        const dayExecution = executions[day.dayIndex];
+        const executionsByDayIndex = planMode === 'coach' ? coachExecutionsByDayIndex : selfExecutionsByDayIndex;
+        const dayExecution = executionsByDayIndex[day.dayIndex];
+        const planned = !dayExecution ? getPlannedDateLabelByAnchor(day.dayIndex, executionsByDayIndex) : null;
         
         // 🔒 检查该天是否已解锁
         const isUnlocked = isDayUnlocked(day.dayIndex, unlockedWeek);
@@ -651,7 +645,9 @@ const TrainingPlansHome: React.FC = () => {
                         </div>
                         <div className="flex-1">
                             <h4 className="font-semibold text-surface-900">{getDayName(day.dayIndex)}</h4>
-                            <p className="text-sm text-surface-500">休息日 · {getTrainingDate(day.dayIndex)}</p>
+                            <p className="text-sm text-surface-500">
+                                休息日{planned ? ` · 预计 ${planned}` : ''}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -673,14 +669,25 @@ const TrainingPlansHome: React.FC = () => {
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 min-w-0">
                                     <h4 className="font-black text-surface-900 whitespace-nowrap">{getDayName(day.dayIndex)}</h4>
-                                    {dayExecution && (
+                                    {dayExecution?.status === 'completed' && (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[11px] font-bold">
-                                            已执行
+                                            已完成
+                                        </span>
+                                    )}
+                                    {dayExecution?.status === 'in_progress' && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 border border-amber-100 text-amber-700 text-[11px] font-bold">
+                                            进行中
                                         </span>
                                     )}
                                 </div>
                                 <p className="text-xs text-surface-600 truncate">
-                                    {getTrainingDate(day.dayIndex)} · {actionSets.length} 个动作
+                                    {dayExecution?.status === 'completed' && getActualDateLabel(dayExecution)
+                                        ? `完成于 ${getActualDateLabel(dayExecution)} · `
+                                        : dayExecution?.status === 'in_progress' && getActualDateLabel(dayExecution)
+                                            ? `开始于 ${getActualDateLabel(dayExecution)} · `
+                                            : planned
+                                                ? `预计 ${planned} · `
+                                                : ''}{actionSets.length} 个动作
                                 </p>
                                 {/* 折叠态预览：直接给出动作名（更像 App 列表） */}
                                 <p className="mt-1 text-[11px] text-surface-500 truncate">

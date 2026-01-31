@@ -3,11 +3,13 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { CompleteSetDto, CompleteSetResponseDto } from "./entity";
+import { computeExecutionProgress } from "@/lib/executionProgress";
+import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import {
     calculateE1RM,
     isNewPR,
-    requiresBodyWeightFallback,
     PR_THRESHOLD_KG,
+    requiresBodyWeightFallback,
 } from "@/lib/e1rmCalculator";
 
 /**
@@ -33,7 +35,10 @@ async function handleAutoE1RMCheck(params: {
     } = params;
 
     // Basic guard: reps must be present; weight may be negative for bodyweight-including actions (assistance)
-    if (weight === null || weight === undefined || !Number.isFinite(weight) || !reps || reps <= 0) {
+    if (
+        weight === null || weight === undefined || !Number.isFinite(weight) ||
+        !reps || reps <= 0
+    ) {
         return null;
     }
 
@@ -104,10 +109,9 @@ async function handleAutoE1RMCheck(params: {
             .maybeSingle();
 
         const prev = latestState?.e1rm;
-        const shouldUpdate =
-            prev === undefined || prev === null
-                ? true
-                : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
+        const shouldUpdate = prev === undefined || prev === null
+            ? true
+            : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
 
         if (shouldUpdate) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +144,8 @@ async function handleAutoE1RMCheck(params: {
                         estimated_from: estimatedFrom,
                         execution_id: executionId,
                         execution_set_number: setNumber,
-                        load_formula: `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
+                        load_formula:
+                            `${weight}kg × ${reps}次 = e1RM ${e1rm}kg`,
                     })
                     .eq("id", todayState.id);
             } else {
@@ -419,17 +424,25 @@ export async function POST(request: NextRequest) {
             ).length;
 
         // 计算总完成组数
-        const totalCompletedSets = actionExecutions.reduce(
-            (sum: number, action: any) => sum + (action.completed_sets || 0),
-            0,
-        );
+        const progress = computeExecutionProgress(actionExecutions as any[]);
+        const totalCompletedSets = progress.completedItems;
+        const totalSets = progress.totalItems;
 
         // 6. 保存到数据库
+        const nowIso = new Date().toISOString();
+        const shouldAutoComplete = totalSets > 0 &&
+            totalCompletedSets >= totalSets;
+
         const { error: updateError } = await supabase
             .from("plan_instance_executions")
             .update({
                 action_executions: actionExecutions,
                 completed_sets: totalCompletedSets,
+                total_sets: totalSets,
+                status: shouldAutoComplete ? "completed" : execution.status,
+                completed_at: shouldAutoComplete
+                    ? nowIso
+                    : execution.completed_at,
                 last_saved_at: new Date().toISOString(),
             })
             .eq("id", executionId);
@@ -443,13 +456,18 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
+        // If we auto-completed the execution, refresh subscription estimated end date (B1 credits-driven).
+        if (shouldAutoComplete && execution.instance_id) {
+            updateEstimatedEndDateForInstance(execution.instance_id);
+        }
+
         return NextResponse.json<ApiData<CompleteSetResponseDto>>({
             success: true,
             message: "完成组成功",
             data: {
                 executionId,
                 completedSets: totalCompletedSets,
-                totalSets: execution.total_sets,
+                totalSets: totalSets,
                 // Include auto e1RM result for frontend celebration
                 autoE1RM: autoE1RMResult
                     ? {

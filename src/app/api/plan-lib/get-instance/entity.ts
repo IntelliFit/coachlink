@@ -18,6 +18,10 @@ export interface GetInstanceResponseDto {
     // Derived fields (optional, backward-compatible)
     nextDayIndex?: number;
     completedDays?: number[];
+    // spec v1 (self-consistent)
+    recommendedDayIndex?: number;
+    resolvedDays?: number[];
+    missingDays?: number[];
     totalTrainingDays?: number;
     todayCompleted?: boolean;
     todayExecutionId?: string;

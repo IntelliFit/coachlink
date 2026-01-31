@@ -4,6 +4,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { RadioButton } from 'primereact/radiobutton';
 import { Button } from 'primereact/button';
 import { actionLibService } from '@/app/service/actionLibService';
+import { coachService } from '@/app/service/coachService';
 import { CoachActionRow } from '@/types';
 import { useSession } from 'next-auth/react';
 
@@ -24,6 +25,7 @@ export const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
 }) => {
     const [autoComputeActions, setAutoComputeActions] = useState<CoachActionRow[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(true);
+    const [optionMap, setOptionMap] = useState<Record<string, string[]>>({});
     const { data: session } = useSession();
 
     useEffect(() => {
@@ -52,6 +54,23 @@ export const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
             setLoadingActions(false);
         }
     }, [subscribeData, coachId]);
+
+    useEffect(() => {
+        const hasOption = subscribeData?.some((item: any) => item?.type === 'option');
+        if (!hasOption || !coachId) return;
+        const loadQuestionnaireOptions = async () => {
+            const res = await coachService.getQuestionnaires({ coachId });
+            const qs = res?.questionnaires || [];
+            const map: Record<string, string[]> = {};
+            qs.forEach((q: any) => {
+                if (q?.id && Array.isArray(q.options)) {
+                    map[q.id] = q.options;
+                }
+            });
+            setOptionMap(map);
+        };
+        loadQuestionnaireOptions();
+    }, [coachId, subscribeData]);
 
     // 允许随时编辑问卷（不再限制必须完成计划）
     const canEdit = Boolean(onEditQuestionnaire);
@@ -169,6 +188,23 @@ export const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
                                                   )}
                                               </div>
                                         )}
+                                    </div>
+                                </>
+                            ) : item.type === 'option' ? (
+                                <>
+                                    <div className="text-sm font-semibold text-gray-800 mb-3">
+                                        Q{index + 1}. {item.question || `问题 ${index + 1}`}
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-gray-200 text-sm text-gray-700 min-h-[3rem]">
+                                        {(() => {
+                                            if (typeof item.userSelection !== 'number') return '未填写';
+                                            const localOptions = Array.isArray(item.options) ? item.options : [];
+                                            if (localOptions[item.userSelection]) return localOptions[item.userSelection];
+                                            if (item.id && optionMap[item.id] && optionMap[item.id][item.userSelection]) {
+                                                return optionMap[item.id][item.userSelection];
+                                            }
+                                            return `选项 ${item.userSelection + 1}`;
+                                        })()}
                                     </div>
                                 </>
                             ) : (

@@ -11,6 +11,7 @@ import { Tag } from 'primereact/tag';
 import { Divider } from 'primereact/divider';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Product, PricingTier, DurationOption } from '@/app/api/coach/get-pricing/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 
@@ -26,6 +27,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     const [editDialog, setEditDialog] = useState(false);
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
     const { showToast } = useToastContext();
+    const { trackEvent } = useAnalytics();
 
     const tierConfig = {
         basic: { label: '特惠基础版', desc: '低价获客，适合自主训练', color: 'blue', icon: 'pi-bolt' },
@@ -69,21 +71,37 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
 
     const handleDeleteProduct = (productId: string) => {
         setProducts(products.filter(p => p.id !== productId));
+        trackEvent('coach_product_delete', 'business', { product_id: productId });
         showToast({ severity: 'success', summary: '已删除产品' });
     };
 
     const handleSaveProduct = () => {
         if (!currentProduct) return;
         if (!currentProduct.name.trim()) { showToast({ severity: 'error', summary: '请输入产品名称' }); return; }
-        if (currentProduct.duration_options.some(opt => opt.price <= 0)) { showToast({ severity: 'error', summary: '价格必须大于0' }); return; }
+        console.log(currentProduct.duration_options);
+        if (currentProduct.duration_options.some(opt => {
+            const price = typeof opt.price === 'string' ? parseFloat(opt.price) : opt.price;
+            return isNaN(price) || price <= 0;
+        })) { showToast({ severity: 'error', summary: '价格必须大于0' }); return; }
         
         const existingIndex = products.findIndex(p => p.id === currentProduct.id);
         if (existingIndex >= 0) {
             const newProducts = [...products];
             newProducts[existingIndex] = currentProduct;
             setProducts(newProducts);
+            
+            trackEvent('coach_product_edit', 'business', { 
+                product_id: currentProduct.id,
+                tier: currentProduct.tier
+            });
         } else {
             setProducts([...products, currentProduct]);
+            
+            trackEvent('coach_product_create', 'business', { 
+                tier: currentProduct.tier,
+                type: currentProduct.type,
+                options_count: currentProduct.duration_options.length
+            });
         }
         setEditDialog(false);
         setCurrentProduct(null);
@@ -94,7 +112,12 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
         setSaving(true);
         try {
             const result = await coachService.updatePricing({ products });
-            if (result) showToast({ severity: 'success', summary: '定价设置已保存' });
+            if (result) {
+                showToast({ severity: 'success', summary: '定价设置已保存' });
+                trackEvent('coach_pricing_update', 'business', { 
+                    total_products: products.length 
+                });
+            }
         } catch (error) {
             showToast({ severity: 'error', summary: '保存失败' });
         } finally { setSaving(false); }
@@ -299,8 +322,9 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                                             value={opt.price}
                                             onValueChange={(e) => updateDurationOption(idx, 'price', e.value || 0)}
                                             min={0}
-                                            mode="currency"
-                                            currency="CNY"
+                                            mode="decimal"
+                                            maxFractionDigits={2}
+                                            placeholder="0.00"
                                             className="w-full"
                                             inputClassName="border-none font-bold"
                                         />

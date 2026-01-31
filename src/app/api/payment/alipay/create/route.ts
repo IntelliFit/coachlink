@@ -6,7 +6,8 @@ import type {
     CreateAlipayOrderDto,
     CreateAlipayOrderResponseDto,
 } from "./entity";
-import { AlipaySdk } from "alipay-sdk";
+import { createAlipaySdk } from "@/lib/alipaySdk";
+import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
@@ -22,13 +23,42 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
 
-    // Build a public baseUrl for Alipay callbacks (ngrok/prod) from request headers.
-    // This avoids relying on Alipay后台配置 when testing with ngrok.
-    const xfProto = req.headers.get("x-forwarded-proto");
-    const xfHost = req.headers.get("x-forwarded-host");
-    const host = req.headers.get("host");
-    const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
-    const baseUrl = `${proto}://${xfHost || host}`;
+    // 构建回调地址：优先使用环境变量（本地开发时可指向线上），否则从请求头推断
+    // 环境变量格式：ALIPAY_NOTIFY_URL=https://your-domain.com/api/payment/alipay/notify
+    //              ALIPAY_RETURN_URL=https://your-domain.com/api/payment/alipay/return
+    const envNotifyUrl = process.env.ALIPAY_NOTIFY_URL;
+    const envReturnUrl = process.env.ALIPAY_RETURN_URL;
+    
+    let notifyUrl: string;
+    let returnUrl: string;
+    
+    if (envNotifyUrl && envReturnUrl) {
+        // 使用环境变量（本地开发时指向线上地址，或使用 ngrok 等内网穿透）
+        notifyUrl = envNotifyUrl;
+        returnUrl = envReturnUrl;
+        console.log(`[Alipay Create] 使用环境变量回调地址: notify=${notifyUrl}, return=${returnUrl}`);
+    } else {
+        // 从请求头推断（适用于生产环境或 ngrok）
+        const xfProto = req.headers.get("x-forwarded-proto");
+        const xfHost = req.headers.get("x-forwarded-host");
+        const host = req.headers.get("host");
+        const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
+        const baseUrl = `${proto}://${xfHost || host}`;
+        notifyUrl = `${baseUrl}/api/payment/alipay/notify`;
+        returnUrl = `${baseUrl}/api/payment/alipay/return`;
+        console.log(`[Alipay Create] 从请求头推断回调地址: notify=${notifyUrl}, return=${returnUrl}`);
+        
+        // 警告：本地开发时支付宝无法访问 localhost，建议设置环境变量
+        if (host?.includes("localhost") || host?.includes("127.0.0.1")) {
+            console.warn(
+                `[Alipay Create] ⚠️  检测到本地开发环境，支付宝无法访问 localhost！\n` +
+                `建议设置环境变量：\n` +
+                `  ALIPAY_NOTIFY_URL=https://你的线上域名/api/payment/alipay/notify\n` +
+                `  ALIPAY_RETURN_URL=https://你的线上域名/api/payment/alipay/return\n` +
+                `或者使用 ngrok 等内网穿透工具，并设置 x-forwarded-host 头。`
+            );
+        }
+    }
 
     // 读取参数
     const {
@@ -106,8 +136,8 @@ export async function POST(req: Request) {
             );
         }
 
-        // Initial subscription must use server-stored price.
-        // Renewals may have different tiered discounts; we keep client-provided totalAmount but still guard against abnormal small values above.
+        // Initial subscription: monthly_price 在 DB 中已存为分（整数），直接作为订单金额（分）
+        // Renewals may have different tiered discounts; we keep client-provided totalAmount (yuan) and convert to fen below.
         if (orderType === "subscription") {
             resolvedTotalAmount = Number(sub.monthly_price);
         }
@@ -128,20 +158,20 @@ export async function POST(req: Request) {
         );
     }
 
-    // 初始化 alipay-sdk
-    const alipaySdk = new AlipaySdk({
-        appId: ALIPAY_APP_ID,
-        privateKey: ALIPAY_PRIVATE_KEY,
-        alipayPublicKey: ALIPAY_PUBLIC_KEY,
-        gateway: ALIPAY_GATEWAY,
-    });
+    // 初始化 alipay-sdk（使用统一的初始化工具，支持代理配置）
+    const alipaySdk = createAlipaySdk();
 
-    // 写入订单到数据库
+    // 写入订单到数据库，金额存储为分（整数）
+    // 订阅首单：resolvedTotalAmount 已是 sub.monthly_price（分）；其他/续费：前端传的是元，需转分
+    const totalAmountFen =
+        orderType === "subscription"
+            ? Math.round(Number(resolvedTotalAmount))
+            : yuanToFen(resolvedTotalAmount);
     const { data: order, error: orderError } = await supabase
         .from("alipay_orders")
         .insert({
             subject,
-            total_amount: resolvedTotalAmount,
+            total_amount: totalAmountFen, // 存储分（整数）
             order_type: orderType,
             order_data: orderData,
             user_id: userId,
@@ -182,24 +212,28 @@ export async function POST(req: Request) {
     let result: string;
     if (isMobile) {
         // 移动端使用 wap.pay，可以唤起支付宝APP
-        result = alipaySdk.pageExec("alipay.trade.wap.pay", {
-            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
-            returnUrl: `${baseUrl}/api/payment/alipay/return`,
+            // 支付宝接口需要元（字符串，保留两位小数）
+            const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
+            result = alipaySdk.pageExec("alipay.trade.wap.pay", {
+            notifyUrl,
+            returnUrl,
             bizContent: {
                 out_trade_no: order.id,
-                total_amount: resolvedTotalAmount.toFixed(2),
+                total_amount: totalAmountYuanStr,
                 subject,
                 product_code: "QUICK_WAP_WAY",
             },
         });
     } else {
         // PC端使用 page.pay，显示二维码
+        // 支付宝接口需要元（字符串，保留两位小数）
+        const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
         result = alipaySdk.pageExec("alipay.trade.page.pay", {
-            notifyUrl: `${baseUrl}/api/payment/alipay/notify`,
-            returnUrl: `${baseUrl}/api/payment/alipay/return`,
+            notifyUrl,
+            returnUrl,
             bizContent: {
                 out_trade_no: order.id,
-                total_amount: resolvedTotalAmount.toFixed(2),
+                total_amount: totalAmountYuanStr,
                 subject,
                 product_code: "FAST_INSTANT_TRADE_PAY",
                 qr_pay_mode: "0",
@@ -242,7 +276,7 @@ export async function POST(req: Request) {
                 // `alipay_orders` table uses `id` as out_trade_no for Alipay tracking
                 out_trade_no: order.id.toString(),
                 subject: order.subject,
-                total_amount: order.total_amount,
+                total_amount: fenToYuan(order.total_amount), // 转换为元返回给前端
                 status: order.status,
                 created_at: order.created_at,
             },

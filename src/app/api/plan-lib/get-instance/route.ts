@@ -3,7 +3,10 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
+import {
+    calcIntensityDisplay,
+    normalizeIntensityConfig,
+} from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 
@@ -15,7 +18,7 @@ export async function POST(req: Request) {
     const sessionStart = performance.now();
     const session = await getServerSession();
     const userId = session?.user?.id || null;
-    timings['1_auth'] = performance.now() - sessionStart;
+    timings["1_auth"] = performance.now() - sessionStart;
 
     if (!userId) {
         return NextResponse.json({
@@ -32,13 +35,16 @@ export async function POST(req: Request) {
         fetchSelf,
     } = await req.json() as GetInstanceDto;
 
-    if (!id && !subscriptionId && !(subscriptionIds && subscriptionIds.length > 0) && !fetchSelf) {
+    if (
+        !id && !subscriptionId &&
+        !(subscriptionIds && subscriptionIds.length > 0) && !fetchSelf
+    ) {
         return NextResponse.json({
             success: false,
             message: "Invalid parameters",
         });
     }
-    timings['1_params'] = performance.now() - paramStart;
+    timings["1_params"] = performance.now() - paramStart;
 
     // 2. 查询计划实例
     const queryStart = performance.now();
@@ -51,6 +57,8 @@ export async function POST(req: Request) {
     } else if (subscriptionId) {
         query = query
             .eq("coach_subscription_id", subscriptionId)
+            // keep consistent with "current plan" semantics used elsewhere (e.g. get-with-executions)
+            .in("status", ["active", "paused"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (subscriptionIds && subscriptionIds.length > 0) {
@@ -58,6 +66,7 @@ export async function POST(req: Request) {
         // This matches today-training's "first available plan" behavior but in one request.
         query = query
             .in("coach_subscription_id", subscriptionIds)
+            .in("status", ["active", "paused"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (fetchSelf) {
@@ -72,7 +81,7 @@ export async function POST(req: Request) {
 
     // 获取计划实例
     const { data: instance, error } = await query.maybeSingle();
-    timings['2_query_instance'] = performance.now() - queryStart;
+    timings["2_query_instance"] = performance.now() - queryStart;
 
     if (!instance) {
         return NextResponse.json({
@@ -110,7 +119,7 @@ export async function POST(req: Request) {
             .select("user_id")
             .eq("id", instance.coach_id)
             .single();
-        timings['3a_coach_check'] = performance.now() - coachCheckStart;
+        timings["3a_coach_check"] = performance.now() - coachCheckStart;
 
         if (coach && coach.user_id === userId) {
             hasPermission = true;
@@ -132,14 +141,14 @@ export async function POST(req: Request) {
                 .select("student_id")
                 .eq("id", instance.coach_subscription_id)
                 .single();
-            timings['3b_student_check'] = performance.now() - studentCheckStart;
+            timings["3b_student_check"] = performance.now() - studentCheckStart;
 
             if (subscription && subscription.student_id === userId) {
                 hasPermission = true;
             }
         }
     }
-    timings['3_permission'] = performance.now() - permissionStart;
+    timings["3_permission"] = performance.now() - permissionStart;
 
     // 如果两种身份都没有权限，返回403
     if (!hasPermission) {
@@ -177,7 +186,7 @@ export async function POST(req: Request) {
                 .from("coach_actions")
                 .select("*")
                 .in("id", idsList);
-            timings['4a_coach_actions'] = performance.now() - coachActionsStart;
+            timings["4a_coach_actions"] = performance.now() - coachActionsStart;
 
             if (coachActions) {
                 coachActions.forEach((action) => {
@@ -194,7 +203,8 @@ export async function POST(req: Request) {
                     .from("student_actions")
                     .select("*")
                     .in("id", remainingIds);
-                timings['4b_student_actions'] = performance.now() - studentActionsStart;
+                timings["4b_student_actions"] = performance.now() -
+                    studentActionsStart;
 
                 if (studentActions) {
                     studentActions.forEach((action) => {
@@ -209,7 +219,7 @@ export async function POST(req: Request) {
             }
         }
     }
-    timings['4_actions'] = performance.now() - actionsStart;
+    timings["4_actions"] = performance.now() - actionsStart;
 
     // 5. Student-visible auto load compute (server-side, non-persistent)
     // Ensures student "plan view" shows kg even if only RM/% configured.
@@ -227,7 +237,7 @@ export async function POST(req: Request) {
                         .maybeSingle()
                 ).data?.student_id || null
                 : null);
-        timings['5a_target_student'] = performance.now() - targetStudentStart;
+        timings["5a_target_student"] = performance.now() - targetStudentStart;
 
         if (targetStudentId && Array.isArray(instance.training_days)) {
             const profileStart = performance.now();
@@ -236,19 +246,31 @@ export async function POST(req: Request) {
                 .select("weight")
                 .eq("user_id", targetStudentId)
                 .maybeSingle();
-            timings['5b_profile'] = performance.now() - profileStart;
+            timings["5b_profile"] = performance.now() - profileStart;
 
             const bodyWeight = Number(profile?.weight || 0);
 
             // Build a 1RM map (ID + Name) for fast lookup
             const rmRecordsStart = performance.now();
-            const records = await getCurrent1RMRecords(userId, { targetUserId: targetStudentId });
-            timings['5c_rm_records'] = performance.now() - rmRecordsStart;
+            const records = await getCurrent1RMRecords(userId, {
+                targetUserId: targetStudentId,
+            });
+            timings["5c_rm_records"] = performance.now() - rmRecordsStart;
 
             const rmMap: Record<string, number> = {};
             for (const r of records || []) {
-                if (r.actionId) rmMap[r.actionId] = Math.max(rmMap[r.actionId] || 0, r.current1RM);
-                if (r.actionName) rmMap[r.actionName] = Math.max(rmMap[r.actionName] || 0, r.current1RM);
+                if (r.actionId) {
+                    rmMap[r.actionId] = Math.max(
+                        rmMap[r.actionId] || 0,
+                        r.current1RM,
+                    );
+                }
+                if (r.actionName) {
+                    rmMap[r.actionName] = Math.max(
+                        rmMap[r.actionName] || 0,
+                        r.current1RM,
+                    );
+                }
             }
 
             const calcStart = performance.now();
@@ -261,15 +283,20 @@ export async function POST(req: Request) {
 
                     const params = set.params || {};
                     const existingLoad = params.load;
-                    if (existingLoad !== null && existingLoad !== undefined) continue; // don't override explicit loads
+                    if (existingLoad !== null && existingLoad !== undefined) {
+                        continue; // don't override explicit loads
+                    }
 
                     const intensityConfig = normalizeIntensityConfig(params);
                     const legacyRm = params["强度"] ?? set.intensity;
-                    const oneRM = rmMap[actionId] ?? rmMap[actionsMap[actionId]?.name] ?? rmMap[set.actionName] ?? undefined;
+                    const oneRM = rmMap[actionId] ??
+                        rmMap[actionsMap[actionId]?.name] ??
+                        rmMap[set.actionName] ?? undefined;
 
                     // resolve includesBodyWeight from action row if present
                     const includesBodyWeight =
-                        !!(actionsMap[actionId]?.includesBodyWeight ?? actionsMap[actionId]?.includes_body_weight);
+                        !!(actionsMap[actionId]?.includesBodyWeight ??
+                            actionsMap[actionId]?.includes_body_weight);
 
                     const result = calcIntensityDisplay({
                         intensityConfig,
@@ -279,8 +306,14 @@ export async function POST(req: Request) {
                         includesBodyWeight,
                     });
 
-                    if (result.displayWeight !== null && result.displayWeight !== undefined) {
-                        const kg = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
+                    if (
+                        result.displayWeight !== null &&
+                        result.displayWeight !== undefined
+                    ) {
+                        const kg = normalizeToKg(
+                            Number(result.displayWeight),
+                            result.displayUnit || "kg",
+                        );
                         set.params = {
                             ...params,
                             load: kg,
@@ -292,7 +325,7 @@ export async function POST(req: Request) {
                     }
                 }
             }
-            timings['5d_calc_load'] = performance.now() - calcStart;
+            timings["5d_calc_load"] = performance.now() - calcStart;
 
             // Re-assign so it shows up in response JSON (mutating instance from Supabase is fine here)
             (instance as any).training_days = days;
@@ -301,13 +334,14 @@ export async function POST(req: Request) {
         // best-effort; never block plan rendering
         console.warn("[get-instance] auto load compute skipped:", e);
     }
-    timings['5_auto_load'] = performance.now() - autoLoadStart;
+    timings["5_auto_load"] = performance.now() - autoLoadStart;
 
     // 6. 加载执行记录
     let executionsList: any[] = [];
-    const execQueryStart = performance.now();
-    // @ts-expect-error - Supabase type inference issue with nested selects
-    const { data: executions } = await supabase
+    // NOTE: plan_instance_executions uses `instance_id` (not `plan_instance_id`).
+    // Also some environments may not have relational tables for action_executions/execution_sets,
+    // so we do a best-effort query with relations, then fallback to a simple select.
+    const { data: executions, error: executionsError } = await supabase
         .from("plan_instance_executions")
         .select(`
             *,
@@ -319,13 +353,25 @@ export async function POST(req: Request) {
                 )
             )
         `)
-        .eq("plan_instance_id", instance.id)
+        .eq("instance_id", instance.id)
         .order("day_index", { ascending: true });
-    timings['6a_exec_query'] = performance.now() - execQueryStart;
 
-    if (executions) {
+    let effectiveExecutions: any[] | null = executions as any[] | null;
+    if (executionsError) {
+        // Fallback: get minimal fields we need for nextDayIndex/completionDates.
+        const { data: fallbackExecs } = await supabase
+            .from("plan_instance_executions")
+            .select(
+                "id, instance_id, student_id, day_index, status, started_at, completed_at, action_executions",
+            )
+            .eq("instance_id", instance.id)
+            .order("day_index", { ascending: true });
+        effectiveExecutions = (fallbackExecs as any[]) || [];
+    }
+
+    if (effectiveExecutions) {
         // 处理执行记录，格式化 sets 数据
-        executionsList = executions.map((exec: any) => ({
+        executionsList = effectiveExecutions.map((exec: any) => ({
             ...exec,
             action_executions: exec.action_executions?.map((ae: any) => ({
                 ...ae,
@@ -348,8 +394,12 @@ export async function POST(req: Request) {
             executionsByDayIndex[di] = exec;
             continue;
         }
-        const prevTime = prev?.started_at ? new Date(prev.started_at).getTime() : 0;
-        const curTime = exec?.started_at ? new Date(exec.started_at).getTime() : 0;
+        const prevTime = prev?.started_at
+            ? new Date(prev.started_at).getTime()
+            : 0;
+        const curTime = exec?.started_at
+            ? new Date(exec.started_at).getTime()
+            : 0;
         if (curTime >= prevTime) {
             executionsByDayIndex[di] = exec;
         }
@@ -357,19 +407,33 @@ export async function POST(req: Request) {
 
     // 7. Derive next training day info (compatible with /api/execution/get-next-training-day)
     const nextDayStart = performance.now();
-    const startExecutionDay = Number((instance as any).start_execution_day || 1);
+    const startExecutionDay = Number(
+        (instance as any).start_execution_day || 1,
+    );
     const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
-    const trainingDays = (Array.isArray(instance.training_days) ? (instance.training_days as any[]) : [])
-        .slice()
-        .sort((a, b) => getDayIndex(a) - getDayIndex(b));
+    const trainingDays =
+        (Array.isArray(instance.training_days)
+            ? (instance.training_days as any[])
+            : [])
+            .slice()
+            .sort((a, b) => getDayIndex(a) - getDayIndex(b));
 
     const trainingOnlyDays = trainingDays.filter((d) =>
         d?.type === "training" && getDayIndex(d) >= startExecutionDay
     );
-    const trainingOnlyDayIndexSet = new Set(trainingOnlyDays.map((d) => getDayIndex(d)));
+    const trainingOnlyDayIndexSet = new Set(
+        trainingOnlyDays.map((d) => getDayIndex(d)),
+    );
 
     const completedExecs = (executionsList || []).filter((e) =>
         e?.status === "completed" &&
+        Number(e?.day_index ?? 0) >= startExecutionDay &&
+        trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
+    );
+
+    // Resolved days: completed + abandoned (treat abandoned as "skipped" for progress pointer)
+    const resolvedExecs = (executionsList || []).filter((e) =>
+        (e?.status === "completed" || e?.status === "abandoned") &&
         Number(e?.day_index ?? 0) >= startExecutionDay &&
         trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
     );
@@ -382,12 +446,26 @@ export async function POST(req: Request) {
         if (e.completed_at) {
             // keep latest completion date if multiple
             const prev = completionDates[di];
-            if (!prev || new Date(e.completed_at).getTime() >= new Date(prev).getTime()) {
+            if (
+                !prev ||
+                new Date(e.completed_at).getTime() >= new Date(prev).getTime()
+            ) {
                 completionDates[di] = e.completed_at;
             }
         }
     }
-    const completedDays = Array.from(completedDaySet.values()).sort((a, b) => a - b);
+    const completedDays = Array.from(completedDaySet.values()).sort((a, b) =>
+        a - b
+    );
+
+    const resolvedDaySet = new Set<number>();
+    for (const e of resolvedExecs) {
+        const di = Number(e.day_index);
+        if (di) resolvedDaySet.add(di);
+    }
+    const resolvedDays = Array.from(resolvedDaySet.values()).sort((a, b) =>
+        a - b
+    );
 
     // todayCompleted + todayExecutionId
     const today = new Date();
@@ -402,7 +480,7 @@ export async function POST(req: Request) {
     const todayCompleted = !!todayExecution;
     const todayExecutionId = todayExecution?.id;
 
-    // nextDayIndex
+    // nextDayIndex (legacy): first incomplete training day
     let nextDayIndex = startExecutionDay;
     for (const day of trainingOnlyDays) {
         const di = getDayIndex(day);
@@ -420,13 +498,46 @@ export async function POST(req: Request) {
     if (trainingOnlyDays.length === 0) {
         nextDayIndex = startExecutionDay;
     }
-    timings['7_next_day'] = performance.now() - nextDayStart;
+    timings["7_next_day"] = performance.now() - nextDayStart;
+
+    // recommendedDayIndex (spec v1): max(resolved) + 1 (next training day)
+    let recommendedDayIndex = startExecutionDay;
+    if (trainingOnlyDays.length > 0) {
+        const maxResolved = resolvedDays.length > 0
+            ? Math.max(...resolvedDays)
+            : null;
+        if (maxResolved === null) {
+            recommendedDayIndex = startExecutionDay;
+        } else {
+            const idx = trainingOnlyDays.findIndex((d) =>
+                getDayIndex(d) === maxResolved
+            );
+            if (idx >= 0 && idx + 1 < trainingOnlyDays.length) {
+                recommendedDayIndex = getDayIndex(trainingOnlyDays[idx + 1]);
+            } else {
+                // all resolved to the end -> loop or mark complete (keep looping for compatibility)
+                recommendedDayIndex = getDayIndex(trainingOnlyDays[0]);
+            }
+        }
+    } else {
+        recommendedDayIndex = startExecutionDay;
+    }
+
+    // missingDays: unresolved days before recommended pointer
+    const missingDays = trainingOnlyDays
+        .map((d) => getDayIndex(d))
+        .filter((di) =>
+            di > 0 && di < recommendedDayIndex && !resolvedDaySet.has(di)
+        );
 
     // 计算总耗时
-    timings['total'] = performance.now() - startTime;
+    timings["total"] = performance.now() - startTime;
 
     // 输出性能日志
-    console.log('[get-instance] Performance timings:', JSON.stringify(timings, null, 2));
+    console.log(
+        "[get-instance] Performance timings:",
+        JSON.stringify(timings, null, 2),
+    );
 
     return NextResponse.json<ApiData<GetInstanceResponseDto>>({
         success: true,
@@ -442,7 +553,10 @@ export async function POST(req: Request) {
                 ? executionsByDayIndex
                 : undefined,
             nextDayIndex,
+            recommendedDayIndex,
             completedDays,
+            resolvedDays,
+            missingDays,
             totalTrainingDays: trainingOnlyDays.length,
             todayCompleted,
             todayExecutionId,

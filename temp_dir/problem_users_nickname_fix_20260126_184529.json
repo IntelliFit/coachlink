@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-01-26T10:45:29.071Z",
+  "totals": {
+    "users_scanned": 1,
+    "bad_users_total": 1,
+    "bad_users_with_phone": 0,
+    "bad_users_no_phone": 1,
+    "inserted_profiles": 0,
+    "updated_nicknames": 0,
+    "errors": 0
+  },
+  "rows": [
+    {
+      "profile_id": null,
+      "old_nickname": null,
+      "new_nickname": null,
+      "action": "skipped_no_phone"
+    }
+  ]
+}

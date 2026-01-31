@@ -11,18 +11,21 @@ import type {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: "用户未登录",
-            data: null,
-        }, { status: 401 });
-    }
 
     let {
         coachId = "",
         userId = "",
     } = await req.json() as GetPricingDto;
+
+    // 公开读取：允许未登录用户按 coachId 获取定价（用于展示商品/服务列表）
+    // 但不允许未登录时使用 userId 反查 coachId（避免枚举/越权）。
+    if (!session?.user?.id && !coachId) {
+        return NextResponse.json<ApiData<GetPricingResponseDto>>({
+            success: false,
+            message: "缺少 coachId",
+            data: null,
+        }, { status: 400 });
+    }
 
     if (userId && !coachId) {
         const { data: coach, error } = await supabase
@@ -60,17 +63,24 @@ export async function POST(req: Request) {
     let defaultPricings = [] as Pricing[];
     let defaultProducts = [] as Product[];
 
-    if (session.user.is_coach) {
+    if (session?.user?.is_coach) {
         const { data: coach, error: coachError } = await supabase
             .from("coaches")
             .select("user_id")
             .eq("id", coachId)
             .single();
 
-        if (session.user.id === coach.user_id) {
+        if (!coachError && session.user.id === coach?.user_id) {
+            // 从数据库获取用户档案
+            const { data: profile } = await supabase
+                .from("user_profiles")
+                .select("nickname")
+                .eq("user_id", session.user.id)
+                .single();
+
             defaultPricings = [
                 {
-                    title: session.profile.nickname + "的基础订阅计划",
+                    title: (profile?.nickname || "教练") + "的基础订阅计划",
                     price: 100,
                     features: [
                         "服务1",

@@ -2,14 +2,21 @@ import { NextResponse } from "next/server";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { fulfillmentService } from "@/app/service/fulfillmentService";
-import { AlipaySdk } from "alipay-sdk";
-import { sendSystemMessage } from "@/lib/chat";
+import { createAlipaySdk } from "@/lib/alipaySdk";
+import {
+    updateTransactionAndWallet,
+    fulfillSubscriptionOnPaid,
+} from "@/app/api/payment/alipay/fulfillPaidOrder";
 
 export async function POST(req: Request) {
-    console.log("[Alipay Notify] HIT!");
+    const timestamp = new Date().toISOString();
+    console.log(`[Alipay Notify] ${timestamp} - 收到支付宝异步通知请求`);
+    console.log(`[Alipay Notify] 请求来源: ${req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown"}`);
+    console.log(`[Alipay Notify] User-Agent: ${req.headers.get("user-agent") || "unknown"}`);
+    
     try {
         const text = await req.text();
-        console.log("[Alipay Notify] Raw Body:", text);
+        console.log(`[Alipay Notify] Raw Body (${text.length} bytes):`, text.substring(0, 500));
 
         let params: Record<string, string> = {};
         if (
@@ -33,36 +40,27 @@ export async function POST(req: Request) {
 
         console.log("[Alipay Notify] Received params:", params);
 
-        // Verify Signature
-        const { ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY } =
-            process.env;
-        if (ALIPAY_PUBLIC_KEY) {
-            const alipaySdk = new AlipaySdk({
-                appId: ALIPAY_APP_ID!,
-                privateKey: ALIPAY_PRIVATE_KEY!,
-                alipayPublicKey: ALIPAY_PUBLIC_KEY,
-            });
-            // Try/Catch checking signature to prevent crashing
-            try {
-                const valid = alipaySdk.checkNotifySign(params);
-                if (!valid) {
-                    console.error(
-                        "[Alipay Notify] Signature invalid, but PROCEEDING for DEV/TEST if configured.",
-                    );
-                    // For local testing with curl, sign will definitely fail.
-                    // We allow proceeding if signature is mock.
-                    if (params.sign !== "mock_sign") {
-                        // return new Response('fail', { status: 400 });
-                    }
-                }
-            } catch (err) {
-                console.error("[Alipay Notify] Sign check error:", err);
+        // 安全：必须验签。支付宝用私钥对通知参数签名，我方用公钥校验，伪造请求无法通过
+        const { ALIPAY_PUBLIC_KEY } = process.env;
+        if (!ALIPAY_PUBLIC_KEY) {
+            console.error("[Alipay Notify] ALIPAY_PUBLIC_KEY 未配置，拒绝处理");
+            return new Response("fail", { status: 500 });
+        }
+        const alipaySdk = createAlipaySdk();
+        try {
+            const valid = alipaySdk.checkNotifySign(params);
+            if (!valid) {
+                console.error("[Alipay Notify] 验签失败，拒绝处理（可能为伪造请求）");
+                return new Response("fail", { status: 400 });
             }
+        } catch (err) {
+            console.error("[Alipay Notify] 验签异常:", err);
+            return new Response("fail", { status: 400 });
         }
 
-        const { out_trade_no, trade_status } = params;
+        const { out_trade_no, trade_status, trade_no, total_amount } = params;
         console.log(
-            `[Alipay Notify] Processing order: ${out_trade_no}, status: ${trade_status}`,
+            `[Alipay Notify] 订单号: ${out_trade_no}, 支付宝交易号: ${trade_no}, 状态: ${trade_status}, 金额: ${total_amount}`,
         );
 
         if (!out_trade_no) {
@@ -81,7 +79,7 @@ export async function POST(req: Request) {
         ) {
             orderStatus = "paid";
         } else if (trade_status === "TRADE_CLOSED") {
-            orderStatus = "cancelled";
+            orderStatus = "closed"; // 数据库约束：pending|paid|failed|closed|refunded
         }
 
         // 1. Update `alipay_orders`
@@ -136,84 +134,35 @@ export async function POST(req: Request) {
             }
         }
 
-        // 3. Subscription auto-confirm / auto-renew (platform payment must be fully automated)
+        // 3. 订阅/续费确认 + 教练钱包入账（与 query/return 共用逻辑，幂等）
         if (orderStatus === "paid") {
             const orderType = alipayOrder.order_type;
             const orderData = (alipayOrder.order_data || {}) as any;
             const subscriptionId = orderData?.subscriptionId as string | undefined;
-            const coachId = orderData?.coachId as string | undefined;
 
             if (
                 subscriptionId &&
                 (orderType === "subscription" || orderType === "subscription_renew")
             ) {
-                const { data: sub, error: subErr } = await serviceRoleSupabase
-                    .from("coach_subscriptions")
-                    .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks, last_payment_order_id")
-                    .eq("id", subscriptionId)
-                    .single();
-
-                if (!subErr && sub) {
-                    // basic safety: payer must match subscription owner, and coach must match (if provided)
-                    if (sub.student_id === alipayOrder.user_id && (!coachId || sub.coach_id === coachId)) {
-                        // Idempotency guard: do not process the same order twice
-                        if (sub.last_payment_order_id !== alipayOrder.id) {
-                            const nowIso = new Date().toISOString();
-                            const update: Record<string, unknown> = {
-                                payment_method: "platform_alipay",
-                                payment_confirmed_by: "system",
-                                payment_confirmed_at: nowIso,
-                                coach_seen_at: null, // coach needs to see a notification in unified inbox
-                                last_payment_order_id: alipayOrder.id,
-                            };
-
-                            if (orderType === "subscription") {
-                                update.status = "active";
-                                // Do not set end_date here. We start counting only when the coach assigns the first plan.
-                            }
-
-                            if (orderType === "subscription_renew") {
-                                const weeks = Number(orderData?.renewAdditionalWeeks || 0);
-                                if (weeks > 0) {
-                                    // Always accumulate purchased duration
-                                    update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
-                                    // B1: end_date is estimated completion date, refreshed elsewhere.
-                                }
-                            }
-
-                            await serviceRoleSupabase
-                                .from("coach_subscriptions")
-                                .update(update)
-                                .eq("id", subscriptionId);
-
-                            // Notify coach (system-confirmed, no manual action required)
-                            try {
-                                const { data: coach, error: coachErr } = await serviceRoleSupabase
-                                    .from("coaches")
-                                    .select("user_id")
-                                    .eq("id", sub.coach_id)
-                                    .single();
-
-                                if (!coachErr && coach?.user_id) {
-                                    await sendSystemMessage(coach.user_id, {
-                                        content: `新的学员订阅通过【平台支付】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
-                                    });
-                                }
-                            } catch (e) {
-                                console.error("[Alipay Notify] Failed to send coach system message:", e);
-                            }
-                        }
-                    }
-                }
+                await fulfillSubscriptionOnPaid(
+                    alipayOrder,
+                    alipayOrder.id,
+                    alipayOrder.user_id ?? ""
+                );
             }
+            await updateTransactionAndWallet(alipayOrder);
         }
 
+        console.log(`[Alipay Notify] 订单 ${out_trade_no} 处理成功，返回 success`);
         return new Response("success", {
             status: 200,
             headers: { "Content-Type": "text/plain" },
         });
     } catch (error) {
-        console.error("Error processing notify:", error);
+        console.error(`[Alipay Notify] 处理失败:`, error);
+        if (error instanceof Error) {
+            console.error(`[Alipay Notify] 错误堆栈:`, error.stack);
+        }
         return new Response("fail", { status: 500 });
     }
 }

@@ -381,12 +381,19 @@ const EditPlanPage = () => {
     }
 
     // 智能导入完成处理
-    const handleImportComplete = async (importedDays: FormPlanTrainingDay[]) => {
+    const handleImportComplete = async (
+        importedDays: FormPlanTrainingDay[],
+        importedGlobalDescription?: string | null,
+    ) => {
         setDays(importedDays);
         // 导入会改变周结构，周训练日计数也需要同步更新（否则保存时可能还是旧的 weekDays）
         setWeekDays(makeWeekDays(importedDays as any));
         if (importedDays.length > 0) {
             setSelectedDayIndex(importedDays[0].dayIndex);
+        }
+        // 如果当前未填写描述，则用“全局说明”自动回填
+        if (importedGlobalDescription?.trim()) {
+            setDescription((prev) => (prev?.trim() ? prev : importedGlobalDescription.trim()));
         }
         showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划（记得点击「保存模板」以生效）` });
         // 只刷新动作库以包含新创建的动作；不要 reload 模板，否则会把刚导入的数据覆盖回旧内容
@@ -546,8 +553,20 @@ const EditPlanPage = () => {
                 globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
                 globalAnswers={globalAnswers}
                 onGlobalAnswerChange={(question, answerIndex) => {
-                    setGlobalAnswers({ ...globalAnswers, [question]: answerIndex });
+                    setGlobalAnswers(prev => {
+                        const next = { ...prev };
+                        if (answerIndex === null) {
+                            delete next[question];
+                            return next;
+                        }
+                        next[question] = answerIndex;
+                        return next;
+                    });
                 }}
+                availableTrainingTags={
+                    // 从问卷配置中提取 tags 问题的选项
+                    (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
+                }
             />
 
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">

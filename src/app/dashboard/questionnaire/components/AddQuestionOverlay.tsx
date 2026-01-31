@@ -23,6 +23,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
     onAddTextQuestion
 }) => {
 
+    const safeQuestions = Array.isArray(questions) ? questions : [];
 
     return (
         <OverlayPanel ref={overlayPanel}>
@@ -32,7 +33,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
                     label="训练项目偏好"
                     icon="pi pi-tags"
                     onClick={onAddTagsQuestion}
-                    disabled={questions.some(q => q.type === 'tags')}
+                    disabled={safeQuestions.some(q => q.type === 'tags')}
                     text
                     className="
                         w-full flex justify-start gap-2 
@@ -47,7 +48,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
                 <Button
                     label="每周训练次数"
                     icon="pi pi-calendar"
-                    disabled={questions.some(q => q.type === 'times')}
+                    disabled={safeQuestions.some(q => q.type === 'times')}
                     onClick={onAddTimesQuestion}
                     text
                     className="
@@ -63,7 +64,7 @@ const AddQuestionOverlay: React.FC<AddQuestionOverlayProps> = ({
                 <Button
                     label="用户极限（1RM）"
                     icon="pi pi-chart-bar"
-                    disabled={questions.some(q => q.type === 'rm')}
+                    disabled={safeQuestions.some(q => q.type === 'rm')}
                     onClick={onAddRmQuestion}
                     text
                     className="

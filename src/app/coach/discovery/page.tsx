@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter, ShoppingCart, Package } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -11,6 +11,10 @@ import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useGuideStore } from '@/stores/useGuideStore';
+import { useSession } from 'next-auth/react';
+import { useToastContext } from '@/context/ToastContext';
+import { useCart } from '@/context/CartContext';
+import type { Product, DurationOption } from '@/app/api/coach/get-pricing/entity';
 
 interface VisibilityStatus {
     focusMode: boolean;
@@ -31,6 +35,17 @@ const CoachDiscoveryPage: React.FC = () => {
     const coachesPerPage = 10;
     const router = useRouter();
     const { startGuide, hasCompletedGuide, isLoading: isGuideLoading } = useGuideStore();
+    const { data: session } = useSession();
+    const { showToast } = useToastContext();
+    const { addToCart } = useCart();
+
+    // 混合流：推荐服务商品（来自教练的订阅产品）
+    const [productFeed, setProductFeed] = useState<Array<{
+        coach: CoachesRow;
+        product: Product;
+        opt: DurationOption;
+    }>>([]);
+    const [productFeedLoading, setProductFeedLoading] = useState(false);
 
     // 视野状态
     const [visibilityStatus, setVisibilityStatus] = useState<VisibilityStatus | null>(null);
@@ -59,6 +74,57 @@ const CoachDiscoveryPage: React.FC = () => {
         loadCoaches(1);
         loadSpecialties();
     }, [visibilityLoading, visibilityStatus]);
+
+    // 混合流：根据当前教练列表拉取一批“服务商品”
+    useEffect(() => {
+        if (visibilityLoading) return;
+        if (visibilityStatus?.focusMode) {
+            // 专注模式不展示混合商品流，避免干扰
+            setProductFeed([]);
+            return;
+        }
+        if (!coaches || coaches.length === 0) {
+            setProductFeed([]);
+            return;
+        }
+
+        let cancelled = false;
+        const loadProducts = async () => {
+            setProductFeedLoading(true);
+            try {
+                // 只取前 N 位教练做“推荐商品”，避免 N+1 过重
+                const sample = coaches.slice(0, 6);
+                const res = await Promise.allSettled(
+                    sample.map(async (c) => {
+                        const pricing = await coachService.getPricing({ coachId: c.id });
+                        const products = (pricing?.products || []) as Product[];
+                        return { coach: c, products };
+                    }),
+                );
+
+                const items: Array<{ coach: CoachesRow; product: Product; opt: DurationOption }> = [];
+                for (const r of res) {
+                    if (r.status !== 'fulfilled') continue;
+                    const { coach, products } = r.value;
+                    for (const p of products.slice(0, 2)) {
+                        const opt = (p.duration_options || [])[0];
+                        if (!opt) continue;
+                        items.push({ coach, product: p, opt });
+                    }
+                }
+
+                // 兜底：如果暂时没拿到任何产品，就不展示商品区块
+                if (!cancelled) setProductFeed(items.slice(0, 9));
+            } finally {
+                if (!cancelled) setProductFeedLoading(false);
+            }
+        };
+
+        loadProducts();
+        return () => {
+            cancelled = true;
+        };
+    }, [coaches, visibilityLoading, visibilityStatus?.focusMode]);
 
     // Auto start guide once after list is available (action-oriented, not just nav overview)
     useEffect(() => {
@@ -119,7 +185,7 @@ const CoachDiscoveryPage: React.FC = () => {
         <div
             key={coach.id}
             id={idx === 0 ? "guide-discovery-first-coach" : undefined}
-            className="group bg-white rounded-[24px] md:rounded-2xl p-4 md:p-5 mb-4 transition-all active:scale-[0.98] md:active:scale-100 md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-surface-100 cursor-pointer"
+            className="group bg-surface-0 rounded-[24px] md:rounded-2xl p-4 md:p-5 mb-4 transition-all active:scale-[0.98] md:active:scale-100 md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-surface-100 cursor-pointer"
             onClick={() => router.push('/coach/profile/' + coach.id + '?from=discovery')}
         >
             <div className="flex flex-row gap-4 md:gap-6">
@@ -323,6 +389,115 @@ const CoachDiscoveryPage: React.FC = () => {
                     </div>
                 </header>
 
+                {/* 混合流：推荐服务商品（类似电商首页的“推荐商品”区块） */}
+                <div className="mb-6">
+                    <div className="rounded-[24px] border border-surface-100 bg-surface-0 p-4 md:p-5">
+                        <div className="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
+                            <div className="min-w-0">
+                                <div className="text-xs font-black uppercase tracking-widest text-surface-400">服务商品</div>
+                                <div className="mt-1 text-lg font-black text-surface-900 tracking-tight">
+                                    推荐订阅/计划服务
+                                </div>
+                                <div className="mt-1 text-sm text-surface-500 font-medium">
+                                    先挑服务再看教练，或直接去服务商品页查看更多（购买需登录）。
+                                </div>
+                            </div>
+                            <div className="shrink-0 flex gap-2">
+                                <Button
+                                    outlined
+                                    className="rounded-2xl"
+                                    label="查看更多"
+                                    onClick={() => router.push('/market')}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-4">
+                            {productFeedLoading ? (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
+                                            <Skeleton width="60%" height="1rem" className="mb-2" />
+                                            <Skeleton width="100%" height="2.5rem" className="mb-3" />
+                                            <Skeleton width="40%" height="1rem" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : productFeed.length === 0 ? (
+                                <div className="py-10 text-center bg-surface-50 rounded-2xl border border-dashed border-surface-200">
+                                    <Package className="w-10 h-10 text-surface-200 mx-auto mb-2" />
+                                    <div className="text-sm font-bold text-surface-700">暂无可推荐的服务商品</div>
+                                    <div className="text-xs text-surface-500 mt-1">你也可以先从下方列表发现教练</div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {productFeed.map((it, idx) => (
+                                        <div key={`${it.coach.id}-${it.product.id}-${idx}`} className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-black text-surface-900 line-clamp-1">
+                                                        {it.product.name}
+                                                    </div>
+                                                    <div className="mt-1 text-xs text-surface-500 font-medium line-clamp-1">
+                                                        教练：{it.coach.name}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] text-surface-400 font-bold uppercase tracking-wider">起价</div>
+                                                    <div className="text-base font-black text-primary-600">¥{it.opt.price}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-3 flex gap-2">
+                                                <Button
+                                                    className="flex-1 rounded-2xl bg-primary-500 border-none font-bold"
+                                                    label="立即订阅"
+                                                    onClick={() => {
+                                                        const p = new URLSearchParams();
+                                                        p.set('tab', '1'); // 订阅价格现在在第二栏（index 1）
+                                                        p.set('from', 'discovery');
+                                                        p.set('autoSubscribe', '1');
+                                                        p.set('productId', it.product.id);
+                                                        p.set('months', String(it.opt.months));
+                                                        router.push(`/coach/profile/${it.coach.id}?${p.toString()}#choose-pricing`);
+                                                    }}
+                                                />
+                                                <Button
+                                                    outlined
+                                                    className="rounded-2xl"
+                                                    icon={<ShoppingCart size={18} />}
+                                                    onClick={async () => {
+                                                        if (!session?.user?.id) {
+                                                            router.push(`/login?redirect=${encodeURIComponent('/coach/discovery')}`);
+                                                            return;
+                                                        }
+                                                        try {
+                                                            await addToCart({
+                                                                coachId: it.coach.id,
+                                                                coachName: it.coach.name || '教练',
+                                                                productId: it.product.id,
+                                                                productName: it.product.name,
+                                                                productTier: it.product.tier,
+                                                                durationMonths: it.opt.months,
+                                                                price: it.opt.price,
+                                                            });
+                                                            showToast({ severity: 'success', summary: '已加入购物车' });
+                                                        } catch (e: any) {
+                                                            showToast({ severity: 'error', summary: '添加失败', detail: e?.message || '请稍后重试' });
+                                                        }
+                                                    }}
+                                                    tooltip="加入购物车"
+                                                    tooltipOptions={{ position: 'top' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="mb-4 flex items-center justify-between">
                     <div className="text-xs font-bold text-surface-400 tracking-wider">
                         共找到 {totalCount} 位教练
@@ -333,7 +508,7 @@ const CoachDiscoveryPage: React.FC = () => {
                 {isLoading || visibilityLoading ? (
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-white rounded-xl p-6 border border-surface-100">
+                            <div key={i} className="bg-surface-0 rounded-xl p-6 border border-surface-100">
                                 <div className="flex gap-4">
                                     <Skeleton shape="rectangle" size="5rem" className="rounded-lg shrink-0" />
                                     <div className="flex-1 space-y-3">
@@ -345,7 +520,7 @@ const CoachDiscoveryPage: React.FC = () => {
                         ))}
                     </div>
                 ) : coaches.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-surface-100">
+                    <div className="flex flex-col items-center justify-center py-20 bg-surface-0 rounded-xl border border-surface-100">
                         <Eye size={40} className="text-surface-200 mb-3" />
                         <p className="text-surface-500 font-bold">没有找到相关教练</p>
                     </div>

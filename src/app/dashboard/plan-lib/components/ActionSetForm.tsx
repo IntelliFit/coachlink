@@ -278,12 +278,12 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         } else if (planReference1RM !== null && planReference1RM !== undefined) {
             oneRm = planReference1RM;
         }
-        const userBodyWeight = studentData?.profile?.weight;
+        const userBodyWeight = Number(studentData?.profile?.weight || 0);
 
         // 负数 1RM 是有意义的（表示需要辅助的自重动作）
         // 只有 null/undefined 才表示未设置
-        if (oneRm === null || oneRm === undefined || !userBodyWeight || userBodyWeight <= 0) {
-            // console.log('缺少1RM或体重数据，无法计算');
+        if (oneRm === null || oneRm === undefined) {
+            // console.log('缺少1RM数据，无法计算');
             return;
         }
 
@@ -295,6 +295,9 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             // RM 模式
             const rmValue = set.params?.['强度'];
             if (!rmValue || rmValue <= 0) return;
+
+            // 仅“包含自重”的动作需要体重数据才能计算 RM 推荐重量
+            if (includesBodyWeight && (!userBodyWeight || userBodyWeight <= 0)) return;
 
             const algorithm = set.params?.algorithm || '综合计算';
             const modelMap: Record<string, LambdaModel> = {
@@ -320,13 +323,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
             if (!pctValue || pctValue <= 0) return;
 
-            const targetTotal = oneRm * (pctValue / 100);
-
-            if (includesBodyWeight) {
-                calculatedWeight = targetTotal - userBodyWeight;
-            } else {
-                calculatedWeight = targetTotal;
-            }
+            // 规则：百分比模式 = 1RM × 百分比（不做体重扣减）
+            calculatedWeight = oneRm * (pctValue / 100);
         }
 
         if (calculatedWeight !== null) {
@@ -337,10 +335,25 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             // 不再强制设为0
 
             // 只在计算结果有较大变化时才更新，避免无限循环
-            if (Math.abs(calculatedWeight - (set.params?.load || 0)) > 0.1) {
+            const currentLoad = typeof set.params?.load === 'number' ? set.params.load : Number(set.params?.load || 0);
+            const currentRecommended =
+                typeof (existingConfig as any)?.recommendedLoad?.value === 'number'
+                    ? (existingConfig as any).recommendedLoad.value
+                    : Number((existingConfig as any)?.recommendedLoad?.value || 0);
+            const loadDelta = Math.abs(calculatedWeight - (Number.isFinite(currentLoad) ? currentLoad : 0));
+            const recDelta = Math.abs(calculatedWeight - (Number.isFinite(currentRecommended) ? currentRecommended : 0));
+            if (loadDelta > 0.1 || recDelta > 0.1) {
+                // 保持“计算预览”和“推荐数值”同步：
+                // - 预览主要看 load
+                // - 推荐数值输入框优先读 intensityConfig.recommendedLoad
+                const nextConfig: IntensityConfig = {
+                    ...(existingConfig || {}),
+                    recommendedLoad: { value: calculatedWeight, unit: 'kg' },
+                };
                 updateParams({
                     load: calculatedWeight,
                     loadUnit: 'kg',
+                    intensityConfig: nextConfig,
                     loadCalculated: true,
                 });
             }
@@ -393,11 +406,21 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
                                 <div className="relative group">
                                     <AeroInputNumber
-                                        value={attr === '休息时间' ? ((set.params?.[attr] || 0) / 60) : (set.params?.[attr] || 0)}
+                                        value={(() => {
+                                            const raw = set.params?.[attr];
+                                            if (raw === undefined || raw === null || raw === '') return null;
+                                            const num = Number(raw);
+                                            if (Number.isNaN(num)) return null;
+                                            return attr === '休息时间' ? (num / 60) : num;
+                                        })()}
                                         onValueChange={e => {
-                                            const value = attr === '休息时间' ? (e.value || 0) * 60 : e.value;
+                                            // null 表示“未指定/自选”，不要强行写 0
+                                            const value = e.value === null
+                                                ? null
+                                                : (attr === '休息时间' ? e.value * 60 : e.value);
                                             updateParams({ [attr]: value });
                                         }}
+                                        placeholder={attr === '次数' ? '自选' : ''}
                                         // 保持 inputClassName 不变
                                         inputClassName="w-full border border-surface-200 rounded-2xl text-sm !py-2 !px-3"
                                         disabled={saving}

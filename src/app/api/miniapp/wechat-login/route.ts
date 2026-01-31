@@ -1,0 +1,276 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { serviceRoleSupabase } from '@/lib/supabaseClient';
+import { signToken } from '@/lib/jwt';
+
+/**
+ * 小程序微信登录接口
+ * 接收小程序传来的 code，调用微信 code2Session API 获取用户登录信息
+ * 不需要鉴权，供小程序登录时调用
+ * 
+ * 文档：https://developers.weixin.qq.com/miniprogram/dev/server/API/user-login/api_code2session.html
+ */
+/**
+ * 获取微信小程序 access_token
+ * 文档：https://developers.weixin.qq.com/miniprogram/dev/server/API/mp-access-token/api_getaccesstoken.html
+ */
+async function getAccessToken(appid: string, secret: string): Promise<string> {
+    const tokenUrl = new URL('https://api.weixin.qq.com/cgi-bin/token');
+    tokenUrl.searchParams.set('grant_type', 'client_credential');
+    tokenUrl.searchParams.set('appid', appid);
+    tokenUrl.searchParams.set('secret', secret);
+
+    const response = await fetch(tokenUrl.toString(), {
+        method: 'GET'
+    });
+
+    const result = await response.json();
+
+    if (result.errcode) {
+        throw new Error(`获取 access_token 失败: ${result.errmsg} (${result.errcode})`);
+    }
+
+    return result.access_token;
+}
+
+/**
+ * 通过 phoneCode 和 access_token 获取用户手机号
+ * 文档：https://developers.weixin.qq.com/miniprogram/dev/server/API/user-info/phone-number/api_getphonenumber.html
+ */
+async function getPhoneNumber(accessToken: string, phoneCode: string): Promise<string | null> {
+    const phoneUrl = new URL('https://api.weixin.qq.com/wxa/business/getuserphonenumber');
+    phoneUrl.searchParams.set('access_token', accessToken);
+
+    const response = await fetch(phoneUrl.toString(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            code: phoneCode
+        })
+    });
+
+    const result = await response.json();
+
+    if (result.errcode) {
+        console.error('❌ 获取手机号失败:', result.errcode, result.errmsg);
+        // 获取手机号失败不影响登录流程，返回 null
+        return null;
+    }
+
+    // 返回手机号（带国家码，如：+86 13800138000）
+    return result.phone_info?.phoneNumber || null;
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { code, phoneCode } = body;
+
+        if (!code) {
+            return NextResponse.json({
+                success: false,
+                message: "缺少 code 参数"
+            }, { status: 400 });
+        }
+
+        // 获取小程序配置
+        // 注意：这里需要小程序的 appid 和 secret，不是网站应用的
+        // 小程序和网站应用的 appid/secret 是不同的
+        const appid = process.env.WECHAT_MINIAPP_APPID || process.env.WECHAT_APP_ID || "";
+        const secret = process.env.WECHAT_MINIAPP_SECRET || process.env.WECHAT_APP_SECRET || "";
+
+        // 记录使用的环境变量来源
+        const usingMiniAppAppId = !!process.env.WECHAT_MINIAPP_APPID;
+        const usingMiniAppSecret = !!process.env.WECHAT_MINIAPP_SECRET;
+        
+        // 清理可能的空格和换行
+        const cleanAppId = appid.trim();
+        const cleanSecret = secret.trim();
+
+        if (!appid || !secret) {
+            console.error('❌ 微信小程序配置缺失:', {
+                hasAppId: !!appid,
+                hasSecret: !!secret,
+                envKeys: Object.keys(process.env).filter(k => k.includes('WECHAT'))
+            });
+            return NextResponse.json({
+                success: false,
+                message: "微信小程序配置缺失（WECHAT_MINIAPP_APPID/WECHAT_MINIAPP_SECRET）"
+            }, { status: 500 });
+        }
+
+        // 警告：如果使用的是网站应用的配置，提醒用户
+        if (!usingMiniAppAppId || !usingMiniAppSecret) {
+            console.warn('⚠️ 警告：检测到使用的是网站应用的配置（WECHAT_APP_ID/WECHAT_APP_SECRET）');
+            console.warn('⚠️ 小程序登录需要使用小程序专用的 AppID 和 AppSecret');
+            console.warn('⚠️ 请在 .env.development 中配置：');
+            console.warn('   WECHAT_MINIAPP_APPID=你的小程序AppID');
+            console.warn('   WECHAT_MINIAPP_SECRET=你的小程序AppSecret');
+        }
+
+        // 调用微信 code2Session API
+        // 文档：https://developers.weixin.qq.com/miniprogram/dev/server/API/user-login/api_code2Session.html
+        const code2SessionUrl = new URL('https://api.weixin.qq.com/sns/jscode2session');
+        code2SessionUrl.searchParams.set('appid', cleanAppId);
+        code2SessionUrl.searchParams.set('secret', cleanSecret);
+        code2SessionUrl.searchParams.set('js_code', code);
+        code2SessionUrl.searchParams.set('grant_type', 'authorization_code');
+
+        const response = await fetch(code2SessionUrl.toString(), {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        // 检查微信API返回的错误
+        if (result.errcode) {
+            console.error('❌ 微信 code2Session 错误:', result.errcode, result.errmsg);
+            return NextResponse.json({
+                success: false,
+                message: result.errmsg || `微信登录失败 (${result.errcode})`,
+                errorCode: result.errcode
+            }, { status: 400 });
+        }
+
+        const { openid, session_key, unionid } = result;
+
+        // 获取手机号（如果提供了 phoneCode）
+        let phoneNumber: string | null = null;
+        if (phoneCode) {
+            try {
+                console.log('📱 开始获取手机号...');
+                const accessToken = await getAccessToken(cleanAppId, cleanSecret);
+                phoneNumber = await getPhoneNumber(accessToken, phoneCode);
+                
+                if (phoneNumber) {
+                    // 移除国家码前缀（如 +86 13800138000 -> 13800138000）
+                    phoneNumber = phoneNumber.replace(/^\+86\s*/, '');
+                    console.log('✅ 获取到手机号:', phoneNumber.substring(0, 3) + '****' + phoneNumber.substring(7));
+                } else {
+                    console.warn('⚠️ 未获取到手机号，将设置为 "null"');
+                    phoneNumber = 'null'; // 设置为字符串 "null"
+                }
+            } catch (error: any) {
+                console.error('❌ 获取手机号失败:', error);
+                phoneNumber = 'null'; // 获取失败，设置为字符串 "null"
+            }
+        } else {
+            console.log('ℹ️ 未提供 phoneCode，手机号将设置为 "null"');
+            phoneNumber = 'null'; // 未提供 phoneCode，设置为字符串 "null"
+        }
+
+        // 检查用户是否已存在（通过 wechat_openid）
+        const { data: existingUser, error: queryError } = await serviceRoleSupabase
+            .from('users')
+            .select('*')
+            .eq('wechat_openid', openid)
+            .maybeSingle();
+
+        if (queryError) {
+            console.error('❌ 查询用户失败:', queryError);
+            return NextResponse.json({
+                success: false,
+                message: '查询用户信息失败'
+            }, { status: 500 });
+        }
+
+        let user;
+        if (existingUser) {
+            // 用户已存在，更新手机号（如果获取到了新的手机号且原手机号为 null 或 "null"）
+            if (phoneNumber && phoneNumber !== 'null' && (!existingUser.phone || existingUser.phone === 'null')) {
+                const { data: updatedUser, error: updateError } = await serviceRoleSupabase
+                    .from('users')
+                    .update({ phone: phoneNumber })
+                    .eq('id', existingUser.id)
+                    .select()
+                    .single();
+
+                if (updateError) {
+                    console.error('⚠️ 更新手机号失败:', updateError);
+                    user = existingUser; // 更新失败，使用原用户信息
+                } else {
+                    user = updatedUser;
+                    console.log('✅ 已更新用户手机号');
+                }
+            } else {
+                user = existingUser;
+            }
+        } else {
+            // 用户不存在，创建新用户
+            // password_hash 是 NOT NULL 字段，设置为字符串 "null"
+            // phone 设置为获取到的手机号，如果未获取到则设置为字符串 "null"
+            // 其他可以为空的字段都设置为 null
+            const { data: newUser, error: createError } = await serviceRoleSupabase
+                .from('users')
+                .insert({
+                    wechat_openid: openid,
+                    password_hash: 'null', // NOT NULL 字段，设置为字符串 "null"
+                    phone: phoneNumber, // 设置为获取到的手机号或字符串 "null"
+                    email: null,
+                    has_drawn: null,
+                    last_login_at: null,
+                    subscription_level: null,
+                    subscription_expires_at: null,
+                    is_admin: null,
+                    admin_role: null,
+                    admin_permissions: null,
+                    is_coach: null,
+                    coach_status: null,
+                    primary_role: null,
+                    invitation_coach_id: null,
+                    // created_at 和 updated_at 使用数据库默认值
+                })
+                .select()
+                .single();
+
+            if (createError || !newUser) {
+                console.error('❌ 创建用户失败:', createError);
+                return NextResponse.json({
+                    success: false,
+                    message: '创建用户失败'
+                }, { status: 500 });
+            }
+
+            user = newUser;
+            console.log('✅ 已创建新用户');
+        }
+
+        // 移除敏感信息
+        const { password_hash, ...userWithoutPassword } = user;
+
+        // 生成 JWT token 用于小程序鉴权
+        // token 包含 userId，有效期 7 天
+        const token = signToken({
+            userId: user.id,
+            phone: user.phone || null,
+            email: user.email || null,
+        });
+
+        // 返回用户登录信息
+        return NextResponse.json({
+            success: true,
+            message: "登录成功",
+            data: {
+                token: token, // JWT token，用于后续API请求鉴权
+                openid: openid,
+                session_key: session_key,
+                unionid: unionid || null,
+                user: userWithoutPassword,
+                // 注意：session_key 是敏感信息，生产环境应该只在服务端使用
+                // 这里为了测试先返回，后续应该移除
+            }
+        });
+
+    } catch (error: any) {
+        console.error('❌ 小程序微信登录错误:', error);
+        return NextResponse.json({
+            success: false,
+            message: error.message || "登录失败，请稍后重试"
+        }, { status: 500 });
+    }
+}
+

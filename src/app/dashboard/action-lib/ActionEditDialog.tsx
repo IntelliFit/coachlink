@@ -13,6 +13,7 @@ import { CoachActionRow, ItemType } from '@/types';
 import { CanonicalAction } from '@/types/canonical';
 import { useToastContext } from '@/context/ToastContext';
 import { actionLibService } from '@/app/service/actionLibService';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface ActionEditDialogProps {
     visible: boolean;
@@ -28,6 +29,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     onCancel
 }) => {
     const { showToast } = useToastContext();
+    const { trackEvent } = useAnalytics();
     // ... [保持所有 useState 逻辑不变] ...
     const [name, setName] = useState('');
     const [detail, setDetail] = useState('');
@@ -146,6 +148,13 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                 canonical_action_id: canonicalActionId
             };
             await onSave(actionData);
+
+            trackEvent('coach_action_upsert', 'coach_content', {
+                is_create: !action?.id,
+                type: itemType,
+                name_length: name.length,
+                has_video: !!url
+            });
         } finally { setLoading(false); }
     };
 
@@ -156,6 +165,12 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             const res = await actionLibService.uploadDemoVideo(file);
             if (res?.url) {
                 setUrl(res.url);
+                
+                trackEvent('coach_action_video_upload', 'coach_content', {
+                    action_name: name,
+                    file_size: file.size
+                });
+
                 showToast({
                     severity: "success",
                     summary: "上传成功",

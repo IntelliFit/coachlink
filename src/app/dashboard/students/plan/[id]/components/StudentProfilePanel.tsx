@@ -67,16 +67,17 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
         });
     };
 
-    const calculateDuration = (startDate: string, endDate: string) => {
+    const calculateStartedDays = (startDate?: string | null) => {
+        if (!startDate) return null;
         const start = new Date(startDate);
-        const end = endDate ? new Date(endDate) : new Date();
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const now = new Date();
+        const diffTime = now.getTime() - start.getTime();
+        const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         return { days: diffDays };
     };
 
     const profile = studentData?.profile;
-    const duration = studentData ? calculateDuration(studentData.start_date, studentData.end_date) : null;
+    const duration = studentData ? calculateStartedDays(studentData.start_date) : null;
 
     return (
         <>
@@ -172,10 +173,10 @@ export const StudentProfilePanel: React.FC<StudentProfilePanelProps> = ({
                             <div className="p-5 bg-surface-50/50 rounded-[20px] border border-surface-100/50 transition-all hover:bg-surface-50">
                                 <div className="flex items-center gap-1.5 text-surface-400 font-bold text-[10px] tracking-widest uppercase mb-2">
                                     <Clock size={12} strokeWidth={2.5} />
-                                    已加入
+                                    已开始
                                 </div>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-2xl font-black text-primary-600 tracking-tight">{duration?.days}</span>
+                                    <span className="text-2xl font-black text-primary-600 tracking-tight">{duration?.days ?? 0}</span>
                                     <span className="text-xs font-bold text-primary-400">Days</span>
                                 </div>
                             </div>

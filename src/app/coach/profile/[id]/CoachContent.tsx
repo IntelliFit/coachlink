@@ -47,6 +47,13 @@ const CoachContent: React.FC<CoachContentProps> = ({
                 <TabPanel header="关于教练">
                     <CoachAboutPanel coach={coach} />
                 </TabPanel>
+                <TabPanel header="订阅价格">
+                    <CoachSubscription
+                        coach={coach}
+                        mySubscriptions={mySubscriptions}
+                        onSubscribeSuccess={(tier) => onSubscribeSuccess(tier)}
+                    />
+                </TabPanel>
                 <TabPanel header={`教学内容(${aggregatedInfo?.contentCount || 0})`}>
                     <CoachContentPanel
                         coachId={coachId}
@@ -58,13 +65,6 @@ const CoachContent: React.FC<CoachContentProps> = ({
                     <CoachReviewsPanel
                         coachId={coachId}
                         userSubscription={userSubscription}
-                    />
-                </TabPanel>
-                <TabPanel header="订阅价格">
-                    <CoachSubscription
-                        coach={coach}
-                        mySubscriptions={mySubscriptions}
-                        onSubscribeSuccess={(tier) => onSubscribeSuccess(tier)}
                     />
                 </TabPanel>
             </TabView>

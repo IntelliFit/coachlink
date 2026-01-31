@@ -9,7 +9,7 @@ export const StrengthProgressSection = ({ session, subscription }: any) => {
 
     return (
         <div className={`
-            bg-white rounded-[24px] border border-surface-100 transition-all duration-300
+            bg-surface rounded-[24px] border border-surface-100 transition-all duration-300
             ${isExpanded ? 'shadow-[0_12px_40px_rgba(0,0,0,0.08)]' : 'shadow-sm'}
         `}>
             {/* 头部区域：点击触发折叠 */}

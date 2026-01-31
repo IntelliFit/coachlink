@@ -35,8 +35,21 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        // 查询今天的执行记录
-        const today = new Date().toISOString().split("T")[0];
+        // 查询“今天”的执行记录（按 Asia/Shanghai 日界线；避免 UTC toISOString 导致差一天）
+        const tz = "Asia/Shanghai";
+        const now = new Date();
+        const dateKey = new Intl.DateTimeFormat("en-CA", {
+            timeZone: tz,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(now); // YYYY-MM-DD
+        const [y, m, d] = dateKey.split("-").map((v) => Number(v));
+        // Asia/Shanghai is UTC+8 (no DST). Start of local day = UTC midnight - 8h.
+        const startUtcMs = Date.UTC(y, m - 1, d, 0, 0, 0) - 8 * 60 * 60 * 1000;
+        const endUtcMs = startUtcMs + 24 * 60 * 60 * 1000;
+        const todayStartIso = new Date(startUtcMs).toISOString();
+        const todayEndIso = new Date(endUtcMs).toISOString();
 
         const { data, error } = await supabase
             .from("plan_instance_executions" as any)
@@ -46,7 +59,8 @@ export async function POST(req: Request) {
             .eq("instance_id", instanceId)
             .eq("day_index", dayIndex)
             .eq("student_id", userId)
-            .gte("started_at", today)
+            .gte("started_at", todayStartIso)
+            .lt("started_at", todayEndIso)
             .order("started_at", { ascending: false })
             .limit(1)
             .maybeSingle();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { fenToYuan } from "@/lib/moneyUtils";
 import { ListSubscriptionGetDto, QueryCoachSubscription } from "./entity";
 import { CoachesRow, CoachSubscriptionRow, UserProfilesRow } from "@/types";
 
@@ -64,6 +65,7 @@ async function embeddingCaochesIntoSubscriptions(
         const coachUserId = coach?.user_id;
         querySubscriptions.push({
             ...subscription,
+            monthly_price: fenToYuan(subscription.monthly_price ?? 0),
             student: students.get(subscription.student_id) || null,
             coach: coachUserId
                 ? coachesProfiles.get(coachUserId) || null

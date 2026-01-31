@@ -6,6 +6,7 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import type { ItemType, StudentActionRow } from "@/types/student";
 
 export async function POST(req: Request) {
     const addData = await req.json() as AddStudentActionDto;
@@ -30,6 +31,8 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    const type: ItemType = addData.type || "STRENGTH";
+
     // 插入新动作
     const { data: action, error } = await supabase
         .from("student_actions")
@@ -37,12 +40,17 @@ export async function POST(req: Request) {
             user_id: userId,
             name: addData.name,
             detail: addData.detail || null,
-            positions: addData.positions || ["全身"],
-            attrs: addData.attrs || ["组数", "次数", "强度", "休息时间"],
+            // 非力量类型一般不需要部位/属性标签
+            positions: type === "STRENGTH" ? (addData.positions || ["全身"]) : null,
+            attrs: type === "STRENGTH" ? (addData.attrs || ["组数", "次数", "强度", "休息时间"]) : null,
             url: addData.url || null,
-            enableAutoWeightCompute: addData.enableAutoWeightCompute || false,
-            includesBodyWeight: addData.includesBodyWeight || false,
-            canonical_action_id: addData.canonical_action_id || null,
+            type,
+            // Supabase Database 类型中 jsonb 会被推断为 Json，需要做一次断言
+            item_schema: (addData.item_schema as unknown as any) || null,
+            suggested_time: type === "DIET" ? (addData.suggested_time || null) : null,
+            enableAutoWeightCompute: type === "STRENGTH" ? (addData.enableAutoWeightCompute || false) : false,
+            includesBodyWeight: type === "STRENGTH" && (addData.enableAutoWeightCompute || false) ? (addData.includesBodyWeight || false) : false,
+            canonical_action_id: type === "STRENGTH" ? (addData.canonical_action_id || null) : null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })
@@ -61,7 +69,7 @@ export async function POST(req: Request) {
         success: true,
         message: "添加动作成功",
         data: {
-            action,
+            action: action as unknown as StudentActionRow,
         },
     });
 }

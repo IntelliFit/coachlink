@@ -5,6 +5,7 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Dialog } from 'primereact/dialog';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
@@ -85,6 +86,8 @@ const StudentPlanPage = () => {
     const [pendingTemplate, setPendingTemplate] = useState<GetTemplateResponseDto | null>(null);
     const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
     const [importStartConfig, setImportStartConfig] = useState<PlanStartConfig | null>(null);
+    const [importModeDialogVisible, setImportModeDialogVisible] = useState(false);
+    const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('new_instance');
 
     // Load instance data
     useEffect(() => {
@@ -555,8 +558,11 @@ const StudentPlanPage = () => {
             actionSets: day.actionSets || []
         }));
 
-        if (instanceExists && instanceId) {
-            // Update existing instance
+        const shouldCreateNewInstance =
+            (!instanceExists || !instanceId) || (instanceExists && instanceId && importMode === 'new_instance');
+
+        if (!shouldCreateNewInstance && instanceExists && instanceId) {
+            // Overwrite current instance (keeps executions)
             const res = await planLibService.updateInstance({
                 id: instanceId, // Use the actual instance ID, not subscription ID
                 name,
@@ -564,6 +570,7 @@ const StudentPlanPage = () => {
                 tags: tags || null,
                 type: type || null,
                 suitableFor: suitableFor || null,
+                templateId: selectedTemplateId || undefined,
                 trainingDays: daysData,
                 startExecutionDay: importStartConfig ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay) : undefined,
             });
@@ -574,13 +581,11 @@ const StudentPlanPage = () => {
             } else {
                 showToast({ severity: 'error', summary: '保存失败', detail: '无法更新训练计划' });
             }
-
         } else {
-            // Create new instance
+            // Create new instance (archives previous active/paused instances server-side)
             const res = await planLibService.createInstance({
                 templateId: selectedTemplateId,
                 subscriptionId: params.id.toString(),
-
                 name,
                 description: description || null,
                 tags: tags || null,
@@ -599,6 +604,9 @@ const StudentPlanPage = () => {
                 showToast({ severity: 'error', summary: '创建失败' });
             }
         }
+
+        // Reset import mode after save
+        setImportMode('new_instance');
 
         router.push('/dashboard/students');
 
@@ -619,7 +627,15 @@ const StudentPlanPage = () => {
     // 新增函数：处理选择模板 -> 弹出配置框
     const handleSelectTemplate = (templateData: GetTemplateResponseDto) => {
         setPendingTemplate(templateData);
+        // If there's already an active plan instance, importing a template can either:
+        // - overwrite current plan (keep executions)
+        // - create a new phase (archive old, executions reset)
+        if (instanceExists && instanceId) {
+            setImportModeDialogVisible(true);
+        } else {
+            setImportMode('new_instance');
         setPlanStartConfigVisible(true);
+        }
     };
 
     // 确认配置并应用模板
@@ -647,7 +663,10 @@ const StudentPlanPage = () => {
 
         // 2. 应用模板数据
         const templateData = pendingTemplate;
-        setName(templateData.template.name);
+        const studentNameRaw =
+            (studentData?.profile?.nickname || studentData?.profile?.full_name || "学员").trim();
+        const studentName = studentNameRaw || "学员";
+        setName(`${studentName}的计划`);
         setDescription(templateData.template.description || '');
         setTags(templateData.template.tags || []);
         setType(templateData.template.type);
@@ -795,6 +814,56 @@ const StudentPlanPage = () => {
                     onConfirm={handleConfirmPlanStart}
                     totalWeeks={pendingTemplate ? Math.ceil((pendingTemplate.days?.length || 0) / 7) : 12}
                 />
+
+                {/* 导入模板时的模式选择：覆盖当前 vs 新建阶段 */}
+                <Dialog
+                    visible={importModeDialogVisible}
+                    onHide={() => {
+                        setImportModeDialogVisible(false);
+                        setPendingTemplate(null);
+                    }}
+                    header={<span className="tracking-tight font-bold text-surface-900 text-lg">导入方式</span>}
+                    style={{ width: '95vw', maxWidth: '520px' }}
+                    className="aero-dialog"
+                    pt={{
+                        root: { className: 'rounded-[24px] border-none shadow-2xl bg-surface overflow-hidden' },
+                        header: { className: 'p-6 pb-0 border-none' },
+                        content: { className: 'p-6 pt-4' }
+                    }}
+                    blockScroll
+                    modal
+                >
+                    <div className="space-y-4">
+                        <div className="text-sm text-surface-600 leading-relaxed">
+                            当前订阅下已经存在一份进行中的计划。导入模板时你可以选择：
+                            <br />
+                            <span className="font-bold">新建阶段</span>：归档旧计划并创建新计划（执行次数会从 0 开始）
+                            <br />
+                            <span className="font-bold">覆盖当前</span>：直接覆盖当前计划内容（会保留历史执行记录，所以“已完成X次训练”不会清零）
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                label="覆盖当前（保留执行记录）"
+                                className="p-button-text"
+                                onClick={() => {
+                                    setImportMode('overwrite');
+                                    setImportModeDialogVisible(false);
+                                    setPlanStartConfigVisible(true);
+                                }}
+                            />
+                            <Button
+                                label="新建阶段（推荐）"
+                                className="p-button-primary"
+                                onClick={() => {
+                                    setImportMode('new_instance');
+                                    setImportModeDialogVisible(false);
+                                    setPlanStartConfigVisible(true);
+                                }}
+                            />
+                        </div>
+                    </div>
+                </Dialog>
 
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-2xl font-bold text-900">

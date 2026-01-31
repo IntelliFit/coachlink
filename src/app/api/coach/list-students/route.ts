@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { fenToYuan } from "@/lib/moneyUtils";
 import {
     GetStudentsDto,
     ListStudentsResponseDto,
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
     const { data: subs, count, error: subsErr } = await supabase
         .from("coach_subscriptions")
         .select(
-            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks",
+            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, order_id, last_payment_order_id, payment_method",
             { count: "exact" },
         )
         .eq("coach_id", coachRow.id)
@@ -175,6 +176,7 @@ export async function POST(req: Request) {
 
         return {
             ...sub,
+            monthly_price: fenToYuan(sub.monthly_price ?? 0),
             tier: Number(sub.tier), // 确保类型为 number
             profile,
             uploaded: view?.uploaded || 0,

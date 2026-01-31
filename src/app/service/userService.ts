@@ -128,6 +128,18 @@ import type {
     ChangePasswordDto,
     ChangePasswordResponseDto,
 } from "../api/user/change-password/entity";
+import type {
+    BindContactDto,
+    BindContactResponseDto,
+} from "../api/user/bind-contact/entity";
+import type {
+    UnbindContactDto,
+    UnbindContactResponseDto,
+} from "../api/user/unbind-contact/entity";
+import type {
+    ResetPasswordDto,
+    ResetPasswordResponseDto,
+} from "../api/user/reset-password/entity";
 
 class UserPlanService extends BaseService {
     /**
@@ -145,6 +157,45 @@ class UserPlanService extends BaseService {
         }
 
         throw new Error(res.data.message || "修改密码失败");
+    }
+
+    /**
+     * @description 通过验证码重置密码（支持手机或邮箱）
+     * @param reqData
+     * @returns
+     */
+    async resetPassword(reqData: ResetPasswordDto) {
+        const res = await this.post<ResetPasswordResponseDto>(
+            "reset-password",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+
+        throw new Error(res.data.message || "重置密码失败");
+    }
+
+    /**
+     * @description 绑定手机号/邮箱（需要验证码）
+     */
+    async bindContact(reqData: BindContactDto) {
+        const res = await this.post<BindContactResponseDto>("bind-contact", reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        throw new Error(res.data.message || "绑定失败");
+    }
+
+    /**
+     * @description 解绑手机号/邮箱/微信
+     */
+    async unbindContact(reqData: UnbindContactDto) {
+        const res = await this.post<UnbindContactResponseDto>("unbind-contact", reqData);
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        throw new Error(res.data.message || "解绑失败");
     }
 
     /**

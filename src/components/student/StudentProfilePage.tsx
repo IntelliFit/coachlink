@@ -3,8 +3,8 @@ import { studentService } from '@/app/service/studentService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { ProfileHeader } from './profile/ProfileHeader';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ProfileHeaderMerged } from './profile/ProfileHeaderMerged';
 import { PersonalInfoSection } from './profile/PersonalInfoSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
 import { CoachNotesSection } from './profile/CoachNotesSection';
@@ -27,104 +27,203 @@ interface StudentProfilePageProps {
 }
 
 const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
-    const [loading, setLoading] = useState(true);
-    const [data, setData] = useState<ProfileData | null>(null);
+    // 独立的数据状态
+    const [profileData, setProfileData] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
+    const [statsData, setStatsData] = useState<any>(null);
     const [planStatus, setPlanStatus] = useState<string | null>(null);
+
+    // 独立的 loading 状态
+    const [loadingProfile, setLoadingProfile] = useState(true);
+    const [loadingSubscription, setLoadingSubscription] = useState(true);
+    const [loadingStats, setLoadingStats] = useState(true);
+    const [loadingPlanStatus, setLoadingPlanStatus] = useState(false);
+
     const [error, setError] = useState<string | null>(null);
 
-    const { data: session } = useSession();
+    const { data: session, update: updateSession } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { showToast } = useToastContext();
     const [activeTab, setActiveTab] = useState(0);
+
+    const checkWechatBindStatus = async () => {
+        const wechatBind = searchParams.get('wechatBind');
+        const message = searchParams.get('message');
+
+        if (wechatBind) {
+            // 刷新 session 以获取最新的微信绑定状态
+            await updateSession();
+
+            // 显示提示
+            if (wechatBind === 'success') {
+                // showToast({
+                //     severity: 'success',
+                //     summary: '微信绑定成功',
+                // });
+            } else if (wechatBind === 'error') {
+                showToast({
+                    severity: 'error',
+                    summary: '微信绑定失败',
+                    detail: message || '请重试',
+                });
+            }
+
+            // 清除 URL 参数，避免刷新页面时重复提示
+            const url = new URL(window.location.href);
+            url.searchParams.delete('wechatBind');
+            url.searchParams.delete('message');
+            router.replace(url.pathname + (url.search ? url.search : ''));
+        }
+    }
+
+    // 检测微信绑定完成状态并刷新 session
+    useEffect(() => {
+        checkWechatBindStatus();
+    }, [searchParams, updateSession, showToast, router]);
 
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
 
-    const fetchData = async () => {
-        try {
-            setLoading(true);
+    // 个人信息编辑状态
+    const [personalInfoEditing, setPersonalInfoEditing] = useState(false);
 
-            const [profileRes, subsRes] = await Promise.all([
-                studentService.getStudentProfile(session?.user.id),
-                subscriptionService.getCoachSubscriptions({ studentId: session?.user.id })
+    // 计算组合后的 data（用于向后兼容）
+    const data: ProfileData | null = profileData && session?.user ? {
+        user: session.user as any,
+        profile: profileData.profile,
+        stats: {
+            subscriptionCount: statsData?.subscriptionCount || 0,
+            activePlanCount: statsData?.activePlanCount || 0,
+            completedWorkouts: statsData?.completedWorkouts || 0,
+            totalTrainingTime: 0
+        },
+        subscriptionLevel: (session.user.subscription_level as any) || 'basic',
+        coachApplicationStatus: session.user.is_coach
+            ? 'coach'
+            : ((session.user.coach_status as any) || 'none'),
+        progressData: {
+            dates: [],
+            weight: [],
+            benchPress: [],
+            squat: [],
+            deadlift: []
+        },
+        timelineData: [],
+        coachesData: [],
+        notesData: []
+    } : null;
+
+    // 刷新数据的函数（用于更新后刷新）
+    const fetchData = React.useCallback(async () => {
+        if (!session?.user.id) return;
+
+        try {
+            const [profileRes, subsRes, statsRes] = await Promise.all([
+                studentService.getStudentProfile(session.user.id),
+                subscriptionService.getCoachSubscriptions({ studentId: session.user.id }),
+                studentService.getStudentStats()
             ]);
 
-            let activeSub = null;
+            if (profileRes) setProfileData(profileRes);
+            if (statsRes) setStatsData(statsRes);
+
             if (subsRes && subsRes.subscriptions && subsRes.subscriptions.length > 0) {
-                activeSub = subsRes.subscriptions[0];
+                const activeSub = subsRes.subscriptions[0];
                 setSubscription(activeSub);
 
-                // 获取计划实例以检查状态
                 try {
                     const instanceRes = await planLibService.getInstance({ subscriptionId: activeSub.id });
                     if (instanceRes?.instance?.status) {
                         setPlanStatus(instanceRes.instance.status);
+                    } else {
+                        setPlanStatus('completed');
                     }
                 } catch (e) {
-                    // 没有计划实例，允许编辑
                     setPlanStatus('completed');
                 }
             }
-
-            if (profileRes && session?.user) {
-                // Real data (no mock timeline data - ProgressTimeline fetches from API)
-                const mockData: ProfileData = {
-                    user: session.user as any, // Type assertion needed as session user might differ slightly
-                    profile: profileRes.profile,
-                    stats: {
-                        subscriptionCount: 1,
-                        activePlanCount: 2,
-                        completedWorkouts: 48,
-                        totalTrainingTime: 2880 // 48 * 60
-                    },
-                    subscriptionLevel: (session.user.subscription_level as any) || 'basic',
-                    // 如果 is_coach=true，状态应该是 'coach'（已完成教练身份认证）
-                    // 否则使用数据库中的 coach_status 值
-                    coachApplicationStatus: session.user.is_coach
-                        ? 'coach'
-                        : ((session.user.coach_status as any) || 'none'),
-                    progressData: {
-                        dates: ['1月', '2月', '3月', '4月', '5月', '6月'],
-                        weight: [75, 74.5, 74, 73.5, 73, 72.5],
-                        benchPress: [60, 65, 70, 72.5, 75, 80],
-                        squat: [80, 90, 100, 105, 110, 120],
-                        deadlift: [100, 110, 120, 130, 140, 150]
-                    },
-                    timelineData: [], // Empty - ProgressTimeline fetches real PR data from API
-                    coachesData: [
-                        {
-                            id: 'c1',
-                            name: '张教练',
-                            avatarUrl: null,
-                            title: '力量举专家',
-                            subscriptionStatus: 'active',
-                            subscriptionTier: 2,
-                            subscriptionEndDate: '2023-12-31'
-                        }
-                    ],
-                    notesData: [
-                        {
-                            id: 'n1',
-                            coachId: 'c1',
-                            coachName: '张教练',
-                            coachAvatar: null,
-                            date: '2023-06-15',
-                            content: '最近进步很明显，特别是深蹲的稳定性提高了很多。建议下周开始增加辅助训练的容量，重点加强核心力量。饮食方面要注意蛋白质的摄入量。',
-                            tags: ['深蹲', '核心', '饮食建议']
-                        }
-                    ]
-                };
-                setData(mockData);
-            }
         } catch (e: any) {
-            setError(e?.message || '加载失败');
-        } finally {
-            setLoading(false);
+            console.error('刷新数据失败:', e);
         }
-    };
+    }, [session?.user.id]);
+
+    // 并行获取基础数据
+    useEffect(() => {
+        if (!session?.user.id) return;
+
+        // 1. 获取学生档案（独立）
+        const fetchProfile = async () => {
+            try {
+                setLoadingProfile(true);
+                const res = await studentService.getStudentProfile(session.user.id);
+                if (res) {
+                    setProfileData(res);
+                }
+            } catch (e: any) {
+                console.error('获取学生档案失败:', e);
+                setError(e?.message || '加载失败');
+            } finally {
+                setLoadingProfile(false);
+            }
+        };
+
+        // 2. 获取订阅列表（独立）
+        const fetchSubscription = async () => {
+            try {
+                setLoadingSubscription(true);
+                const res = await subscriptionService.getCoachSubscriptions({ studentId: session.user.id });
+                if (res && res.subscriptions && res.subscriptions.length > 0) {
+                    const activeSub = res.subscriptions[0];
+                    setSubscription(activeSub);
+
+                    // 获取计划实例状态（依赖订阅数据，但不阻塞其他数据）
+                    setLoadingPlanStatus(true);
+                    try {
+                        const instanceRes = await planLibService.getInstance({ subscriptionId: activeSub.id });
+                        if (instanceRes?.instance?.status) {
+                            setPlanStatus(instanceRes.instance.status);
+                        } else {
+                            setPlanStatus('completed');
+                        }
+                    } catch (e) {
+                        // 没有计划实例，允许编辑
+                        setPlanStatus('completed');
+                    } finally {
+                        setLoadingPlanStatus(false);
+                    }
+                }
+            } catch (e: any) {
+                console.error('获取订阅列表失败:', e);
+            } finally {
+                setLoadingSubscription(false);
+            }
+        };
+
+        // 3. 获取统计数据（独立）
+        const fetchStats = async () => {
+            try {
+                setLoadingStats(true);
+                const res = await studentService.getStudentStats();
+                if (res) {
+                    setStatsData(res);
+                }
+            } catch (e: any) {
+                console.error('获取统计数据失败:', e);
+            } finally {
+                setLoadingStats(false);
+            }
+        };
+
+        // 并行执行所有独立请求
+        Promise.all([
+            fetchProfile(),
+            fetchSubscription(),
+            fetchStats()
+        ]);
+    }, [session?.user.id]);
 
     // 打开问卷编辑对话框（不跳转）
     const handleEditQuestionnaire = async () => {
@@ -169,13 +268,10 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
         }
     };
 
-    useEffect(() => {
-        if (session?.user.id) {
-            fetchData();
-        }
-    }, [session?.user.id]);
+    // 判断是否所有关键数据都已加载（至少要有 profile 才能显示页面）
+    const isInitialLoading = loadingProfile && loadingSubscription && loadingStats;
 
-    if (loading) {
+    if (isInitialLoading) {
         return (
             <div className="p-6 space-y-6 max-w-5xl mx-auto">
                 <Skeleton height="300px" className="rounded-2xl" />
@@ -193,22 +289,53 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
         );
     }
 
-    if (error) return <div className="p-6 text-red-600 text-center">{error}</div>;
-    if (!data) return null;
+    if (error && !profileData) return <div className="p-6 text-red-600 text-center">{error}</div>;
 
     return (
         <>
             <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
-                <ProfileHeader data={data} />
+                {/* 合并后的头像和个人信息板块 - 小红书风格 */}
+                {loadingProfile ? (
+                    <Skeleton height="300px" className="rounded-2xl" />
+                ) : data ? (
+                    <>
+                        <ProfileHeaderMerged
+                            data={data}
+                            onUpdate={fetchData}
+                            onEditClick={() => setPersonalInfoEditing(true)}
+                        />
 
-                {/* 个人信息：置顶（你要求的） */}
-                <PersonalInfoSection data={data} onUpdate={fetchData} />
+                        {/* 个人信息编辑对话框（通过合并组件触发） */}
+                        <PersonalInfoSection
+                            data={data}
+                            onUpdate={fetchData}
+                            editingVisible={personalInfoEditing}
+                            onEditingChange={setPersonalInfoEditing}
+                            hideDisplay={true}
+                        />
+                    </>
+                ) : null}
 
                 {/* 首屏：高频信息尽量上移（运动数据 + 教练评语） */}
                 <div className="space-y-3 sm:space-y-4">
-                    <SportCardsDisplay sportCards={data.profile?.sport_cards as any} />
-                    <CoachNotesSection data={data} userId={session?.user.id} />
-                    <StrengthProgressSection session={session} subscription={subscription} />
+                    {/* 运动卡片 - 依赖 profile */}
+                    {loadingProfile ? (
+                        <Skeleton height="150px" className="rounded-2xl" />
+                    ) : profileData?.profile?.sport_cards ? (
+                        <SportCardsDisplay sportCards={profileData.profile.sport_cards as any} />
+                    ) : null}
+
+                    {/* 教练评语 - 独立组件，自己管理 loading */}
+                    {data && session?.user.id && (
+                        <CoachNotesSection data={data} userId={session.user.id} />
+                    )}
+
+                    {/* 力量进步曲线 - 依赖 subscription */}
+                    {loadingSubscription ? (
+                        <Skeleton height="200px" className="rounded-2xl" />
+                    ) : (
+                        <StrengthProgressSection session={session} subscription={subscription} />
+                    )}
                 </div>
 
                 {/* 方案B：Tab 分页，避免无限下滑 */}
@@ -241,7 +368,9 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                             }
                         >
                             <div className="p-4 sm:p-6">
-                                {subscription && subscription.subscribe_data ? (
+                                {loadingSubscription || loadingPlanStatus ? (
+                                    <Skeleton height="200px" className="rounded-2xl" />
+                                ) : subscription && subscription.subscribe_data ? (
                                     <PlanPreferencesDisplay
                                         subscribeData={subscription.subscribe_data}
                                         coachId={subscription.coach?.user_id || subscription.coach_id}

@@ -84,7 +84,7 @@ const SportChartDisplay = ({
 
     return (
         <div className={`
-            bg-white rounded-[24px] border border-surface-100 mb-3 transition-all duration-300
+            bg-surface rounded-[24px] border border-surface-100 mb-3 transition-all duration-300
             ${isExpanded ? 'shadow-[0_12px_40px_rgba(0,0,0,0.08)]' : 'shadow-sm'}
         `}>
             {/* 可点击的 Header */}
@@ -111,7 +111,6 @@ const SportChartDisplay = ({
                 <div className="flex items-center gap-4">
                     {showTotalWeight(sportKey) && data && (
                         <div className="flex flex-col items-end">
-                            <span className="text-[9px] font-black text-surface-400 uppercase tracking-widest leading-none mb-1">Total</span>
                             <span className={`text-lg font-black leading-none transition-colors ${isExpanded ? 'text-[#F28631]' : 'text-surface-900'}`}>
                                 {getTotalWeight(sportKey, data)}<small className="text-[10px] ml-0.5 font-bold">kg</small>
                             </span>

@@ -36,7 +36,7 @@ const CoachProfilePage: React.FC = () => {
     const { showToast } = useToastContext();
     const { data: session } = useSession();
 
-    const SUBSCRIBE_TAB_INDEX = 3;
+    const SUBSCRIBE_TAB_INDEX = 1; // 订阅价格现在在第二栏（index 1）
 
     const goToSubscribeTab = useCallback(() => {
         setActiveTab(SUBSCRIBE_TAB_INDEX);
@@ -111,6 +111,7 @@ const CoachProfilePage: React.FC = () => {
     };
 
     const initSubscriptions = async () => {
+        if (!session?.user?.id) return;
         const res = await subscriptionService.getCoachSubscriptions({
             studentId: session?.user.id || '',
             onlyActive: false
@@ -130,8 +131,13 @@ const CoachProfilePage: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (!session?.user?.id) {
+            setMySubscriptions([]);
+            setUserSubscription(null);
+            return;
+        }
         initSubscriptions();
-    }, [session]);
+    }, [session?.user?.id]);
 
 
     // 添加骨架屏组件
