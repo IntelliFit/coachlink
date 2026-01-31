@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Avatar } from 'primereact/avatar';
 import { StudentSubscription } from '@/app/api/coach/list-students/entity';
@@ -21,6 +21,7 @@ import { E1RMProgressChart } from '@/components/student/profile/E1RMProgressChar
 import { StudentPlanHistory } from '@/components/coach/StudentPlanHistory';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
+import { actionLibService } from '@/app/service/actionLibService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { useToastContext } from '@/context/ToastContext';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
@@ -34,9 +35,11 @@ interface StudentDetailDialogProps {
     onShowReviewDialog?: () => void;
     onShowChatDialog?: () => void;
     onStudentUpdate?: (updatedStudent: Partial<StudentSubscription>) => void;
+    /** 退款成功后回调（用于刷新学员列表） */
+    onRefundSuccess?: () => void;
 }
 
-export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog, onStudentUpdate }: StudentDetailDialogProps) => {
+export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowReviewDialog, onShowChatDialog, onStudentUpdate, onRefundSuccess }: StudentDetailDialogProps) => {
     const profile = student?.profile;
     
     // 编辑prior_training_weeks的状态
@@ -53,8 +56,73 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
+    const [optionMap, setOptionMap] = useState<Record<string, string[]>>({});
+    const [autoComputeActions, setAutoComputeActions] = useState<{ id: string; name: string }[]>([]);
+    const [loadingActions, setLoadingActions] = useState(false);
+    const [refunding, setRefunding] = useState(false);
 
     const { showToast } = useToastContext();
+
+    const parseDateSafe = (value: string | null | undefined) => {
+        if (!value) return null;
+        const d = new Date(value as any);
+        return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    const formatDate = (value: string | null | undefined, fallback: string = '未开始') => {
+        const d = parseDateSafe(value);
+        if (!d) return fallback;
+        return d.toLocaleDateString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    // 当切换学员时，重置编辑态和编辑值，避免“上一个学员的值”残留
+    useEffect(() => {
+        if (!student) return;
+        setIsEditingPriorWeeks(false);
+        setIsSavingPriorWeeks(false);
+        setPriorWeeksValue(student.prior_training_weeks ?? 0);
+
+        setIsEditingEndDate(false);
+        setIsSavingEndDate(false);
+        setEndDateValue(student.end_date ? new Date(student.end_date as any) : null);
+    }, [student?.id]);
+
+    useEffect(() => {
+        if (!visible || !student) return;
+        const hasOption = Array.isArray(student.subscribe_data) && student.subscribe_data.some((it: any) => it?.type === 'option');
+        const hasRm = Array.isArray(student.subscribe_data) && student.subscribe_data.some((it: any) => it?.type === 'rm');
+
+        const loadOptions = async () => {
+            if (!hasOption) return;
+            const res = await coachService.getQuestionnaires();
+            const qs = res?.questionnaires || [];
+            const map: Record<string, string[]> = {};
+            qs.forEach((q: any) => {
+                if (q?.id && Array.isArray(q.options)) {
+                    map[q.id] = q.options;
+                }
+            });
+            setOptionMap(map);
+        };
+
+        const loadActions = async () => {
+            if (!hasRm || !coach?.user_id) return;
+            setLoadingActions(true);
+            try {
+                const res = await actionLibService.listAutoComputeActions({ coachId: coach.user_id });
+                setAutoComputeActions(res?.actions || []);
+            } finally {
+                setLoadingActions(false);
+            }
+        };
+
+        loadOptions();
+        loadActions();
+    }, [visible, student, coach?.user_id]);
 
     // 保存prior_training_weeks
     const savePriorTrainingWeeks = async () => {
@@ -75,13 +143,51 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     };
 
     const getRemainingDuration = () => {
-        if (!student?.end_date) return '长期';
-        const end = new Date(student.end_date);
+        const startDate = parseDateSafe(student?.start_date ?? null);
+        
+        // 如果还没开始训练，显示"未开始"
+        if (!startDate) {
+            return '未开始';
+        }
+        
+        const endDate = parseDateSafe(student?.end_date ?? null);
         const now = new Date();
-        const diff = end.getTime() - now.getTime();
-        if (diff < 0) return '已过期';
-        const weeks = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
-        return `${weeks} 周`;
+        
+        // 如果有 end_date（系统计算的预计完成日），显示预计剩余时间
+        if (endDate) {
+            const diff = endDate.getTime() - now.getTime();
+            if (diff < 0) {
+                return '已过期';
+            }
+            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+            if (days < 7) {
+                return `预计剩余 ${days} 天`;
+            }
+            const weeks = Math.floor(days / 7);
+            const remainingDays = days % 7;
+            if (remainingDays === 0) {
+                return `预计剩余 ${weeks} 周`;
+            }
+            return `预计剩余 ${weeks} 周 ${remainingDays} 天`;
+        }
+        
+        // 如果没有 end_date，但已开始训练，根据 subscribed_weeks 估算
+        // 注意：这是粗略估算，实际应该由后端根据 credits 计算
+        const subscribedWeeks = student?.subscribed_weeks ?? 0;
+        if (subscribedWeeks > 0) {
+            // 粗略估算：假设每周训练 3 次，从开始日期算起
+            const elapsedDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            const elapsedWeeks = Math.floor(elapsedDays / 7);
+            const remainingWeeks = Math.max(0, subscribedWeeks - elapsedWeeks);
+            if (remainingWeeks > 0) {
+                return `预计剩余约 ${remainingWeeks} 周（估算）`;
+            } else {
+                return '预计已完成';
+            }
+        }
+        
+        // 兜底：无法确定
+        return '待计算';
     };
 
     const saveEndDate = async () => {
@@ -123,16 +229,17 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
 
     // 保存问卷
     const handleSaveQuestionnaire = async (answers: TrainingItem[]) => {
+        if (!student?.id) return;
         try {
-            const res = await fetch('/api/subscription/update-questionnaire', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subscriptionId: student.id, subscribeData: answers })
+            const res = await subscriptionService.updateQuestionnaire({
+                id: student.id,
+                questionnaires: answers,
             });
-            if (res.ok) {
+            if (res?.id) {
                 showToast({ severity: 'success', summary: '问卷更新成功' });
                 setQuestionnaireVisible(false);
-                onStudentUpdate?.({ ...student, subscribe_data: { answers } as any });
+                // subscribe_data 新结构就是 TrainingItem[]
+                onStudentUpdate?.({ ...student, subscribe_data: answers as any });
             } else {
                 showToast({ severity: 'error', summary: '问卷更新失败' });
             }
@@ -141,24 +248,53 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         }
     };
 
+    /** 平台支付订单可退款：调用退款 API 并同步取消订阅 */
+    const canRefundSubscription = student?.payment_method === 'platform_alipay' && (student?.order_id || student?.last_payment_order_id);
+    const refundOrderId = student?.last_payment_order_id ?? student?.order_id ?? null;
+
+    const handleRefund = async () => {
+        if (!refundOrderId || !student) return;
+        if (!confirm('确定要对该学员的该笔订单退款吗？将同步取消其订阅并扣减您的钱包余额。')) return;
+        setRefunding(true);
+        try {
+            const res = await fetch('/api/payment/alipay/refund', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: refundOrderId, refundReason: '教练/学员申请退款' }),
+            });
+            const data = await res.json();
+            if (data?.success) {
+                showToast({ severity: 'success', summary: '退款成功', detail: '已同步取消订阅' });
+                onStudentUpdate?.({ ...student, status: 'cancelled', order_id: null, last_payment_order_id: null, payment_method: null });
+                onRefundSuccess?.();
+                onHide();
+            } else {
+                showToast({ severity: 'error', summary: '退款失败', detail: data?.message || '请稍后重试' });
+            }
+        } catch (e) {
+            showToast({ severity: 'error', summary: '退款失败', detail: (e as Error)?.message });
+        } finally {
+            setRefunding(false);
+        }
+    };
+
     if (!student) return null;
 
     const getPendingReviews = () => student.uploaded - student.reviewed;
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('zh-CN', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-
     // 计算总训练周数
     const getTotalTrainingWeeks = () => {
         const priorWeeks = student.prior_training_weeks || 0;
-        const startDate = new Date(student.start_date);
+        const startDate = parseDateSafe(student.start_date);
+        if (!startDate) {
+            // 没有开始日期：只显示迁入前周数，平台内为 0
+            return priorWeeks;
+        }
         const now = new Date();
-        const platformWeeks = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        // 若已设置 end_date 且已过期，则平台内周数用 end_date 截止，避免“无限增长”
+        const endDate = parseDateSafe(student.end_date);
+        const effectiveEnd = endDate && endDate.getTime() < now.getTime() ? endDate : now;
+        const platformWeeks = Math.floor((effectiveEnd.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
         return priorWeeks + Math.max(0, platformWeeks);
     };
 
@@ -211,6 +347,15 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             </div>
                         </div>
                         <div className="flex gap-2 flex-wrap justify-end">
+                            {canRefundSubscription && (
+                                <Button
+                                    label="退款"
+                                    icon="pi pi-undo"
+                                    className="text-xs uppercase rounded-xl text-amber-600 hover:bg-amber-50 border-amber-200 transition-all active:scale-95 [&_.p-button-label]:hidden sm:[&_.p-button-label]:inline"
+                                    loading={refunding}
+                                    onClick={handleRefund}
+                                />
+                            )}
                             <Button
                                 label="评价"
                                 icon={<MessageSquare size={16} className="mr-2" />}
@@ -245,7 +390,7 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                             <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-primary shadow-sm"><Calendar size={16} /></div>
                             <div>
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">开始日期</p>
-                                <p className="text-xs font-black text-surface-700">{formatDate(student.start_date)}</p>
+                                <p className="text-xs font-black text-surface-700">{formatDate(student.start_date, '未开始')}</p>
                             </div>
                         </div>
                         <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
@@ -479,12 +624,24 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                         inputs &&
                                         typeof inputs === 'object' &&
                                         Object.values(inputs).some((n: any) => typeof n === 'number' && n > 0);
-                                    return hasAny ? '已填写 RM 数据' : '未填写';
+                                    if (!hasAny) return '未填写';
+                                    if (!autoComputeActions.length) return '已填写 RM 数据';
+                                    const lines = autoComputeActions
+                                        .map((a) => {
+                                            const v = inputs?.[a.id];
+                                            return typeof v === 'number' && v > 0 ? `${a.name} ${v}kg` : null;
+                                        })
+                                        .filter(Boolean) as string[];
+                                    return lines.length > 0 ? lines.join('，') : '已填写 RM 数据';
                                 }
                                 case 'option': {
                                     if (typeof item.userSelection === 'number') {
                                         const opts = Array.isArray(item.options) ? item.options : [];
-                                        return opts[item.userSelection] ?? `选项 ${item.userSelection + 1}`;
+                                        if (opts[item.userSelection]) return opts[item.userSelection];
+                                        if (item.id && optionMap[item.id] && optionMap[item.id][item.userSelection]) {
+                                            return optionMap[item.id][item.userSelection];
+                                        }
+                                        return `选项 ${item.userSelection + 1}`;
                                     }
                                     return '未填写';
                                 }

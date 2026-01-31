@@ -16,6 +16,7 @@ import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface SetData {
     set_number: number;
@@ -54,6 +55,7 @@ function TrainingExecutionContent() {
     const searchParams = useSearchParams();
     const { data: session } = useSession();
     const { showToast } = useToastContext();
+    const { trackEvent } = useAnalytics();
 
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
@@ -61,6 +63,8 @@ function TrainingExecutionContent() {
     const [loading, setLoading] = useState(true);
     const [execution, setExecution] = useState<any>(null);
     const [actions, setActions] = useState<Record<string, any>>({});
+    const [planInstance, setPlanInstance] = useState<any>(null);
+    const [planDescExpanded, setPlanDescExpanded] = useState(false);
     const [expandedAction, setExpandedAction] = useState<number>(0);
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
@@ -69,6 +73,12 @@ function TrainingExecutionContent() {
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
+
+    // 超时未结束提醒（in_progress 挂太久）
+    const [staleReminderVisible, setStaleReminderVisible] = useState(false);
+    const [staleHours, setStaleHours] = useState<number>(0);
+    const [staleExecutionId, setStaleExecutionId] = useState<string | null>(null);
+    const STALE_THRESHOLD_HOURS = 10; // 可按产品调整：10/24
 
     // Form state for current set
     const [weight, setWeight] = useState<number | null>(null);
@@ -178,6 +188,9 @@ function TrainingExecutionContent() {
             if (instanceRes?.actions) {
                 setActions(instanceRes.actions);
             }
+            if (instanceRes?.instance) {
+                setPlanInstance(instanceRes.instance);
+            }
 
             // Start or resume execution
             const res = await executionService.startExecution({
@@ -187,6 +200,31 @@ function TrainingExecutionContent() {
 
             if (res.success && res.data) {
                 setExecution(res.data);
+                trackEvent('student_training_start', 'training', { 
+                    planId: (res.data as any).plan_id, 
+                    executionId: (res.data as any).id,
+                    instanceId 
+                });
+
+                // 超时提醒：只要该训练日存在 in_progress 且 started_at 距今超过阈值，就弹出提醒
+                try {
+                    const exec = res.data as any;
+                    if (exec?.status === 'in_progress' && exec?.started_at) {
+                        const startedAtMs = new Date(exec.started_at).getTime();
+                        const nowMs = Date.now();
+                        const hours = Math.floor((nowMs - startedAtMs) / (1000 * 60 * 60));
+                        const snoozeKey = `coachlink:stale-exec-snooze:${exec.id}`;
+                        const snoozeUntil = Number(localStorage.getItem(snoozeKey) || 0);
+
+                        if (Number.isFinite(hours) && hours >= STALE_THRESHOLD_HOURS && nowMs >= snoozeUntil) {
+                            setStaleHours(hours);
+                            setStaleExecutionId(exec.id);
+                            setStaleReminderVisible(true);
+                        }
+                    }
+                } catch {
+                    // best-effort
+                }
                 
                 // Find first incomplete set
                 const actionExecutions = res.data.action_executions || [];
@@ -215,6 +253,62 @@ function TrainingExecutionContent() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const snoozeStaleReminder = (hours: number) => {
+        if (!staleExecutionId) {
+            setStaleReminderVisible(false);
+            return;
+        }
+        try {
+            const key = `coachlink:stale-exec-snooze:${staleExecutionId}`;
+            localStorage.setItem(key, String(Date.now() + hours * 60 * 60 * 1000));
+        } catch {
+            // ignore
+        } finally {
+            setStaleReminderVisible(false);
+        }
+    };
+
+    const handleQuickFinish = async () => {
+        if (!staleExecutionId) return;
+        try {
+            setCompleting(true);
+            const res = await executionService.finishTraining({ executionId: staleExecutionId });
+            if (res?.success && res.data) {
+                trackEvent('student_training_complete', 'training', { 
+                    planId: execution.plan_id, 
+                    executionId: execution.id,
+                    method: 'quick_finish'
+                });
+                setExecution((prev: any) => ({
+                    ...(prev || {}),
+                    status: 'completed',
+                    completed_at: (res.data as any).completed_at || new Date().toISOString(),
+                }));
+                showToast({
+                    severity: 'success',
+                    summary: '已确认完成',
+                    detail: '训练已标记为完成',
+                });
+                setStaleReminderVisible(false);
+            } else {
+                showToast({
+                    severity: 'warn',
+                    summary: '确认失败',
+                    detail: res?.message || '无法确认完成，请稍后重试',
+                });
+            }
+        } catch (e) {
+            console.error('quick finish failed:', e);
+            showToast({
+                severity: 'error',
+                summary: '确认失败',
+                detail: '无法确认完成，请稍后重试',
+            });
+        } finally {
+            setCompleting(false);
         }
     };
 
@@ -292,16 +386,16 @@ function TrainingExecutionContent() {
                         setNumber: setIndex + 1,
                         videoUrl: videoLink.trim(),
                     });
-                    if (res.success && res.data?.id && res.data.video_url) {
-                        setLinkedVideo({ id: res.data.id, url: res.data.video_url });
-                        uploadedVideoUrl = res.data.video_url;
-                        uploadedVideoId = res.data.id;
+                    if (res && res.id && res.video_url) {
+                        setLinkedVideo({ id: res.id, url: res.video_url });
+                        uploadedVideoUrl = res.video_url;
+                        uploadedVideoId = res.id;
                         hasVideo = true;
                     } else {
                         showToast({
                             severity: "warn",
                             summary: "链接绑定失败",
-                            detail: res.message || "将继续保存本组，但不会附带视频链接",
+                            detail: "将继续保存本组，但不会附带视频链接",
                         });
                     }
                 } finally {
@@ -324,12 +418,19 @@ function TrainingExecutionContent() {
                         actionExecution.action_id,
                         setIndex + 1
                     );
-                    if (uploadRes?.success && uploadRes?.data?.video_url) {
-                        uploadedVideoUrl = uploadRes.data.video_url;
-                        uploadedVideoId = uploadRes.data.id;
+                    if (uploadRes?.video_url) {
+                        uploadedVideoUrl = uploadRes.video_url;
+                        uploadedVideoId = uploadRes.id;
                         hasVideo = true;
+                        
+                        // Track video upload
+                        trackEvent('student_video_upload', 'training', { 
+                            execution_id: execution.id, 
+                            action_id: actionExecution.action_id,
+                            set_index: setIndex
+                        });
                     } else {
-                        const msg = uploadRes?.message || '视频上传失败';
+                        const msg = '视频上传失败';
                         showToast({
                             severity: 'warn',
                             summary: '视频上传失败',
@@ -363,11 +464,23 @@ function TrainingExecutionContent() {
                 has_video: hasVideo
             });
 
-            if (res.success) {
+            if (res) {
+                // Track set completion
+                trackEvent('student_set_complete', 'training', {
+                    execution_id: execution.id,
+                    action_id: actionExecution.action_id,
+                    set_index: setIndex,
+                    weight: weight,
+                    reps: reps,
+                    rpe: rpe,
+                    is_pr: markAsPR || res.autoE1RM?.isPR,
+                    has_video: hasVideo
+                });
+
                 // Check for auto-detected PR (e1RM system)
-                if (res.data?.autoE1RM?.isPR) {
-                    const e1rm = res.data.autoE1RM.e1rm;
-                    const previousPR = res.data.autoE1RM.previousPR;
+                if (res.autoE1RM?.isPR) {
+                    const e1rm = res.autoE1RM.e1rm;
+                    const previousPR = res.autoE1RM.previousPR;
                     const improvement = previousPR ? (e1rm - previousPR).toFixed(1) : null;
                     
                     showToast({
@@ -393,6 +506,14 @@ function TrainingExecutionContent() {
                         notes: setNotes || undefined,
                         videoId: uploadedVideoId
                     });
+
+                    trackEvent('student_pr_record', 'training', {
+                        execution_id: execution.id,
+                        action_id: actionExecution.action_id,
+                        type: 'manual',
+                        weight: weight,
+                        reps: reps
+                    });
                 }
 
                 // 4. Update local state
@@ -408,13 +529,13 @@ function TrainingExecutionContent() {
                     has_video: hasVideo,
                     video_url: uploadedVideoUrl,
                     // Add e1RM info
-                    e1rm: res.data?.autoE1RM?.e1rm,
-                    is_auto_pr: res.data?.autoE1RM?.isPR
+                    e1rm: res.autoE1RM?.e1rm,
+                    is_auto_pr: res.autoE1RM?.isPR
                 };
             // Recalculate completion counts (editing should not "++" counts)
             updatedExecution.action_executions[actionIndex].completed_sets =
                 updatedExecution.action_executions[actionIndex].sets.filter((s: any) => s.status === 'completed').length;
-            updatedExecution.completed_sets = res.data?.completedSets ?? updatedExecution.action_executions.reduce(
+            updatedExecution.completed_sets = res.completedSets ?? updatedExecution.action_executions.reduce(
                 (sum: number, ae: any) => sum + (ae.completed_sets || 0),
                 0
             );
@@ -433,6 +554,16 @@ function TrainingExecutionContent() {
             setEditingSetKey(null);
             // Keep details expanded for edited set so user can confirm changes
             setExpandedSetKey(setKeyOf(actionIndex, setIndex));
+
+            // Bug 4 fix: 提供完成组的即时反馈
+            if (!isEditing) {
+                showToast({
+                    severity: 'success',
+                    summary: '✓ 完成',
+                    detail: `第${setData.set_number}组 已记录`,
+                    life: 1500
+                });
+            }
 
             // Editing a completed set should not trigger rest timer or auto-advance
             if (!isEditing) {
@@ -497,7 +628,7 @@ function TrainingExecutionContent() {
                 notes: sessionNotes // Reuse session notes or add specific field if needed
             });
 
-            if (res.success) {
+            if (res) {
                 // Update local state
                 const updatedExecution = { ...execution };
                 const setData = updatedExecution.action_executions[actionIndex].sets[0];
@@ -512,7 +643,7 @@ function TrainingExecutionContent() {
                 };
                 
                 updatedExecution.action_executions[actionIndex].completed_sets = 1;
-                updatedExecution.completed_sets = res.data?.completedSets || execution.completed_sets + 1;
+                updatedExecution.completed_sets = res.completedSets || execution.completed_sets + 1;
                 setExecution(updatedExecution);
 
                 // Reset forms
@@ -558,17 +689,35 @@ function TrainingExecutionContent() {
                 sessionNotes: sessionNotes || undefined
             });
 
-            if (res.success) {
+            if (res) {
+                trackEvent('student_training_complete', 'training', { 
+                    planId: execution.plan_id, 
+                    executionId: execution.id
+                });
+
                 showToast({
                     severity: 'success',
                     summary: '训练完成',
-                    detail: `完成 ${res.data?.completed_sets}/${res.data?.total_sets} 组`
+                    detail: `完成 ${res.completed_sets}/${res.total_sets} 组`
                 });
                 // Instead of immediate redirect, show share card
                 setShareModalVisible(true);
+            } else {
+                // Bug 5 fix: 处理 API 返回失败的情况
+                showToast({
+                    severity: 'error',
+                    summary: '完成训练失败',
+                    detail: '请稍后重试'
+                });
             }
         } catch (error) {
             console.error('Finish training failed:', error);
+            // Bug 5 fix: 提供错误反馈
+            showToast({
+                severity: 'error',
+                summary: '完成训练失败',
+                detail: '网络错误，请稍后重试'
+            });
         }
     };
 
@@ -618,8 +767,62 @@ function TrainingExecutionContent() {
         ? Math.round((execution.completed_sets / execution.total_sets) * 100) 
         : 0;
 
+    const planDescriptionText = String(planInstance?.description || '').trim();
+    const planNameText = String(planInstance?.name || '').trim();
+    const planDescriptionPreview = planDescriptionText.length > 140
+        ? `${planDescriptionText.slice(0, 140)}…`
+        : planDescriptionText;
+
     return (
         <div className="min-h-screen bg-surface-50">
+            {/* 超时未结束提醒 */}
+            <Dialog
+                header="训练未结束提醒"
+                visible={staleReminderVisible}
+                onHide={() => setStaleReminderVisible(false)}
+                draggable={false}
+                resizable={false}
+                className="w-[min(92vw,520px)]"
+            >
+                <div className="space-y-3 text-sm text-surface-700 leading-relaxed">
+                    <p>
+                        这次训练已经开始 {staleHours} 小时了，但状态仍是 <strong>进行中</strong>。
+                        如果你已经练完但忘记点击“完成训练”，可以在这里快速确认；如果还没练完，就直接继续训练即可。
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                        <Button
+                            label={completing ? '确认中...' : '我已练完，一键确认完成'}
+                            icon="pi pi-check"
+                            onClick={handleQuickFinish}
+                            disabled={completing}
+                            className="w-full sm:w-auto"
+                        />
+                        <Button
+                            label="继续训练"
+                            icon="pi pi-play"
+                            onClick={() => setStaleReminderVisible(false)}
+                            className="w-full sm:w-auto"
+                            severity="secondary"
+                            outlined
+                        />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                        <Button
+                            label="6小时后再提醒"
+                            onClick={() => snoozeStaleReminder(6)}
+                            className="p-button-text p-button-sm"
+                        />
+                        <Button
+                            label="今天不再提醒"
+                            onClick={() => snoozeStaleReminder(24)}
+                            className="p-button-text p-button-sm"
+                        />
+                    </div>
+                    <p className="text-xs text-surface-500">
+                        提醒阈值当前为 {STALE_THRESHOLD_HOURS} 小时（可配置）。
+                    </p>
+                </div>
+            </Dialog>
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 sticky top-0 z-10">
                 <div className="flex items-center justify-between mb-3">
@@ -633,6 +836,38 @@ function TrainingExecutionContent() {
                 </div>
                 <ProgressBar value={progress} showValue={false} style={{ height: '8px' }} />
             </div>
+
+            {/* Plan global description (template/instance description) */}
+            {(planNameText || planDescriptionText) && (
+                <div className="px-4 pt-4">
+                    <div className="bg-surface-0 border border-surface-200/70 rounded-2xl p-4">
+                        {planNameText ? (
+                            <div className="text-sm font-bold text-surface-900 mb-1">
+                                {planNameText}
+                            </div>
+                        ) : null}
+                        {planDescriptionText ? (
+                            <div className="text-sm text-surface-700 whitespace-pre-line">
+                                {planDescExpanded ? planDescriptionText : planDescriptionPreview}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-surface-500">
+                                暂无计划说明
+                            </div>
+                        )}
+                        {planDescriptionText && planDescriptionText.length > 140 ? (
+                            <div className="mt-3">
+                                <Button
+                                    label={planDescExpanded ? '收起' : '展开'}
+                                    icon={planDescExpanded ? 'pi pi-chevron-up' : 'pi pi-chevron-down'}
+                                    className="p-button-text p-button-sm"
+                                    onClick={() => setPlanDescExpanded((v) => !v)}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
 
             {/* Rest Timer Overlay */}
             {isResting && (
@@ -752,7 +987,13 @@ function TrainingExecutionContent() {
                                             const isEditingThisSet = editingSetKey === key;
                                             const showSetForm = isCurrentSet && (!isSetCompleted || isEditingThisSet);
                                             const allowNegativeWeight = !!(action?.includesBodyWeight ?? (action as any)?.includes_body_weight);
-                                            const plannedText = `${setData.planned_weight || '-'} × ${setData.planned_reps || '-'}次`;
+                                            const plannedRepsText = setData.planned_reps === null ||
+                                                setData.planned_reps === undefined ||
+                                                String(setData.planned_reps).trim() === "" ||
+                                                String(setData.planned_reps).trim() === "0"
+                                                ? "自选"
+                                                : String(setData.planned_reps);
+                                            const plannedText = `${setData.planned_weight || '-'} × ${plannedRepsText}次`;
                                             const actualText = `${setData.actual_weight ?? '-'}kg · ${setData.actual_reps ?? '-'}次`;
 
                                             return (
@@ -772,6 +1013,15 @@ function TrainingExecutionContent() {
                                                                         onClick={() => {
                                                             // 未完成组：点击直接切换为当前编辑组
                                                             if (!isSetCompleted) {
+                                                                // Bug 3 Fix: 手动切换组时重置输入状态，防止"重量联动"
+                                                                if (currentSetIndex !== setIndex) {
+                                                                    setWeight(null);
+                                                                    setReps(null);
+                                                                    setRpe(null);
+                                                                    setSetNotes('');
+                                                                    setMarkAsPR(false);
+                                                                }
+
                                                                 setExpandedAction(actionIndex);
                                                                 setCurrentSetIndex(setIndex);
                                                                 setShowOptionalFields(false);
@@ -1003,12 +1253,12 @@ function TrainingExecutionContent() {
                                                                                     setUploading(true);
                                                                                     const res = await executionService.addSetVideoLink({
                                                                                         executionId: execution.id,
-                                                                                        actionId: actionExecution.action_id,
+                                                                                        actionId: execution.action_executions[actionIndex].action_id,
                                                                                         setNumber: setIndex + 1,
                                                                                         videoUrl: url,
                                                                                     });
-                                                                                    if (res.success && res.data?.id && res.data.video_url) {
-                                                                                        setLinkedVideo({ id: res.data.id, url: res.data.video_url });
+                                                                                    if (res && res.id && res.video_url) {
+                                                                                        setLinkedVideo({ id: res.id, url: res.video_url });
                                                                                         showToast({
                                                                                             severity: "success",
                                                                                             summary: "链接已绑定",
@@ -1018,7 +1268,7 @@ function TrainingExecutionContent() {
                                                                                         showToast({
                                                                                             severity: "error",
                                                                                             summary: "绑定失败",
-                                                                                            detail: res.message || "无法绑定链接",
+                                                                                            detail: "无法绑定链接",
                                                                                         });
                                                                                     }
                                                                                 } finally {

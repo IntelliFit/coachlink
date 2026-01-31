@@ -50,9 +50,11 @@ function isoDateKey(date: Date) {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
+    // 使用统一鉴权函数,支持session和token两种方式 （add）
+    const { getAuthUser } = await import('@/lib/auth');
+    const authResult = await getAuthUser(req);
 
-    if (!session || !session.user?.id) {
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: 'Unauthorized',
@@ -202,6 +204,7 @@ export async function POST(req: Request) {
                             day_index: e.day_index,
                             status: e.status,
                         })),
+                        startExecutionDay: Number(inst.start_execution_day || 1),
                     });
 
                     const remainingCredits = Math.max(0, totalCredits - usedCredits);

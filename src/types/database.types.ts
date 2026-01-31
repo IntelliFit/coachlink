@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_trace_events: {
+        Row: {
+          anon_id: string | null
+          created_at: string
+          duration_ms: number | null
+          env: string | null
+          event_type: string
+          from_path: string | null
+          id: string
+          leave_at: string | null
+          method: string | null
+          path: string | null
+          referrer: string | null
+          session_id: string | null
+          trace_id: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          anon_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          env?: string | null
+          event_type: string
+          from_path?: string | null
+          id?: string
+          leave_at?: string | null
+          method?: string | null
+          path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          trace_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          anon_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          env?: string | null
+          event_type?: string
+          from_path?: string | null
+          id?: string
+          leave_at?: string | null
+          method?: string | null
+          path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          trace_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           created_at: string | null
@@ -659,6 +716,68 @@ export type Database = {
           },
         ]
       }
+      coach_posters: {
+        Row: {
+          coach_id: string
+          created_at: string
+          generation_finished_at: string | null
+          generation_started_at: string | null
+          id: string
+          image_meta: Json
+          image_url: string | null
+          last_error: string | null
+          poster_type: string
+          requested_at: string
+          requested_by: string | null
+          status: string
+          storage_bucket: string | null
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          generation_finished_at?: string | null
+          generation_started_at?: string | null
+          id?: string
+          image_meta?: Json
+          image_url?: string | null
+          last_error?: string | null
+          poster_type?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          generation_finished_at?: string | null
+          generation_started_at?: string | null
+          id?: string
+          image_meta?: Json
+          image_url?: string | null
+          last_error?: string | null
+          poster_type?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_posters_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_pricing: {
         Row: {
           coach_id: string
@@ -700,7 +819,10 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          is_default: boolean
+          name: string
           questions: Json
+          status: string
           updated_at: string | null
           version: number | null
         }
@@ -709,7 +831,10 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
+          name?: string
           questions: Json
+          status?: string
           updated_at?: string | null
           version?: number | null
         }
@@ -718,7 +843,10 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
+          name?: string
           questions?: Json
+          status?: string
           updated_at?: string | null
           version?: number | null
         }
@@ -938,6 +1066,100 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alipay_accounts: {
+        Row: {
+          coach_id: string
+          created_at: string | null
+          id: string
+          payee_account: string
+          payee_type: string | null
+          real_name: string | null
+          verification_method: string | null
+          verified: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string | null
+          id?: string
+          payee_account: string
+          payee_type?: string | null
+          real_name?: string | null
+          verification_method?: string | null
+          verified?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string | null
+          id?: string
+          payee_account?: string
+          payee_type?: string | null
+          real_name?: string | null
+          verification_method?: string | null
+          verified?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alipay_accounts_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: true
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alipay_withdrawals: {
+        Row: {
+          alipay_order_id: string | null
+          alipay_response: Json | null
+          amount: number
+          coach_id: string
+          created_at: string | null
+          fee: number | null
+          id: string
+          out_biz_no: string | null
+          processed_at: string | null
+          status: string
+          wallet_id: string
+        }
+        Insert: {
+          alipay_order_id?: string | null
+          alipay_response?: Json | null
+          amount: number
+          coach_id: string
+          created_at?: string | null
+          fee?: number | null
+          id?: string
+          out_biz_no?: string | null
+          processed_at?: string | null
+          status?: string
+          wallet_id: string
+        }
+        Update: {
+          alipay_order_id?: string | null
+          alipay_response?: Json | null
+          amount?: number
+          coach_id?: string
+          created_at?: string | null
+          fee?: number | null
+          id?: string
+          out_biz_no?: string | null
+          processed_at?: string | null
+          status?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alipay_withdrawals_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
             referencedColumns: ["id"]
           },
         ]
@@ -1180,6 +1402,77 @@ export type Database = {
           {
             foreignKeyName: "execution_set_videos_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_releases: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          release_date: string
+          target_users: string | null
+          tracked_events: string[]
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          release_date: string
+          target_users?: string | null
+          tracked_events: string[]
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          release_date?: string
+          target_users?: string | null
+          tracked_events?: string[]
+        }
+        Relationships: []
+      }
+      feedbacks: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          related_question: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          related_question?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          related_question?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedbacks_user_id_fkey1"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -2022,6 +2315,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          keys_auth: string
+          keys_p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          keys_auth: string
+          keys_p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          keys_auth?: string
+          keys_p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       questionnaire_responses: {
         Row: {
@@ -3130,6 +3456,45 @@ export type Database = {
           },
         ]
       }
+      user_behavior_events: {
+        Row: {
+          created_at: string | null
+          device_type: string | null
+          event_category: string
+          event_data: Json | null
+          event_name: string
+          id: string
+          page_path: string | null
+          session_id: string | null
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_type?: string | null
+          event_category: string
+          event_data?: Json | null
+          event_name: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          created_at?: string | null
+          device_type?: string | null
+          event_category?: string
+          event_data?: Json | null
+          event_name?: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           address: string | null
@@ -3286,29 +3651,32 @@ export type Database = {
       }
       wallet_transactions: {
         Row: {
+          alipay_order_id: string | null
           amount: number
           created_at: string | null
           description: string | null
           id: string
-          related_order_id: string | null
+          related_income_tx_id: string | null
           type: string
           wallet_id: string | null
         }
         Insert: {
+          alipay_order_id?: string | null
           amount: number
           created_at?: string | null
           description?: string | null
           id?: string
-          related_order_id?: string | null
+          related_income_tx_id?: string | null
           type: string
           wallet_id?: string | null
         }
         Update: {
+          alipay_order_id?: string | null
           amount?: number
           created_at?: string | null
           description?: string | null
           id?: string
-          related_order_id?: string | null
+          related_income_tx_id?: string | null
           type?: string
           wallet_id?: string | null
         }
@@ -3336,6 +3704,25 @@ export type Database = {
           user_name: string | null
           user_notes: string | null
           video_url: string | null
+        }
+        Relationships: []
+      }
+      daily_active_users: {
+        Row: {
+          active_users: number | null
+          date: string | null
+          user_type: string | null
+        }
+        Relationships: []
+      }
+      feature_usage_stats: {
+        Row: {
+          date: string | null
+          event_category: string | null
+          event_name: string | null
+          unique_users: number | null
+          usage_count: number | null
+          user_type: string | null
         }
         Relationships: []
       }
@@ -3513,6 +3900,17 @@ export type Database = {
           rank: number
           video_url: string
           weight_kg: number
+        }[]
+      }
+      get_retention_data: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: {
+          d1_count: number
+          d3_count: number
+          d30_count: number
+          d7_count: number
+          date: string
+          new_users: number
         }[]
       }
       init_default_rulepacks: { Args: never; Returns: undefined }

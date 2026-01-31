@@ -2,6 +2,7 @@ import "@/assets/globals.css";
 
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
+import 'reactflow/dist/style.css';
 
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
@@ -10,16 +11,101 @@ import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
 import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primereact/api';
 import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
+import TraceReporter from '@/app/trace/component';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
+    const siteUrl = process.env.NEXTAUTH_URL || 'https://coachlink.fit';
+    const title = 'CoachLink 启能教链｜教练与学员的训练管理平台';
+    const description =
+        'CoachLink 启能教链，连接教练与学员：训练计划制定/AI 快速生成、今日训练一键开练、视频上传点评、PR 进步时间轴、自动负荷计算与数据分析。';
+    const keywords = [
+        'CoachLink',
+        '启能教链',
+        '教链',
+        '健身教练',
+        '私教',
+        '训练计划',
+        '今日训练',
+        '力量训练',
+        '街健',
+        '训练打卡',
+        '视频点评',
+        'PR',
+        '1RM',
+        '负荷计算',
+        'AI 训练计划',
+        '训练数据分析',
+        '教练学员管理',
+    ];
+
+    const googleSiteVerification =
+        process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+        process.env.GOOGLE_SITE_VERIFICATION ||
+        undefined;
+    const bingSiteVerification =
+        process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ||
+        process.env.BING_SITE_VERIFICATION ||
+        undefined;
+
     return {
-        title: '教链 CoachLink',
-        description: 'Coach-Client Management Platform',
-        keywords: '健身',
+        metadataBase: new URL(siteUrl),
+        title,
+        description,
+        keywords,
+        applicationName: 'CoachLink 教链',
+        authors: [{ name: 'CoachLink' }],
+        creator: 'CoachLink',
+        publisher: 'CoachLink',
+        robots: { index: true, follow: true },
+        verification: {
+            google: googleSiteVerification,
+            other: bingSiteVerification ? { 'msvalidate.01': bingSiteVerification } : undefined,
+        },
+        alternates: {
+            canonical: '/',
+        },
+        openGraph: {
+            type: 'website',
+            locale: 'zh_CN',
+            url: siteUrl,
+            siteName: 'CoachLink 启能教链',
+            title,
+            description,
+            images: [
+                {
+                    url: '/images/favicon.jpg',
+                    width: 1200,
+                    height: 630,
+                    alt: 'CoachLink 启能教链',
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: ['/images/favicon.jpg'],
+        },
+        manifest: '/site.webmanifest',
+        appleWebApp: {
+            capable: true,
+            statusBarStyle: 'black-translucent',
+            title: 'CoachLink 启能教链',
+        },
         icons: {
-            icon: "/favicon.jpg",
+            icon: [
+                { url: '/icons/favicon.ico', type: 'image/x-icon', sizes: 'any' },
+                { url: '/icons/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+                { url: '/icons/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+                { url: '/icons/favicon-48x48.png', type: 'image/png', sizes: '48x48' },
+            ],
+            shortcut: [{ url: '/icons/favicon.ico', type: 'image/x-icon', sizes: 'any' }],
+            apple: [{ url: '/icons/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
+        },
+        other: {
+            'mobile-web-app-capable': 'yes',
         },
     };
 }
@@ -42,8 +128,27 @@ export default function RootLayout({
         locale: 'en',
     };
 
+    const siteUrl = process.env.NEXTAUTH_URL || 'https://coachlink.fit';
+    const structuredData = {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        url: siteUrl,
+        name: 'CoachLink 启能教链',
+        alternateName: 'CoachLink 启能教链｜教练与学员的训练管理平台',
+        description:
+            'CoachLink 启能教链，连接教练与学员：训练计划制定/AI 快速生成、今日训练一键开练、视频上传点评、PR 进步时间轴、自动负荷计算与数据分析。',
+    };
+
     return (
-        <html lang="en">
+        <html lang="zh-CN">
+            <head>
+                <script
+                    type="application/ld+json"
+                    id="structured-data"
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+                />
+            </head>
             <body className={inter.className}>
                 <ThemeProvider>
                     <ClientLayout>
@@ -51,6 +156,8 @@ export default function RootLayout({
                             <ProfileSetupModalProvider>
                                 <Navigation />
                             </ProfileSetupModalProvider>
+
+                            <TraceReporter />
 
                             {children}
                         </PrimeReactProvider>

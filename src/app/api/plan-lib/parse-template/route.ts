@@ -8,6 +8,11 @@ import {
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
+import {
+    findFirstLineForAction,
+    lineHasExplicitReps,
+    splitPlanGlobalPreface,
+} from "@/lib/planImportText";
 
 /**
  * 简单的中文数字转数字（支持到二十内，满足周数场景）
@@ -167,8 +172,12 @@ function normalizeWeekDays(days: any[], weekIndex: number) {
 export async function POST(req: Request) {
     let payload: ParseTemplateDto;
     try {
-        payload = await req.json() as ParseTemplateDto;
+        // Use text+JSON.parse for better error visibility and BOM tolerance.
+        const raw = await req.text();
+        const cleaned = raw.replace(/^\uFEFF/, "").trim();
+        payload = JSON.parse(cleaned) as ParseTemplateDto;
     } catch (error) {
+        console.error("parse-template: invalid JSON body", error);
         return NextResponse.json({
             success: false,
             message: "请求体不是有效 JSON",
@@ -210,8 +219,12 @@ export async function POST(req: Request) {
     }
 
     try {
+        // 提取“全局说明”（如热身/执行说明），并用正文做结构解析，避免说明污染解析结果
+        const { globalDescription, bodyText } = splitPlanGlobalPreface(text);
+        const planText = bodyText.trim() ? bodyText : text;
+
         // 按周拆分，逐段解析，减少截断风险并加速
-        const sections = splitPlanByWeekSections(text);
+        const sections = splitPlanByWeekSections(planText);
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 
@@ -281,6 +294,7 @@ export async function POST(req: Request) {
                                 actionId: action.actionId,
                                 sets: action.sets,
                                 reps: action.reps,
+                                durationSeconds: (action as any).durationSeconds ?? null,
                                 restSeconds: action.restSeconds || 180,
                                 intensityConfig: processedIntensityConfig,
                                 note: action.note,
@@ -288,6 +302,30 @@ export async function POST(req: Request) {
                         }),
                     }),
                 );
+
+                // Post-process: if the original line didn't explicitly specify reps, DO NOT guess reps.
+                // This avoids wrong "5组×5次 (5RM)" when user only wrote "5RM + 5组".
+                const actionNameById = new Map<string, string>(
+                    (actions || []).map((a: any) => [a.id, a.name]),
+                );
+                for (const d of sectionDaysRaw) {
+                    for (const a of d.actions || []) {
+                        const actionName = actionNameById.get(a.actionId) || "";
+                        const sourceLine = actionName
+                            ? findFirstLineForAction(section.text, actionName)
+                            : null;
+                        // If we can't locate the source line (name mismatch like "负重引体" vs "正手负重引体"),
+                        // DO NOT override model output. Only apply the "don't guess reps" rule when we found the line.
+                        const hasReps = sourceLine ? lineHasExplicitReps(sourceLine) : null;
+
+                        // If it is a timed action (durationSeconds provided), do not set reps.
+                        if ((a as any).durationSeconds) {
+                            a.reps = null;
+                        } else if (hasReps === false) {
+                            a.reps = null;
+                        }
+                    }
+                }
 
                 const normalizedDays = normalizeWeekDays(
                     sectionDaysRaw,
@@ -315,6 +353,7 @@ export async function POST(req: Request) {
             data: {
                 weeks: maxWeek || 1,
                 trainingDays: allTrainingDays,
+                globalDescription,
             },
         });
     } catch (error) {
@@ -334,9 +373,10 @@ function buildParseTemplatePrompt(
     actions: any[],
     fixedWeekIndex?: number,
 ): string {
-    const actionsListStr = actions.map((a) => `- ${a.name} (ID: ${a.id})`).join(
-        "\n",
-    );
+    const actionsListStr = actions.map((a) => {
+        const attrs = Array.isArray((a as any).attrs) ? (a as any).attrs : null;
+        return `- ${a.name} (ID: ${a.id}${attrs ? `, attrs: ${JSON.stringify(attrs)}` : ""})`;
+    }).join("\n");
 
     return `你是一个训练计划解析助手。
 
@@ -351,6 +391,13 @@ ${actionsListStr}
 - "5RM" 或 "5rm" 或 "5-6RM" → 取较小值，type: "rm", value: 5
 - "70%" 或 "70%rm" 或 "80%1RM" → type: "percentage", value: 70
 - 无强度描述 → intensityConfig: null
+
+复杂逻辑降级规则（非常重要）：
+- 任何无法用“组数/次数/持续时间/强度/休息时间”完整表达的训练逻辑，必须降级到 note 或 dayNote，严禁胡编结构化字段
+- 以下内容**一律**写入 note/dayNote（不要当成动作名，也不要拆出额外动作）：测试新极限、第一组/第二组/第X组、循环X组、同等数量、降速临界点、力竭、累积、极限个数×N、够即可、然后
+- 如果出现“同等数量弹力宽拉”：动作名仍是“弹力宽拉”，reps 可以为 null；把“同等数量（参考上一动作）”写进 note
+- 如果出现“第一组/第二组…循环三组”：sets 取循环次数（如3），把每组差异（第一组/第二组）写进 note
+- 如果出现“累积30个/累积够即可/极限个数×N”：sets 若文本给了组数则填组数，否则可给一个合理的组数；reps 置 null，把累积目标写进 note
 
 动作必填规则：
 - 每个 training day 必须至少有 1 个动作，禁止留空；如果未能匹配到动作，请从可用动作库中选择名称最相近的动作填充 actionId，并在 note 标注“自动匹配”
@@ -383,6 +430,12 @@ ${actionsListStr}
 - "4*4" 或 "4x4" = 4组4次
 - "3组8次" = 3组8次
 - 范围如"8-12次"取较小值
+- 如果只写了 "12RM/5RM/8RM" 但没有写明每组次数（没有 x× / 没有 “每组X个/次” / 没有 “X次”），则 reps 必须输出为 null（不要把 RM 值当成次数）
+
+持续时间识别规则（力量训练中的计时动作）：
+- 如果动作是悬挂/支撑/静止/保持/计时等（或该动作的 attrs 包含 "持续时间"），请解析持续时间并输出 durationSeconds（秒）
+- 支持 "30s/30秒/1min/1分钟/1分30秒" 等写法
+- 对于计时动作：reps 必须输出为 null（不要瞎猜次数）
 
 休息时间规则：
 - "组休4-5分钟" → 取平均值4.5分钟

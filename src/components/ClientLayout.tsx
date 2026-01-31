@@ -8,7 +8,12 @@ import { OnboardingModalProvider } from './auth/OnboardingModalContext';
 import { SessionProvider, useSession } from 'next-auth/react';
 import { GuideProvider } from '@/stores/useGuideStore';
 import { GuideManager } from '@/components/guide/GuideManager';
+import { ChatProvider } from '@/context/ChatContext';
+import { NotificationPermissionProvider } from '@/context/NotificationPermissionContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import { CartProvider } from '@/context/CartContext';
 import Footer from './Footer';
+import { registerSw } from '@/lib/swRegistration';
 
 // Wrapper component to access session and provide guide context
 function GuideWrapper({ children }: { children: ReactNode }) {
@@ -43,6 +48,11 @@ export default function ClientLayout({
         });
     };
 
+    // 注册 Service Worker（PWA / 推送）
+    useEffect(() => {
+        registerSw();
+    }, []);
+
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
         const lightTheme = '/themes/lara-light-amber/theme.css';
@@ -60,19 +70,30 @@ export default function ClientLayout({
     }, [theme]);
 
     return (
-        <SessionProvider>
+        <SessionProvider
+            refetchInterval={5 * 60} // 每 5 分钟刷新一次 session（PWA 后台恢复时）
+            refetchOnWindowFocus={true} // 窗口聚焦时刷新
+        >
             <ToastContextProvider>
                 <LoginModalProvider>
                     <OnboardingModalProvider>
-                        <GuideWrapper>
-                            <div className="flex flex-col">
-                                {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
-                                <main className="flex-grow pb-24 min-h-screen">
-                                    {children}
-                                </main>
-                                <Footer />
-                            </div>
-                        </GuideWrapper>
+                        <NotificationProvider>
+                            <ChatProvider>
+                                <NotificationPermissionProvider>
+                                    <CartProvider>
+                                        <GuideWrapper>
+                                        <div className="flex flex-col">
+                                            {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
+                                            <main className="flex-grow pb-24 min-h-screen">
+                                                {children}
+                                            </main>
+                                            <Footer />
+                                        </div>
+                                        </GuideWrapper>
+                                    </CartProvider>
+                                </NotificationPermissionProvider>
+                            </ChatProvider>
+                        </NotificationProvider>
                     </OnboardingModalProvider>
                 </LoginModalProvider>
             </ToastContextProvider>

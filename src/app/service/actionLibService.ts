@@ -7,6 +7,14 @@ import { DeleteActionDto, DeleteActionResponseDto } from "@/app/api/action-lib/d
 import { GetActionDto, GetActionResponseDto } from "@/app/api/action-lib/get-action/entity";
 import { ListAutoComputeActionsDto, ListAutoComputeActionsResponseDto } from "../api/action-lib/list-auto-compute-actions/entity";
 import { UploadDemoVideoResponseDto } from "@/app/api/action-lib/upload-demo-video/entity";
+import type {
+    ActionReferencesDto,
+    ActionReferencesResponseDto,
+} from "@/app/api/action-lib/action-references/entity";
+import type {
+    MergeActionsDto,
+    MergeActionsResponseDto,
+} from "@/app/api/action-lib/merge-actions/entity";
 
 export class ActionLibService extends BaseService {
     async listActions(reqData: ListActionsDto) {
@@ -53,6 +61,25 @@ export class ActionLibService extends BaseService {
         const res = await this.post<DeleteActionResponseDto>("delete-action", reqData);
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to delete action");
+        }
+        return res.data.data;
+    }
+
+    async getActionReferences(reqData: ActionReferencesDto) {
+        const res = await this.post<ActionReferencesResponseDto>(
+            "action-references",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "获取动作引用失败");
+        }
+        return res.data.data;
+    }
+
+    async mergeActions(reqData: MergeActionsDto) {
+        const res = await this.post<MergeActionsResponseDto>("merge-actions", reqData);
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "合并动作失败");
         }
         return res.data.data;
     }

@@ -7,11 +7,21 @@ import { Card } from "primereact/card";
 import { Skeleton } from "primereact/skeleton";
 import knowledgeService from "@/app/service/knowledgeService";
 import { KnowledgeBookRow } from "@/types";
+import type { CoachContentRow } from "@/types";
+import { useToastContext } from "@/context/ToastContext";
 
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
+    const { showToast } = useToastContext();
     const [books, setBooks] = useState<KnowledgeBookRow[]>([]);
     const [loadingBooks, setLoadingBooks] = useState(true);
+    const [loadingContents, setLoadingContents] = useState(true);
+    const [contents, setContents] = useState<Array<{
+        content: CoachContentRow;
+        coach: { id: string; name: string; avatar_url: string | null; status: string | null };
+        accessTier: number;
+        canView: boolean;
+    }>>([]);
 
     useEffect(() => {
         // Fetch latest books
@@ -38,8 +48,47 @@ const KnowledgeBaseHomePage = () => {
         fetchBooks();
     }, []);
 
+    useEffect(() => {
+        const fetchContents = async () => {
+            setLoadingContents(true);
+            try {
+                const res = await fetch("/api/knowledge/list-coach-contents", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ limit: 3, offset: 0 }),
+                });
+                const json = await res.json();
+                if (!json?.success) {
+                    setContents([]);
+                    showToast({
+                        severity: "warn",
+                        summary: "文章加载失败",
+                        detail: json?.message || "请稍后重试",
+                    });
+                    return;
+                }
+                setContents(json.data?.items || []);
+            } catch (e: any) {
+                setContents([]);
+                showToast({
+                    severity: "warn",
+                    summary: "文章加载失败",
+                    detail: e?.message || "请稍后重试",
+                });
+            } finally {
+                setLoadingContents(false);
+            }
+        };
+        fetchContents();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const handleViewBooks = () => {
         router.push("/dashboard/knowledge/books");
+    };
+
+    const handleViewArticles = () => {
+        router.push("/dashboard/knowledge/articles");
     };
 
     return (
@@ -129,6 +178,63 @@ const KnowledgeBaseHomePage = () => {
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Articles Section */}
+            <div className="mb-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0">
+                        <i className="pi pi-file mr-2 text-purple-500"></i>
+                        技术文章
+                    </h2>
+                    <Button
+                        label="更多文章"
+                        icon="pi pi-arrow-right"
+                        className="p-button-text p-button-sm"
+                        onClick={handleViewArticles}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {loadingContents ? (
+                        [...Array(3)].map((_, index) => (
+                            <Card key={index} className="border-round-xl">
+                                <Skeleton height="120px" borderRadius="16px" className="mb-3" />
+                                <Skeleton width="80%" height="1.5rem" className="mb-2" />
+                                <Skeleton width="60%" height="1rem" className="mb-2" />
+                            </Card>
+                        ))
+                    ) : contents.length > 0 ? (
+                        contents.map((it) => (
+                            <Card
+                                key={it.content.id}
+                                className="border-round-xl cursor-pointer hover:shadow-md transition-shadow duration-200"
+                                onClick={() =>
+                                    it.canView
+                                        ? router.push(`/coach/content/${it.content.id}`)
+                                        : router.push(`/coach/profile/${it.content.coach_id}?tab=1#choose-pricing`)
+                                }
+                            >
+                                <div className="flex flex-column">
+                                    <div className="text-xs font-black text-surface-400">
+                                        {it.coach?.name || "教练"}
+                                    </div>
+                                    <h3 className="mt-2 text-lg font-semibold text-surface-900 dark:text-surface-0 line-clamp-2">
+                                        {it.content.title}
+                                    </h3>
+                                    <p className="mt-2 text-sm text-surface-600 dark:text-surface-300 line-clamp-3">
+                                        {(it.content.content || "").replace(/<[^>]*>/g, "")}
+                                    </p>
+                                </div>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="col-span-3 text-center py-8">
+                            <i className="pi pi-file text-4xl text-surface-300 mb-3"></i>
+                            <p className="text-surface-500 dark:text-surface-400">暂无文章</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Videos Section */}

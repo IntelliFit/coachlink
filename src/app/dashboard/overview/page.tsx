@@ -170,7 +170,7 @@ const Overview = () => {
         },
         {
             title: "本月收入",
-            value: `¥${overviewData?.monthlyRevenue?.toLocaleString() || 0}`,
+            value: `¥${overviewData?.monthlyRevenue != null ? Number(overviewData.monthlyRevenue).toFixed(2) : '0.00'}`,
             icon: TrendingUp,
             colorClass: "bg-purple-50 text-purple-600",
         }
@@ -207,7 +207,7 @@ const Overview = () => {
             href: "/dashboard/content"
         },
         {
-            title: "计划模板",
+            title: "计划库",
             description: "标准化训练方案",
             value: overviewData?.planTemplateCount || 0,
             icon: Layout,

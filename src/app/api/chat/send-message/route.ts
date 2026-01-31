@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+// 推送通知现在完全由前端通过 Service Worker 处理，不再需要后端推送
 import type { ApiData } from "@/types/api";
 import type { SendMessageDto, SendMessageResponseDto } from "./entity";
 
@@ -35,11 +36,21 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 对于非视频引用类型，content 是必填的
-    if (messageType !== "video_reference" && !content) {
+    // 对于非视频引用类型和非图像类型，content 是必填的
+    // 图像类型允许 content 为空（纯图像消息）
+    if (messageType !== "video_reference" && messageType !== "image" && !content) {
         return NextResponse.json({
             success: false,
             message: "缺少消息内容",
+            data: null,
+        }, { status: 400 });
+    }
+
+    // 对于图像类型，mediaUrl 是必填的
+    if (messageType === "image" && !mediaUrl) {
+        return NextResponse.json({
+            success: false,
+            message: "缺少图像URL",
             data: null,
         }, { status: 400 });
     }
@@ -143,6 +154,9 @@ export async function POST(req: Request) {
             data: null,
         }, { status: 500 });
     }
+
+    // 注意：推送通知现在完全由前端通过 Service Worker 处理
+    // 当消息插入到数据库后，SSE 会通知前端，前端会自动显示通知
 
     return NextResponse.json<ApiData<SendMessageResponseDto>>({
         success: true,

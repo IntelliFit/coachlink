@@ -56,8 +56,7 @@ export async function POST(req: Request) {
     // Calculate start_execution_day if provided (migration mid-cycle)
     const normalizedStartWeek = Number(startWeek ?? 1);
     const normalizedStartDay = Number(startDay ?? 1);
-    const hasStartPosition =
-        Number.isFinite(normalizedStartWeek) &&
+    const hasStartPosition = Number.isFinite(normalizedStartWeek) &&
         Number.isFinite(normalizedStartDay) &&
         normalizedStartWeek >= 1 &&
         normalizedStartDay >= 1 &&
@@ -72,9 +71,30 @@ export async function POST(req: Request) {
         if (startExecutionDay > totalDays) {
             return NextResponse.json({
                 success: false,
-                message: `起始位置(第${normalizedStartWeek}周第${normalizedStartDay}天)超出计划总天数(${totalDays}天)`,
+                message:
+                    `起始位置(第${normalizedStartWeek}周第${normalizedStartDay}天)超出计划总天数(${totalDays}天)`,
             }, { status: 400 });
         }
+    }
+
+    // Ensure a subscription has at most one "current" plan instance.
+    // When creating a new instance for the same subscription, archive any previous active/paused instances.
+    try {
+        const nowIso = new Date().toISOString();
+        await supabase
+            .from("coach_plan_instances")
+            .update({
+                status: "archived",
+                updated_at: nowIso,
+            } as any)
+            .eq("coach_subscription_id", subscriptionId)
+            .in("status", ["active", "paused"]);
+    } catch (e) {
+        // best-effort; do not block instance creation
+        console.warn(
+            "[create-instance] Failed to archive previous instances:",
+            e,
+        );
     }
 
     // 创建计划实例
@@ -87,7 +107,11 @@ export async function POST(req: Request) {
             coach_id: subscription.coach_id || null,
             student_id: subscription.student_id || null,
             coach_plan_template_id: templateId || null,
-            start_date: startDate || null,
+            // Auto-fill start_date when creating as active and no explicit date provided
+            start_date: startDate ||
+                ((!status || status === "active")
+                    ? new Date().toISOString().split("T")[0]
+                    : null),
             end_date: endDate || null,
             tags: tags || null,
             type: type || null,
@@ -112,8 +136,7 @@ export async function POST(req: Request) {
         const studentId = subscription.student_id as string | null;
         if (studentId) {
             const planName = name?.trim() || "训练计划";
-            const content =
-                `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
+            const content = `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
                 `请点击 [今日训练](/today-training) 查看并开始训练。`;
 
             await sendDirectMessage({
@@ -129,79 +152,6 @@ export async function POST(req: Request) {
         }
     } catch (e) {
         console.error("[create-instance] Failed to notify student:", e);
-    }
-
-    // Backfill executions if backdated
-    console.log("[create-instance] Checking backfill:", {
-        startDate,
-        isArray: Array.isArray(trainingDays),
-        trainingDaysLength: Array.isArray(trainingDays)
-            ? trainingDays.length
-            : "N/A",
-    });
-
-    if (startDate && Array.isArray(trainingDays)) {
-        const start = new Date(startDate);
-        const now = new Date();
-        start.setHours(0, 0, 0, 0);
-        now.setHours(0, 0, 0, 0);
-
-        if (start < now) {
-            // Filter for training days only (not rest days)
-            const trainingOnlyDays = (trainingDays as any[]).filter((d) =>
-                d.type === "training" || !d.type
-            );
-            // Sort by dayIndex to ensure sequential order
-            trainingOnlyDays.sort((a, b) =>
-                (a.dayIndex || 0) - (b.dayIndex || 0)
-            );
-
-            console.log(
-                "[create-instance] Training days to check:",
-                trainingOnlyDays.length,
-            );
-
-            const pastExecutions = [];
-
-            for (let i = 0; i < trainingOnlyDays.length; i++) {
-                const day = trainingOnlyDays[i];
-                // dayIndex IS the calendar day position (1 = first day of plan, 2 = second day, etc.)
-                // So the offset is simply dayIndex - 1 (0-based days from start)
-                const dayIndex = day.dayIndex || (i + 1);
-                const offset = dayIndex - 1; // Calendar days from start date
-
-                const dDate = new Date(start);
-                dDate.setDate(dDate.getDate() + offset);
-
-                // If day is in the past (before today), mark as completed
-                if (dDate < now) {
-                    pastExecutions.push({
-                        instance_id: instance.id,
-                        student_id: instance.student_id,
-                        day_index: dayIndex,
-                        status: "completed",
-                        started_at: dDate.toISOString(),
-                        completed_at: dDate.toISOString(),
-                        action_executions: [],
-                    });
-                }
-            }
-
-            console.log(
-                "[create-instance] Past executions to create:",
-                pastExecutions.length,
-            );
-
-            if (pastExecutions.length > 0) {
-                const { error: execError } = await supabase
-                    .from("plan_instance_executions")
-                    .insert(pastExecutions);
-
-                if (execError) {
-                    console.error("Failed to backfill executions:", execError);
-                }
-            }
-        }
     }
 
     return NextResponse.json<ApiData<CreateInstanceResponseDto>>({

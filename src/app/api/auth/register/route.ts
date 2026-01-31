@@ -159,6 +159,33 @@ export async function POST(req: NextRequest) {
         .select("*")
         .single();
 
+    if (!user) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "注册失败，无法创建用户",
+            data: null,
+        });
+    }
+
+    // 创建用户档案，确保 onboarding_completed 为 false 以触发问卷
+    const nickname = isPhone
+        ? `手机用户_${trimmedPhoneOrEmail.slice(-4)}`
+        : `邮箱用户_${(trimmedPhoneOrEmail.split("@")[0] || "").slice(0, 8)}`;
+    
+    const { error: profileError } = await serviceRoleSupabase
+        .from("user_profiles")
+        .insert({
+            user_id: user.id,
+            nickname,
+            bio: "",
+            onboarding_completed: false, // 明确设置为 false，确保触发问卷
+        });
+
+    if (profileError) {
+        console.error("[register] 创建用户档案失败:", profileError);
+        // 不阻止注册流程，但记录错误
+    }
+
     // --- Acquisition Rewards (MVP) ---
     // Two sources:
     // 1) direct_invite: /register?ref=<inviterUserId>

@@ -51,11 +51,15 @@ import type {
     RenewSubscriptionDto,
     RenewSubscriptionResponseDto,
 } from "../api/subscription/renew-subscription/entity";
-import { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/coach/update-questionnaires/entity";
+import type { UpdateQuestionnairesDto, UpdateQuestionnairesResponseDto } from "../api/subscription/update-questionnaire/entity";
 import type {
     CheckSubscriptionDto,
     CheckSubscriptionResponseDto,
 } from "../api/subscription/check-subscription/entity";
+import type {
+    CheckExpiredSubscriptionsDto,
+    CheckExpiredSubscriptionsResponseDto,
+} from "../api/subscription/check-expired-subscriptions/entity";
 
 interface SubscriptionStats {
     aiPlans: number;
@@ -242,18 +246,13 @@ class SubscriptionService extends BaseService {
         return null;
     }
 
-    async checkExpiredSubscriptions() {
-        // Call the PUT endpoint to check for expired subscriptions
-        const res = await fetch(`${this.baseUrl}/check-subscription?action=check-expired`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-
-        const data = await res.json();
-        if (data.success) {
-            return data.data;
+    async checkExpiredSubscriptions(reqData?: CheckExpiredSubscriptionsDto) {
+        const res = await this.post<CheckExpiredSubscriptionsResponseDto>(
+            "check-expired-subscriptions",
+            reqData || {},
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
         }
         return null;
     }

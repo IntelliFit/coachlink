@@ -15,9 +15,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: '缺少必要参数' }, { status: 400 });
     }
 
+    // 从数据库获取用户档案
+    const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("nickname")
+        .eq("user_id", session.user.id)
+        .single();
+
     const coachFeedback = {
         ...feedback,
-        coach_name: session.profile.nickname,
+        coach_name: profile?.nickname || "教练",
         coach_id: session.user.id,
         reviewed_at: new Date().toISOString(),
     };

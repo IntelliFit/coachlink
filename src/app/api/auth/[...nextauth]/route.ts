@@ -2,7 +2,7 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import OAuthProvider from "next-auth/providers/oauth";
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { verifyPassword } from "./verify";
 import redis from "@/lib/redisClient";
 import { getWhiteList } from "@/lib/devUsers";
@@ -15,11 +15,86 @@ export const authOptions: AuthOptions = {
                 phoneOrEmail: { label: "PhoneOrEmail", type: "text" },
                 password: { label: "Password", type: "password" },
                 verifyCode: { label: "verifyCode", type: "text" },
+                wechatLoginToken: { label: "wechatLoginToken", type: "text" },
+                userId: { label: "UserId", type: "text" }, // 快速接入：通过用户 ID 直接登录
             },
             async authorize(credentials) {
                 const phoneOrEmail = credentials?.phoneOrEmail?.trim();
                 const password = credentials?.password?.trim();
                 const verifyCode = credentials?.verifyCode?.trim();
+                const wechatLoginToken = credentials?.wechatLoginToken?.trim();
+                const userId = credentials?.userId?.trim();
+
+                // 方式 0.5：快速接入 - 通过用户 ID 直接登录（无需密码或验证码）
+                if (userId) {
+                    const { data: user, error: userError } = await supabase
+                        .from("users")
+                        .select("*")
+                        .eq("id", userId)
+                        .single();
+
+                    if (userError || !user) {
+                        throw new Error("用户不存在");
+                    }
+
+                    (user as any).password_hash = undefined;
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .single();
+
+                    return {
+                        ...user,
+                        profile: profile || undefined,
+                    };
+                }
+
+                // 方式 0：微信内嵌二维码登录（一次性 token）
+                if (wechatLoginToken) {
+                    if (!redis) {
+                        throw new Error("验证服务不可用");
+                    }
+                    const key = `wechat_login_token:${wechatLoginToken}`;
+                    const stored = await redis.get(key);
+                    if (!stored) {
+                        throw new Error("登录凭证已过期，请刷新二维码重试");
+                    }
+                    // One-time use
+                    await redis.del(key);
+
+                    let parsed: any = {};
+                    try {
+                        const raw = typeof stored === "string" ? stored : stored.toString("utf8");
+                        parsed = JSON.parse(raw);
+                    } catch { }
+                    const userId = parsed?.userId as string | undefined;
+                    if (!userId) {
+                        throw new Error("登录凭证无效");
+                    }
+
+                    const { data: user, error: userError } = await supabase
+                        .from("users")
+                        .select("*")
+                        .eq("id", userId)
+                        .single();
+
+                    if (userError || !user) {
+                        throw new Error("用户不存在");
+                    }
+
+                    (user as any).password_hash = undefined;
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .single();
+
+                    return {
+                        ...user,
+                        profile: profile || undefined,
+                    };
+                }
 
                 if (!phoneOrEmail) {
                     throw new Error("请输入手机号或邮箱");
@@ -33,41 +108,25 @@ export const authOptions: AuthOptions = {
                     throw new Error("请输入正确的手机号或邮箱格式");
                 }
 
-                // 查询用户（两种登录方式都需要）
-                let userQuery;
-                if (isPhone) {
-                    userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).single();
-                } else {
-                    userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).single();
-                }
-
-                const { data: user, error: userError } = await userQuery;
-
-                if (userError) {
-                    throw new Error("登录失败\n" + userError.message);
-                }
-
-                // 方式 1：验证码登录（手机号/邮箱 + 验证码）
+                // 方式 1：验证码登录（手机号/邮箱 + 验证码）；未注册则直接注册并登录
                 if (verifyCode && !password) {
-                    // 如果是开发者模式 获取白名单（白名单跳过验证码校验）
+                    if (verifyCode.length !== 6) {
+                        throw new Error("验证码错误");
+                    }
+
+                    // 先校验验证码（通过后再查用户，未注册则自动注册）
                     const whiteList = getWhiteList();
                     const isInWhiteList = whiteList.some((u) => u.phone === phoneOrEmail);
-
                     if (!isInWhiteList) {
-                        // 开发模式下接受模拟验证码 123456
                         const useMockSms = process.env.NODE_ENV === "development";
                         const isMockCode = useMockSms && verifyCode === "123456";
-
                         if (!isMockCode) {
                             if (!redis) {
                                 throw new Error("验证服务不可用");
                             }
-
-                            // 根据是手机号还是邮箱来查询验证码
                             const verificationKey = isPhone
                                 ? `sms_verification_code:${phoneOrEmail}`
                                 : `email_verification_code:${phoneOrEmail}`;
-
                             const storedCode = await redis.get(verificationKey);
                             if (!storedCode) {
                                 throw new Error("验证码已过期或不存在");
@@ -75,28 +134,84 @@ export const authOptions: AuthOptions = {
                             if (storedCode !== verifyCode) {
                                 throw new Error("验证码错误");
                             }
-
-                            // 验证成功后删除验证码，防止重复使用
                             await redis.del(verificationKey);
                         }
                     }
 
-                    (user as any).password_hash = undefined;
-                    
-                    // 同时获取用户档案，避免在 jwt/session callback 中访问数据库
-                    const { data: profile } = await supabase
+                    let userQuery;
+                    if (isPhone) {
+                        userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).maybeSingle();
+                    } else {
+                        userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).maybeSingle();
+                    }
+                    const { data: user, error: userError } = await userQuery;
+                    if (userError) {
+                        throw new Error("登录失败，请稍后重试");
+                    }
+
+                    let resolvedUser: any;
+                    if (user) {
+                        resolvedUser = user;
+                    } else {
+                        // 未注册：自动创建用户 + 档案（使用 service role 绕过 RLS）
+                        const { data: newUser, error: createError } = await serviceRoleSupabase
+                            .from("users")
+                            .insert({
+                                ...(isPhone ? { phone: phoneOrEmail } : { email: phoneOrEmail }),
+                                password_hash: "",
+                                is_admin: false,
+                                is_coach: false,
+                            })
+                            .select("*")
+                            .single();
+                        if (createError || !newUser) {
+                            throw new Error("注册失败，请稍后重试");
+                        }
+                        const nickname = isPhone
+                            ? `手机用户_${phoneOrEmail.slice(-4)}`
+                            : `邮箱用户_${(phoneOrEmail.split("@")[0] || "").slice(0, 8)}`;
+                        const { error: profileErr } = await serviceRoleSupabase
+                            .from("user_profiles")
+                            .insert({
+                                user_id: newUser.id,
+                                nickname,
+                                bio: "",
+                                onboarding_completed: false, // 明确设置为 false，确保触发问卷
+                            })
+                            .select()
+                            .single();
+                        if (profileErr) {
+                            console.error("创建用户档案失败:", profileErr);
+                        }
+                        resolvedUser = newUser;
+                    }
+
+                    (resolvedUser as any).password_hash = undefined;
+                    const { data: profile } = await serviceRoleSupabase
                         .from("user_profiles")
                         .select("*")
-                        .eq("user_id", user.id)
+                        .eq("user_id", resolvedUser.id)
                         .single();
-                    
                     return {
-                        ...user,
+                        ...resolvedUser,
                         profile: profile || undefined,
                     };
                 }
 
                 // 方式 2：密码登录（手机号/邮箱 + 密码）
+                let userQuery;
+                if (isPhone) {
+                    userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).maybeSingle();
+                } else {
+                    userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).maybeSingle();
+                }
+                const { data: user, error: userError } = await userQuery;
+                if (userError) {
+                    throw new Error("登录失败，请稍后重试");
+                }
+                if (!user) {
+                    throw new Error("该手机号/邮箱未注册");
+                }
                 if (password && !verifyCode) {
                     const isValid = verifyPassword(password, user.password_hash);
                     if (!isValid) {
@@ -135,22 +250,26 @@ export const authOptions: AuthOptions = {
                     appid: process.env.WECHAT_APP_ID,
                     response_type: "code",
                     scope: "snsapi_login",
+                    fast_login: 1,
+                    lang: "zh_CN",
                 },
             },
             token: {
                 url: "https://api.weixin.qq.com/sns/oauth2/access_token",
                 async request({ params, provider }) {
                     // Construct the token request with required parameters
-                    const url = new URL(provider.token?.toString() || "");
+                    const tokenUrl =
+                        typeof provider.token === "string"
+                            ? provider.token
+                            : provider.token?.url;
+                    const url = new URL(tokenUrl || "");
                     url.searchParams.set("appid", process.env.WECHAT_APP_ID || "");
                     url.searchParams.set("secret", process.env.WECHAT_APP_SECRET || "");
                     url.searchParams.set("code", params.code || "");
                     url.searchParams.set("grant_type", "authorization_code");
 
-                    const response = await fetch(url, {
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        method: "POST",
-                    });
+                    // 微信文档为 GET 请求；这里按官方方式请求
+                    const response = await fetch(url, { method: "GET" });
 
                     return {
                         tokens: await response.json()
@@ -186,7 +305,7 @@ export const authOptions: AuthOptions = {
             },
             profile(profile) {
                 // Map WeChat user data to NextAuth user object
-                console.log(profile);
+                console.log('wechat profile', profile);
 
                 return {
                     id: profile.openid,
@@ -199,7 +318,38 @@ export const authOptions: AuthOptions = {
     ],
     session: {
         strategy: "jwt",
-        maxAge: 90 * 24 * 60 * 60,
+        maxAge: 90 * 24 * 60 * 60, // 90 天
+        updateAge: 24 * 60 * 60, // 每 24 小时更新一次
+    },
+    cookies: {
+        sessionToken: {
+            name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+            options: {
+                httpOnly: true,
+                sameSite: 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+                maxAge: 90 * 24 * 60 * 60, // 90 天，与 session.maxAge 一致
+            },
+        },
+        callbackUrl: {
+            name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.callback-url`,
+            options: {
+                httpOnly: true,
+                sameSite: 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+            },
+        },
+        csrfToken: {
+            name: `${process.env.NODE_ENV === 'production' ? '__Host-' : ''}next-auth.csrf-token`,
+            options: {
+                httpOnly: true,
+                sameSite: 'lax',
+                path: '/',
+                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+            },
+        },
     },
     callbacks: {
         async signIn({ user, account }) {
@@ -220,7 +370,6 @@ export const authOptions: AuthOptions = {
                         .insert({
                             wechat_openid: user.id,
                             password_hash: '',
-                            is_active: true,
                             is_admin: false,
                             admin_role: null,
                             is_coach: false,
@@ -241,8 +390,7 @@ export const authOptions: AuthOptions = {
                             user_id: newUser.id,
                             nickname: user.name || `微信用户_${user.id.slice(-4) || 'unknown'}`,
                             avatar_url: user.image,
-                            bio: "通过微信登录的用户",
-                            is_active: true,
+                            bio: "",
                         })
                         .select()
                         .single();
@@ -273,7 +421,8 @@ export const authOptions: AuthOptions = {
 
             return true;
         },
-        async jwt({ token, user, account }) {            
+
+        async jwt({ token, user, account, trigger }) {            
             // 如果用户首次登录，将 user 和 profile 信息存储到 token 中
             if (user) {
                 if (account?.provider === 'wechat' && user.id) {
@@ -291,12 +440,6 @@ export const authOptions: AuthOptions = {
                         if (dbUser) {
                             dbUser.password_hash = undefined;
                             token.user = dbUser;
-                            // 如果 signIn callback 中已经获取了 profile，直接使用
-                            // 确保 profile 总是被设置（即使为 undefined）
-                            token.profile = (user as any).profile;
-                        } else {
-                            // 如果查询失败，仍然设置 profile（从 signIn callback 中获取）
-                            token.profile = (user as any).profile;
                         }
                     } else {
                         // 如果 signIn callback 中没有设置 dbUserId，回退到原来的逻辑（向后兼容）
@@ -309,38 +452,24 @@ export const authOptions: AuthOptions = {
                         if (dbUser) {
                             (dbUser as any).password_hash = undefined;
                             token.user = dbUser;
-                            
-                            // 获取 profile（回退逻辑，应该不会执行到这里）
-                            const { data: profile } = await supabase
-                                .from("user_profiles")
-                                .select("*")
-                                .eq("user_id", dbUser.id)
-                                .single();
-                            
-                            // 确保 profile 总是被设置
-                            token.profile = profile || undefined;
                         }
                     }
-                } else {
-                    // 普通登录（手机号/邮箱）：user 对象中已经包含了 profile
-                    // 先提取 profile，避免它被包含在 token.user 中
-                    const profile = (user as any).profile;
-                    const { profile: _, ...userWithoutProfile } = user as any;                                        
-                    token.user = user;
+                } else {                                    
+                    (token.user as any) = user;
+                }
+            }
 
-                    // 如果没有 profile 请求获取
-                    if (!profile) {
-                        const { data } = await supabase
-                            .from("user_profiles")
-                            .select("*")
-                            .eq("user_id", user.id)
-                            .single();
+            // 如果调用 updateSession()，从数据库重新读取最新的用户信息
+            if (trigger === "update" && token.user?.id) {
+                const { data: dbUser } = await supabase
+                    .from("users")
+                    .select("*")
+                    .eq("id", token.user.id)
+                    .single();
 
-                        token.profile = data;
-                    } else {
-
-                        token.profile = profile;
-                    }
+                if (dbUser) {
+                    (dbUser as any).password_hash = undefined;
+                    token.user = dbUser;
                 }
             }
 
@@ -356,10 +485,6 @@ export const authOptions: AuthOptions = {
 
             (user as any).password_hash = undefined;
             session.user = token.user;
-
-            // 直接从 token 中获取 profile，避免访问数据库
-            // token.profile 应该总是被设置（即使为 undefined）
-            session.profile = token.profile as any;
 
             return session;
         },

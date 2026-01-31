@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Skeleton } from 'primereact/skeleton'; // 替换 Spinner 为骨架屏
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
-import { ogService } from '@/app/service/ogService';
 import { GetCoachResponseDto } from '@/app/api/coach/get-coach/entity';
-import html2canvas from 'html2canvas';
 
 // 导入拆分后的组件
 import { InvitationCodeCard } from './InvitationCodeCard';
@@ -22,7 +20,6 @@ export default function InvitationSettingsPage() {
     const [coach, setCoach] = useState<GetCoachResponseDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
-    const [savingPoster, setSavingPoster] = useState<'exclusive' | 'open' | null>(null);
     const [manualCode, setManualCode] = useState('');
     const [showManualInput, setShowManualInput] = useState(false);
     const [isSavingManualCode, setIsSavingManualCode] = useState(false);
@@ -121,11 +118,6 @@ export default function InvitationSettingsPage() {
             <section className="relative transition-all duration-300">
                 <InvitationPosterCard
                     coach={coach}
-                    savingPoster={savingPoster}
-                    handleCopyModeLink={(mode) => handleCopyText(
-                        mode === 'exclusive' ? coach?.invitationInfo.inviteUrlExclusive! : coach?.invitationInfo.inviteUrlOpen!,
-                        '特定模式链接已复制'
-                    )}
                 />
             </section>
 

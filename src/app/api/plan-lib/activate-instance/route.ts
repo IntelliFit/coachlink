@@ -96,7 +96,8 @@ export async function POST(req: Request) {
             const { count: executionCount } = await supabase
                 .from("plan_instance_executions")
                 .select("id", { count: "exact", head: true })
-                .eq("plan_instance_id", currentActive.id);
+                // plan_instance_executions uses `instance_id`
+                .eq("instance_id", currentActive.id);
 
             const newStatus = (executionCount && executionCount > 0)
                 ? "archived"

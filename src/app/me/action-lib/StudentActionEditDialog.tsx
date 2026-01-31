@@ -8,7 +8,7 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { InputSwitch } from 'primereact/inputswitch';
 import { AutoComplete } from 'primereact/autocomplete';
-import { StudentActionRow } from '@/types/student';
+import { StudentActionRow, ItemType } from '@/types/student';
 import { CanonicalAction } from '@/types/canonical';
 
 interface StudentActionEditDialogProps {
@@ -30,6 +30,21 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     const [positions, setPositions] = useState<string[]>([]);
     const [attrs, setAttrs] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+
+    // 项目类型状态
+    const [itemType, setItemType] = useState<ItemType>('STRENGTH');
+    
+    // 饮食类型字段
+    const [suggestedTime, setSuggestedTime] = useState<string>('');
+    const [calories, setCalories] = useState<number | null>(null);
+    
+    // 有氧类型字段
+    const [distance, setDistance] = useState<number | null>(null);
+    const [duration, setDuration] = useState<number | null>(null);
+    const [pace, setPace] = useState<number | null>(null);
+    
+    // 习惯类型字段
+    const [targetDuration, setTargetDuration] = useState<number | null>(null);
 
     // 新增状态：自动计算负重
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
@@ -69,6 +84,14 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
         { label: '休息时间', value: '休息时间' }
     ];
 
+    // 项目类型选项（与教练端一致）
+    const itemTypeOptions = [
+        { label: '力量训练', value: 'STRENGTH', icon: 'pi-sliders-h', color: 'text-orange-500' },
+        { label: '饮食管理', value: 'DIET', icon: 'pi-apple', color: 'text-green-500' },
+        { label: '有氧运动', value: 'CARDIO', icon: 'pi-bolt', color: 'text-blue-500' },
+        { label: '习惯打卡', value: 'HABIT', icon: 'pi-heart', color: 'text-purple-500' }
+    ];
+
     // 加载公共动作库
     useEffect(() => {
         const fetchCanonicalActions = async () => {
@@ -100,9 +123,19 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setUrl(action.url || '');
             setPositions(action.positions || []);
             setAttrs(action.attrs || []);
+            setItemType((action.type as ItemType) || 'STRENGTH');
             setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
             setIncludesBodyWeight(action.includesBodyWeight || false);
             setCanonicalActionId(action.canonical_action_id || null);
+            setSuggestedTime(action.suggested_time || '');
+            
+            // 解析 item_schema 中的类型特定字段
+            const schema = action.item_schema as any || {};
+            setCalories(schema.calories || null);
+            setDistance(schema.distance ? schema.distance / 1000 : null);
+            setDuration(schema.duration ? schema.duration / 60 : null);
+            setPace(schema.pace || null);
+            setTargetDuration(schema.target_duration || null);
         } else {
             // 重置表单
             setName('');
@@ -110,25 +143,47 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setUrl('');
             setPositions([]);
             setAttrs(['组数', '次数', '强度', '休息时间']);
+            setItemType('STRENGTH');
             setEnableAutoWeightCompute(false);
             setIncludesBodyWeight(false);
             setCanonicalActionId(null);
             setSelectedCanonical(null);
+            setSuggestedTime('');
+            setCalories(null);
+            setDistance(null);
+            setDuration(null);
+            setPace(null);
+            setTargetDuration(null);
         }
     }, [action, visible]);
 
     const handleSave = async () => {
         setLoading(true);
         try {
+            // 构建类型特定的 item_schema
+            const itemSchema: Record<string, unknown> = {};
+            if (itemType === 'DIET' && calories !== null) {
+                itemSchema.calories = calories;
+            } else if (itemType === 'CARDIO') {
+                if (distance !== null) itemSchema.distance = distance * 1000; // 转换为米
+                if (duration !== null) itemSchema.duration = duration * 60; // 转换为秒
+                if (pace !== null) itemSchema.pace = pace;
+            } else if (itemType === 'HABIT' && targetDuration !== null) {
+                itemSchema.target_duration = targetDuration;
+            }
+
             const actionData: Partial<StudentActionRow> = {
                 name,
                 detail,
                 url: url || undefined,
-                positions,
-                attrs,
-                enableAutoWeightCompute,
-                includesBodyWeight: enableAutoWeightCompute ? includesBodyWeight : false,
-                canonical_action_id: canonicalActionId
+                positions: itemType === 'STRENGTH' ? positions : null,
+                attrs: itemType === 'STRENGTH' ? attrs : null,
+                type: itemType,
+                enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
+                includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
+                canonical_action_id: itemType === 'STRENGTH' ? canonicalActionId : null,
+                suggested_time: itemType === 'DIET' ? (suggestedTime || null) : null,
+                item_schema: Object.keys(itemSchema).length > 0 ? itemSchema : null
             };
 
             if (action) {
@@ -192,150 +247,261 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             className="p-fluid"
             pt={dialogPt as any}
         >
-            <div className={`flex flex-col gap-4 ${isMobile ? 'pb-2' : ''}`}>
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="name" className="font-medium">动作名称 *</label>
+            <div className="flex flex-col gap-6 py-2">
+                {/* 1) 类型选择（同教练端风格） */}
+                <div className="flex flex-col gap-2.5">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-surface-400 ml-1">项目分类</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {itemTypeOptions.map((opt) => (
+                            <div
+                                key={opt.value}
+                                onClick={() => setItemType(opt.value as ItemType)}
+                                className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all duration-300
+                                    ${itemType === opt.value
+                                        ? 'bg-white border-primary-500 shadow-md ring-2 ring-primary-50'
+                                        : 'bg-surface-50 border-transparent hover:bg-white hover:border-surface-200'}`}
+                            >
+                                <i className={`pi ${opt.icon} mb-2 text-lg ${itemType === opt.value ? opt.color : 'text-surface-400'}`} />
+                                <span className={`text-[12px] font-bold ${itemType === opt.value ? 'text-surface-900' : 'text-surface-500'}`}>{opt.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 2) 名称 */}
+                <div className="flex flex-col gap-2.5">
+                    <label htmlFor="name" className="text-[11px] font-black uppercase tracking-widest text-surface-400 ml-1">
+                        {itemType === 'DIET' ? '饮食名称' : itemType === 'HABIT' ? '习惯名称' : '动作名称'} *
+                    </label>
                     <InputText
                         id="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        placeholder={itemType === 'DIET' ? '如：健康轻食午餐' : itemType === 'HABIT' ? '如：每日早起冥想' : '输入动作全称...'}
                         required
+                        className="w-full rounded-xl border-surface-200 focus:border-primary-500 py-3"
                     />
                 </div>
 
-                {/* 自动计算负重设置 */}
-                <div className="flex flex-col gap-2 p-3 bg-surface-50 rounded-2xl border border-surface-200">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                            <div className="font-medium flex items-center gap-2">
-                                <i className="pi pi-bolt text-orange-500"></i>
-                                <span>智能重量计算</span>
+                {/* 3) 动态属性区域 */}
+                <div className="bg-surface-50/50 p-4 rounded-[24px] border border-surface-100 flex flex-col gap-5">
+                    {/* 力量：公共动作库关联 */}
+                    {itemType === 'STRENGTH' && (
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="canonicalAction" className="text-[11px] font-bold text-surface-500 ml-1">
+                                关联公共动作库 <span className="text-surface-400">(可选)</span>
+                            </label>
+                            <AutoComplete
+                                id="canonicalAction"
+                                value={selectedCanonical}
+                                suggestions={filteredCanonicalActions}
+                                completeMethod={(e) => {
+                                    const query = e.query.toLowerCase();
+                                    const filtered = canonicalActions.filter(c =>
+                                        c.name.toLowerCase().includes(query) ||
+                                        c.aliases.some(a => a.toLowerCase().includes(query))
+                                    );
+                                    setFilteredCanonicalActions(filtered);
+                                }}
+                                field="name"
+                                onChange={(e) => {
+                                    setSelectedCanonical(e.value);
+                                    setCanonicalActionId(e.value?.id || null);
+                                }}
+                                dropdown
+                                placeholder="搜索公共动作..."
+                                className="w-full"
+                                itemTemplate={(item: CanonicalAction) => (
+                                    <div className="flex flex-col">
+                                        <span className="font-medium">{item.name}</span>
+                                        {item.aliases.length > 0 && (
+                                            <span className="text-xs text-surface-500">
+                                                别名: {item.aliases.slice(0, 2).join(', ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            />
+                            {selectedCanonical && (
+                                <div className="flex items-center gap-2 text-sm text-green-600">
+                                    <i className="pi pi-link" />
+                                    <span>已关联: {selectedCanonical.name}</span>
+                                    <Button
+                                        icon="pi pi-times"
+                                        className="p-button-text p-button-sm p-button-danger"
+                                        onClick={() => {
+                                            setSelectedCanonical(null);
+                                            setCanonicalActionId(null);
+                                        }}
+                                        tooltip="取消关联"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 饮食字段 */}
+                    {itemType === 'DIET' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in zoom-in-95 duration-300">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[11px] font-bold text-surface-500 ml-1">热量估算 (kcal)</label>
+                                <InputText
+                                    type="number"
+                                    value={calories !== null ? String(calories) : ''}
+                                    onChange={(e) => setCalories(e.target.value === '' ? null : Number(e.target.value))}
+                                    className="rounded-xl"
+                                />
                             </div>
-                            <div className="text-xs text-surface-500 mt-1">
-                                在计划中自动根据 1RM 计算负重
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[11px] font-bold text-surface-500 ml-1">推荐进食时间</label>
+                                <InputText
+                                    type="time"
+                                    value={suggestedTime}
+                                    onChange={(e) => setSuggestedTime(e.target.value)}
+                                    className="rounded-xl"
+                                />
                             </div>
                         </div>
-                        <InputSwitch
-                            id="enableAutoWeightCompute"
-                            checked={enableAutoWeightCompute}
-                            onChange={(e) => setEnableAutoWeightCompute(e.value || false)}
+                    )}
+
+                    {/* 有氧字段 */}
+                    {itemType === 'CARDIO' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[11px] font-bold text-surface-500 ml-1 text-center">距离 (km)</label>
+                                <InputText
+                                    type="number"
+                                    value={distance !== null ? String(distance) : ''}
+                                    onChange={(e) => setDistance(e.target.value === '' ? null : Number(e.target.value))}
+                                    className="rounded-xl text-center"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[11px] font-bold text-surface-500 ml-1 text-center">时长 (min)</label>
+                                <InputText
+                                    type="number"
+                                    value={duration !== null ? String(duration) : ''}
+                                    onChange={(e) => setDuration(e.target.value === '' ? null : Number(e.target.value))}
+                                    className="rounded-xl text-center"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[11px] font-bold text-surface-500 ml-1 text-center">配速 (m/k)</label>
+                                <InputText
+                                    type="number"
+                                    value={pace !== null ? String(pace) : ''}
+                                    onChange={(e) => setPace(e.target.value === '' ? null : Number(e.target.value))}
+                                    className="rounded-xl text-center"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 习惯字段 */}
+                    {itemType === 'HABIT' && (
+                        <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                            <label className="text-[11px] font-bold text-surface-500 ml-1">目标达成量 (分钟/次数)</label>
+                            <InputText
+                                type="number"
+                                value={targetDuration !== null ? String(targetDuration) : ''}
+                                onChange={(e) => setTargetDuration(e.target.value === '' ? null : Number(e.target.value))}
+                                className="rounded-xl"
+                                placeholder="例如: 10"
+                            />
+                        </div>
+                    )}
+
+                    {/* 力量训练专属 */}
+                    {itemType === 'STRENGTH' && (
+                        <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                            <div className="flex flex-col gap-2 p-3 bg-surface-50 rounded-2xl border border-surface-200">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="font-medium flex items-center gap-2">
+                                            <i className="pi pi-bolt text-orange-500"></i>
+                                            <span>智能重量计算</span>
+                                        </div>
+                                        <div className="text-xs text-surface-500 mt-1">
+                                            在计划中自动根据 1RM 计算负重
+                                        </div>
+                                    </div>
+                                    <InputSwitch
+                                        id="enableAutoWeightCompute"
+                                        checked={enableAutoWeightCompute}
+                                        onChange={(e) => setEnableAutoWeightCompute(e.value || false)}
+                                    />
+                                </div>
+
+                                {enableAutoWeightCompute && (
+                                    <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
+                                        <div className="min-w-0 pl-0">
+                                            <div className="font-medium text-sm">包含自重</div>
+                                            <div className="text-xs text-surface-500 mt-1">
+                                                适用于引体向上等动作
+                                            </div>
+                                        </div>
+                                        <InputSwitch
+                                            id="includesBodyWeight"
+                                            checked={includesBodyWeight}
+                                            onChange={(e) => setIncludesBodyWeight(e.value || false)}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label htmlFor="positions" className="text-[11px] font-bold text-surface-500 ml-1">训练部位</label>
+                                <MultiSelect
+                                    id="positions"
+                                    value={positions}
+                                    options={actionTypes}
+                                    onChange={(e) => setPositions(e.value)}
+                                    placeholder="选择训练部位"
+                                    className="w-full"
+                                    display={isMobile ? 'comma' : 'chip'}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label htmlFor="attrs" className="text-[11px] font-bold text-surface-500 ml-1">动作属性</label>
+                                <MultiSelect
+                                    id="attrs"
+                                    value={attrs}
+                                    options={actionAttrs}
+                                    onChange={(e) => setAttrs(e.value)}
+                                    placeholder="选择动作属性"
+                                    className="w-full"
+                                    display={isMobile ? 'comma' : 'chip'}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 4) 描述与链接（通用） */}
+                <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2.5">
+                        <label htmlFor="detail" className="text-[11px] font-black uppercase tracking-widest text-surface-400 ml-1">详细描述</label>
+                        <InputTextarea
+                            id="detail"
+                            value={detail}
+                            onChange={(e) => setDetail(e.target.value)}
+                            rows={3}
+                            placeholder="填写详细的操作要求、注意事项或说明..."
+                            className="rounded-xl border-surface-200"
                         />
                     </div>
 
-                    {enableAutoWeightCompute && (
-                        <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
-                            <div className="min-w-0 pl-0">
-                                <div className="font-medium text-sm">包含自重</div>
-                                <div className="text-xs text-surface-500 mt-1">
-                                    适用于引体向上等动作
-                                </div>
-                            </div>
-                            <InputSwitch
-                                id="includesBodyWeight"
-                                checked={includesBodyWeight}
-                                onChange={(e) => setIncludesBodyWeight(e.value || false)}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                {/* 公共动作库关联 */}
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="canonicalAction" className="font-medium">
-                        关联公共动作库 <span className="text-surface-500 text-sm">(可选)</span>
-                    </label>
-                    <AutoComplete
-                        id="canonicalAction"
-                        value={selectedCanonical}
-                        suggestions={filteredCanonicalActions}
-                        completeMethod={(e) => {
-                            const query = e.query.toLowerCase();
-                            const filtered = canonicalActions.filter(c => 
-                                c.name.toLowerCase().includes(query) ||
-                                c.aliases.some(a => a.toLowerCase().includes(query))
-                            );
-                            setFilteredCanonicalActions(filtered);
-                        }}
-                        field="name"
-                        onChange={(e) => {
-                            setSelectedCanonical(e.value);
-                            setCanonicalActionId(e.value?.id || null);
-                        }}
-                        dropdown
-                        placeholder="搜索公共动作..."
-                        className="w-full"
-                        itemTemplate={(item: CanonicalAction) => (
-                            <div className="flex flex-col">
-                                <span className="font-medium">{item.name}</span>
-                                {item.aliases.length > 0 && (
-                                    <span className="text-xs text-surface-500">
-                                        别名: {item.aliases.slice(0, 2).join(', ')}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    />
-                    {selectedCanonical && (
-                        <div className="flex items-center gap-2 text-sm text-green-600">
-                            <i className="pi pi-link" />
-                            <span>已关联: {selectedCanonical.name}</span>
-                            <Button
-                                icon="pi pi-times"
-                                className="p-button-text p-button-sm p-button-danger"
-                                onClick={() => {
-                                    setSelectedCanonical(null);
-                                    setCanonicalActionId(null);
-                                }}
-                                tooltip="取消关联"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="positions" className="font-medium">动作类型</label>
-                    <MultiSelect
-                        id="positions"
-                        value={positions}
-                        options={actionTypes}
-                        onChange={(e) => setPositions(e.value)}
-                        placeholder="选择动作类型"
-                        className="w-full"
-                        display={isMobile ? 'comma' : 'chip'}
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="attrs" className="font-medium">动作属性</label>
-                    <MultiSelect
-                        id="attrs"
-                        value={attrs}
-                        options={actionAttrs}
-                        onChange={(e) => setAttrs(e.value)}
-                        placeholder="选择动作属性"
-                        className="w-full"
-                        display={isMobile ? 'comma' : 'chip'}
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="detail" className="font-medium">动作描述</label>
-                    <InputTextarea
-                        id="detail"
-                        value={detail}
-                        onChange={(e) => setDetail(e.target.value)}
-                        rows={3}
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="url" className="font-medium">视频链接</label>
-                    <InputText
-                        id="url"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://example.com/video.mp4"
-                    />
+                    <div className="flex flex-col gap-2.5">
+                        <label htmlFor="url" className="text-[11px] font-black uppercase tracking-widest text-surface-400 ml-1">演示视频 URL</label>
+                        <InputText
+                            id="url"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            placeholder="https://example.com/video.mp4"
+                            className="rounded-xl border-surface-200"
+                        />
+                    </div>
                 </div>
             </div>
         </Dialog>

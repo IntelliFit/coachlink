@@ -203,6 +203,9 @@ export async function POST(req: Request) {
           throw new Error(updateRoomErr.message);
         }
 
+        // 注意：推送通知现在完全由前端通过 Service Worker 处理
+        // 当消息插入到数据库后，SSE 会通知前端，前端会自动显示通知
+
         return { studentUserId, roomId, success: true };
       } catch (e: any) {
         return {

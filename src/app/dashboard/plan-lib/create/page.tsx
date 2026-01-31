@@ -22,12 +22,14 @@ import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
 import SmartImportDialog from '../components/SmartImportDialog';
 import { ItemType } from '@/types/student';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const CreatePlanPage = () => {
     const router = useRouter();
     const { showToast } = useToastContext();
     const { data: session } = useSession();
     const coach = getCoach(session);
+    const { trackEvent } = useAnalytics();
 
     // Plan template basic info
     const [name, setName] = useState('');
@@ -367,10 +369,17 @@ const CreatePlanPage = () => {
     };
 
     // 智能导入完成处理
-    const handleImportComplete = (importedDays: FormPlanTrainingDay[]) => {
+    const handleImportComplete = (
+        importedDays: FormPlanTrainingDay[],
+        importedGlobalDescription?: string | null,
+    ) => {
         setDays(importedDays);
         if (importedDays.length > 0) {
             setSelectedDayIndex(importedDays[0].dayIndex);
+        }
+        // 如果当前未填写描述，则用“全局说明”自动回填
+        if (importedGlobalDescription?.trim()) {
+            setDescription((prev) => (prev?.trim() ? prev : importedGlobalDescription.trim()));
         }
         showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划` });
         // 重新加载动作库以包含新创建的动作
@@ -409,6 +418,14 @@ const CreatePlanPage = () => {
                 trainingDays: daysData
             });
 
+            trackEvent('coach_plan_create', 'coach', {
+                name,
+                suitable_for: suitableFor,
+                tags_count: tags.length,
+                days_count: daysData.length,
+                total_sets: daysData.reduce((acc, d) => acc + (d.actionSets?.length || 0), 0)
+            });
+
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已创建' });
             router.push('/dashboard/plan-lib');
         } catch (error) {
@@ -438,7 +455,7 @@ const CreatePlanPage = () => {
         <div className="mx-auto">
             {/* 智能导入按钮 - 放在顶部显眠位置 */}
             <div className="mb-4 flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-900">新建训练计划模板</h1>
+                <h1 className="text-2xl font-bold text-900">新建计划</h1>
                 <Button
                     label="智能导入"
                     icon="pi pi-bolt"
@@ -466,8 +483,20 @@ const CreatePlanPage = () => {
                 globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
                 globalAnswers={globalAnswers}
                 onGlobalAnswerChange={(question, answerIndex) => {
-                    setGlobalAnswers({ ...globalAnswers, [question]: answerIndex });
+                    setGlobalAnswers(prev => {
+                        const next = { ...prev };
+                        if (answerIndex === null) {
+                            delete next[question];
+                            return next;
+                        }
+                        next[question] = answerIndex;
+                        return next;
+                    });
                 }}
+                availableTrainingTags={
+                    // 从问卷配置中提取 tags 问题的选项
+                    (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
+                }
             />
 
             <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">

@@ -16,6 +16,7 @@ import { InputIcon } from 'primereact/inputicon';
 import { CoachActionRow } from '@/types';
 import ActionCard from './ActionCard';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import MergeActionsDialog from './MergeActionsDialog';
 
 const ActionLib = () => {
     const { data: session } = useSession();
@@ -36,6 +37,9 @@ const ActionLib = () => {
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
     const [editingAction, setEditingAction] = useState<CoachActionRow | null>(null);
     const [dialogVisible, setDialogVisible] = useState(false);
+    const [selectedActions, setSelectedActions] = useState<CoachActionRow[]>([]);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [mergeDialogVisible, setMergeDialogVisible] = useState(false);
 
     const itemsPerPage = 12;
 
@@ -77,6 +81,7 @@ const ActionLib = () => {
                 setSearchResults(res.actions);
                 setSearchTotalRecords(res.totalCount);
                 setCurrentPage(1);
+                setSelectedActions([]);
             }
         } catch (error) {
             showToast({ severity: 'error', summary: '搜索失败', detail: '无法搜索动作' });
@@ -128,9 +133,65 @@ const ActionLib = () => {
                 try {
                     await actionLibService.deleteAction({ id: action.id });
                     showToast({ severity: 'success', summary: '删除成功', detail: '动作已删除' });
+                    setSelectedActions(prev => prev.filter(a => a.id !== action.id));
                     searchTerm ? handleSearch() : loadActions();
-                } catch (error) {
-                    showToast({ severity: 'error', summary: '删除失败', detail: '无法删除动作' });
+                } catch (error: any) {
+                    showToast({
+                        severity: 'error',
+                        summary: '删除失败',
+                        detail: error?.message || '无法删除动作',
+                    });
+                }
+            }
+        });
+    };
+
+    const handleToggleSelect = (action: CoachActionRow, checked: boolean) => {
+        setSelectedActions(prev => {
+            const exists = prev.some(a => a.id === action.id);
+            if (checked) return exists ? prev : [...prev, action];
+            return prev.filter(a => a.id !== action.id);
+        });
+    };
+
+    const handleSelectAllOnPage = () => {
+        const current = (searchTerm ? searchResults : actions) || [];
+        setSelectedActions(prev => {
+            const map = new Map(prev.map(a => [a.id, a]));
+            current.forEach(a => map.set(a.id, a));
+            return Array.from(map.values());
+        });
+    };
+
+    const handleClearSelection = () => setSelectedActions([]);
+
+    const handleBulkDelete = () => {
+        const ids = selectedActions.map(a => a.id);
+        if (ids.length === 0) return;
+        confirmDialog({
+            header: '批量删除确认',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger',
+            message: `确定要批量删除已选择的 ${ids.length} 个动作吗？此操作无法撤销。`,
+            accept: async () => {
+                setBulkDeleting(true);
+                try {
+                    const results = await Promise.allSettled(
+                        selectedActions.map(a => actionLibService.deleteAction({ id: a.id }))
+                    );
+                    const ok = results.filter(r => r.status === 'fulfilled').length;
+                    const fail = results.length - ok;
+                    if (fail === 0) {
+                        showToast({ severity: 'success', summary: '批量删除成功', detail: `已删除 ${ok} 个动作` });
+                    } else {
+                        showToast({ severity: 'warn', summary: '批量删除部分失败', detail: `成功 ${ok} 个，失败 ${fail} 个` });
+                    }
+                    setSelectedActions([]);
+                    searchTerm ? handleSearch() : loadActions();
+                } catch (e: any) {
+                    showToast({ severity: 'error', summary: '批量删除失败', detail: e?.message || '请稍后重试' });
+                } finally {
+                    setBulkDeleting(false);
                 }
             }
         });
@@ -143,6 +204,7 @@ const ActionLib = () => {
         // router.push(pathname + '?' + params.toString());
 
         setCurrentPage(newPage);
+        setSelectedActions([]);
     };
 
     const renderActionCard = (action: CoachActionRow) => {
@@ -150,6 +212,9 @@ const ActionLib = () => {
             action={action}
             onEditAction={handleEditAction}
             onDeleteAction={handleDeleteAction}
+            selectionEnabled
+            selected={selectedActions.some(a => a.id === action.id)}
+            onToggleSelect={handleToggleSelect}
         />
     };
 
@@ -161,6 +226,20 @@ const ActionLib = () => {
                 action={editingAction}
                 onSave={handleSaveAction}
                 onCancel={() => setDialogVisible(false)}
+            />
+            <MergeActionsDialog
+                visible={mergeDialogVisible}
+                actions={selectedActions}
+                onHide={() => setMergeDialogVisible(false)}
+                onSuccess={(res) => {
+                    showToast({
+                        severity: 'success',
+                        summary: '合并完成',
+                        detail: `已替换 ${res.replacedCount} 处引用（模板 ${res.updatedTemplates} 个，计划实例 ${res.updatedInstances} 个）`,
+                    });
+                    setSelectedActions([]);
+                    searchTerm ? handleSearch() : loadActions();
+                }}
             />
 
             {/* Header: 数值中心化 */}
@@ -194,6 +273,7 @@ const ActionLib = () => {
                                 setSearchResults([]);
                                 setSearchTotalRecords(0);
                                 setCurrentPage(1);
+                                setSelectedActions([]);
                                 loadActions();
                             }
                         }}
@@ -224,6 +304,49 @@ const ActionLib = () => {
                     </div>
                 ) : (
                     <>
+                        {selectedActions.length > 0 && (
+                            <div className="mb-4 px-1 sm:px-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl border border-surface-200 bg-white">
+                                    <div className="text-sm text-surface-700 font-semibold">
+                                        已选择 {selectedActions.length} 个动作
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            label="合并/去重"
+                                            icon="pi pi-clone"
+                                            onClick={() => setMergeDialogVisible(true)}
+                                            disabled={bulkDeleting || selectedActions.length < 2}
+                                            className="rounded-xl"
+                                        />
+                                        <Button
+                                            label="全选本页"
+                                            icon="pi pi-check-square"
+                                            outlined
+                                            onClick={handleSelectAllOnPage}
+                                            disabled={bulkDeleting}
+                                            className="rounded-xl"
+                                        />
+                                        <Button
+                                            label="清空选择"
+                                            icon="pi pi-times"
+                                            text
+                                            onClick={handleClearSelection}
+                                            disabled={bulkDeleting}
+                                            className="rounded-xl"
+                                        />
+                                        <Button
+                                            label="批量删除"
+                                            icon="pi pi-trash"
+                                            severity="danger"
+                                            onClick={handleBulkDelete}
+                                            loading={bulkDeleting}
+                                            disabled={bulkDeleting}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         <DataView
                             lazy
                             value={searchTerm ? searchResults : actions}

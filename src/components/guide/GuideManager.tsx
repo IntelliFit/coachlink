@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useGuideStore } from '@/stores/useGuideStore';
 import { useSession } from 'next-auth/react';
 import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
+import { userService } from '@/app/service/userService';
+import type { UserProfilesRow } from '@/types';
 
 interface GuideManagerProps {
   userRole?: 'coach' | 'student';
@@ -21,12 +23,32 @@ export function GuideManager({ userRole }: GuideManagerProps) {
   const { isOnboardingModalOpen } = useOnboardingModal();
   const [hasTriggeredOnboarding, setHasTriggeredOnboarding] = useState(false);
   const [hasTriggeredContextual, setHasTriggeredContextual] = useState<Record<string, boolean>>({});
+  const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+
+  // 获取用户档案
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setProfile(null);
+      return;
+    }
+    const loadProfile = async () => {
+      try {
+        const res = await userService.getProfile({});
+        if (res?.profile) {
+          setProfile(res.profile);
+        }
+      } catch (error) {
+        console.error('获取用户档案失败:', error);
+      }
+    };
+    loadProfile();
+  }, [session?.user?.id]);
 
   // Prevent guides from interrupting critical flows (e.g., profile onboarding dialog)
   const shouldPauseGuides = !!isOnboardingModalOpen;
 
   const isStudentProfileIncomplete =
-    userRole === 'student' && (session?.profile as any)?.onboarding_completed !== true;
+    userRole === 'student' && profile?.onboarding_completed !== true;
 
   // If a guide is已经显示且打开了 Onboarding，强制关闭 guide 避免挡住问卷
   useEffect(() => {
@@ -37,11 +59,11 @@ export function GuideManager({ userRole }: GuideManagerProps) {
 
   // Debug logging
   useEffect(() => {
-    console.log('[GuideManager] userRole:', userRole, 'pathname:', pathname);
-    console.log('[GuideManager] completedGuides:', completedGuides);
-    console.log('[GuideManager] isLoading:', isLoading, 'isGuideActive:', isGuideActive);
-    console.log('[GuideManager] pause:', shouldPauseGuides, 'profileIncomplete:', isStudentProfileIncomplete);
-    console.log('[GuideManager] isInitialized:', isInitialized);
+    // console.log('[GuideManager] userRole:', userRole, 'pathname:', pathname);
+    // console.log('[GuideManager] completedGuides:', completedGuides);
+    // console.log('[GuideManager] isLoading:', isLoading, 'isGuideActive:', isGuideActive);
+    // console.log('[GuideManager] pause:', shouldPauseGuides, 'profileIncomplete:', isStudentProfileIncomplete);
+    // console.log('[GuideManager] isInitialized:', isInitialized);
   }, [userRole, pathname, completedGuides, isLoading, isGuideActive, shouldPauseGuides, isStudentProfileIncomplete, isInitialized]);
 
   // Trigger onboarding guide based on role

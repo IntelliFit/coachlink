@@ -15,7 +15,10 @@ import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useSession, signOut, getSession } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
 import { subscriptionService } from '@/app/service/subscriptionService';
+import { userService } from '@/app/service/userService';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
+import { useCart } from '@/context/CartContext';
+import type { UserProfilesRow } from '@/types';
 import {
     PlayCircle,
     Search,
@@ -32,7 +35,10 @@ import {
     Activity,
     Users,
     Menu as MenuIcon, // 引入菜单图标
-    Headphones
+    Headphones,
+    MessageSquare,
+    Receipt,
+    ShoppingCart
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -40,12 +46,19 @@ export default function NavigationStudent() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
-    const { openOnboardingModal, clearOnboardingSuppression } = useOnboardingModal();
-    const { data: session, status } = useSession();
+    const { openOnboardingModal, clearOnboardingSuppression, isOnboardingModalOpen } = useOnboardingModal();
+    const { getItemCount } = useCart();
+    const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
     const [visibleLeft, setVisibleLeft] = useState(false); // 控制侧边菜单显示
+    const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+    // 使用 useRef 记录已检查过的 profile 状态，避免重复检查（不会触发重新渲染）
+    const checkedProfileStateRef = useRef<{
+        profileId?: string;
+        onboardingCompleted?: boolean;
+    } | null>(null);
 
     useEffect(() => {
         setIsClient(true);
@@ -54,38 +67,161 @@ export default function NavigationStudent() {
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                getSession();
+                // PWA 恢复时主动刷新 session（解决 Android Chrome 息屏后 session 丢失问题）
+                getSession().catch(() => {
+                    // 静默失败，避免控制台噪音
+                });
             }
         };
         window.addEventListener('visibilitychange', handleVisibilityChange);
+        // 页面加载时也尝试恢复 session（PWA 从后台恢复时）
+        if (document.visibilityState === 'visible') {
+            getSession().catch(() => {});
+        }
         return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
+    // 获取用户档案并自动修复空资料
     useEffect(() => {
-        if (status === 'loading') return;
-        if (session?.user) {
-            const profile = session.profile as any;
-            if (profile?.onboarding_completed === true) {
-                clearOnboardingSuppression();
-                return;
-            }
-            if (profile?.onboarding_completed !== true) {
-                openOnboardingModal();
-            }
+        if (status !== 'authenticated' || !session?.user?.id) {
+            setProfile(null);
+            checkedProfileStateRef.current = null; // 重置检查标记
+            return;
         }
-    }, [session, status, openOnboardingModal, clearOnboardingSuppression]);
+        const loadProfile = async () => {
+            try {
+                const res = await userService.getProfile({});
+                if (res?.profile) {
+                    setProfile(res.profile);
+                    
+                    // 自动检测并修复空资料（昵称为空）
+                    const needsFix = !res.profile.nickname || res.profile.nickname.trim() === '';
+                    
+                    if (needsFix && session?.user) {
+                        // 生成默认昵称
+                        const phone = session.user.phone;
+                        const email = session.user.email;
+                        let defaultNickname = '';
+                        
+                        if (phone) {
+                            defaultNickname = `手机用户_${phone.slice(-4)}`;
+                        } else if (email) {
+                            const emailPrefix = email.split('@')[0] || '';
+                            defaultNickname = `邮箱用户_${emailPrefix.slice(0, 8)}`;
+                        } else {
+                            defaultNickname = '用户';
+                        }
+                        
+                        // 自动修复：只更新昵称，不改变其他字段（包括 onboarding_completed）
+                        try {
+                            const updatedProfile = await userService.updateProfile({
+                                nickname: defaultNickname,
+                                // 不设置 onboarding_completed，保持原值
+                                // 如果为 null/undefined，后续的问卷检查逻辑会处理
+                            });
+                            
+                            if (updatedProfile) {
+                                // 更新本地状态
+                                setProfile(updatedProfile);
+                                // 刷新 session 以更新昵称显示
+                                await updateSession();
+                                console.log('[NavigationStudent] 已自动修复空昵称:', defaultNickname);
+                            }
+                        } catch (fixError) {
+                            console.error('[NavigationStudent] 自动修复昵称失败:', fixError);
+                        }
+                    }
+                } else {
+                    // Profile 不存在，创建默认 profile
+                    if (session?.user) {
+                        const phone = session.user.phone;
+                        const email = session.user.email;
+                        let defaultNickname = '';
+                        
+                        if (phone) {
+                            defaultNickname = `手机用户_${phone.slice(-4)}`;
+                        } else if (email) {
+                            const emailPrefix = email.split('@')[0] || '';
+                            defaultNickname = `邮箱用户_${emailPrefix.slice(0, 8)}`;
+                        } else {
+                            defaultNickname = '用户';
+                        }
+                        
+                        try {
+                            const newProfile = await userService.updateProfile({
+                                nickname: defaultNickname,
+                                onboarding_completed: false,
+                            });
+                            
+                            if (newProfile) {
+                                setProfile(newProfile);
+                                await updateSession();
+                                console.log('[NavigationStudent] 已创建默认 profile:', defaultNickname);
+                            }
+                        } catch (createError) {
+                            console.error('[NavigationStudent] 创建默认 profile 失败:', createError);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        loadProfile();
+    }, [status, session?.user?.id, session?.user?.phone, session?.user?.email, updateSession]);
+
+    // 检查 onboarding 完成状态（优化后的逻辑）
+    useEffect(() => {
+        // 等待认证状态加载完成
+        if (status === 'loading') return;
+        
+        // 确保有用户和 profile 数据
+        if (!session?.user || !profile) return;
+        
+        // 如果弹窗已经打开，不要重复触发
+        if (isOnboardingModalOpen) return;
+        
+        // 检查是否已经检查过相同的 profile 状态
+        // 只有当 profile.id 或 onboarding_completed 发生变化时才重新检查
+        const currentState = {
+            profileId: profile.id,
+            onboardingCompleted: profile.onboarding_completed
+        };
+        
+        const previousState = checkedProfileStateRef.current;
+        if (previousState && 
+            previousState.profileId === currentState.profileId &&
+            previousState.onboardingCompleted === currentState.onboardingCompleted) {
+            // 已经检查过相同的状态，不需要重复检查
+            return;
+        }
+        
+        // 标记为已检查当前状态
+        checkedProfileStateRef.current = currentState;
+        
+        // 严格判断：只有明确为 true 时才认为已完成
+        if (profile.onboarding_completed === true) {
+            clearOnboardingSuppression();
+            return;
+        }
+        
+        // 只有在 onboarding_completed 明确不是 true 时才打开弹窗
+        // 注意：这里不判断 null/undefined，因为可能是新用户还没有 profile
+        if (profile.onboarding_completed === false || profile.onboarding_completed === null || profile.onboarding_completed === undefined) {
+            openOnboardingModal();
+        }
+    }, [session?.user?.id, profile?.id, profile?.onboarding_completed, status, isOnboardingModalOpen, clearOnboardingSuppression, openOnboardingModal]);
 
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) return;
-        const checkSubscriptions = async () => {
+        const checkSubscriptions = () => {
             const now = Date.now();
             if (now - lastSubscriptionCheck < 10 * 60 * 1000) return;
             setLastSubscriptionCheck(now);
-            try {
-                await subscriptionService.checkExpiredSubscriptions();
-            } catch (error) {
+            // Fire and forget: 不等待结果，避免阻塞 UI
+            subscriptionService.checkExpiredSubscriptions().catch((error) => {
                 console.error('Error checking expired subscriptions:', error);
-            }
+            });
         };
         checkSubscriptions();
         const interval = setInterval(checkSubscriptions, 10 * 60 * 1000);
@@ -120,7 +256,7 @@ export default function NavigationStudent() {
     ], [router, pathname]);
 
     const userMenuItems = useMemo(() => [
-        // 统一入口：当前计划（替代“训练计划”）
+        // 统一入口：当前计划（替代"训练计划"）
         { label: '当前计划', icon: 'pi pi-clipboard', command: () => { router.push('/coach/plans'); setVisibleLeft(false); } },
         { label: '我的教练', icon: 'pi pi-star', command: () => { router.push('/coach/subscription'); setVisibleLeft(false); } },
         { label: '我的会员', icon: 'pi pi-crown', command: () => { router.push('/me/membership'); setVisibleLeft(false); } },
@@ -139,6 +275,8 @@ export default function NavigationStudent() {
         { label: '知识库', icon: 'pi pi-book', command: () => { router.push('/dashboard/knowledge'); setVisibleLeft(false); } },
         { label: '我的计划库', icon: 'pi pi-bookmark', command: () => { router.push('/me/plan-lib'); setVisibleLeft(false); } },
         { label: '训练历史', icon: 'pi pi-history', command: () => { router.push('/me/plan-history'); setVisibleLeft(false); } },
+        { label: '购买记录', icon: 'pi pi-receipt', command: () => { router.push('/me/purchase-history'); setVisibleLeft(false); } },
+        { label: '购物车', icon: 'pi pi-shopping-cart', command: () => { router.push('/me/cart'); setVisibleLeft(false); } },
         { separator: true },
         {
             label: (session?.user as any)?.is_coach ? '切换到教练端' : '申请成为教练',
@@ -151,17 +289,25 @@ export default function NavigationStudent() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ role: 'coach' })
                         });
-                        if (res.ok) window.location.href = '/dashboard';
+                        if (res.ok) {
+                            // 刷新 session，确保 JWT 中 primary_role 立即更新
+                            try {
+                                await updateSession();
+                            } catch (e) {
+                                console.warn('刷新 session 失败:', e);
+                            }
+                            window.location.href = '/dashboard';
+                        }
                     } catch (e) { console.error(e); }
                 } else { router.push('/coach/application'); }
                 setVisibleLeft(false);
             },
         },
         { separator: true },
-        { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(session?.profile, session?.user?.id); setVisibleLeft(false); } },
+        { label: '个人设置', icon: 'pi pi-cog', command: () => { openProfileSetupModal(profile, session?.user?.id); setVisibleLeft(false); } },
         { label: '账户设置', icon: 'pi pi-shield', command: () => { router.push('/me/settings'); setVisibleLeft(false); } },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
-    ], [session, openProfileSetupModal, router]);
+    ], [session, profile, openProfileSetupModal, router, updateSession]);
 
     const studentTabRoots = useMemo(() => [
         '/today-training', '/coach/discovery', '/me/profile', '/ranking', '/friends/activity',
@@ -174,7 +320,7 @@ export default function NavigationStudent() {
         { label: '排行', url: '/ranking' },
     ], []);
 
-    // 2. 移动端底部导航：将“发现”、“档案”与“消息”、“菜单(头像)”整合
+    // 2. 移动端底部导航：将"发现"、"档案"与"消息"、"菜单(头像)"整合
     const mobileBottomTabs = useMemo(() => [
         {
             key: 'discover',
@@ -248,14 +394,14 @@ export default function NavigationStudent() {
                         }}
                     >
                         <Avatar
-                            image={session.profile?.avatar_url || undefined}
-                            label={session.profile?.avatar_url ? undefined : (session.profile?.nickname?.charAt(0) || 'U')}
+                            image={profile?.avatar_url || undefined}
+                            label={profile?.avatar_url ? undefined : (profile?.nickname?.charAt(0) || 'U')}
                             shape="circle"
                             className="bg-primary-500 text-surface text-xs font-bold inner-img-object-fit"
                         />
                         <div className="hidden md:flex flex-col items-start leading-tight">
                             <span className="text-sm font-bold text-surface-900 truncate max-w-[100px]">
-                                {session.profile?.nickname || '学员'}
+                                {profile?.nickname || '学员'}
                             </span>
                             <span className="text-[10px] text-surface-400 font-medium">Ready</span>
                         </div>
@@ -298,15 +444,15 @@ export default function NavigationStudent() {
                     <div className="p-6 pt-10 border-b border-surface-50">
                         <div className="flex flex-col gap-4">
                             <Avatar
-                                image={session?.profile?.avatar_url || undefined}
-                                label={session?.profile?.avatar_url ? undefined : (session?.profile?.nickname?.charAt(0) || 'U')}
+                                image={profile?.avatar_url || undefined}
+                                label={profile?.avatar_url ? undefined : (profile?.nickname?.charAt(0) || 'U')}
                                 shape="circle"
                                 size="xlarge"
                                 className="bg-primary-500 text-surface font-bold shadow-lg"
                             />
                             <div>
                                 <h3 className="text-xl font-black text-surface-900 leading-none mb-1">
-                                    {session?.profile?.nickname || '学员'}
+                                    {profile?.nickname || '学员'}
                                 </h3>
                                 <div className="flex items-center gap-2">
                                     <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold rounded-full uppercase">
@@ -374,13 +520,13 @@ export default function NavigationStudent() {
                             <button
                                 onClick={() => {
                                     // 这里填写你的客服逻辑，比如跳转路由或打开第三方聊天
-                                    router.push('/support');
+                                    router.push('/feedback');
                                     setVisibleLeft(false);
                                 }}
                                 className="flex items-center gap-2 px-3 h-10 rounded-xl bg-surface shadow-sm border border-surface-200/50 text-surface-600 active:scale-90 transition-transform"
                             >
-                                <Headphones size={18} />
-                                <span className="text-xs font-bold">客服</span>
+                                <MessageSquare size={18} />
+                                <span className="text-xs font-bold">反馈</span>
                             </button>
                         </div>
 
@@ -393,7 +539,7 @@ export default function NavigationStudent() {
 
             {/* Mobile: 顶部导航 (类似小红书：左侧菜单 + 居中 Tab) */}
             {session && (
-                <div className="md:hidden sticky top-0 z-50 w-full bg-surface/80 backdrop-blur-md border-b border-surface-100">
+                <div className="md:hidden sticky top-0 z-50 w-full pt-[env(safe-area-inset-top)] bg-surface/80 backdrop-blur-md border-b border-surface-100">
                     <div className="flex items-center h-14 px-4">
                         {/* 左侧：找回菜单触发按钮 */}
                         <div className="flex-1">

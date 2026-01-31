@@ -102,9 +102,13 @@ const StudentActionLib = () => {
             } else {
                 loadActions();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('删除动作失败:', error);
-            showToast({ severity: 'error', summary: '删除失败', detail: '无法删除动作' });
+            showToast({
+                severity: 'error',
+                summary: '删除失败',
+                detail: error?.message || '无法删除动作',
+            });
         }
     };
 
@@ -119,6 +123,9 @@ const StudentActionLib = () => {
                     url: actionData.url,
                     positions: actionData.positions,
                     attrs: actionData.attrs,
+                    type: actionData.type,
+                    item_schema: actionData.item_schema ?? null,
+                    suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
                     canonical_action_id: actionData.canonical_action_id
@@ -132,6 +139,9 @@ const StudentActionLib = () => {
                     url: actionData.url,
                     positions: actionData.positions,
                     attrs: actionData.attrs,
+                    type: actionData.type,
+                    item_schema: actionData.item_schema ?? null,
+                    suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
                     canonical_action_id: actionData.canonical_action_id
@@ -189,6 +199,14 @@ const StudentActionLib = () => {
 
     const renderActionCard = (action: StudentActionRow) => {
         const positions = action.positions || [];
+        const itemType = action.type || 'STRENGTH';
+        const typeMeta = {
+            STRENGTH: { label: '力量', icon: 'pi pi-sliders-h', className: 'bg-orange-50 text-orange-600' },
+            DIET: { label: '饮食', icon: 'pi pi-apple', className: 'bg-green-50 text-green-600' },
+            CARDIO: { label: '有氧', icon: 'pi pi-bolt', className: 'bg-blue-50 text-blue-600' },
+            HABIT: { label: '习惯', icon: 'pi pi-heart', className: 'bg-purple-50 text-purple-600' },
+        } as const;
+        const meta = typeMeta[itemType];
 
         return (
             <div className="border border-surface-200 rounded-lg p-4 hover:shadow-sm transition-all mb-2">
@@ -207,6 +225,10 @@ const StudentActionLib = () => {
 
                         {/* 标签区域 */}
                         <div className="flex flex-wrap gap-2 mt-2">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${meta.className}`}>
+                                <i className={`${meta.icon} text-xs mr-1`} />
+                                {meta.label}
+                            </span>
                             {positions.map((pos, index) => (
                                 <span
                                     key={index}
