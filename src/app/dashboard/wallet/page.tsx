@@ -21,10 +21,10 @@ interface WithdrawalRecord {
 }
 
 /** 钱包流水项是否支持「退款」：平台支付的订阅/续费收入 */
-function canRefundTx(tx: { type: string; related_order_id?: string | null; order_type?: string | null }): boolean {
+function canRefundTx(tx: { type: string; alipay_order_id?: string | null; order_type?: string | null }): boolean {
     return (
         tx.type === 'income' &&
-        Boolean(tx.related_order_id) &&
+        Boolean(tx.alipay_order_id) &&
         (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew') === true
     );
 }
@@ -150,10 +150,10 @@ export default function CoachWalletPage() {
                         </div>
                         <div className="flex items-center gap-3">
                             {boundAccount ? (
-                                    <div className="flex items-center gap-2 text-xs text-white/90">
-                                        <span>已绑定: {boundAccount.payee_account_masked}</span>
-                                        <Link href="/dashboard/wallet/bind" className="underline text-white/90 hover:text-white">重新绑定</Link>
-                                    </div>
+                                <div className="flex items-center gap-2 text-xs text-white/90">
+                                    <span>已绑定: {boundAccount.payee_account_masked}</span>
+                                    <Link href="/dashboard/wallet/bind" className="underline text-white/90 hover:text-white">重新绑定</Link>
+                                </div>
                             ) : (
                                 <Link href="/dashboard/wallet/bind" className="text-xs text-white underline">绑定支付宝</Link>
                             )}
@@ -231,9 +231,9 @@ export default function CoachWalletPage() {
                                 //     </Link>
                                 //     的订阅
                                 // </>
-                                 <>
+                                <>
                                     来自
-                                        {tx.student_name || '学员'}
+                                    {tx.student_name || '学员'}
                                     的订阅
                                 </>
                             ) : fallbackTitle;
@@ -251,17 +251,26 @@ export default function CoachWalletPage() {
                                                 <p className="text-xs text-surface-500">{secondaryContent}</p>
                                             ) : null}
                                             <p className="text-xs text-surface-500">{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</p>
+                                            {tx.alipay_order_id && (tx.type === 'refund') ? (
+                                                <Link href={`/dashboard/wallet/order/${tx.alipay_order_id}`} className="text-xs text-primary-600 hover:underline mt-0.5 inline-block">
+                                                    查看原订单
+                                                </Link>
+                                            ) :
+                                                <Link href={`/dashboard/wallet/order/${tx.alipay_order_id}`} className="text-xs text-primary-600 hover:underline mt-0.5 inline-block">
+                                                    查看订单详情
+                                                </Link>
+                                            }
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        {canRefundTx(tx) && tx.related_order_id && (
+                                        {canRefundTx(tx) && tx.alipay_order_id && !tx.refunded_at && tx.type === 'income' && (
                                             <Button
                                                 label="退款"
                                                 icon="pi pi-undo"
                                                 size="small"
                                                 className="p-button-text p-button-sm text-amber-600"
-                                                loading={refundingOrderId === tx.related_order_id}
-                                                onClick={() => handleRefund(tx.related_order_id!)}
+                                                loading={refundingOrderId === tx.alipay_order_id}
+                                                onClick={() => handleRefund(tx.alipay_order_id!)}
                                             />
                                         )}
                                         <span className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
