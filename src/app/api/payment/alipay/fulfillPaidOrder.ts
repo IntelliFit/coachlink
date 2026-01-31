@@ -1,13 +1,13 @@
 /**
  * 支付宝订单支付成功后的统一履约逻辑（订阅确认 + 教练钱包入账）。
  * 供 notify（支付宝服务器异步通知）、return（同步跳转）、query（前端轮询）共用。
- * 所有操作均幂等：以 last_payment_order_id / related_order_id 防重。
+ * 所有操作均幂等：以 last_payment_order_id / alipay_order_id 防重。
  */
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { sendSystemMessage } from "@/lib/chat";
 import { addFen } from "@/lib/moneyUtils";
 
-/** 教练钱包入账 + 流水记录，按 related_order_id 幂等 */
+/** 教练钱包入账 + 流水记录，按 alipay_order_id 幂等。同一支付宝订单只允许一条收入流水，先查再插，插入成功后才更新钱包，避免 notify/return/query 并发重复入账。 */
 export async function updateTransactionAndWallet(order: {
     id: string;
     order_data?: unknown;
@@ -22,36 +22,56 @@ export async function updateTransactionAndWallet(order: {
         const amountFen = Math.round(Number(order.total_amount ?? order.amount ?? orderData?.amount ?? 0));
         if (!coachId || !amountFen || amountFen <= 0) return;
 
-        const { data: existTx } = await serviceRoleSupabase
+        // 应用层“先查再插”只是优化，无法解决并发：两个进程可能同时查到“没有”再同时写入。
+        // 真正的同步由 DB 唯一约束（idx_wallet_transactions_alipay_order_id_income）保证：只有一个 insert 能成功，
+        // 另一个会得到 23505，我们视为幂等成功；且只有插入成功的那次才更新钱包，故不会重复加余额。
+        const { data: existRows } = await serviceRoleSupabase
             .from("wallet_transactions")
             .select("id")
-            .eq("related_order_id", order.id)
-            .single();
-        if (existTx) return;
+            .eq("alipay_order_id", order.id)
+            .limit(1);
+        if (existRows && existRows.length > 0) return;
 
-        const { data: wallet } = await serviceRoleSupabase
-            .from("coach_wallets")
-            .select("*")
-            .eq("coach_id", coachId)
-            .single();
-
-        if (!wallet) {
-            // 新钱包：直接存储分（整数）
-            await serviceRoleSupabase.from("coach_wallets").insert({
+        // wallet_transactions.wallet_id 外键引用 coach_wallets(coach_id)，必须先有钱包行才能插流水。
+        // 先确保教练钱包存在（不存在则插入余额 0），不改余额；插流水成功后再更新余额。
+        await serviceRoleSupabase.from("coach_wallets").upsert(
+            {
                 coach_id: coachId,
-                balance: amountFen,
-                total_income: amountFen,
+                balance: 0,
+                total_income: 0,
                 frozen_amount: 0,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-            });
-        } else {
-            // 现有钱包：DB 中 balance/total_income 已是分，直接整数相加
+            },
+            { onConflict: "coach_id", ignoreDuplicates: true }
+        );
+
+        const desc =
+            (orderData?.subject as string) ||
+            (order.subject as string) ||
+            `支付宝订单 ${order.id}`;
+        const { error: insertErr } = await serviceRoleSupabase.from("wallet_transactions").insert({
+            wallet_id: coachId,
+            amount: amountFen,
+            type: "income",
+            alipay_order_id: order.id,
+            description: desc,
+            created_at: new Date().toISOString(),
+        });
+        if (insertErr?.code === "23505") return; // 并发时第二个 insert 被唯一约束拒绝，幂等成功
+        if (insertErr) throw insertErr;
+
+        // 仅当流水插入成功后再更新钱包余额（原子加，避免并发重复加）
+        const { data: wallet } = await serviceRoleSupabase
+            .from("coach_wallets")
+            .select("balance, total_income")
+            .eq("coach_id", coachId)
+            .single();
+        if (wallet) {
             const currentBalanceFen = Number(wallet.balance ?? 0);
             const currentTotalIncomeFen = Number(wallet.total_income ?? 0);
             const newBalanceFen = addFen(currentBalanceFen, amountFen);
             const newTotalIncomeFen = addFen(currentTotalIncomeFen, amountFen);
-
             await serviceRoleSupabase
                 .from("coach_wallets")
                 .update({
@@ -61,23 +81,6 @@ export async function updateTransactionAndWallet(order: {
                 })
                 .eq("coach_id", coachId);
         }
-
-        const desc =
-            (orderData?.subject as string) ||
-            (order.subject as string) ||
-            `支付宝订单 ${order.id}`;
-        // 流水记录也存储分（整数）；重复 related_order_id 由 DB 唯一约束拦截
-        const { error: insertErr } = await serviceRoleSupabase.from("wallet_transactions").insert({
-            wallet_id: coachId,
-            amount: amountFen,
-            type: "income",
-            related_order_id: order.id,
-            description: desc,
-            created_at: new Date().toISOString(),
-        });
-        // 唯一约束冲突：说明 notify/return/query 已入账过，幂等成功
-        if (insertErr?.code === "23505") return;
-        if (insertErr) throw insertErr;
     } catch (e) {
         console.error("[Alipay fulfillPaidOrder] updateTransactionAndWallet:", e);
     }

@@ -156,14 +156,24 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 5. 更新订单状态
-    await serviceRoleSupabase
+    // 5. 更新订单状态（管理员/教练账单列表均依赖此状态显示「已退款」）
+    const { error: updateOrderErr } = await serviceRoleSupabase
         .from("alipay_orders")
         .update({
             status: "refunded",
             updated_at: new Date().toISOString(),
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .select("id")
+        .single();
+    if (updateOrderErr) {
+        console.error("[Alipay Refund] 更新订单状态失败:", updateOrderErr);
+        return NextResponse.json<ApiData<RefundAlipayOrderResponseDto>>({
+            success: false,
+            message: "退款成功但更新订单状态失败，请联系管理员",
+            data: null,
+        }, { status: 500 });
+    }
 
     // 6. 取消关联订阅（platform 支付的订阅/续费）
     if (
@@ -244,25 +254,54 @@ export async function POST(req: Request) {
                 })
                 .eq("coach_id", orderCoachId);
 
+            // 查询对应收入流水 id，用于插入退款流水时填写 related_income_tx_id（退款流水可据此找到原始流水）
+            const incomeTxRes = await serviceRoleSupabase
+                .from("wallet_transactions")
+                .select("id")
+                .eq("wallet_id", orderCoachId)
+                .eq("alipay_order_id", orderId)
+                .eq("type", "income")
+                .maybeSingle();
+            const incomeTx = incomeTxRes.data as { id: string } | null;
+
             // 检查是否已存在退款记录（防止重复插入）
             const { data: existingRefundTx } = await serviceRoleSupabase
                 .from("wallet_transactions")
                 .select("id")
-                .eq("related_order_id", orderId)
+                .eq("alipay_order_id", orderId)
                 .eq("type", "refund")
                 .maybeSingle();
 
-            // 插入退款流水记录（如果不存在），存储分（整数）
+            // 插入退款流水记录（如果不存在）：type=refund，alipay_order_id 关联支付宝账单，related_income_tx_id 指向原始收入流水
             if (!existingRefundTx) {
                 const orderSubject = (order as { subject?: string | null }).subject;
-                await serviceRoleSupabase.from("wallet_transactions").insert({
+                const originalDesc = (orderData?.subject as string) || orderSubject || "支付宝订单";
+                const { error: insertRefundErr } = await serviceRoleSupabase.from("wallet_transactions").insert({
                     wallet_id: orderCoachId,
                     amount: refundAmountFen, // 存储分（整数）
                     type: "refund",
-                    related_order_id: orderId,
-                    description: `退款：${(orderData?.subject as string) || orderSubject || "支付宝订单"}`,
+                    alipay_order_id: orderId,
+                    related_income_tx_id: incomeTx?.id ?? null,
+                    description: `已退款：${originalDesc}`,
                     created_at: new Date().toISOString(),
                 });
+                if (insertRefundErr) {
+                    console.error("[Alipay Refund] 插入退款流水失败:", insertRefundErr);
+                }
+            }
+
+            // 始终将对应收入流水标记为已退款，教练端列表才能显示「已退款」且与余额一致（refunded_at 见 migration 20260130_wallet_transactions_refunded_at）
+            const { data: updatedIncome, error: updateRefundedErr } = await serviceRoleSupabase
+                .from("wallet_transactions")
+                .update({ refunded_at: new Date().toISOString() } as Record<string, unknown>)
+                .eq("wallet_id", orderCoachId)
+                .eq("alipay_order_id", orderId)
+                .eq("type", "income")
+                .select("id");
+            if (updateRefundedErr) {
+                console.error("[Alipay Refund] 标记收入流水已退款失败:", updateRefundedErr);
+            } else if (!updatedIncome?.length) {
+                console.warn("[Alipay Refund] 未找到需标记的收入流水:", orderId, orderCoachId);
             }
         }
     }

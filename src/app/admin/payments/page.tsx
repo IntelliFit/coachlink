@@ -102,6 +102,7 @@ export default function AdminPaymentsPage() {
             router.push('/');
             return;
         }
+        setFirst(0);
         loadOrders(1, rows);
     }, [session, status, statusFilter, orderTypeFilter]);
 
@@ -192,7 +193,7 @@ export default function AdminPaymentsPage() {
                 </div>
             </div>
 
-            <div className="flex gap-4 mb-4">
+            <div className="flex flex-wrap gap-4 mb-4 items-center">
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-surface-600">状态：</span>
                     <Dropdown
@@ -213,11 +214,13 @@ export default function AdminPaymentsPage() {
                         className="w-32"
                     />
                 </div>
+                <span className="text-xs text-surface-500">教练端操作退款后，请点击「刷新」查看最新状态；已退款订单可在状态筛选中选「已退款」查看。</span>
             </div>
 
             <div className="w-full overflow-x-auto rounded-lg border border-surface-200">
             <DataTable
                 value={loading ? skeletonData : orders}
+                lazy
                 paginator
                 rows={rows}
                 totalRecords={loading ? rows : totalRecords}
