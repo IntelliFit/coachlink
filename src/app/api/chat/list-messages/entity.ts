@@ -25,6 +25,10 @@ export interface MessageItem {
     isMine: boolean;
     contentMetadata?: {
         video_references?: VideoReferenceItem[];
+        broadcast?: boolean;
+        contentId?: string;
+        contentTitle?: string;
+        contentLink?: string;
     } | null;
 }
 
