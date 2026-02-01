@@ -2,6 +2,7 @@
 export interface FinishTrainingDto {
     executionId: string;
     sessionNotes?: string;
+    mode?: "quick";
 }
 
 // 返回参数的接口类型
