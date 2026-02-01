@@ -242,6 +242,21 @@ export async function POST(req: NextRequest) {
         // 移除敏感信息
         const { password_hash, ...userWithoutPassword } = user;
 
+        // 查询是否为教练（小程序端用于界面切换）
+        const { data: coachRow } = await serviceRoleSupabase
+            .from("coaches")
+            .select("id, status")
+            .eq("user_id", user.id)
+            .eq("status", "approved")
+            .maybeSingle();
+        const isCoach = !!coachRow;
+        const payload = {
+            ...userWithoutPassword,
+            is_coach: isCoach,
+            primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
+            is_admin: user.is_admin ?? false,
+        };
+
         // 生成 JWT token 用于小程序鉴权
         // token 包含 userId，有效期 7 天
         const token = signToken({
@@ -259,7 +274,7 @@ export async function POST(req: NextRequest) {
                 openid: openid,
                 session_key: session_key,
                 unionid: unionid || null,
-                user: userWithoutPassword,
+                user: payload,
                 // 注意：session_key 是敏感信息，生产环境应该只在服务端使用
                 // 这里为了测试先返回，后续应该移除
             }
