@@ -242,10 +242,11 @@ const ContentPage = () => {
                                 </div>
                             )}
 
-                            {/* 正文文本 - 修复重复点：此处才是完整正文 */}
-                            <div className="text-surface-700 leading-[1.8] whitespace-pre-line font-light text-lg tracking-normal">
-                                {content?.content}
-                            </div>
+                            {/* 正文文本 - 富文本渲染 */}
+                            <div 
+                                className="prose prose-lg max-w-none text-surface-700 leading-[1.8] font-light"
+                                dangerouslySetInnerHTML={{ __html: content?.content || '' }}
+                            />
 
                             {/* 标签 */}
                             {content?.tags && (
