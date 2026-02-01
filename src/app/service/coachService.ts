@@ -89,6 +89,12 @@ import type {
     GetOverviewDataResponseDto
 } from '@/app/api/coach/get-overview-data/entity';
 
+// 收入明细相关接口
+import type {
+    GetRevenueDetailsDto,
+    GetRevenueDetailsResponseDto
+} from '@/app/api/coach/get-revenue-details/entity';
+
 // 教练资料更新相关接口
 import type {
     UpdateCoachProfileDto,
@@ -414,6 +420,15 @@ class CoachService extends BaseService {
     // 检查邀请码是否可用
     async checkInvitationCodeAvailability(reqData: CheckInvitationCodeAvailabilityDto) {
         const res = await this.post<CheckInvitationCodeAvailabilityResponseDto>('invitation-code/check', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    // 获取收入明细
+    async getRevenueDetails(reqData?: GetRevenueDetailsDto) {
+        const res = await this.post<GetRevenueDetailsResponseDto>('get-revenue-details', reqData || {});
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

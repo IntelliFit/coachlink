@@ -1,0 +1,59 @@
+{
+  "background": {
+    "dayIndexSemantics": [
+      "文本里的 W1D1/W1D2/W1D3 表示“训练日编号/段落标记”，并不等同于系统 dayIndex。",
+      "系统里 dayIndex 是自然日：训练日和休息日都会占用一个 dayIndex。",
+      "因此：文本中的“休息1天/休息2天”需要在结构化结果里占用天数（type=rest），不能被合并到前一天。"
+    ]
+  },
+  "templateAssertions": {
+    "weeksAtLeast": 4,
+    "week1": {
+      "mustPreserveRestDaysBetweenTrainingDays": true,
+      "days": [
+        {
+          "weekIndex": 1,
+          "type": "training",
+          "mustContainActionNames": ["负重引体", "锤式弯举", "普通弯举"],
+          "notes": [
+            "“底部暂停”是动作执行要点：如果动作匹配回退到“负重引体”，该要点必须保留在动作 note 中。"
+          ]
+        },
+        {
+          "weekIndex": 1,
+          "type": "rest",
+          "mustContainDayNoteSubstrings": ["休息1天", "拉伸", "松解", "低强度有氧", "冷热交替洗澡"]
+        },
+        {
+          "weekIndex": 1,
+          "type": "training",
+          "mustContainActionNames": ["负重引体", "反手负重引体", "海豹划船"],
+          "mustContainDayNoteSubstrings": ["可选", "高位引体", "2-3次"],
+          "notes": [
+            "“底部暂停+顶端暂停”是动作执行要点：若动作不作为独立动作存在，应落到动作 note。",
+            "“海豹划船 4组10次（组休3分钟）”应保留“最好在拉到腹部后有暂停”类提示到动作 note（W2D2/W3D2/W4D2 中出现）。"
+          ]
+        },
+        {
+          "weekIndex": 1,
+          "type": "rest",
+          "mustContainDayNoteSubstrings": ["休息1天"]
+        },
+        {
+          "weekIndex": 1,
+          "type": "training",
+          "mustContainActionNames": ["负重引体", "锤式弯举", "海豹划船"]
+        },
+        {
+          "weekIndex": 1,
+          "type": "rest",
+          "mustContainDayNoteSubstrings": ["休息2天"]
+        }
+      ]
+    },
+    "week4KeyNotes": [
+      "W4D3 的“最后一组做到极限次数”必须保留在该动作的 note（不要硬塞进 reps/sets）。"
+    ]
+  }
+}
+

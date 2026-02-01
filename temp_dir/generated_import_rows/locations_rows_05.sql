@@ -1,0 +1,41 @@
+insert into public.streetlifting_locations
+(id, name, description, address, city, province, image_url, image_urls, latitude, longitude, created_at, user_contact)
+values
+('7c4eb30f-035e-4b8d-9706-c5c1ae040058', '回风亭公园', '单杠有一定年限但还是比较稳，环境总的来说还是挺好训练的人也算也中这边比较多的一个地方', '四川省巴中市巴州区回风亭靠河路', '巴中市', '四川省', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769325879087-ou70rb.jpg']::text[], null, null, '2026-01-25 07:24:45.010678+00'::timestamptz, null),
+('7cbbb9fd-8461-419b-832f-6c827d02b027', '河滨公园对面', '一体式多用单杠', '宝安石岩河滨公园对面河道边上', '深圳', '广东', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768538702282-twnpq.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768538771744-hw7qlt.jpg']::text[], null, null, '2026-01-16 04:46:30.262268+00'::timestamptz, null),
+('7cedd300-570c-4729-a09e-c00d8d554c4f', '上海市人民公园健身区', '单杠两根 双杠一个', '上海市黄浦区南京西路231号', '黄浦区', '上海市', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769053702965-u4bydw.jpeg']::text[], null, null, '2026-01-20 00:40:57.799506+00'::timestamptz, null),
+('7d22ca19-4a59-4834-b58b-1fa69dd2e82e', '上海市鲁迅公园', '单杠两个 双杠一个 还有各类健身器材', '四川北路2288号', '虹口区', '上海市', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768869494733-4mi35v.jpg']::text[], null, null, '2026-01-20 00:38:17.936665+00'::timestamptz, null),
+('81f0119a-f4b2-4247-9362-98080241cb2a', '紧挨着老城区图书馆的魏紫路健身社区', '1个3层环形单杠，1个2层高度双杠，3个低位单杠', '老城区图书馆东侧魏紫路健身社区', '洛阳', '河南', null, null, null, null, '2026-01-18 19:17:42.959299+00'::timestamptz, null),
+('86da4c74-5caa-48d8-ba6d-80486fafc776', '洪湖公园', '单杠，双杠，云梯，肋木架，', '罗湖区洪湖公园', '深圳', '广东', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768454393757-ajpogs.jpg']::text[], null, null, '2026-01-15 05:20:00.91678+00'::timestamptz, null),
+('88a76810-badb-41a3-99fb-8854c98af9f4', '陶然亭公园', '有大概两个单杠', null, '西城区', '北京市', null, null, null, null, '2026-01-18 13:39:42.466281+00'::timestamptz, null),
+('8a2848cb-6355-4f67-8854-b59352c28013', '仙居县市民体育公园', null, '建设西路555号对面市民公园', '仙居县', '浙江省', null, null, null, null, '2026-01-19 11:44:02.920211+00'::timestamptz, null),
+('8b03602e-c292-44f7-ac7e-e72d8bdd6ca8', '海口人民公园', '单杆1处，双杆2处', '冯白驹纪念亭附近', '海口市龙华区', '海南省', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768985658581-g39mpc.jpg']::text[], null, null, '2026-01-21 08:54:31.26382+00'::timestamptz, null),
+('8b5d9e74-1a44-452e-92d0-ef55a4fcc0df', '清远市清城区江滨公园至南岸公园', '沿线分布单杠数个，双杠一，手感不齐', '江滨公园至南岸公园一线', '清远市清城区', '广东省', null, null, null, null, '2025-12-24 04:30:55.817057+00'::timestamptz, null),
+('8be6bc3c-9fe8-4e9b-b254-5cf83ce66a2a', '信州区上饶师范学院', null, '新食堂对面田径场', '上饶市信州区', '江西省', null, null, null, null, '2026-01-25 17:46:40.434765+00'::timestamptz, null),
+('8c625790-2419-4635-b717-78df13fa30bb', '大港公园', null, '大港公园', '滨海新区', '天津市', null, null, null, null, '2026-01-18 13:27:10.761316+00'::timestamptz, null),
+('8cffebfe-ffc7-4977-a2b7-1111a0d43b2a', '仙岳公园', '单杆1处，云梯1处，双杆1处', '仙岳公园西门附近', '厦门市思明区', '福建省', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768989679150-5na9g8.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768989713712-eygz2.jpg']::text[], null, null, '2026-01-21 10:02:05.276689+00'::timestamptz, null),
+('8d477955-9dcd-4a0c-9a88-ca467b2d2b96', '陕西石油化工学校单杠', '具体几个我忘了，反正单双杠都有我很肯定。然后单杠我印象中有点高', '陕西石油化工学校，从纬一街地铁出来，切记走化工学校的南门进，给保安态度好点就能进去，进去直走左手边是操场，没人管进去练就行', '雁塔区', '西安市', null, null, null, null, '2026-01-19 14:28:06.286097+00'::timestamptz, null),
+('8d898de8-5da0-421a-a389-524c8acaf70b', '九江市体育中心', '单杠3-4个，高度高', '浔阳区九江市体育中心体育场（小型足球场附近）', '九江市八里湖新区', '江西省', null, null, null, null, '2026-01-24 10:34:32.426398+00'::timestamptz, null),
+('8e49f21b-b686-41e9-995e-9bcfd20312ca', '紫竹院公园', '里面单杠', null, null, '北京市', null, null, null, null, '2026-01-18 13:38:15.934368+00'::timestamptz, null),
+('8e4a25df-5054-469a-b2b5-5109b6b17adb', '新阳街道兴旺广场健身区', '一高一低两单杆
+一个双杆', '海沧区新阳街道阳明路与新光路交叉口东北120米兴旺广场(南门)', '厦门市海沧区', '福建省', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768904087600-nueeb.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768904130822-8o6s89.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1768904146248-m0oi65.jpg']::text[], null, null, '2026-01-20 10:16:16.18679+00'::timestamptz, null),
+('8ece6a20-db47-4a6e-b541-57f26abeac5b', '广州市番禺区南村镇', '有两个单杠，一高一矮，高度在一米7~2米左右，手感还可以，目前比较新（位置在定位蓝点那里）', '番禺区南村镇“街坊百货”前面', '番禺区', '广东省', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769420036298-4nfnh9.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769500202260-xjdkg9.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769506586938-grjkha.jpg']::text[], null, null, '2026-01-26 09:34:39.804703+00'::timestamptz, null),
+('907437b0-e2a8-449c-9d94-f51b6c88d9a4', '亿星佳园小区健身器材区', '共3个，有高中低三档高度，杠体较粗', '亿星佳园小区内东北角', '辽阳市', '辽宁省', null, null, null, null, '2026-01-19 14:12:02.740928+00'::timestamptz, null),
+('9178700e-3d71-4d9d-99b7-75a767c22b46', '固安县方城花园小区', '小区健身区域', '河北省廊坊市固安县方城花园小区', '廊坊市', '河北省', null, null, null, null, '2026-01-20 01:09:47.945125+00'::timestamptz, null),
+('91ab8347-28ef-41ba-ba32-039817ab73d8', '河北省廊坊市固安县清华学府小区内', '单杠一个，单杠偏细，但是手感比较好', '清华学府小区内', '固安县', '河北省', null, null, null, null, '2026-01-18 14:15:33.302009+00'::timestamptz, null),
+('9305ea2c-f163-4824-8cf0-4d62e1aa4f1c', '图书馆西', null, null, '淄博市高青县', '山东省', null, null, null, null, '2026-01-24 12:42:33.435782+00'::timestamptz, null),
+('94fc12b6-7f2a-42f2-bc92-83194546baa9', '六运小区', '两根单杠一高一矮，一个双杠，人流量多', '天河南一路小区', '广州市天河区', '广东省', null, null, null, null, '2025-12-24 05:32:41.873411+00'::timestamptz, null),
+('950447cd-49ff-4b17-a1e4-04256086b167', '徐汇万科', '好！', '万科公园', '徐汇', '上海', null, ARRAY['https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769338089438-1rq4gk.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769338101270-zdgo.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769338115621-4pbbuk.jpg','https://chawreimucaalwgqdjra.supabase.co/storage/v1/object/public/locations/bar-images/1769338181310-c94ald.jpg']::text[], null, null, '2026-01-25 10:49:51.087715+00'::timestamptz, null),
+('97d5ec4e-bed5-4723-874a-74a9dc5d2835', '大明宫遗址公园单杠群', '进去比较远也比较绕，好处是有一堆子单杠双杠吊环啥的。张道峰还在这直播过', '大明宫遗址公园，地铁大明宫西', '大明宫遗址公园', '西安市', null, null, null, null, '2026-01-19 14:24:53.575685+00'::timestamptz, null)
+on conflict (id) do update set
+  name = excluded.name,
+  description = excluded.description,
+  address = excluded.address,
+  city = excluded.city,
+  province = excluded.province,
+  image_url = excluded.image_url,
+  image_urls = excluded.image_urls,
+  latitude = excluded.latitude,
+  longitude = excluded.longitude,
+  created_at = excluded.created_at,
+  user_contact = excluded.user_contact;

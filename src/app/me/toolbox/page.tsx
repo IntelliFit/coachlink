@@ -75,21 +75,33 @@ export default function StudentToolboxPage() {
             </div>
           </div>
 
-          <div className="hidden md:flex gap-2">
-            <Button
-              label="分享工具箱"
-              icon={<Share2 className="w-4 h-4 mr-2" />}
-              className="bg-primary-600 border-primary-600 hover:bg-primary-700 hover:border-primary-700"
-              onClick={() => tryNativeShare('工具箱（CoachLink）')}
-              disabled={!toolboxShareUrl}
-            />
-            <Button
-              label="复制链接"
-              icon={<Copy className="w-4 h-4 mr-2" />}
-              outlined
-              onClick={() => copyToClipboard(toolboxShareUrl)}
-              disabled={!toolboxShareUrl}
-            />
+          <div className="flex gap-2">
+             {/* Mobile: Simple Share Icon */}
+             <Button 
+                icon="pi pi-share-alt" 
+                text 
+                rounded
+                className="md:hidden text-surface-600" 
+                onClick={() => tryNativeShare('工具箱（CoachLink）')}
+             />
+
+             {/* Desktop: Full Buttons */}
+             <div className="hidden md:flex gap-2">
+                <Button
+                label="分享工具箱"
+                icon={<Share2 className="w-4 h-4 mr-2" />}
+                className="bg-primary-600 border-primary-600 hover:bg-primary-700 hover:border-primary-700"
+                onClick={() => tryNativeShare('工具箱（CoachLink）')}
+                disabled={!toolboxShareUrl}
+                />
+                <Button
+                label="复制链接"
+                icon={<Copy className="w-4 h-4 mr-2" />}
+                outlined
+                onClick={() => copyToClipboard(toolboxShareUrl)}
+                disabled={!toolboxShareUrl}
+                />
+             </div>
           </div>
         </div>
 
@@ -110,21 +122,7 @@ export default function StudentToolboxPage() {
             </div>
 
             <div className="flex md:hidden gap-2">
-              <Button
-                label="分享工具箱"
-                icon={<Share2 className="w-4 h-4 mr-2" />}
-                className="flex-1 bg-primary-600 border-primary-600 hover:bg-primary-700 hover:border-primary-700"
-                onClick={() => tryNativeShare('工具箱（CoachLink）')}
-                disabled={!toolboxShareUrl}
-              />
-              <Button
-                label="复制"
-                icon={<Copy className="w-4 h-4 mr-2" />}
-                outlined
-                className="flex-1"
-                onClick={() => copyToClipboard(toolboxShareUrl)}
-                disabled={!toolboxShareUrl}
-              />
+              {/* Mobile Header Action moved to top bar or simplified */}
             </div>
           </div>
         </div>
@@ -156,9 +154,9 @@ export default function StudentToolboxPage() {
                 <div className="mt-4 flex gap-2">
                   <Button
                     label="打开"
-                    icon={<ExternalLink className="w-4 h-4 mr-2" />}
+                    icon="pi pi-arrow-right"
                     className="flex-1 bg-surface-900 border-surface-900 hover:bg-surface-800 hover:border-surface-800"
-                    onClick={() => window.open(t.url, '_blank', 'noopener,noreferrer')}
+                    onClick={() => router.push(t.url)}
                   />
                   <Button
                     label="分享"
