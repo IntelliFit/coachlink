@@ -50,18 +50,38 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
         )
         .eq("coach_id", coachId)
         .in("student_id", studentIds)
+        // 排除已归档实例，优先展示当前进行中计划；没有进行中时再回退到已完成
+        .in("status", ["active", "paused", "completed"])
         .order("created_at", { ascending: false });
 
-    const latestByStudent = new Map<string, any>();
+    // 选取优先级：active/paused > completed（按 created_at desc）
+    const latestActiveByStudent = new Map<string, any>();
+    const latestCompletedByStudent = new Map<string, any>();
     for (const inst of instances || []) {
         if (!inst?.student_id) continue;
-        if (!latestByStudent.has(inst.student_id)) {
-            latestByStudent.set(inst.student_id, inst);
+        if (inst.status === "active" || inst.status === "paused") {
+            if (!latestActiveByStudent.has(inst.student_id)) {
+                latestActiveByStudent.set(inst.student_id, inst);
+            }
+            continue;
+        }
+        if (inst.status === "completed") {
+            if (!latestCompletedByStudent.has(inst.student_id)) {
+                latestCompletedByStudent.set(inst.student_id, inst);
+            }
         }
     }
 
     // 2) Batch fetch completed executions for these instances and count in memory
-    const instanceIds = Array.from(latestByStudent.values()).map((i) => i.id).filter(Boolean);
+    const instanceIds = Array.from(
+        new Map(
+            Array.from(latestActiveByStudent.values())
+                .concat(Array.from(latestCompletedByStudent.values()))
+                .map((i) => [i.id, i]),
+        ).values(),
+    )
+        .map((i) => i.id)
+        .filter(Boolean);
     const completedByInstance = new Map<string, number>();
     if (instanceIds.length > 0) {
         const { data: execs } = await supabase
@@ -79,7 +99,7 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
     // 3) Assemble result map
     const result = new Map<string, { plan: any; progress: any }>();
     for (const studentId of studentIds) {
-        const inst = latestByStudent.get(studentId);
+        const inst = latestActiveByStudent.get(studentId) || latestCompletedByStudent.get(studentId);
         if (!inst) {
             result.set(studentId, { plan: null, progress: { total: 0, completed: 0 } });
             continue;

@@ -233,6 +233,14 @@ class CoachService extends BaseService {
         }
     }
 
+    async getUsedSpecialties() {
+        const res = await this.post<{ specialties: string[] }>('get-used-specialties');
+        if (res.data && res.data.success) {
+            return res.data.data?.specialties || [];
+        }
+        return [];
+    }
+
     async getCoach(reqData: GetCoachDto) {
         const res = await this.post<GetCoachResponseDto>('get-coach', reqData);
         if (res.data && res.data.success) {

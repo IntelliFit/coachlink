@@ -31,6 +31,8 @@ async function getSingleInstance(
         // 批量查询：找到第一个有计划的订阅
         query = query
             .in("coach_subscription_id", subscriptionIds)
+            // 只取当前有效实例，避免选到已归档/已完成的历史实例
+            .in("status", ["active", "paused"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (fetchSelf) {
