@@ -12,6 +12,7 @@ import { Info, Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
+import { executionService } from '@/app/service/executionService';
 import { useToastContext } from '@/context/ToastContext';
 import { useGuideStore } from '@/stores/useGuideStore';
 
@@ -61,6 +62,7 @@ const TodayTrainingPage: React.FC = () => {
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [completedPlanInfo, setCompletedPlanInfo] = useState<{ name: string, rate: number } | null>(null);
     const [showExplainDialog, setShowExplainDialog] = useState(false);
+    const [quickFinishLoading, setQuickFinishLoading] = useState(false);
 
     // 当前激活的计划（根据 planMode 动态选择）
     const instance = planMode === 'coach' ? coachInstance : selfInstance;
@@ -386,6 +388,67 @@ const TodayTrainingPage: React.FC = () => {
 
     const handleViewHistory = () => {
         router.push('/me/plan-history');
+    };
+
+    const handleQuickFinishToday = () => {
+        if (!instance?.id || !progressDay || progressDay.type !== 'training') return;
+        if (progressExecutionStatus === 'completed') return;
+
+        confirmDialog({
+            message: '将按计划默认值（最小值）一键完成所有组，未填写的重量/次数会自动补齐。',
+            header: '确认快速完成',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: quickFinishLoading ? '处理中...' : '确认完成',
+            rejectLabel: '取消',
+            acceptClassName: 'p-button-success',
+            accept: async () => {
+                try {
+                    setQuickFinishLoading(true);
+                    let executionId = (executionsByDayIndex || {})[progressDayIndex]?.id;
+
+                    if (!executionId) {
+                        const startRes = await executionService.startExecution({
+                            instanceId: instance.id,
+                            dayIndex: progressDayIndex,
+                        });
+                        executionId = startRes?.data?.id;
+                    }
+
+                    if (!executionId) {
+                        throw new Error('缺少执行记录');
+                    }
+
+                    const res = await executionService.finishTraining({
+                        executionId,
+                        mode: 'quick',
+                    });
+
+                    if (res) {
+                        showToast({
+                            severity: 'success',
+                            summary: '已快速完成',
+                            detail: `完成 ${res.completed_sets}/${res.total_sets} 组`,
+                        });
+                        await loadData();
+                    } else {
+                        showToast({
+                            severity: 'error',
+                            summary: '快速完成失败',
+                            detail: '请稍后重试',
+                        });
+                    }
+                } catch (error) {
+                    console.error('Quick finish failed:', error);
+                    showToast({
+                        severity: 'error',
+                        summary: '快速完成失败',
+                        detail: '网络错误，请稍后重试',
+                    });
+                } finally {
+                    setQuickFinishLoading(false);
+                }
+            },
+        });
     };
     if (loading) {
         return (
@@ -847,15 +910,29 @@ const TodayTrainingPage: React.FC = () => {
                                 )}
                             </div>
                             {progressDay && progressDay.type === 'training' ? (
-                                <TodayTrainingCard
-                                    day={progressDay}
-                                    actions={actions}
-                                    instanceId={instance.id}
-                                    dayIndex={progressDayIndex}
-                                    executionStatus={progressExecutionStatus}
-                                    completedSets={Number(progressExec?.completed_sets || 0)}
-                                    totalSets={Number(progressExec?.total_sets || 0)}
-                                />
+                                <>
+                                    <TodayTrainingCard
+                                        day={progressDay}
+                                        actions={actions}
+                                        instanceId={instance.id}
+                                        dayIndex={progressDayIndex}
+                                        executionStatus={progressExecutionStatus}
+                                        completedSets={Number(progressExec?.completed_sets || 0)}
+                                        totalSets={Number(progressExec?.total_sets || 0)}
+                                    />
+                                    {progressExecutionStatus !== 'completed' && (
+                                        <div className="mt-3 flex justify-end">
+                                            <Button
+                                                label={quickFinishLoading ? '快速完成中...' : '一键快速完成'}
+                                                onClick={handleQuickFinishToday}
+                                                disabled={quickFinishLoading}
+                                                severity="secondary"
+                                                outlined
+                                                className="px-4 py-2 rounded-xl"
+                                            />
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <RestDayCard dayIndex={progressDayIndex} />
                             )}

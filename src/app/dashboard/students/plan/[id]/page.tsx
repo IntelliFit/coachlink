@@ -87,7 +87,8 @@ const StudentPlanPage = () => {
     const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
     const [importStartConfig, setImportStartConfig] = useState<PlanStartConfig | null>(null);
     const [importModeDialogVisible, setImportModeDialogVisible] = useState(false);
-    const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('new_instance');
+    // 默认应为“覆盖更新”，否则教练在已有进行中计划上点击“更新计划”会误触发“新建阶段”，导致学员进度回到第1天
+    const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('overwrite');
 
     // Load instance data
     useEffect(() => {
@@ -605,8 +606,10 @@ const StudentPlanPage = () => {
             }
         }
 
-        // Reset import mode after save
-        setImportMode('new_instance');
+        // Reset import mode after save:
+        // - 已有计划：回到 overwrite，避免下一次误触发新建阶段导致进度重置
+        // - 无计划（首次创建）：保持默认 overwrite（后续再编辑即为覆盖更新）
+        setImportMode('overwrite');
 
         router.push('/dashboard/students');
 
