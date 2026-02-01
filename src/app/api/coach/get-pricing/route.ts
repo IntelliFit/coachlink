@@ -27,43 +27,61 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    if (userId && !coachId) {
-        const { data: coach, error } = await supabase
-            .from("coaches")
-            .select("id")
-            .eq("user_id", userId)
-            .single();
+    // 如果没有 coachId，尝试从 userId 或 session 中获取
+    if (!coachId) {
+        // 优先使用请求体中的 userId，如果没有则使用 session 中的 userId（小程序端）
+        const targetUserId = userId || session?.user?.id;
+        
+        if (targetUserId) {
+            // 查询教练信息（不限制状态，因为用户可能想查看自己的定价信息）
+            const { data: coach, error } = await supabase
+                .from("coaches")
+                .select("id, status")
+                .eq("user_id", targetUserId)
+                .maybeSingle();
 
-        if (error) {
-            return NextResponse.json({
-                success: false,
-                message: error.message,
-            });
+            if (error) {
+                // 如果查询失败，可能是用户不是教练，返回空数据而不是错误
+                coachId = ""; // 设置为空字符串，后续查询会返回空结果
+            } else if (coach) {
+                coachId = coach.id;
+            } else {
+                coachId = ""; // 设置为空字符串，后续查询会返回空结果
+            }
         }
-
-        coachId = coach.id;
     }
 
-    // 获取定价信息
-    const { data, error } = await supabase
-        .from("coach_pricing")
-        .select("*")
-        .eq("coach_id", coachId)
-        .maybeSingle();
+    // 如果 coachId 为空，直接返回空数据
+    let data = null;
+    let error = null;
+    
+    if (coachId) {
+        // 获取定价信息
+        const result = await supabase
+            .from("coach_pricing")
+            .select("*")
+            .eq("coach_id", coachId)
+            .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
 
-    if (error) {
-        return NextResponse.json<ApiData<GetPricingResponseDto>>({
-            success: false,
-            message: "获取定价信息失败",
-            data: null,
-        });
+        if (error) {
+            console.error("获取定价信息失败", error, coachId);
+            return NextResponse.json<ApiData<GetPricingResponseDto>>({
+                success: false,
+                message: "获取定价信息失败",
+                data: null,
+            });
+        }
     }
 
     // 如果是教练本人则返回缺省，否则返回空
     let defaultPricings = [] as Pricing[];
     let defaultProducts = [] as Product[];
 
-    if (session?.user?.is_coach) {
+    // 只有当 coachId 存在且用户是教练时，才检查是否是本人
+    if (session?.user?.is_coach && coachId) {
         const { data: coach, error: coachError } = await supabase
             .from("coaches")
             .select("user_id")
@@ -76,7 +94,7 @@ export async function POST(req: Request) {
                 .from("user_profiles")
                 .select("nickname")
                 .eq("user_id", session.user.id)
-                .single();
+                .maybeSingle();
 
             defaultPricings = [
                 {
@@ -96,19 +114,39 @@ export async function POST(req: Request) {
         }
     }
 
-    const pricingData = (data as any) ?? {
-        pricings: defaultPricings,
-        products: defaultProducts,
-    };
+    // 处理数据库返回的数据
+    // 数据库返回的数据可能是 null 或者包含 pricings/products 字段的对象
+    let finalPricings = defaultPricings;
+    let finalProducts = defaultProducts;
+    
+    if (data) {
+        // 如果数据库有数据，优先使用数据库的数据
+        // 数据库可能返回的是 coach_pricing 表的原始数据，需要检查结构
+        // coach_pricing 表可能有一个 JSON 字段存储 pricings 和 products
+        const dbPricings = (data as any).pricings;
+        const dbProducts = (data as any).products;
+        
+        // 如果数据库有有效的 pricings 数据，使用数据库的数据
+        if (dbPricings && Array.isArray(dbPricings) && dbPricings.length > 0) {
+            finalPricings = dbPricings;
+        }
+        
+        // 如果数据库有有效的 products 数据，使用数据库的数据
+        if (dbProducts && Array.isArray(dbProducts) && dbProducts.length > 0) {
+            finalProducts = dbProducts;
+        }
+        
+        // 如果数据库数据为空或无效，使用默认值（已经在上面设置了）
+    }
 
     return NextResponse.json<ApiData<GetPricingResponseDto>>({
         success: true,
         message: "获取定价信息成功",
         data: {
             // 新版数据结构
-            products: (pricingData.products as Product[]) || [],
+            products: finalProducts,
             // 向后兼容旧版
-            pricings: (pricingData.pricings as Pricing[]) || [],
+            pricings: finalPricings,
         },
     });
 }
