@@ -92,6 +92,7 @@ export async function POST(req: Request) {
             .from("coach_questionnaires")
             .select("id")
             .eq("coach_id", userId)
+            .eq("is_active", true)
             .maybeSingle(),
 
         supabase

@@ -72,7 +72,7 @@ function TrainingExecutionContent() {
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null); // 用于已完成组“展开详情”
-     const [completing, setCompleting] = useState(false);
+    const [completing, setCompleting] = useState(false);
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
@@ -124,11 +124,12 @@ function TrainingExecutionContent() {
     // Share modal state
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
-    // Polymorphic Item State
-    const [dietContent, setDietContent] = useState('');
-    const [dietCalories, setDietCalories] = useState<number | null>(null);
-    const [cardioDistance, setCardioDistance] = useState<number | null>(null); // km
-    const [cardioDuration, setCardioDuration] = useState<number | null>(null); // minutes
+    // Polymorphic Item State - 按动作索引管理，支持多个不同类型的动作
+    const [itemStates, setItemStates] = useState<Record<number, {
+        dietContent?: string;
+        cardioDistance?: number | null;
+        cardioDuration?: number | null;
+    }>>({});
     const [editingSetKey, setEditingSetKey] = useState<string | null>(null);
     const [videoLink, setVideoLink] = useState<string>('');
     const [linkedVideo, setLinkedVideo] = useState<{ id: string; url: string } | null>(null);
@@ -154,6 +155,33 @@ function TrainingExecutionContent() {
             return () => clearInterval(interval);
         }
     }, [isResting, restTimer]);
+
+    // 当展开非力量训练类型的动作时，回填已完成的数据
+    useEffect(() => {
+        if (!execution || expandedAction === -1) return;
+        const actionExecutions = execution.action_executions || [];
+        const currentAction = actionExecutions[expandedAction];
+        if (!currentAction) return;
+        
+        const action = actions[currentAction.action_id];
+        const actionType = action?.type || 'STRENGTH';
+        
+        // 只处理非力量训练类型
+        if (actionType !== 'STRENGTH' && currentAction.sets && currentAction.sets.length > 0) {
+            const setData = currentAction.sets[0];
+            // 如果已完成，回填数据
+            if (setData.status === 'completed') {
+                setItemStates(prev => ({
+                    ...prev,
+                    [expandedAction]: {
+                        dietContent: setData.diet_content || '',
+                        cardioDistance: setData.actual_distance ? setData.actual_distance / 1000 : null,
+                        cardioDuration: setData.actual_duration ? setData.actual_duration / 60 : null,
+                    }
+                }));
+            }
+        }
+    }, [expandedAction, execution, actions]);
 
     // 预填充推荐值：当切换到新组时自动填入教练计划的重量和次数
     useEffect(() => {
@@ -205,6 +233,35 @@ function TrainingExecutionContent() {
     };
 
     const setKeyOf = (actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`;
+
+    const selectAction = (nextActionIndex: number) => {
+        if (nextActionIndex === -1) {
+            setExpandedAction(-1);
+            return;
+        }
+        if (nextActionIndex !== expandedAction) {
+            // 关键保护：切换动作时必须重置输入状态，避免重量/次数串联到下一个动作
+            const actionExecutions = execution?.action_executions || [];
+            const nextAction = actionExecutions[nextActionIndex];
+            const pendingIndex = nextAction?.sets?.findIndex(
+                (setData: SetData) => setData.status === 'pending',
+            );
+            const nextSetIndex = pendingIndex !== undefined && pendingIndex !== -1 ? pendingIndex : 0;
+            setCurrentSetIndex(nextSetIndex);
+            setExpandedSetKey(null);
+            setEditingSetKey(null);
+            setWeight(null);
+            setReps(null);
+            setRpe(null);
+            setSetNotes('');
+            setMarkAsPR(false);
+            setVideoFile(null);
+            setLinkedVideo(null);
+            setVideoLink('');
+            setShowOptionalFields(false);
+        }
+        setExpandedAction(nextActionIndex);
+    };
 
     const startTraining = async () => {
         try {
@@ -298,46 +355,6 @@ function TrainingExecutionContent() {
         }
     };
 
-    const handleQuickFinish = async () => {
-        if (!staleExecutionId) return;
-        try {
-            setCompleting(true);
-            const res = await executionService.finishTraining({ executionId: staleExecutionId });
-            if (res?.success && res.data) {
-                trackEvent('student_training_complete', 'training', { 
-                    planId: execution.plan_id, 
-                    executionId: execution.id,
-                    method: 'quick_finish'
-                });
-                setExecution((prev: any) => ({
-                    ...(prev || {}),
-                    status: 'completed',
-                    completed_at: (res.data as any).completed_at || new Date().toISOString(),
-                }));
-                showToast({
-                    severity: 'success',
-                    summary: '已确认完成',
-                    detail: '训练已标记为完成',
-                });
-                setStaleReminderVisible(false);
-            } else {
-                showToast({
-                    severity: 'warn',
-                    summary: '确认失败',
-                    detail: res?.message || '无法确认完成，请稍后重试',
-                });
-            }
-        } catch (e) {
-            console.error('quick finish failed:', e);
-            showToast({
-                severity: 'error',
-                summary: '确认失败',
-                detail: '无法确认完成，请稍后重试',
-            });
-        } finally {
-            setCompleting(false);
-        }
-    };
 
     const canPlayInlineVideo = (url?: string | null) => {
         if (!url) return false;
@@ -760,8 +777,14 @@ function TrainingExecutionContent() {
             const actionExecution = execution.action_executions[actionIndex];
             const action = actions[actionExecution.action_id];
             
-            // Determine type
+            // Determine type - 优先使用 action.type，如果没有则默认为 STRENGTH
             const itemType = action?.type || 'STRENGTH';
+            
+            // 获取当前动作的状态
+            const currentState = itemStates[actionIndex] || {};
+            const dietContent = currentState.dietContent || '';
+            const cardioDistance = currentState.cardioDistance;
+            const cardioDuration = currentState.cardioDuration;
             
             // Call API
             const res = await executionService.completeItem({
@@ -793,11 +816,11 @@ function TrainingExecutionContent() {
                 updatedExecution.completed_sets = res.completedSets || execution.completed_sets + 1;
                 setExecution(updatedExecution);
 
-                // Reset forms
-                setDietContent('');
-                setDietCalories(null);
-                setCardioDistance(null);
-                setCardioDuration(null);
+                // Reset form for this action
+                setItemStates(prev => ({
+                    ...prev,
+                    [actionIndex]: {}
+                }));
 
                 showToast({
                     severity: 'success',
@@ -868,6 +891,7 @@ function TrainingExecutionContent() {
         }
     };
 
+
     const handleSkipRest = () => {
         setRestTimer(0);
         setIsResting(false);
@@ -934,14 +958,13 @@ function TrainingExecutionContent() {
                 <div className="space-y-3 text-sm text-surface-700 leading-relaxed">
                     <p>
                         这次训练已经开始 {staleHours} 小时了，但状态仍是 <strong>进行中</strong>。
-                        如果你已经练完但忘记点击“完成训练”，可以在这里快速确认；如果还没练完，就直接继续训练即可。
+                        如果你已经练完但忘记点击“完成训练”，可以回到今日训练页面一键完成；如果还没练完，就直接继续训练即可。
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2 pt-2">
                         <Button
-                            label={completing ? '确认中...' : '我已练完，一键确认完成'}
+                            label="去今日训练一键完成"
                             icon="pi pi-check"
-                            onClick={handleQuickFinish}
-                            disabled={completing}
+                            onClick={() => router.push('/today-training')}
                             className="w-full sm:w-auto"
                         />
                         <Button
@@ -1055,7 +1078,7 @@ function TrainingExecutionContent() {
                             {/* Action Header */}
                             <div 
                                 className="flex items-center justify-between cursor-pointer"
-                                onClick={() => setExpandedAction(isExpanded ? -1 : actionIndex)}
+                                onClick={() => selectAction(isExpanded ? -1 : actionIndex)}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
@@ -1123,7 +1146,11 @@ function TrainingExecutionContent() {
                                         </div>
                                     )}
 
-                                    {(!action?.type || action.type === 'STRENGTH') ? (
+                                    {(() => {
+                                        // 确定动作类型：优先使用 action.type，如果没有则默认为 STRENGTH
+                                        const actionType = action?.type || 'STRENGTH';
+                                        return actionType === 'STRENGTH';
+                                    })() ? (
                                         // 力量训练：显示组列表
                                         actionExec.sets.map((setData: SetData, setIndex: number) => {
                                             const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
@@ -1634,27 +1661,45 @@ function TrainingExecutionContent() {
                                                 // 未完成 - 填写表单
                                                 <div className="space-y-4">
                                                     <h3 className="font-bold text-surface-900 border-b pb-2">
-                                                        {action.type === 'DIET' ? '🍽️ 饮食打卡' : action.type === 'CARDIO' ? '🏃 有氧打卡' : '✅ 习惯打卡'}
+                                                        {(() => {
+                                                            const actionType = action?.type || 'STRENGTH';
+                                                            return actionType === 'DIET' ? '🍽️ 饮食打卡' : actionType === 'CARDIO' ? '🏃 有氧打卡' : '✅ 习惯打卡';
+                                                        })()}
                                                     </h3>
                                                     
                                                     {/* Plan Detail Reminder */}
                                                     {action?.item_schema && (
                                                         <div className="bg-surface-100 p-3 rounded text-sm text-surface-600">
-                                                             {action.type === 'DIET' && <div>建议: {action.item_schema.calories} kcal</div>}
-                                                             {action.type === 'CARDIO' && (
-                                                                 <div>目标: {(action.item_schema.distance / 1000).toFixed(1)} km / {(action.item_schema.duration / 60).toFixed(0)} 分钟</div>
-                                                             )}
-                                                             {action.type === 'HABIT' && <div>说明: {action.detail}</div>}
+                                                             {(() => {
+                                                                 const actionType = action?.type || 'STRENGTH';
+                                                                 if (actionType === 'DIET') {
+                                                                     return <div>建议: {action.item_schema.calories} kcal</div>;
+                                                                 } else if (actionType === 'CARDIO') {
+                                                                     return <div>目标: {(action.item_schema.distance / 1000).toFixed(1)} km / {(action.item_schema.duration / 60).toFixed(0)} 分钟</div>;
+                                                                 } else if (actionType === 'HABIT') {
+                                                                     return <div>说明: {action.detail}</div>;
+                                                                 }
+                                                                 return null;
+                                                             })()}
                                                         </div>
                                                     )}
                                                     
                                                     {/* Diet Form */}
-                                                    {action.type === 'DIET' && (
+                                                    {(() => {
+                                                        const actionType = action?.type || 'STRENGTH';
+                                                        return actionType === 'DIET';
+                                                    })() && (
                                                         <div className="space-y-3">
                                                             <label className="text-sm font-medium">记录内容 (可选)</label>
                                                             <InputTextarea 
-                                                                value={dietContent}
-                                                                onChange={(e) => setDietContent(e.target.value)}
+                                                                value={itemStates[actionIndex]?.dietContent || ''}
+                                                                onChange={(e) => setItemStates(prev => ({
+                                                                    ...prev,
+                                                                    [actionIndex]: {
+                                                                        ...prev[actionIndex],
+                                                                        dietContent: e.target.value
+                                                                    }
+                                                                }))}
                                                                 rows={3}
                                                                 placeholder="吃了什么？(例如: 鸡胸肉, 西兰花...)"
                                                                 className="w-full"
@@ -1663,13 +1708,22 @@ function TrainingExecutionContent() {
                                                     )}
 
                                                     {/* Cardio Form */}
-                                                    {action.type === 'CARDIO' && (
+                                                    {(() => {
+                                                        const actionType = action?.type || 'STRENGTH';
+                                                        return actionType === 'CARDIO';
+                                                    })() && (
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div>
                                                                 <label className="text-sm font-medium">距离 (km)</label>
                                                                 <AeroInputNumber 
-                                                                    value={cardioDistance}
-                                                                    onValueChange={(e) => setCardioDistance(e.value ?? null)}
+                                                                    value={itemStates[actionIndex]?.cardioDistance ?? null}
+                                                                    onValueChange={(e) => setItemStates(prev => ({
+                                                                        ...prev,
+                                                                        [actionIndex]: {
+                                                                            ...prev[actionIndex],
+                                                                            cardioDistance: e.value ?? null
+                                                                        }
+                                                                    }))}
                                                                     min={0}
                                                                     max={100}
                                                                     minFractionDigits={1}
@@ -1680,8 +1734,14 @@ function TrainingExecutionContent() {
                                                             <div>
                                                                 <label className="text-sm font-medium">时长 (分钟)</label>
                                                                 <AeroInputNumber 
-                                                                    value={cardioDuration}
-                                                                    onValueChange={(e) => setCardioDuration(e.value ?? null)}
+                                                                    value={itemStates[actionIndex]?.cardioDuration ?? null}
+                                                                    onValueChange={(e) => setItemStates(prev => ({
+                                                                        ...prev,
+                                                                        [actionIndex]: {
+                                                                            ...prev[actionIndex],
+                                                                            cardioDuration: e.value ?? null
+                                                                        }
+                                                                    }))}
                                                                     min={0}
                                                                     max={300}
                                                                     placeholder="0"
