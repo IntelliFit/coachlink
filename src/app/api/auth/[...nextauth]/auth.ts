@@ -39,15 +39,15 @@ export async function getServerSession() {
                     return null;
                 }
                 
-                // 检查是否是教练
+                // 检查是否是教练（查询所有状态的教练，但 is_coach 只标记 approved 状态的）
                 const { data: coachRow } = await supabase
                     .from('coaches')
                     .select('id, status')
                     .eq('user_id', user.id)
-                    .eq('status', 'approved')
                     .maybeSingle();
                 
-                const isCoach = !!coachRow;
+                // 只有 approved 状态的教练才标记为 is_coach
+                const isCoach = coachRow?.status === 'approved';
                 
                 // 获取用户档案
                 const { data: profile } = await supabase
@@ -75,7 +75,6 @@ export async function getServerSession() {
                     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                 };
                 
-                console.log('[auth] 小程序 JWT 认证成功:', { userId: user.id, name: userName });
                 return miniappSession;
             }
         }
