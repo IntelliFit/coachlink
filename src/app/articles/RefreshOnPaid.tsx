@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from 'primereact/button';
 
 const RECENT_PAY_TTL_MS = 2 * 60 * 1000;
+const NOTICE_TTL_MS = 5000;
 
 export default function RefreshOnPaid() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function RefreshOnPaid() {
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
         scroll: false,
       });
-    }, 8000);
+    }, 3000);
 
     return () => window.clearTimeout(timer);
   }, [router, pathname, searchParams, paidParam]);
@@ -66,10 +67,15 @@ export default function RefreshOnPaid() {
       triggerRefresh('timeout');
     }, 15000);
 
+    const noticeTimer = window.setTimeout(() => {
+      setRecentPay(false);
+    }, NOTICE_TTL_MS);
+
     return () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
       window.clearTimeout(hardTimer);
+      window.clearTimeout(noticeTimer);
     };
   }, [shouldShowNotice]);
 

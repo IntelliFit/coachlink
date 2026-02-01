@@ -182,10 +182,9 @@ export async function POST(req: Request) {
         subjectText = `购买文章 ${(content as any).title || ""}`.trim();
     }
 
-    // Guardrail: prevent 1-cent undercharge in production unless explicitly enabled for testing.
-    const testPricingEnabled =
-        process.env.NODE_ENV !== "production" &&
-        process.env.PAYMENT_TEST_PRICING === "true";
+    // Guardrail: prevent 1-cent undercharge unless explicitly enabled for testing.
+    // Allow override in production when PAYMENT_TEST_PRICING=true (for staging/demo).
+    const testPricingEnabled = process.env.PAYMENT_TEST_PRICING === "true";
     if (
         process.env.NODE_ENV === "production" &&
         !testPricingEnabled &&
