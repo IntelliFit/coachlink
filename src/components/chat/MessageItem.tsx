@@ -5,6 +5,7 @@ import { Image } from 'primereact/image';
 import type { MessageItem as MessageItemType } from '@/app/api/chat/list-messages/entity';
 import { VideoRefCard } from '@/components/chat/VideoRefCard';
 import MarkdownIt from 'markdown-it';
+import { useRouter } from 'next/navigation';
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
     DOMPurify = require('dompurify').default || require('dompurify');
@@ -16,6 +17,7 @@ interface MessageItemProps {
 }
 
 export function MessageItem({ message }: MessageItemProps) {
+    const router = useRouter();
     const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
 
     const formatTime = (dateStr: string) => {
@@ -23,9 +25,51 @@ export function MessageItem({ message }: MessageItemProps) {
         return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
     };
 
+    // 检测是否为广播消息
+    const isBroadcastMessage = message.contentMetadata?.broadcast === true;
+    const contentLink = message.contentMetadata?.contentLink;
+
     const renderContent = () => {
         switch (message.messageType) {
             case 'text':
+                // 广播消息特殊处理
+                if (isBroadcastMessage && contentLink) {
+                    return (
+                        <div
+                            className={`px-4 py-3 rounded-xl max-w-md cursor-pointer transition-all hover:shadow-lg ${
+                                message.isMine
+                                    ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-surface hover:from-primary-600 hover:to-primary-700'
+                                    : 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 text-surface-900 dark:text-surface-0 border border-amber-200 dark:border-amber-700 hover:shadow-amber-200/50'
+                            }`}
+                            onClick={() => {
+                                router.push(contentLink);
+                            }}
+                        >
+                            {/* 内容通知标签 */}
+                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-current/10">
+                                <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+                                    发布内容通知
+                                </span>
+                            </div>
+                            
+                            {/* 消息内容 */}
+                            <div
+                                className="break-words markdown-message-content"
+                                dangerouslySetInnerHTML={{
+                                    __html: DOMPurify?.sanitize(md.render(message.content || '')),
+                                }}
+                            />
+                            
+                            {/* 点击提示 */}
+                            <div className="mt-2 pt-2 border-t border-current/10 flex items-center justify-end gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity">
+                                <span>点击查看详情</span>
+                                <i className="pi pi-arrow-right" />
+                            </div>
+                        </div>
+                    );
+                }
+                
+                // 普通文本消息
                 return (
                     <div
                         className={`px-4 py-2 rounded-lg max-w-md break-words markdown-message-content ${

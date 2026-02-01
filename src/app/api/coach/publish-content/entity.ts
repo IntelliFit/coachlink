@@ -14,6 +14,10 @@ export type PublishContentDto = {
     media_urls?: string[];
     thumbnail_url?: string | null;
     isDraft?: boolean;
+    /**
+     * 是否通知全体学员
+     */
+    notifyAllStudents?: boolean;
 };
 
 export type PublishContentResponseDto = {
