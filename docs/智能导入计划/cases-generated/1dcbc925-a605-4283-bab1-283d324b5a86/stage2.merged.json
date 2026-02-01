@@ -1,0 +1,168 @@
+{
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "sets": 4,
+          "reps": 9,
+          "durationSeconds": null,
+          "restSeconds": 270,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 11
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "sets": 3,
+          "reps": 8,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": ""
+        },
+        {
+          "actionId": "7e6786fe-04ca-47f0-a1b3-492dcd55a31d",
+          "sets": 3,
+          "reps": 8,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": ""
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "拉伸、松解、低强度有氧；冷热交替洗澡（3分钟热水，1分钟冷水，重复3次以上）"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+          "sets": 3,
+          "reps": 3,
+          "durationSeconds": null,
+          "restSeconds": 270,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 4
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+          "sets": 2,
+          "reps": 5,
+          "durationSeconds": null,
+          "restSeconds": 270,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 7
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+          "sets": 4,
+          "reps": 10,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": ""
+        },
+        {
+          "actionId": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+          "sets": 3,
+          "reps": 2,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "可选：练后半小时可尝试自重动作，3组以内。推荐高位引体，每组2-3次，尽力拉高。"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息1天"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "sets": 4,
+          "reps": 4,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 5
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+          "sets": 4,
+          "reps": 8,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": ""
+        },
+        {
+          "actionId": "4bca4467-89c2-4d87-af67-c19651587c0f",
+          "sets": 6,
+          "reps": 10,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": ""
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息2天"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息2天"
+    }
+  ],
+  "globalDescription": null
+}

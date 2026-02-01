@@ -6,6 +6,19 @@ export interface GetStudentsDto {
         limit: number;
     };
     needTrainingDetails?: boolean;
+    /**
+     * 搜索关键词（建议用于昵称/手机号）
+     */
+    search?: string;
+    /**
+     * 排序模式
+     */
+    sort?: {
+        mode:
+            | 'subscription_created_desc'
+            | 'subscription_created_asc'
+            | 'subscription_updated_desc';
+    };
 }
 
 export interface SubscribeData {
@@ -54,6 +67,8 @@ export interface ListStudentsDto {
         page: number;
         limit: number;
     };
+    search?: string;
+    sort?: GetStudentsDto['sort'];
 }
 
 export interface ListStudentsResponseDto {

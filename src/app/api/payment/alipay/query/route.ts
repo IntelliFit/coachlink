@@ -11,6 +11,7 @@ import {
 import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
 import { fenToYuan } from '@/lib/moneyUtils';
+import { fulfillContentPurchasePaid } from '../contentPurchaseFulfillment';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
 
@@ -154,16 +155,33 @@ export async function POST(req: Request) {
     if (orderStatus === 'paid' && order) {
         if (order.order_type === 'subscription' || order.order_type === 'subscription_renew') {
             await fulfillSubscriptionOnPaid(order, orderId, userId);
+            await updateTransactionAndWallet(order);
         }
-        await updateTransactionAndWallet(order);
+
+        if (order.order_type === 'content_purchase') {
+            const orderData: any = order.order_data || {};
+            const contentId = orderData?.contentId as string | undefined;
+            if (contentId) {
+                try {
+                    await fulfillContentPurchasePaid({
+                        orderId: order.id,
+                        userId,
+                        contentId,
+                    });
+                } catch (e) {
+                    console.error('[Alipay Query] Content purchase fulfill failed:', e);
+                }
+            }
+        }
     }
 
     // 将金额从分转换为元返回给前端
-    const orderWithYuan = {
-        ...order,
-        total_amount: fenToYuan(order.total_amount ?? 0),
-    };
-    
+    const orderWithYuan = order
+        ? {
+            ...order,
+            total_amount: fenToYuan(order.total_amount ?? 0),
+        }
+        : order;
     return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
         success: true,
         message: '支付状态',

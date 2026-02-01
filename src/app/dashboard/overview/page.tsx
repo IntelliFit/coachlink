@@ -170,9 +170,10 @@ const Overview = () => {
         },
         {
             title: "本月收入",
-            value: `¥${overviewData?.monthlyRevenue != null ? Number(overviewData.monthlyRevenue).toFixed(2) : '0.00'}`,
+            value: `¥${overviewData?.monthlyRevenue?.toLocaleString() || 0}`,
             icon: TrendingUp,
             colorClass: "bg-purple-50 text-purple-600",
+            href: "/dashboard/revenue"
         }
     ];
 

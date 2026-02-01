@@ -15,6 +15,17 @@ async function fulfillPaidOrderIfNeeded(order: { id: string; user_id?: string | 
     await updateTransactionAndWallet(order);
 }
 
+function resolveRedirectBaseUrl(req: Request) {
+    const xfProto = req.headers.get("x-forwarded-proto");
+    const xfHost = req.headers.get("x-forwarded-host");
+    const host = req.headers.get("host");
+    const proto = xfProto || (host?.includes("localhost") ? "http" : "https");
+    if (xfHost || host) {
+        return `${proto}://${xfHost || host}`;
+    }
+    return process.env.NEXTAUTH_URL || "http://localhost:3000";
+}
+
 export async function GET(req: Request) {
     try {
         const url = new URL(req.url);
@@ -57,7 +68,8 @@ export async function GET(req: Request) {
             await fulfillPaidOrderIfNeeded(order);
         }
         
-        const redirectUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/payment/${out_trade_no}`;
+        const redirectBaseUrl = resolveRedirectBaseUrl(req);
+        const redirectUrl = `${redirectBaseUrl}/payment/${out_trade_no}`;
         return NextResponse.redirect(redirectUrl);
         
     } catch (error) {
@@ -122,7 +134,8 @@ export async function POST(req: Request) {
             await fulfillPaidOrderIfNeeded(order);
         }
         
-        const redirectUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/payment/${out_trade_no}`;
+        const redirectBaseUrl = resolveRedirectBaseUrl(req);
+        const redirectUrl = `${redirectBaseUrl}/payment/${out_trade_no}`;
         return NextResponse.redirect(redirectUrl);
         
     } catch (error) {

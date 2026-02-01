@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { alipayService } from '@/app/service/alipayService';
@@ -9,6 +9,7 @@ import { alipayService } from '@/app/service/alipayService';
 const PaymentPage = () => {
     const router = useRouter();
     const params = useParams();
+    const searchParams = useSearchParams();
     const toast = useRef<Toast>(null);
 
     const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ const PaymentPage = () => {
     const [orderId, setOrderId] = useState('');
     const [status, setStatus] = useState<'pending' | 'success' | 'failed' | 'cancelled'>('pending');
     const [isMobile, setIsMobile] = useState(false);
+    const [redirectTarget, setRedirectTarget] = useState<string>('');
 
     // 1. 设备环境检测
     useEffect(() => {
@@ -55,6 +57,12 @@ const PaymentPage = () => {
                 setAmount(Number(order.total_amount || 0));
                 setOrderId(order.id || '');
 
+                // Resolve redirect target: querystring has higher priority, then order_data.redirect
+                const qpRedirect = searchParams?.get('redirect') || '';
+                const odRedirect = (order as any)?.order_data?.redirect || '';
+                const target = String(qpRedirect || odRedirect || '');
+                if (target) setRedirectTarget(target);
+
                 const ts = res.tradeStatus;
                 if (order.status === 'paid' || ts === 'TRADE_SUCCESS' || ts === 'TRADE_FINISHED') {
                     setStatus('success');
@@ -82,7 +90,23 @@ const PaymentPage = () => {
     };
 
     const handlePaymentComplete = () => {
-        router.push('/coach/subscription');
+        const baseTarget = redirectTarget && redirectTarget.startsWith('/') ? redirectTarget : '';
+        if (!baseTarget) {
+            router.push('/coach/subscription');
+            return;
+        }
+
+        if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('recentPayAt', String(Date.now()));
+        }
+
+        const [path, qs] = baseTarget.split('?');
+        const params = new URLSearchParams(qs || '');
+        if (!params.has('paid')) {
+            params.set('paid', '1');
+        }
+        const nextTarget = params.toString() ? `${path}?${params.toString()}` : path;
+        router.push(nextTarget);
     };
 
     return (

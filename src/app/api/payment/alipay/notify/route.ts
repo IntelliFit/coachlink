@@ -7,6 +7,7 @@ import {
     updateTransactionAndWallet,
     fulfillSubscriptionOnPaid,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillContentPurchasePaid } from "../contentPurchaseFulfillment";
 
 export async function POST(req: Request) {
     const timestamp = new Date().toISOString();
@@ -139,6 +140,7 @@ export async function POST(req: Request) {
             const orderType = alipayOrder.order_type;
             const orderData = (alipayOrder.order_data || {}) as any;
             const subscriptionId = orderData?.subscriptionId as string | undefined;
+            const contentId = orderData?.contentId as string | undefined;
 
             if (
                 subscriptionId &&
@@ -149,8 +151,22 @@ export async function POST(req: Request) {
                     alipayOrder.id,
                     alipayOrder.user_id ?? ""
                 );
+                await updateTransactionAndWallet(alipayOrder);
             }
-            await updateTransactionAndWallet(alipayOrder);
+
+            // Content purchase (single-article unlock + coach wallet credit)
+            if (orderType === "content_purchase" && contentId) {
+                try {
+                    await fulfillContentPurchasePaid({
+                        orderId: alipayOrder.id,
+                        userId: alipayOrder.user_id,
+                        contentId,
+                    });
+                } catch (e) {
+                    // Do not fail the callback; Alipay will retry if we return non-success.
+                    console.error("[Alipay Notify] Content purchase fulfill failed:", e);
+                }
+            }
         }
 
         console.log(`[Alipay Notify] 订单 ${out_trade_no} 处理成功，返回 success`);
