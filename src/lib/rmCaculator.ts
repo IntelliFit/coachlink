@@ -65,7 +65,9 @@ export function calcRecommendedLoad(
 ): number {
     // 负数 1RM 是有效的，表示需要辅助的自重动作
     // 例如：-10 表示需要 10kg 辅助才能完成引体向上
-    if (oneRM === 0) throw new Error("1RM 不能为 0");
+    // 1RM = 0 在数学上也是合法的：
+    // - 对于不包含自重的动作（α=0）：结果就是 0
+    // - 对于包含自重的动作（α=1）：结果是 W/λ(r) - W，可能为负数（表示需要辅助）
     // alpha=0 表示不考虑体重项（纯外加重量动作），此时允许 weight<=0
     if (alpha !== 0 && weight <= 0) throw new Error("体重必须大于 0");
 
@@ -176,11 +178,12 @@ export function calcIntensityDisplay(
         includesBodyWeight,
     } = options;
 
+    // 1RM = 0 在数学上是合法的（对于不包含自重的动作，结果就是 0）
+    // 只有 null/undefined/非有限数才表示未设置
     const hasOneRM =
         oneRM !== undefined &&
         oneRM !== null &&
-        Number.isFinite(oneRM) &&
-        oneRM !== 0;
+        Number.isFinite(oneRM);
 
     // 1. 优先使用 intensityConfig
     if (intensityConfig?.relativeIntensity) {
