@@ -256,15 +256,24 @@ export async function generateInvitationPoster(params: {
   heartbeatInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
 
   const storagePath = `${params.coachId}/${INVITATION_POSTER_TYPE}.png`;
+  
+  // Upload new file (upsert will overwrite if exists)
+  console.log(`[coach-poster] Uploading poster to ${storagePath} for coach ${params.coachId}`);
   const { error: uploadError } = await serviceRoleSupabase.storage
     .from(COACH_POSTER_BUCKET)
     .upload(storagePath, uint8, {
       contentType: "image/png",
-      upsert: true,
-      cacheControl: "3600",
+      upsert: true, // Ensure overwrite if file exists
+      cacheControl: "0", // No cache to ensure fresh image
     });
 
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    console.error(`[coach-poster] Upload failed for coach ${params.coachId}:`, uploadError);
+    throw uploadError;
+  }
+  
+  console.log(`[coach-poster] Successfully uploaded poster to ${storagePath} for coach ${params.coachId}`);
+  
   heartbeatInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
 
   const {
@@ -289,6 +298,8 @@ export async function generateInvitationPoster(params: {
     generatedAt: now,
   };
 
+  console.log(`[coach-poster] Updating database for coach ${params.coachId}, image_url: ${publicUrl}`);
+  
   const { data: updated, error: updateErr } = await serviceRoleSupabase
     .from("coach_posters")
     .update({
@@ -307,7 +318,17 @@ export async function generateInvitationPoster(params: {
     .select("*")
     .single();
 
-  if (updateErr) throw updateErr;
+  if (updateErr) {
+    console.error(`[coach-poster] Database update failed for coach ${params.coachId}:`, updateErr);
+    throw updateErr;
+  }
+  
+  if (!updated) {
+    console.error(`[coach-poster] Database update returned no data for coach ${params.coachId}`);
+    throw new Error("Database update returned no data");
+  }
+  
+  console.log(`[coach-poster] Successfully updated database for coach ${params.coachId}, updated_at: ${updated.updated_at}, image_url: ${updated.image_url}`);
   finishInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
   return updated as CoachPosterRow;
 }
