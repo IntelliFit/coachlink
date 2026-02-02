@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         const iconData = await fetch(iconUrl).then(res => res.arrayBuffer()).catch(() => null);
 
         // 3. 生成二维码
-        const registerUrl = `${req.nextUrl.origin}/register?invite=${coach.invitation_code}&mode=${coach.invitation_mode}`;
+        const registerUrl = `https://coachlink.fit/register?invite=${coach.invitation_code}&mode=${coach.invitation_mode}`;
         const qr = qrcode(0, 'M');
         qr.addData(registerUrl);
         qr.make();
