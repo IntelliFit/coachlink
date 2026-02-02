@@ -18,6 +18,13 @@ import type {
     StreetliftingCreateSubmissionResponseDto,
 } from "@/app/api/streetlifting-index/submissions/create/entity";
 import type {
+    StreetliftingClaimSubmissionDto,
+    StreetliftingClaimSubmissionResponseDto,
+} from "@/app/api/streetlifting-index/submissions/claim/entity";
+import type {
+    StreetliftingCheckExistingResponseDto,
+} from "@/app/api/streetlifting-index/submissions/check-existing/entity";
+import type {
     StreetliftingListStoriesDto,
     StreetliftingListStoriesResponseDto,
 } from "@/app/api/streetlifting-index/stories/list/entity";
@@ -75,6 +82,22 @@ class StreetliftingIndexService extends BaseService {
 
     async createSubmission(reqData: StreetliftingCreateSubmissionDto) {
         const res = await this.post<StreetliftingCreateSubmissionResponseDto>("submissions/create", reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async claimSubmission(reqData: StreetliftingClaimSubmissionDto) {
+        const res = await this.post<StreetliftingClaimSubmissionResponseDto>("submissions/claim", reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async checkExistingSubmission() {
+        const res = await this.post<StreetliftingCheckExistingResponseDto>("submissions/check-existing", {});
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
