@@ -8,6 +8,7 @@ import { InputText } from 'primereact/inputtext';
 import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Dialog } from 'primereact/dialog';
 import { useToastContext } from '@/context/ToastContext';
 import { actionLibService } from '@/app/service/actionLibService';
 import { publicActionLibService } from '@/app/service/publicActionLibService';
@@ -18,6 +19,8 @@ import { CoachActionRow } from '@/types';
 import ActionCard from './ActionCard';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import MergeActionsDialog from './MergeActionsDialog';
+import DeleteActionDialog from './DeleteActionDialog';
+import BulkDeleteActionsDialog from './BulkDeleteActionsDialog';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Paginator } from 'primereact/paginator';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
@@ -26,6 +29,7 @@ import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetail
 const ActionLib = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
+    const userId = session?.user?.id;
 
     const { showToast } = useToastContext();
     const pathname = usePathname();
@@ -45,6 +49,9 @@ const ActionLib = () => {
     const [selectedActions, setSelectedActions] = useState<CoachActionRow[]>([]);
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [mergeDialogVisible, setMergeDialogVisible] = useState(false);
+    const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+    const [deletingAction, setDeletingAction] = useState<CoachActionRow | null>(null);
+    const [bulkDeleteDialogVisible, setBulkDeleteDialogVisible] = useState(false);
 
     const itemsPerPage = 12;
 
@@ -57,6 +64,22 @@ const ActionLib = () => {
     const [publicTotalRecords, setPublicTotalRecords] = useState(0);
     const [publicDetailVisible, setPublicDetailVisible] = useState(false);
     const [publicDetailAction, setPublicDetailAction] = useState<PublicActionItemDto | null>(null);
+    const [pendingEditsVisible, setPendingEditsVisible] = useState(false);
+    const [pendingEdits, setPendingEdits] = useState<{ actionId: string; name: string; pendingCount: number }[]>([]);
+
+    useEffect(() => {
+        if (!userId) return;
+        publicActionLibService.pendingEditsSummary()
+            .then((res) => {
+                if (res.totalPending > 0) {
+                    setPendingEdits(res.actions || []);
+                    setPendingEditsVisible(true);
+                }
+            })
+            .catch(() => {
+                // ignore notification fetch errors
+            });
+    }, [userId]);
 
     // 逻辑：加载列表
     useEffect(() => {
@@ -166,26 +189,8 @@ const ActionLib = () => {
     };
 
     const handleDeleteAction = (action: CoachActionRow) => {
-        confirmDialog({
-            message: `确定要删除动作"${action.name}"吗？此操作无法撤销。`,
-            header: '确认删除',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await actionLibService.deleteAction({ id: action.id });
-                    showToast({ severity: 'success', summary: '删除成功', detail: '动作已删除' });
-                    setSelectedActions(prev => prev.filter(a => a.id !== action.id));
-                    searchTerm ? handleSearch() : loadActions();
-                } catch (error: any) {
-                    showToast({
-                        severity: 'error',
-                        summary: '删除失败',
-                        detail: error?.message || '无法删除动作',
-                    });
-                }
-            }
-        });
+        setDeletingAction(action);
+        setDeleteDialogVisible(true);
     };
 
     const handleToggleSelect = (action: CoachActionRow, checked: boolean) => {
@@ -210,33 +215,7 @@ const ActionLib = () => {
     const handleBulkDelete = () => {
         const ids = selectedActions.map(a => a.id);
         if (ids.length === 0) return;
-        confirmDialog({
-            header: '批量删除确认',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            message: `确定要批量删除已选择的 ${ids.length} 个动作吗？此操作无法撤销。`,
-            accept: async () => {
-                setBulkDeleting(true);
-                try {
-                    const results = await Promise.allSettled(
-                        selectedActions.map(a => actionLibService.deleteAction({ id: a.id }))
-                    );
-                    const ok = results.filter(r => r.status === 'fulfilled').length;
-                    const fail = results.length - ok;
-                    if (fail === 0) {
-                        showToast({ severity: 'success', summary: '批量删除成功', detail: `已删除 ${ok} 个动作` });
-                    } else {
-                        showToast({ severity: 'warn', summary: '批量删除部分失败', detail: `成功 ${ok} 个，失败 ${fail} 个` });
-                    }
-                    setSelectedActions([]);
-                    searchTerm ? handleSearch() : loadActions();
-                } catch (e: any) {
-                    showToast({ severity: 'error', summary: '批量删除失败', detail: e?.message || '请稍后重试' });
-                } finally {
-                    setBulkDeleting(false);
-                }
-            }
-        });
+        setBulkDeleteDialogVisible(true);
     };
 
     const onPageChange = (event: { first: number; rows: number }) => {
@@ -250,15 +229,52 @@ const ActionLib = () => {
     };
 
     const handlePublishMyAction = async (action: CoachActionRow) => {
-        try {
-            await publicActionLibService.publishFromMyAction({
-                actionType: "coach",
-                actionId: action.id,
+        const missingDemo = !action.url || !action.url.trim();
+        const missingParts: string[] = [];
+        if (missingDemo) missingParts.push('演示视频');
+
+        if (missingParts.length > 0) {
+            confirmDialog({
+                header: '贡献提示',
+                message: (
+                    <div className="flex flex-col gap-2 text-sm text-surface-700">
+                        <div>为保证公共动作库质量，以下信息必须完善后才能贡献：</div>
+                        <div className="text-orange-600">{missingParts.join('、')}</div>
+                        <div className="text-surface-600">
+                        排序规则概览：视频演示权重最高，其次是点赞、属性/部位丰富度、贡献者影响力。
+                        </div>
+                    </div>
+                ),
+                acceptLabel: '去完善',
+                accept: () => {},
             });
-            showToast({ severity: 'success', summary: '贡献成功', detail: '已发布到公共动作库' });
-        } catch (e: any) {
-            showToast({ severity: 'error', summary: '贡献失败', detail: e?.message || '请稍后再试' });
+            return;
         }
+
+        confirmDialog({
+            header: '确认贡献',
+            message: (
+                <div className="flex flex-col gap-2 text-sm text-surface-700">
+                    <div>感谢贡献！演示视频为必填，描述可选但建议补充。</div>
+                    <div className="text-surface-600">
+                        排序规则概览：视频演示权重最高，其次是点赞、属性/部位丰富度、贡献者影响力。
+                    </div>
+                </div>
+            ),
+            acceptLabel: '继续贡献',
+            rejectLabel: '再检查一下',
+            accept: async () => {
+                try {
+                    await publicActionLibService.publishFromMyAction({
+                        actionType: "coach",
+                        actionId: action.id,
+                    });
+                    showToast({ severity: 'success', summary: '贡献成功', detail: '已发布到公共动作库' });
+                } catch (e: any) {
+                    showToast({ severity: 'error', summary: '贡献失败', detail: e?.message || '请稍后再试' });
+                }
+            },
+        });
     };
 
     const handlePublicSearch = async () => {
@@ -321,6 +337,27 @@ const ActionLib = () => {
                             {action.detail || '暂无描述'}
                         </p>
 
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                            {action.url ? (
+                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                    包含演示
+                                </span>
+                            ) : (
+                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-600">
+                                    无演示视频
+                                </span>
+                            )}
+                            {action.detail && action.detail.trim().length > 0 ? (
+                                <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                                    有描述
+                                </span>
+                            ) : (
+                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-600">
+                                    无描述
+                                </span>
+                            )}
+                        </div>
+
                         <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2 text-xs text-surface-600">
                                 {action.contributor?.avatarUrl ? (
@@ -377,10 +414,59 @@ const ActionLib = () => {
     return (
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-6 sm:py-10 animate-in fade-in slide-in-from-bottom-2 duration-1000">
             <ConfirmDialog />
+            <Dialog
+                header="有待审核的编辑建议"
+                visible={pendingEditsVisible}
+                modal
+                draggable={false}
+                resizable={false}
+                dismissableMask
+                style={{ width: '520px', maxWidth: '95vw' }}
+                onHide={() => setPendingEditsVisible(false)}
+                className="p-fluid"
+            >
+                {pendingEdits.length === 0 ? (
+                    <div className="text-sm text-surface-600">暂无待审核内容</div>
+                ) : (
+                    <div className="flex flex-col gap-3">
+                        <div className="text-sm text-surface-700">
+                            你有 {pendingEdits.reduce((sum, i) => sum + i.pendingCount, 0)} 条编辑建议待处理。
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            {pendingEdits.map((item) => (
+                                <button
+                                    key={item.actionId}
+                                    className="flex items-center justify-between rounded-lg border border-surface-200 px-3 py-2 text-sm hover:bg-surface-50 text-left"
+                                    onClick={async () => {
+                                        try {
+                                            const res = await publicActionLibService.getAction({
+                                                actionId: item.actionId,
+                                                viewerActionType: "coach",
+                                            });
+                                            setPublicDetailAction(res.action);
+                                            setPublicDetailVisible(true);
+                                            setPendingEditsVisible(false);
+                                        } catch {
+                                            // ignore
+                                        }
+                                    }}
+                                >
+                                    <span className="text-surface-800">{item.name}</span>
+                                    <span className="text-surface-500">待审核 {item.pendingCount}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="text-xs text-surface-500">
+                            打开对应动作详情可查看并审核。
+                        </div>
+                    </div>
+                )}
+            </Dialog>
             <PublicActionDetailDialog
                 visible={publicDetailVisible}
                 action={publicDetailAction}
                 onHide={() => setPublicDetailVisible(false)}
+                viewerActionType="coach"
             />
             <ActionEditDialog
                 visible={dialogVisible}
@@ -398,6 +484,26 @@ const ActionLib = () => {
                         summary: '合并完成',
                         detail: `已替换 ${res.replacedCount} 处引用（模板 ${res.updatedTemplates} 个，计划实例 ${res.updatedInstances} 个）`,
                     });
+                    setSelectedActions([]);
+                    searchTerm ? handleSearch() : loadActions();
+                }}
+            />
+            <DeleteActionDialog
+                visible={deleteDialogVisible}
+                action={deletingAction}
+                onHide={() => setDeleteDialogVisible(false)}
+                onCompleted={() => {
+                    if (deletingAction) {
+                        setSelectedActions(prev => prev.filter(a => a.id !== deletingAction.id));
+                    }
+                    searchTerm ? handleSearch() : loadActions();
+                }}
+            />
+            <BulkDeleteActionsDialog
+                visible={bulkDeleteDialogVisible}
+                actions={selectedActions}
+                onHide={() => setBulkDeleteDialogVisible(false)}
+                onCompleted={() => {
                     setSelectedActions([]);
                     searchTerm ? handleSearch() : loadActions();
                 }}
@@ -552,6 +658,11 @@ const ActionLib = () => {
                                 <h2 className="text-2xl font-bold text-900">公共动作库</h2>
                                 <p className="text-600 mt-1">挑选高质量动作，一键加入到你的教练动作库</p>
                             </div>
+                        </div>
+
+                        <div className="mt-4 rounded-xl border border-surface-200 bg-surface-50 p-3 text-sm text-surface-700">
+                            公共动作库由社区共建。所有人都可以提交修改建议，作者审核通过后覆盖更新。
+                            我们希望集中优质资源与训练生态，欢迎完善演示视频与描述信息。
                         </div>
 
                         <div className="flex flex-col md:flex-row gap-4 mt-6">

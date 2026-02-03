@@ -24,28 +24,49 @@ export async function POST(req: Request) {
         const { page = 1, limit = 12, search, type, viewerActionType = "student" } =
             (await req.json()) as ListPublicActionsDto;
 
-        let query = supabase
-            .from("community_actions")
-            .select("*", { count: "exact" })
-            .order("like_count", { ascending: false })
-            .order("created_at", { ascending: false });
-
-        if (type) {
-            query = query.eq("type", type);
-        }
-
-        if (search) {
-            const escaped = search.replace(/[%_]/g, "\\$&");
-            query = query.or(
-                `name.ilike.%${escaped}%,detail.ilike.%${escaped}%`,
-            );
-        }
-
         const from = (page - 1) * limit;
         const to = from + limit - 1;
-        query = query.range(from, to);
 
-        const { data: rows, count, error } = await query;
+        const buildQuery = (tableName: "community_actions_ranked" | "community_actions") => {
+            let query = supabase
+                .from(tableName)
+                .select("*", { count: "exact" });
+
+            if (tableName === "community_actions_ranked") {
+                query = query
+                    .order("rank_score", { ascending: false })
+                    .order("like_count", { ascending: false });
+            } else {
+                query = query.order("like_count", { ascending: false });
+            }
+
+            query = query
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: true });
+
+            if (type) {
+                query = query.eq("type", type);
+            }
+
+            if (search) {
+                const escaped = search.replace(/[%_]/g, "\\$&");
+                query = query.or(
+                    `name.ilike.%${escaped}%,detail.ilike.%${escaped}%`,
+                );
+            }
+
+            return query.range(from, to);
+        };
+
+        let { data: rows, count, error } = await buildQuery("community_actions_ranked");
+        if (error) {
+            console.warn(
+                "[public-action-lib] list-actions ranked view failed, fallback:",
+                error,
+            );
+            ({ data: rows, count, error } = await buildQuery("community_actions"));
+        }
+
         if (error) {
             console.error("[public-action-lib] list-actions error:", error);
             return NextResponse.json<ApiData<null>>(
@@ -111,6 +132,7 @@ export async function POST(req: Request) {
         const enriched: PublicActionItemDto[] = actions.map((a) => ({
             id: a.id,
             contributor_user_id: a.contributor_user_id,
+            owner_user_id: a.owner_user_id ?? null,
             name: a.name,
             detail: a.detail ?? null,
             positions: a.positions ?? null,
