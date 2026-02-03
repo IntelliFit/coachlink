@@ -27,7 +27,7 @@ export const DietItemForm: React.FC<DietItemFormProps> = ({
     const customData = item.params?.custom_data || {};
     const content = customData.content || '';
     const calories = customData.calories || null;
-    const suggestedTime = item.params?.suggested_time || null;
+    const note = item.params?.note || '';
 
     const updateCustomData = (updates: any) => {
         onUpdate(dayIndex, setIndex, 'params', {
@@ -39,10 +39,10 @@ export const DietItemForm: React.FC<DietItemFormProps> = ({
         });
     };
 
-    const updateSuggestedTime = (time: string | null) => {
+    const updateNote = (nextNote: string) => {
         onUpdate(dayIndex, setIndex, 'params', {
             ...item.params,
-            suggested_time: time
+            note: nextNote,
         });
     };
 
@@ -65,13 +65,13 @@ export const DietItemForm: React.FC<DietItemFormProps> = ({
                 />
             </div>
             <div>
-                <label className="block text-900 text-xs mb-1">饮食内容 / 食谱</label>
+                <label className="block text-900 text-xs mb-1">食物重量 / 份量</label>
                 <InputTextarea
                     value={content}
                     onChange={(e) => updateCustomData({ content: e.target.value })}
-                    rows={3}
+                    rows={2}
                     className="w-full"
-                    placeholder="例如：燕麦片 50g + 煮鸡蛋 1个 + 牛奶 200ml"
+                    placeholder="例如：100g / 2片 / 1杯"
                     disabled={saving}
                 />
             </div>
@@ -88,19 +88,15 @@ export const DietItemForm: React.FC<DietItemFormProps> = ({
                     />
                 </div>
                 <div>
-                    <label className="block text-900 text-xs mb-1">建议时间</label>
-                    <div className="p-inputgroup">
-                        <span className="p-inputgroup-addon">
-                            <i className="pi pi-clock"></i>
-                        </span>
-                        <input
-                            type="time" 
-                            className="p-inputtext p-component"
-                            value={suggestedTime || ''}
-                            onChange={(e) => updateSuggestedTime(e.target.value)}
-                            disabled={saving}
-                        />
-                    </div>
+                    <label className="block text-900 text-xs mb-1">备注</label>
+                    <InputTextarea
+                        value={note}
+                        onChange={(e) => updateNote(e.target.value)}
+                        rows={2}
+                        className="w-full"
+                        placeholder="如：早餐/晚餐/烹饪方式"
+                        disabled={saving}
+                    />
                 </div>
             </div>
             
