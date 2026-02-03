@@ -6,6 +6,7 @@ import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
+import { Carousel } from 'primereact/carousel';
 import { coachService } from '@/app/service/coachService';
 import { publicActionLibService } from '@/app/service/publicActionLibService';
 import { Skeleton } from 'primereact/skeleton';
@@ -39,26 +40,132 @@ interface VisibilityStatus {
     referrerCoachName: string | null;
 }
 
-// 简单的横向滚动容器组件
-const ScrollSection = ({ title, moreLink, children, moreText = "查看更多" }: { title: string, moreLink?: string, children: React.ReactNode, moreText?: string }) => {
+// 骨架屏卡片组件
+const ProductSkeletonCard = () => (
+    <div className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
+        <div className="flex items-start justify-between mb-3">
+            <Skeleton width="80px" height="24px" className="rounded-full" />
+            <Skeleton width="60px" height="28px" />
+        </div>
+        <Skeleton width="80%" height="20px" className="mb-2" />
+        <Skeleton width="100%" height="32px" className="mb-4" />
+        <div className="flex items-center gap-2 mb-4 pt-4 border-t border-surface-100">
+            <Skeleton shape="circle" size="28px" />
+            <Skeleton width="100px" height="16px" />
+        </div>
+        <Skeleton width="100%" height="40px" className="rounded-2xl" />
+    </div>
+);
+
+const CoachSkeletonCard = () => (
+    <div className="w-[180px] md:w-[220px] shrink-0 bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100">
+        <Skeleton width="100%" height="180px" className="rounded-2xl mb-3" />
+        <Skeleton width="70%" height="18px" className="mb-1" />
+        <Skeleton width="100%" height="14px" className="mb-3" />
+        <div className="flex items-center gap-1.5 mb-3">
+            <Skeleton width="60px" height="14px" />
+        </div>
+        <div className="flex gap-1.5">
+            <Skeleton width="60px" height="24px" className="rounded-full" />
+            <Skeleton width="50px" height="24px" className="rounded-full" />
+        </div>
+    </div>
+);
+
+const ActionSkeletonCard = () => (
+    <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
+        <Skeleton width="100%" height="40px" className="mb-4" />
+        <div className="flex items-center justify-between">
+            <Skeleton width="50px" height="16px" />
+            <Skeleton width="80px" height="36px" className="rounded-2xl" />
+        </div>
+    </div>
+);
+
+const ArticleSkeletonCard = () => (
+    <div className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
+        <div className="flex items-center gap-2 mb-3">
+            <Skeleton shape="circle" size="24px" />
+            <Skeleton width="80px" height="14px" />
+        </div>
+        <Skeleton width="100%" height="36px" className="mb-2" />
+        <Skeleton width="100%" height="32px" className="mb-4" />
+        <div className="pt-4 border-t border-surface-100 flex items-center justify-between">
+            <Skeleton width="80px" height="12px" />
+            <Skeleton width="50px" height="12px" />
+        </div>
+    </div>
+);
+
+// Carousel 容器组件
+const CarouselSection = ({ title, moreLink, items, itemTemplate, moreText = "查看更多", numVisible = 3 }: { 
+    title: string, 
+    moreLink?: string, 
+    items: any[], 
+    itemTemplate: (item: any) => React.ReactNode,
+    moreText?: string,
+    numVisible?: number
+}) => {
     const router = useRouter();
+    
+    // 根据桌面端显示数量动态计算响应式配置
+    const responsiveOptions = [
+        {
+            breakpoint: '1536px', // 2xl breakpoint
+            numVisible: numVisible,
+            numScroll: 1
+        },
+        {
+            breakpoint: '1280px', // xl breakpoint
+            numVisible: Math.max(Math.floor(numVisible * 0.8), 3),
+            numScroll: 1
+        },
+        {
+            breakpoint: '1024px', // lg breakpoint
+            numVisible: Math.max(Math.floor(numVisible * 0.6), 2),
+            numScroll: 1
+        },
+        {
+            breakpoint: '768px', // md breakpoint
+            numVisible: 2,
+            numScroll: 1
+        },
+        {
+            breakpoint: '640px', // sm breakpoint
+            numVisible: 1.5,
+            numScroll: 1
+        },
+        {
+            breakpoint: '480px', // mobile
+            numVisible: 1.2,
+            numScroll: 1
+        }
+    ];
+
     return (
-        <div className="mb-8">
-            <div className="flex items-center justify-between mb-4 px-1">
-                <h2 className="text-lg md:text-xl font-black text-surface-900 tracking-tight">{title}</h2>
+        <div className="mb-10">
+            <div className="flex items-center justify-between mb-5 px-1">
+                <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight">{title}</h2>
                 {moreLink && (
                     <button 
                         onClick={() => router.push(moreLink)}
-                        className="flex items-center gap-1 text-xs md:text-sm font-bold text-surface-500 hover:text-primary-600 transition-colors"
+                        className="flex items-center gap-1 text-xs md:text-sm font-bold text-surface-500 hover:text-surface-900 active:scale-95 transition-all"
                     >
                         <span>{moreText}</span>
-                        <ChevronRight size={14} />
+                        <ChevronRight size={16} className="stroke-[2.5]" />
                     </button>
                 )}
             </div>
-            <div className="flex overflow-x-auto pb-4 -mx-4 px-4 gap-3 snap-x scrollbar-hide md:scrollbar-default">
-                {children}
-            </div>
+            <Carousel 
+                value={items} 
+                itemTemplate={itemTemplate}
+                numVisible={numVisible}
+                numScroll={1}
+                responsiveOptions={responsiveOptions}
+                circular={false}
+                autoplayInterval={0}
+                className="custom-carousel"
+            />
         </div>
     );
 };
@@ -84,32 +191,24 @@ const CoachDiscoveryPage: React.FC = () => {
                 desc: '订阅计划/服务',
                 icon: Layers,
                 href: '/market',
-                color: 'bg-primary-50 text-primary-600',
-                borderColor: 'border-primary-100',
             },
             {
                 title: '动作库',
                 desc: '动作学习/添加',
-                icon: Users, // 暂时用 Users 图标
-                href: '/me/action-lib?tab=public', // 默认跳转到公共动作库
-                color: 'bg-amber-50 text-amber-600',
-                borderColor: 'border-amber-100',
+                icon: Users,
+                href: '/me/action-lib?tab=public',
             },
             {
                 title: '找教练',
                 desc: '专业认证教练',
                 icon: UserCheck,
-                href: '/coach/discovery?tab=coaches', // 可以是同一个页面的锚点或筛选状态
-                color: 'bg-emerald-50 text-emerald-600',
-                borderColor: 'border-emerald-100',
+                href: '/coach/discovery?tab=coaches',
             },
             {
                 title: '健身资讯',
                 desc: '知识与实践',
                 icon: BookOpen,
                 href: '/articles',
-                color: 'bg-indigo-50 text-indigo-600',
-                borderColor: 'border-indigo-100',
             },
         ],
         [],
@@ -322,38 +421,37 @@ const CoachDiscoveryPage: React.FC = () => {
     // 精简版教练卡片（用于横向滚动）
     const renderMiniCoachCard = (coach: CoachesRow & { studentCount?: number; averageRating?: number }) => (
         <div
-            key={coach.id}
-            className="w-[160px] md:w-[200px] shrink-0 bg-surface-0 rounded-2xl p-3 md:p-4 border border-surface-100 hover:border-primary-200 transition-all cursor-pointer snap-start"
+            className="w-[180px] md:w-[220px] shrink-0 bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start"
             onClick={() => router.push('/coach/profile/' + coach.id + '?from=discovery')}
         >
-            <div className="relative w-full aspect-square mb-3 rounded-xl overflow-hidden bg-surface-50">
+            <div className="relative w-full aspect-square mb-3 rounded-2xl overflow-hidden bg-surface-50 border border-surface-100">
                 {coach.avatar_url ? (
                     <img src={coach.avatar_url} alt={coach.name} className="w-full h-full object-cover" />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl font-black text-surface-300 bg-surface-100">
+                    <div className="w-full h-full flex items-center justify-center text-2xl font-black text-surface-300 bg-surface-100">
                         {coach.name.charAt(0)}
                     </div>
                 )}
                 {coach.is_featured && (
-                    <div className="absolute top-1 right-1 bg-amber-400 text-white p-1 rounded-lg">
-                        <Crown size={10} fill="currentColor" />
+                    <div className="absolute top-2 right-2 bg-amber-400 text-white p-1.5 rounded-xl shadow-sm">
+                        <Crown size={12} fill="currentColor" />
                     </div>
                 )}
             </div>
             
-            <h3 className="text-sm font-bold text-surface-900 truncate mb-1">{coach.name}</h3>
-            <p className="text-xs text-surface-500 line-clamp-1 mb-2 h-4">{coach.bio || "暂无简介"}</p>
+            <h3 className="text-sm font-black text-surface-900 truncate mb-1 tracking-tight">{coach.name}</h3>
+            <p className="text-xs text-surface-500 font-medium line-clamp-1 mb-3 h-4">{coach.bio || "暂无简介"}</p>
             
-            <div className="flex items-center gap-1 text-[10px] text-surface-400 mb-2">
-                <Star size={10} className="text-amber-500 fill-amber-500" />
-                <span className="font-bold text-surface-700">{typeof coach.averageRating === 'number' ? coach.averageRating.toFixed(1) : (coach.rating ?? '0.0')}</span>
-                <span className="w-1 h-1 bg-surface-300 rounded-full mx-0.5"></span>
-                <span>{coach.studentCount || 0} 学员</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-surface-400 mb-3">
+                <Star size={11} className="text-amber-500 fill-amber-500" />
+                <span className="font-black text-surface-700">{typeof coach.averageRating === 'number' ? coach.averageRating.toFixed(1) : (coach.rating ?? '0.0')}</span>
+                <span className="w-1 h-1 bg-surface-300 rounded-full"></span>
+                <span className="font-medium">{coach.studentCount || 0} 学员</span>
             </div>
 
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
                 {coach.specialties?.slice(0, 2).map((spec, i) => (
-                    <span key={i} className="px-1.5 py-0.5 bg-surface-50 text-surface-500 text-[10px] rounded md:rounded-md border border-surface-100 truncate max-w-full">
+                    <span key={i} className="px-2 py-1 bg-surface-50 text-surface-600 text-[10px] font-bold rounded-full border border-surface-100 truncate max-w-full">
                         {spec}
                     </span>
                 ))}
@@ -364,33 +462,32 @@ const CoachDiscoveryPage: React.FC = () => {
     // 服务商品卡片（用于横向滚动）
     const renderProductCard = (item: { coach: CoachesRow; product: Product; opt: DurationOption }, idx: number) => (
         <div 
-            key={`${item.coach.id}-${item.product.id}-${idx}`}
-            className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-2xl p-4 border border-surface-100 hover:border-primary-200 transition-all cursor-pointer snap-start relative group"
+            className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start relative group"
         >
-            <div className="flex items-start justify-between mb-2">
-                <div className="px-2 py-0.5 bg-primary-50 text-primary-700 text-[10px] font-bold rounded-full">
+            <div className="flex items-start justify-between mb-3">
+                <div className="px-2.5 py-1 bg-primary-50 text-primary-700 text-[11px] font-black rounded-full border border-primary-100">
                     {item.product.tier === 'basic' ? 'L1 基础版' : item.product.tier === 'standard' ? 'L2 进阶版' : 'L3 专业版'}
                 </div>
-                <div className="text-lg font-black text-primary-600">¥{item.opt.price}</div>
+                <div className="text-xl font-black text-primary-600 tracking-tight">¥{item.opt.price}</div>
             </div>
             
-            <h3 className="text-base font-bold text-surface-900 line-clamp-1 mb-1">{item.product.name}</h3>
-            <p className="text-xs text-surface-500 line-clamp-2 h-8 mb-3">{item.product.description || "暂无描述"}</p>
+            <h3 className="text-base font-black text-surface-900 line-clamp-1 mb-2 tracking-tight">{item.product.name}</h3>
+            <p className="text-xs text-surface-500 font-medium line-clamp-2 h-8 mb-4">{item.product.description || "暂无描述"}</p>
             
-            <div className="flex items-center gap-2 mb-4 pt-3 border-t border-surface-50">
-                <div className="w-6 h-6 rounded-full bg-surface-100 overflow-hidden shrink-0">
+            <div className="flex items-center gap-2 mb-4 pt-4 border-t border-surface-100">
+                <div className="w-7 h-7 rounded-full bg-surface-100 overflow-hidden shrink-0 border border-surface-200">
                     {item.coach.avatar_url ? (
                         <img src={item.coach.avatar_url} className="w-full h-full object-cover" />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[10px]">{item.coach.name[0]}</div>
+                        <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-surface-500">{item.coach.name[0]}</div>
                     )}
                 </div>
-                <span className="text-xs text-surface-600 font-medium truncate">{item.coach.name}</span>
+                <span className="text-xs text-surface-700 font-bold truncate tracking-tight">{item.coach.name}</span>
             </div>
 
             <Button
                 size="small"
-                className="w-full rounded-xl font-bold"
+                className="w-full h-10 rounded-2xl font-black bg-surface-900 border-none text-surface-0 hover:bg-surface-800 shadow-sm active:scale-95 transition-all"
                 label="订阅"
                 onClick={() => {
                     const p = new URLSearchParams();
@@ -407,20 +504,18 @@ const CoachDiscoveryPage: React.FC = () => {
 
     // 动作卡片
     const renderActionCard = (action: PublicActionItemDto) => (
-        <div key={action.id} className="w-[200px] shrink-0 bg-surface-0 rounded-2xl p-3 border border-surface-100 snap-start">
-             <div className="w-full h-24 bg-surface-50 rounded-xl mb-3 flex items-center justify-center text-surface-300">
-                {/* 这里应该展示动作缩略图，暂时用 Icon 占位 */}
-                <Package size={24} />
-             </div>
-             <h3 className="text-sm font-bold text-surface-900 truncate mb-1">{action.name}</h3>
-             <div className="flex items-center justify-between mt-2">
-                 <span className="text-xs text-surface-500">{action.like_count || 0} 赞</span>
+        <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all snap-start">
+             <h3 className="text-sm font-black text-surface-900 mb-4 line-clamp-2 min-h-[2.5em] tracking-tight">{action.name}</h3>
+             <div className="flex items-center justify-between">
+                 <span className="text-xs text-surface-500 font-bold">{action.like_count || 0} 赞</span>
                  <Button 
-                    icon={action.isAdded ? "pi pi-check" : "pi pi-plus"} 
-                    rounded 
-                    text 
+                    label={action.isAdded ? "已添加" : "添加"}
                     size="small"
-                    className="w-7 h-7"
+                    className={`h-9 px-4 rounded-2xl font-black text-xs border ${
+                        action.isAdded 
+                            ? 'bg-surface-100 border-surface-200 text-surface-400 cursor-not-allowed' 
+                            : 'bg-surface-900 border-surface-900 text-surface-0 hover:bg-surface-800 active:scale-95'
+                    } transition-all`}
                     disabled={action.isAdded}
                     onClick={async (e) => {
                         e.stopPropagation();
@@ -444,13 +539,12 @@ const CoachDiscoveryPage: React.FC = () => {
 
     const renderArticleCard = (article: PublicArticleListItem) => (
         <div 
-            key={article.id} 
-            className="w-[240px] md:w-[280px] shrink-0 bg-surface-0 rounded-2xl p-4 border border-surface-100 hover:border-primary-200 transition-all cursor-pointer snap-start flex flex-col justify-between"
+            className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start flex flex-col justify-between"
             onClick={() => router.push(`/articles/${article.id}`)}
         >
             <div>
-                 <div className="flex items-center gap-2 mb-2">
-                    <div className="w-5 h-5 rounded-full bg-surface-100 overflow-hidden shrink-0">
+                 <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-full bg-surface-100 overflow-hidden shrink-0 border border-surface-200">
                         {article.coachAvatarUrl ? (
                             <img src={article.coachAvatarUrl} className="w-full h-full object-cover" />
                         ) : (
@@ -459,53 +553,57 @@ const CoachDiscoveryPage: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <span className="text-xs text-surface-500 font-medium truncate max-w-[120px]">{article.coachName}</span>
+                    <span className="text-xs text-surface-600 font-bold truncate max-w-[120px] tracking-tight">{article.coachName}</span>
                     {article.priceCents > 0 && (
-                        <span className="ml-auto px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">
+                        <span className="ml-auto px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-black rounded-full border border-amber-100">
                             付费
                         </span>
                     )}
                  </div>
-                 <h3 className="text-sm font-bold text-surface-900 line-clamp-2 leading-snug mb-2 min-h-[2.5em]">
+                 <h3 className="text-sm font-black text-surface-900 line-clamp-2 leading-snug mb-2 min-h-[2.5em] tracking-tight">
                      {article.title}
                  </h3>
-                 <p className="text-xs text-surface-500 line-clamp-2 h-8 mb-0">
+                 <p className="text-xs text-surface-500 font-medium line-clamp-2 h-8 mb-0">
                      {article.summary || "暂无简介"}
                  </p>
             </div>
-            <div className="mt-3 pt-3 border-t border-surface-50 flex items-center justify-between text-[10px] text-surface-400">
-                 <span>{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('zh-CN') : ''}</span>
-                 <div className="flex items-center gap-1 text-primary-600 font-bold hover:underline">
-                    <span>阅读全文</span>
-                    <ArrowRight size={10} />
+            <div className="mt-4 pt-4 border-t border-surface-100 flex items-center justify-between text-[10px] text-surface-400">
+                 <span className="font-medium">{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('zh-CN') : ''}</span>
+                 <div className="flex items-center gap-1 text-surface-900 font-black hover:text-primary-600 transition-colors">
+                    <span>阅读</span>
+                    <ArrowRight size={12} className="stroke-[2.5]" />
                  </div>
             </div>
         </div>
     );
 
-    // 专注模式还是保持原样（但也可以复用部分逻辑，这里简化处理只在最顶层拦）
+    // 专注模式
     if (visibilityStatus?.focusMode) {
         return (
-            <div className="min-h-screen bg-surface-50/50 py-8 px-4">
-               {/* 复用之前的专注模式代码，这里为了文件整洁，我假设专注模式下只需要显示教练 */}
-                <div className="max-w-5xl mx-auto">
-                    <header className="mb-8">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-primary-50 rounded-lg">
-                                <UserCheck className="text-primary-500" size={24} />
+            <div className="min-h-screen bg-surface-50 py-8 px-4">
+                <div className="max-w-6xl mx-auto">
+                    <header className="mb-10">
+                        <div className="flex items-center gap-4 mb-3">
+                            <div className="w-16 h-16 bg-surface-0 rounded-3xl flex items-center justify-center border border-surface-100">
+                                <UserCheck className="text-surface-800 stroke-[2.5]" size={28} />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-surface-900 tracking-tight">我的专属教练</h1>
+                                <h1 className="text-2xl md:text-3xl font-black text-surface-900 tracking-tight">我的专属教练</h1>
+                                <p className="text-sm text-surface-600 font-medium mt-1">专注模式已开启</p>
                             </div>
                         </div>
                     </header>
-                     {/* ... 专注模式逻辑略，如果有需要可以把之前的渲染逻辑粘回来 ... */}
-                     {/* 简单复用列表 */}
                      <div className="space-y-4">
                         {coaches.map((c, idx) => (
-                            <div key={c.id} className="bg-surface-0 p-4 rounded-xl border border-surface-100">
-                                <h3 className="font-bold">{c.name}</h3>
-                                <Button label="查看详情" onClick={() => router.push('/coach/profile/' + c.id)} className="mt-2" size="small"/>
+                            <div key={c.id} className="bg-surface-0 p-6 rounded-3xl border border-surface-100 hover:border-surface-200 transition-all">
+                                <h3 className="text-lg font-black text-surface-900 tracking-tight mb-2">{c.name}</h3>
+                                {c.bio && <p className="text-sm text-surface-600 font-medium mb-4">{c.bio}</p>}
+                                <Button 
+                                    label="查看详情" 
+                                    onClick={() => router.push('/coach/profile/' + c.id)} 
+                                    className="rounded-2xl font-black h-10 bg-surface-900 border-none text-surface-0 hover:bg-surface-800 shadow-sm active:scale-95 transition-all" 
+                                    size="small"
+                                />
                             </div>
                         ))}
                      </div>
@@ -515,12 +613,12 @@ const CoachDiscoveryPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-surface-50/50 pb-20">
+        <div className="min-h-screen bg-surface-50 pb-20">
             {/* 顶部搜索区 */}
-            <div className="bg-surface-0 sticky top-0 z-30 pt-safe-top">
-                <div className="px-4 py-3 flex items-center gap-3 max-w-5xl mx-auto">
+            <div className="bg-surface-50 sticky top-0 z-30 pt-safe-top">
+                <div className="px-4 py-4 flex items-center gap-3 max-w-6xl mx-auto">
                     <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
                         <InputText
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -528,102 +626,159 @@ const CoachDiscoveryPage: React.FC = () => {
                                 if (e.key === 'Enter') onSearchOrFilter();
                             }}
                             placeholder="搜索教练 / 专长 / 计划"
-                            className="w-full pl-10 h-10 rounded-full border-none bg-surface-100 focus:ring-2 focus:ring-primary-500/20 text-sm"
+                            className="w-full pl-10 h-11 rounded-2xl border-0 bg-surface-50 focus:bg-surface-100 focus:ring-0 text-sm font-medium transition-colors"
                         />
                     </div>
                     {session?.user ? (
                         <button 
-                            className="w-9 h-9 flex items-center justify-center rounded-full bg-surface-100 text-surface-600"
+                            className="w-11 h-11 flex items-center justify-center rounded-2xl bg-surface-50 text-surface-700 hover:bg-surface-100 active:scale-95 transition-all"
                             onClick={() => router.push('/me/cart')}
                         >
                             <ShoppingCart size={18} />
                         </button>
                     ) : (
-                         <Button label="登录" size="small" rounded text onClick={() => router.push('/login')} className="px-2" />
+                         <Button 
+                            label="登录" 
+                            size="small" 
+                            onClick={() => router.push('/login')} 
+                            className="h-11 rounded-2xl font-bold bg-surface-50 text-surface-900 border-0 hover:bg-surface-100 active:scale-95 transition-all"
+                         />
                     )}
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-4 pt-4">
+            <div className="max-w-6xl mx-auto px-4 pt-2">
                 
                 {/* 1. 四大入口区 */}
-                <div className="grid grid-cols-4 gap-2 mb-8">
+                <div className="grid grid-cols-4 gap-4 mb-10">
                     {categories.map((c) => (
                         <button
                             key={c.href}
                             onClick={() => router.push(c.href)}
-                            className="flex flex-col items-center gap-2 group"
+                            className="flex flex-col items-center gap-3 group"
                         >
-                            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center ${c.color} shadow-sm border ${c.borderColor} group-active:scale-95 transition-transform`}>
-                                <c.icon size={22} className="stroke-[2.5]" />
+                            <div className="w-16 h-16 md:w-18 md:h-18 rounded-3xl flex items-center justify-center bg-surface-0 text-surface-800 border border-surface-100 group-hover:bg-surface-50 group-hover:text-surface-900 group-hover:border-surface-200 group-active:scale-95 transition-all">
+                                <c.icon size={26} className="stroke-[2.5]" />
                             </div>
-                            <span className="text-xs font-bold text-surface-700">{c.title}</span>
+                            <span className="text-xs font-black text-surface-900 tracking-tight">{c.title}</span>
                         </button>
                     ))}
                 </div>
 
                 {/* 2. 热门训练计划模块 */}
-                <ScrollSection title="热门训练计划" moreLink="/market">
-                    {productFeedLoading ? (
-                        [1,2,3].map(i => <Skeleton key={i} width="260px" height="180px" className="shrink-0 rounded-2xl" />)
-                    ) : productFeed.length > 0 ? (
-                        productFeed.map((item, idx) => renderProductCard(item, idx))
-                    ) : (
-                        <div className="w-full py-8 text-center text-surface-400 text-sm bg-surface-50 rounded-2xl border border-dashed border-surface-200">
+                {productFeedLoading ? (
+                    <div className="mb-10">
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门训练计划</h2>
+                        <div className="flex gap-4 overflow-hidden px-2">
+                            {[1,2,3].map(i => <ProductSkeletonCard key={i} />)}
+                        </div>
+                    </div>
+                ) : productFeed.length > 0 ? (
+                    <CarouselSection 
+                        title="热门训练计划" 
+                        moreLink="/market"
+                        items={productFeed}
+                        itemTemplate={(item) => renderProductCard(item, productFeed.indexOf(item))}
+                        numVisible={3}
+                    />
+                ) : (
+                    <div className="mb-10">
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门训练计划</h2>
+                        <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">
                             暂无推荐计划
                         </div>
-                    )}
-                </ScrollSection>
+                    </div>
+                )}
 
                 {/* 3. 推荐教练模块 */}
-                <ScrollSection title="推荐教练" moreLink="/search"> {/* 这里假设有一个search页或者filter状态 */}
-                     {isLoading ? (
-                        [1,2,3,4].map(i => <Skeleton key={i} width="160px" height="200px" className="shrink-0 rounded-2xl" />)
-                    ) : coaches.length > 0 ? (
-                        coaches.map(c => renderMiniCoachCard(c as any))
-                    ) : (
-                         <div className="w-full py-8 text-center text-surface-400 text-sm bg-surface-50 rounded-2xl border border-dashed border-surface-200">
+                {isLoading ? (
+                    <div className="mb-10">
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
+                        <div className="flex gap-4 overflow-hidden px-2">
+                            {[1,2,3,4].map(i => <CoachSkeletonCard key={i} />)}
+                        </div>
+                    </div>
+                ) : coaches.length > 0 ? (
+                    <CarouselSection 
+                        title="推荐教练" 
+                        moreLink="/search"
+                        items={coaches}
+                        itemTemplate={(coach) => renderMiniCoachCard(coach as any)}
+                        numVisible={4}
+                    />
+                ) : (
+                    <div className="mb-10">
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
+                        <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">
                             暂无推荐教练
                         </div>
-                    )}
-                </ScrollSection>
+                    </div>
+                )}
 
                  {/* 4. 热门动作模块 */}
                  {!visibilityStatus?.focusMode && (
-                     <ScrollSection title="热门动作" moreLink="/me/action-lib?tab=public">
+                    <>
                         {recommendedLoading ? (
-                            [1,2,3,4].map(i => <Skeleton key={i} width="200px" height="120px" className="shrink-0 rounded-2xl" />)
+                            <div className="mb-10">
+                                <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门动作</h2>
+                                <div className="flex gap-4 overflow-hidden px-2">
+                                    {[1,2,3,4,5].map(i => <ActionSkeletonCard key={i} />)}
+                                </div>
+                            </div>
                         ) : recommendedActions.length > 0 ? (
-                            recommendedActions.map(a => renderActionCard(a))
+                            <CarouselSection 
+                                title="热门动作" 
+                                moreLink="/me/action-lib?tab=public"
+                                items={recommendedActions}
+                                itemTemplate={(action) => renderActionCard(action)}
+                                numVisible={5}
+                            />
                         ) : (
-                            <div className="w-full py-8 text-center text-surface-400 text-sm bg-surface-50 rounded-2xl border border-dashed border-surface-200">
-                                暂无推荐动作
+                            <div className="mb-10">
+                                <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门动作</h2>
+                                <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">
+                                    暂无推荐动作
+                                </div>
                             </div>
                         )}
-                     </ScrollSection>
+                    </>
                  )}
 
                  {/* 5. 健身资讯 (新增) */}
                  {!visibilityStatus?.focusMode && (
-                     <ScrollSection title="健身资讯" moreLink="/articles">
+                    <>
                         {articlesLoading ? (
-                             [1,2,3].map(i => <Skeleton key={i} width="240px" height="160px" className="shrink-0 rounded-2xl" />)
+                            <div className="mb-10">
+                                <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">健身资讯</h2>
+                                <div className="flex gap-4 overflow-hidden px-2">
+                                    {[1,2,3].map(i => <ArticleSkeletonCard key={i} />)}
+                                </div>
+                            </div>
                         ) : articles.length > 0 ? (
-                            articles.map(a => renderArticleCard(a))
+                            <CarouselSection 
+                                title="健身资讯" 
+                                moreLink="/articles"
+                                items={articles}
+                                itemTemplate={(article) => renderArticleCard(article)}
+                                numVisible={3}
+                            />
                         ) : (
-                            <div className="w-full py-8 text-center text-surface-400 text-sm bg-surface-50 rounded-2xl border border-dashed border-surface-200">
-                                暂无最新资讯
+                            <div className="mb-10">
+                                <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">健身资讯</h2>
+                                <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">
+                                    暂无最新资讯
+                                </div>
                             </div>
                         )}
-                     </ScrollSection>
+                    </>
                  )}
 
                  {/* 6. 底部 Slogan */}
-                <div className="py-8 text-center">
-                    <div className="inline-flex items-center justify-center w-10 h-10 bg-primary-50 rounded-full mb-3">
-                         <Star size={18} className="text-primary-500 fill-primary-500" />
+                <div className="py-12 text-center">
+                    <div className="inline-flex items-center justify-center w-14 h-14 bg-surface-0 rounded-3xl mb-4 border border-surface-100">
+                         <Star size={20} className="text-surface-700 fill-surface-700" />
                     </div>
-                    <p className="text-xs text-surface-400 font-medium">让小白到高手都能有所收获</p>
+                    <p className="text-sm text-surface-500 font-bold tracking-tight">让小白到高手都能有所收获</p>
                 </div>
 
             </div>

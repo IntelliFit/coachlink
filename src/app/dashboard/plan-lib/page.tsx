@@ -189,10 +189,10 @@ const PlanLib = () => {
                 </div>
 
                 <Button
-                    label="新建计划"
+                    label="新建"
                     icon="pi pi-plus"
                     onClick={handleAddPlan}
-                    className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                    className="h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all px-5"
                 />
             </header>
 
