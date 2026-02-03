@@ -10,6 +10,7 @@ export interface GeminiParsedAction {
     needsAutoCompute: boolean;
     includesBodyWeight: boolean;
     attrs: string[];
+    type: "STRENGTH" | "CARDIO" | "DIET" | "HABIT";
 }
 
 // 解析后的动作信息

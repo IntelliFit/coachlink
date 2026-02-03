@@ -1,0 +1,2287 @@
+{
+  "capturedAt": "2026-02-03T21:39:29.161Z",
+  "inputText": "综合训练测试计划（4周）- 包含力量、有氧、饮食与习惯\n\nW1D1\n卧推 4组×8次 组休2分钟\n引体向上 4组 力竭 组休90秒\n慢跑 20分钟\n早餐：全麦面包 2片 + 鸡蛋 2个\n\n休息1天\n\nW1D3\n跑步 5km 配速 6'00''\n平板支撑 3组×60秒\n冥想 15分钟\n晚餐：蔬菜沙拉 + 煎鱼\n\nW1D4\n深蹲 5组×5次 组休3分钟\n箭步蹲 3组×12次\n跳绳 10分钟\n阅读 30分钟\n\n休息1天\n\nW1D6\n硬拉 3组×5次\n推举 3组×8次\n波比跳 20个×4组\n日饮水 2L\n\n休息1天",
+  "editableActions": [
+    {
+      "name": "卧推",
+      "matchedExistingId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "自重引体",
+      "matchedExistingId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "跑步",
+      "matchedExistingId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "CARDIO",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "全麦面包",
+      "matchedExistingId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "鸡蛋",
+      "matchedExistingId": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "平板支撑",
+      "matchedExistingId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "强度",
+        "休息时间",
+        "持续时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "冥想",
+      "matchedExistingId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "完成状态"
+      ],
+      "type": "HABIT",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "蔬菜沙拉",
+      "matchedExistingId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "煎鱼",
+      "matchedExistingId": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "单腿深蹲",
+      "matchedExistingId": "fc26ebd7-2fd8-4ab2-ac24-194c0071a205",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "fc26ebd7-2fd8-4ab2-ac24-194c0071a205",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "箭步蹲",
+      "matchedExistingId": "2cbdfd0e-0b30-4275-9f6e-154cfe64920a",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "2cbdfd0e-0b30-4275-9f6e-154cfe64920a",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "跳绳",
+      "matchedExistingId": "58be0550-50c2-41d8-9f54-bbc9daafaec5",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "冲刺时长",
+        "间歇时长",
+        "循环次数",
+        "强度"
+      ],
+      "type": "CARDIO",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "58be0550-50c2-41d8-9f54-bbc9daafaec5",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "阅读",
+      "matchedExistingId": "d84bddc3-94a7-4da1-a6b5-e3a55130daa3",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "完成状态"
+      ],
+      "type": "HABIT",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "d84bddc3-94a7-4da1-a6b5-e3a55130daa3",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "硬拉",
+      "matchedExistingId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "实力推",
+      "matchedExistingId": "bd4fde76-a95b-4ab1-b587-874023221757",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "bd4fde76-a95b-4ab1-b587-874023221757",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "波比跳",
+      "matchedExistingId": "56d63c3a-852d-42a0-b5e5-a6b1d62305cc",
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "56d63c3a-852d-42a0-b5e5-a6b1d62305cc",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    },
+    {
+      "name": "喝水",
+      "matchedExistingId": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "HABIT",
+      "isNew": false,
+      "useExisting": true,
+      "selectedExistingId": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+      "shouldCreate": false,
+      "positions": [
+        "全身"
+      ],
+      "detail": "",
+      "url": ""
+    }
+  ],
+  "mergedActions": [
+    {
+      "id": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "冥想",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-03T21:23:10.667+00:00",
+      "updated_at": "2026-02-03T21:23:10.667+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "完成状态"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "HABIT",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "煎鱼",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-03T21:23:10.667+00:00",
+      "updated_at": "2026-02-03T21:23:10.667+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "DIET",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "全麦面包",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-03T21:23:10.667+00:00",
+      "updated_at": "2026-02-03T21:23:10.667+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "DIET",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "蔬菜沙拉",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-03T21:23:10.667+00:00",
+      "updated_at": "2026-02-03T21:23:10.667+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "DIET",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "鸡蛋",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-03T21:23:10.667+00:00",
+      "updated_at": "2026-02-03T21:23:10.667+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "DIET",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "c536c897-e335-4356-a67e-bcab3d16f6aa",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "自由倒立",
+      "url": "https://www.bilibili.com/video/BV1rFfVY4EY1/?spm_id_from=333.337.search-card.all.click&vd_source=bc499aa91cecc9b938f44372fe471cce",
+      "detail": null,
+      "created_at": "2026-02-03T17:34:47.077+00:00",
+      "updated_at": "2026-02-03T17:34:47.077+00:00",
+      "positions": [
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "fb698c2f-33da-440b-8abe-ecf795a32d21",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "团身引体",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770139949988-30797593-732c-44c0-81f4-250232857b46.mp4",
+      "detail": "含胸和挺胸姿态 一般建议挺胸",
+      "created_at": "2026-02-03T17:32:41.794+00:00",
+      "updated_at": "2026-02-03T17:32:41.794+00:00",
+      "positions": [
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "4349495a-1888-4173-bbe4-5716ae355b27",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "靠墙倒立",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770139826339-2c80b238-94e5-4c2e-bbe2-04ab9a6a4595.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T17:31:16.507+00:00",
+      "updated_at": "2026-02-03T17:31:16.507+00:00",
+      "positions": [
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间",
+        "持续时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "13f9f234-c6fb-481f-b5f9-189061db1911",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "单手俯卧撑",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770139386038-e48bd04e-14df-4e45-bedb-66cc312f4110.mp4",
+      "detail": "30个俯卧撑后可以进阶尝试",
+      "created_at": "2026-02-03T17:23:21.911+00:00",
+      "updated_at": "2026-02-03T17:23:21.911+00:00",
+      "positions": [
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "0de90ca7-8e51-4547-bd6f-9bdd20ddc1ed",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "腕弯举",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770138028555-c1b7720f-7462-460d-ab67-1076abbac7e6.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T17:00:38.167+00:00",
+      "updated_at": "2026-02-03T17:00:38.167+00:00",
+      "positions": [
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "8da0b20d-6c21-43f4-a4bb-dba251139e85",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "臀桥",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770138000450-4efdc548-873c-4272-bf21-a5360c62c528.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T17:00:05.678+00:00",
+      "updated_at": "2026-02-03T17:00:05.678+00:00",
+      "positions": [
+        "腿部",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间",
+        "次数",
+        "强度"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "69cecae7-b4ae-4480-983e-4648df290f25",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "手肘松解",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137884321-6690548e-11ba-4f97-a79d-88fb19e45a7d.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:58:30.248+00:00",
+      "updated_at": "2026-02-03T16:58:30.248+00:00",
+      "positions": [
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "3d314fd4-8814-4d6d-a20a-cdb783c8f3fb",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "手腕热身",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137825597-3e2167f7-c2b8-4ed2-8e36-0ba59c0af567.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:57:16.225+00:00",
+      "updated_at": "2026-02-03T16:57:16.225+00:00",
+      "positions": [
+        "其他"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "17d3a6b2-d017-4ba1-9f66-b82663bc02f8",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "死虫式",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137793303-dd3208f7-6a77-4479-bc7c-f68d96b44a06.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:56:41.58+00:00",
+      "updated_at": "2026-02-03T16:56:41.58+00:00",
+      "positions": [
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间",
+        "持续时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "b5202d74-7093-4348-a930-a5983a39d19a",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "肩胛引体",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137742298-12a204cb-4426-4f9c-80b9-0a9e4a2d0961.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:55:47.705+00:00",
+      "updated_at": "2026-02-03T16:55:47.705+00:00",
+      "positions": [
+        "肩部",
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "c7b7df7b-afec-4dc4-bdd8-e8ed90a042fb",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重深蹲-底部暂停",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137685473-6663bd96-bbc0-4b00-854b-2f58f13d1019.mp4",
+      "detail": "弥补底部启动能力不足",
+      "created_at": "2026-02-03T16:55:02.576+00:00",
+      "updated_at": "2026-02-03T16:55:02.576+00:00",
+      "positions": [
+        "腿部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "ac2dc501-2316-42a5-9f81-46925676a8c8",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重臂屈伸-弹力带辅助",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137658325-a6063380-08e4-4710-9e44-e07443705a6c.mp4",
+      "detail": "弹力带的作用是让你从底部到锁定这段的阻力  它是逐渐增加的  辅助启动  然后强化锁定",
+      "created_at": "2026-02-03T16:54:27.225+00:00",
+      "updated_at": "2026-02-03T18:01:04.055076+00:00",
+      "positions": [
+        "胸部",
+        "肩部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "848cd3ea-4acd-44d4-b427-9a427d5bb4cf",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "反手引体离心下放",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137456008-b97140bd-86ec-4b28-b978-91972882bc54.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:51:03.248+00:00",
+      "updated_at": "2026-02-03T16:51:03.248+00:00",
+      "positions": [
+        "手臂",
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "c4f007c5-523e-4fa7-aaf5-feb1c7648aab",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "弹力带肩部热身",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137400306-db691fec-3e0f-47ba-8e8f-dee4916caaa2.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:50:11.187+00:00",
+      "updated_at": "2026-02-03T16:50:11.187+00:00",
+      "positions": [
+        "肩部"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间",
+        "次数"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "fc26ebd7-2fd8-4ab2-ac24-194c0071a205",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "单腿深蹲",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770137315814-a8cb75cc-a919-495f-b2e3-1871b7c22ca7.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T16:49:13.011+00:00",
+      "updated_at": "2026-02-03T16:49:13.011+00:00",
+      "positions": [
+        "腿部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "396ad0a5-c078-4384-a6c1-72d75d32ac1d",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "单腿臀桥",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770134173492-7919f43c-8d89-4147-b705-5afb034eacff.mp4",
+      "detail": null,
+      "created_at": "2026-02-03T15:56:30.308+00:00",
+      "updated_at": "2026-02-03T15:56:30.308+00:00",
+      "positions": [
+        "腿部",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "1248abb8-9bbd-4903-bf15-24cb3294bf4b",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "双手吊杠悬挂-扣腕",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770133941460-cf6a190d-86e7-43b5-a250-d72b5a4581e8.mp4",
+      "detail": "重点在于扣腕 可以先涂一些液态镁粉",
+      "created_at": "2026-02-03T15:53:32.212+00:00",
+      "updated_at": "2026-02-03T15:53:32.212+00:00",
+      "positions": [
+        "背部",
+        "核心",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "强度",
+        "休息时间",
+        "持续时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "e5d2c333-fa86-4726-80bf-4a81f7abd984",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "TWY热身",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770126704765-613234c8-9969-4d00-ba31-2df655f5b15a.mp4",
+      "detail": "进行TWY热身时，请注意：\n\n动作要慢：感受肩胛骨收紧，别靠惯性甩动。\n\n大拇指朝上：手心相对或拇指指向天花板，保护肩关节。\n\n不要耸肩：耳朵远离肩膀，下沉肩胛骨。\n\n挺胸收腹：腰椎别乱晃，保持核心稳定。\n\n这三个字母代表了手臂摆出的形状，核心都是挤压肩胛骨：\n\nT字（练中背）：双臂向两侧平伸，像个大蜻蜓。用力把后背中心收紧，感觉两块肩胛骨要碰到一起。\n\nW字（练下后方）：手肘向身体两侧夹，像在做一个“万岁”落下的动作。注意手肘向下拽，感受后背下部发力。\n\nY字（练上背/下斜方肌）：双臂斜向上举起，像在比耶（Y形状）。注意别耸肩，保持脖子长长的。\n\n小贴士：所有动作都要沉肩，想象你在用后背的力量去带动手臂，而不是只用胳膊。",
+      "created_at": "2026-02-03T14:00:34.128+00:00",
+      "updated_at": "2026-02-03T14:00:34.128+00:00",
+      "positions": [
+        "背部",
+        "肩部",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "928cad03-f49d-4075-8016-25ef7f06d714",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "高位下拉",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770067940509-6f997078-bc54-4a6c-8f19-703c584e2781.mp4",
+      "detail": "1.2-1.5倍肩宽",
+      "created_at": "2026-02-01T22:06:24.077+00:00",
+      "updated_at": "2026-02-02T21:32:39.868029+00:00",
+      "positions": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "021d914f-a8ac-450e-851f-bb3b888280c9",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "弹力带宽位下拉",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-01T21:32:53.056+00:00",
+      "updated_at": "2026-02-01T21:32:53.056+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "3c5d882f-34ea-4c61-b551-1a1c99c48f1b",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "交替换手悬垂",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-02-01T21:32:53.056+00:00",
+      "updated_at": "2026-02-01T21:32:53.056+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "持续时间",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "8574aee6-b45b-4012-9b24-54e89b6f2e16",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "双手吊杠悬挂",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770132652616-31a2e9d3-a352-4cc1-a984-787efd389d00.mp4",
+      "detail": null,
+      "created_at": "2026-01-28T10:53:45.571+00:00",
+      "updated_at": "2026-02-03T15:31:27.097825+00:00",
+      "positions": [
+        "手臂",
+        "核心",
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "持续时间",
+        "休息时间",
+        "强度"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "卧推",
+      "url": "https://www.bilibili.com/video/BV1u3411X776/?spm_id_from=333.337.search-card.all.click&vd_source=bc499aa91cecc9b938f44372fe471cce",
+      "detail": null,
+      "created_at": "2026-01-28T10:53:45.571+00:00",
+      "updated_at": "2026-02-03T16:44:54.885603+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "e44ef1d2-374c-4b57-aacb-b1538258f1b9",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重深蹲",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770068024848-c940a9c5-c4b9-4353-a8a7-693f105d302a.mp4",
+      "detail": null,
+      "created_at": "2026-01-28T10:53:45.571+00:00",
+      "updated_at": "2026-02-03T15:33:31.769921+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "硬拉",
+      "url": "https://www.bilibili.com/video/BV1eG41137az/?spm_id_from=333.337.search-card.all.click&vd_source=bc499aa91cecc9b938f44372fe471cce",
+      "detail": "核心与背部收紧是为了上半身刚性\n上半身只作为力的传导载体\n不参与发力活动\n\n蹬地是为了让杠铃启动\n进入到最适合臀部发力的位置\n也就是膝盖附近\n\n最终的锁定靠的是臀部和腘绳肌\n前面任何一个阶段出现问题\n都会增加锁定的难度\n比如腰弯了，蹬地力量不足",
+      "created_at": "2026-01-28T10:53:45.571+00:00",
+      "updated_at": "2026-02-03T16:39:59.291209+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "7f51c6e9-5a0e-425c-bd17-6370b7fb7b8e",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "正握弯举",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T09:01:07.82+00:00",
+      "updated_at": "2026-01-27T09:01:07.82+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "19dccfe4-42a3-401d-a884-d0802e2121cc",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "下半程引体",
+      "url": null,
+      "detail": null,
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-01-27T07:37:00.943+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "自重引体",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770140113757-38fce7d7-9ad5-4106-bda1-07ec545f5ffb.mp4",
+      "detail": "视频展示是底部停顿的   也可以连续做  这样可以利用牵张反射",
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-02-03T17:35:59.575207+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "424c6a40-1bc9-4875-934a-e273debb0f11",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "折刀俯卧撑",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770139757192-4bb2b0e2-613d-4f96-8f74-74dce9ca8b04.mp4",
+      "detail": "适合强化肩部  进阶倒立撑/俄挺等动作",
+      "created_at": "2026-01-27T07:37:00.943+00:00",
+      "updated_at": "2026-02-03T17:29:43.829743+00:00",
+      "positions": [
+        "肩部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "4a803b2a-296e-4177-a410-ac069d40afc5",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "自重臂屈伸",
+      "url": null,
+      "detail": "双杠臂屈伸",
+      "created_at": "2026-01-17T20:46:05.99+00:00",
+      "updated_at": "2026-02-03T16:00:49.15091+00:00",
+      "positions": [
+        "手臂",
+        "胸部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "274fd83d-0a52-487c-a337-4fe327c513c1",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "平板支撑",
+      "url": null,
+      "detail": "智能导入创建的动作: 平板支撑",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-02-03T21:33:27.116778+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "强度",
+        "休息时间",
+        "持续时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "单手交替悬挂",
+      "url": null,
+      "detail": "智能导入创建的动作: 单手交替悬挂",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-01-14T05:24:51.047+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "95bf83ff-235a-4994-a781-2c0413156124",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "单手侧身平板支撑",
+      "url": null,
+      "detail": "侧身的平板支持",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-02-03T21:33:34.770145+00:00",
+      "positions": [
+        "全身",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "强度",
+        "休息时间",
+        "持续时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "bd4fde76-a95b-4ab1-b587-874023221757",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "实力推",
+      "url": null,
+      "detail": "实力推",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-02-03T16:31:50.919343+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "34fb6eff-be4d-41c5-b468-ebe2b99aab7f",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "鸟狗式",
+      "url": "https://www.bilibili.com/video/BV1ne411W7MV/?spm_id_from=333.337.search-card.all.click&vd_source=bc499aa91cecc9b938f44372fe471cce",
+      "detail": "鸟狗式",
+      "created_at": "2026-01-14T05:24:51.047+00:00",
+      "updated_at": "2026-02-03T16:35:08.39299+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "e0c5069a-ec7a-4830-81d6-92d5b92e713a",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "划船类动作",
+      "url": null,
+      "detail": "海豹划船  t字型划船 坐姿划船都行  不太推荐站姿的划船",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-02-03T16:46:54.524662+00:00",
+      "positions": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "b51237e4-daf1-4df8-bdf7-31c855a5fd3b",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "二头弯举",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770118313176-129279a0-f9c2-4b2d-9af0-d9631fcbf3e8.mp4",
+      "detail": "1. 哑铃弯举 (Dumbbell Curls)\n核心要点：肘部贴紧身体两侧，像钉死了一样不动。\n独特优势：更灵活。你可以在上举时旋转手腕（掌心由侧向转为向上），能更深层地挤压肌肉。\n平衡性：强迫两只手臂独立发力，有效解决左右力量不均的问题。 \n2. 对比：杠铃弯举 (Barbell Curls)\n力量至上：双臂协同，比哑铃能冲击更大的重量，是增肌增力的“重型武器”。\n局限性：手腕位置固定，如果手腕不舒服，建议使用 EZ曲杠 减轻关节压力。 \n3. 对比：牧师凳弯举 (Preacher Curls)\n绝对孤立：手臂搁在斜板上，彻底封死了借力的空间。想晃身体都没戏，能极精准地轰炸二头肌下半部分。\n安全警示：最容易受伤。千万不要在下放到底部时猛然弹起，否则极易拉伤二头肌腱",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-02-03T11:32:02.071654+00:00",
+      "positions": [
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "67c1c6e9-4d99-436c-bd84-f3f75a89fcd1",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "高位引体",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770068087287-571458d4-91b9-462e-8ff0-df145e47ca81.mp4",
+      "detail": "高位引体",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-02-02T21:38:22.622873+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "07c39583-276d-44b7-9c17-402fef4eafda",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "反手负重引体（底部暂停）",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770068330692-6b23a12d-d133-492c-b712-d76204cb7a7c.mp4",
+      "detail": "反手负重引体（底部暂停）",
+      "created_at": "2026-01-11T17:29:32.449+00:00",
+      "updated_at": "2026-02-02T21:39:12.016352+00:00",
+      "positions": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "喝水",
+      "url": "",
+      "detail": "111",
+      "created_at": "2026-01-06T22:09:52.899+00:00",
+      "updated_at": "2026-01-06T22:09:52.899+00:00",
+      "positions": [],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "HABIT",
+      "item_schema": {
+        "target_duration": 111
+      },
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "跑步",
+      "url": "",
+      "detail": "111",
+      "created_at": "2026-01-06T22:09:34.757+00:00",
+      "updated_at": "2026-01-06T22:09:34.757+00:00",
+      "positions": [],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "CARDIO",
+      "item_schema": {
+        "pace": 11,
+        "distance": 111000,
+        "duration": 6660
+      },
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "434fd22c-304c-4d90-8abe-5c21adf6b27e",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "水果",
+      "url": "",
+      "detail": "111",
+      "created_at": "2026-01-06T22:08:52.164+00:00",
+      "updated_at": "2026-01-06T22:08:52.164+00:00",
+      "positions": [],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": false,
+      "includesBodyWeight": false,
+      "type": "DIET",
+      "item_schema": {
+        "calories": 222
+      },
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "03e0beda-65ce-4949-aec1-afe881f24cef",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体",
+      "url": null,
+      "detail": "智能导入创建的动作: 负重引体",
+      "created_at": "2026-01-05T19:14:31.14+00:00",
+      "updated_at": "2026-01-05T19:14:31.14+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "825b9538-badb-428c-a154-dff420ae095f",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体（底部暂停）",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770067661861-59f18ee0-2120-4af1-a129-37fe5e8e043b.mp4",
+      "detail": "底部停顿1s即可，不用停顿很久。",
+      "created_at": "2026-01-04T01:17:38.685+00:00",
+      "updated_at": "2026-02-02T21:28:18.949969+00:00",
+      "positions": [
+        "手臂",
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "2fde9c71-2ad4-4c4f-b65d-d6b3a51f5c3d",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "反手负重引体（顶端暂停）",
+      "url": null,
+      "detail": "负重引体反手（底部暂停+顶端暂停）",
+      "created_at": "2026-01-04T01:17:38.685+00:00",
+      "updated_at": "2026-02-02T21:39:53.005218+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "6bcc013a-078e-4036-8bd7-6ce511e7b44d",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体（顶端暂停）",
+      "url": "https://uhlqribpagvklpqmcqvo.supabase.co/storage/v1/object/public/videos/f9eac5b1-45f9-4479-9ab8-8223a5db8835/coach-actions/1770068370426-0670d825-bf07-4bca-868e-3aa2994a1bd6.mp4",
+      "detail": "底部顶端1s  顶端停顿0.5s即可",
+      "created_at": "2026-01-04T01:17:38.685+00:00",
+      "updated_at": "2026-02-02T21:40:06.054064+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "ad997e55-2e62-4bbc-b33c-62c84359c4df",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重引体反手",
+      "url": null,
+      "detail": "智能导入创建的动作: 负重引体反手",
+      "created_at": "2026-01-03T23:37:34.621+00:00",
+      "updated_at": "2026-01-03T23:37:34.621+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "6b5db6ec-d3f4-4653-adca-d9e47c378761",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "锤式弯举",
+      "url": "https://www.wolai.com/e7Z9Wnqznhtp1ie69gZ1z5",
+      "detail": "智能导入创建的动作: 锤式弯举",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-11T23:53:57.44151+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "5f84810c-8fb3-4853-8d33-d7314b38874e",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "负重臂屈伸",
+      "url": "https://www.bilibili.com/video/BV1kN411X7Jy/?spm_id_from=333.337.search-card.all.click&vd_source=bc499aa91cecc9b938f44372fe471cce",
+      "detail": "目的一：针对胸大肌（增加胸肌厚度）\n核心做法：前倾与张肘。 你需要将上半身主动向前倾斜（约 45 度），下巴微收，双腿可以向后勾起以维持重心前移。下落时，手肘要适度向两侧张开。这种姿态能让胸肌在动作底部获得最大程度的拉伸，从而承载大部分负荷。\n\n目的二：针对肱三头肌（侧重手臂力量与维度）\n核心做法：直立与夹肘。 整个过程躯干要尽可能垂直于地面，眼睛直视前方，不要低头。最关键的是，下落时肘部必须紧贴身体两侧，严禁向外撇。这种姿势强迫肱三头肌在窄路径下完成推起动作，减少胸肌的参与。\n\n目的三：力量举/街铁专项力量（追求极限负重）\n核心做法：核心刚性与肩胛锁死。 当你追求像 150kg 级别那样的推起力量时，身体通常处于微前倾的平衡位。此时重点不在于孤立肌肉，而是全身的刚性——肋骨下沉、核心收紧，且肩胛骨必须全程保持下沉压实，确保力量能高效传导且不伤肩膀。",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-02-03T17:48:27.650251+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": true,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "4bca4467-89c2-4d87-af67-c19651587c0f",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "海豹划船",
+      "url": "https://www.wolai.com/sH92Pd2WQUbtzzt4XsRo3Z",
+      "detail": "我一般在力量充沛的情况下 拉到腹部会做刻意的暂停",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-11T23:54:47.673074+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    },
+    {
+      "id": "9c6ee6a9-18e4-47cf-afb5-939261808c71",
+      "coach_id": "f9eac5b1-45f9-4479-9ab8-8223a5db8835",
+      "name": "哑铃推肩",
+      "url": null,
+      "detail": "智能导入创建的动作: 哑铃推肩",
+      "created_at": "2026-01-03T23:25:53.55+00:00",
+      "updated_at": "2026-01-03T23:25:53.55+00:00",
+      "positions": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "enableAutoWeightCompute": true,
+      "includesBodyWeight": false,
+      "type": "STRENGTH",
+      "item_schema": null,
+      "suggested_time": null,
+      "canonical_action_id": null
+    }
+  ],
+  "templateResult": {
+    "weeks": 1,
+    "trainingDays": [
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 1,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+            "sets": 4,
+            "reps": 8,
+            "durationSeconds": null,
+            "restSeconds": 120,
+            "intensityConfig": null,
+            "note": "",
+            "customData": null
+          },
+          {
+            "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+            "sets": 4,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": 90,
+            "intensityConfig": null,
+            "note": "力竭",
+            "customData": null
+          },
+          {
+            "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "",
+            "customData": {
+              "distance": null,
+              "duration": 1200,
+              "pace": "慢跑"
+            }
+          },
+          {
+            "actionId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "早餐",
+            "customData": {
+              "content": "全麦面包 2片",
+              "calories": null,
+              "image_url": null
+            }
+          },
+          {
+            "actionId": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "早餐",
+            "customData": {
+              "content": "鸡蛋 2个",
+              "calories": null,
+              "image_url": null
+            }
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 2,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "休息1天"
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 3,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "",
+            "customData": {
+              "distance": 5000,
+              "duration": null,
+              "pace": 6
+            }
+          },
+          {
+            "actionId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+            "sets": 3,
+            "reps": null,
+            "durationSeconds": 60,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": "",
+            "customData": null
+          },
+          {
+            "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "",
+            "customData": {
+              "target_duration": 15
+            }
+          },
+          {
+            "actionId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "晚餐",
+            "customData": {
+              "content": "蔬菜沙拉",
+              "calories": null,
+              "image_url": null
+            }
+          },
+          {
+            "actionId": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "晚餐",
+            "customData": {
+              "content": "煎鱼",
+              "calories": null,
+              "image_url": null
+            }
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 4,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "e44ef1d2-374c-4b57-aacb-b1538258f1b9",
+            "sets": 5,
+            "reps": 5,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": "",
+            "customData": null
+          },
+          {
+            "actionId": "fc26ebd7-2fd8-4ab2-ac24-194c0071a205",
+            "sets": 3,
+            "reps": 12,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": "自动匹配：箭步蹲",
+            "customData": null
+          },
+          {
+            "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "",
+            "customData": {
+              "distance": null,
+              "duration": 600,
+              "pace": "跳绳"
+            }
+          },
+          {
+            "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "自动匹配：阅读",
+            "customData": {
+              "target_duration": 30
+            }
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 5,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "休息1天"
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 6,
+        "type": "training",
+        "actions": [
+          {
+            "actionId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+            "sets": 3,
+            "reps": 5,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": "",
+            "customData": null
+          },
+          {
+            "actionId": "bd4fde76-a95b-4ab1-b587-874023221757",
+            "sets": 3,
+            "reps": 8,
+            "durationSeconds": null,
+            "restSeconds": 180,
+            "intensityConfig": null,
+            "note": "自动匹配：推举",
+            "customData": null
+          },
+          {
+            "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "",
+            "customData": {
+              "distance": null,
+              "duration": null,
+              "pace": "波比跳"
+            }
+          },
+          {
+            "actionId": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+            "sets": null,
+            "reps": null,
+            "durationSeconds": null,
+            "restSeconds": null,
+            "intensityConfig": null,
+            "note": "日饮水 2L",
+            "customData": {
+              "target_duration": null
+            }
+          }
+        ],
+        "dayNote": ""
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 7,
+        "type": "rest",
+        "actions": [],
+        "dayNote": "休息1天"
+      }
+    ],
+    "globalDescription": "综合训练测试计划（4周）- 包含力量、有氧、饮食与习惯"
+  },
+  "convertedTrainingDays": [
+    {
+      "dayIndex": 1,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+          "setName": "动作1",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 4,
+            "次数": 8,
+            "持续时间": "",
+            "休息时间": 120,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "setName": "动作2",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 4,
+            "次数": "",
+            "持续时间": "",
+            "休息时间": 90,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": "力竭"
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+          "setName": "动作3",
+          "itemType": "CARDIO",
+          "params": {
+            "custom_data": {
+              "distance": null,
+              "duration": 1200,
+              "pace": "慢跑"
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+          "setName": "动作4",
+          "itemType": "DIET",
+          "params": {
+            "custom_data": {
+              "content": "全麦面包 2片",
+              "calories": null,
+              "image_url": null
+            },
+            "note": "早餐"
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+          "setName": "动作5",
+          "itemType": "DIET",
+          "params": {
+            "custom_data": {
+              "content": "鸡蛋 2个",
+              "calories": null,
+              "image_url": null
+            },
+            "note": "早餐"
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 2,
+      "type": "rest",
+      "note": "休息1天",
+      "actionSets": []
+    },
+    {
+      "dayIndex": 3,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+          "setName": "动作1",
+          "itemType": "CARDIO",
+          "params": {
+            "custom_data": {
+              "distance": 5000,
+              "duration": null,
+              "pace": 6
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+          "setName": "动作2",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 3,
+            "次数": "",
+            "持续时间": 60,
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+          "setName": "动作3",
+          "itemType": "HABIT",
+          "params": {
+            "custom_data": {
+              "target_duration": 15
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+          "setName": "动作4",
+          "itemType": "DIET",
+          "params": {
+            "custom_data": {
+              "content": "蔬菜沙拉",
+              "calories": null,
+              "image_url": null
+            },
+            "note": "晚餐"
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+          "setName": "动作5",
+          "itemType": "DIET",
+          "params": {
+            "custom_data": {
+              "content": "煎鱼",
+              "calories": null,
+              "image_url": null
+            },
+            "note": "晚餐"
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 4,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "e44ef1d2-374c-4b57-aacb-b1538258f1b9",
+          "setName": "动作1",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 5,
+            "次数": 5,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "fc26ebd7-2fd8-4ab2-ac24-194c0071a205",
+          "setName": "动作2",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 3,
+            "次数": 12,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": "自动匹配：箭步蹲"
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+          "setName": "动作3",
+          "itemType": "CARDIO",
+          "params": {
+            "custom_data": {
+              "distance": null,
+              "duration": 600,
+              "pace": "跳绳"
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+          "setName": "动作4",
+          "itemType": "HABIT",
+          "params": {
+            "custom_data": {
+              "target_duration": 30
+            },
+            "note": "自动匹配：阅读"
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 5,
+      "type": "rest",
+      "note": "休息1天",
+      "actionSets": []
+    },
+    {
+      "dayIndex": 6,
+      "type": "training",
+      "note": "",
+      "actionSets": [
+        {
+          "type": "no-filter",
+          "actionId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+          "setName": "动作1",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 3,
+            "次数": 5,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "bd4fde76-a95b-4ab1-b587-874023221757",
+          "setName": "动作2",
+          "itemType": "STRENGTH",
+          "params": {
+            "组数": 3,
+            "次数": 8,
+            "持续时间": "",
+            "休息时间": 180,
+            "强度": "",
+            "load": null,
+            "intensityConfig": null,
+            "note": "自动匹配：推举"
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+          "setName": "动作3",
+          "itemType": "CARDIO",
+          "params": {
+            "custom_data": {
+              "distance": null,
+              "duration": null,
+              "pace": "波比跳"
+            },
+            "note": ""
+          }
+        },
+        {
+          "type": "no-filter",
+          "actionId": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+          "setName": "动作4",
+          "itemType": "HABIT",
+          "params": {
+            "custom_data": {
+              "target_duration": null
+            },
+            "note": "日饮水 2L"
+          }
+        }
+      ]
+    },
+    {
+      "dayIndex": 7,
+      "type": "rest",
+      "note": "休息1天",
+      "actionSets": []
+    }
+  ]
+}

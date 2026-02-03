@@ -8,6 +8,7 @@ export interface BatchCreateStudentActionsDto {
         positions?: string[];
         detail?: string;
         url?: string;
+        type?: "STRENGTH" | "CARDIO" | "DIET" | "HABIT";
     }[];
 }
 
