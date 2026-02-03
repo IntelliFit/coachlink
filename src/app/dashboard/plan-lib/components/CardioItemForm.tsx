@@ -84,7 +84,6 @@ export const CardioItemForm: React.FC<CardioItemFormProps> = ({
                 <AeroInputNumber
                     value={customData.pace}
                     onValueChange={(e) => updateCustomData({ pace: e.value })}
-                    prefix="约 "
                     suffix=" min/km"
                      minFractionDigits={1}
                     className="w-full"

@@ -409,6 +409,7 @@
 | PWA Push（重点推送） | [查看](#work-pwa-push重点推送) |
 | Private Domain（健身房私域模式） | [查看](#work-private-domain健身房私域模式) |
 | 新手引导系统 | [查看](#work-新手引导系统) |
+| Merchant System（商家入驻与实体商品） | [查看](#work-merchant-system商家系统) |
 
 ---
 
@@ -513,4 +514,16 @@
 ### work: 新手引导系统
 
 - **需求文档**：`./work/roadmap/新手引导系统需求文档.md`
+
+---
+
+### work: Merchant System（商家系统）
+
+- **需求文档**：`./work/roadmap/features/merchant/MERCHANT_SYSTEM_PRD.md`
+- **功能范围**：
+  - 商家入驻申请与审核
+  - 商品管理（创建/编辑/上下架）
+  - 商品展示与购买
+  - 订单管理与发货
+  - 商家收入与提现
 

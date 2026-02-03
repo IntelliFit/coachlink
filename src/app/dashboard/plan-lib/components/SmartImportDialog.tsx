@@ -12,7 +12,7 @@ import { Checkbox } from 'primereact/checkbox';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Message } from 'primereact/message';
-import { CoachActionRow } from '@/types';
+import { CoachActionRow, ItemType } from '@/types';
 import { ParsedActionInfo } from '@/app/api/plan-lib/parse-actions/entity';
 import { ParsedTemplateDay } from '@/app/api/plan-lib/parse-template/entity';
 
@@ -161,13 +161,93 @@ export default function SmartImportDialog({
         }
     };
 
-    const actionAttrs = [
-        { label: '组数(sets)', value: '组数' },
-        { label: '次数(reps)', value: '次数' },
-        { label: '持续时间(秒)', value: '持续时间' },
-        { label: '强度(RM/%/固定重量)', value: '强度' },
-        { label: '休息时间', value: '休息时间' },
+    const itemTypeOptions = [
+        { label: '力量', value: 'STRENGTH' },
+        { label: '有氧', value: 'CARDIO' },
+        { label: '饮食', value: 'DIET' },
+        { label: '习惯', value: 'HABIT' },
     ];
+
+    const attrProfilesByType: Record<ItemType, Array<{
+        label: string;
+        value: string;
+        attrs: string[];
+    }>> = {
+        STRENGTH: [
+            {
+                label: '次数型（组数+次数+强度+休息）',
+                value: 'STRENGTH_REP',
+                attrs: ['组数', '次数', '强度', '休息时间'],
+            },
+            {
+                label: '时长型（组数+时长+强度+休息）',
+                value: 'STRENGTH_TIME',
+                attrs: ['组数', '持续时间', '强度', '休息时间'],
+            },
+            {
+                label: '恢复型-次数（组数+次数+休息）',
+                value: 'STRENGTH_MOBILITY_REP',
+                attrs: ['组数', '次数', '休息时间'],
+            },
+            {
+                label: '恢复型-时长（组数+时长+休息）',
+                value: 'STRENGTH_MOBILITY_TIME',
+                attrs: ['组数', '持续时间', '休息时间'],
+            },
+        ],
+        CARDIO: [
+            {
+                label: '距离型（距离+配速+时长）',
+                value: 'CARDIO_DISTANCE',
+                attrs: ['距离', '配速', '持续时间'],
+            },
+            {
+                label: '间歇型（冲刺+间歇+循环+强度）',
+                value: 'CARDIO_INTERVAL',
+                attrs: ['冲刺时长', '间歇时长', '循环次数', '强度'],
+            },
+        ],
+        DIET: [
+            {
+                label: '复合摄入（食物+热量+宏量营养）',
+                value: 'DIET_MEAL',
+                attrs: ['食物清单', '热量', '宏量营养'],
+            },
+            {
+                label: '单一计量（摄入量+时间点）',
+                value: 'DIET_SINGLE',
+                attrs: ['摄入量', '时间点'],
+            },
+        ],
+        HABIT: [
+            {
+                label: '统计型（目标数值+完成状态）',
+                value: 'HABIT_COUNT',
+                attrs: ['目标数值', '完成状态'],
+            },
+            {
+                label: '行为型（完成状态）',
+                value: 'HABIT_CHECK',
+                attrs: ['完成状态'],
+            },
+        ],
+    };
+
+    const getDefaultAttrsForType = (type?: ItemType) => {
+        const t = (type || 'STRENGTH') as ItemType;
+        return attrProfilesByType[t]?.[0]?.attrs ?? [];
+    };
+
+    const getProfileValueForAttrs = (type?: ItemType, attrs?: string[]) => {
+        const t = (type || 'STRENGTH') as ItemType;
+        const list = attrProfilesByType[t] || [];
+        const current = Array.isArray(attrs) ? attrs : [];
+        const match = list.find((p) =>
+            p.attrs.length === current.length &&
+            p.attrs.every((v, i) => v === current[i]),
+        );
+        return match?.value ?? null;
+    };
 
     const actionTypes = [
         { label: '全身', value: '全身' },
@@ -233,8 +313,14 @@ export default function SmartImportDialog({
                 // 只有真正匹配到已有动作时，才默认“使用已有”
                 // 未匹配到 → 默认“新建”（用户可手动切换为“使用已有”并映射到其他动作）
                 const canUseExisting = Boolean(a.matchedExistingId);
+                const nextType = ((a as any).type || 'STRENGTH') as ItemType;
+                const nextAttrs = Array.isArray(a.attrs) && a.attrs.length > 0
+                    ? a.attrs
+                    : getDefaultAttrsForType(nextType);
                 return {
                     ...a,
+                    type: nextType,
+                    attrs: nextAttrs,
                     useExisting: canUseExisting,
                     selectedExistingId: canUseExisting ? (a.matchedExistingId || null) : null,
                     shouldCreate: !canUseExisting,
@@ -263,6 +349,20 @@ export default function SmartImportDialog({
         });
     };
 
+    const updateActionType = (index: number, nextType: ItemType) => {
+        const defaultAttrs = getDefaultAttrsForType(nextType);
+        updateAction(index, {
+            type: nextType,
+            attrs: defaultAttrs,
+            needsAutoCompute: nextType === 'STRENGTH'
+                ? editableActions[index]?.needsAutoCompute || false
+                : false,
+            includesBodyWeight: nextType === 'STRENGTH'
+                ? editableActions[index]?.includesBodyWeight || false
+                : false,
+        });
+    };
+
     // 切换使用现有动作/创建新动作
     const toggleActionMode = (index: number) => {
         const action = editableActions[index];
@@ -286,12 +386,21 @@ export default function SmartImportDialog({
     const selectExistingAction = (index: number, actionId: string) => {
         const selectedAction = existingActions.find(a => a.id === actionId);
         if (selectedAction) {
+            const nextType = (selectedAction.type || 'STRENGTH') as ItemType;
             updateAction(index, {
                 selectedExistingId: actionId,
                 matchedExistingId: actionId,
                 // 同步现有动作的属性
-                needsAutoCompute: selectedAction.enableAutoWeightCompute || false,
-                includesBodyWeight: selectedAction.includesBodyWeight || false,
+                type: nextType,
+                attrs: selectedAction.attrs?.length
+                    ? selectedAction.attrs
+                    : getDefaultAttrsForType(nextType),
+                needsAutoCompute: nextType === 'STRENGTH'
+                    ? (selectedAction.enableAutoWeightCompute || false)
+                    : false,
+                includesBodyWeight: nextType === 'STRENGTH'
+                    ? (selectedAction.includesBodyWeight || false)
+                    : false,
             });
         }
     };
@@ -313,6 +422,7 @@ export default function SmartImportDialog({
                     positions: a.positions,
                     detail: a.detail,
                     url: a.url,
+                    type: a.type || 'STRENGTH',
                 }));
 
             let createdActions: CoachActionRow[] = [];
@@ -599,69 +709,101 @@ D2
                                     {/* 属性行：仅新建动作显示 */}
                                     {!action.useExisting && action.shouldCreate && (
                                         <div className="mt-2 ml-8 text-sm flex flex-col gap-3">
-                                            <div className="flex flex-wrap items-center gap-4">
-                                                <label className="flex items-center gap-1 cursor-pointer">
-                                                    <Checkbox
-                                                        checked={action.needsAutoCompute}
-                                                        onChange={(e) => updateAction(index, { needsAutoCompute: e.checked || false })}
-                                                    />
-                                                    <span>自动计算重量</span>
-                                                </label>
-                                                <label className="flex items-center gap-1 cursor-pointer">
-                                                    <Checkbox
-                                                        checked={action.includesBodyWeight}
-                                                        onChange={(e) => updateAction(index, { includesBodyWeight: e.checked || false })}
-                                                    />
-                                                    <span>包含自重</span>
-                                                </label>
-                                            </div>
-
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-gray-500">动作属性（决定计划里要填什么）</span>
-                                                    <MultiSelect
-                                                        value={action.attrs || []}
-                                                        options={actionAttrs}
-                                                        onChange={(e) => updateAction(index, { attrs: e.value })}
-                                                        placeholder="选择属性"
-                                                        display="chip"
+                                                    <span className="text-xs text-gray-500">动作类型</span>
+                                                    <Dropdown
+                                                        value={(action.type || 'STRENGTH') as ItemType}
+                                                        options={itemTypeOptions}
+                                                        onChange={(e) => updateActionType(index, e.value)}
                                                         className="w-full"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-gray-500">训练部位</span>
-                                                    <MultiSelect
-                                                        value={action.positions || ["全身"]}
-                                                        options={actionTypes}
-                                                        onChange={(e) => updateAction(index, { positions: e.value })}
-                                                        placeholder="选择部位"
-                                                        display="chip"
+                                                    <span className="text-xs text-gray-500">属性模板</span>
+                                                    <Dropdown
+                                                        value={getProfileValueForAttrs(
+                                                            action.type as ItemType,
+                                                            action.attrs,
+                                                        )}
+                                                        options={attrProfilesByType[
+                                                            (action.type || 'STRENGTH') as ItemType
+                                                        ]}
+                                                        onChange={(e) => {
+                                                            const list =
+                                                                attrProfilesByType[
+                                                                    (action.type || 'STRENGTH') as ItemType
+                                                                ] || [];
+                                                            const profile = list.find(
+                                                                (p) => p.value === e.value,
+                                                            );
+                                                            if (profile) {
+                                                                updateAction(index, { attrs: profile.attrs });
+                                                            }
+                                                        }}
+                                                        placeholder="选择模板"
                                                         className="w-full"
                                                     />
                                                 </div>
                                             </div>
+                                            {action.type === 'STRENGTH' && (
+                                                <div className="flex flex-wrap items-center gap-4">
+                                                    <label className="flex items-center gap-1 cursor-pointer">
+                                                        <Checkbox
+                                                            checked={action.needsAutoCompute}
+                                                            onChange={(e) => updateAction(index, { needsAutoCompute: e.checked || false })}
+                                                        />
+                                                        <span>自动计算重量</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-1 cursor-pointer">
+                                                        <Checkbox
+                                                            checked={action.includesBodyWeight}
+                                                            onChange={(e) => updateAction(index, { includesBodyWeight: e.checked || false })}
+                                                        />
+                                                        <span>包含自重</span>
+                                                    </label>
+                                                </div>
+                                            )}
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-gray-500">描述（可选）</span>
-                                                    <InputTextarea
-                                                        value={action.detail || ''}
-                                                        onChange={(e) => updateAction(index, { detail: e.target.value })}
-                                                        rows={2}
-                                                        className="w-full"
-                                                        placeholder="如：动作要点 / 注意事项"
-                                                    />
+                                            {action.type === 'STRENGTH' && (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs text-gray-500">训练部位</span>
+                                                        <MultiSelect
+                                                            value={action.positions || ["全身"]}
+                                                            options={actionTypes}
+                                                            onChange={(e) => updateAction(index, { positions: e.value })}
+                                                            placeholder="选择部位"
+                                                            display="chip"
+                                                            className="w-full"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-gray-500">演示视频 URL（可选）</span>
-                                                    <InputText
-                                                        value={action.url || ''}
-                                                        onChange={(e) => updateAction(index, { url: e.target.value })}
-                                                        className="w-full"
-                                                        placeholder="https://..."
-                                                    />
+                                            )}
+
+                                            {action.type === 'STRENGTH' && (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs text-gray-500">描述（可选）</span>
+                                                        <InputTextarea
+                                                            value={action.detail || ''}
+                                                            onChange={(e) => updateAction(index, { detail: e.target.value })}
+                                                            rows={2}
+                                                            className="w-full"
+                                                            placeholder="如：动作要点 / 注意事项"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs text-gray-500">演示视频 URL（可选）</span>
+                                                        <InputText
+                                                            value={action.url || ''}
+                                                            onChange={(e) => updateAction(index, { url: e.target.value })}
+                                                            className="w-full"
+                                                            placeholder="https://..."
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -727,21 +869,28 @@ D2
                                                     <span>
                                                         {getActionName(action.actionId, allActions)}
                                                         {' - '}
-                                                        {typeof action.sets === 'number' ? `${action.sets}组` : ''}
-                                                        {typeof (action as any).durationSeconds === 'number'
-                                                            ? `×${(action as any).durationSeconds}秒`
-                                                            : (typeof action.reps === 'number'
-                                                                ? `×${action.reps}次`
-                                                                : (typeof action.sets === 'number' ? `×自选` : '')
+                                                        {getActionType(action.actionId, allActions) !== 'STRENGTH'
+                                                            ? formatCustomDataSummary((action as any).customData)
+                                                            : (
+                                                                <>
+                                                                    {typeof action.sets === 'number' ? `${action.sets}组` : ''}
+                                                                    {typeof (action as any).durationSeconds === 'number'
+                                                                        ? `×${(action as any).durationSeconds}秒`
+                                                                        : (typeof action.reps === 'number'
+                                                                            ? `×${action.reps}次`
+                                                                            : (typeof action.sets === 'number' ? `×自选` : '')
+                                                                        )
+                                                                    }
+                                                                    {action.intensityConfig?.relativeIntensity && (
+                                                                        <span className="text-blue-600">
+                                                                            {' '}
+                                                                            ({action.intensityConfig.relativeIntensity.value}
+                                                                            {action.intensityConfig.relativeIntensity.type === 'rm' ? 'RM' : '%'})
+                                                                        </span>
+                                                                    )}
+                                                                </>
                                                             )
                                                         }
-                                                        {action.intensityConfig?.relativeIntensity && (
-                                                            <span className="text-blue-600">
-                                                                {' '}
-                                                                ({action.intensityConfig.relativeIntensity.value}
-                                                                {action.intensityConfig.relativeIntensity.type === 'rm' ? 'RM' : '%'})
-                                                            </span>
-                                                        )}
                                                         {action.note ? (
                                                             <span className="text-surface-500">
                                                                 {' '}
@@ -815,6 +964,35 @@ function getActionName(actionId: string, actions: CoachActionRow[]): string {
     return action?.name || '未知动作';
 }
 
+function getActionType(actionId: string, actions: CoachActionRow[]): ItemType {
+    const action = actions.find(a => a.id === actionId);
+    return (action?.type || 'STRENGTH') as ItemType;
+}
+
+function formatCustomDataSummary(customData?: any): string {
+    if (!customData) return '（无结构化信息）';
+    const parts: string[] = [];
+    if (typeof customData.distance === 'number') {
+        parts.push(`${(customData.distance / 1000).toFixed(1)}km`);
+    }
+    if (typeof customData.duration === 'number') {
+        parts.push(`${Math.round(customData.duration / 60)}分钟`);
+    }
+    if (customData.pace) {
+        parts.push(`配速${customData.pace}`);
+    }
+    if (customData.content) {
+        parts.push(customData.content);
+    }
+    if (typeof customData.calories === 'number') {
+        parts.push(`${customData.calories}kcal`);
+    }
+    if (typeof customData.target_duration === 'number') {
+        parts.push(`目标${customData.target_duration}分钟`);
+    }
+    return parts.length > 0 ? parts.join(' · ') : '（无结构化信息）';
+}
+
 // 辅助函数：将解析结果转换为模板编辑器格式
 function convertToTemplateDays(
     parsedDays: ParsedTemplateDay[],
@@ -846,6 +1024,19 @@ function convertToTemplateDays(
                     ? parsedDay.actions
                     : [{ actionId: '', sets: null, reps: null, restSeconds: 180, intensityConfig: null, note: '自动解析未给出动作，请选择动作' }]
                 ).map((action, idx) => {
+                    const actionType = getActionType(action.actionId, actions);
+                    if (actionType !== 'STRENGTH') {
+                        return {
+                            type: 'no-filter',
+                            actionId: action.actionId || '',
+                            setName: `动作${idx + 1}`,
+                            itemType: actionType,
+                            params: {
+                                custom_data: (action as any).customData || {},
+                                note: action.note || '',
+                            },
+                        };
+                    }
                     const ic = action.intensityConfig;
                     let intensityValue: string | number = '';
                     let loadValue: number | null = null;
@@ -866,6 +1057,7 @@ function convertToTemplateDays(
                         type: 'no-filter',
                         actionId: action.actionId || '',
                         setName: `动作${idx + 1}`,
+                        itemType: 'STRENGTH',
                         params: {
                             // 使用中文字段名，与 action.attrs 对应
                             '组数': action.sets ?? '',

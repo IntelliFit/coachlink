@@ -1,0 +1,148 @@
+{
+    "actions": [
+        {
+            "name": "卧推",
+            "type": "STRENGTH",
+            "matchedExistingId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "引体向上",
+            "type": "STRENGTH",
+            "matchedExistingId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+            "needsAutoCompute": false,
+            "includesBodyWeight": true,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "慢跑",
+            "type": "CARDIO",
+            "matchedExistingId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["距离", "配速", "持续时间"]
+        },
+        {
+            "name": "全麦面包",
+            "type": "DIET",
+            "matchedExistingId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["摄入量", "时间点"]
+        },
+        {
+            "name": "鸡蛋",
+            "type": "DIET",
+            "matchedExistingId": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["摄入量", "时间点"]
+        },
+        {
+            "name": "跑步",
+            "type": "CARDIO",
+            "matchedExistingId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["距离", "配速", "持续时间"]
+        },
+        {
+            "name": "平板支撑",
+            "type": "STRENGTH",
+            "matchedExistingId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+            "needsAutoCompute": false,
+            "includesBodyWeight": true,
+            "attrs": ["组数", "持续时间", "强度", "休息时间"]
+        },
+        {
+            "name": "冥想",
+            "type": "HABIT",
+            "matchedExistingId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["完成状态"]
+        },
+        {
+            "name": "蔬菜沙拉",
+            "type": "DIET",
+            "matchedExistingId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["摄入量", "时间点"]
+        },
+        {
+            "name": "煎鱼",
+            "type": "DIET",
+            "matchedExistingId": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["摄入量", "时间点"]
+        },
+        {
+            "name": "深蹲",
+            "type": "STRENGTH",
+            "matchedExistingId": null,
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "箭步蹲",
+            "type": "STRENGTH",
+            "matchedExistingId": "2cbdfd0e-0b30-4275-9f6e-154cfe64920a",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "跳绳",
+            "type": "CARDIO",
+            "matchedExistingId": "58be0550-50c2-41d8-9f54-bbc9daafaec5",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["冲刺时长", "间歇时长", "循环次数", "强度"]
+        },
+        {
+            "name": "阅读",
+            "type": "HABIT",
+            "matchedExistingId": "d84bddc3-94a7-4da1-a6b5-e3a55130daa3",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["完成状态"]
+        },
+        {
+            "name": "硬拉",
+            "type": "STRENGTH",
+            "matchedExistingId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "推举",
+            "type": "STRENGTH",
+            "matchedExistingId": "bd4fde76-a95b-4ab1-b587-874023221757",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["组数", "次数", "强度", "休息时间"]
+        },
+        {
+            "name": "波比跳",
+            "type": "CARDIO",
+            "matchedExistingId": "56d63c3a-852d-42a0-b5e5-a6b1d62305cc",
+            "needsAutoCompute": false,
+            "includesBodyWeight": true,
+            "attrs": ["冲刺时长", "间歇时长", "循环次数", "强度"]
+        },
+        {
+            "name": "日饮水",
+            "type": "DIET",
+            "matchedExistingId": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+            "needsAutoCompute": false,
+            "includesBodyWeight": false,
+            "attrs": ["摄入量", "时间点"]
+        }
+    ]
+}
