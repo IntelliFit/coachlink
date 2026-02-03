@@ -5,6 +5,7 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { Dialog } from 'primereact/dialog';
+import { Checkbox } from 'primereact/checkbox';
 import { Calendar } from 'lucide-react';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -25,6 +26,13 @@ import { TrainingItem } from '@/types/questionnaires';
 import { coachService } from '@/app/service/coachService';
 import { checkTrainingDays, makeWeekDays } from '@/utils/template';
 import SmartImportDialog from '@/app/dashboard/plan-lib/components/SmartImportDialog';
+import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
+import {
+    appendActionToDays,
+    deleteActionInDays,
+    isActionFullyCompatible,
+    replaceActionInDays,
+} from '@/lib/planBatchUtils';
 
 
 const EditPlanPage = () => {
@@ -59,6 +67,9 @@ const EditPlanPage = () => {
     const [showImportDialog, setShowImportDialog] = useState(false);
     // Mobile day picker
     const [dayPickerVisible, setDayPickerVisible] = useState(false);
+    const [batchDialogVisible, setBatchDialogVisible] = useState(false);
+    const [syncDialogVisible, setSyncDialogVisible] = useState(false);
+    const [syncInstances, setSyncInstances] = useState(true);
 
     // Load template data
     useEffect(() => {
@@ -400,7 +411,7 @@ const EditPlanPage = () => {
         await loadActions();
     };
 
-    const handleSave = async () => {
+    const handleConfirmSave = async () => {
         if (!coach?.id || !params.id) return;
 
         if (!name.trim()) {
@@ -433,7 +444,8 @@ const EditPlanPage = () => {
                 suitableFor: suitableFor,
                 weekDays: weekDays,
                 globalAnswers: globalAnswers,  // 新增
-                trainingDays: daysData
+                trainingDays: daysData,
+                syncInstances,
             });
 
             showToast({ severity: 'success', summary: '保存成功', detail: '训练计划模板已更新' });
@@ -444,6 +456,65 @@ const EditPlanPage = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleSave = () => {
+        if (saving) return;
+        setSyncDialogVisible(true);
+    };
+
+    const handleBatchApply = (operation: BatchOperation) => {
+        if (actions.length === 0) {
+            showToast({ severity: 'info', summary: '暂无动作库', detail: '请先加载动作库' });
+            return;
+        }
+
+        if (operation.type === 'replace') {
+            const fromAction = actions.find(action => action.id === operation.fromActionId);
+            const toAction = actions.find(action => action.id === operation.toActionId);
+            if (!isActionFullyCompatible(fromAction, toAction)) {
+                showToast({ severity: 'error', summary: '替换失败', detail: '动作属性不一致，无法替换' });
+                return;
+            }
+            const result = replaceActionInDays(days, operation.fromActionId, operation.toActionId);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未替换', detail: '未找到可替换的动作' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '替换成功', detail: `共替换 ${result.affectedSets} 个动作` });
+            return;
+        }
+
+        if (operation.type === 'delete') {
+            const result = deleteActionInDays(days, operation.actionId);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未删除', detail: '未找到可删除的动作' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '删除成功', detail: `共删除 ${result.affectedSets} 个动作` });
+            return;
+        }
+
+        const targetAction = actions.find(action => action.id === operation.actionId);
+        if (!targetAction) {
+            showToast({ severity: 'error', summary: '追加失败', detail: '未找到目标动作' });
+            return;
+        }
+        const result = appendActionToDays(
+            days,
+            targetAction,
+            operation.weekStart,
+            operation.weekEnd,
+            operation.weekdays,
+        );
+        if (result.affectedSets === 0) {
+            showToast({ severity: 'info', summary: '未追加', detail: '未命中符合条件的训练日' });
+            return;
+        }
+        setDays(result.days);
+        showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
     // 获取选中的训练日
@@ -460,6 +531,8 @@ const EditPlanPage = () => {
             note: day.note,
             actionSets: day.actionSets
         }));
+
+    const maxWeeks = Math.max(1, Math.ceil(days.length / 7));
 
     if (loading) {
         return (
@@ -548,6 +621,24 @@ const EditPlanPage = () => {
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
+                extraButton={
+                    <Button
+                        label="批量操作"
+                        size="small"
+                        icon="pi pi-sliders-h"
+                        className="
+                            flex items-center gap-2 px-4 py-2
+                            bg-surface border border-surface-200 rounded-[14px]
+                            text-[12px] font-black text-surface-700 tracking-tight
+                            transition-all duration-200 active:scale-[0.95]
+                            hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setBatchDialogVisible(true)}
+                        disabled={saving}
+                    />
+                }
                 weekDays={weekDays}
                 onWeekDaysChange={setWeekDays}
                 globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
@@ -640,6 +731,57 @@ const EditPlanPage = () => {
                 existingActions={actions}
                 onImportComplete={handleImportComplete}
             />
+
+            <BatchActionsDialog
+                visible={batchDialogVisible}
+                onHide={() => setBatchDialogVisible(false)}
+                actions={actions}
+                maxWeeks={maxWeeks}
+                onApply={handleBatchApply}
+                disabled={saving}
+            />
+
+            <Dialog
+                header="保存模板"
+                visible={syncDialogVisible}
+                onHide={() => setSyncDialogVisible(false)}
+                modal
+                style={{ width: '90vw', maxWidth: '520px' }}
+                className="aero-dialog"
+                contentClassName="p-0 border-t border-surface-100"
+                footer={
+                    <div className="flex justify-end gap-2 px-4 py-3 border-t border-surface-100 bg-surface">
+                        <Button
+                            label="取消"
+                            className="p-button-text"
+                            onClick={() => setSyncDialogVisible(false)}
+                            disabled={saving}
+                        />
+                        <Button
+                            label="保存"
+                            className="p-button-primary"
+                            onClick={() => {
+                                setSyncDialogVisible(false);
+                                handleConfirmSave();
+                            }}
+                            loading={saving}
+                        />
+                    </div>
+                }
+            >
+                <div className="flex flex-col gap-4 p-5">
+                    <div className="text-sm text-surface-600 leading-relaxed">
+                        是否同步到已使用该模板的计划？同步会覆盖这些计划的训练内容。
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-surface-700 font-medium">
+                        <Checkbox
+                            checked={syncInstances}
+                            onChange={(e) => setSyncInstances(!!e.checked)}
+                        />
+                        同步到已使用该模板的计划（默认）
+                    </label>
+                </div>
+            </Dialog>
 
             {/* 手机端：随时切换训练日（无需回到顶部） */}
             <div className="lg:hidden fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40">
