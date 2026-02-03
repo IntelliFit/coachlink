@@ -399,6 +399,164 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     }
 }
 
+/* Batch Operation Dialog - 不透明版本 */
+.batch-operation-dialog.p-dialog {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 24px !important;
+    box-shadow:
+        0 10px 25px rgba(15, 23, 42, 0.08),
+        0 24px 60px rgba(15, 23, 42, 0.12) !important;
+    overflow: hidden;
+}
+
+.batch-operation-dialog .p-dialog-header {
+    background: #ffffff !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+    padding: 20px 24px !important;
+}
+
+.batch-operation-dialog .p-dialog-title {
+    font-weight: 800;
+    font-size: 1.125rem;
+    letter-spacing: -0.01em;
+}
+
+.batch-operation-dialog .p-dialog-content {
+    background: #ffffff !important;
+    padding: 20px 24px 24px !important;
+}
+
+.batch-operation-dialog .p-dialog-footer {
+    background: #ffffff !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+    padding: 16px 24px 20px !important;
+}
+
+.dark .batch-operation-dialog.p-dialog {
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.2),
+        0 24px 60px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .batch-operation-dialog .p-dialog-header,
+.dark .batch-operation-dialog .p-dialog-content,
+.dark .batch-operation-dialog .p-dialog-footer {
+    background: #0f172a !important;
+}
+
+.dark .batch-operation-dialog .p-dialog-header,
+.dark .batch-operation-dialog .p-dialog-footer {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* PC 端 */
+@media (min-width: 641px) {
+    .batch-operation-dialog.p-dialog {
+        border-radius: 24px !important;
+    }
+}
+
+/* 移动端 */
+@media (max-width: 640px) {
+    .batch-operation-dialog.p-dialog {
+        width: 92vw !important;
+        max-width: 92vw !important;
+        border-radius: 18px !important;
+    }
+
+    .batch-operation-dialog .p-dialog-header {
+        padding: 16px 18px !important;
+    }
+
+    .batch-operation-dialog .p-dialog-title {
+        font-size: 1rem;
+    }
+
+    .batch-operation-dialog .p-dialog-content {
+        padding: 16px 18px 18px !important;
+    }
+
+    .batch-operation-dialog .p-dialog-footer {
+        padding: 14px 18px 18px !important;
+    }
+}
+
+/* Batch Operation Dialog - 全屏版本 */
+.batch-operation-dialog-fullscreen.p-dialog {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 24px !important;
+    box-shadow:
+        0 10px 25px rgba(15, 23, 42, 0.08),
+        0 24px 60px rgba(15, 23, 42, 0.12) !important;
+    overflow: hidden;
+    max-height: 90vh !important;
+}
+
+.batch-operation-dialog-fullscreen .p-dialog-header {
+    display: none !important;
+}
+
+.batch-operation-dialog-fullscreen .p-dialog-content {
+    background: #ffffff !important;
+    padding: 0 !important;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.dark .batch-operation-dialog-fullscreen.p-dialog {
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.2),
+        0 24px 60px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .batch-operation-dialog-fullscreen .p-dialog-content {
+    background: #0f172a !important;
+}
+
+/* PC 端 */
+@media (min-width: 641px) {
+    .batch-operation-dialog-fullscreen.p-dialog {
+        border-radius: 24px !important;
+    }
+}
+
+/* 移动端 */
+@media (max-width: 640px) {
+    .batch-operation-dialog-fullscreen.p-dialog {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+    }
+}
+
+/* 批量操作日志条目动画 */
+@keyframes logEntryFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.log-entry-animation {
+    animation: logEntryFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
 /* 引导框主体 */
 .aero-guide-popover.driver-popover-item {
   @apply bg-surface border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-6 rounded-[24px] !important;
@@ -615,3 +773,48 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         @apply w-9 h-9;
     }
 }
+
+/* Aero DataTable Styles */
+.aero-datatable .p-datatable-thead > tr > th {
+    @apply bg-surface-50 text-surface-700 text-xs font-bold uppercase tracking-wide;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+    padding: 12px 16px !important;
+}
+
+.aero-datatable .p-datatable-tbody > tr {
+    @apply transition-colors;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+.aero-datatable .p-datatable-tbody > tr:hover {
+    @apply bg-surface-50/50;
+}
+
+.aero-datatable .p-datatable-tbody > tr > td {
+    @apply text-surface-800;
+    padding: 14px 16px !important;
+    border: none !important;
+}
+
+.aero-datatable .p-datatable-scrollable-body {
+    border-radius: 12px;
+}
+
+/* Dark mode support for Aero DataTable */
+.dark .aero-datatable .p-datatable-thead > tr > th {
+    @apply bg-surface-800 text-surface-300;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .aero-datatable .p-datatable-tbody > tr {
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .aero-datatable .p-datatable-tbody > tr:hover {
+    @apply bg-surface-800/50;
+}
+
+.dark .aero-datatable .p-datatable-tbody > tr > td {
+    @apply text-surface-200;
+}
+

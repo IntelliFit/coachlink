@@ -25,10 +25,10 @@ interface LogEntry {
 }
 
 /**
- * 批量操作对话框组件 - Aero 设计规范版
- * 1. 开发模式下显示token和耗时
- * 2. 不显示代码，只显示用户友好的描述
- * 3. 显示修改预览，让用户确认后再应用
+ * 批量操作对话框组件 - ChatGPT 对话风格
+ * 1. 输入框默认居中，发送后移动到底部
+ * 2. 用户消息显示在顶部
+ * 3. 内置发送按钮，支持回车发送
  * 4. 遵循 Aero-Productivity 设计规范
  */
 export function BatchOperationDialog({
@@ -38,6 +38,7 @@ export function BatchOperationDialog({
     onSuccess,
 }: BatchOperationDialogProps) {
     const [instruction, setInstruction] = useState('');
+    const [submittedInstruction, setSubmittedInstruction] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [isApplying, setIsApplying] = useState(false);
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -46,7 +47,9 @@ export function BatchOperationDialog({
         updatedTrainingDays: any;
         modifications: ModificationDiff[];
     } | null>(null);
+    const [hasStarted, setHasStarted] = useState(false);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<any>(null);
 
     // 检查是否为开发模式
     const isDevelopment = process.env.NODE_ENV === 'development';
@@ -108,6 +111,8 @@ export function BatchOperationDialog({
             return;
         }
 
+        setHasStarted(true);
+        setSubmittedInstruction(instruction);
         setIsProcessing(true);
         setLogs([]);
         setPreviewData(null);
@@ -124,6 +129,16 @@ export function BatchOperationDialog({
                 setIsProcessing(false);
             }
         );
+    };
+
+    // 处理键盘事件
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!isProcessing && instruction.trim()) {
+                handleExecute();
+            }
+        }
     };
 
     // 应用修改到数据库
@@ -167,10 +182,21 @@ export function BatchOperationDialog({
     const handleHide = () => {
         if (!isProcessing && !isApplying) {
             setInstruction('');
+            setSubmittedInstruction('');
             setLogs([]);
             setPreviewData(null);
+            setHasStarted(false);
             onHide();
         }
+    };
+
+    // 重新开始
+    const handleRestart = () => {
+        setInstruction('');
+        setSubmittedInstruction('');
+        setLogs([]);
+        setPreviewData(null);
+        setHasStarted(false);
     };
 
     // 渲染日志条目
@@ -181,219 +207,274 @@ export function BatchOperationDialog({
             second: '2-digit',
         });
 
-        const getLogStyle = () => {
+        const getLogIcon = () => {
+            // 检查是否是最后一条日志，且类型为 progress
+            const isLastEntry = index === logs.length - 1;
+            const isProgressType = entry.type === 'progress';
+            
             switch (entry.type) {
                 case 'progress':
-                    return 'text-surface-700';
+                    // 只有最后一条 progress 消息才显示旋转图标
+                    return isLastEntry ? 'pi-spin pi-spinner' : 'pi-check';
                 case 'action_plan':
-                    return 'text-surface-900 font-bold';
+                    return 'pi-list';
                 case 'modification':
-                    return 'text-primary-700 font-semibold';
+                    return 'pi-pencil';
                 case 'stats':
-                    return 'text-surface-500 text-xs';
+                    return 'pi-chart-bar';
                 case 'success':
-                    return 'text-green-700 font-bold';
+                    return 'pi-check-circle';
                 case 'error':
-                    return 'text-red-600 font-semibold';
+                    return 'pi-exclamation-circle';
                 default:
-                    return 'text-surface-600';
+                    return 'pi-info-circle';
             }
         };
 
+        const icon = getLogIcon();
+
         return (
-            <div key={index} className="mb-2 flex items-start gap-2">
-                {entry.type !== 'stats' && (
-                    <span className="text-xs text-surface-400 shrink-0 mt-0.5 font-medium">
-                        {timeStr}
-                    </span>
-                )}
-                <span className={`text-sm ${getLogStyle()}`}>
+            <div
+                key={index}
+                className={`
+                    bg-surface-50
+                    border border-surface-200
+                    rounded-xl px-3 py-2
+                    flex items-center gap-2.5
+                    log-entry-animation
+                `}
+                style={{
+                    animationDelay: `${index * 50}ms`,
+                }}
+            >
+                {/* 图标 */}
+                <div className="shrink-0 text-surface-400 dark:text-surface-500">
+                    <i className={`pi ${icon} text-xs`}></i>
+                </div>
+                
+                {/* 内容 */}
+                <div className="flex-1 min-w-0 text-xs font-medium text-surface-700 dark:text-surface-500 leading-relaxed">
                     {entry.content}
-                </span>
+                </div>
+
+                {/* 时间戳 - 右侧 */}
+                {entry.type !== 'stats' && (
+                    <div className="shrink-0 text-[10px] text-surface-400 dark:text-surface-500 font-medium tabular-nums">
+                        {timeStr}
+                    </div>
+                )}
             </div>
         );
     };
 
     return (
         <Dialog
-            header="智能批量操作"
+            header={null}
             visible={visible}
             onHide={handleHide}
-            style={{ width: '90vw', maxWidth: '1000px' }}
+            style={{ width: '95vw', height: '90vh', maxWidth: '1400px' }}
             modal
             closable={!isProcessing && !isApplying}
             draggable={false}
-            className="aero-dialog"
+            className="batch-operation-dialog-fullscreen"
+            contentClassName="h-full"
         >
-            <div className="space-y-5">
-                {/* 说明提示 */}
-                <Card className="rounded-2xl border border-primary-100 bg-primary-50/30">
-                    <div className="p-4 flex items-start gap-3">
-                        <div className="shrink-0 w-8 h-8 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center">
-                            <i className="pi pi-info-circle text-sm"></i>
-                        </div>
-                        <div className="min-w-0 text-sm text-surface-700">
-                            <div className="font-bold mb-1">智能识别与预览</div>
-                            <div className="text-surface-600 leading-relaxed">
-                                使用自然语言描述批量操作，系统会自动识别并预览修改内容，确认后再应用到训练计划
+            <div className="flex flex-col h-full">
+                {/* 未开始状态：居中显示输入框 */}
+                {!hasStarted && (
+                    <div className="flex-1 flex flex-col items-center justify-center px-8">
+                        <div className="w-full max-w-3xl space-y-6">
+                            {/* 标题区域 - 仅在未开始时显示 */}
+                            <div className="text-center space-y-3">
+                                <div className="text-3xl font-black tracking-tight text-surface-900">
+                                    教链 AI 计划修改器
+                                </div>
+                                <div className="text-sm text-surface-500 font-medium">
+                                    使用自然语言描述批量操作，系统会自动识别并预览修改内容
+                                </div>
+                            </div>
+
+                            {/* 输入框容器 */}
+                            <div className="relative">
+                                <InputTextarea
+                                    ref={textareaRef}
+                                    value={instruction}
+                                    onChange={(e) => setInstruction(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    rows={4}
+                                    className="w-full rounded-2xl border-surface-200 focus:border-primary-300 text-base pr-12 resize-none"
+                                    placeholder="描述你想要进行的批量操作，例如：把所有深蹲改为5组8次，重量100kg"
+                                    autoFocus
+                                />
+                                {/* 发送按钮 */}
+                                <Button
+                                    icon={isProcessing ? 'pi pi-spin pi-spinner' : 'pi pi-send'}
+                                    className="absolute bottom-3 right-3 w-10 h-10 rounded-xl bg-surface-900 border-none text-surface-0 hover:bg-surface-800 active:scale-[0.95] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                    onClick={handleExecute}
+                                    disabled={!instruction.trim() || isProcessing}
+                                    aria-label="发送"
+                                />
+                            </div>
+                            
+                            {/* 提示文字 */}
+                            <div className="text-center text-xs text-surface-400">
+                                按 Enter 发送，Shift + Enter 换行
                             </div>
                         </div>
                     </div>
-                </Card>
-
-                {/* 指令输入 */}
-                <div className="space-y-2">
-                    <label htmlFor="instruction" className="block text-sm font-bold text-surface-900">
-                        操作指令
-                    </label>
-                    <InputTextarea
-                        id="instruction"
-                        value={instruction}
-                        onChange={(e) => setInstruction(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-2xl border-surface-200 focus:border-primary-300 text-sm"
-                        placeholder="例如: 把所有深蹲改为5组8次，重量100kg"
-                        disabled={isProcessing || !!previewData}
-                    />
-                </div>
-
-                {/* 日志显示区域 */}
-                {logs.length > 0 && (
-                    <Card className="rounded-2xl border border-surface-100 bg-surface-50">
-                        <div className="p-4 max-h-64 overflow-y-auto">
-                            <div className="space-y-1">
-                                {logs.map((entry, index) => renderLogEntry(entry, index))}
-                                <div ref={logsEndRef} />
-                            </div>
-                        </div>
-                    </Card>
                 )}
 
-                {/* 修改预览表格 */}
-                {previewData && previewData.modifications.length > 0 && (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-surface-100 text-surface-700 flex items-center justify-center">
-                                <i className="pi pi-list text-sm"></i>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-surface-900">
-                                    修改预览
-                                </h3>
-                                <p className="text-xs text-surface-500">
-                                    共识别到 {previewData.modifications.length} 处修改
-                                </p>
-                            </div>
-                        </div>
-                        <Card className="rounded-2xl border border-surface-100">
-                            <DataTable
-                                value={previewData.modifications}
-                                scrollable
-                                scrollHeight="300px"
-                                className="text-sm aero-datatable"
-                            >
-                                <Column
-                                    field="dayIndex"
-                                    header="训练日"
-                                    style={{ width: '80px' }}
-                                    body={(row) => (
-                                        <span className="font-bold text-surface-900">第{row.dayIndex}天</span>
-                                    )}
-                                />
-                                <Column
-                                    field="actionName"
-                                    header="动作/项目"
-                                    style={{ minWidth: '120px' }}
-                                    body={(row) => (
-                                        <span className="font-semibold text-surface-800">{row.actionName}</span>
-                                    )}
-                                />
-                                <Column
-                                    field="field"
-                                    header="修改项"
-                                    style={{ width: '100px' }}
-                                    body={(row) => (
-                                        <span className="text-xs text-surface-600">{row.field}</span>
-                                    )}
-                                />
-                                <Column
-                                    field="oldValue"
-                                    header="原值"
-                                    style={{ minWidth: '120px' }}
-                                    body={(row) => (
-                                        <span className="text-surface-500 line-through text-xs">
-                                            {typeof row.oldValue === 'object' ? JSON.stringify(row.oldValue) : row.oldValue}
-                                        </span>
-                                    )}
-                                />
-                                <Column
-                                    header="→"
-                                    style={{ width: '40px', textAlign: 'center' }}
-                                    body={() => <span className="text-surface-400">→</span>}
-                                />
-                                <Column
-                                    field="newValue"
-                                    header="新值"
-                                    style={{ minWidth: '120px' }}
-                                    body={(row) => (
-                                        <span className="text-primary-700 font-bold text-xs">
-                                            {typeof row.newValue === 'object' ? JSON.stringify(row.newValue) : row.newValue}
-                                        </span>
-                                    )}
-                                />
-                            </DataTable>
-                        </Card>
-                    </div>
-                )}
-
-                {/* 操作按钮 */}
-                <div className="flex justify-between items-center pt-3">
-                    <div>
-                        {previewData && (
+                {/* 已开始状态：显示对话内容 */}
+                {hasStarted && (
+                    <div className="flex flex-col h-full">
+                        {/* 顶部返回按钮 */}
+                        <div className="flex-shrink-0 px-8 pt-6 pb-4">
                             <Button
-                                label="重新分析"
-                                icon="pi pi-refresh"
+                                icon="pi pi-arrow-left"
                                 text
                                 severity="secondary"
-                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
-                                onClick={() => {
-                                    setPreviewData(null);
-                                    setLogs([]);
-                                }}
+                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all -ml-2"
+                                onClick={handleHide}
                                 disabled={isProcessing || isApplying}
+                                aria-label="关闭"
+                                tooltip="关闭对话框"
+                                tooltipOptions={{ position: 'right' }}
                             />
-                        )}
+                        </div>
+
+                        {/* 内容容器 */}
+                        <div className="flex-1 min-h-0 px-8 pb-6 flex flex-col">
+                            {/* 用户消息 */}
+                            <div className="flex-shrink-0 mb-6">
+                                <div className="bg-surface-50 rounded-2xl p-4 border border-surface-100">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
+                                            你
+                                        </div>
+                                        <div className="flex-1 text-surface-900 text-sm leading-relaxed pt-1">
+                                            {submittedInstruction}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 内容区域 */}
+                            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4">
+                                {/* 日志显示区域 */}
+                                {logs.length > 0 && (
+                                    <div className="space-y-2">
+                                        {logs.map((entry, index) => renderLogEntry(entry, index))}
+                                        <div ref={logsEndRef} />
+                                    </div>
+                                )}
+
+                                {/* 修改预览表格 */}
+                                {previewData && previewData.modifications.length > 0 && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-xl bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 flex items-center justify-center">
+                                                <i className="pi pi-list text-sm"></i>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100">
+                                                    修改预览
+                                                </h3>
+                                                <p className="text-xs text-surface-500 dark:text-surface-400">
+                                                    共识别到 {previewData.modifications.length} 处修改
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Card className="rounded-2xl border border-surface-100 dark:border-surface-700">
+                                        <DataTable
+                                            value={previewData.modifications}
+                                            scrollable
+                                            scrollHeight="400px"
+                                            className="text-sm aero-datatable"
+                                        >
+                                            <Column
+                                                field="dayIndex"
+                                                header="训练日"
+                                                style={{ width: '80px' }}
+                                                body={(row) => (
+                                                    <span className="font-bold text-surface-900">第{row.dayIndex}天</span>
+                                                )}
+                                            />
+                                            <Column
+                                                field="actionName"
+                                                header="动作/项目"
+                                                style={{ minWidth: '120px' }}
+                                                body={(row) => (
+                                                    <span className="font-semibold text-surface-800">第{row.actionName}</span>
+                                                )}
+                                            />
+                                            <Column
+                                                field="field"
+                                                header="修改项"
+                                                style={{ width: '100px' }}
+                                                body={(row) => (
+                                                    <span className="text-xs text-surface-600">{row.field}</span>
+                                                )}
+                                            />
+                                            <Column
+                                                field="oldValue"
+                                                header="原值"
+                                                style={{ minWidth: '120px' }}
+                                                body={(row) => (
+                                                    <span className="text-surface-500 line-through text-xs">
+                                                        {typeof row.oldValue === 'object' ? JSON.stringify(row.oldValue) : row.oldValue}
+                                                    </span>
+                                                )}
+                                            />
+                                            <Column
+                                                header="→"
+                                                style={{ width: '40px', textAlign: 'center' }}
+                                                body={() => <span className="text-surface-400">→</span>}
+                                            />
+                                            <Column
+                                                field="newValue"
+                                                header="新值"
+                                                style={{ minWidth: '120px' }}
+                                                body={(row) => (
+                                                    <span className="text-primary-700 font-bold text-xs">
+                                                        {typeof row.newValue === 'object' ? JSON.stringify(row.newValue) : row.newValue}
+                                                    </span>
+                                                )}
+                                            />
+                                        </DataTable>
+                                    </Card>
+                                </div>
+                            )}
+                            </div>
+                        </div>
+
+                        {/* 底部按钮区域 */}
+                        <div className="flex-shrink-0 border-t border-surface-100 dark:border-surface-700 px-8 pt-4 pb-6">
+                            <div className="flex justify-between items-center">
+                                <Button
+                                    label="清空"
+                                    icon="pi pi-trash"
+                                    text
+                                    severity="secondary"
+                                    className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
+                                    onClick={handleRestart}
+                                    disabled={isProcessing || isApplying}
+                                />
+                                <div className="flex gap-2">
+                                    {previewData && (
+                                        <Button
+                                            label={isApplying ? '应用中...' : '确认应用'}
+                                            icon={isApplying ? undefined : 'pi pi-check'}
+                                            className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
+                                            onClick={handleApply}
+                                            disabled={isApplying}
+                                            loading={isApplying}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Button
-                            label="取消"
-                            text
-                            severity="secondary"
-                            className="rounded-2xl px-5 text-surface-700 hover:bg-surface-50 active:scale-[0.98] transition-all"
-                            onClick={handleHide}
-                            disabled={isProcessing || isApplying}
-                        />
-                        {!previewData ? (
-                            <Button
-                                label={isProcessing ? '分析中...' : '开始分析'}
-                                icon={isProcessing ? undefined : 'pi pi-search'}
-                                className="rounded-2xl px-5 bg-surface-900 border-none text-surface-0 font-bold hover:bg-surface-800 active:scale-[0.98] transition-all shadow-sm"
-                                onClick={handleExecute}
-                                disabled={!instruction.trim() || isProcessing}
-                                loading={isProcessing}
-                            />
-                        ) : (
-                            <Button
-                                label={isApplying ? '应用中...' : '确认应用'}
-                                icon={isApplying ? undefined : 'pi pi-check'}
-                                className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
-                                onClick={handleApply}
-                                disabled={isApplying}
-                                loading={isApplying}
-                            />
-                        )}
-                    </div>
-                </div>
+                )}
             </div>
         </Dialog>
     );
