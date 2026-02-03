@@ -40,6 +40,63 @@ interface VisibilityStatus {
     referrerCoachName: string | null;
 }
 
+// 骨架屏卡片组件
+const ProductSkeletonCard = () => (
+    <div className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
+        <div className="flex items-start justify-between mb-3">
+            <Skeleton width="80px" height="24px" className="rounded-full" />
+            <Skeleton width="60px" height="28px" />
+        </div>
+        <Skeleton width="80%" height="20px" className="mb-2" />
+        <Skeleton width="100%" height="32px" className="mb-4" />
+        <div className="flex items-center gap-2 mb-4 pt-4 border-t border-surface-100">
+            <Skeleton shape="circle" size="28px" />
+            <Skeleton width="100px" height="16px" />
+        </div>
+        <Skeleton width="100%" height="40px" className="rounded-2xl" />
+    </div>
+);
+
+const CoachSkeletonCard = () => (
+    <div className="w-[180px] md:w-[220px] shrink-0 bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100">
+        <Skeleton width="100%" height="180px" className="rounded-2xl mb-3" />
+        <Skeleton width="70%" height="18px" className="mb-1" />
+        <Skeleton width="100%" height="14px" className="mb-3" />
+        <div className="flex items-center gap-1.5 mb-3">
+            <Skeleton width="60px" height="14px" />
+        </div>
+        <div className="flex gap-1.5">
+            <Skeleton width="60px" height="24px" className="rounded-full" />
+            <Skeleton width="50px" height="24px" className="rounded-full" />
+        </div>
+    </div>
+);
+
+const ActionSkeletonCard = () => (
+    <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
+        <Skeleton width="100%" height="40px" className="mb-4" />
+        <div className="flex items-center justify-between">
+            <Skeleton width="50px" height="16px" />
+            <Skeleton width="80px" height="36px" className="rounded-2xl" />
+        </div>
+    </div>
+);
+
+const ArticleSkeletonCard = () => (
+    <div className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
+        <div className="flex items-center gap-2 mb-3">
+            <Skeleton shape="circle" size="24px" />
+            <Skeleton width="80px" height="14px" />
+        </div>
+        <Skeleton width="100%" height="36px" className="mb-2" />
+        <Skeleton width="100%" height="32px" className="mb-4" />
+        <div className="pt-4 border-t border-surface-100 flex items-center justify-between">
+            <Skeleton width="80px" height="12px" />
+            <Skeleton width="50px" height="12px" />
+        </div>
+    </div>
+);
+
 // Carousel 容器组件
 const CarouselSection = ({ title, moreLink, items, itemTemplate, moreText = "查看更多", numVisible = 3 }: { 
     title: string, 
@@ -134,32 +191,24 @@ const CoachDiscoveryPage: React.FC = () => {
                 desc: '订阅计划/服务',
                 icon: Layers,
                 href: '/market',
-                color: 'bg-primary-50 text-primary-600',
-                borderColor: 'border-primary-100',
             },
             {
                 title: '动作库',
                 desc: '动作学习/添加',
-                icon: Users, // 暂时用 Users 图标
-                href: '/me/action-lib?tab=public', // 默认跳转到公共动作库
-                color: 'bg-amber-50 text-amber-600',
-                borderColor: 'border-amber-100',
+                icon: Users,
+                href: '/me/action-lib?tab=public',
             },
             {
                 title: '找教练',
                 desc: '专业认证教练',
                 icon: UserCheck,
-                href: '/coach/discovery?tab=coaches', // 可以是同一个页面的锚点或筛选状态
-                color: 'bg-emerald-50 text-emerald-600',
-                borderColor: 'border-emerald-100',
+                href: '/coach/discovery?tab=coaches',
             },
             {
                 title: '健身资讯',
                 desc: '知识与实践',
                 icon: BookOpen,
                 href: '/articles',
-                color: 'bg-indigo-50 text-indigo-600',
-                borderColor: 'border-indigo-100',
             },
         ],
         [],
@@ -372,7 +421,7 @@ const CoachDiscoveryPage: React.FC = () => {
     // 精简版教练卡片（用于横向滚动）
     const renderMiniCoachCard = (coach: CoachesRow & { studentCount?: number; averageRating?: number }) => (
         <div
-            className="w-[180px] md:w-[220px] shrink-0 bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100 hover:border-surface-200 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start"
+            className="w-[180px] md:w-[220px] shrink-0 bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start"
             onClick={() => router.push('/coach/profile/' + coach.id + '?from=discovery')}
         >
             <div className="relative w-full aspect-square mb-3 rounded-2xl overflow-hidden bg-surface-50 border border-surface-100">
@@ -413,7 +462,7 @@ const CoachDiscoveryPage: React.FC = () => {
     // 服务商品卡片（用于横向滚动）
     const renderProductCard = (item: { coach: CoachesRow; product: Product; opt: DurationOption }, idx: number) => (
         <div 
-            className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start relative group"
+            className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start relative group"
         >
             <div className="flex items-start justify-between mb-3">
                 <div className="px-2.5 py-1 bg-primary-50 text-primary-700 text-[11px] font-black rounded-full border border-primary-100">
@@ -455,7 +504,7 @@ const CoachDiscoveryPage: React.FC = () => {
 
     // 动作卡片
     const renderActionCard = (action: PublicActionItemDto) => (
-        <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 active:scale-98 transition-all snap-start">
+        <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all snap-start">
              <h3 className="text-sm font-black text-surface-900 mb-4 line-clamp-2 min-h-[2.5em] tracking-tight">{action.name}</h3>
              <div className="flex items-center justify-between">
                  <span className="text-xs text-surface-500 font-bold">{action.like_count || 0} 赞</span>
@@ -490,7 +539,7 @@ const CoachDiscoveryPage: React.FC = () => {
 
     const renderArticleCard = (article: PublicArticleListItem) => (
         <div 
-            className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start flex flex-col justify-between"
+            className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start flex flex-col justify-between"
             onClick={() => router.push(`/articles/${article.id}`)}
         >
             <div>
@@ -535,8 +584,8 @@ const CoachDiscoveryPage: React.FC = () => {
                 <div className="max-w-6xl mx-auto">
                     <header className="mb-10">
                         <div className="flex items-center gap-4 mb-3">
-                            <div className="w-14 h-14 bg-primary-50 rounded-3xl flex items-center justify-center border border-primary-100">
-                                <UserCheck className="text-primary-600 stroke-[2.5]" size={26} />
+                            <div className="w-16 h-16 bg-surface-0 rounded-3xl flex items-center justify-center border border-surface-100">
+                                <UserCheck className="text-surface-800 stroke-[2.5]" size={28} />
                             </div>
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-black text-surface-900 tracking-tight">我的专属教练</h1>
@@ -546,7 +595,7 @@ const CoachDiscoveryPage: React.FC = () => {
                     </header>
                      <div className="space-y-4">
                         {coaches.map((c, idx) => (
-                            <div key={c.id} className="bg-surface-0 p-6 rounded-3xl border border-surface-100 hover:border-surface-200 hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] transition-all">
+                            <div key={c.id} className="bg-surface-0 p-6 rounded-3xl border border-surface-100 hover:border-surface-200 transition-all">
                                 <h3 className="text-lg font-black text-surface-900 tracking-tight mb-2">{c.name}</h3>
                                 {c.bio && <p className="text-sm text-surface-600 font-medium mb-4">{c.bio}</p>}
                                 <Button 
@@ -566,10 +615,10 @@ const CoachDiscoveryPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-surface-50 pb-20">
             {/* 顶部搜索区 */}
-            <div className="bg-surface-0 sticky top-0 z-30 pt-safe-top border-b border-surface-100">
-                <div className="px-4 py-3 flex items-center gap-3 max-w-6xl mx-auto">
+            <div className="bg-surface-50 sticky top-0 z-30 pt-safe-top">
+                <div className="px-4 py-4 flex items-center gap-3 max-w-6xl mx-auto">
                     <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
                         <InputText
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -577,12 +626,12 @@ const CoachDiscoveryPage: React.FC = () => {
                                 if (e.key === 'Enter') onSearchOrFilter();
                             }}
                             placeholder="搜索教练 / 专长 / 计划"
-                            className="w-full pl-10 h-11 rounded-2xl border border-surface-100 bg-surface-0 focus:ring-2 focus:ring-primary-500/20 text-sm font-medium"
+                            className="w-full pl-10 h-11 rounded-2xl border-0 bg-surface-50 focus:bg-surface-100 focus:ring-0 text-sm font-medium transition-colors"
                         />
                     </div>
                     {session?.user ? (
                         <button 
-                            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-surface-100 text-surface-600 hover:bg-surface-50 active:scale-95 transition-all border border-surface-200"
+                            className="w-11 h-11 flex items-center justify-center rounded-2xl bg-surface-50 text-surface-700 hover:bg-surface-100 active:scale-95 transition-all"
                             onClick={() => router.push('/me/cart')}
                         >
                             <ShoppingCart size={18} />
@@ -592,27 +641,26 @@ const CoachDiscoveryPage: React.FC = () => {
                             label="登录" 
                             size="small" 
                             onClick={() => router.push('/login')} 
-                            className="rounded-2xl font-bold border-surface-200 hover:border-primary-200 active:scale-95 transition-all"
-                            outlined
+                            className="h-11 rounded-2xl font-bold bg-surface-50 text-surface-900 border-0 hover:bg-surface-100 active:scale-95 transition-all"
                          />
                     )}
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 pt-6">
+            <div className="max-w-6xl mx-auto px-4 pt-2">
                 
                 {/* 1. 四大入口区 */}
-                <div className="grid grid-cols-4 gap-3 mb-10">
+                <div className="grid grid-cols-4 gap-4 mb-10">
                     {categories.map((c) => (
                         <button
                             key={c.href}
                             onClick={() => router.push(c.href)}
-                            className="flex flex-col items-center gap-2.5 group"
+                            className="flex flex-col items-center gap-3 group"
                         >
-                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-3xl flex items-center justify-center ${c.color} shadow-sm border ${c.borderColor} group-hover:-translate-y-0.5 group-active:scale-95 transition-all`}>
-                                <c.icon size={24} className="stroke-[2.5]" />
+                            <div className="w-16 h-16 md:w-18 md:h-18 rounded-3xl flex items-center justify-center bg-surface-0 text-surface-800 border border-surface-100 group-hover:bg-surface-50 group-hover:text-surface-900 group-hover:border-surface-200 group-active:scale-95 transition-all">
+                                <c.icon size={26} className="stroke-[2.5]" />
                             </div>
-                            <span className="text-xs font-bold text-surface-800 tracking-tight">{c.title}</span>
+                            <span className="text-xs font-black text-surface-900 tracking-tight">{c.title}</span>
                         </button>
                     ))}
                 </div>
@@ -621,8 +669,8 @@ const CoachDiscoveryPage: React.FC = () => {
                 {productFeedLoading ? (
                     <div className="mb-10">
                         <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门训练计划</h2>
-                        <div className="flex gap-3 overflow-hidden">
-                            {[1,2,3].map(i => <Skeleton key={i} width="280px" height="200px" className="shrink-0 rounded-3xl" />)}
+                        <div className="flex gap-4 overflow-hidden px-2">
+                            {[1,2,3].map(i => <ProductSkeletonCard key={i} />)}
                         </div>
                     </div>
                 ) : productFeed.length > 0 ? (
@@ -646,8 +694,8 @@ const CoachDiscoveryPage: React.FC = () => {
                 {isLoading ? (
                     <div className="mb-10">
                         <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
-                        <div className="flex gap-3 overflow-hidden">
-                            {[1,2,3,4].map(i => <Skeleton key={i} width="180px" height="240px" className="shrink-0 rounded-3xl" />)}
+                        <div className="flex gap-4 overflow-hidden px-2">
+                            {[1,2,3,4].map(i => <CoachSkeletonCard key={i} />)}
                         </div>
                     </div>
                 ) : coaches.length > 0 ? (
@@ -673,8 +721,8 @@ const CoachDiscoveryPage: React.FC = () => {
                         {recommendedLoading ? (
                             <div className="mb-10">
                                 <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门动作</h2>
-                                <div className="flex gap-3 overflow-hidden">
-                                    {[1,2,3,4].map(i => <Skeleton key={i} width="220px" height="140px" className="shrink-0 rounded-3xl" />)}
+                                <div className="flex gap-4 overflow-hidden px-2">
+                                    {[1,2,3,4,5].map(i => <ActionSkeletonCard key={i} />)}
                                 </div>
                             </div>
                         ) : recommendedActions.length > 0 ? (
@@ -702,8 +750,8 @@ const CoachDiscoveryPage: React.FC = () => {
                         {articlesLoading ? (
                             <div className="mb-10">
                                 <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">健身资讯</h2>
-                                <div className="flex gap-3 overflow-hidden">
-                                    {[1,2,3].map(i => <Skeleton key={i} width="260px" height="180px" className="shrink-0 rounded-3xl" />)}
+                                <div className="flex gap-4 overflow-hidden px-2">
+                                    {[1,2,3].map(i => <ArticleSkeletonCard key={i} />)}
                                 </div>
                             </div>
                         ) : articles.length > 0 ? (
@@ -727,8 +775,8 @@ const CoachDiscoveryPage: React.FC = () => {
 
                  {/* 6. 底部 Slogan */}
                 <div className="py-12 text-center">
-                    <div className="inline-flex items-center justify-center w-14 h-14 bg-primary-50 rounded-3xl mb-4 border border-primary-100">
-                         <Star size={20} className="text-primary-500 fill-primary-500" />
+                    <div className="inline-flex items-center justify-center w-14 h-14 bg-surface-0 rounded-3xl mb-4 border border-surface-100">
+                         <Star size={20} className="text-surface-700 fill-surface-700" />
                     </div>
                     <p className="text-sm text-surface-500 font-bold tracking-tight">让小白到高手都能有所收获</p>
                 </div>
