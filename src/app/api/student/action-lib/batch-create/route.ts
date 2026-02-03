@@ -7,6 +7,7 @@ import {
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { normalizeActionNameForMatch } from "@/lib/planImportText";
+import type { ItemType } from "@/types/student";
 
 /**
  * 批量创建学员动作
@@ -58,24 +59,40 @@ export async function POST(req: Request) {
         });
 
         // 批量插入学员动作（学员动作表不包含自动计算相关字段）
-        const actionsToInsert = uniqueToCreate.map((action) => ({
-            user_id: userId,
-            name: action.name,
-            detail: (action as any).detail?.trim()
-                ? (action as any).detail
-                : null,
-            positions: (action as any).positions?.length
-                ? (action as any).positions
-                : ["全身"], // 默认位置
-            attrs: (action as any).attrs?.length
+        const defaultAttrsByType: Record<ItemType, string[]> = {
+            STRENGTH: ["组数", "次数", "强度", "休息时间"],
+            CARDIO: ["距离", "配速", "持续时间"],
+            DIET: ["食物清单", "热量", "宏量营养"],
+            HABIT: ["目标数值", "完成状态"],
+        };
+
+        const actionsToInsert = uniqueToCreate.map((action) => {
+            const itemType = normalizeItemType((action as any).type);
+            const attrs = (action as any).attrs?.length
                 ? (action as any).attrs
-                : ["组数", "次数", "强度", "休息时间"], // 默认属性
-            url: (action as any).url?.trim() ? (action as any).url : null,
-            enableAutoWeightCompute: action.needsAutoCompute,
-            includesBodyWeight: action.includesBodyWeight,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        }));
+                : defaultAttrsByType[itemType];
+            return {
+                user_id: userId,
+                name: action.name,
+                type: itemType,
+                detail: (action as any).detail?.trim()
+                    ? (action as any).detail
+                    : null,
+                positions: (action as any).positions?.length
+                    ? (action as any).positions
+                    : ["全身"], // 默认位置
+                attrs,
+                url: (action as any).url?.trim() ? (action as any).url : null,
+                enableAutoWeightCompute: itemType === "STRENGTH"
+                    ? action.needsAutoCompute
+                    : false,
+                includesBodyWeight: itemType === "STRENGTH"
+                    ? action.includesBodyWeight
+                    : false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        });
 
         const createdActions: any[] = [];
         if (actionsToInsert.length > 0) {
@@ -114,4 +131,10 @@ export async function POST(req: Request) {
             message: "批量创建动作失败",
         }, { status: 500 });
     }
+}
+
+function normalizeItemType(input?: unknown): ItemType {
+    const raw = String(input ?? "").toUpperCase();
+    if (raw === "CARDIO" || raw === "DIET" || raw === "HABIT") return raw;
+    return "STRENGTH";
 }

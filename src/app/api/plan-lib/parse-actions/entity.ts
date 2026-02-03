@@ -12,6 +12,7 @@ export interface ParsedActionInfo {
     needsAutoCompute: boolean;
     includesBodyWeight: boolean;
     attrs: string[];
+    type: "STRENGTH" | "CARDIO" | "DIET" | "HABIT";
     isNew: boolean;
 }
 
@@ -27,4 +28,5 @@ export interface GeminiParsedAction {
     needsAutoCompute: boolean;
     includesBodyWeight: boolean;
     attrs: string[];
+    type: "STRENGTH" | "CARDIO" | "DIET" | "HABIT";
 }
