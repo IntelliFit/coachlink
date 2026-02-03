@@ -23,12 +23,19 @@ export async function POST(req: Request) {
                 { status: 400 },
             );
         }
+        if (!body?.url || !body.url.trim()) {
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: "演示视频链接必填", data: null },
+                { status: 400 },
+            );
+        }
 
         const type = body.type || "STRENGTH";
         const { data: action, error } = await supabase
             .from("community_actions")
             .insert({
                 contributor_user_id: userId,
+                owner_user_id: userId,
                 name: body.name.trim(),
                 detail: body.detail ?? null,
                 url: body.url ?? null,
@@ -59,6 +66,27 @@ export async function POST(req: Request) {
                 { success: false, message: `贡献动作失败: ${error.message}`, data: null },
                 { status: 500 },
             );
+        }
+
+        if (action?.id) {
+            const { error: contributorError } = await supabase
+                .from("community_action_contributors")
+                .upsert(
+                    {
+                        action_id: action.id,
+                        user_id: userId,
+                        role: "owner",
+                        contribution_count: 1,
+                        last_contributed_at: new Date().toISOString(),
+                    },
+                    { onConflict: "action_id,user_id" },
+                );
+            if (contributorError) {
+                console.warn(
+                    "[public-action-lib] add-action contributor upsert error:",
+                    contributorError,
+                );
+            }
         }
 
         return NextResponse.json<ApiData<AddPublicActionResponseDto>>({
