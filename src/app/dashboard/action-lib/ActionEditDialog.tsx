@@ -163,6 +163,16 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     }, [action, visible]);
 
     const handleSave = async () => {
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+            showToast({
+                severity: "warn",
+                summary: "请填写名称",
+                detail: "动作名称不能为空",
+            });
+            return;
+        }
+
         setLoading(true);
         try {
             const itemSchema: any = {};
@@ -175,7 +185,12 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
 
             const actionData: Partial<CoachActionRow> = {
                 id: action?.id,
-                name, detail, url: url || undefined, positions, attrs, type: itemType,
+                name: trimmedName,
+                detail: detail.trim() || null,
+                url: url || undefined,
+                positions,
+                attrs,
+                type: itemType,
                 enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
                 includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
                 suggested_time: itemType === 'DIET' && suggestedTime ? suggestedTime : null,

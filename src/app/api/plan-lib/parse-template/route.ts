@@ -79,9 +79,13 @@ function splitPlanByWeekSections(text: string): Array<{
 
     for (const raw of lines) {
         const line = raw;
+        const trimmed = line.trim();
 
-        const wMatch = line.match(/W(\d+)D/i);
-        const chineseWeekMatch = line.match(
+        const wMatch = trimmed.match(/W(\d+)D/i);
+        const wHeadingMatch = trimmed.match(
+            /^\*{0,2}\s*W\s*(\d+)\s*(?:[^\d].*)?\*{0,2}$/i,
+        );
+        const chineseWeekMatch = trimmed.match(
             /第\s*([0-9一二三四五六七八九十两]+)\s*周/,
         );
 
@@ -93,6 +97,14 @@ function splitPlanByWeekSections(text: string): Array<{
                 buffer.push(line);
                 continue;
             }
+        }
+
+        if (wHeadingMatch) {
+            const num = parseInt(wHeadingMatch[1], 10);
+            flush();
+            currentWeek = num;
+            buffer.push(line);
+            continue;
         }
 
         if (wMatch) {

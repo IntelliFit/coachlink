@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
-import { AddActionDto, AddActionResponseDto } from "./entity";
-import { ApiData } from "@/types/api";
+import type { AddActionDto, AddActionResponseDto } from "./entity";
+import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 export async function POST(req: Request) {
-    const {
-        ...addData
-    } = await req.json() as AddActionDto;
+    const addData = await req.json() as AddActionDto;
 
     // Check if user is logged in and has coach role
     const session = await getServerSession();
@@ -21,10 +19,10 @@ export async function POST(req: Request) {
     }
 
     // 基础字段验证
-    if (!addData.name || !addData.detail) {
+    if (!addData.name || !addData.name.trim()) {
         return NextResponse.json({
             success: false,
-            message: "缺少必要参数（name 和 detail 为必填项）",
+            message: "缺少必要参数（name 为必填项）",
         }, { status: 400 });
     }
 
@@ -32,12 +30,9 @@ export async function POST(req: Request) {
     const itemType = (addData as any).type;
     // 只有明确是 STRENGTH 或未指定类型时才验证 positions
     const needsPositions = !itemType || itemType === "STRENGTH";
-    if (needsPositions && !addData.positions?.length) {
-        return NextResponse.json({
-            success: false,
-            message: "力量训练类型必须选择动作部位",
-        }, { status: 400 });
-    }
+    const fallbackPositions = needsPositions && !addData.positions?.length
+        ? ["其他"]
+        : addData.positions;
 
     if (!session.user.is_coach) {
         return NextResponse.json({
@@ -52,6 +47,9 @@ export async function POST(req: Request) {
         .insert({
             coach_id: userId,
             ...addData,
+            name: addData.name.trim(),
+            detail: addData.detail?.trim() || null,
+            positions: fallbackPositions ?? null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })
