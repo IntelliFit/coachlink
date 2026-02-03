@@ -6,7 +6,7 @@ import { AlertTriangle, Calculator as CalcIcon, Info } from "lucide-react";
 import { Card } from "primereact/card";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
-import { InputNumber } from "primereact/inputnumber";
+import { AeroInputNumber } from "@/components/AeroInputNumber";
 import { Slider } from "primereact/slider";
 import { Skeleton } from "primereact/skeleton";
 
@@ -667,7 +667,7 @@ export default function StreetliftingCalculatorPage() {
                             </div>
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">体重（kg）</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.bodyweight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, bodyweight: e.value ?? null }))}
                                     className="w-full"
@@ -685,7 +685,7 @@ export default function StreetliftingCalculatorPage() {
                             {isUpperBodyExercise(exerciseType) && mode === "forward" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">附加负重（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.addedWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, addedWeight: e.value ?? null }))}
                                         className="w-full"
@@ -700,7 +700,7 @@ export default function StreetliftingCalculatorPage() {
                             {isUpperBodyExercise(exerciseType) && mode === "reverse_weight" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">目标负重1RM（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.added1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, added1RM: e.value ?? null }))}
                                         className="w-full"
@@ -715,7 +715,7 @@ export default function StreetliftingCalculatorPage() {
                             {isUpperBodyExercise(exerciseType) && mode === "reverse_reps" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">目标负重1RM（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.added1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, added1RM: e.value ?? null }))}
                                         className="w-full"
@@ -730,7 +730,7 @@ export default function StreetliftingCalculatorPage() {
                             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === "forward" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">做组重量（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.liftWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, liftWeight: e.value ?? null }))}
                                         className="w-full"
@@ -745,7 +745,7 @@ export default function StreetliftingCalculatorPage() {
                             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === "reverse_weight" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">目标1RM（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.target1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, target1RM: e.value ?? null }))}
                                         className="w-full"
@@ -760,7 +760,7 @@ export default function StreetliftingCalculatorPage() {
                             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === "reverse_reps" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">目标1RM（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.target1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, target1RM: e.value ?? null }))}
                                         className="w-full"
@@ -775,7 +775,7 @@ export default function StreetliftingCalculatorPage() {
                             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === "reverse_reps" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">做组重量（kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.workingLiftWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, workingLiftWeight: e.value ?? null }))}
                                         className="w-full"
@@ -790,7 +790,7 @@ export default function StreetliftingCalculatorPage() {
                             {isUpperBodyExercise(exerciseType) && mode === "reverse_reps" && (
                                 <div>
                                     <div className="text-xs text-surface-500 mb-1.5">做组重量（附加负重，kg）</div>
-                                    <InputNumber
+                                    <AeroInputNumber
                                         value={form.workingAddedWeight}
                                         onValueChange={(e) => setForm((p) => ({ ...p, workingAddedWeight: e.value ?? null }))}
                                         className="w-full"
@@ -808,7 +808,7 @@ export default function StreetliftingCalculatorPage() {
                                 <div className="text-xs text-surface-500 mb-1.5">
                                     {mode === "day_max" ? "每组次数" : "完成次数"}
                                 </div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.reps}
                                     onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
                                     className="w-full"
@@ -872,7 +872,7 @@ export default function StreetliftingCalculatorPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <div className="text-xs text-surface-500 mb-1.5">做组重量（附加负重，kg）</div>
-                                        <InputNumber
+                                        <AeroInputNumber
                                             value={form.addedWeight}
                                             onValueChange={(e) => setForm((p) => ({ ...p, addedWeight: e.value ?? null }))}
                                             className="w-full"
@@ -882,7 +882,7 @@ export default function StreetliftingCalculatorPage() {
                                     </div>
                                     <div>
                                         <div className="text-xs text-surface-500 mb-1.5">组数</div>
-                                        <InputNumber
+                                        <AeroInputNumber
                                             value={form.sets}
                                             onValueChange={(e) => setForm((p) => ({ ...p, sets: e.value ?? null }))}
                                             className="w-full"
@@ -932,7 +932,7 @@ export default function StreetliftingCalculatorPage() {
                                                 onChange={(e) => setForm((p) => ({ ...p, dayFirstType: e.value }))}
                                                 placeholder="类型"
                                             />
-                                            <InputNumber
+                                            <AeroInputNumber
                                                 value={form.dayFirstValue}
                                                 onValueChange={(e) => setForm((p) => ({ ...p, dayFirstValue: e.value ?? null }))}
                                                 className="w-full"
@@ -963,7 +963,7 @@ export default function StreetliftingCalculatorPage() {
                                                 onChange={(e) => setForm((p) => ({ ...p, dayLastType: e.value }))}
                                                 placeholder="类型"
                                             />
-                                            <InputNumber
+                                            <AeroInputNumber
                                                 value={form.dayLastValue}
                                                 onValueChange={(e) => setForm((p) => ({ ...p, dayLastValue: e.value ?? null }))}
                                                 className="w-full"

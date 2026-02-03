@@ -9,7 +9,7 @@ import { Card } from "primereact/card";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { IconField } from "primereact/iconfield";
-import { InputNumber } from "primereact/inputnumber";
+import { AeroInputNumber } from "@/components/AeroInputNumber";
 import { InputIcon } from "primereact/inputicon";
 import { InputText } from "primereact/inputtext";
 import { Skeleton } from "primereact/skeleton";
@@ -820,7 +820,7 @@ export default function StreetliftingDataPage() {
                             </div>
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">体重（kg）</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.bodyweight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, bodyweight: e.value ?? null }))}
                                     className="w-full"
@@ -838,7 +838,7 @@ export default function StreetliftingDataPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">附加负重（kg）</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.added_weight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, added_weight: e.value ?? null }))}
                                     className="w-full"
@@ -848,7 +848,7 @@ export default function StreetliftingDataPage() {
                             </div>
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">完成次数</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.reps}
                                     onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
                                     className="w-full"
