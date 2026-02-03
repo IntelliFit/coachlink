@@ -4,6 +4,8 @@ export interface ParseStudentTemplateDto {
     actions: {
         id: string;
         name: string;
+        type?: "STRENGTH" | "CARDIO" | "DIET" | "HABIT";
+        attrs?: string[];
     }[];
 }
 
@@ -12,6 +14,7 @@ interface ParsedAction {
     actionId: string;
     sets: number;
     reps: number;
+    durationSeconds?: number | null;
     restSeconds?: number;
     intensityConfig?: {
         relativeIntensity?: {
@@ -21,6 +24,15 @@ interface ParsedAction {
         fixedWeight?: number;
     } | null;
     note?: string;
+    customData?: {
+        content?: string;
+        calories?: number;
+        image_url?: string;
+        distance?: number;
+        duration?: number;
+        pace?: string;
+        target_duration?: number;
+    } | null;
 }
 
 // 解析后的训练日

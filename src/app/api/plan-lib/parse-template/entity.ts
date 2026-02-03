@@ -1,5 +1,6 @@
 import { CoachActionRow } from "@/types";
 import { IntensityConfig } from "@/types/intensity";
+import { PlanItemCustomData } from "@/types/plan-item";
 
 // 阶段2：解析模板请求
 export interface ParseTemplateDto {
@@ -16,6 +17,7 @@ export interface ParsedTemplateAction {
     restSeconds?: number;
     intensityConfig?: IntensityConfig | null;
     note?: string;
+    customData?: PlanItemCustomData | null;
 }
 
 // 解析出的训练日
@@ -62,6 +64,7 @@ export interface GeminiParsedTemplate {
                 };
             } | null;
             note?: string;
+            customData?: PlanItemCustomData | null;
         }[];
         dayNote?: string;
     }[];

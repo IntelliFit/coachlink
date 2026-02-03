@@ -1,5 +1,6 @@
 import React from 'react';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
@@ -24,6 +25,7 @@ export const HabitItemForm: React.FC<HabitItemFormProps> = ({
     const customData = item.params?.custom_data || {};
     const targetDuration = customData.target_duration || null; // minutes
     const habitName = customData.habit_name || ''; // 如果没有 actionId，允许输入名字
+    const note = item.params?.note || '';
 
     const updateCustomData = (updates: any) => {
         onUpdate(dayIndex, setIndex, 'params', {
@@ -32,6 +34,13 @@ export const HabitItemForm: React.FC<HabitItemFormProps> = ({
                 ...customData,
                 ...updates
             }
+        });
+    };
+
+    const updateNote = (nextNote: string) => {
+        onUpdate(dayIndex, setIndex, 'params', {
+            ...item.params,
+            note: nextNote,
         });
     };
 
@@ -73,6 +82,18 @@ export const HabitItemForm: React.FC<HabitItemFormProps> = ({
                     className="w-full"
                     disabled={saving}
                     placeholder="例如：10分钟"
+                />
+            </div>
+
+            <div>
+                <label className="block text-900 text-xs mb-1">备注 (可选)</label>
+                <InputTextarea
+                    value={note}
+                    onChange={(e) => updateNote(e.target.value)}
+                    rows={2}
+                    className="w-full"
+                    disabled={saving}
+                    placeholder="例如：日饮水 2L / 阅读 30分钟"
                 />
             </div>
         </div>
