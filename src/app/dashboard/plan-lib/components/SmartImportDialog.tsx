@@ -30,6 +30,58 @@ interface Step {
     label: string;
 }
 
+function parseChineseWeekNumber(input: string): number | null {
+    const map: Record<string, number> = {
+        '零': 0,
+        '一': 1,
+        '二': 2,
+        '两': 2,
+        '三': 3,
+        '四': 4,
+        '五': 5,
+        '六': 6,
+        '七': 7,
+        '八': 8,
+        '九': 9,
+        '十': 10,
+    };
+    if (/^\d+$/.test(input)) return parseInt(input, 10);
+    if (input === '十') return 10;
+    if (input.startsWith('十')) {
+        const last = map[input.slice(1)] ?? 0;
+        return 10 + last;
+    }
+    if (input.endsWith('十')) {
+        const first = map[input[0]] ?? 0;
+        return first * 10;
+    }
+    if (input.includes('十')) {
+        const [a, b] = input.split('十');
+        const first = map[a] ?? 0;
+        const last = map[b] ?? 0;
+        return first * 10 + last;
+    }
+    return map[input] ?? null;
+}
+
+function detectWeekMarkers(text: string): number[] {
+    const markers = new Set<number>();
+    const wdRegex = /W\s*(\d+)\s*D/gi;
+    const wRegex = /(?:^|\s|\*|\(|\[)W\s*(\d+)/gi;
+    const cnRegex = /第\s*([0-9一二三四五六七八九十两]+)\s*周/g;
+    for (const match of text.matchAll(wdRegex)) {
+        markers.add(parseInt(match[1], 10));
+    }
+    for (const match of text.matchAll(wRegex)) {
+        markers.add(parseInt(match[1], 10));
+    }
+    for (const match of text.matchAll(cnRegex)) {
+        const num = parseChineseWeekNumber(match[1]);
+        if (num) markers.add(num);
+    }
+    return Array.from(markers).filter((n) => Number.isFinite(n) && n > 0);
+}
+
 const steps: Step[] = [
     { label: '输入文本' },
     { label: '确认动作' },
@@ -88,6 +140,7 @@ export default function SmartImportDialog({
     const [parsedWeeks, setParsedWeeks] = useState(0);
     const [parsedDays, setParsedDays] = useState<ParsedTemplateDay[]>([]);
     const [globalDescription, setGlobalDescription] = useState<string>('');
+    const [parseWarning, setParseWarning] = useState<string | null>(null);
 
     // Trace (auto-generate real cases)
     const traceUiEnabled = process.env.NEXT_PUBLIC_SMART_IMPORT_TRACE === '1';
@@ -138,6 +191,7 @@ export default function SmartImportDialog({
         setParsedWeeks(0);
         setParsedDays([]);
         setGlobalDescription('');
+        setParseWarning(null);
         setSaveAsCase(false);
         setTraceId(null);
         setCaseDir('');
@@ -303,6 +357,16 @@ export default function SmartImportDialog({
             setParsedWeeks(templateResult.data.weeks);
             setParsedDays(templateResult.data.trainingDays);
             setGlobalDescription(templateResult.data.globalDescription || '');
+            const weekMarkers = detectWeekMarkers(inputText);
+            const parsedWeeksCount = Number(templateResult.data.weeks || 0);
+            const maxMarker = weekMarkers.length > 0 ? Math.max(...weekMarkers) : 0;
+            if (weekMarkers.length >= 2 && parsedWeeksCount <= 1) {
+                setParseWarning('检测到多周标记（如 W1/W2 或 第X周），但只识别出 1 周。建议明确写周标题：W1/W2 或 第1周/第2周，并在每周下用 D1/D2/周一 等标注训练日。');
+            } else if (maxMarker > 0 && parsedWeeksCount > 0 && parsedWeeksCount < maxMarker) {
+                setParseWarning(`检测到周标记最大为 W${maxMarker}，但只解析出 ${parsedWeeksCount} 周。建议检查周标题是否连续、格式是否为 W# 或 第#周。`);
+            } else {
+                setParseWarning(null);
+            }
             setActiveStep(2);
 
             // Finalize trace: persist what the UI saw (non-blocking)
@@ -393,6 +457,11 @@ export default function SmartImportDialog({
                         <p className="text-sm text-gray-600">
                             请粘贴您的训练计划文本，系统将自动智能解析动作和训练结构。
                         </p>
+                        <Message
+                            severity="info"
+                            text="推荐格式：周标题用 W1/W2 或 第1周/第2周，训练日用 D1/D2 或 周一/周三。每周内容之间空一行更稳。"
+                            className="w-full"
+                        />
                         {traceUiEnabled && (
                             <div className="flex flex-col gap-2 rounded-lg border p-3 bg-gray-50">
                                 <div className="flex items-center gap-2">
@@ -624,6 +693,9 @@ D2
             case 2:
                 return (
                     <div className="flex flex-col gap-4">
+                        {parseWarning ? (
+                            <Message severity="warn" text={parseWarning} className="w-full" />
+                        ) : null}
                         {globalDescription?.trim() ? (
                             <Message
                                 severity="info"

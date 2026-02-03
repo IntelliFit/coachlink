@@ -1,0 +1,142 @@
+{
+  "weekIndex": 1,
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "sets": 3,
+          "reps": 3,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 5
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "sets": 3,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "rm",
+              "value": 10
+            }
+          },
+          "note": "每组做到接近力竭（RPE 9）"
+        },
+        {
+          "actionId": "5c8d5030-2f74-4f86-8187-8eaa7755b75a",
+          "sets": 5,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 30,
+          "intensityConfig": null,
+          "note": "自重，每组做到接近力竭"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "自动填充休息日"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "23ef2d71-fe54-4180-8d56-54b2a80f2434",
+          "sets": 5,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "note": "自重，每组拉到爆发力明显降速为止（接近力竭）"
+        },
+        {
+          "actionId": "23ef2d71-fe54-4180-8d56-54b2a80f2434",
+          "sets": 2,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "自重，做到极致力竭"
+        },
+        {
+          "actionId": "9f420250-5148-4dc0-a004-f3df72e7a15c",
+          "sets": 2,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "做到抓握力竭为止"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "自动填充休息日"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "825b9538-badb-428c-a154-dff420ae095f",
+          "sets": 1,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 5
+          },
+          "note": "目标总数：[极限次数 × 5] 次，每组接近力竭，不限组数凑满总数"
+        },
+        {
+          "actionId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+          "sets": 1,
+          "reps": null,
+          "durationSeconds": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "目标总数：30次，每组接近力竭，不限组数凑满总数"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "自动填充休息日"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "自动填充休息日"
+    }
+  ]
+}
