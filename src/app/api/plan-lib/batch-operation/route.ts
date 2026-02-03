@@ -282,7 +282,7 @@ export async function POST(req: NextRequest) {
                     const startTime = Date.now();
 
                     // 1. 获取训练计划模板
-                    sendMessage({ type: 'progress', message: '正在加载训练计划...' });
+                    sendMessage({ type: 'progress', message: '正在加载训练计划' });
                     
                     const { data: template, error: templateError } = await supabase
                         .from('coach_plan_templates')
@@ -299,7 +299,7 @@ export async function POST(req: NextRequest) {
                     const trainingDays = JSON.parse(JSON.stringify(template.training_days || []));
 
                     // 2. 获取教练的所有动作库
-                    sendMessage({ type: 'progress', message: '正在加载动作库...' });
+                    sendMessage({ type: 'progress', message: '正在加载动作库' });
                     
                     const { data: actionsData, error: actionsError } = await supabase
                         .from('coach_actions')
@@ -311,9 +311,6 @@ export async function POST(req: NextRequest) {
                     }
 
                     const actions = actionsData || [];
-
-                    // 3. 构建初始 prompt
-                    sendMessage({ type: 'progress', message: '正在分析您的指令...' });
 
                     const systemPrompt = `你是一个训练计划批量操作助手。
 

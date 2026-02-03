@@ -43,9 +43,16 @@ export async function POST(req: Request) {
                 { status: 404 },
             );
         }
+        if (!(myAction as any).url || !(myAction as any).url.trim()) {
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: "演示视频链接必填", data: null },
+                { status: 400 },
+            );
+        }
 
         const insertData: any = {
             contributor_user_id: userId,
+            owner_user_id: userId,
             name: (myAction as any).name,
             detail: (myAction as any).detail ?? null,
             positions: (myAction as any).positions ?? null,
@@ -117,6 +124,13 @@ export async function POST(req: Request) {
                     );
                 }
 
+                await incrementContributor({
+                    supabase,
+                    actionId: (existing as any).id,
+                    userId,
+                    role: "owner",
+                });
+
                 return NextResponse.json<ApiData<PublishFromMyActionResponseDto>>({
                     success: true,
                     message: "已更新公共动作库版本",
@@ -128,6 +142,15 @@ export async function POST(req: Request) {
                 { success: false, message: "贡献失败", data: null },
                 { status: 500 },
             );
+        }
+
+        if (publicAction?.id) {
+            await incrementContributor({
+                supabase,
+                actionId: publicAction.id,
+                userId,
+                role: "owner",
+            });
         }
 
         return NextResponse.json<ApiData<PublishFromMyActionResponseDto>>({
@@ -142,5 +165,40 @@ export async function POST(req: Request) {
             { status: 500 },
         );
     }
+}
+
+async function incrementContributor(params: {
+    supabase: typeof import("@/lib/supabaseClient").serviceRoleSupabase;
+    actionId: string;
+    userId: string;
+    role: string;
+}) {
+    const { supabase, actionId, userId, role } = params;
+    const { data: existing } = await supabase
+        .from("community_action_contributors")
+        .select("id, contribution_count")
+        .eq("action_id", actionId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (existing?.id) {
+        await supabase
+            .from("community_action_contributors")
+            .update({
+                contribution_count: Number(existing.contribution_count || 0) + 1,
+                last_contributed_at: new Date().toISOString(),
+                role,
+            })
+            .eq("id", existing.id);
+        return;
+    }
+
+    await supabase.from("community_action_contributors").insert({
+        action_id: actionId,
+        user_id: userId,
+        role,
+        contribution_count: 1,
+        last_contributed_at: new Date().toISOString(),
+    });
 }
 
