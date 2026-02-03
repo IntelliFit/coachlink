@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { Dialog } from 'primereact/dialog';
 import { Checkbox } from 'primereact/checkbox';
+import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'lucide-react';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -62,6 +63,7 @@ const EditPlanPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [questions, setQuestions] = useState<TrainingItem[]>([]);
+    const [actionSearchId, setActionSearchId] = useState<string | null>(null);
     
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
@@ -517,6 +519,24 @@ const EditPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
+    const actionSearchOptions = useMemo(
+        () => actions.map(action => ({ label: action.name, value: action.id })),
+        [actions]
+    );
+
+    const actionSearchResults = useMemo(() => {
+        if (!actionSearchId) return [];
+        return days.filter(day => {
+            if (!day.actionSets || day.actionSets.length === 0) return false;
+            return day.actionSets.some((set: any) => {
+                if (set.type === 'one-filter') {
+                    return (set.actions || []).some((inner: any) => inner.actionId === actionSearchId);
+                }
+                return set.actionId === actionSearchId;
+            });
+        });
+    }, [days, actionSearchId]);
+
     // 获取选中的训练日
     const selectedDay = selectedDayIndex !== null
         ? days.find(day => day.dayIndex === selectedDayIndex)
@@ -664,6 +684,57 @@ const EditPlanPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
                     {/* 左侧：周历视图 */}
                     <div className="lg:col-span-1 sticky top-20 self-start max-h-[70vh] md:max-h-[75vh] overflow-auto">
+                        <div className="mb-4 rounded-[20px] border border-surface-200/70 bg-surface p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="text-sm font-black text-surface-800">动作搜索</div>
+                                {actionSearchId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActionSearchId(null)}
+                                        className="text-[11px] font-black text-surface-400 hover:text-primary-600 transition-colors"
+                                    >
+                                        清除
+                                    </button>
+                                )}
+                            </div>
+                            <Dropdown
+                                value={actionSearchId}
+                                options={actionSearchOptions}
+                                onChange={(e) => setActionSearchId(e.value || null)}
+                                placeholder="输入动作名称搜索"
+                                filter
+                                showClear
+                                className="w-full"
+                                disabled={saving || actions.length === 0}
+                            />
+                            {actionSearchId && (
+                                <div className="mt-3">
+                                    <div className="text-[11px] font-black text-surface-400 mb-2">
+                                        命中 {actionSearchResults.length} 天
+                                    </div>
+                                    {actionSearchResults.length === 0 ? (
+                                        <div className="text-[11px] text-surface-400">未找到包含该动作的训练日</div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2">
+                                            {actionSearchResults.map((day) => {
+                                                const week = Math.ceil(day.dayIndex / 7);
+                                                const dayOfWeek = (day.dayIndex - 1) % 7 + 1;
+                                                return (
+                                                    <button
+                                                        key={day.dayIndex}
+                                                        type="button"
+                                                        onClick={() => setSelectedDayIndex(day.dayIndex)}
+                                                        className="px-3 py-1.5 rounded-full border border-surface-200 text-[11px] font-black text-surface-600 hover:border-primary-300 hover:text-primary-700 transition-colors"
+                                                    >
+                                                        第 {day.dayIndex} 天 · W{week}D{dayOfWeek}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                         <WeekCalendar
                             days={days}
                             selectedDayIndex={selectedDayIndex}
