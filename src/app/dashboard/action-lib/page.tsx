@@ -155,7 +155,8 @@ const ActionLib = () => {
             setDialogVisible(false);
             searchTerm ? handleSearch() : loadActions();
         } catch (error) {
-            showToast({ severity: 'error', summary: '保存失败', detail: '无法保存动作' });
+            const message = error instanceof Error ? error.message : '无法保存动作';
+            showToast({ severity: 'error', summary: '保存失败', detail: message });
         }
     };
 
