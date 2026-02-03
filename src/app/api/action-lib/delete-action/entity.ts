@@ -1,5 +1,6 @@
 export interface DeleteActionDto {
     id: string;
+    removeReferences?: boolean;
 }
 
 
