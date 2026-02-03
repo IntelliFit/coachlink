@@ -91,6 +91,13 @@ export async function POST(req: Request) {
 
     if (error) {
         console.error("Error updating action:", error);
+        // 检查是否是唯一约束冲突（同名动作已存在）
+        if (error.code === '23505' || error.message?.includes('unique_coach_action_name')) {
+            return NextResponse.json({
+                success: false,
+                message: "该名称的动作已存在，请使用其他名称"
+            }, { status: 409 });
+        }
         return NextResponse.json({
             success: false,
             message: "Failed to update action"

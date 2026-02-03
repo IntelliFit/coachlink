@@ -23,6 +23,7 @@ export async function POST(req: Request) {
         weekDays,
         globalAnswers, // 新增
         trainingDays,
+        syncInstances,
     } = await req.json() as UpdateTemplateDto;
 
     // Check if user is logged in and has coach role
@@ -128,6 +129,27 @@ export async function POST(req: Request) {
         }
 
         template = data;
+    }
+
+    if (syncInstances) {
+        const instanceTrainingDays = trainingDays || template?.training_days;
+        if (Array.isArray(instanceTrainingDays)) {
+            const { error: syncError } = await supabase
+                .from("coach_plan_instances")
+                .update({
+                    training_days: instanceTrainingDays,
+                })
+                .eq("coach_plan_template_id", id)
+                .eq("coach_id", template?.coach_id);
+
+            if (syncError) {
+                console.error("Error syncing instances:", syncError);
+                return NextResponse.json({
+                    success: false,
+                    message: "Failed to sync instances",
+                }, { status: 500 });
+            }
+        }
     }
 
     return NextResponse.json<ApiData<UpdateTemplateResponseDto>>({
