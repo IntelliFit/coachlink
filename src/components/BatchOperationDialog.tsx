@@ -1,14 +1,21 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { BatchOperationService } from '@/app/service/batchOperationService';
 import { SSEMessage, ModificationDiff } from '@/app/api/plan-lib/batch-operation/entity';
+import MarkdownIt from 'markdown-it';
+
+let DOMPurify: any;
+if (typeof window !== 'undefined') {
+    DOMPurify = require('dompurify').default || require('dompurify');
+}
 
 interface BatchOperationDialogProps {
     visible: boolean;
@@ -47,9 +54,14 @@ export function BatchOperationDialog({
         updatedTrainingDays: any;
         modifications: ModificationDiff[];
     } | null>(null);
+    const [queryAnswer, setQueryAnswer] = useState<string | null>(null);
     const [hasStarted, setHasStarted] = useState(false);
+    const [editedModifications, setEditedModifications] = useState<ModificationDiff[]>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<any>(null);
+
+    // Markdown 渲染器
+    const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
 
     // 检查是否为开发模式
     const isDevelopment = process.env.NODE_ENV === 'development';
@@ -90,9 +102,16 @@ export function BatchOperationDialog({
                         updatedTrainingDays: message.updatedTrainingDays,
                         modifications: message.modifications
                     });
+                    // 初始化可编辑的修改列表
+                    setEditedModifications(message.modifications);
                 } else {
                     addLog('error', '操作失败');
                 }
+                break;
+            
+            case 'query_result':
+                addLog('success', '✅ 分析完成');
+                setQueryAnswer(message.answer);
                 break;
             
             case 'error':
@@ -112,6 +131,7 @@ export function BatchOperationDialog({
         setIsProcessing(true);
         setLogs([]);
         setPreviewData(null);
+        setQueryAnswer(null);
 
         await BatchOperationService.executeBatchOperation(
             templateId,
@@ -143,6 +163,29 @@ export function BatchOperationDialog({
 
         setIsApplying(true);
         try {
+            // 根据编辑后的 modifications 重新应用更改
+            const finalTrainingDays = JSON.parse(JSON.stringify(previewData.originalTrainingDays));
+            
+            editedModifications.forEach(mod => {
+                const day = finalTrainingDays[mod.dayIndex - 1];
+                if (!day) return;
+
+                // 根据 field 类型应用修改
+                if (mod.field === '替换动作') {
+                    // 查找要替换的动作
+                    const actionIndex = day.actions.findIndex((a: any) => a.name === mod.oldValue);
+                    if (actionIndex !== -1) {
+                        day.actions[actionIndex].name = mod.newValue;
+                    }
+                } else {
+                    // 其他字段修改
+                    const actionIndex = day.actions.findIndex((a: any) => a.name === mod.actionName);
+                    if (actionIndex !== -1) {
+                        day.actions[actionIndex][mod.field] = mod.newValue;
+                    }
+                }
+            });
+
             const response = await fetch('/api/plan-lib/apply-batch-operation', {
                 method: 'POST',
                 headers: {
@@ -150,7 +193,7 @@ export function BatchOperationDialog({
                 },
                 body: JSON.stringify({
                     templateId,
-                    updatedTrainingDays: previewData.updatedTrainingDays
+                    updatedTrainingDays: finalTrainingDays
                 }),
             });
 
@@ -181,7 +224,9 @@ export function BatchOperationDialog({
             setSubmittedInstruction('');
             setLogs([]);
             setPreviewData(null);
+            setQueryAnswer(null);
             setHasStarted(false);
+            setEditedModifications([]);
             onHide();
         }
     };
@@ -192,7 +237,18 @@ export function BatchOperationDialog({
         setSubmittedInstruction('');
         setLogs([]);
         setPreviewData(null);
+        setQueryAnswer(null);
         setHasStarted(false);
+        setEditedModifications([]);
+    };
+
+    // 处理新值编辑
+    const handleNewValueChange = (index: number, newValue: string) => {
+        setEditedModifications(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], newValue };
+            return updated;
+        });
     };
 
     // 渲染日志条目
@@ -315,16 +371,24 @@ export function BatchOperationDialog({
                             <div className="flex flex-wrap justify-center gap-2">
                                 {[
                                     {
+                                        label: '计划分析',
+                                        text: "帮我分析一下目前的计划中，有氧运动和力量训练的比例是多少？每周的训练量分布是否合理？",
+                                        icon: 'pi-chart-bar'
+                                    },
+                                    {
                                         label: '器械替换',
-                                        text: "学员现在可以去健身房了，把所有的 '弹力带下拉' 替换为 '固定器械高位下拉'，要求是 15RM 的重量做 4 组。"
+                                        text: "学员现在可以去健身房了，把所有的 '弹力带下拉' 替换为 '固定器械高位下拉'，要求是 15RM 的重量做 4 组。",
+                                        icon: 'pi-sync'
                                     },
                                     {
                                         label: '强度调整',
-                                        text: "我觉得前 4 周的强度定高了，把 W1 到 W4 所有的 RPE 9 全都改为 RPE 8，间歇保持不变。"
+                                        text: "我觉得前 4 周的强度定高了，把 W1 到 W4 所有的 RPE 9 全都改为 RPE 8，间歇保持不变。",
+                                        icon: 'pi-sliders-h'
                                     },
                                     {
                                         label: '周期性添加',
-                                        text: "为了增强核心稳定性，在每周的第一天（D1）结束时，增加一个 '平板支撑 3 组，每组 1 分钟' 的收尾动作。"
+                                        text: "为了增强核心稳定性，在每周的第一天（D1）结束时，增加一个 '平板支撑 3 组，每组 1 分钟' 的收尾动作。",
+                                        icon: 'pi-plus-circle'
                                     },
                                 ].map((example, idx) => (
                                     <button
@@ -333,7 +397,7 @@ export function BatchOperationDialog({
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-surface-600 bg-surface-100 hover:bg-surface-200 hover:text-surface-900 active:scale-[0.97] transition-all cursor-pointer border-none"
                                         onClick={() => setInstruction(example.text)}
                                     >
-                                        <i className="pi pi-sparkles text-[10px]"></i>
+                                        <i className={`pi ${example.icon} text-[10px]`}></i>
                                         {example.label}
                                     </button>
                                 ))}
@@ -413,6 +477,29 @@ export function BatchOperationDialog({
                                     </div>
                                 )}
 
+                                {/* 查询结果展示 */}
+                                {queryAnswer && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-8 h-8 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center flex-shrink-0">
+                                                <i className="pi pi-sparkles text-sm"></i>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="bg-surface-50 dark:bg-surface-800 rounded-2xl p-4 border border-surface-100 dark:border-surface-700">
+                                                    <div className="prose prose-sm max-w-none text-surface-700 dark:text-surface-300 markdown-message-content">
+                                                        <div 
+                                                            className="text-sm leading-relaxed"
+                                                            dangerouslySetInnerHTML={{ 
+                                                                __html: DOMPurify?.sanitize(md.render(queryAnswer || ''))
+                                                            }} 
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* 修改预览表格 */}
                                 {previewData && previewData.modifications.length > 0 && (
                                     <div className="space-y-3">
@@ -431,7 +518,7 @@ export function BatchOperationDialog({
                                         </div>
                                         <Card className="rounded-2xl border border-surface-100 dark:border-surface-700">
                                         <DataTable
-                                            value={previewData.modifications}
+                                            value={editedModifications}
                                             scrollable
                                             scrollHeight="400px"
                                             className="text-sm aero-datatable"
@@ -449,7 +536,7 @@ export function BatchOperationDialog({
                                                 header="动作/项目"
                                                 style={{ minWidth: '120px' }}
                                                 body={(row) => (
-                                                    <span className="font-semibold text-surface-800">第{row.actionName}</span>
+                                                    <span className="font-semibold text-surface-800">{row.actionName}</span>
                                                 )}
                                             />
                                             <Column
@@ -478,12 +565,19 @@ export function BatchOperationDialog({
                                             <Column
                                                 field="newValue"
                                                 header="新值"
-                                                style={{ minWidth: '120px' }}
-                                                body={(row) => (
-                                                    <span className="text-primary-700 font-bold text-xs">
-                                                        {typeof row.newValue === 'object' ? JSON.stringify(row.newValue) : row.newValue}
-                                                    </span>
-                                                )}
+                                                style={{ minWidth: '150px' }}
+                                                body={(row, { rowIndex }) => {
+                                                    const value = typeof row.newValue === 'object' 
+                                                        ? JSON.stringify(row.newValue) 
+                                                        : String(row.newValue);
+                                                    return (
+                                                        <InputText
+                                                            value={value}
+                                                            onChange={(e) => handleNewValueChange(rowIndex, e.target.value)}
+                                                            className="w-full text-xs font-bold text-primary-700 p-1 border-surface-200 focus:border-primary-500 rounded"
+                                                        />
+                                                    );
+                                                }}
                                             />
                                         </DataTable>
                                     </Card>
