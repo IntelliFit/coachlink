@@ -1,0 +1,119 @@
+{
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+          "sets": 4,
+          "reps": 8,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "customData": null,
+          "note": ""
+        },
+        {
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "sets": 4,
+          "reps": null,
+          "restSeconds": 90,
+          "intensityConfig": null,
+          "customData": null,
+          "note": "力竭"
+        },
+        {
+          "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+          "sets": null,
+          "reps": null,
+          "restSeconds": null,
+          "intensityConfig": null,
+          "customData": {
+            "distance": null,
+            "duration": 1200,
+            "pace": null
+          },
+          "note": "慢跑"
+        },
+        {
+          "actionId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+          "sets": null,
+          "reps": null,
+          "restSeconds": null,
+          "intensityConfig": null,
+          "customData": {
+            "content": "全麦面包 2片 + 鸡蛋 2个",
+            "calories": null,
+            "image_url": null
+          },
+          "note": "早餐"
+        }
+      ],
+      "dayNote": ""
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息1天"
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+          "sets": null,
+          "reps": null,
+          "restSeconds": null,
+          "intensityConfig": null,
+          "customData": {
+            "distance": 5000,
+            "duration": null,
+            "pace": "6'00''"
+          },
+          "note": "跑步"
+        },
+        {
+          "actionId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+          "sets": 3,
+          "reps": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "customData": null,
+          "note": "",
+          "durationSeconds": 60
+        },
+        {
+          "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+          "sets": null,
+          "reps": null,
+          "restSeconds": null,
+          "intensityConfig": null,
+          "customData": {
+            "target_duration": 15
+          },
+          "note": ""
+        },
+        {
+          "actionId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+          "sets": null,
+          "reps": null,
+          "restSeconds": null,
+          "intensityConfig": null,
+          "customData": {
+            "content": "蔬菜沙拉 + 煎鱼",
+            "calories": null,
+            "image_url": null
+          },
+          "note": "晚餐"
+        }
+      ],
+      "dayNote": ""
+    }
+  ]
+}

@@ -1,0 +1,259 @@
+{
+    "weeks": 1,
+    "trainingDays": [
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 1,
+            "type": "training",
+            "actions": [
+                {
+                    "actionId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+                    "sets": 4,
+                    "reps": 8,
+                    "restSeconds": 120,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": ""
+                },
+                {
+                    "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+                    "sets": 4,
+                    "reps": null,
+                    "restSeconds": 90,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": "力竭"
+                },
+                {
+                    "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "distance": null,
+                        "duration": 1200,
+                        "pace": "慢跑"
+                    },
+                    "note": ""
+                },
+                {
+                    "actionId": "de2800cd-cf7e-41a4-94f7-71ac2203d3d9",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "content": "全麦面包 2片",
+                        "calories": null,
+                        "image_url": null
+                    },
+                    "note": "早餐"
+                },
+                {
+                    "actionId": "546b91ff-4e8c-4e33-8b43-acf0ec13c061",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "content": "鸡蛋 2个",
+                        "calories": null,
+                        "image_url": null
+                    },
+                    "note": "早餐"
+                }
+            ],
+            "dayNote": ""
+        },
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 2,
+            "type": "rest",
+            "actions": [],
+            "dayNote": "休息1天"
+        },
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 3,
+            "type": "training",
+            "actions": [
+                {
+                    "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "distance": 5000,
+                        "duration": null,
+                        "pace": "6'00''"
+                    },
+                    "note": ""
+                },
+                {
+                    "actionId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+                    "sets": 3,
+                    "reps": null,
+                    "restSeconds": 180,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": "",
+                    "durationSeconds": 60
+                },
+                {
+                    "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "target_duration": 15
+                    },
+                    "note": ""
+                },
+                {
+                    "actionId": "9d3c0b31-2ea6-4966-acf2-568c329071bf",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "content": "蔬菜沙拉",
+                        "calories": null,
+                        "image_url": null
+                    },
+                    "note": "晚餐"
+                },
+                {
+                    "actionId": "801908c8-102c-46c2-b3ad-64dda794b3c8",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "content": "煎鱼",
+                        "calories": null,
+                        "image_url": null
+                    },
+                    "note": "晚餐"
+                }
+            ],
+            "dayNote": ""
+        },
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 4,
+            "type": "training",
+            "actions": [
+                {
+                    "actionId": "e44ef1d2-374c-4b57-aacb-b1538258f1b9",
+                    "sets": 5,
+                    "reps": 5,
+                    "restSeconds": 180,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": ""
+                },
+                {
+                    "actionId": "fc26ebd7-2fd8-4ab2-ac24-194c0071a205",
+                    "sets": 3,
+                    "reps": 12,
+                    "restSeconds": 180,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": "自动匹配：箭步蹲"
+                },
+                {
+                    "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "distance": null,
+                        "duration": 600,
+                        "pace": "跳绳"
+                    },
+                    "note": ""
+                },
+                {
+                    "actionId": "8acfc5ff-2622-496e-ac2a-f87163ee0e0b",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "target_duration": 30
+                    },
+                    "note": "自动匹配：阅读"
+                }
+            ],
+            "dayNote": ""
+        },
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 5,
+            "type": "rest",
+            "actions": [],
+            "dayNote": "休息1天"
+        },
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 6,
+            "type": "training",
+            "actions": [
+                {
+                    "actionId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+                    "sets": 3,
+                    "reps": 5,
+                    "restSeconds": 180,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": ""
+                },
+                {
+                    "actionId": "bd4fde76-a95b-4ab1-b587-874023221757",
+                    "sets": 3,
+                    "reps": 8,
+                    "restSeconds": 180,
+                    "intensityConfig": null,
+                    "customData": null,
+                    "note": "自动匹配：推举"
+                },
+                {
+                    "actionId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+                    "sets": 4,
+                    "reps": 20,
+                    "restSeconds": 180,
+                    "intensityConfig": null,
+                    "customData": {
+                        "distance": null,
+                        "duration": null,
+                        "pace": "波比跳"
+                    },
+                    "note": ""
+                },
+                {
+                    "actionId": "8aa54a87-5923-4e18-ae5f-7cc17c7be528",
+                    "sets": null,
+                    "reps": null,
+                    "restSeconds": null,
+                    "intensityConfig": null,
+                    "customData": {
+                        "target_duration": null
+                    },
+                    "note": "日饮水 2L"
+                }
+            ],
+            "dayNote": ""
+        },
+        {
+            "weekIndex": 1,
+            "dayOfWeek": 7,
+            "type": "rest",
+            "actions": [],
+            "dayNote": "休息1天"
+        }
+    ]
+}
