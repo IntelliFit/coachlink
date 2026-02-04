@@ -312,6 +312,106 @@ export async function POST(req: NextRequest) {
 
                     const actions = actionsData || [];
 
+                    // 首先让 AI 判断用户意图
+                    sendMessage({ type: 'progress', message: '正在分析您的需求' });
+
+                    const intentPrompt = `你是一个训练计划助手。请分析用户的指令，判断他们是想要：
+1. **查询/分析** - 想了解计划中的某些信息，如统计数据、动作分布、强度分析等（不修改计划）
+2. **修改** - 想要对计划进行更改、替换、添加、删除等操作
+
+## 当前训练计划概览
+- 总天数: ${trainingDays.length} 天
+- 训练天数: ${trainingDays.filter((d: any) => d.type === 'training').length} 天
+- 休息天数: ${trainingDays.filter((d: any) => d.type === 'rest').length} 天
+
+## 计划详情
+${JSON.stringify(trainingDays, null, 2)}
+
+## 可用的动作列表
+${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}
+
+## 用户指令
+${instruction}
+
+请返回 JSON 格式:
+{
+    "intent": "query" 或 "modify",
+    "reason": "简短说明判断依据"
+}`;
+
+                    const openai = getOpenAIClient();
+                    const intentCompletion = await openai.chat.completions.create({
+                        model: "deepseek-chat",
+                        messages: [{ role: "system", content: intentPrompt }],
+                        response_format: { type: "json_object" },
+                        temperature: 0.1,
+                        max_tokens: 200
+                    });
+
+                    const intentContent = intentCompletion.choices[0]?.message?.content;
+                    const intentResult = intentContent ? JSON.parse(intentContent) : { intent: 'modify' };
+                    const userIntent = intentResult.intent as 'query' | 'modify';
+
+                    // 根据意图走不同流程
+                    if (userIntent === 'query') {
+                        // 查询模式：让 AI 分析并回答
+                        sendMessage({ type: 'progress', message: '正在分析训练计划' });
+
+                        const queryPrompt = `你是一个专业的训练计划分析师。请根据用户的问题，分析训练计划并给出详细回答。
+
+## 当前训练计划数据
+\`\`\`json
+${JSON.stringify(trainingDays, null, 2)}
+\`\`\`
+
+## 可用的动作列表（包含类型）
+${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
+
+## 动作类型说明
+- STRENGTH: 力量训练
+- CARDIO: 有氧运动
+- DIET: 饮食相关
+- HABIT: 习惯养成
+
+## 用户问题
+${instruction}
+
+请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
+
+                        const queryCompletion = await openai.chat.completions.create({
+                            model: "deepseek-chat",
+                            messages: [{ role: "system", content: queryPrompt }],
+                            temperature: 0.3,
+                            max_tokens: 2000
+                        });
+
+                        const queryAnswer = queryCompletion.choices[0]?.message?.content || '无法分析该问题';
+                        const totalDuration = Date.now() - startTime;
+
+                        // 发送统计信息（开发模式）
+                        if (isDevelopment) {
+                            const totalTokens = (intentCompletion.usage?.total_tokens || 0) + (queryCompletion.usage?.total_tokens || 0);
+                            sendMessage({
+                                type: 'stats',
+                                tokenUsage: {
+                                    prompt: (intentCompletion.usage?.prompt_tokens || 0) + (queryCompletion.usage?.prompt_tokens || 0),
+                                    completion: (intentCompletion.usage?.completion_tokens || 0) + (queryCompletion.usage?.completion_tokens || 0),
+                                    total: totalTokens
+                                },
+                                duration: totalDuration
+                            });
+                        }
+
+                        // 发送查询结果
+                        sendMessage({
+                            type: 'query_result',
+                            answer: queryAnswer
+                        });
+
+                        return; // 查询模式结束，不执行修改逻辑
+                    }
+
+                    // 修改模式：原有的代码生成流程
                     const systemPrompt = `你是一个训练计划批量操作助手。
 
 ## 你的任务
@@ -384,7 +484,6 @@ ${instruction}
                     let retryCount = 0;
                     let executionResult: any = null;
                     let lastError: string = '';
-                    const openai = getOpenAIClient();
                     
                     const messages: Array<{ role: "system" | "user" | "assistant", content: string }> = [
                         { role: "system", content: systemPrompt }
