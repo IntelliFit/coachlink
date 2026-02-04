@@ -1,0 +1,118 @@
+{
+  "actions": [
+    {
+      "name": "卧推",
+      "matchedExistingId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+      "needsAutoCompute": true,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false
+    },
+    {
+      "name": "自重引体",
+      "matchedExistingId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false
+    },
+    {
+      "name": "跑步",
+      "matchedExistingId": "3d1b88eb-8864-4a47-a17a-c2ad6e3450ed",
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "CARDIO",
+      "isNew": false
+    },
+    {
+      "name": "全麦面包",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": true
+    },
+    {
+      "name": "鸡蛋",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": true
+    },
+    {
+      "name": "平板支撑",
+      "matchedExistingId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+      "needsAutoCompute": false,
+      "includesBodyWeight": true,
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "type": "STRENGTH",
+      "isNew": false
+    },
+    {
+      "name": "冥想",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "完成状态"
+      ],
+      "type": "HABIT",
+      "isNew": true
+    },
+    {
+      "name": "蔬菜沙拉",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": true
+    },
+    {
+      "name": "煎鱼",
+      "matchedExistingId": null,
+      "needsAutoCompute": false,
+      "includesBodyWeight": false,
+      "attrs": [
+        "摄入量",
+        "时间点"
+      ],
+      "type": "DIET",
+      "isNew": true
+    }
+  ]
+}

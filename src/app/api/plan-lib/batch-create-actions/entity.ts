@@ -1,4 +1,4 @@
-import { CoachActionRow } from "@/types";
+import { CoachActionRow, ItemType } from "@/types";
 
 // 批量创建动作请求
 export interface BatchCreateActionsDto {
@@ -10,6 +10,7 @@ export interface BatchCreateActionsDto {
         positions?: string[];
         detail?: string;
         url?: string;
+        type?: ItemType;
     }[];
 }
 
