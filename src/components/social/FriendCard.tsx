@@ -1,8 +1,11 @@
 import React from 'react';
 import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
-import { UserMinus, User } from 'lucide-react';
+import { Card } from 'primereact/card';
+import { UserMinus, ChevronRight, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+const AERO_CARD = "px-3 py-5 rounded-3xl border border-surface-100 bg-surface-0 shadow-[0_1px_0_rgba(15,23,42,0.02)] hover:shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition-[box-shadow,transform]";
 
 interface FriendCardProps {
     friend: {
@@ -17,48 +20,65 @@ interface FriendCardProps {
 export const FriendCard: React.FC<FriendCardProps> = ({ friend, onRemove }) => {
     const router = useRouter();
 
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+
     return (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-surface-100 flex items-center justify-between mb-3">
-            <div 
-                className="flex items-center gap-3 flex-1 cursor-pointer"
-                onClick={() => router.push(`/user/${friend.userId}`)}
-            >
-                <Avatar 
-                    image={friend.avatarUrl} 
-                    label={!friend.avatarUrl ? friend.nickname?.[0]?.toUpperCase() : undefined}
-                    shape="circle" 
-                    size="large"
-                    className="bg-primary-100 text-primary-600"
-                />
-                <div>
-                    <h3 className="font-bold text-surface-900">{friend.nickname}</h3>
+        <div className={AERO_CARD}>
+            <div className="flex items-center gap-4">
+                {/* 头像 */}
+                <div
+                    className="cursor-pointer active:scale-[0.98] transition-transform"
+                    onClick={() => router.push(`/user/${friend.userId}`)}
+                >
+                    <Avatar
+                        image={friend.avatarUrl}
+                        label={!friend.avatarUrl ? friend.nickname?.[0]?.toUpperCase() : undefined}
+                        shape="circle"
+                        className="!w-12 !h-12 bg-surface-100 text-surface-600 text-lg font-bold border-2 border-surface-100"
+                    />
+                </div>
+
+                {/* 信息 */}
+                <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => router.push(`/user/${friend.userId}`)}
+                >
+                    <div className="font-bold text-surface-900 truncate">{friend.nickname}</div>
                     {friend.friendsSince && (
-                        <p className="text-xs text-surface-500">
-                            好友 Since {new Date(friend.friendsSince).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center gap-1 text-xs text-surface-500 mt-0.5">
+                            <Calendar className="w-3 h-3" />
+                            <span>{formatDate(friend.friendsSince)} 成为好友</span>
+                        </div>
                     )}
                 </div>
-            </div>
-            
-            <div className="flex gap-2">
-                <Button 
-                    icon={<User className="w-4 h-4" />} 
-                    rounded 
-                    text 
-                    severity="secondary"
-                    onClick={() => router.push(`/user/${friend.userId}`)}
-                    aria-label="查看主页"
-                />
-                {onRemove && (
-                    <Button 
-                        icon={<UserMinus className="w-4 h-4" />} 
-                        rounded 
-                        text 
-                        severity="danger"
-                        onClick={() => onRemove(friend.userId)}
-                        aria-label="删除好友"
+
+                {/* 操作 */}
+                <div className="flex items-center gap-2">
+                    {onRemove && (
+                        <Button
+                            icon={<UserMinus className="w-4 h-4" />}
+                            rounded
+                            text
+                            className="!w-9 !h-9 text-surface-400 hover:text-red-500 hover:bg-red-50 active:scale-[0.98] transition-all"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onRemove(friend.userId);
+                            }}
+                            aria-label="删除好友"
+                        />
+                    )}
+                    <Button
+                        icon={<ChevronRight className="w-4 h-4" />}
+                        rounded
+                        text
+                        className="!w-9 !h-9 text-surface-300 hover:text-surface-600 hover:bg-surface-100 active:scale-[0.98] transition-all"
+                        onClick={() => router.push(`/user/${friend.userId}`)}
+                        aria-label="查看主页"
                     />
-                )}
+                </div>
             </div>
         </div>
     );
