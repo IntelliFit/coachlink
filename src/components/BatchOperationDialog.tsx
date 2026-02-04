@@ -18,7 +18,7 @@ interface BatchOperationDialogProps {
 }
 
 interface LogEntry {
-    type: 'progress' | 'action_plan' | 'modification' | 'stats' | 'error' | 'success';
+    type: 'progress' | 'action_plan' | 'stats' | 'error' | 'success';
     content: string;
     timestamp: Date;
     data?: any;
@@ -73,10 +73,6 @@ export function BatchOperationDialog({
             
             case 'action_plan':
                 addLog('action_plan', `📋 ${message.plan}`);
-                break;
-            
-            case 'modification':
-                addLog('modification', `✏️ 第${message.dayIndex}天：${message.description}`);
                 break;
             
             case 'stats':
@@ -210,7 +206,6 @@ export function BatchOperationDialog({
         const getLogIcon = () => {
             // 检查是否是最后一条日志，且类型为 progress
             const isLastEntry = index === logs.length - 1;
-            const isProgressType = entry.type === 'progress';
             
             switch (entry.type) {
                 case 'progress':
@@ -218,8 +213,6 @@ export function BatchOperationDialog({
                     return isLastEntry ? 'pi-spin pi-spinner' : 'pi-check';
                 case 'action_plan':
                     return 'pi-list';
-                case 'modification':
-                    return 'pi-pencil';
                 case 'stats':
                     return 'pi-chart-bar';
                 case 'success':
@@ -233,13 +226,18 @@ export function BatchOperationDialog({
 
         const icon = getLogIcon();
 
+        // 错误类型使用特殊样式
+        const isError = entry.type === 'error';
+
         return (
             <div
                 key={index}
                 className={`
-                    bg-surface-50
-                    border border-surface-200
-                    rounded-xl px-3 py-2
+                    ${isError 
+                        ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/30' 
+                        : 'bg-surface-50 border-surface-200'
+                    }
+                    border rounded-xl px-3 py-2
                     flex items-center gap-2.5
                     log-entry-animation
                 `}
@@ -248,18 +246,26 @@ export function BatchOperationDialog({
                 }}
             >
                 {/* 图标 */}
-                <div className="shrink-0 text-surface-400 dark:text-surface-500">
+                <div className={`shrink-0 ${isError ? 'text-red-500' : 'text-surface-400 dark:text-surface-500'}`}>
                     <i className={`pi ${icon} text-xs`}></i>
                 </div>
                 
                 {/* 内容 */}
-                <div className="flex-1 min-w-0 text-xs font-medium text-surface-700 dark:text-surface-500 leading-relaxed">
+                <div className={`flex-1 min-w-0 text-xs font-medium leading-relaxed ${
+                    isError 
+                        ? 'text-red-700 dark:text-red-300' 
+                        : 'text-surface-700 dark:text-surface-500'
+                }`}>
                     {entry.content}
                 </div>
 
                 {/* 时间戳 - 右侧 */}
                 {entry.type !== 'stats' && (
-                    <div className="shrink-0 text-[10px] text-surface-400 dark:text-surface-500 font-medium tabular-nums">
+                    <div className={`shrink-0 text-[10px] font-medium tabular-nums ${
+                        isError 
+                            ? 'text-red-400 dark:text-red-500' 
+                            : 'text-surface-400 dark:text-surface-500'
+                    }`}>
                         {timeStr}
                     </div>
                 )}
@@ -282,7 +288,18 @@ export function BatchOperationDialog({
             <div className="flex flex-col h-full">
                 {/* 未开始状态：居中显示输入框 */}
                 {!hasStarted && (
-                    <div className="flex-1 flex flex-col items-center justify-center px-8">
+                    <div className="flex-1 flex flex-col items-center justify-center px-8 relative">
+                        {/* 右上角关闭按钮 */}
+                        <Button
+                            icon="pi pi-times"
+                            text
+                            severity="secondary"
+                            className="absolute top-6 right-8 w-10 h-10 rounded-xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.95] transition-all"
+                            onClick={handleHide}
+                            aria-label="关闭"
+                            tooltipOptions={{ position: 'left' }}
+                        />
+                        
                         <div className="w-full max-w-3xl space-y-6">
                             {/* 标题区域 - 仅在未开始时显示 */}
                             <div className="text-center space-y-3">
@@ -292,6 +309,34 @@ export function BatchOperationDialog({
                                 <div className="text-sm text-surface-500 font-medium">
                                     使用自然语言描述批量操作，系统会自动识别并预览修改内容
                                 </div>
+                            </div>
+
+                            {/* 示例问题 */}
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {[
+                                    {
+                                        label: '器械替换',
+                                        text: "学员现在可以去健身房了，把所有的 '弹力带下拉' 替换为 '固定器械高位下拉'，要求是 15RM 的重量做 4 组。"
+                                    },
+                                    {
+                                        label: '强度调整',
+                                        text: "我觉得前 4 周的强度定高了，把 W1 到 W4 所有的 RPE 9 全都改为 RPE 8，间歇保持不变。"
+                                    },
+                                    {
+                                        label: '周期性添加',
+                                        text: "为了增强核心稳定性，在每周的第一天（D1）结束时，增加一个 '平板支撑 3 组，每组 1 分钟' 的收尾动作。"
+                                    },
+                                ].map((example, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-surface-600 bg-surface-100 hover:bg-surface-200 hover:text-surface-900 active:scale-[0.97] transition-all cursor-pointer border-none"
+                                        onClick={() => setInstruction(example.text)}
+                                    >
+                                        <i className="pi pi-sparkles text-[10px]"></i>
+                                        {example.label}
+                                    </button>
+                                ))}
                             </div>
 
                             {/* 输入框容器 */}
@@ -359,7 +404,7 @@ export function BatchOperationDialog({
                             </div>
 
                             {/* 内容区域 */}
-                            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4">
+                            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
                                 {/* 日志显示区域 */}
                                 {logs.length > 0 && (
                                     <div className="space-y-2">

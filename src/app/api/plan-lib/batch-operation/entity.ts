@@ -21,9 +21,8 @@ export interface ModificationDiff {
 
 // SSE 流式响应的数据格式
 export type SSEMessage =
-    | { type: 'progress'; message: string }  // 进度信息
+    | { type: 'progress'; message: string }  // 进度信息（包括重试信息）
     | { type: 'action_plan'; plan: string }  // 执行计划(用户友好)
-    | { type: 'modification'; dayIndex: number; actionName: string; description: string }  // 修改描述
     | { type: 'stats'; tokenUsage?: { prompt: number; completion: number; total: number }; duration?: number }  // 统计信息(开发模式)
     | { type: 'preview_result'; success: boolean; originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; message: string }  // 预览结果(不保存)
-    | { type: 'error'; message: string };  // 错误信息
+    | { type: 'error'; message: string };  // 错误信息（用户友好格式）

@@ -379,62 +379,113 @@ ${instruction}
     "code": "typescript代码"
 }`;
 
-                    // 4. 调用 AI
-                    sendMessage({ type: 'progress', message: '正在生成操作方案...' });
-
-                    const aiStartTime = Date.now();
+                    // 4. 调用 AI 并执行代码（支持重试）
+                    const maxRetries = 3;
+                    let retryCount = 0;
+                    let executionResult: any = null;
+                    let lastError: string = '';
                     const openai = getOpenAIClient();
-                    const completion = await openai.chat.completions.create({
-                        model: "deepseek-chat",
-                        messages: [
-                            { role: "system", content: systemPrompt }
-                        ],
-                        response_format: { type: "json_object" },
-                        temperature: 0.2,
-                        max_tokens: 4000
-                    });
-                    const aiDuration = Date.now() - aiStartTime;
+                    
+                    const messages: Array<{ role: "system" | "user" | "assistant", content: string }> = [
+                        { role: "system", content: systemPrompt }
+                    ];
 
-                    const responseContent = completion.choices[0]?.message?.content;
-                    if (!responseContent) {
-                        throw new Error('AI 未返回有效响应');
+                    while (retryCount < maxRetries) {
+                        try {
+                            // 生成或重新生成代码
+                            if (retryCount === 0) {
+                                sendMessage({ type: 'progress', message: '正在生成操作方案' });
+                            } else {
+                                // 用户友好的消息，开发模式下显示重试次数
+                                const retryMessage = isDevelopment 
+                                    ? `正在微调执行序列（第 ${retryCount + 1}/${maxRetries} 次尝试）`
+                                    : '正在微调执行序列';
+                                sendMessage({ type: 'progress', message: retryMessage });
+                            }
+
+                            const aiStartTime = Date.now();
+                            const completion = await openai.chat.completions.create({
+                                model: "deepseek-chat",
+                                messages: messages,
+                                response_format: { type: "json_object" },
+                                temperature: 0.2,
+                                max_tokens: 4000
+                            });
+                            const aiDuration = Date.now() - aiStartTime;
+
+                            const responseContent = completion.choices[0]?.message?.content;
+                            if (!responseContent) {
+                                throw new Error('AI 未返回有效响应');
+                            }
+
+                            const aiResponse = JSON.parse(responseContent) as {
+                                actionPlan: string;
+                                code: string;
+                            };
+
+                            // 第一次生成时发送执行计划
+                            if (retryCount === 0) {
+                                sendMessage({
+                                    type: 'action_plan',
+                                    plan: aiResponse.actionPlan || '准备执行批量操作'
+                                });
+                            }
+
+                            // 如果是开发模式，发送统计信息
+                            if (isDevelopment && completion.usage) {
+                                sendMessage({
+                                    type: 'stats',
+                                    tokenUsage: {
+                                        prompt: completion.usage.prompt_tokens,
+                                        completion: completion.usage.completion_tokens,
+                                        total: completion.usage.total_tokens
+                                    },
+                                    duration: aiDuration
+                                });
+                            }
+
+                            // 执行代码
+                            sendMessage({ type: 'progress', message: '正在执行操作...' });
+
+                            executionResult = await executeCodeInVM(
+                                aiResponse.code,
+                                trainingDays,
+                                actions.map(a => ({ id: a.id, name: a.name }))
+                            );
+
+                            if (executionResult.success) {
+                                // 执行成功，跳出重试循环
+                                break;
+                            } else {
+                                // 执行失败，准备重试
+                                lastError = executionResult.error || '代码执行失败';
+                                retryCount++;
+
+                                if (retryCount < maxRetries) {
+                                    // 将错误信息加入上下文
+                                    messages.push(
+                                        { role: "assistant", content: responseContent },
+                                        { 
+                                            role: "user", 
+                                            content: `代码执行失败，错误信息：${lastError}\n\n请修复代码中的错误，重新生成正确的代码。注意：\n1. 不要使用return语句，直接修改trainingDays数组\n2. 确保所有语法正确\n3. 处理可能的边界情况`
+                                        }
+                                    );
+                                } else {
+                                    // 达到最大重试次数
+                                    throw new Error('操作执行失败，已尝试多次修正但仍存在问题。请尝试更清晰地描述你的需求，或者手动编辑计划。');
+                                }
+                            }
+                        } catch (error: any) {
+                            if (retryCount >= maxRetries - 1) {
+                                throw error;
+                            }
+                            lastError = error.message;
+                            retryCount++;
+                        }
                     }
 
-                    const aiResponse = JSON.parse(responseContent) as {
-                        actionPlan: string;
-                        code: string;
-                    };
-
-                    // 发送执行计划(用户友好)
-                    sendMessage({
-                        type: 'action_plan',
-                        plan: aiResponse.actionPlan || '准备执行批量操作'
-                    });
-
-                    // 如果是开发模式，发送统计信息
-                    if (isDevelopment && completion.usage) {
-                        sendMessage({
-                            type: 'stats',
-                            tokenUsage: {
-                                prompt: completion.usage.prompt_tokens,
-                                completion: completion.usage.completion_tokens,
-                                total: completion.usage.total_tokens
-                            },
-                            duration: aiDuration
-                        });
-                    }
-
-                    // 5. 在虚拟机中执行代码
-                    sendMessage({ type: 'progress', message: '正在执行操作...' });
-
-                    const executionResult = await executeCodeInVM(
-                        aiResponse.code,
-                        trainingDays,
-                        actions.map(a => ({ id: a.id, name: a.name }))
-                    );
-
-                    if (!executionResult.success) {
-                        throw new Error(executionResult.error || '代码执行失败');
+                    if (!executionResult || !executionResult.success) {
+                        throw new Error('操作执行失败，已尝试多次修正但仍存在问题。请尝试更清晰地描述你的需求，或者手动编辑计划。');
                     }
 
                     // 6. 分析修改差异
@@ -444,35 +495,7 @@ ${instruction}
                         actions.map(a => ({ id: a.id, name: a.name }))
                     );
 
-                    // 发送每个修改的用户友好描述
-                    const modificationsByDay = new Map<number, ModificationDiff[]>();
-                    modifications.forEach(mod => {
-                        if (!modificationsByDay.has(mod.dayIndex)) {
-                            modificationsByDay.set(mod.dayIndex, []);
-                        }
-                        modificationsByDay.get(mod.dayIndex)!.push(mod);
-                    });
-
-                    for (const [dayIndex, mods] of modificationsByDay.entries()) {
-                        const description = mods.map(mod => {
-                            if (mod.field === '添加动作') {
-                                return `添加 ${mod.actionName}`;
-                            } else if (mod.field === '删除动作') {
-                                return `删除 ${mod.actionName}`;
-                            } else if (mod.field === '替换动作') {
-                                return `将 ${mod.oldValue} 替换为 ${mod.newValue}`;
-                            } else {
-                                return `${mod.actionName}的${mod.field}从 ${mod.oldValue} 改为 ${mod.newValue}`;
-                            }
-                        }).join('；');
-
-                        sendMessage({
-                            type: 'modification',
-                            dayIndex,
-                            actionName: mods[0].actionName,
-                            description
-                        });
-                    }
+                    // 不再发送逐天的详细修改描述，只显示最终的修改表格
 
                     const totalDuration = Date.now() - startTime;
 
