@@ -533,12 +533,6 @@ export async function POST(req: Request) {
     // 计算总耗时
     timings["total"] = performance.now() - startTime;
 
-    // 输出性能日志
-    console.log(
-        "[get-instance] Performance timings:",
-        JSON.stringify(timings, null, 2),
-    );
-
     return NextResponse.json<ApiData<GetInstanceResponseDto>>({
         success: true,
         message: "获取训练计划实例成功",

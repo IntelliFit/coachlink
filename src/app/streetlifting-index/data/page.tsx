@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Filter, Plus, User, Video, Search } from "lucide-react";
+import { Filter, Plus, User, Video, Search, CheckCircle2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { IconField } from "primereact/iconfield";
-import { InputNumber } from "primereact/inputnumber";
+import { AeroInputNumber } from "@/components/AeroInputNumber";
 import { InputIcon } from "primereact/inputicon";
 import { InputText } from "primereact/inputtext";
 import { Skeleton } from "primereact/skeleton";
@@ -58,6 +58,7 @@ export default function StreetliftingDataPage() {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
 
     const [submissions, setSubmissions] = useState<StreetliftingSubmission[]>([]);
     const [formulaMap, setFormulaMap] = useState<Record<string, StreetliftingFormula>>({});
@@ -74,6 +75,16 @@ export default function StreetliftingDataPage() {
 
     const [formOpen, setFormOpen] = useState(false);
     const [profileLocked, setProfileLocked] = useState(false);
+    const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+    const [claimingSubmissionId, setClaimingSubmissionId] = useState<string | null>(null);
+    const [existingSubmission, setExistingSubmission] = useState<{
+        id: string;
+        created_at: string;
+        exercise_type: string;
+        bodyweight: number;
+        added_weight: number;
+        reps: number;
+    } | null>(null);
     const [form, setForm] = useState<{
         exercise_type: "weighted_pullup" | "weighted_dips";
         gender: "" | "Male" | "Female";
@@ -356,6 +367,59 @@ export default function StreetliftingDataPage() {
         return Object.entries(filters).filter(([k, v]) => k !== "search" && v !== "all" && v !== "").length;
     }, [filters]);
 
+    const handleClaimClick = async (submissionId: string) => {
+        if (!session?.user?.id) {
+            showToast({ severity: "warn", summary: "请先登录", detail: "登录后才能认领数据" });
+            return;
+        }
+
+        // 检查用户是否已有数据
+        try {
+            const checkResult = await streetliftingIndexService.checkExistingSubmission();
+            if (checkResult?.hasExisting && checkResult.existingSubmission) {
+                setExistingSubmission(checkResult.existingSubmission);
+                setClaimingSubmissionId(submissionId);
+                setClaimDialogOpen(true);
+            } else {
+                // 没有已有数据，直接认领
+                await handleClaim(submissionId);
+            }
+        } catch (e: any) {
+            console.error("[streetlifting-index][data] check-existing error:", e);
+            // 如果检查失败，仍然尝试认领
+            await handleClaim(submissionId);
+        }
+    };
+
+    const handleClaim = async (submissionId: string) => {
+        if (!session?.user?.id) {
+            showToast({ severity: "warn", summary: "请先登录", detail: "登录后才能认领数据" });
+            return;
+        }
+
+        setClaimDialogOpen(false);
+        setClaimingIds((prev) => new Set(prev).add(submissionId));
+        try {
+            await streetliftingIndexService.claimSubmission({ submission_id: submissionId });
+            showToast({ severity: "success", summary: "认领成功", detail: "数据已成功认领到你的账户" });
+
+            // 刷新数据
+            const data = await streetliftingIndexService.listSubmissions();
+            setSubmissions(data?.submissions || []);
+        } catch (e: any) {
+            console.error("[streetlifting-index][data] claim error:", e);
+            showToast({ severity: "warn", summary: "认领失败", detail: e?.message || "请稍后重试" });
+        } finally {
+            setClaimingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(submissionId);
+                return next;
+            });
+            setClaimingSubmissionId(null);
+            setExistingSubmission(null);
+        }
+    };
+
     return (
         <div className={`${AERO_CONTAINER_7XL} py-6 space-y-6`}>
                 <Card className={AERO_CARD}>
@@ -595,19 +659,46 @@ export default function StreetliftingDataPage() {
                             return (
                                 <Card key={s.id} className={AERO_CARD}>
                                     <div className="p-4 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-xs text-surface-600">
-                                                <User className="h-4 w-4" />
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2 text-xs text-surface-600 min-w-0 flex-1">
+                                                <User className="h-4 w-4 shrink-0" />
                                                 <span className="max-w-[160px] truncate text-surface-900 font-medium">
                                                     {s.user_name || "匿名"}
                                                 </span>
                                             </div>
-                                            <span className="inline-flex items-center rounded-full bg-surface-50 border border-surface-100 px-2.5 py-1 text-[11px] font-bold text-surface-600">
-                                                {s.gender === "Male" ? "男" : "女"}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {!s.user_id && (
+                                                    <Button
+                                                        text
+                                                        size="small"
+                                                        className="!h-8 !px-2 rounded-xl text-surface-600 hover:text-primary-600 hover:bg-primary-50 active:scale-[0.95] transition-all flex items-center gap-1.5"
+                                                        onClick={() => handleClaimClick(s.id)}
+                                                        disabled={claimingIds.has(s.id)}
+                                                        tooltip="数据认领"
+                                                    >
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        <span className="text-xs font-medium hidden sm:inline">认领</span>
+                                                    </Button>
+                                                )}
+                                                {s.video_url && (
+                                                    <Button
+                                                        text
+                                                        size="small"
+                                                        className="!h-8 !px-2 rounded-xl text-surface-600 hover:text-primary-600 hover:bg-primary-50 active:scale-[0.95] transition-all flex items-center gap-1.5"
+                                                        onClick={() => window.open(s.video_url || "", "_blank")}
+                                                        tooltip="观看视频"
+                                                    >
+                                                        <Video className="h-4 w-4" />
+                                                        <span className="text-xs font-medium hidden sm:inline">视频</span>
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="flex flex-wrap gap-2">
+                                            <span className="inline-flex items-center rounded-full bg-surface-50 border border-surface-100 px-2.5 py-1 text-[11px] font-bold text-surface-600">
+                                                {s.gender === "Male" ? "男" : "女"}
+                                            </span>
                                             <span className="inline-flex items-center rounded-full bg-surface-50 border border-surface-100 px-2.5 py-1 text-[11px] font-bold text-surface-600">
                                                 {s.exercise_type === "weighted_pullup" ? "负重引体" : "负重臂屈伸"}
                                             </span>
@@ -645,20 +736,6 @@ export default function StreetliftingDataPage() {
                                             <div className="text-xs text-surface-700 bg-surface-50 border border-surface-200 rounded-2xl p-2 text-center">
                                                 惩罚：<span className="font-bold text-surface-900">-{s.penalty_weight}kg</span>
                                             </div>
-                                        )}
-
-                                        {s.video_url && (
-                                            <Button
-                                                outlined
-                                                severity="secondary"
-                                                size="small"
-                                                className="w-full h-10 rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
-                                                onClick={() => window.open(s.video_url || "", "_blank")}
-                                            >
-                                                <Video className="h-4 w-4 mr-2" />
-                                                观看视频
-                                                <ExternalLink className="h-4 w-4 ml-2" />
-                                            </Button>
                                         )}
 
                                         <div className="text-[11px] text-surface-400 text-center">
@@ -743,7 +820,7 @@ export default function StreetliftingDataPage() {
                             </div>
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">体重（kg）</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.bodyweight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, bodyweight: e.value ?? null }))}
                                     className="w-full"
@@ -761,7 +838,7 @@ export default function StreetliftingDataPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">附加负重（kg）</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.added_weight}
                                     onValueChange={(e) => setForm((p) => ({ ...p, added_weight: e.value ?? null }))}
                                     className="w-full"
@@ -771,7 +848,7 @@ export default function StreetliftingDataPage() {
                             </div>
                             <div>
                                 <div className="text-xs text-surface-500 mb-1.5">完成次数</div>
-                                <InputNumber
+                                <AeroInputNumber
                                     value={form.reps}
                                     onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
                                     className="w-full"
@@ -872,6 +949,66 @@ export default function StreetliftingDataPage() {
                             disabled={submitting}
                             className="w-full h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
                             onClick={handleSubmit}
+                        />
+                    </div>
+                </div>
+            </Dialog>
+
+            {/* 认领确认对话框 */}
+            <Dialog
+                header="确认认领数据"
+                visible={claimDialogOpen}
+                onHide={() => {
+                    setClaimDialogOpen(false);
+                    setClaimingSubmissionId(null);
+                    setExistingSubmission(null);
+                }}
+                className="aero-dialog w-[95vw] md:w-[28rem]"
+                draggable={false}
+            >
+                <div className="space-y-4">
+                    <div className="text-sm text-surface-700">
+                        {existingSubmission ? (
+                            <>
+                                <p className="mb-3 font-semibold text-surface-900">⚠️ 你已有认领的数据，认领新数据将覆盖现有数据：</p>
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-3">
+                                    <div className="text-xs text-amber-800 space-y-1">
+                                        <div>动作：{existingSubmission.exercise_type === "weighted_pullup" ? "负重引体" : "负重臂屈伸"}</div>
+                                        <div>体重：{existingSubmission.bodyweight}kg</div>
+                                        <div>负重：{existingSubmission.added_weight}kg</div>
+                                        <div>次数：{existingSubmission.reps}</div>
+                                        <div className="text-amber-600 mt-2">
+                                            提交时间：{new Date(existingSubmission.created_at).toLocaleDateString("zh-CN")}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-surface-600">确定要用新数据替换现有数据吗？此操作不可撤销。</p>
+                            </>
+                        ) : (
+                            <p>确定要认领这条数据吗？</p>
+                        )}
+                    </div>
+                    <div className="flex gap-3">
+                        <Button
+                            label="取消"
+                            outlined
+                            severity="secondary"
+                            className="flex-1 h-10 rounded-2xl"
+                            onClick={() => {
+                                setClaimDialogOpen(false);
+                                setClaimingSubmissionId(null);
+                                setExistingSubmission(null);
+                            }}
+                        />
+                        <Button
+                            label="确认认领"
+                            className="flex-1 h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 active:scale-[0.98] transition-all"
+                            onClick={() => {
+                                if (claimingSubmissionId) {
+                                    handleClaim(claimingSubmissionId);
+                                }
+                            }}
+                            disabled={!claimingSubmissionId || claimingIds.has(claimingSubmissionId)}
                         />
                     </div>
                 </div>
