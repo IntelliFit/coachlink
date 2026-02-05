@@ -280,8 +280,9 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                         <h1 className="text-3xl font-black tracking-tight text-surface-900 mb-6 leading-tight">
                             {form.title || '标题预留位'}
                         </h1>
+                        {/* 预览模式 - 完整Markdown和表格支持 */}
                         <div 
-                            className="prose prose-lg max-w-none text-surface-600 leading-relaxed mb-10"
+                            className="prose prose-lg max-w-none text-surface-600 leading-relaxed mb-10 prose-headings:tracking-tight prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-table:border-collapse prose-table:w-full prose-th:bg-surface-100 prose-th:font-bold prose-th:border prose-th:border-surface-300 prose-th:px-4 prose-th:py-2 prose-td:border prose-td:border-surface-300 prose-td:px-4 prose-td:py-2"
                             dangerouslySetInnerHTML={{ 
                                 __html: form.content || '<p class="text-surface-400 italic">您还没有输入正文...</p>' 
                             }}
