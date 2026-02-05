@@ -18,6 +18,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
 import type { Product, DurationOption } from '@/app/api/coach/get-pricing/entity';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
+import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetailDialog';
 
 interface PublicArticleListItem {
     id: string;
@@ -39,6 +40,59 @@ interface VisibilityStatus {
     referrerCoachId: string | null;
     referrerCoachName: string | null;
 }
+
+// 实体商品数据（用于过审展示）
+interface PhysicalProduct {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    originalPrice?: number;
+    imageUrl: string;
+    category: string;
+    badge?: string;
+}
+
+const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
+    {
+        id: 'pp-1',
+        name: '核心怪负重腰带',
+        description: '专业力量训练腰带，加厚牛皮材质，稳固支撑腰部',
+        price: 128,
+        originalPrice: 198,
+        imageUrl: '/images/products/weight-belt.png',
+        category: '训练装备',
+        badge: '热销',
+    },
+    {
+        id: 'pp-2',
+        name: '液态镁粉',
+        description: '快干防滑配方，提升抓握力，适用于硬拉/引体等动作',
+        price: 34,
+        originalPrice: 44,
+        imageUrl: '/images/products/liquid-chalk.png',
+        category: '训练辅助',
+    },
+    {
+        id: 'pp-3',
+        name: '康比特乳清蛋白粉',
+        description: '优质乳清蛋白，每份25g蛋白质，助力肌肉恢复',
+        price: 134,
+        originalPrice: 164,
+        imageUrl: '/images/products/protein-powder.png',
+        category: '营养补剂',
+        badge: '推荐',
+    },
+    {
+        id: 'pp-4',
+        name: '深海鱼油软胶囊',
+        description: '高纯度Omega-3，支持心血管健康，减少运动炎症',
+        price: 64,
+        originalPrice: 84,
+        imageUrl: '/images/products/fish-oil.png',
+        category: '营养补剂',
+    },
+];
 
 // 骨架屏卡片组件
 const ProductSkeletonCard = () => (
@@ -81,6 +135,18 @@ const ActionSkeletonCard = () => (
         </div>
     </div>
 );
+
+function isVideoUrl(url: string | null | undefined) {
+    if (!url) return false;
+    const u = url.toLowerCase();
+    return (
+        u.endsWith('.mp4') ||
+        u.endsWith('.webm') ||
+        u.endsWith('.mov') ||
+        u.endsWith('.m4v') ||
+        u.includes('/videos/')
+    );
+}
 
 const ArticleSkeletonCard = () => (
     <div className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
@@ -217,6 +283,8 @@ const CoachDiscoveryPage: React.FC = () => {
     // 推荐动作（公共动作库）
     const [recommendedActions, setRecommendedActions] = useState<PublicActionItemDto[]>([]);
     const [recommendedLoading, setRecommendedLoading] = useState(false);
+    const [actionDetailVisible, setActionDetailVisible] = useState(false);
+    const [selectedAction, setSelectedAction] = useState<PublicActionItemDto | null>(null);
 
     // 混合流：推荐服务商品（来自教练的订阅产品）
     const [productFeed, setProductFeed] = useState<Array<{
@@ -259,14 +327,10 @@ const CoachDiscoveryPage: React.FC = () => {
         loadSpecialties();
     }, [visibilityLoading, visibilityStatus]);
 
-    // 推荐动作：仅在已登录且非专注模式下展示（避免干扰）
+    // 推荐动作：在非专注模式下展示（支持未登录用户）
     useEffect(() => {
         if (visibilityLoading) return;
         if (visibilityStatus?.focusMode) {
-            setRecommendedActions([]);
-            return;
-        }
-        if (!session?.user?.id) {
             setRecommendedActions([]);
             return;
         }
@@ -292,7 +356,7 @@ const CoachDiscoveryPage: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [visibilityLoading, visibilityStatus?.focusMode, session?.user?.id]);
+    }, [visibilityLoading, visibilityStatus?.focusMode]);
 
     // 混合流：根据当前教练列表拉取一批“服务商品”
     useEffect(() => {
@@ -460,21 +524,24 @@ const CoachDiscoveryPage: React.FC = () => {
     );
 
     // 服务商品卡片（用于横向滚动）
-    const renderProductCard = (item: { coach: CoachesRow; product: Product; opt: DurationOption }, idx: number) => (
+    const renderProductCard = (item: { coach: CoachesRow; product: Product; opt: DurationOption }, idx: number, smallMode: boolean = false) => (
         <div 
-            className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start relative group"
+            className={`${smallMode ? 'w-full flex flex-col h-full bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer' : 'w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start'} relative group`}
         >
-            <div className="flex items-start justify-between mb-3">
-                <div className="px-2.5 py-1 bg-primary-50 text-primary-700 text-[11px] font-black rounded-full border border-primary-100">
+            <div className={`flex items-start justify-between mb-3 ${smallMode ? 'text-xs' : ''}`}>
+                <div className={`px-2.5 py-1 bg-primary-50 text-primary-700 font-black rounded-full border border-primary-100 ${smallMode ? 'text-[10px]' : 'text-[11px]'}`}>
                     {item.product.tier === 'basic' ? 'L1 基础版' : item.product.tier === 'standard' ? 'L2 进阶版' : 'L3 专业版'}
                 </div>
-                <div className="text-xl font-black text-primary-600 tracking-tight">¥{item.opt.price}</div>
+                <div className={`${smallMode ? 'text-lg' : 'text-xl'} font-black text-primary-600 tracking-tight`}>¥{item.opt.price}</div>
             </div>
             
-            <h3 className="text-base font-black text-surface-900 line-clamp-1 mb-2 tracking-tight">{item.product.name}</h3>
-            <p className="text-xs text-surface-500 font-medium line-clamp-2 h-8 mb-4">{item.product.description || "暂无描述"}</p>
+            <h3 className={`${smallMode ? 'text-sm' : 'text-base'} font-black text-surface-900 line-clamp-1 mb-2 tracking-tight`}>{item.product.name}</h3>
             
-            <div className="flex items-center gap-2 mb-4 pt-4 border-t border-surface-100">
+            {!smallMode && (
+                <p className="text-xs text-surface-500 font-medium line-clamp-2 h-8 mb-4">{item.product.description || "暂无描述"}</p>
+            )}
+            
+            <div className={`flex items-center gap-2 mb-4 pt-4 border-t border-surface-100 ${smallMode ? 'mt-auto' : ''}`}>
                 <div className="w-7 h-7 rounded-full bg-surface-100 overflow-hidden shrink-0 border border-surface-200">
                     {item.coach.avatar_url ? (
                         <img src={item.coach.avatar_url} className="w-full h-full object-cover" />
@@ -487,7 +554,7 @@ const CoachDiscoveryPage: React.FC = () => {
 
             <Button
                 size="small"
-                className="w-full h-10 rounded-2xl font-black bg-surface-900 border-none text-surface-0 hover:bg-surface-800 shadow-sm active:scale-95 transition-all"
+                className={`w-full ${smallMode ? 'h-8 text-xs' : 'h-10'} rounded-2xl font-black bg-surface-900 border-none text-surface-0 hover:bg-surface-800 shadow-sm active:scale-95 transition-all`}
                 label="订阅"
                 onClick={() => {
                     const p = new URLSearchParams();
@@ -504,11 +571,29 @@ const CoachDiscoveryPage: React.FC = () => {
 
     // 动作卡片
     const renderActionCard = (action: PublicActionItemDto) => (
-        <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all snap-start">
-             <h3 className="text-sm font-black text-surface-900 mb-4 line-clamp-2 min-h-[2.5em] tracking-tight">{action.name}</h3>
-             <div className="flex items-center justify-between">
-                 <span className="text-xs text-surface-500 font-bold">{action.like_count || 0} 赞</span>
-                 <Button 
+        <div 
+            className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all snap-start cursor-pointer"
+            onClick={() => {
+                setSelectedAction(action);
+                setActionDetailVisible(true);
+            }}
+        >
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="text-sm font-black text-surface-900 line-clamp-2 min-h-[2.5em] tracking-tight">
+                    {action.name}
+                </h3>
+                {isVideoUrl(action.url) && (
+                    <span className="shrink-0 px-2 py-0.5 bg-primary-50 text-primary-700 text-[10px] font-black rounded-full border border-primary-100">
+                        视频
+                    </span>
+                )}
+            </div>
+            <p className="text-xs text-surface-500 font-medium line-clamp-2 min-h-[2.5em] mb-3">
+                {action.detail || '暂无描述'}
+            </p>
+            <div className="flex items-center justify-between">
+                <span className="text-xs text-surface-500 font-bold">{action.like_count || 0} 赞</span>
+                <Button 
                     label={action.isAdded ? "已添加" : "添加"}
                     size="small"
                     className={`h-9 px-4 rounded-2xl font-black text-xs border ${
@@ -532,8 +617,8 @@ const CoachDiscoveryPage: React.FC = () => {
                         } catch (e: any) {
                         }
                     }}
-                 />
-             </div>
+                />
+            </div>
         </div>
     );
 
@@ -573,6 +658,62 @@ const CoachDiscoveryPage: React.FC = () => {
                     <span>阅读</span>
                     <ArrowRight size={12} className="stroke-[2.5]" />
                  </div>
+            </div>
+        </div>
+    );
+
+    // 实体商品卡片
+    const renderPhysicalProductCard = (product: PhysicalProduct, smallMode: boolean = false) => (
+        <div 
+            className={`${smallMode ? 'w-full aspect-[4/5]' : 'w-[280px] md:w-[320px] shrink-0'} bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start flex flex-col`}
+            onClick={() => {
+                showToast({ severity: 'info', summary: '商品详情', detail: '该商品即将上架，敬请期待' });
+            }}
+        >
+            {/* 商品图片 */}
+            <div className={`w-full aspect-square mb-3 rounded-2xl bg-surface-50 border border-surface-100 overflow-hidden relative ${smallMode ? 'p-2' : ''}`}>
+                <img 
+                    src={product.imageUrl} 
+                    alt={product.name}
+                    className="w-full h-full object-contain mix-blend-multiply"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                />
+                {product.badge && (
+                    <div className="absolute top-2 right-2 px-2 py-0.5 bg-primary-500 text-white text-[10px] font-black rounded-full">
+                        {product.badge}
+                    </div>
+                )}
+            </div>
+            
+            {/* 分类标签 */}
+            {!smallMode && (
+                <div className="mb-2">
+                    <span className="px-2 py-0.5 bg-surface-50 text-surface-500 text-[10px] font-bold rounded-full border border-surface-100">
+                        {product.category}
+                    </span>
+                </div>
+            )}
+            
+            {/* 商品名称 */}
+            <h3 className={`text-sm font-black text-surface-900 line-clamp-1 mb-1 tracking-tight ${smallMode ? 'text-xs' : ''}`}>
+                {product.name}
+            </h3>
+            
+            {/* 商品描述 - SmallMode下不显示 */}
+            {!smallMode && (
+                <p className="text-xs text-surface-500 font-medium line-clamp-2 h-8 mb-3">
+                    {product.description}
+                </p>
+            )}
+            
+            {/* 价格信息 */}
+            <div className="mt-auto flex items-baseline gap-1.5">
+                <span className={`${smallMode ? 'text-base' : 'text-lg'} font-black text-primary-600`}>¥{product.price}</span>
+                {product.originalPrice && (
+                    <span className="text-[10px] text-surface-400 line-through">¥{product.originalPrice}</span>
+                )}
             </div>
         </div>
     );
@@ -665,27 +806,61 @@ const CoachDiscoveryPage: React.FC = () => {
                     ))}
                 </div>
 
-                {/* 2. 热门训练计划模块 */}
+                {/* 2. 服务商品模块（训练计划 + 实体商品） */}
                 {productFeedLoading ? (
                     <div className="mb-10">
-                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门训练计划</h2>
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">服务商品</h2>
                         <div className="flex gap-4 overflow-hidden px-2">
                             {[1,2,3].map(i => <ProductSkeletonCard key={i} />)}
                         </div>
                     </div>
-                ) : productFeed.length > 0 ? (
-                    <CarouselSection 
-                        title="热门训练计划" 
-                        moreLink="/market"
-                        items={productFeed}
-                        itemTemplate={(item) => renderProductCard(item, productFeed.indexOf(item))}
-                        numVisible={3}
-                    />
                 ) : (
                     <div className="mb-10">
-                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">热门训练计划</h2>
-                        <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">
-                            暂无推荐计划
+                        <div className="flex items-center justify-between mb-5 px-1">
+                            <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight">服务商品</h2>
+                            <button 
+                                onClick={() => router.push('/market')}
+                                className="flex items-center gap-1 text-xs md:text-sm font-bold text-surface-500 hover:text-surface-900 active:scale-95 transition-all"
+                            >
+                                <span>查看更多</span>
+                                <ChevronRight size={16} className="stroke-[2.5]" />
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {(() => {
+                            // 1. 优先提取枭马葛的计划
+                            const xiaoMaGePlans = productFeed.filter(p => p.coach.name.includes('枭马葛') || p.coach.name.includes('马葛') || p.coach.name.includes('XM'))
+                                .map((item, idx) => ({ ...item, _type: 'virtual' as const, _key: `xm-${idx}` }));
+                            
+                            // 2. 其他计划
+                            const otherPlans = productFeed.filter(p => !p.coach.name.includes('枭马葛') && !p.coach.name.includes('马葛') && !p.coach.name.includes('XM'))
+                                .map((item, idx) => ({ ...item, _type: 'virtual' as const, _key: `virtual-${idx}` }));
+                            
+                            // 3. 实体商品
+                            const physicalItems = PHYSICAL_PRODUCTS.map((p, idx) => ({ _type: 'physical' as const, _key: `physical-${idx}`, product: p }));
+                            
+                            // 4. 重组顺序：枭马葛 -> 实体 -> 其他
+                            // 但用户说"显示2排"，图片小一点。
+                            // 我们可以直接把这三个数组拼起来，然后在 Grid 里展示。
+                            // 为了布局好看，我们交替一下实体和其他计划，但保持枭马葛在最前。
+                            
+                            const remainingMixed = [];
+                            const maxLen = Math.max(otherPlans.length, physicalItems.length);
+                            for (let i = 0; i < maxLen; i++) {
+                                if (i < physicalItems.length) remainingMixed.push(physicalItems[i]);
+                                if (i < otherPlans.length) remainingMixed.push(otherPlans[i]);
+                            }
+
+                            const finalItems = [...xiaoMaGePlans, ...remainingMixed].slice(0, 10); // 限制显示数量，防止过多
+
+                            return finalItems.map((item) => {
+                                if (item._type === 'physical') {
+                                    return renderPhysicalProductCard(item.product, true); // true = small mode
+                                }
+                                return renderProductCard(item, -1, true); // true = small mode
+                            });
+                        })()}
                         </div>
                     </div>
                 )}
@@ -782,6 +957,17 @@ const CoachDiscoveryPage: React.FC = () => {
                 </div>
 
             </div>
+
+            {/* 动作详情对话框 */}
+            <PublicActionDetailDialog
+                visible={actionDetailVisible}
+                action={selectedAction}
+                onHide={() => {
+                    setActionDetailVisible(false);
+                    setSelectedAction(null);
+                }}
+                viewerActionType="student"
+            />
         </div>
     );
 };

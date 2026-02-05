@@ -13,12 +13,7 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession();
         const userId = session?.user?.id || null;
-        if (!userId) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: "用户未登录", data: null },
-                { status: 401 },
-            );
-        }
+        // 允许未登录用户访问公共动作详情
 
         const { actionId, viewerActionType = "student" } =
             (await req.json()) as GetPublicActionDto;
@@ -51,24 +46,32 @@ export async function POST(req: Request) {
 
         const action = row as any;
 
-        const { data: likesData } = await supabase
-            .from("community_action_likes")
-            .select("action_id")
-            .eq("user_id", userId)
-            .eq("action_id", actionId);
-        const isLiked = (likesData || []).length > 0;
+        // isLiked - 仅在用户已登录时查询
+        let isLiked = false;
+        if (userId) {
+            const { data: likesData } = await supabase
+                .from("community_action_likes")
+                .select("action_id")
+                .eq("user_id", userId)
+                .eq("action_id", actionId);
+            isLiked = (likesData || []).length > 0;
+        }
 
-        const targetTable =
-            viewerActionType === "coach" ? "coach_actions" : "student_actions";
-        const ownerColumn =
-            viewerActionType === "coach" ? "coach_id" : "user_id";
-        const { data: addedData } = await supabase
-            .from(targetTable)
-            .select("name")
-            .eq(ownerColumn, userId)
-            .eq("name", action.name)
-            .maybeSingle();
-        const isAdded = !!addedData;
+        // isAdded - 仅在用户已登录时查询
+        let isAdded = false;
+        if (userId) {
+            const targetTable =
+                viewerActionType === "coach" ? "coach_actions" : "student_actions";
+            const ownerColumn =
+                viewerActionType === "coach" ? "coach_id" : "user_id";
+            const { data: addedData } = await supabase
+                .from(targetTable)
+                .select("name")
+                .eq(ownerColumn, userId)
+                .eq("name", action.name)
+                .maybeSingle();
+            isAdded = !!addedData;
+        }
 
         const contributorMap = new Map<string, PublicActionContributorDto>();
         if (action.contributor_user_id) {
