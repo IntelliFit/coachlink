@@ -53,7 +53,7 @@ export default async function ArticlesPage() {
 
                 <div className="grid grid-cols-1 gap-4">
                     {items.map((a) => (
-                        <Link key={a.id} href={`/articles/${a.id}`} className="block">
+                        <Link key={a.id} href={`/coach/content/${a.id}`} className="block">
                             <Card className="shadow-sm rounded-2xl border border-surface-100 hover:shadow-md transition-shadow">
                                 <div className="p-2">
                                     <div className="flex items-start justify-between gap-4">
