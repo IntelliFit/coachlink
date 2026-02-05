@@ -189,20 +189,6 @@ export async function POST(req: Request) {
         subjectText = `购买文章 ${(content as any).title || ""}`.trim();
     }
 
-    // Guardrail: prevent 1-cent undercharge unless explicitly enabled for testing.
-    // Allow override in production when PAYMENT_TEST_PRICING=true (for staging/demo).
-    const testPricingEnabled = process.env.PAYMENT_TEST_PRICING === "true";
-    if (
-        process.env.NODE_ENV === "production" &&
-        !testPricingEnabled &&
-        Number(resolvedTotalAmount) < 1
-    ) {
-        return NextResponse.json(
-            { success: false, message: "支付金额异常，请联系管理员", data: null },
-            { status: 400 },
-        );
-    }
-
     // 读取支付宝配置
     const {
         ALIPAY_APP_ID,
