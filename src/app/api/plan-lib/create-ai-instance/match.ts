@@ -14,6 +14,7 @@ import {
     calcRecommendedLoad,
     normalizeIntensityConfig,
 } from "@/lib/rmCaculator";
+import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 
 // 自动计算动作的配置类型
 interface AutoComputeAction {
@@ -27,6 +28,8 @@ interface AutoComputeAction {
 export interface FillTemplateOptions {
     studentBodyWeight: number | null;
     autoComputeActions: AutoComputeAction[];
+    studentId?: string; // 学员ID，用于获取最新的PR记录
+    coachId?: string; // 教练ID，用于权限校验
 }
 
 export async function matchPlan(questionare: TrainingItem[]) {
@@ -182,7 +185,7 @@ function computeActionWeight(
     }
 }
 
-export function fillTemplate(
+export async function fillTemplate(
     answers: TrainingItem[],
     template: CoachPlanTemplateRow,
     options?: FillTemplateOptions,
@@ -194,11 +197,62 @@ export function fillTemplate(
             optionInfo.userSelection;
     }
 
-    // 获取学员1RM数据
+    // 获取学员1RM数据：优先使用最新的PR记录，如果没有则使用问卷数据
     const rmData = answers.find((item) => item.type === "rm") as
         | TrainingRmQuestion
         | undefined;
-    const userRmInputs = rmData?.userInputs || {};
+    const questionnaireRmInputs = rmData?.userInputs || {};
+    
+    let userRmInputs: Record<string, number> = questionnaireRmInputs;
+    
+    // 如果有学员ID和教练ID，尝试获取最新的PR记录
+    // getCurrent1RMRecords 已经实现了时间优先级逻辑：
+    // - 优先使用最新的 AUTO_STATE 记录
+    // - 如果没有，使用最新的记录（按 date_achieved desc）
+    // - 如果问卷更新时间更晚，用问卷值覆盖
+    if (options?.studentId && options?.coachId) {
+        try {
+            const records = await getCurrent1RMRecords(options.coachId, {
+                targetUserId: options.studentId,
+            });
+            
+            // 构建1RM映射：直接使用 getCurrent1RMRecords 返回的值
+            // getCurrent1RMRecords 已经按时间优先级处理过了：
+            // - 优先使用最新的 AUTO_STATE 记录
+            // - 如果没有，使用最新的记录（按 date_achieved desc）
+            // - 如果问卷更新时间更晚，用问卷值覆盖
+            const prRmMap: Record<string, number> = {};
+            for (const record of records || []) {
+                // 同时使用 actionId 和 actionName 作为 key，确保能匹配到
+                // getCurrent1RMRecords 返回的数组中，每个动作只有一个记录（最新的）
+                if (record.actionId && record.current1RM > 0) {
+                    prRmMap[record.actionId] = record.current1RM;
+                }
+                // 同时使用 actionName 作为 key（用于匹配没有 actionId 的情况）
+                if (record.actionName && record.current1RM > 0) {
+                    prRmMap[record.actionName] = record.current1RM;
+                }
+            }
+            
+            // 合并数据：PR记录优先（因为它已经按时间优先级处理），问卷数据作为fallback
+            userRmInputs = {
+                ...questionnaireRmInputs,
+                ...prRmMap,
+            };
+            
+            console.log(
+                `✅ 已获取最新PR记录，覆盖了 ${Object.keys(prRmMap).length} 个动作的1RM数据`,
+                `PR记录:`,
+                prRmMap,
+            );
+        } catch (error) {
+            console.warn(
+                `⚠️ 获取PR记录失败，使用问卷数据:`,
+                error,
+            );
+            // 如果获取PR记录失败，继续使用问卷数据
+        }
+    }
 
     // 构建可自动计算的动作Map
     const autoComputeActionMap = new Map<string, AutoComputeAction>(
