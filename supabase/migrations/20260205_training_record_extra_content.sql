@@ -1,0 +1,45 @@
+-- =====================================================
+-- 训练执行记录 action_executions JSONB 结构扩展
+-- 创建日期: 2026-02-05
+-- 功能: 
+--   支持学员在执行训练时添加额外组数或动作
+--   通过 source 字段区分计划内容和学员自定义内容
+-- =====================================================
+
+-- 说明文档（仅注释，无实际 DDL 变更）
+-- 
+-- plan_instance_executions.action_executions JSONB 结构扩展:
+-- 
+-- action_executions[].source: 'plan' | 'student_extra'
+--   - 'plan': 来自教练计划（默认值）
+--   - 'student_extra': 学员额外添加的动作
+-- 
+-- action_executions[].source_action_id: uuid
+--   - 仅当 source = 'student_extra' 时使用
+--   - 指向 student_actions 表中的原始动作ID
+-- 
+-- action_executions[].sets[].source: 'plan' | 'student_extra'
+--   - 'plan': 来自教练计划的组（默认值）
+--   - 'student_extra': 学员额外添加的组
+--
+-- 示例结构:
+-- [
+--   {
+--     "action_id": "uuid",
+--     "action_name": "深蹲",
+--     "source": "plan",
+--     "sets": [
+--       {"set_number": 1, "source": "plan", ...},
+--       {"set_number": 2, "source": "student_extra", ...}  -- 学员额外添加的组
+--     ]
+--   },
+--   {
+--     "action_id": "uuid",
+--     "action_name": "臀推",
+--     "source": "student_extra",           -- 学员额外添加的动作
+--     "source_action_id": "student-action-uuid",
+--     "sets": [...]
+--   }
+-- ]
+
+SELECT 'Training execution action_executions structure extension documented!' AS status;
