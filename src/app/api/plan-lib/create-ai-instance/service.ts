@@ -94,9 +94,11 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         : templates[randomInt(0, templates.length)];
 
     // 根据用户数据进行填充，同时自动计算负重
-    fillTemplate(answers, selectTemplate, {
+    await fillTemplate(answers, selectTemplate, {
         studentBodyWeight,
         autoComputeActions: autoComputeActions || [],
+        studentId: subscription.student_id,
+        coachId: actorCoachId,
     });
 
     // 起始执行位置逻辑：以周为单位保留完整结构
