@@ -11,6 +11,125 @@
     @tailwind utilities;
 }
 
+/* Enhanced prose styles for Markdown content display in all contexts */
+/* Ensure tables, headings, and other Markdown elements render correctly */
+
+/* Table styles for student view and preview */
+.prose table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5rem 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.prose table td,
+.prose table th {
+    border: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    vertical-align: top;
+    text-align: left;
+}
+
+.prose table th {
+    font-weight: 600;
+    background-color: #f9fafb;
+    color: #374151;
+}
+
+.prose table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Enhanced heading styles */
+.prose h1 { font-size: 2.25em; margin-top: 0; margin-bottom: 0.8888889em; font-weight: 800; }
+.prose h2 { font-size: 1.875em; margin-top: 1.5em; margin-bottom: 0.8em; font-weight: 700; }
+.prose h3 { font-size: 1.5em; margin-top: 1.6em; margin-bottom: 0.6em; font-weight: 700; }
+.prose h4 { font-size: 1.25em; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; }
+.prose h5 { font-size: 1.125em; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; }
+.prose h6 { font-size: 1em; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; color: #6b7280; }
+
+/* Code blocks */
+.prose pre {
+    background-color: #1f2937;
+    color: #f9fafb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.prose code {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+}
+
+.prose pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Blockquotes */
+.prose blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1rem;
+    font-style: italic;
+    color: #6b7280;
+    margin: 1rem 0;
+}
+
+/* Lists */
+.prose ul,
+.prose ol {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+}
+
+.prose li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Links in content */
+.prose a {
+    color: #3b82f6;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.prose a:hover {
+    color: #2563eb;
+}
+
+/* Images in content */
+.prose img {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem 0;
+}
+
+/* Videos in content */
+.prose video {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+    margin: 1.5rem 0;
+    background-color: #000;
+}
+
+/* Horizontal rules */
+.prose hr {
+    border: none;
+    border-top: 2px solid #e5e7eb;
+    margin: 2rem 0;
+}
+
 :root {
     --radius: 0.5rem;
     --background: var(--surface-ground);
