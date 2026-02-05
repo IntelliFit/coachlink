@@ -100,6 +100,9 @@ const PUBLIC_PATHS = new Set([
     '/api/captcha/slider/verify',
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/api/payment/alipay/return", // Alipay return - browser redirect without session
+    "/api/payment/alipay/create", // guest payment create
+    "/api/payment/alipay/query", // guest payment query
+    "/api/payment/alipay/guest/create", // guest payment create (public)
     "/docs/agreement",
     "/docs/disclaimer",
     "/disclaimer",
@@ -205,6 +208,10 @@ export async function proxy(request: NextRequest) {
         PUBLIC_PATHS.has(pathname) ||
         // 公开 API（分享/公开文章等）
         pathname.startsWith("/api/public/") ||
+        // 公共动作库（允许未登录访问）
+        pathname.startsWith("/api/public-action-lib/") ||
+        // 公开资讯文章详情（允许未登录预览与访客支付）
+        pathname.startsWith("/articles/") ||
         // 公开可浏览：发现/教练主页（动作在页面内再做登录保护）
         pathname.startsWith("/coach/discovery") ||
         pathname.startsWith("/coach/profile") ||
@@ -248,12 +255,6 @@ export async function proxy(request: NextRequest) {
 
     // 未认证访问受保护页面 → 重定向登录
     if (!isAuthenticated) {
-        // 资讯文章：未登录允许看列表，但点进详情必须先登录
-        if (pathname.startsWith("/articles/")) {
-            return NextResponse.redirect(
-                `${origin}/login?redirect=${encodeURIComponent(fullPath)}`,
-            );
-        }
         return NextResponse.redirect(`${origin}/login`);
     }
 

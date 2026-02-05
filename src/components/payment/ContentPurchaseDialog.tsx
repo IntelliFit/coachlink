@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { useToastContext } from '@/context/ToastContext';
@@ -12,6 +12,8 @@ type Props = {
   title: string;
   priceCents: number;
   redirect: string;
+  guestMode?: boolean;
+  autoPay?: boolean;
 };
 
 function isMobileDevice() {
@@ -28,10 +30,13 @@ export default function ContentPurchaseDialog({
   title,
   priceCents,
   redirect,
+  guestMode = false,
+  autoPay = false,
 }: Props) {
   const { showToast } = useToastContext();
   const [loading, setLoading] = useState(false);
   const priceYuan = useMemo(() => (priceCents / 100).toFixed(2), [priceCents]);
+  const hasTriggeredRef = useRef(false);
 
   const handlePay = async () => {
     if (!contentId) return;
@@ -40,20 +45,24 @@ export default function ContentPurchaseDialog({
     setLoading(true);
     try {
       const mobile = isMobileDevice();
-      const res = await fetch('/api/payment/alipay/create', {
+      const res = await fetch(
+        guestMode ? '/api/payment/alipay/guest/create' : '/api/payment/alipay/create',
+        {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subject: `购买文章：${title || ''}`,
+          title,
           totalAmount: Number(priceYuan),
-          orderType: 'content_purchase',
+          orderType: guestMode ? 'guest_content_purchase' : 'content_purchase',
           orderData: {
             contentId,
             redirect,
           },
           isMobile: mobile,
         }),
-      });
+      },
+      );
 
       const data = await res.json();
       if (!data?.success || !data?.data?.paymentInfo?.formHtml) {
@@ -77,6 +86,13 @@ export default function ContentPurchaseDialog({
         return;
       }
 
+      if (guestMode) {
+        document.open();
+        document.write(formHtml);
+        document.close();
+        return;
+      }
+
       const w = window.open('', '_blank');
       if (w) {
         w.document.write(formHtml);
@@ -93,6 +109,21 @@ export default function ContentPurchaseDialog({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!visible) {
+      hasTriggeredRef.current = false;
+      return;
+    }
+    if (autoPay && !hasTriggeredRef.current) {
+      hasTriggeredRef.current = true;
+      handlePay();
+    }
+  }, [autoPay, visible]);
+
+  if (autoPay) {
+    return null;
+  }
 
   return (
     <Dialog

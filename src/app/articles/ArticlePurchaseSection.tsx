@@ -13,6 +13,7 @@ export default function ArticlePurchaseSection({
   coachId,
   coachName,
   requiredTier,
+  isGuest = false,
 }: {
   contentId: string;
   title: string;
@@ -20,6 +21,7 @@ export default function ArticlePurchaseSection({
   coachId: string;
   coachName: string;
   requiredTier: number;
+  isGuest?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -51,16 +53,18 @@ export default function ArticlePurchaseSection({
                 label={`立即购买 ¥${priceYuan}`}
                 onClick={() => setOpen(true)}
               />
-              <Button
-                outlined
-                className="rounded-2xl"
-                label="订阅教练免费读"
-                onClick={() =>
-                  router.push(
-                    `/coach/profile/${coachId}?tab=1#choose-pricing`,
-                  )
-                }
-              />
+              {!isGuest ? (
+                <Button
+                  outlined
+                  className="rounded-2xl"
+                  label="订阅教练免费读"
+                  onClick={() =>
+                    router.push(
+                      `/coach/profile/${coachId}?tab=1#choose-pricing`,
+                    )
+                  }
+                />
+              ) : null}
               <Button
                 outlined
                 className="rounded-2xl"
@@ -79,6 +83,8 @@ export default function ArticlePurchaseSection({
         title={title}
         priceCents={priceCents}
         redirect={redirect}
+        guestMode={isGuest}
+        autoPay={isGuest}
       />
     </>
   );
