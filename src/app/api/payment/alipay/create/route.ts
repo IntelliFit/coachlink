@@ -14,15 +14,6 @@ import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
 export async function POST(req: Request) {
     const session = await getServerSession();
 
-    if (!session?.user?.id) {
-        return NextResponse.json(
-            { success: false, message: "用户未登录", data: null },
-            { status: 401 },
-        );
-    }
-
-    const userId = session.user.id;
-
     // 构建回调地址：优先使用环境变量（本地开发时可指向线上），否则从请求头推断
     // 环境变量格式：ALIPAY_NOTIFY_URL=https://your-domain.com/api/payment/alipay/notify
     //              ALIPAY_RETURN_URL=https://your-domain.com/api/payment/alipay/return
@@ -69,6 +60,22 @@ export async function POST(req: Request) {
         createMode = "common",
         isMobile = false,
     } = (await req.json()) as CreateAlipayOrderDto;
+
+    const isGuestOrder = orderType === "guest_content_purchase";
+    if (isGuestOrder) {
+        return NextResponse.json(
+            { success: false, message: "请使用访客支付接口", data: null },
+            { status: 400 },
+        );
+    }
+    if (!session?.user?.id) {
+        return NextResponse.json(
+            { success: false, message: "用户未登录", data: null },
+            { status: 401 },
+        );
+    }
+
+    const userId = session.user.id;
 
     if (!totalAmount) {
         return NextResponse.json(
@@ -136,7 +143,7 @@ export async function POST(req: Request) {
     }
 
     // Content purchase: never trust client-provided amount/subject.
-    if (orderType === "content_purchase") {
+    if (orderType === "content_purchase" || orderType === "guest_content_purchase") {
         if (!contentId) {
             return NextResponse.json(
                 { success: false, message: "缺少内容ID，无法创建支付订单", data: null },

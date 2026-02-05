@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import supabase from '@/lib/supabaseClient';
+import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
 import { createAlipaySdk } from '@/lib/alipaySdk';
 import {
@@ -46,15 +46,7 @@ const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string |
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: '用户未登录',
-            data: null
-        }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+    const userId = session?.user?.id || '';
 
     const body = await req.json() as (QueryAlipayOrderDto & { paymentId?: string });
     const orderId = body.orderId || body.paymentId;
@@ -67,11 +59,28 @@ export async function POST(req: Request) {
     }
 
     // 查询是否已经支付成功
-    const { data: existOrder, error: existOrderError } = await supabase
+    const dbClient = userId ? supabase : serviceRoleSupabase;
+    const { data: existOrder, error: existOrderError } = await dbClient
         .from('alipay_orders')
         .select()
         .eq('id', orderId)
         .single();
+
+    if (existOrderError || !existOrder) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: '订单不存在',
+            data: null
+        }, { status: 404 });
+    }
+
+    if (!userId && existOrder?.order_type !== 'guest_content_purchase') {
+        return NextResponse.json({
+            success: false,
+            message: '用户未登录',
+            data: null
+        }, { status: 401 });
+    }
 
     if (!existOrderError && existOrder.status === 'paid') {
         // 将金额从分转换为元返回给前端
@@ -132,7 +141,7 @@ export async function POST(req: Request) {
     }
 
     // Update local order status snapshot
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await dbClient
         .from('alipay_orders')
         .update({
             status: orderStatus,
@@ -152,7 +161,7 @@ export async function POST(req: Request) {
     }
 
     // 订阅/续费确认 + 钱包入账（与 notify/return 共用逻辑，幂等）
-    if (orderStatus === 'paid' && order) {
+    if (orderStatus === 'paid' && order && userId) {
         if (order.order_type === 'subscription' || order.order_type === 'subscription_renew') {
             await fulfillSubscriptionOnPaid(order, orderId, userId);
             await updateTransactionAndWallet(order);
