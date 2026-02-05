@@ -14,12 +14,7 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession();
         const userId = session?.user?.id || null;
-        if (!userId) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: "用户未登录", data: null },
-                { status: 401 },
-            );
-        }
+        // 允许未登录用户访问公共动作列表
 
         const { page = 1, limit = 12, search, type, viewerActionType = "student" } =
             (await req.json()) as ListPublicActionsDto;
@@ -86,9 +81,9 @@ export async function POST(req: Request) {
             new Set(actions.map((a) => a.contributor_user_id).filter(Boolean)),
         );
 
-        // 1) isLiked
+        // 1) isLiked - 仅在用户已登录时查询
         let likedIds = new Set<string>();
-        if (actionIds.length > 0) {
+        if (userId && actionIds.length > 0) {
             const { data: likesData } = await supabase
                 .from("community_action_likes")
                 .select("action_id")
@@ -97,9 +92,9 @@ export async function POST(req: Request) {
             likedIds = new Set((likesData || []).map((x: any) => x.action_id));
         }
 
-        // 2) isAdded (by name: aligns with existing unique constraint)
+        // 2) isAdded (by name: aligns with existing unique constraint) - 仅在用户已登录时查询
         let addedNames = new Set<string>();
-        if (actionNames.length > 0) {
+        if (userId && actionNames.length > 0) {
             const targetTable =
                 viewerActionType === "coach" ? "coach_actions" : "student_actions";
             const ownerColumn =

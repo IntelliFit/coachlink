@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Card } from 'primereact/card';
 import MarkdownIt from 'markdown-it';
 import BackButton from '../../../components/BackButton';
@@ -58,10 +58,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
   const session = await getServerSession();
   const userId = session?.user?.id;
-  if (!userId) {
-    // middleware should already redirect, but keep a server-side safety net
-    redirect(`/login?redirect=${encodeURIComponent(`/articles/${slugValue}`)}`);
-  }
+  const isGuest = !userId;
 
   // Client-side refresh hook for payment return
   // (noop in server render, but enables post-payment refresh when ?paid=1)
@@ -142,7 +139,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
     const isPaid = priceCents > 0;
 
     let purchased = false;
-    if (isPaid) {
+    if (isPaid && userId) {
       const { data: purchase } = await serviceRoleSupabase
         .from('content_purchases' as any)
         .select('id,status')
@@ -155,6 +152,9 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
     let subscriptionUnlocked = false;
     try {
+      if (!userId) {
+        subscriptionUnlocked = false;
+      } else {
       const coachId = String((data as any).coach_id || '');
       if (coachId) {
         const { data: sub } = await serviceRoleSupabase
@@ -166,6 +166,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
           .gte('tier', requiredTier)
           .maybeSingle();
         subscriptionUnlocked = !!sub;
+      }
       }
     } catch {
       // ignore
@@ -219,6 +220,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
                   coachId={(data as any).coach_id}
                   coachName={(data as any)?.coach?.name || '教练'}
                   requiredTier={requiredTier}
+                  isGuest={isGuest}
                 />
               ) : null}
 
