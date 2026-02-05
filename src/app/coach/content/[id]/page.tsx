@@ -43,10 +43,12 @@ const ContentPage = () => {
                     await checkIfUserLiked(params.id.toString(), session.user.id);
                 }
             } else {
-                router.push('/404');
+                // 内容不存在，设置为null以显示删除提示
+                setContent(null);
             }
         } catch (error) {
-            showToast({ severity: 'error', summary: '错误', detail: '无法获取内容' });
+            console.error('获取内容失败:', error);
+            setContent(null);
         } finally {
             setLoading(false);
         }
@@ -156,6 +158,59 @@ const ContentPage = () => {
 
     if (loading) return <ContentSkeleton />;
 
+    // 内容已被删除的提示页面
+    if (!content) {
+        return (
+            <div className="min-h-screen py-8 pb-24">
+                <div className="max-w-3xl mx-auto px-4">
+                    {/* 顶部导航 */}
+                    <button 
+                        onClick={() => router.back()}
+                        className="group flex items-center gap-2 mb-8 text-surface-400 hover:text-primary-500 transition-all active:scale-95"
+                    >
+                        <div className="p-2 rounded-full transition-all">
+                            <ArrowLeft className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-bold tracking-tight">返回</span>
+                    </button>
+
+                    {/* 内容已删除提示 */}
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="bg-surface border border-surface-100 rounded-[32px] p-12 text-center max-w-md">
+                            <div className="inline-flex p-5 rounded-full bg-red-50 mb-6">
+                                <svg 
+                                    className="w-12 h-12 text-red-500" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round" 
+                                        strokeWidth={1.5} 
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                                    />
+                                </svg>
+                            </div>
+                            <h3 className="text-2xl font-bold text-surface-900 mb-3 tracking-tight">
+                                跳转失败
+                            </h3>
+                            <p className="text-surface-500 mb-8 font-light leading-relaxed">
+                                该内容已被删除！
+                            </p>
+                            <button 
+                                onClick={() => router.back()}
+                                className="px-8 py-4 bg-primary-500 text-surface rounded-2xl font-bold shadow-lg shadow-primary-200 hover:bg-primary-600 transition-all active:scale-[0.98]"
+                            >
+                                返回上一页
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const tierConfig = getTierConfig(content?.required_tier || 0);
 
     return (
@@ -242,9 +297,9 @@ const ContentPage = () => {
                                 </div>
                             )}
 
-                            {/* 正文文本 - 富文本渲染 */}
+                            {/* 正文文本 - 富文本渲染（支持完整Markdown和表格） */}
                             <div 
-                                className="prose prose-lg max-w-none text-surface-700 leading-[1.8] font-light"
+                                className="prose prose-lg max-w-none text-surface-700 leading-[1.8] font-light prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-3xl prose-h3:text-2xl prose-table:border-collapse prose-table:w-full prose-th:bg-surface-100 prose-th:font-bold prose-th:border prose-th:border-surface-300 prose-th:px-4 prose-th:py-2 prose-td:border prose-td:border-surface-300 prose-td:px-4 prose-td:py-2"
                                 dangerouslySetInnerHTML={{ __html: content?.content || '' }}
                             />
 
