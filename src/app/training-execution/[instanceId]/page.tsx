@@ -10,7 +10,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
-import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload } from 'lucide-react';
+import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
 import { planLibService } from '@/app/service/planLibService';
 import { videoService } from '@/app/service/videoService';
@@ -18,6 +18,7 @@ import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import ActionPicker from '@/app/today-training/ActionPicker';
 
 interface SetData {
     set_number: number;
@@ -133,6 +134,9 @@ function TrainingExecutionContent() {
     const [editingSetKey, setEditingSetKey] = useState<string | null>(null);
     const [videoLink, setVideoLink] = useState<string>('');
     const [linkedVideo, setLinkedVideo] = useState<{ id: string; url: string } | null>(null);
+    const [addingExtraSet, setAddingExtraSet] = useState(false);
+    const [addingExtraAction, setAddingExtraAction] = useState(false);
+    const [showActionPicker, setShowActionPicker] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
@@ -901,6 +905,150 @@ function TrainingExecutionContent() {
         setRestTimer(prev => prev + seconds);
     };
 
+    // 添加额外组数
+    const handleAddExtraSet = async (actionIndex: number) => {
+        if (!execution || addingExtraSet) return;
+        
+        try {
+            setAddingExtraSet(true);
+            
+            const res = await fetch('/api/execution/extra-content/add-extra-set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionIndex,
+                }),
+            });
+            
+            const data = await res.json();
+            
+            if (data.success && data.data) {
+                // 更新本地状态
+                const updatedExecution = { ...execution };
+                const newSetIndex = data.data.newSetIndex;
+                const actionExec = updatedExecution.action_executions[actionIndex];
+                
+                // 添加新组到本地状态
+                actionExec.sets.push({
+                    set_number: newSetIndex + 1,
+                    status: 'pending',
+                    planned_weight: '',
+                    planned_reps: '',
+                    source: 'student_extra',
+                });
+                actionExec.total_sets = actionExec.sets.length;
+                updatedExecution.total_sets = data.data.totalSets;
+                
+                setExecution(updatedExecution);
+                setCurrentSetIndex(newSetIndex);
+                
+                showToast({
+                    severity: 'success',
+                    summary: '已添加',
+                    detail: `已添加第 ${newSetIndex + 1} 组`,
+                    life: 2000,
+                });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '添加失败',
+                    detail: data.message || '无法添加额外组',
+                });
+            }
+        } catch (error) {
+            console.error('Add extra set failed:', error);
+            showToast({
+                severity: 'error',
+                summary: '错误',
+                detail: '添加额外组失败',
+            });
+        } finally {
+            setAddingExtraSet(false);
+        }
+    };
+
+    // 添加额外动作
+    const handleAddExtraAction = async (action: any) => {
+        if (!execution || addingExtraAction) return;
+        
+        try {
+            setAddingExtraAction(true);
+            
+            const res = await fetch('/api/execution/extra-content/add-extra-exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionId: action.id,
+                    actionName: action.name,
+                    sets: [{ weight: null, reps: null }], // 默认1组
+                }),
+            });
+            
+            const data = await res.json();
+            
+            if (data.success && data.data) {
+                // 更新本地状态
+                const updatedExecution = { ...execution };
+                const newActionIndex = data.data.newActionIndex;
+                
+                // 添加新动作到本地状态
+                updatedExecution.action_executions.push({
+                    action_id: action.id,
+                    action_name: action.name,
+                    action_order: newActionIndex + 1,
+                    source: 'student_extra',
+                    source_action_id: action.id,
+                    sets: [{
+                        set_number: 1,
+                        status: 'pending',
+                        planned_weight: '',
+                        planned_reps: '',
+                        source: 'student_extra',
+                    }],
+                    total_sets: 1,
+                    completed_sets: 0,
+                });
+                updatedExecution.total_sets = data.data.totalSets || (updatedExecution.total_sets + 1);
+                
+                setExecution(updatedExecution);
+                setExpandedAction(newActionIndex);
+                setCurrentSetIndex(0);
+                
+                showToast({
+                    severity: 'success',
+                    summary: '已添加',
+                    detail: `已添加动作：${action.name}`,
+                    life: 2000,
+                });
+                
+                // Track event
+                trackEvent('student_add_extra_exercise', 'training', {
+                    execution_id: execution.id,
+                    action_id: action.id,
+                    action_name: action.name,
+                });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '添加失败',
+                    detail: data.message || '无法添加动作',
+                });
+            }
+        } catch (error) {
+            console.error('Add extra action failed:', error);
+            showToast({
+                severity: 'error',
+                summary: '错误',
+                detail: '添加动作失败',
+            });
+        } finally {
+            setAddingExtraAction(false);
+        }
+    };
+
+
     if (loading) {
         return (
             <div className="min-h-screen bg-surface-50 p-4">
@@ -1152,7 +1300,8 @@ function TrainingExecutionContent() {
                                         return actionType === 'STRENGTH';
                                     })() ? (
                                         // 力量训练：显示组列表
-                                        actionExec.sets.map((setData: SetData, setIndex: number) => {
+                                        <>
+                                        {actionExec.sets.map((setData: SetData, setIndex: number) => {
                                             const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
                                             const isSetCompleted = setData.status === 'completed';
                                             const isSelectedSet = actionIndex === expandedAction && setIndex === currentSetIndex;
@@ -1641,7 +1790,19 @@ function TrainingExecutionContent() {
                                                     )}
                                                 </div>
                                             );
-                                        })
+                                        })}
+                                        
+                                        {/* +1组 按钮 */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAddExtraSet(actionIndex)}
+                                            disabled={addingExtraSet}
+                                            className="w-full py-3 border-2 border-dashed border-surface-300 rounded-2xl text-surface-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            <span className="font-medium">{addingExtraSet ? '添加中...' : '+1 组'}</span>
+                                        </button>
+                                        </>
                                     ) : (
                                         // 非力量训练 (饮食/有氧/习惯)
                                         <div className="border rounded-lg p-4 border-purple-500 bg-purple-500/10">
@@ -1768,6 +1929,17 @@ function TrainingExecutionContent() {
                         </Card>
                     );
                 })}
+                
+                {/* 添加动作按钮 */}
+                <button
+                    type="button"
+                    onClick={() => setShowActionPicker(true)}
+                    disabled={addingExtraAction}
+                    className="w-full py-4 border-2 border-dashed border-primary-300 rounded-2xl text-primary-600 hover:border-primary-500 hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span className="font-bold">{addingExtraAction ? '添加中...' : '+ 添加动作'}</span>
+                </button>
             </div>
 
             {/* Finish Section */}
@@ -1846,6 +2018,14 @@ function TrainingExecutionContent() {
             }}
             executionId={execution.id}
         />
+            
+            {/* Action Picker Dialog */}
+            <ActionPicker
+                visible={showActionPicker}
+                onHide={() => setShowActionPicker(false)}
+                onSelect={handleAddExtraAction}
+                userId={session?.user?.id || ''}
+            />
     </div>
 );
 }

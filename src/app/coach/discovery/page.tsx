@@ -625,7 +625,7 @@ const CoachDiscoveryPage: React.FC = () => {
     const renderArticleCard = (article: PublicArticleListItem) => (
         <div 
             className="w-[260px] md:w-[300px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100 hover:border-surface-200 hover:-translate-y-0.5 active:scale-98 transition-all cursor-pointer snap-start flex flex-col justify-between"
-            onClick={() => router.push(`/articles/${article.id}`)}
+            onClick={() => router.push(`/coach/content/${article.id}`)}
         >
             <div>
                  <div className="flex items-center gap-2 mb-3">

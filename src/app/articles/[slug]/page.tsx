@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Card } from 'primereact/card';
 import MarkdownIt from 'markdown-it';
 import BackButton from '../../../components/BackButton';
@@ -55,6 +55,12 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   const slugValue = slug || '';
   const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugValue);
+
+  // 🔄 重定向到统一的内容路由 /coach/content/[id]
+  // 如果是UUID格式（教练发布的内容），直接重定向到新路由
+  if (isUuid) {
+    redirect(`/coach/content/${slugValue}`);
+  }
 
   const session = await getServerSession();
   const userId = session?.user?.id;
