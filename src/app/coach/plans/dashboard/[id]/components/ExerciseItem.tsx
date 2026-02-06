@@ -8,7 +8,7 @@
 'use client';
 
 import React, { useState, forwardRef } from 'react';
-import { ChevronDown, ChevronUp, Plus, StickyNote, Trophy } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, StickyNote, Trophy, UserPlus } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Card } from 'primereact/card';
@@ -132,6 +132,12 @@ const ExerciseItem = forwardRef<HTMLDivElement, ExerciseItemProps>(({
                             {exercise.exercise_category && (
                                 <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs border-round">
                                     {categoryLabels[exercise.exercise_category] || exercise.exercise_category}
+                                </span>
+                            )}
+                            {(exercise as any).source === 'student_extra' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 text-xs border-round font-medium">
+                                    <UserPlus className="w-3 h-3" />
+                                    学员添加
                                 </span>
                             )}
                         </div>

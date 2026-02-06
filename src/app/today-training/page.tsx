@@ -31,13 +31,10 @@ const TodayTrainingPage: React.FC = () => {
     const { startGuide } = useGuideStore();
     const hasShownReturnToastRef = useRef(false);
 
-    // 教练分配的计划
-    const [coachInstance, setCoachInstance] = useState<any>(null);
-    const [coachActions, setCoachActions] = useState<Record<string, any>>({});
-    const [coachDayIndex, setCoachDayIndex] = useState(1);
-    const [coachTodayCompleted, setCoachTodayCompleted] = useState(false);
-    const [coachCompletionDates, setCoachCompletionDates] = useState<Record<number, string>>({});
-    const [coachExecutionsByDayIndex, setCoachExecutionsByDayIndex] = useState<Record<number, any>>({});
+    // 教练分配的计划（多订阅支持）
+    const [coachSubscriptions, setCoachSubscriptions] = useState<any[]>([]);
+    const [activeCoachSubscriptionId, setActiveCoachSubscriptionId] = useState<string | null>(null);
+    const [coachPlanDataBySubId, setCoachPlanDataBySubId] = useState<Record<string, any>>({});
 
     // 自建计划
     const [selfInstance, setSelfInstance] = useState<any>(null);
@@ -46,14 +43,13 @@ const TodayTrainingPage: React.FC = () => {
     const [selfTodayCompleted, setSelfTodayCompleted] = useState(false);
     const [selfCompletionDates, setSelfCompletionDates] = useState<Record<number, string>>({});
     const [selfExecutionsByDayIndex, setSelfExecutionsByDayIndex] = useState<Record<number, any>>({});
+    const [selfMissingDays, setSelfMissingDays] = useState<number[]>([]);
 
     // 当前显示模式: 'coach' | 'self'
     const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach');
 
     const [loading, setLoading] = useState(true);
-    const [subscription, setSubscription] = useState<any>(null);
     // spec v1: missing days (unresolved days before recommended pointer)
-    const [missingDays, setMissingDays] = useState<number[]>([]);
     const [executionStatus, setExecutionStatus] = useState<'none' | 'in_progress' | 'completed'>('none');
     const [completedSets, setCompletedSets] = useState(0);
     const [totalSets, setTotalSets] = useState(0);
@@ -64,6 +60,19 @@ const TodayTrainingPage: React.FC = () => {
     const [showExplainDialog, setShowExplainDialog] = useState(false);
     const [quickFinishLoading, setQuickFinishLoading] = useState(false);
 
+    const activeSubscription =
+        coachSubscriptions.find((s) => s.id === activeCoachSubscriptionId) ||
+        coachSubscriptions[0] ||
+        null;
+    const activeCoachPlan = activeCoachSubscriptionId ? coachPlanDataBySubId[activeCoachSubscriptionId] : null;
+    const coachInstance = activeCoachPlan?.instance ?? null;
+    const coachActions = activeCoachPlan?.actions ?? {};
+    const coachDayIndex = activeCoachPlan?.dayIndex ?? 1;
+    const coachTodayCompleted = activeCoachPlan?.todayCompleted ?? false;
+    const coachCompletionDates = activeCoachPlan?.completionDates ?? {};
+    const coachExecutionsByDayIndex = activeCoachPlan?.executionsByDayIndex ?? {};
+    const coachMissingDays = activeCoachPlan?.missingDays ?? [];
+
     // 当前激活的计划（根据 planMode 动态选择）
     const instance = planMode === 'coach' ? coachInstance : selfInstance;
     const actions = planMode === 'coach' ? coachActions : selfActions;
@@ -71,6 +80,7 @@ const TodayTrainingPage: React.FC = () => {
     const todayCompleted = planMode === 'coach' ? coachTodayCompleted : selfTodayCompleted;
     const completionDates = planMode === 'coach' ? coachCompletionDates : selfCompletionDates;
     const executionsByDayIndex = planMode === 'coach' ? coachExecutionsByDayIndex : selfExecutionsByDayIndex;
+    const missingDays = planMode === 'coach' ? coachMissingDays : selfMissingDays;
 
     const handleSkipDay = async (dayIndex: number) => {
         if (!instance?.id || !dayIndex) return;
@@ -150,6 +160,7 @@ const TodayTrainingPage: React.FC = () => {
             });
 
             const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
+            setCoachSubscriptions(activeSubs);
 
             // --- 1. 定义并行请求任务 ---
             // 将教练计划的探测逻辑与自建计划的获取逻辑放在同一个并行队列中
@@ -164,19 +175,68 @@ const TodayTrainingPage: React.FC = () => {
             ]);
 
             // --- 2. 处理并行回填数据 ---
-            let coachRes: any = null;
-            let coachSub: any = null;
             let selfRes: any = null;
+            const coachPlanData: Record<string, any> = {};
 
             // 解析教练计划逻辑 (从 allSettled 的第一个结果中提取)
             if (coachPlanResults.status === 'fulfilled' && Array.isArray(coachPlanResults.value)) {
                 const settledSubTasks = coachPlanResults.value;
                 for (let i = 0; i < settledSubTasks.length; i++) {
+                    const sub = activeSubs[i];
                     const r = settledSubTasks[i];
+                    const data = {
+                        instance: null,
+                        actions: {},
+                        dayIndex: 1,
+                        todayCompleted: false,
+                        completionDates: {},
+                        executionsByDayIndex: {},
+                        missingDays: [],
+                    };
+
                     if (r.status === 'fulfilled' && r.value?.instance) {
-                        coachRes = r.value;
-                        coachSub = activeSubs[i];
-                        break; // 找到第一个有内容的计划即停止
+                        const derived = r.value as any;
+                        data.instance = derived.instance;
+                        data.actions = derived.actions || {};
+
+                        if (typeof (derived.recommendedDayIndex ?? derived.nextDayIndex) === 'number') {
+                            data.dayIndex = derived.recommendedDayIndex ?? derived.nextDayIndex;
+                            data.todayCompleted = derived.todayCompleted || false;
+                            data.completionDates = derived.completionDates || {};
+                            data.executionsByDayIndex = derived.executionsByDayIndex || {};
+                            data.missingDays = Array.isArray(derived.missingDays) ? derived.missingDays : [];
+
+                            const completedCount = (derived.completedDays || []).length;
+                            const totalCount = derived.totalTrainingDays || 0;
+                            if (totalCount > 0 && completedCount >= totalCount && derived.instance.status === 'active') {
+                                await handleCompletePlan(derived.instance);
+                            }
+                        } else {
+                            // fallback: legacy API
+                            try {
+                                const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${derived.instance.id}`);
+                                const nextDayData = await nextDayRes.json();
+                                if (nextDayData.success && nextDayData.data) {
+                                    data.dayIndex = nextDayData.data.nextDayIndex;
+                                    data.todayCompleted = nextDayData.data.todayCompleted || false;
+                                    data.completionDates = nextDayData.data.completionDates || {};
+                                    data.executionsByDayIndex = {};
+
+                                    const completedCount = nextDayData.data.completedDays.length;
+                                    const totalCount = nextDayData.data.totalTrainingDays;
+                                    if (totalCount > 0 && completedCount >= totalCount && derived.instance.status === 'active') {
+                                        await handleCompletePlan(derived.instance);
+                                    }
+                                }
+                            } catch (e) {
+                                const startDay = (derived.instance as any).start_execution_day || 1;
+                                data.dayIndex = startDay;
+                            }
+                        }
+                    }
+
+                    if (sub?.id) {
+                        coachPlanData[sub.id] = data;
                     }
                 }
             }
@@ -189,53 +249,12 @@ const TodayTrainingPage: React.FC = () => {
                 selfRes = null;
             }
 
-            // 订阅信息用于顶部教练卡片/后续跳转：优先使用“有计划的订阅”，否则回退到第一个活跃订阅
-            setSubscription(coachSub || activeSubs[0] || null);
+            setCoachPlanDataBySubId(coachPlanData);
 
-            // 处理教练计划
-            if (coachRes?.instance) {
-                setCoachInstance(coachRes.instance);
-                setCoachActions(coachRes.actions || {});
-
-                const derived = coachRes as any;
-                if (typeof (derived.recommendedDayIndex ?? derived.nextDayIndex) === 'number') {
-                    setCoachDayIndex(derived.recommendedDayIndex ?? derived.nextDayIndex);
-                    setCoachTodayCompleted(derived.todayCompleted || false);
-                    setCoachCompletionDates(derived.completionDates || {});
-                    setCoachExecutionsByDayIndex(derived.executionsByDayIndex || {});
-                    setMissingDays(Array.isArray(derived.missingDays) ? derived.missingDays : []);
-
-                    const completedCount = (derived.completedDays || []).length;
-                    const totalCount = derived.totalTrainingDays || 0;
-                    if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
-                        await handleCompletePlan(coachRes.instance);
-                    }
-                } else {
-                    // fallback: legacy API
-                    try {
-                        const nextDayRes = await fetch(`/api/execution/get-next-training-day?instanceId=${coachRes.instance.id}`);
-                        const nextDayData = await nextDayRes.json();
-                        if (nextDayData.success && nextDayData.data) {
-                            setCoachDayIndex(nextDayData.data.nextDayIndex);
-                            setCoachTodayCompleted(nextDayData.data.todayCompleted || false);
-                            setCoachCompletionDates(nextDayData.data.completionDates || {});
-                            setCoachExecutionsByDayIndex({});
-
-                            // 检查是否完成所有计划
-                            const completedCount = nextDayData.data.completedDays.length;
-                            const totalCount = nextDayData.data.totalTrainingDays;
-
-                            if (totalCount > 0 && completedCount >= totalCount && coachRes.instance.status === 'active') {
-                                // 自动标记为完成
-                                await handleCompletePlan(coachRes.instance);
-                            }
-                        }
-                    } catch (e) {
-                        const startDay = (coachRes.instance as any).start_execution_day || 1;
-                        setCoachDayIndex(startDay);
-                    }
-                }
-            }
+            const previousActive = activeSubs.find((s: any) => s.id === activeCoachSubscriptionId);
+            const firstWithPlan = activeSubs.find((s: any) => coachPlanData[s.id]?.instance);
+            const nextActiveId = previousActive?.id || firstWithPlan?.id || activeSubs[0]?.id || null;
+            setActiveCoachSubscriptionId(nextActiveId);
 
             // 处理自建计划
             if (selfRes?.instance) {
@@ -248,10 +267,7 @@ const TodayTrainingPage: React.FC = () => {
                     setSelfTodayCompleted(derived.todayCompleted || false);
                     setSelfCompletionDates(derived.completionDates || {});
                     setSelfExecutionsByDayIndex(derived.executionsByDayIndex || {});
-                    // if currently no coach plan, allow self plan missingDays to surface
-                    if (!coachRes?.instance) {
-                        setMissingDays(Array.isArray(derived.missingDays) ? derived.missingDays : []);
-                    }
+                    setSelfMissingDays(Array.isArray(derived.missingDays) ? derived.missingDays : []);
 
                     const completedCount = (derived.completedDays || []).length;
                     const totalCount = derived.totalTrainingDays || 0;
@@ -286,7 +302,8 @@ const TodayTrainingPage: React.FC = () => {
             }
 
             // 设置默认显示模式：优先教练计划，没有则显示自建计划
-            if (coachRes?.instance) {
+            const hasAnyCoachPlan = activeSubs.some((s: any) => coachPlanData[s.id]?.instance);
+            if (hasAnyCoachPlan) {
                 setPlanMode('coach');
             } else if (selfRes?.instance) {
                 setPlanMode('self');
@@ -369,8 +386,8 @@ const TodayTrainingPage: React.FC = () => {
     // 跳转到问卷更新页面（教练主页）
     const handleUpdateProfile = () => {
         // 导航到教练主页，并触发问卷填写对话框
-        if (subscription?.coach_id) {
-            router.push(`/coach/profile/${subscription.coach_id}?action=questionnaire`);
+        if (activeSubscription?.coach_id) {
+            router.push(`/coach/profile/${activeSubscription.coach_id}?action=questionnaire`);
         } else {
             // 没有教练订阅，回退到个人档案
             router.push('/me/profile');
@@ -379,8 +396,8 @@ const TodayTrainingPage: React.FC = () => {
 
     const handleGenerateNextPlan = () => {
         // 跳转到智能生成页面或计划库页面
-        if (subscription?.id) {
-            router.push(`/me/plan-lib?subscriptionId=${subscription.id}`);
+        if (activeSubscription?.id) {
+            router.push(`/me/plan-lib?subscriptionId=${activeSubscription.id}`);
         } else {
             router.push('/me/plan-lib');
         }
@@ -515,16 +532,17 @@ const TodayTrainingPage: React.FC = () => {
     }
 
     // 判断是否有任何计划
-    const hasAnyPlan = coachInstance || selfInstance;
-    const hasBothPlans = coachInstance && selfInstance;
+    const hasAnyCoachPlan = coachSubscriptions.some((s) => coachPlanDataBySubId[s.id]?.instance);
+    const hasAnyPlan = hasAnyCoachPlan || selfInstance;
+    const hasBothPlans = hasAnyCoachPlan && selfInstance;
 
     if (!hasAnyPlan) {
         const subscribedCoachName =
-            subscription?.coach?.name ||
-            subscription?.coach?.title ||
-            subscription?.coach_id ||
+            activeSubscription?.coach?.name ||
+            activeSubscription?.coach?.title ||
+            activeSubscription?.coach_id ||
             '';
-        const hasActiveSubscription = !!subscription?.id;
+        const hasActiveSubscription = !!activeSubscription?.id;
 
         // 有订阅但暂无计划：展示“教练制定中”的等待页
         if (hasActiveSubscription) {
@@ -554,8 +572,8 @@ const TodayTrainingPage: React.FC = () => {
                                     icon="pi pi-comments"
                                     onClick={() => {
                                         // messages page supports deep link via coachId (coaches.id)
-                                        if (subscription?.coach_id) {
-                                            router.push(`/messages?coachId=${subscription.coach_id}`);
+                                        if (activeSubscription?.coach_id) {
+                                            router.push(`/messages?coachId=${activeSubscription.coach_id}`);
                                         } else {
                                             router.push('/messages');
                                         }
@@ -618,6 +636,122 @@ const TodayTrainingPage: React.FC = () => {
         );
     }
 
+    if (planMode === 'coach' && !coachInstance && activeSubscription?.id) {
+        const coachName =
+            activeSubscription?.coach?.name ||
+            activeSubscription?.coach?.title ||
+            activeSubscription?.coach_id ||
+            '教练';
+        return (
+            <div className="min-h-screen bg-surface pb-12">
+                <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
+                    {hasBothPlans && (
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
+                            <button
+                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${planMode === 'coach'
+                                    ? 'bg-surface text-surface-900 shadow-sm'
+                                    : 'text-surface-500 hover:text-surface-700'
+                                    }`}
+                                onClick={() => setPlanMode('coach')}
+                            >
+                                <i className="pi pi-user mr-2" />
+                                教练计划
+                            </button>
+                            <button
+                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${planMode === 'self'
+                                    ? 'bg-surface text-surface-900 shadow-sm'
+                                    : 'text-surface-500 hover:text-surface-700'
+                                    }`}
+                                onClick={() => setPlanMode('self')}
+                            >
+                                <i className="pi pi-star mr-2" />
+                                我的计划
+                            </button>
+                        </div>
+                    )}
+
+                    {coachSubscriptions.length > 1 && (
+                        <Card className="mb-6 border-0 shadow-sm">
+                            <div className="mb-4 flex items-center gap-2">
+                                <i className="pi pi-users text-primary" />
+                                <span className="font-semibold text-surface-700">
+                                    已订阅教练 ({coachSubscriptions.length})
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                {coachSubscriptions.map((sub) => {
+                                    const isActive = activeCoachSubscriptionId === sub.id;
+                                    return (
+                                        <button
+                                            key={sub.id}
+                                            className={`group relative px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
+                                                ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
+                                                : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
+                                                }`}
+                                            onClick={() => setActiveCoachSubscriptionId(sub.id)}
+                                        >
+                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isActive
+                                                ? 'bg-surface/20'
+                                                : 'bg-surface-100'
+                                                }`}>
+                                                <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="font-medium">
+                                                    {sub.coach?.name || `教练${sub.id.substring(0, 8)}`}
+                                                </div>
+                                                <div className={`text-xs ${isActive ? 'text-surface/80' : 'text-surface-500'}`}>
+                                                    {(sub.coach as any)?.specialization || sub.coach?.title || '专业健身教练'}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </Card>
+                    )}
+
+                    <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
+                        <div className="text-center py-16 px-4">
+                            <div className="relative inline-block mb-6">
+                                <div className="absolute inset-0 animate-ping opacity-20 bg-primary-400 rounded-full" />
+                                <div className="relative bg-surface-50 p-6 rounded-full border border-surface-100/50">
+                                    <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
+                                </div>
+                            </div>
+                            <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
+                                计划正在制定中
+                            </h3>
+                            <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
+                                {coachName ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。` : '您的教练正在为您制定训练计划，请耐心等待。'}
+                            </p>
+                            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                                <Button
+                                    label="联系教练"
+                                    icon="pi pi-comments"
+                                    onClick={() => {
+                                        if (activeSubscription?.coach_id) {
+                                            router.push(`/messages?coachId=${activeSubscription.coach_id}`);
+                                        } else {
+                                            router.push('/messages');
+                                        }
+                                    }}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                />
+                                <Button
+                                    label="我的计划库"
+                                    icon="pi pi-bookmark"
+                                    onClick={() => router.push('/me/plan-lib')}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                />
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
+
     // -----------------------------
     // 日历日（包含休息日）：
     // 以“最近一次 resolved（completed/abandoned）训练日”的完成日期为锚点，按自然天数顺延 dayIndex，
@@ -653,7 +787,7 @@ const TodayTrainingPage: React.FC = () => {
         }
 
         // fallback：当没有任何执行记录时，best-effort 用 start_date (或订阅 start_date) 作为计划日历锚点
-        const effectiveStart = (instance as any).start_date || subscription?.start_date;
+        const effectiveStart = (instance as any).start_date || activeSubscription?.start_date;
         if (effectiveStart) {
             const start = new Date(effectiveStart);
             start.setHours(0, 0, 0, 0);
@@ -737,8 +871,49 @@ const TodayTrainingPage: React.FC = () => {
                         </button>
                     </div>
                 )}
+                {/* --- 教练计划切换器（多教练订阅时）--- */}
+                {planMode === 'coach' && coachSubscriptions.length > 1 && (
+                    <Card className="mb-6 border-0 shadow-sm">
+                        <div className="mb-4 flex items-center gap-2">
+                            <i className="pi pi-users text-primary" />
+                            <span className="font-semibold text-surface-700">
+                                已订阅教练 ({coachSubscriptions.length})
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            {coachSubscriptions.map((sub) => {
+                                const isActive = activeCoachSubscriptionId === sub.id;
+                                return (
+                                    <button
+                                        key={sub.id}
+                                        className={`group relative px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
+                                            ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
+                                            : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
+                                            }`}
+                                        onClick={() => setActiveCoachSubscriptionId(sub.id)}
+                                    >
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isActive
+                                            ? 'bg-surface/20'
+                                            : 'bg-surface-100'
+                                            }`}>
+                                            <i className={`pi pi-user ${isActive ? 'text-surface' : 'text-surface-500'}`} />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="font-medium">
+                                                {sub.coach?.name || `教练${sub.id.substring(0, 8)}`}
+                                            </div>
+                                            <div className={`text-xs ${isActive ? 'text-surface/80' : 'text-surface-500'}`}>
+                                                {(sub.coach as any)?.specialization || sub.coach?.title || '专业健身教练'}
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Card>
+                )}
                 {/* --- 顶部教练信息卡片 (仅当有订阅且当前计划不是自建时显示，或者即使是自建也可以不显示教练卡片) --- */}
-                {subscription?.coach && instance?.source !== 'self' && (
+                {activeSubscription?.coach && instance?.source !== 'self' && (
                     <div className="relative overflow-hidden bg-surface-900 rounded-2xl p-6 mb-8 text-surface border border-surface-100/50">
                         {/* 背景装饰图形 */}
                         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
@@ -748,8 +923,8 @@ const TodayTrainingPage: React.FC = () => {
                             <div className="flex items-center space-x-5">
                                 <div className="relative">
                                     <Avatar
-                                        label={subscription.coach.name?.charAt(0) || 'C'}
-                                        image={subscription.coach.avatar_url}
+                                        label={activeSubscription.coach.name?.charAt(0) || 'C'}
+                                        image={activeSubscription.coach.avatar_url}
                                         shape="circle"
                                         className="w-16 h-16 bg-surface text-primary-500 font-bold"
                                     ></Avatar>
@@ -763,10 +938,10 @@ const TodayTrainingPage: React.FC = () => {
                                         <span className="text-surface-400 text-xs font-medium italic">为你定制训练路径</span>
                                     </div>
                                     <h2 className="text-2xl text-surface font-bold tracking-tight">
-                                        {subscription.coach.name || '未知教练'}
+                                        {activeSubscription.coach.name || '未知教练'}
                                     </h2>
                                     <p className="text-surface-400 text-sm font-medium">
-                                        {subscription.coach.title || '资深健身专家'}
+                                        {activeSubscription.coach.title || '资深健身专家'}
                                     </p>
                                 </div>
                             </div>
@@ -971,7 +1146,7 @@ const TodayTrainingPage: React.FC = () => {
                             todayCompleted={todayCompleted}
                             initialSelectedDayIndex={progressDayIndex}
                             progressDayIndex={progressDayIndex}
-                            effectiveStartDate={instance.start_date || subscription?.start_date}
+                            effectiveStartDate={instance.start_date || activeSubscription?.start_date}
                         />
                     </section>
                 </div>
