@@ -2,265 +2,225 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
-import { Skeleton } from "primereact/skeleton";
-import knowledgeService from "@/app/service/knowledgeService";
-import { KnowledgeBookRow } from "@/types";
-import type { CoachContentRow } from "@/types";
-import { useToastContext } from "@/context/ToastContext";
+import dynamic from "next/dynamic";
+import { BookOpen, Search, Zap, ChevronRight, Sparkles, List, GitBranch } from "lucide-react";
+import AIChatPanel from "@/components/knowledge/AIChatPanel";
+
+// Dynamic import for mind map (uses ReactFlow which needs client-side only)
+const KnowledgeMindMap = dynamic(
+    () => import("@/components/knowledge/KnowledgeMindMap"),
+    { ssr: false, loading: () => <div className="h-[500px] bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" /> }
+);
+
+type KnowledgePillar = {
+    id: string;
+    title: string;
+    description: string | null;
+    node_type?: string;
+    children?: KnowledgePillar[];
+};
+
+type ViewMode = 'list' | 'mindmap';
 
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
-    const { showToast } = useToastContext();
-    const [books, setBooks] = useState<KnowledgeBookRow[]>([]);
-    const [loadingBooks, setLoadingBooks] = useState(true);
-    const [loadingContents, setLoadingContents] = useState(true);
-    const [contents, setContents] = useState<Array<{
-        content: CoachContentRow;
-        coach: { id: string; name: string; avatar_url: string | null; status: string | null };
-        accessTier: number;
-        canView: boolean;
-    }>>([]);
+    const [loadingPillars, setLoadingPillars] = useState(true);
+    const [pillars, setPillars] = useState<KnowledgePillar[]>([]);
+    const [showAIChat, setShowAIChat] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [viewMode, setViewMode] = useState<ViewMode>('list');
 
+    // Fetch knowledge pillars (tree structure)
     useEffect(() => {
-        // Fetch latest books
-        const fetchBooks = async () => {
+        const fetchPillars = async () => {
             try {
-                const result = await knowledgeService.listKnowledgeBooks({
-                    is_published: true,
-                    is_free: true, // Show free books first
-                });
-                if (result) {
-                    // Sort by creation date and take the latest 3
-                    const sortedBooks = result.books
-                        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-                        .slice(0, 3);
-                    setBooks(sortedBooks);
-                }
-            } catch (error) {
-                console.error("获取书籍失败:", error);
-            } finally {
-                setLoadingBooks(false);
-            }
-        };
-
-        fetchBooks();
-    }, []);
-
-    useEffect(() => {
-        const fetchContents = async () => {
-            setLoadingContents(true);
-            try {
-                const res = await fetch("/api/knowledge/list-coach-contents", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ limit: 3, offset: 0 }),
-                });
+                const res = await fetch("/api/knowledge/tree");
                 const json = await res.json();
-                if (!json?.success) {
-                    setContents([]);
-                    showToast({
-                        severity: "warn",
-                        summary: "文章加载失败",
-                        detail: json?.message || "请稍后重试",
-                    });
-                    return;
-                }
-                setContents(json.data?.items || []);
-            } catch (e: any) {
-                setContents([]);
-                showToast({
-                    severity: "warn",
-                    summary: "文章加载失败",
-                    detail: e?.message || "请稍后重试",
-                });
+                setPillars(json.tree || []);
+            } catch (error) {
+                console.error("获取知识体系失败:", error);
             } finally {
-                setLoadingContents(false);
+                setLoadingPillars(false);
             }
         };
-        fetchContents();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        fetchPillars();
     }, []);
 
-    const handleViewBooks = () => {
-        router.push("/dashboard/knowledge/books");
-    };
-
-    const handleViewArticles = () => {
-        router.push("/dashboard/knowledge/articles");
-    };
+    // Scenario quick fixes 
+    const scenarios = [
+        { title: "办公族肩颈救星", icon: "💼", slug: "office-neck" },
+        { title: "久坐腰痛缓解", icon: "🪑", slug: "sitting-back" },
+        { title: "跑步后拉伸", icon: "🏃", slug: "post-run" },
+        { title: "睡前放松", icon: "😴", slug: "bedtime" },
+    ];
 
     return (
-        <div className="p-4">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-surface-900 dark:text-surface-0 mb-2">
-                    知识库
-                </h1>
-                <p className="text-lg text-surface-600 dark:text-surface-300">
-                    以最通俗易懂的方式传授运动训练知识
-                </p>
+        <div className="pb-32">
+            {/* Hero Header with Gradient */}
+            <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 text-white px-4 pt-12 pb-8">
+                <div className="max-w-3xl mx-auto">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-white/20 backdrop-blur rounded-2xl">
+                            <BookOpen size={24} />
+                        </div>
+                        <h1 className="text-2xl font-black">知识库</h1>
+                    </div>
+                    <p className="text-white/80 text-sm">
+                        以最通俗易懂的方式传授运动训练知识
+                    </p>
+
+                    {/* Search Bar */}
+                    <div className="mt-5 relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" size={18} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && searchQuery.trim()) {
+                                    router.push(`/dashboard/knowledge/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                                }
+                            }}
+                            placeholder="搜索知识点..."
+                            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white/95 text-surface-900 placeholder-surface-400 text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                        />
+                    </div>
+                </div>
             </div>
 
-            {/* Books Section */}
-            <div className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0">
-                        <i className="pi pi-book mr-2 text-blue-500"></i>
-                        最新书籍笔记
-                    </h2>
-                    <Button
-                        label="更多书籍"
-                        icon="pi pi-arrow-right"
-                        className="p-button-text p-button-sm"
-                        onClick={handleViewBooks}
-                    />
+            {/* Body Map Entry */}
+            <div className="px-4 mt-5">
+                <div className="max-w-3xl mx-auto">
+                    <button
+                        onClick={() => router.push("/dashboard/knowledge/body-map")}
+                        className="w-full bg-gradient-to-r from-rose-500 to-pink-500 dark:from-rose-600 dark:to-pink-600 text-white p-5 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center gap-4"
+                    >
+                        <div className="text-4xl">🧍</div>
+                        <div className="text-left flex-1">
+                            <h3 className="font-black text-lg">人体地图</h3>
+                            <p className="text-white/80 text-xs mt-0.5">
+                                按部位查看筛查方案或训练动作
+                            </p>
+                        </div>
+                        <ChevronRight size={20} className="text-white/60" />
+                    </button>
                 </div>
+            </div>
 
-                {loadingBooks ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[...Array(3)].map((_, index) => (
-                            <Card key={index} className="border-round-xl">
-                                <Skeleton height="120px" borderRadius="16px" className="mb-3" />
-                                <Skeleton width="80%" height="1.5rem" className="mb-2" />
-                                <Skeleton width="60%" height="1rem" className="mb-2" />
-                            </Card>
+            {/* Scenario Quick Fixes */}
+            <div className="px-4 mt-5">
+                <div className="max-w-3xl mx-auto">
+                    <div className="flex items-center gap-2 text-surface-700 dark:text-surface-200 text-sm font-bold mb-3">
+                        <Zap size={16} className="text-amber-500" />
+                        <span>场景急救箱</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        {scenarios.map((scenario, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => router.push(`/dashboard/knowledge/scenarios/${scenario.slug}`)}
+                                className="flex items-center gap-3 p-4 bg-white dark:bg-surface-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left"
+                            >
+                                <span className="text-2xl">{scenario.icon}</span>
+                                <span className="text-sm font-bold text-surface-800 dark:text-surface-100">{scenario.title}</span>
+                            </button>
                         ))}
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {books.length > 0 ? (
-                            books.map((book) => (
-                                <Card
-                                    key={book.id}
-                                    className="border-round-xl cursor-pointer hover:shadow-md transition-shadow duration-200"
-                                    onClick={() => router.push(`/dashboard/knowledge/books/${book.id}`)}
+                </div>
+            </div>
+
+            {/* Knowledge Pillars (Tree) with View Toggle */}
+            <div className="px-4 mt-6">
+                <div className="max-w-3xl mx-auto">
+                    {/* Header with view toggle */}
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-surface-700 dark:text-surface-200 text-sm font-bold">知识体系</h2>
+                        
+                        {/* View Mode Toggle */}
+                        <div className="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1">
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    viewMode === 'list' 
+                                        ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-sm' 
+                                        : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'
+                                }`}
+                            >
+                                <List size={14} />
+                                <span>列表</span>
+                            </button>
+                            <button
+                                onClick={() => setViewMode('mindmap')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    viewMode === 'mindmap' 
+                                        ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-sm' 
+                                        : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'
+                                }`}
+                            >
+                                <GitBranch size={14} />
+                                <span>思维导图</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {loadingPillars ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-20 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" />
+                            ))}
+                        </div>
+                    ) : pillars.length === 0 ? (
+                        <div className="text-center py-8 text-surface-400">
+                            <BookOpen size={40} className="mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">知识体系构建中...</p>
+                        </div>
+                    ) : viewMode === 'list' ? (
+                        /* List View */
+                        <div className="space-y-3">
+                            {pillars.map((domain) => (
+                                <button
+                                    key={domain.id}
+                                    onClick={() => router.push(`/dashboard/knowledge/pillars/${domain.id}`)}
+                                    className="w-full flex items-center justify-between p-4 bg-white dark:bg-surface-800 rounded-2xl shadow-sm hover:shadow-md transition-all text-left group"
                                 >
-                                    <div className="flex flex-column align-items-center text-center">
-                                        {book.cover_image ? (
-                                            <img
-                                                src={book.cover_image}
-                                                alt={book.title}
-                                                className="w-full h-30rem object-cover border-round-md mb-3"
-                                                style={{ height: "120px", objectFit: "cover" }}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-30rem bg-surface-200 border-round-md mb-3 flex align-items-center justify-content-center"
-                                                style={{ height: "120px" }}>
-                                                <i className="pi pi-book text-4xl text-surface-400"></i>
-                                            </div>
-                                        )}
-                                        <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-0 line-clamp-1">
-                                            {book.title}
-                                        </h3>
-                                        <p className="text-sm text-surface-600 dark:text-surface-300 line-clamp-2 mb-2">
-                                            {book.summary || "暂无简介"}
-                                        </p>
-                                        <div className="mt-2 w-full">
-                                            {book.is_free ? (
-                                                <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                                                    免费
-                                                </span>
-                                            ) : (
-                                                <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">
-                                                    付费
-                                                </span>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-11 h-11 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                                            <BookOpen size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-surface-900 dark:text-surface-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                                {domain.title}
+                                            </h3>
+                                            {domain.description && (
+                                                <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5 line-clamp-1">
+                                                    {domain.description}
+                                                </p>
                                             )}
                                         </div>
                                     </div>
-                                </Card>
-                            ))
-                        ) : (
-                            <div className="col-span-3 text-center py-8">
-                                <i className="pi pi-book text-4xl text-surface-300 mb-3"></i>
-                                <p className="text-surface-500 dark:text-surface-400">暂无书籍</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Articles Section */}
-            <div className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0">
-                        <i className="pi pi-file mr-2 text-purple-500"></i>
-                        技术文章
-                    </h2>
-                    <Button
-                        label="更多文章"
-                        icon="pi pi-arrow-right"
-                        className="p-button-text p-button-sm"
-                        onClick={handleViewArticles}
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {loadingContents ? (
-                        [...Array(3)].map((_, index) => (
-                            <Card key={index} className="border-round-xl">
-                                <Skeleton height="120px" borderRadius="16px" className="mb-3" />
-                                <Skeleton width="80%" height="1.5rem" className="mb-2" />
-                                <Skeleton width="60%" height="1rem" className="mb-2" />
-                            </Card>
-                        ))
-                    ) : contents.length > 0 ? (
-                        contents.map((it) => (
-                            <Card
-                                key={it.content.id}
-                                className="border-round-xl cursor-pointer hover:shadow-md transition-shadow duration-200"
-                                onClick={() =>
-                                    it.canView
-                                        ? router.push(`/coach/content/${it.content.id}`)
-                                        : router.push(`/coach/profile/${it.content.coach_id}?tab=1#choose-pricing`)
-                                }
-                            >
-                                <div className="flex flex-column">
-                                    <div className="text-xs font-black text-surface-400">
-                                        {it.coach?.name || "教练"}
-                                    </div>
-                                    <h3 className="mt-2 text-lg font-semibold text-surface-900 dark:text-surface-0 line-clamp-2">
-                                        {it.content.title}
-                                    </h3>
-                                    <p className="mt-2 text-sm text-surface-600 dark:text-surface-300 line-clamp-3">
-                                        {(it.content.content || "").replace(/<[^>]*>/g, "")}
-                                    </p>
-                                </div>
-                            </Card>
-                        ))
-                    ) : (
-                        <div className="col-span-3 text-center py-8">
-                            <i className="pi pi-file text-4xl text-surface-300 mb-3"></i>
-                            <p className="text-surface-500 dark:text-surface-400">暂无文章</p>
+                                    <ChevronRight size={18} className="text-surface-300 group-hover:text-primary-500 transition-colors" />
+                                </button>
+                            ))}
                         </div>
+                    ) : (
+                        /* Mind Map View */
+                        <KnowledgeMindMap data={pillars} />
                     )}
                 </div>
             </div>
 
-            {/* Videos Section */}
-            <div className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0">
-                        <i className="pi pi-video mr-2 text-green-500"></i>
-                        最新视频课程
-                    </h2>
-                </div>
+            {/* AI Chat Floating Button */}
+            <button
+                onClick={() => setShowAIChat(true)}
+                className="fixed bottom-24 right-4 w-14 h-14 bg-gradient-to-br from-purple-500 to-primary-600 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-30"
+            >
+                <Sparkles size={24} />
+            </button>
 
-                <Card className="border-round-xl">
-                    <div className="text-center py-10">
-                        <i className="pi pi-clock text-4xl text-surface-300 mb-3"></i>
-                        <h3 className="text-lg font-medium text-surface-700 dark:text-surface-200">
-                            敬请期待
-                        </h3>
-                        <p className="text-surface-500 dark:text-surface-400 mt-2">
-                            视频课程正在制作中，完成后将第一时间上线
-                        </p>
-                    </div>
-                </Card>
-            </div>
+            {/* AI Chat Panel */}
+            <AIChatPanel isOpen={showAIChat} onClose={() => setShowAIChat(false)} />
         </div>
     );
 };
 
 export default KnowledgeBaseHomePage;
-
