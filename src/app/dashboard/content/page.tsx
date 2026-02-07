@@ -14,6 +14,7 @@ import { InputIcon } from 'primereact/inputicon';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
 import ContentEditor from '@/app/dashboard/content/ContentEditor';
+import NodeSelector from '@/components/knowledge/NodeSelector';
 import { coachService } from '@/app/service/coachService';
 import { CoachContentRow } from '@/types';
 
@@ -30,10 +31,22 @@ const Content = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTier, setFilterTier] = useState<number | 'all'>('all');
     const [editingContent, setEditingContent] = useState<CoachContentRow | null>(null);
+    const [selectedKnowledgeNodeId, setSelectedKnowledgeNodeId] = useState<string | null>(null);
+    const [selectedKnowledgeNodePath, setSelectedKnowledgeNodePath] = useState<string[]>([]);
 
     useEffect(() => {
         if (coach?.id) loadContents();
     }, [coach?.id]);
+
+    // Reset knowledge node selection when editing content changes
+    useEffect(() => {
+        if (editingContent) {
+            setSelectedKnowledgeNodeId((editingContent as any).knowledge_node_id || null);
+        } else {
+            setSelectedKnowledgeNodeId(null);
+            setSelectedKnowledgeNodePath([]);
+        }
+    }, [editingContent]);
 
     const loadContents = async () => {
         setLoading(true);
@@ -62,11 +75,15 @@ const Content = () => {
 
     const handlePublishContent = async (contentData: any) => {
         try {
+            const dataWithKnowledge = {
+                ...contentData,
+                knowledge_node_id: selectedKnowledgeNodeId,
+            };
             if (editingContent) {
-                await coachService.updateContent({ ...contentData, id: editingContent.id, isDraft: false });
+                await coachService.updateContent({ ...dataWithKnowledge, id: editingContent.id, isDraft: false });
                 showToast({ severity: 'success', summary: '更新成功' });
             } else {
-                await coachService.publishContent({ ...contentData, coachId: coach.id, isDraft: false });
+                await coachService.publishContent({ ...dataWithKnowledge, coachId: coach.id, isDraft: false });
                 showToast({ severity: 'success', summary: '发布成功' });
             }
             closeEditor();
@@ -77,10 +94,14 @@ const Content = () => {
 
     const handleSaveDraft = async (contentData: any) => {
         try {
+            const dataWithKnowledge = {
+                ...contentData,
+                knowledge_node_id: selectedKnowledgeNodeId,
+            };
             if (editingContent) {
-                await coachService.updateContent({ ...contentData, id: editingContent.id, isDraft: true });
+                await coachService.updateContent({ ...dataWithKnowledge, id: editingContent.id, isDraft: true });
             } else {
-                await coachService.publishContent({ ...contentData, coachId: coach.id, isDraft: true });
+                await coachService.publishContent({ ...dataWithKnowledge, coachId: coach.id, isDraft: true });
             }
             showToast({ severity: 'info', summary: '草稿已保存' });
             closeEditor();
@@ -92,6 +113,8 @@ const Content = () => {
     const closeEditor = () => {
         setCurrentView('list');
         setEditingContent(null);
+        setSelectedKnowledgeNodeId(null);
+        setSelectedKnowledgeNodePath([]);
         loadContents();
     };
 
@@ -148,6 +171,32 @@ const Content = () => {
                     className="p-button-text text-surface-500 hover:text-primary mb-6 rounded-xl active:scale-95"
                     onClick={() => { setCurrentView('list'); setEditingContent(null); }}
                 />
+                
+                {/* Knowledge Node Selector */}
+                <div className="mb-6 p-5 bg-gradient-to-r from-purple-50 to-primary-50 dark:from-purple-900/20 dark:to-primary-900/20 rounded-[24px] border border-purple-100 dark:border-purple-800">
+                    <div className="flex items-start gap-3 mb-4">
+                        <span className="text-2xl">📚</span>
+                        <div>
+                            <h3 className="font-bold text-surface-900 dark:text-surface-100">关联到知识库</h3>
+                            <p className="text-xs text-surface-500 mt-0.5">将文章挂载到知识体系的某个节点下，便于用户按主题浏览</p>
+                        </div>
+                    </div>
+                    <NodeSelector
+                        value={selectedKnowledgeNodeId}
+                        onChange={(nodeId, path) => {
+                            setSelectedKnowledgeNodeId(nodeId);
+                            setSelectedKnowledgeNodePath(path);
+                        }}
+                        placeholder="点击选择知识分类（可选）..."
+                        label=""
+                    />
+                    {selectedKnowledgeNodePath.length > 0 && (
+                        <p className="mt-3 text-xs text-green-600 dark:text-green-400 font-medium">
+                            ✓ 将发布到：{selectedKnowledgeNodePath.join(' → ')}
+                        </p>
+                    )}
+                </div>
+
                 <div className="p-5 bg-surface-0 rounded-[32px] border border-surface-100 overflow-hidden">
                     <ContentEditor
                         coachId={coach.id}
