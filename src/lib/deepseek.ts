@@ -69,6 +69,32 @@ export async function callDeepSeek(
  * 解析 DeepSeek 返回的 JSON 响应
  * 清理可能包含的 markdown 代码块标记，并增加兜底解析
  */
+/**
+ * 调用 DeepSeek API 进行对话生成 (自然语言，非 JSON)
+ * 适用于 AI 问答、聊天等场景
+ */
+export async function callDeepSeekChat(
+    messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+    options: { maxTokens?: number; temperature?: number } = {},
+): Promise<string> {
+    const { maxTokens = 2000, temperature = 0.7 } = options;
+
+    const completion = await getOpenAIClient().chat.completions.create({
+        messages,
+        model: "deepseek-chat",
+        max_tokens: maxTokens,
+        temperature,
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+        throw new Error("DeepSeek API 返回空内容");
+    }
+
+    console.debug(`[deepseek-chat] response len=${content.length}`);
+    return content;
+}
+
 export function parseJsonResponse<T>(text: string, debugLabel = "deepseek"): T {
     // 清理 markdown 代码块标记
     const cleaned = text

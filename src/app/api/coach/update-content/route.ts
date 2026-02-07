@@ -16,8 +16,9 @@ export async function POST(req: Request) {
         media_urls = [],
         thumbnail_url,
         isDraft = false,
-        notifyAllStudents = false
-    } = await req.json() as UpdateContentDto;
+        notifyAllStudents = false,
+        knowledge_node_id
+    } = await req.json() as UpdateContentDto & { knowledge_node_id?: string | null };
 
     // 获取当前登录用户
     const session = await getServerSession();
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
     if (tags !== undefined) updateData.tags = tags;
     if (media_urls !== undefined) updateData.media_urls = media_urls;
     if (thumbnail_url !== undefined) updateData.thumbnail_url = thumbnail_url;
+    if (knowledge_node_id !== undefined) updateData.knowledge_node_id = knowledge_node_id;
 
     // 验证教练是否有权限更新此内容
     const { data: existingContent, error: contentError } = await supabase

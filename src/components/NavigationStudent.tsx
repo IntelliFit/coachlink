@@ -30,6 +30,7 @@ import {
     ArrowLeft,
     ChevronDown,
     Bookmark,
+    BookOpen,
     LogIn,
     User,
     Activity,
@@ -319,7 +320,7 @@ export default function NavigationStudent() {
         ];
     }, []);
 
-    // 2. 移动端底部导航：将"发现"、"档案"与"消息"、"菜单(头像)"整合
+    // 2. 移动端底部导航：将"发现"、"档案"与"菜单(头像)"整合（消息已移至右上角）
     const mobileBottomTabs = useMemo(() => {
         return [
             {
@@ -337,12 +338,11 @@ export default function NavigationStudent() {
                 onClick: () => router.push('/me/toolbox'),
             },
             {
-                key: 'messages',
-                label: '消息',
-                icon: Bell, // 内部会处理 Badge
-                active: pathname === '/messages',
-                onClick: () => router.push('/messages'),
-                isMessage: true
+                key: 'knowledge',
+                label: '知识库',
+                icon: BookOpen,
+                active: pathname.startsWith('/dashboard/knowledge'),
+                onClick: () => router.push('/dashboard/knowledge'),
             },
             {
                 key: 'profile',
@@ -576,10 +576,14 @@ export default function NavigationStudent() {
                             })}
                         </div>
 
-                        {/* 右侧：为了保持视觉对称留出的占位 (也可以放搜索) */}
+                        {/* 右侧：消息图标（信封样式，带红点） */}
                         <div className="flex-1 flex justify-end">
-                            <button className="p-2 -mr-2 text-surface-400 opacity-0 pointer-events-none">
-                                <Search size={22} />
+                            <button
+                                onClick={() => router.push('/messages')}
+                                className="relative p-2 -mr-2 text-surface-600 active:scale-90 transition-transform"
+                            >
+                                <MessageSquare size={22} strokeWidth={2} />
+                                <MessageBadge className="absolute top-1 right-1 border-2 border-surface" />
                             </button>
                         </div>
                     </div>
@@ -611,9 +615,6 @@ export default function NavigationStudent() {
                                 >
                                     <div className="relative">
                                         <item.icon size={24} strokeWidth={item.active ? 2.5 : 2} />
-                                        {item.isMessage && (
-                                            <MessageBadge className="absolute -top-2.5 -right-2.5 border-2 border-surface" />
-                                        )}
                                     </div>
                                     <span className={`text-[10px] mt-1 ${item.active ? 'font-bold' : 'font-medium'}`}>
                                         {item.label}
