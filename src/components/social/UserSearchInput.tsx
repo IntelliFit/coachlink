@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { InputText } from 'primereact/inputtext';
-import { Search } from 'lucide-react';
-import { useDebounce } from 'primereact/hooks';
+import { Search, Loader2 } from 'lucide-react';
 
 interface UserSearchInputProps {
     onSearch: (query: string) => void;
@@ -11,12 +10,11 @@ interface UserSearchInputProps {
 
 export const UserSearchInput: React.FC<UserSearchInputProps> = ({ 
     onSearch, 
-    placeholder = "搜索用户昵称或ID...",
+    placeholder = "搜索用户昵称或 ID",
     loading = false
 }) => {
     const [value, setValue] = useState('');
     
-    // 手动实现 debounce，因为 primereact hooks可能有版本问题或不想引入额外依赖
     useEffect(() => {
         const timer = setTimeout(() => {
             if (value.trim()) {
@@ -29,15 +27,19 @@ export const UserSearchInput: React.FC<UserSearchInputProps> = ({
 
     return (
         <div className="relative w-full">
-            <span className="p-input-icon-left w-full">
-                <i className={`${loading ? 'pi pi-spin pi-spinner' : 'pi pi-search'}`} />
-                <InputText 
-                    value={value} 
-                    onChange={(e) => setValue(e.target.value)}
-                    placeholder={placeholder}
-                    className="w-full rounded-xl pl-10 py-3 bg-surface-50 border-0 focus:ring-2 focus:ring-primary-500" // Tailwind based styling
-                />
-            </span>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400">
+                {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                    <Search className="w-5 h-5" />
+                )}
+            </div>
+            <InputText 
+                value={value} 
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={placeholder}
+                className="w-full h-12 rounded-2xl border border-surface-200 bg-surface-0 pl-12 pr-4 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100 transition-all"
+            />
         </div>
     );
 };

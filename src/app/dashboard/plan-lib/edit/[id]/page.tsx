@@ -28,6 +28,7 @@ import { coachService } from '@/app/service/coachService';
 import { checkTrainingDays, makeWeekDays } from '@/utils/template';
 import SmartImportDialog from '@/app/dashboard/plan-lib/components/SmartImportDialog';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 import {
     appendActionToDays,
     deleteActionInDays,
@@ -70,6 +71,7 @@ const EditPlanPage = () => {
     // Mobile day picker
     const [dayPickerVisible, setDayPickerVisible] = useState(false);
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
+    const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
     const [syncDialogVisible, setSyncDialogVisible] = useState(false);
     const [syncInstances, setSyncInstances] = useState(true);
 
@@ -519,6 +521,13 @@ const EditPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
+    const handleAiBatchOperationSuccess = async () => {
+        showToast({ severity: 'success', summary: 'AI 批量操作成功', detail: '训练计划已更新' });
+        setAiBatchDialogVisible(false);
+        // 重新加载模板数据
+        await loadTemplate();
+    };
+
     const actionSearchOptions = useMemo(
         () => actions.map(action => ({ label: action.name, value: action.id })),
         [actions]
@@ -642,22 +651,40 @@ const EditPlanPage = () => {
                 saving={saving}
                 onSave={handleSave}
                 extraButton={
-                    <Button
-                        label="批量操作"
-                        size="small"
-                        icon="pi pi-sliders-h"
-                        className="
-                            flex items-center gap-2 px-4 py-2
-                            bg-surface border border-surface-200 rounded-[14px]
-                            text-[12px] font-black text-surface-700 tracking-tight
-                            transition-all duration-200 active:scale-[0.95]
-                            hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
-                            disabled:opacity-40 disabled:cursor-not-allowed
-                        "
-                        text
-                        onClick={() => setBatchDialogVisible(true)}
-                        disabled={saving}
-                    />
+                    <div className="flex gap-2">
+                        <Button
+                            label="批量操作"
+                            size="small"
+                            icon="pi pi-sliders-h"
+                            className="
+                                flex items-center gap-2 px-4 py-2
+                                bg-surface border border-surface-200 rounded-[14px]
+                                text-[12px] font-black text-surface-700 tracking-tight
+                                transition-all duration-200 active:scale-[0.95]
+                                hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                                disabled:opacity-40 disabled:cursor-not-allowed
+                            "
+                            text
+                            onClick={() => setBatchDialogVisible(true)}
+                            disabled={saving}
+                        />
+                        <Button
+                            label="AI 批量操作"
+                            size="small"
+                            icon="pi pi-bolt"
+                            className="
+                                flex items-center gap-2 px-4 py-2
+                                bg-primary-50 border border-primary-200 rounded-[14px]
+                                text-[12px] font-black text-primary-700 tracking-tight
+                                transition-all duration-200 active:scale-[0.95]
+                                hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
+                                disabled:opacity-40 disabled:cursor-not-allowed
+                            "
+                            text
+                            onClick={() => setAiBatchDialogVisible(true)}
+                            disabled={saving}
+                        />
+                    </div>
                 }
                 weekDays={weekDays}
                 onWeekDaysChange={setWeekDays}
@@ -803,6 +830,7 @@ const EditPlanPage = () => {
                 onImportComplete={handleImportComplete}
             />
 
+            {/* 传统批量操作对话框 */}
             <BatchActionsDialog
                 visible={batchDialogVisible}
                 onHide={() => setBatchDialogVisible(false)}
@@ -811,6 +839,16 @@ const EditPlanPage = () => {
                 onApply={handleBatchApply}
                 disabled={saving}
             />
+
+            {/* AI 批量操作对话框 */}
+            {params.id && (
+                <BatchOperationDialog
+                    visible={aiBatchDialogVisible}
+                    onHide={() => setAiBatchDialogVisible(false)}
+                    templateId={params.id as string}
+                    onSuccess={handleAiBatchOperationSuccess}
+                />
+            )}
 
             <Dialog
                 header="保存模板"
