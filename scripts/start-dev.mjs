@@ -33,7 +33,6 @@ console.log(warmGradient('📋 Environment Configuration:'));
 console.log(orangeGradient(`📍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`));
 console.log(orangeGradient(`📁 Environment file: .env.${process.env.NODE_ENV || 'development'}`));
 console.log(orangeGradient(`🔗 Supabase URL: ${process.env.NEXT_SUPABASE_URL ? '✅ [SET]' : '❌ [NOT SET]'}`));
-console.log(orangeGradient(`🏷️  App Name: ${process.env.NEXT_PUBLIC_APP_NAME || 'Not set'}`));
 console.log(createSeparator(60));
 console.log(warmGradient('🔄 Starting Next.js development server...'));
 

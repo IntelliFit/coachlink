@@ -11,6 +11,11 @@ RUN npm ci --legacy-peer-deps
 
 # 复制源码并构建
 COPY . .
+# 前端构建所需的环境变量（从 GitHub Secrets 作为 build-arg 传入）
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 RUN npm run build
 
 # 运行阶段
@@ -31,9 +36,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
+# 运行时入口：从挂载的 .env 文件加载变量再启动
+COPY scripts/docker-entrypoint.js ./scripts/
 USER nextjs
 
 EXPOSE 3000
 
-# 使用 standalone 输出的 server.js
-CMD ["node", "server.js"]
+# 运行时挂载 .env.production 到 /app/.env.production 即可
+CMD ["node", "scripts/docker-entrypoint.js"]

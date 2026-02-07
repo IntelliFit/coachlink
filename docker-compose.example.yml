@@ -12,9 +12,8 @@ services:
     profiles: ["prod"]
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      # 添加你的环境变量，如 NEXTAUTH_SECRET, NEXT_PUBLIC_SUPABASE_URL 等
+    env_file: .env.production
+    # 或将 env 文件挂载到容器内由入口脚本加载：volumes: ["./.env.production:/app/.env.production"]
     restart: unless-stopped
 
   coachlink-staging:
@@ -22,9 +21,8 @@ services:
     profiles: ["staging"]
     ports:
       - "3001:3000"
-    environment:
-      - NODE_ENV=production
-      # 预发布环境变量
+    env_file: .env.staging
+    # 或挂载：volumes: ["./.env.staging:/app/.env.production"]
     restart: unless-stopped
 
   coachlink-gray:
@@ -32,7 +30,5 @@ services:
     profiles: ["gray"]
     ports:
       - "3002:3000"
-    environment:
-      - NODE_ENV=production
-      # 灰度环境变量
+    env_file: .env.gray
     restart: unless-stopped
