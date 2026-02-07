@@ -36,11 +36,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# 运行时入口：从挂载的 .env 文件加载变量再启动
-COPY scripts/docker-entrypoint.js ./scripts/
 USER nextjs
 
 EXPOSE 3000
 
-# 运行时挂载 .env.production 到 /app/.env.production 即可
-CMD ["node", "scripts/docker-entrypoint.js"]
+# 环境变量通过 docker run --env-file 或 docker compose env_file 传入
+CMD ["node", "server.js"]

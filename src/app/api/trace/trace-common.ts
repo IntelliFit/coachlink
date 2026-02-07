@@ -18,6 +18,16 @@ export function hasServiceRoleKey(): boolean {
     );
 }
 
+/** 标准 UUID 格式：8-4-4-4-12 十六进制 */
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 若 value 为合法 UUID 则返回，否则返回 null（用于写入要求 uuid 的列，避免 openid 等短 id 导致 22P02） */
+export function asUuidOrNull(value: unknown): string | null {
+    if (typeof value !== "string" || value.length === 0) return null;
+    return UUID_REGEX.test(value) ? value : null;
+}
+
 export function safeText(value: unknown, maxLength: number): string | null {
     if (typeof value !== "string" || value.length === 0) return null;
     return value.length > maxLength ? value.slice(0, maxLength) : value;
