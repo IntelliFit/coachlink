@@ -15,16 +15,11 @@ import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { sesService } from '@/app/service/sesService';
 import WechatIcon from '@/components/icons/wechat';
+import { DEV_USERS, type DevUser } from '@/config/devUsers';
 
 interface LoginModalProps {
     isOpen: boolean;
     onClose: (back: boolean) => void;
-}
-
-interface DevUser {
-    name: string;
-    phone: string;
-    password: string;
 }
 
 type AuthView = 'login' | 'reset-password';
@@ -92,27 +87,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }, [onClose, router]);
 
     const devUsers = useMemo<DevUser[]>(() => {
-        try {
-            const envValue = process.env.NEXT_PUBLIC_DEV_USERS;
-            if (envValue) {
-                return JSON.parse(envValue);
-            }
-            // 默认开发用户列表（当环境变量未设置时使用）
-            return [
-                { name: '教练(枭马葛助理)', phone: '18115072586', password: '123456' },
-                { name: '教练测试号(MAX)', phone: '13915850622', password: '123456' },
-                { name: '学员(沈妈妈)', phone: '13921064643', password: '123456' },
-                { name: '管理员(小马哥)', phone: '13915850621', password: '123456' },
-            ];
-        } catch (e) { 
-            // 如果环境变量解析失败，使用默认值
-            return [
-                { name: '教练(枭马葛助理)', phone: '18115072586', password: '123456' },
-                { name: '教练测试号(MAX)', phone: '13915850622', password: '123456' },
-                { name: '学员(沈妈妈)', phone: '13921064643', password: '123456' },
-                { name: '管理员(小马哥)', phone: '13915850621', password: '123456' },
-            ];
-        }
+        return process.env.NODE_ENV === "development" ? DEV_USERS : [];
     }, []);
 
     useEffect(() => {
