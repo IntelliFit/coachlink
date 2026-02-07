@@ -16,8 +16,9 @@ export async function POST(req: Request) {
         media_urls = [],
         thumbnail_url,
         isDraft = false,
-        notifyAllStudents = false
-    } = await req.json() as PublishContentDto;
+        notifyAllStudents = false,
+        knowledge_node_id = null
+    } = await req.json() as PublishContentDto & { knowledge_node_id?: string | null };
 
     // 获取当前登录用户
     const session = await getServerSession();
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
         tags: tags ?? [],
         media_urls: media_urls ?? [],
         thumbnail_url: thumbnail_url ?? null,
+        knowledge_node_id: knowledge_node_id ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
