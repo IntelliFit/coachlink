@@ -1,0 +1,44 @@
+# 多阶段构建：构建阶段
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY package.json package-lock.json ./
+
+# 安装依赖（使用 legacy-peer-deps 与项目一致）
+RUN npm ci --legacy-peer-deps
+
+# 复制源码并构建
+COPY . .
+# 前端构建所需的环境变量（从 GitHub Secrets 作为 build-arg 传入）
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+RUN npm run build
+
+# 运行阶段
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+# 容器内 Next.js 默认监听 3000，宿主机映射端口在 docker run 时指定
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# 从构建阶段复制产物
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+# 环境变量通过 docker run --env-file 或 docker compose env_file 传入
+CMD ["node", "server.js"]
