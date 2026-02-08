@@ -11,7 +11,7 @@ function hashPassword(password) {
     return hash.digest('hex');
 }
 
-// 开发用户密码 (从 NEXT_PUBLIC_DEV_USERS 获取，通常是 123456)
+// 开发用户密码（与 src/config/devUsers.ts 中的 DEV_USERS 一致，通常为 123456）
 const password = '123456';
 const hash = hashPassword(password);
 

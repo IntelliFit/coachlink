@@ -1,8 +1,5 @@
+import { DEV_USERS } from "@/config/devUsers";
+
 export function getMockUsers() {
-    try {
-        const users = JSON.parse(process.env.NEXT_PUBLIC_DEV_USERS);
-        return users;
-    } catch (error) {
-        return []
-    }
+    return process.env.NODE_ENV === "development" ? DEV_USERS : [];
 }

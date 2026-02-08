@@ -1,0 +1,42 @@
+# 依赖与构建产物（构建阶段会重新生成）
+node_modules
+.next
+dist
+
+# Git
+.git
+.gitignore
+.github
+
+# 开发与测试
+*.md
+!README.md
+.vscode
+.idea
+e2e
+tests
+test-results
+playwright-report
+__tests__
+*.spec.ts
+*.spec.tsx
+*.test.ts
+*.test.tsx
+vitest.config.ts
+playwright.config.ts
+
+# 文档与原型
+docs
+meeting_record
+ui-prototype-pc
+ui-prototypes-phone
+
+# 脚本与临时文件
+temp_dir
+*.log
+.env*
+!.env.example
+
+# 其他
+.DS_Store
+*.local

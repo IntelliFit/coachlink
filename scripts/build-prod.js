@@ -8,12 +8,12 @@ console.log('COACHLINK BUILD & PREPARE PROCESS');
 console.log('='.repeat(50));
 
 const prodEnvPath = path.join(__dirname, '..', '.env.production');
-if (!fs.existsSync(prodEnvPath)) {
-    console.error('Error: .env.production file not found!');
-    process.exit(1);
+if (fs.existsSync(prodEnvPath)) {
+    require('dotenv').config({ path: prodEnvPath });
+    console.log('Loaded .env.production');
+} else {
+    console.log('Note: .env.production not found, using existing env (e.g. Docker build args)');
 }
-
-require('dotenv').config({ path: prodEnvPath });
 
 // 跨平台执行命令的函数
 function crossSpawn(command, args, options = {}) {

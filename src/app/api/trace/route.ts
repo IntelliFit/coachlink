@@ -3,6 +3,7 @@ import {
 	MAX_ID_LENGTH,
 	MAX_TEXT_LENGTH,
 	TRACE_ENV,
+	asUuidOrNull,
 	hasServiceRoleKey,
 	safeText,
 	shouldSkipTrace,
@@ -66,8 +67,10 @@ export async function POST(req: NextRequest) {
 	const requestSecret = req.headers.get("x-trace-secret");
 
 	const session = await getServerSession();
-	const userId = session?.user?.id ?? null;
-	if (sharedSecret && requestSecret !== sharedSecret && !userId) {
+	const hasSession = Boolean(session?.user?.id);
+	// 表 admin_trace_events.user_id 为 uuid 类型，只接受标准 UUID（避免微信 openid 等短 id 导致 22P02）
+	const userId = asUuidOrNull(session?.user?.id) ?? null;
+	if (sharedSecret && requestSecret !== sharedSecret && !hasSession) {
 		return NextResponse.json<ApiData<null>>(
 			{ success: false, message: "未授权" },
 			{ status: 401 },
