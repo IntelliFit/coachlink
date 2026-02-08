@@ -11,7 +11,6 @@ import { Checkbox } from 'primereact/checkbox';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { ProgressSpinner } from 'primereact/progressspinner';
-import { Message } from 'primereact/message';
 import { ParsedStudentActionInfo } from '@/app/api/student/plan-lib/parse-actions/entity';
 import type { ItemType } from '@/types/student';
 
@@ -532,81 +531,38 @@ export default function StudentSmartImportDialog({
         return parts.length > 0 ? parts.join(' · ') : '（无结构化信息）';
     };
 
-    // 渲染步骤内容
+    // 渲染步骤内容（仅 step 1、2 及 loading）
     const renderStepContent = () => {
         if (isLoading) {
             return (
-                <div className="flex flex-col items-center justify-center py-12">
-                    <ProgressSpinner style={{ width: '50px', height: '50px' }} />
-                    <p className="mt-4 text-gray-600">正在处理中...</p>
+                <div className="flex flex-col items-center justify-center py-16">
+                    <ProgressSpinner style={{ width: '50px', height: '50px' }} className="text-primary-500" />
+                    <p className="mt-4 text-sm font-medium text-surface-600">正在处理中...</p>
                 </div>
             );
         }
 
         switch (activeStep) {
             case 0:
-                return (
-                    <div className="flex flex-col gap-4">
-                        <p className="text-sm text-gray-600">
-                            请粘贴您的训练计划文本，系统将自动智能解析动作和训练结构。
-                        </p>
-                        <Message
-                            severity="info"
-                            text="推荐格式：周标题用 W1/W2 或 第1周/第2周，训练日用 D1/D2 或 周一/周三。每周内容之间空一行更稳。"
-                            className="w-full"
-                        />
-                        <InputTextarea
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            rows={12}
-                            placeholder={`示例格式：
-W1 D1 
-70%rm 4*4 负重引体 rpe9 组间60s 
-
-D2
-反握引体 70% 4*4 rpe8
-
-**休息1天**
-- 拉伸、松解`}
-                            className="w-full font-mono text-sm"
-                            autoResize
-                        />
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                label="取消"
-                                severity="secondary"
-                                outlined
-                                onClick={handleHide}
-                            />
-                            <Button
-                                label="解析动作"
-                                icon="pi pi-arrow-right"
-                                iconPos="right"
-                                onClick={handleParseActions}
-                                disabled={!inputText.trim()}
-                            />
-                        </div>
-                    </div>
-                );
+                return null;
 
             case 1:
                 return (
                     <div className="flex flex-col gap-4">
-                        <Message 
-                            severity="info" 
-                            text="点击动作可编辑属性，点击「使用已有」可切换为选择现有动作" 
-                            className="w-full"
-                        />
-                        <div className="max-h-96 overflow-y-auto border rounded-lg divide-y">
+                        <div className="rounded-xl border border-primary-200 bg-primary-50/50 dark:bg-primary-900/10 dark:border-primary-800/30 px-3 py-2.5 text-sm text-surface-700 dark:text-surface-300">
+                            点击动作可编辑属性，点击「使用已有」可切换为选择现有动作
+                        </div>
+                        <div className="max-h-96 overflow-y-auto border border-surface-200 rounded-2xl divide-y divide-surface-100 custom-scrollbar">
                             {editableActions.map((action, index) => (
                                 <div
                                     key={index}
-                                    className="p-3 hover:bg-gray-50"
+                                    className="p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 smart-import-step-entry"
+                                    style={{ animationDelay: `${index * 30}ms` }}
                                 >
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             {action.useExisting ? (
-                                                <i className="pi pi-link text-green-500 flex-shrink-0" />
+                                                <i className="pi pi-link text-primary-500 flex-shrink-0" />
                                             ) : (
                                                 <Checkbox
                                                     checked={action.shouldCreate}
@@ -645,6 +601,7 @@ D2
                                             size="small"
                                             severity="secondary"
                                             text
+                                            className="rounded-xl"
                                             onClick={() => toggleActionMode(index)}
                                         />
                                     </div>
@@ -653,7 +610,7 @@ D2
                                         <div className="mt-2 ml-8 text-sm flex flex-col gap-3">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-gray-500">动作类型</span>
+                                                    <span className="text-xs text-surface-500">动作类型</span>
                                                     <Dropdown
                                                         value={(action.type || 'STRENGTH') as ItemType}
                                                         options={itemTypeOptions}
@@ -662,7 +619,7 @@ D2
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-gray-500">属性模板</span>
+                                                    <span className="text-xs text-surface-500">属性模板</span>
                                                     <Dropdown
                                                         value={getProfileValueForAttrs(
                                                             action.type as ItemType,
@@ -695,14 +652,14 @@ D2
                                                             checked={action.needsAutoCompute}
                                                             onChange={(e) => updateAction(index, { needsAutoCompute: e.checked || false })}
                                                         />
-                                                        <span>自动计算重量</span>
+                                                        <span className="text-surface-700 dark:text-surface-300">自动计算重量</span>
                                                     </label>
                                                     <label className="flex items-center gap-1 cursor-pointer">
                                                         <Checkbox
                                                             checked={action.includesBodyWeight}
                                                             onChange={(e) => updateAction(index, { includesBodyWeight: e.checked || false })}
                                                         />
-                                                        <span>包含自重</span>
+                                                        <span className="text-surface-700 dark:text-surface-300">包含自重</span>
                                                     </label>
                                                 </div>
                                             )}
@@ -710,7 +667,7 @@ D2
                                             {action.type === 'STRENGTH' && (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <div className="flex flex-col gap-1">
-                                                        <span className="text-xs text-gray-500">训练部位</span>
+                                                        <span className="text-xs text-surface-500">训练部位</span>
                                                         <MultiSelect
                                                             value={action.positions || ["全身"]}
                                                             options={actionTypes}
@@ -726,21 +683,21 @@ D2
                                             {action.type === 'STRENGTH' && (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <div className="flex flex-col gap-1">
-                                                        <span className="text-xs text-gray-500">描述（可选）</span>
+                                                        <span className="text-xs text-surface-500">描述（可选）</span>
                                                         <InputTextarea
                                                             value={action.detail || ''}
                                                             onChange={(e) => updateAction(index, { detail: e.target.value })}
                                                             rows={2}
-                                                            className="w-full"
+                                                            className="w-full rounded-xl"
                                                             placeholder="如：动作要点 / 注意事项"
                                                         />
                                                     </div>
                                                     <div className="flex flex-col gap-1">
-                                                        <span className="text-xs text-gray-500">演示视频 URL（可选）</span>
+                                                        <span className="text-xs text-surface-500">演示视频 URL（可选）</span>
                                                         <InputText
                                                             value={action.url || ''}
                                                             onChange={(e) => updateAction(index, { url: e.target.value })}
-                                                            className="w-full"
+                                                            className="w-full rounded-xl"
                                                             placeholder="https://..."
                                                         />
                                                     </div>
@@ -752,24 +709,8 @@ D2
                             ))}
                         </div>
                         
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-surface-500 font-medium">
                             将创建 {editableActions.filter(a => !a.useExisting && a.shouldCreate).length} 个新动作
-                        </div>
-                        
-                        <div className="flex justify-between">
-                            <Button
-                                label="上一步"
-                                icon="pi pi-arrow-left"
-                                severity="secondary"
-                                outlined
-                                onClick={() => setActiveStep(0)}
-                            />
-                            <Button
-                                label="确认并生成计划"
-                                icon="pi pi-arrow-right"
-                                iconPos="right"
-                                onClick={handleConfirmActions}
-                            />
                         </div>
                     </div>
                 );
@@ -778,22 +719,22 @@ D2
                 return (
                     <div className="flex flex-col gap-4">
                         {parseWarning ? (
-                            <Message severity="warn" text={parseWarning} className="w-full" />
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-200">
+                                {parseWarning}
+                            </div>
                         ) : null}
                         {globalDescription?.trim() ? (
-                            <Message
-                                severity="info"
-                                text={`已识别到全局说明（将写入计划“描述”）：${globalDescription.trim().slice(0, 60)}${globalDescription.trim().length > 60 ? '…' : ''}`}
-                                className="w-full"
-                            />
+                            <div className="rounded-xl border border-primary-200 bg-primary-50/50 dark:bg-primary-900/10 dark:border-primary-800/30 px-3 py-2.5 text-sm text-surface-700 dark:text-surface-300">
+                                已识别到全局说明（将写入计划「描述」）：{globalDescription.trim().slice(0, 60)}{globalDescription.trim().length > 60 ? '…' : ''}
+                            </div>
                         ) : null}
                         <div className="flex items-center gap-2">
-                            <Tag value={`${parsedWeeks} 周`} severity="info" />
-                            <Tag value={`${parsedDays.filter(d => d.type === 'training').length} 个训练日`} />
+                            <Tag value={`${parsedWeeks} 周`} severity="info" className="rounded-lg" />
+                            <Tag value={`${parsedDays.filter(d => d.type === 'training').length} 个训练日`} className="rounded-lg" />
                         </div>
-                        <div className="max-h-80 overflow-y-auto border rounded-lg p-3">
+                        <div className="max-h-80 overflow-y-auto border border-surface-200 rounded-2xl p-3 custom-scrollbar">
                             {parsedDays.map((day, index) => (
-                                <div key={index} className="mb-3 p-3 bg-gray-50 rounded">
+                                <div key={index} className="mb-3 p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl smart-import-step-entry">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="font-bold">
                                             W{day.weekIndex}D{day.dayOfWeek}
@@ -804,7 +745,7 @@ D2
                                         />
                                     </div>
                                     {day.type === 'training' && day.actions.length > 0 && (
-                                        <ul className="text-sm text-gray-600 space-y-1">
+                                        <ul className="text-sm text-surface-600 dark:text-surface-400 space-y-1">
                                             {day.actions.map((action, actionIndex) => (
                                                 <li key={actionIndex} className="flex gap-2">
                                                     <span>•</span>
@@ -817,7 +758,7 @@ D2
                                                                 <>
                                                                     {action.sets}组{typeof action.reps === 'number' ? `×${action.reps}次` : ''}
                                                                     {action.intensityConfig?.relativeIntensity && (
-                                                                        <span className="text-blue-600">
+                                                                        <span className="text-primary-600 dark:text-primary-400">
                                                                             {' '}
                                                                             ({action.intensityConfig.relativeIntensity.value}
                                                                             {action.intensityConfig.relativeIntensity.type === 'rm' ? 'RM' : '%'})
@@ -832,25 +773,10 @@ D2
                                         </ul>
                                     )}
                                     {day.dayNote && (
-                                        <p className="text-sm text-gray-500 mt-2 italic">{day.dayNote}</p>
+                                        <p className="text-sm text-surface-500 mt-2 italic">{day.dayNote}</p>
                                     )}
                                 </div>
                             ))}
-                        </div>
-                        <div className="flex justify-between">
-                            <Button
-                                label="上一步"
-                                icon="pi pi-arrow-left"
-                                severity="secondary"
-                                outlined
-                                onClick={() => setActiveStep(1)}
-                            />
-                            <Button
-                                label="导入到计划库"
-                                icon="pi pi-check"
-                                severity="success"
-                                onClick={handleImportPlan}
-                            />
                         </div>
                     </div>
                 );
@@ -860,23 +786,137 @@ D2
         }
     };
 
+    const exampleChips = [
+        { label: '周标题', icon: 'pi-calendar' },
+        { label: '训练日', icon: 'pi-list' },
+        { label: '格式', icon: 'pi-info-circle' },
+    ];
+
     return (
         <Dialog
-            header="智能导入训练计划"
+            header={null}
             visible={visible}
             onHide={handleHide}
-            className="w-full max-w-2xl"
+            style={{ width: '95vw', height: '90vh', maxWidth: '1400px' }}
             modal
+            closable={!isLoading}
             draggable={false}
+            className="smart-import-dialog-fullscreen"
+            contentClassName="h-full"
         >
-            <div className="flex flex-col gap-4">
-                <Steps model={steps} activeIndex={activeStep} readOnly />
-                
-                {error && (
-                    <Message severity="error" text={error} className="w-full" />
+            <div className="flex flex-col h-full">
+                {activeStep === 0 && (
+                    <div className="flex-1 flex flex-col items-center justify-center px-8 relative">
+                        <Button
+                            icon="pi pi-times"
+                            text
+                            severity="secondary"
+                            className="absolute top-6 right-8 w-10 h-10 rounded-xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.95] transition-all"
+                            onClick={handleHide}
+                            aria-label="关闭"
+                            tooltipOptions={{ position: 'left' }}
+                        />
+                        <div className="w-full max-w-3xl space-y-6">
+                            <div className="text-center space-y-3">
+                                <div className="text-3xl font-black tracking-tight text-surface-900 dark:text-surface-100">
+                                    教链 AI 智能导入
+                                </div>
+                                <div className="text-sm text-surface-500 font-medium">
+                                    粘贴训练计划文本，自动解析动作与训练结构
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {exampleChips.map((chip, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-surface-600 bg-surface-100 hover:bg-surface-200 hover:text-surface-900 active:scale-[0.97] transition-all cursor-pointer border-none dark:bg-surface-700 dark:text-surface-400 dark:hover:bg-surface-600"
+                                        title={chip.label}
+                                    >
+                                        <i className={`pi ${chip.icon} text-[10px]`}></i>
+                                        {chip.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="relative">
+                                <InputTextarea
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    rows={10}
+                                    placeholder={`示例格式：\nW1 D1\n70%rm 4*4 负重引体 rpe9 组间60s\n\nD2\n反握引体 70% 4*4 rpe8\n\n**休息1天**\n- 拉伸、松解`}
+                                    className="w-full font-mono text-sm rounded-2xl border-surface-200 focus:border-primary-300 pr-12 resize-none"
+                                />
+                                <Button
+                                    icon={isLoading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
+                                    className="absolute bottom-3 right-3 w-10 h-10 rounded-xl bg-surface-900 border-none text-surface-0 hover:bg-surface-800 active:scale-[0.95] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed dark:bg-surface-100 dark:text-surface-900 dark:hover:bg-surface-200"
+                                    onClick={handleParseActions}
+                                    disabled={!inputText.trim() || isLoading}
+                                    aria-label="解析动作"
+                                />
+                            </div>
+                            <div className="text-center text-xs text-surface-400">推荐格式：周标题 W1/W2，训练日 D1/D2，每周内容之间空一行</div>
+                        </div>
+                    </div>
                 )}
-                
-                {renderStepContent()}
+
+                {activeStep >= 1 && (
+                    <>
+                        <div className="flex-shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
+                            <Button
+                                icon="pi pi-arrow-left"
+                                text
+                                severity="secondary"
+                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all -ml-2"
+                                onClick={() => setActiveStep(activeStep - 1)}
+                                disabled={isLoading}
+                                aria-label="上一步"
+                                tooltipOptions={{ position: 'right' }}
+                            />
+                            <Steps model={steps} activeIndex={activeStep} readOnly className="flex-1 justify-center [&_.p-steps-item]:flex-1 [&_.p-steps-title]:text-xs [&_.p-steps-number]:rounded-xl" />
+                            <div className="w-10" />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-4 custom-scrollbar">
+                            {error && (
+                                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800/30 px-3 py-2.5 text-sm text-red-700 dark:text-red-300">
+                                    {error}
+                                </div>
+                            )}
+                            {renderStepContent()}
+                        </div>
+                        <div className="flex-shrink-0 border-t border-surface-100 dark:border-surface-700 px-8 pt-4 pb-6 flex justify-between items-center">
+                            <Button
+                                label="上一步"
+                                icon="pi pi-arrow-left"
+                                text
+                                severity="secondary"
+                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
+                                onClick={() => setActiveStep(activeStep - 1)}
+                                disabled={isLoading}
+                            />
+                            <div className="flex gap-2">
+                                {activeStep === 1 && (
+                                    <Button
+                                        label="确认并生成计划"
+                                        icon="pi pi-arrow-right"
+                                        iconPos="right"
+                                        className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
+                                        onClick={handleConfirmActions}
+                                        disabled={isLoading}
+                                        loading={isLoading}
+                                    />
+                                )}
+                                {activeStep === 2 && (
+                                    <Button
+                                        label="导入到计划库"
+                                        icon="pi pi-check"
+                                        className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
+                                        onClick={handleImportPlan}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </Dialog>
     );

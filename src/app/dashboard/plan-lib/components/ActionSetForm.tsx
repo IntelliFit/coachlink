@@ -369,7 +369,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
     return (
         <div className="grid grid-cols-1 gap-3">
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 max-w-[340px]">
                 <label className="block text-900 text-xs mb-1">动作</label>
                 <Dropdown
                     value={set.actionId}
@@ -380,9 +380,9 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     optionLabel="label"
                     placeholder="选择动作"
                     filter
-                    className="w-full rounded-2xl"
-                    panelClassName="max-w-[calc(100vw-1.5rem)] w-[calc(100vw-1.5rem)] sm:max-w-[520px] sm:w-[520px]"
-                    scrollHeight="360px"
+                    className="action-dropdown-compact w-full rounded-xl"
+                    panelClassName="action-dropdown-compact-panel max-w-[340px]"
+                    scrollHeight="260px"
                     appendTo="self"
                     disabled={saving}
                     itemTemplate={(option) => <ActionOptionTemplate action={option.action} />}

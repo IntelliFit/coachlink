@@ -378,10 +378,16 @@ const CreatePlanPage = () => {
                         </div>
                         <div className="flex gap-2">
                             <Button
-                                label="智能导入"
+                                label="AI 智能导入"
                                 icon="pi pi-bolt"
-                                className="rounded-2xl flex-1 md:flex-none"
-                                outlined
+                                className="
+                                    flex items-center gap-2 px-4 py-2 rounded-2xl flex-1 md:flex-none
+                                    bg-primary-50 border border-primary-200
+                                    text-[12px] font-black text-primary-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
+                                "
+                                text
                                 onClick={() => setShowImportDialog(true)}
                             />
                             <Button

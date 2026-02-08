@@ -676,6 +676,76 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     animation: logEntryFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
+/* Smart Import Dialog - 全屏版本（与 AI 修改器一致） */
+.smart-import-dialog-fullscreen.p-dialog {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 24px !important;
+    box-shadow:
+        0 10px 25px rgba(15, 23, 42, 0.08),
+        0 24px 60px rgba(15, 23, 42, 0.12) !important;
+    overflow: hidden;
+    max-height: 90vh !important;
+}
+
+.smart-import-dialog-fullscreen .p-dialog-header {
+    display: none !important;
+}
+
+.smart-import-dialog-fullscreen .p-dialog-content {
+    background: #ffffff !important;
+    padding: 0 !important;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.dark .smart-import-dialog-fullscreen.p-dialog {
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.2),
+        0 24px 60px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark .smart-import-dialog-fullscreen .p-dialog-content {
+    background: #0f172a !important;
+}
+
+@media (min-width: 641px) {
+    .smart-import-dialog-fullscreen.p-dialog {
+        border-radius: 24px !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .smart-import-dialog-fullscreen.p-dialog {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+    }
+}
+
+/* 智能导入面板从右往左滑入 */
+@keyframes smart-import-panel-enter {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+.smart-import-panel-enter {
+    animation: smart-import-panel-enter 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+/* 智能导入步骤条目动画 */
+.smart-import-step-entry {
+    animation: logEntryFadeIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
 /* 引导框主体 */
 .aero-guide-popover.driver-popover-item {
   @apply bg-surface border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-6 rounded-[24px] !important;
@@ -935,6 +1005,67 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .dark .aero-datatable .p-datatable-tbody > tr > td {
     @apply text-surface-200;
+}
+
+/* Aero Dropdown - 动作搜索，与模板定义表单样式一致（圆角、粗细） */
+.aero-dropdown.p-dropdown {
+    @apply rounded-2xl border-surface-200 bg-surface-50/50;
+}
+.aero-dropdown.p-dropdown .p-dropdown-label {
+    @apply text-sm font-black py-2.5 px-3;
+}
+.aero-dropdown.p-dropdown:not(.p-disabled):hover,
+.aero-dropdown.p-dropdown.p-focus {
+    @apply border-primary bg-surface;
+}
+.aero-dropdown-panel.p-dropdown-panel {
+    @apply rounded-2xl border border-surface-100;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+.aero-dropdown-panel .p-dropdown-items .p-dropdown-item {
+    @apply text-sm font-black py-2.5 px-3;
+}
+
+/* 动作选择下拉：紧凑版，减小高度与间距（字体保持 text-sm） */
+.action-dropdown-compact.p-dropdown .p-dropdown-label {
+    @apply py-1.5 px-2.5 text-sm min-h-[32px];
+}
+.action-dropdown-compact-panel.p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+    @apply py-1.5 px-2.5 text-sm min-h-0;
+}
+.action-dropdown-compact-panel.p-dropdown-panel .p-dropdown-filter-container {
+    @apply p-1.5;
+}
+.action-dropdown-compact-panel.p-dropdown-panel .p-dropdown-filter-container .p-inputtext {
+    @apply py-1.5 px-2.5 text-sm rounded-xl;
+}
+.aero-dropdown-panel .p-dropdown-filter-container .p-inputtext {
+    @apply rounded-2xl text-sm font-black;
+}
+
+/* Aero MultiSelect - 训练项目，与模板定义表单样式一致（圆角、粗细） */
+.aero-multiselect.p-multiselect {
+    @apply rounded-2xl border-surface-200 bg-surface-50/50;
+}
+.aero-multiselect.p-multiselect .p-multiselect-label {
+    @apply text-sm font-black py-2.5 px-3;
+}
+.aero-multiselect.p-multiselect:not(.p-disabled):hover,
+.aero-multiselect.p-multiselect.p-focus {
+    @apply border-primary bg-surface;
+}
+.aero-multiselect-panel.p-multiselect-panel {
+    @apply rounded-2xl border border-surface-100;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+.aero-multiselect-panel .p-multiselect-items .p-multiselect-item {
+    @apply text-sm font-black py-2.5 px-3;
+}
+.aero-multiselect-panel .p-multiselect-header .p-multiselect-filter-container .p-inputtext {
+    @apply rounded-2xl text-sm font-black;
+}
+.aero-multiselect .p-multiselect-token {
+    @apply rounded-xl text-[11px] font-black;
 }
 
 /* 自定义滚动条样式 - Aero-Productivity 设计 */
