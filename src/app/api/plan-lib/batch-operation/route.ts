@@ -323,6 +323,22 @@ export async function POST(req: NextRequest) {
 
                     const actions = actionsData || [];
 
+                    // 按类型分组的动作列表，供 AI prompt 使用
+                    const actionsByType = {
+                        STRENGTH: (actions as any[]).filter((a: any) => !a.type || a.type === 'STRENGTH'),
+                        CARDIO: (actions as any[]).filter((a: any) => a.type === 'CARDIO'),
+                        DIET: (actions as any[]).filter((a: any) => a.type === 'DIET'),
+                        HABIT: (actions as any[]).filter((a: any) => a.type === 'HABIT'),
+                    };
+                    const actionsByTypePrompt = `
+## 四类动作的可选动作（供选择或新建参考）
+1. **力量训练 (STRENGTH)**：${actionsByType.STRENGTH.length > 0 ? actionsByType.STRENGTH.map((a: any) => a.name).join('、') : '（暂无）'}；可新建如深蹲、硬拉、卧推等
+2. **有氧运动 (CARDIO)**：${actionsByType.CARDIO.length > 0 ? actionsByType.CARDIO.map((a: any) => a.name).join('、') : '（暂无）'}；可新建如跑步、跳绳、骑行、游泳等
+3. **饮食建议 (DIET)**：${actionsByType.DIET.length > 0 ? actionsByType.DIET.map((a: any) => a.name).join('、') : '（暂无）'}；可新建如早餐、加餐、蛋白质摄入等
+4. **习惯打卡 (HABIT)**：${actionsByType.HABIT.length > 0 ? actionsByType.HABIT.map((a: any) => a.name).join('、') : '（暂无）'}；可新建如冥想、早起、饮水等
+
+用户可从上述动作库中选择，也可创建新动作（需先在动作库中添加）。`;
+
                     // 首先让 AI 判断用户意图
                     sendMessage({ type: 'progress', message: '正在分析您的需求' });
 
@@ -340,6 +356,7 @@ ${JSON.stringify(trainingDays, null, 2)}
 
 ## 可用的动作列表
 ${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}
+${actionsByTypePrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -383,6 +400,7 @@ ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 - CARDIO: 有氧运动
 - DIET: 饮食相关
 - HABIT: 习惯养成
+${actionsByTypePrompt}
 
 ## 用户问题（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -427,19 +445,21 @@ ${effectiveInstruction}
                     const clarificationPrompt = `你是一个训练计划助手。请判断用户的修改指令是否**信息完整**，能否直接执行。
 
 ## 判断规则（以下情况视为信息不完整，需向用户追问）
-- 用户说「改为有氧」「换成有氧」「改成有氧」等，但**没有指定具体是哪种有氧运动**（如跑步、跳绳、骑行等）→ 不完整，需追问具体有氧类型
-- 用户说「替换为力量动作」「改成力量」等，但**没有指定具体动作名称** → 不完整，需追问具体动作
+- 用户说「改为有氧」「换成有氧」「改成有氧」等，但**没有指定具体是哪种有氧运动**（如跑步、跳绳、骑行等）→ 不完整
+- 用户说「替换为力量动作」「改成力量」等，但**没有指定具体动作名称** → 不完整
 - 用户说「改成 CARDIO」或「改为有氧类」但未说明具体动作 → 不完整
-- 其他：指令中涉及「替换为」「改为」某**类别**（有氧/力量/休息等）而非**具体动作名**时，一律视为不完整，需请用户给出具体动作名称或从现有动作库中选择
+- 其他：指令中仅提到**类别**（有氧/力量等）而未给出**具体动作名**时 → 不完整
 
-## 若信息完整
-- 用户已明确写出具体动作名（如「改为跑步」「替换为固定器械高位下拉」）
-- 或仅做组数/次数/重量/休息等参数调整，不涉及替换动作类型
-- 或删除/添加时已写明具体动作名
-→ 返回 complete: true，无需 clarificationQuestion
+## 若信息完整（以下情况一律返回 complete: true，不要追问）
+- 用户已明确写出**替换目标的具体动作名**
+- 仅做组数/次数/重量/休息等参数调整，不涉及替换动作类型
+- 删除/添加时已写明具体动作名
+
+**关键**：只要用户写出了「换成/改为/替换为 + 具体动作名」（如跑步、跳绳、硬拉、高位下拉等），即视为完整，**不要**再追问「请说明要改成哪种有氧运动」。
 
 ## 当前动作库（供你判断用户是否可能从库中选）
 ${actions.map(a => `${a.name} (${a.type})`).join('、')}
+${actionsByTypePrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
 ${effectiveInstruction}
@@ -500,6 +520,7 @@ interface TrainingDay {
 \`\`\`typescript
 interface ActionSet {
     actionId: string;   // 必须来自「当前可用的动作列表」中的 id，禁止使用列表外的 id
+    itemType?: 'STRENGTH' | 'CARDIO' | 'DIET' | 'HABIT';  // 必须与动作库中该 actionId 的 type 一致，用于前端展示图标和表单
     setName?: string;
     params: {
         action_name?: string;   // 可选，展示用名称
@@ -513,6 +534,11 @@ interface ActionSet {
 }
 \`\`\`
 
+### 替换/添加动作时 itemType 必须同步
+**关键**：当你替换或添加动作时，必须同时设置 \`actionSet.itemType\` 为动作库中该 actionId 对应的 type。
+- 例如将引体替换为跑步：\`actionSet.actionId = runningId\` 的同时，必须 \`actionSet.itemType = 'CARDIO'\`（因为跑步在动作库中是 CARDIO 类型）
+- 可用 \`findActionById(actionId)?.type\` 获取类型，取值为 'STRENGTH'|'CARDIO'|'DIET'|'HABIT'，若无则用 'STRENGTH'
+
 ### 动作类型与 params 规则（与智能导入一致）
 - **STRENGTH（力量）**：使用 sets、reps、weight、rest_seconds；可配 intensityConfig（如 RM、百分比）
 - **CARDIO（有氧）**：sets/reps/weight 通常为 null，用 params 中的 customData 或 note 表达距离/时长/配速等
@@ -520,9 +546,10 @@ interface ActionSet {
 
 ### 重要约束
 1. **actionId 唯一来源**：只能使用下面「当前可用的动作列表」里给出的 id。不得自造 uuid 或写列表中不存在的 id。
-2. 直接修改 \`trainingDays\` 数组即可，不要 return。
-3. 代码在沙箱中执行，禁止 \`require\`、\`fetch\`、异步、全局变量等。
-4. 处理边界情况：先判断 \`day.actionSets\` 存在再遍历，避免空引用。
+2. **替换/添加动作时必须设置 itemType**：修改 \`actionSet.actionId\` 时，必须同时设置 \`actionSet.itemType = findActionById(newActionId)?.type || 'STRENGTH'\`，否则前端会错误显示为力量训练。
+3. 直接修改 \`trainingDays\` 数组即可，不要 return。
+4. 代码在沙箱中执行，禁止 \`require\`、\`fetch\`、异步、全局变量等。
+5. 处理边界情况：先判断 \`day.actionSets\` 存在再遍历，避免空引用。
 
 ## 可用的辅助函数
 - \`findActionByName(name: string)\`: 通过名称模糊查找动作，返回 \`actions\` 中的项
@@ -530,6 +557,7 @@ interface ActionSet {
 
 ## 当前可用的动作列表（仅允许使用以下 id）
 ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
+${actionsByTypePrompt}
 
 ## trainingDays 当前内容示例
 ${JSON.stringify(trainingDays.slice(0, 2), null, 2)}
@@ -586,6 +614,11 @@ ${effectiveInstruction}
                                 actionPlan: string;
                                 code: string;
                             };
+
+                            // 开发模式：打印 AI 生成的 TypeScript 代码，便于 debug
+                            if (isDevelopment && aiResponse?.code) {
+                                console.log('[batch-operation] AI 生成的 TypeScript 代码:\n', aiResponse.code);
+                            }
 
                             // 第一次生成时发送执行计划
                             if (retryCount === 0) {

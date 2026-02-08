@@ -4,7 +4,7 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { CoachPlanAction } from '@/app/api/plan-lib/create-template/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
-import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
+import { ActionOptionTemplate, ActionValueTemplate, ActionEmptyMessage } from './PlanDayCard';
 
 interface HabitItemFormProps {
     item: CoachPlanAction;
@@ -56,6 +56,8 @@ export const HabitItemForm: React.FC<HabitItemFormProps> = ({
                     optionLabel="label"
                     placeholder="选择习惯项目"
                     filter
+                    emptyMessage={<ActionEmptyMessage type="empty" />}
+                    emptyFilterMessage={<ActionEmptyMessage type="filter" />}
                     showClear
                     className="action-dropdown-compact w-full rounded-xl"
                     panelClassName="action-dropdown-compact-panel max-w-[340px]"

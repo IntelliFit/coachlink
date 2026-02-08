@@ -612,7 +612,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         0 10px 25px rgba(15, 23, 42, 0.08),
         0 24px 60px rgba(15, 23, 42, 0.12) !important;
     overflow: hidden;
-    max-height: 90vh !important;
 }
 
 .batch-operation-dialog-fullscreen .p-dialog-header {
@@ -622,11 +621,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .batch-operation-dialog-fullscreen .p-dialog-content {
     background: #ffffff !important;
     padding: 0 !important;
-    overflow-y: auto;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
+    overflow: visible;
 }
 
 .dark .batch-operation-dialog-fullscreen.p-dialog {

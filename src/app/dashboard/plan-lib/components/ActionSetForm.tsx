@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { RadioButton } from 'primereact/radiobutton';
 import { CoachActionRow, CoachSubscriptionRow, IntensityConfig, WeightUnit } from '@/types';
-import { ActionOptionTemplate, ActionValueTemplate } from './PlanDayCard';
+import { ActionOptionTemplate, ActionValueTemplate, ActionEmptyMessage } from './PlanDayCard';
 import { CoachPlanAction, CoachPlanActionWithOneFilter } from '@/app/api/plan-lib/create-template/entity';
 import { calcRecommendedLoad, LambdaModel, normalizeIntensityConfig } from '@/lib/rmCaculator';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
@@ -380,6 +380,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                     optionLabel="label"
                     placeholder="选择动作"
                     filter
+                    emptyMessage={<ActionEmptyMessage type="empty" />}
+                    emptyFilterMessage={<ActionEmptyMessage type="filter" />}
                     className="action-dropdown-compact w-full rounded-xl"
                     panelClassName="action-dropdown-compact-panel max-w-[340px]"
                     scrollHeight="260px"

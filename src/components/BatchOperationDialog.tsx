@@ -35,7 +35,7 @@ interface BatchOperationDialogProps {
     variant?: 'modal' | 'panel' | 'auto';
     /** 收到 preview_result 时回调，用于在左侧编辑器中展示修改并高亮 */
     onPreviewResult?: (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[] }) => void;
-    /** 用户点击「清空」时回调，用于恢复左侧编辑器为原始数据 */
+    /** 用户点击「取消」时回调，用于恢复左侧编辑器为原始数据 */
     onRestart?: () => void;
     /** 确认应用时，优先使用此函数返回的 days（左侧编辑器的当前数据） */
     onGetDaysToApply?: () => any[] | null;
@@ -92,9 +92,9 @@ export function BatchOperationDialog({
     // 检查是否为开发模式
     const isDevelopment = process.env.NODE_ENV === 'development';
 
-    // 自动滚动到日志底部
+    // 自动滚动到日志底部（使用 auto 避免 smooth 滚动视窗，仅滚动对话框内容器）
     useEffect(() => {
-        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        logsEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
     }, [logs]);
 
     // 添加日志条目
@@ -415,7 +415,7 @@ export function BatchOperationDialog({
     };
 
     const content = (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
                 {/* 未开始状态：居中显示输入框 */}
                 {!hasStarted && (
                     <div className="flex-1 flex flex-col items-center justify-center px-8 relative">
@@ -509,45 +509,24 @@ export function BatchOperationDialog({
 
                 {/* 已开始状态：显示对话内容 */}
                 {hasStarted && (
-                    <div className="flex flex-col h-full">
-                        {/* Header：左侧返回，右侧清空 + 确认应用 */}
-                        <div className="flex-shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
+                    <div className="flex flex-col h-full min-h-0">
+                        {/* Header：仅返回 */}
+                        <div className="flex-shrink-0 px-8 pt-6 pb-2 flex items-center">
                             <Button
                                 icon="pi pi-arrow-left"
                                 text
                                 severity="secondary"
-                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all -ml-2"
+                                className="rounded-xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all -ml-2"
                                 onClick={handleHide}
                                 disabled={isProcessing || isApplying}
                                 aria-label="关闭"
                                 tooltip="关闭对话框"
                                 tooltipOptions={{ position: 'right' }}
                             />
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    label="清空"
-                                    icon="pi pi-trash"
-                                    text
-                                    severity="secondary"
-                                    className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
-                                    onClick={handleRestart}
-                                    disabled={isProcessing || isApplying}
-                                />
-                                {previewData && (
-                                    <Button
-                                        label={isApplying ? '应用中...' : '确认应用'}
-                                        icon={isApplying ? undefined : 'pi pi-check'}
-                                        className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
-                                        onClick={handleApply}
-                                        disabled={isApplying}
-                                        loading={isApplying}
-                                    />
-                                )}
-                            </div>
                         </div>
 
                         {/* 内容容器 */}
-                        <div className="flex-1 min-h-0 px-8 pb-6 flex flex-col">
+                        <div className="flex-1 min-h-0 px-8 pb-1 flex flex-col">
                             {/* 用户消息 */}
                             <div className="flex-shrink-0 mb-6">
                                 <div className="bg-surface-50 rounded-2xl p-4 border border-surface-100">
@@ -562,8 +541,8 @@ export function BatchOperationDialog({
                                 </div>
                             </div>
 
-                            {/* 内容区域 */}
-                            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
+                            {/* 内容区域：限制高度，超出部分在此滚动 */}
+                            <div className="flex-1 min-h-0 max-h-[calc(100vh-460px)] overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
                                 {/* 日志显示区域 */}
                                 {logs.length > 0 && (
                                     <div className="space-y-2">
@@ -596,6 +575,29 @@ export function BatchOperationDialog({
                                 )}
 
                                 {/* 修改已直接施加于左侧编辑器，此处不再展示表格 */}
+                            </div>
+
+                            {/* 中部：取消 + 确认应用（小号按钮） */}
+                            <div className="flex-shrink-0 flex items-center justify-center gap-3">
+                                <Button
+                                    label="取消"
+                                    icon="pi pi-times"
+                                    text
+                                    severity="secondary"
+                                    className="rounded-xl text-[11px] font-bold py-1.5 px-3 text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
+                                    onClick={handleRestart}
+                                    disabled={isProcessing || isApplying}
+                                />
+                                {previewData && (
+                                    <Button
+                                        label={isApplying ? '应用中...' : '确认应用'}
+                                        icon={isApplying ? undefined : 'pi pi-check'}
+                                        className="rounded-xl py-1.5 px-4 text-[11px] font-bold bg-primary-600 border-none text-white hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
+                                        onClick={handleApply}
+                                        disabled={isApplying}
+                                        loading={isApplying}
+                                    />
+                                )}
                             </div>
                         </div>
 
@@ -657,7 +659,7 @@ export function BatchOperationDialog({
             header={null}
             visible={visible}
             onHide={handleHide}
-            style={{ width: '95vw', height: '90vh', maxWidth: '1400px' }}
+            style={{ width: '95vw', maxWidth: '1400px' }}
             modal
             closable={!isProcessing && !isApplying}
             draggable={false}
