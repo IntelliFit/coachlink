@@ -864,7 +864,7 @@ const EditPlanPage = () => {
             </div>
             {/* AI 修改器：桌面端右侧推入面板（sticky 粘顶，滚动时保持可见），移动端弹窗 */}
             {params.id && aiBatchDialogVisible && (
-                <div className="hidden md:flex md:w-[420px] lg:w-[480px] shrink-0 sticky top-[calc(1rem+70px)] self-start h-[calc(100vh-2rem)] min-h-[480px] border-l border-surface-100 bg-surface overflow-hidden rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+                <div className="hidden md:flex md:w-[420px] lg:w-[480px] shrink-0 sticky top-[calc(1rem+70px)] self-start h-[calc(100vh-150px)] min-h-[480px] border-l border-surface-100 bg-surface overflow-hidden rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
                     <BatchOperationDialog
                         visible={aiBatchDialogVisible}
                         onHide={() => setAiBatchDialogVisible(false)}
