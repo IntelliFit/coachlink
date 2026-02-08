@@ -3,7 +3,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import OpenAI from "openai";
 import ivm from "isolated-vm";
-import { BatchOperationDto, SSEMessage, ModificationDiff } from "./entity";
+import { BatchOperationDto, SSEMessage, ModificationDiff, NewActionDetected } from "./entity";
 
 // 检查是否为开发环境
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -266,7 +266,18 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json() as BatchOperationDto;
-        const { templateId, instruction } = body;
+        const { templateId, instruction, conversationHistory = [] } = body;
+
+        // 合并多轮对话为模型可见的完整指令（首轮 + 助手追问 + 用户补充）
+        const effectiveInstruction =
+            conversationHistory.length === 0
+                ? instruction
+                : [
+                    `【用户首轮指令】\n${instruction}`,
+                    ...conversationHistory.map(
+                        (t) => `【${t.role === 'assistant' ? '助手追问' : '用户补充'}】\n${t.content}`
+                    ),
+                ].join('\n\n');
 
         // 创建 SSE 响应
         const encoder = new TextEncoder();
@@ -330,8 +341,8 @@ ${JSON.stringify(trainingDays, null, 2)}
 ## 可用的动作列表
 ${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}
 
-## 用户指令
-${instruction}
+## 用户指令（含多轮对话时此处为完整上下文）
+${effectiveInstruction}
 
 请返回 JSON 格式:
 {
@@ -373,8 +384,8 @@ ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 - DIET: 饮食相关
 - HABIT: 习惯养成
 
-## 用户问题
-${instruction}
+## 用户问题（含多轮对话时此处为完整上下文）
+${effectiveInstruction}
 
 请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
 
@@ -411,72 +422,126 @@ ${instruction}
                         return; // 查询模式结束，不执行修改逻辑
                     }
 
-                    // 修改模式：原有的代码生成流程
+                    // 修改模式：先检查用户指令是否信息完整
+                    sendMessage({ type: 'progress', message: '正在检查指令是否完整' });
+                    const clarificationPrompt = `你是一个训练计划助手。请判断用户的修改指令是否**信息完整**，能否直接执行。
+
+## 判断规则（以下情况视为信息不完整，需向用户追问）
+- 用户说「改为有氧」「换成有氧」「改成有氧」等，但**没有指定具体是哪种有氧运动**（如跑步、跳绳、骑行等）→ 不完整，需追问具体有氧类型
+- 用户说「替换为力量动作」「改成力量」等，但**没有指定具体动作名称** → 不完整，需追问具体动作
+- 用户说「改成 CARDIO」或「改为有氧类」但未说明具体动作 → 不完整
+- 其他：指令中涉及「替换为」「改为」某**类别**（有氧/力量/休息等）而非**具体动作名**时，一律视为不完整，需请用户给出具体动作名称或从现有动作库中选择
+
+## 若信息完整
+- 用户已明确写出具体动作名（如「改为跑步」「替换为固定器械高位下拉」）
+- 或仅做组数/次数/重量/休息等参数调整，不涉及替换动作类型
+- 或删除/添加时已写明具体动作名
+→ 返回 complete: true，无需 clarificationQuestion
+
+## 当前动作库（供你判断用户是否可能从库中选）
+${actions.map(a => `${a.name} (${a.type})`).join('、')}
+
+## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
+${effectiveInstruction}
+
+请严格返回 JSON（不要其他内容）:
+{
+    "complete": true 或 false,
+    "clarificationQuestion": "若 complete 为 false，此处写一句简短的中文追问，例如：请说明要改成哪种具体的有氧运动（如跑步、跳绳、骑行等）？",
+    "suggestions": ["若 complete 为 false，此处返回 3～6 个具体推荐选项的字符串数组，与追问内容对应。例如有氧类可填 [\"跑步\", \"跳绳\", \"骑行\", \"游泳\", \"划船\"]，力量类可填动作库中的具体动作名。用户可点击直接选用。"]
+}`;
+                    const clarificationCompletion = await openai.chat.completions.create({
+                        model: "deepseek-chat",
+                        messages: [{ role: "system", content: clarificationPrompt }],
+                        response_format: { type: "json_object" },
+                        temperature: 0.1,
+                        max_tokens: 400
+                    });
+                    const clarificationContent = clarificationCompletion.choices[0]?.message?.content;
+                    let clarificationResult: { complete?: boolean; clarificationQuestion?: string; suggestions?: string[] } = { complete: true };
+                    if (clarificationContent) {
+                        try {
+                            clarificationResult = JSON.parse(clarificationContent);
+                        } catch (_) {}
+                    }
+                    const suggestions = Array.isArray(clarificationResult.suggestions)
+                        ? clarificationResult.suggestions.filter((s: unknown) => typeof s === 'string').slice(0, 8)
+                        : undefined;
+                    if (clarificationResult.complete === false && clarificationResult.clarificationQuestion) {
+                        sendMessage({
+                            type: 'need_clarification',
+                            question: clarificationResult.clarificationQuestion,
+                            ...(suggestions?.length ? { suggestions } : {})
+                        });
+                        return;
+                    }
+
+                    // 代码生成流程（借鉴智能导入的 training data 结构描述）
                     const systemPrompt = `你是一个训练计划批量操作助手。
 
 ## 你的任务
-根据用户的自然语言指令，生成 TypeScript 代码来修改训练计划。
+根据用户的自然语言指令，生成 TypeScript 代码来修改训练计划。**只能使用下方「当前可用的动作列表」中的动作 id，禁止编造或使用列表外 actionId。**
 
-## 可用的数据结构
+## 训练计划数据结构
 
-### trainingDays (训练日数组)
+### trainingDays（训练日数组）
+每个元素表示一天，按 dayIndex 顺序排列。
+
 \`\`\`typescript
 interface TrainingDay {
-    type: 'training' | 'rest';
-    note?: string;
-    actionSets?: ActionSet[];
-    dayIndex: number;
+    type: 'training' | 'rest';   // 训练日 或 休息日
+    note?: string;                 // 当天备注
+    actionSets?: ActionSet[];     // 当天的动作集合（仅 type===training 时有）
+    dayIndex: number;              // 第几天，从 1 开始
 }
+\`\`\`
 
+### ActionSet（单日内的一个动作项）
+\`\`\`typescript
 interface ActionSet {
-    actionId: string;
-    setName: string;
+    actionId: string;   // 必须来自「当前可用的动作列表」中的 id，禁止使用列表外的 id
+    setName?: string;
     params: {
-        action_name?: string;
-        sets?: number;
-        reps?: number;
-        weight?: number;
-        rest_seconds?: number;
+        action_name?: string;   // 可选，展示用名称
+        sets?: number;          // 组数（STRENGTH 常用）
+        reps?: number;          // 次数（STRENGTH 常用）
+        weight?: number;       // 重量 kg（STRENGTH 常用）
+        rest_seconds?: number;  // 组间休息秒
         note?: string;
-        // ... 其他参数
+        // 有氧/饮食/习惯类动作可能还有 customData，见下
     };
 }
 \`\`\`
 
-### actions (可用的动作库)
-\`\`\`typescript
-interface Action {
-    id: string;
-    name: string;
-    type: 'STRENGTH' | 'CARDIO' | 'DIET' | 'HABIT';
-    detail?: string;
-}
-\`\`\`
+### 动作类型与 params 规则（与智能导入一致）
+- **STRENGTH（力量）**：使用 sets、reps、weight、rest_seconds；可配 intensityConfig（如 RM、百分比）
+- **CARDIO（有氧）**：sets/reps/weight 通常为 null，用 params 中的 customData 或 note 表达距离/时长/配速等
+- **DIET / HABIT**：同上，以 customData 或 note 为主
+
+### 重要约束
+1. **actionId 唯一来源**：只能使用下面「当前可用的动作列表」里给出的 id。不得自造 uuid 或写列表中不存在的 id。
+2. 直接修改 \`trainingDays\` 数组即可，不要 return。
+3. 代码在沙箱中执行，禁止 \`require\`、\`fetch\`、异步、全局变量等。
+4. 处理边界情况：先判断 \`day.actionSets\` 存在再遍历，避免空引用。
 
 ## 可用的辅助函数
-- \`findActionByName(name: string)\`: 通过名称模糊查找动作
-- \`findActionById(id: string)\`: 通过ID查找动作
+- \`findActionByName(name: string)\`: 通过名称模糊查找动作，返回 \`actions\` 中的项
+- \`findActionById(id: string)\`: 通过 id 查找动作
 
-## 注意事项
-1. 直接修改 trainingDays 数组即可，不需要返回值
-2. 代码会在沙箱中执行，有内存(128MB)和时间(10s)限制
-3. 不要使用任何外部库或异步操作
-4. 确保代码健壮，处理边界情况
-
-## 当前可用的动作列表
+## 当前可用的动作列表（仅允许使用以下 id）
 ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 
-## trainingDays 结构示例
+## trainingDays 当前内容示例
 ${JSON.stringify(trainingDays.slice(0, 2), null, 2)}
 
-## 用户指令
-${instruction}
+## 用户指令（含多轮对话时此处为完整上下文，请按用户最终意图生成代码）
+${effectiveInstruction}
 
 ## 请生成 TypeScript 代码
-要求返回 JSON 格式:
+返回 JSON：
 {
-    "actionPlan": "用户友好的执行计划说明，例如：将第1-7天的深蹲替换为硬拉，并调整组数为5组",
-    "code": "typescript代码"
+    "actionPlan": "一句用户友好的执行计划说明（中文）",
+    "code": "<仅修改 trainingDays 的 TypeScript 代码，不要包含注释外的任何说明>"
 }`;
 
                     // 4. 调用 AI 并执行代码（支持重试）
@@ -594,7 +659,31 @@ ${instruction}
                         actions.map(a => ({ id: a.id, name: a.name }))
                     );
 
-                    // 不再发送逐天的详细修改描述，只显示最终的修改表格
+                    // 6.1 检测修改计划中是否包含不在动作库中的动作
+                    const knownActionIds = new Set(actions.map((a: any) => a.id));
+                    const newActionsDetected: NewActionDetected[] = [];
+                    for (const day of executionResult.result || []) {
+                        const sets = day.actionSets || [];
+                        for (const set of sets) {
+                            const aid = set.actionId;
+                            if (aid && !knownActionIds.has(aid)) {
+                                const suggestedName = set.params?.action_name || undefined;
+                                if (!newActionsDetected.some((x) => x.actionId === aid)) {
+                                    newActionsDetected.push({ actionId: aid, suggestedName });
+                                }
+                            }
+                        }
+                    }
+                    if (newActionsDetected.length > 0) {
+                        const namesList = newActionsDetected
+                            .map((a) => a.suggestedName || a.actionId)
+                            .join('、');
+                        sendMessage({
+                            type: 'new_actions_detected',
+                            actions: newActionsDetected,
+                            message: `修改计划中包含以下不在您动作库中的动作：${namesList}。请先在动作库中创建这些动作后再应用，或确认是否仍要应用计划。`
+                        });
+                    }
 
                     const totalDuration = Date.now() - startTime;
 

@@ -18,7 +18,6 @@ import { CardioItemForm } from './CardioItemForm';
 import { HabitItemForm } from './HabitItemForm';
 import { Activity, Calendar, Coffee, Copy, Dumbbell, Filter, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
-import { ScrollPanel } from 'primereact/scrollpanel';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -27,19 +26,19 @@ interface ActionOption {
     action: CoachActionRow;
 }
 
-// 自定义选项模板组件
+// 自定义选项模板组件（紧凑版：减小间距与高度）
 export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) => {
     return (
-        <div className="flex items-start gap-2 max-w-full">
+        <div className="flex items-start gap-1.5 max-w-full py-0.5">
             <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="font-black text-surface-900 truncate">{action.name}</div>
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="text-sm font-black text-surface-900 truncate leading-tight">{action.name}</div>
                 </div>
 
-                <div className="mt-1 flex flex-wrap gap-1 max-w-full">
+                <div className="mt-0.5 flex flex-wrap gap-0.5 max-w-full">
                     {(action.positions || []).slice(0, 4).map((position, idx) => (
                         <div
-                            className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                            className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight"
                             key={idx}
                         >
                             {position}
@@ -47,20 +46,20 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
                     ))}
 
                     {action.enableAutoWeightCompute && (
-                        <div className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                        <div className="bg-primary-100 text-primary-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight">
                             自动计算重量
                         </div>
                     )}
 
                     {action.type && action.type !== 'STRENGTH' && (
-                        <div className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                        <div className="bg-purple-100 text-purple-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight">
                             {action.type}
                         </div>
                     )}
                 </div>
 
                 {action.detail && (
-                    <div className="text-[11px] text-surface-500 mt-1 line-clamp-2 break-words">
+                    <div className="text-[10px] text-surface-500 mt-0.5 line-clamp-1 break-words leading-tight">
                         {action.detail}
                     </div>
                 )}
@@ -69,27 +68,27 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
     );
 };
 
-// 自定义选中值模板组件
+// 自定义选中值模板组件（紧凑版）
 export const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = ({ action }) => {
     if (!action) {
-        return <span>选择动作</span>;
+        return <span className="text-sm">选择动作</span>;
     }
 
     return (
-        <div className="flex items-center gap-2 min-w-0">
-            <div className="font-black truncate min-w-0">{action.name}</div>
+        <div className="flex items-center gap-1.5 min-w-0">
+            <div className="text-sm font-black truncate min-w-0 leading-tight">{action.name}</div>
             {/* Mobile 只显示少量徽章，避免撑宽输入框 */}
-            <div className="hidden sm:flex flex-wrap gap-1">
+            <div className="hidden sm:flex flex-wrap gap-0.5">
                 {(action.positions || []).slice(0, 2).map((position, idx) => (
                     <div
                         key={idx}
-                        className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                        className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight"
                     >
                         {position}
                     </div>
                 ))}
                 {action.enableAutoWeightCompute && (
-                    <div className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                    <div className="bg-primary-100 text-primary-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight">
                         自动计算重量
                     </div>
                 )}
@@ -123,6 +122,8 @@ interface PlanDayCardProps {
     subscription?: CoachSubscriptionRow | null;
     execution?: any; // 添加执行数据属性
     planReference1RMs?: Record<string, number>;
+    /** AI 修改器高亮：key 为 dayIndex-actionName 或 dayIndex-day */
+    highlightedModificationKeys?: Set<string> | null;
 }
 
 
@@ -144,7 +145,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     questions,
     subscription,
     execution,
-    planReference1RMs
+    planReference1RMs,
+    highlightedModificationKeys = null
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
@@ -314,10 +316,15 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         // 简化起见，这里我们认为 group_title 是 Item 属性，UI 渲染时会自动聚合
     };
 
+    const isDayHighlighted = highlightedModificationKeys?.has(`${day.dayIndex}-day`) ?? false;
     return (
         <div className="flex flex-col gap-5 p-0 sm:p-4 md:p-6">
             {/* 顶部操作区：吸顶（避免每次回到最上面） */}
-            <div className="sticky top-2 z-20 bg-surface/95 backdrop-blur-md rounded-[20px] border border-surface-100/60 p-3 flex flex-col gap-3">
+            <div className={`sticky top-2 z-20 backdrop-blur-md rounded-[20px] p-3 flex flex-col gap-3 ${
+                isDayHighlighted
+                    ? 'bg-primary-50/70 dark:bg-primary-900/30 border-2 border-primary-300 dark:border-primary-500/60'
+                    : 'bg-surface/95 border border-surface-100/60'
+            }`}>
                 {/* 头部：生产力字重与非线性圆角操作区 */}
                 <div className="flex flex-wrap gap-3 items-end justify-between px-1">
                     <div className="flex flex-col gap-1">
@@ -371,23 +378,28 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
             </div>
 
             {day.type === 'training' ? (
-                <ScrollPanel className="flex-grow" style={{ height: 'calc(100vh - 300px)' }}>
-                    <div className="flex flex-col gap-4 p-0 md:p-2">
+                <div className="flex flex-col gap-4 p-0 md:p-2">
                         {day.actionSets.map((set, setIndex) => {
                             const itemType = getItemType(set);
                             const isStrength = itemType === 'STRENGTH';
                             const filteredOptions = getFilteredOptions(itemType);
 
+                        const setName = actionName(setIndex) || '未选定动作';
+                        const isHighlighted = highlightedModificationKeys?.has(`${day.dayIndex}-${setName}`) ?? false;
                         return (
                             <div
                                 key={setIndex}
-                                className="group relative bg-surface border border-surface-100 rounded-[24px] md:p-4 p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                                className={`group relative rounded-[24px] md:p-4 p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] ${
+                                    isHighlighted
+                                        ? 'bg-primary-50/50 border-2 border-primary-300 dark:bg-primary-900/20 dark:border-primary-500/60'
+                                        : 'bg-surface border border-surface-100'
+                                }`}
                             >
                                 {/* 动作头部：数值中心化 */}
                                 <div className="flex justify-between items-start mb-4 md:mb-6">
-                                    <div className="flex gap-4">
-                                        <div className={`w-12 h-12 rounded-[16px] flex flex-col items-center justify-center ${getItemColorClass(itemType)}`}>
-                                            <span className="text-[10px] font-black opacity-60">#{setIndex + 1}</span>
+                                    <div className="flex gap-3 items-center">
+                                        <span className="text-xs font-black text-surface-400 shrink-0">#{setIndex + 1}</span>
+                                        <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0 ${getItemColorClass(itemType)}`}>
                                             {isStrength ? <Dumbbell size={18} strokeWidth={2.5} /> : <Activity size={18} strokeWidth={2.5} />}
                                         </div>
                                         <div className="flex flex-col justify-center gap-1">
@@ -523,6 +535,13 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                             );
                         })}
 
+                        {/* 动作列表末尾：窄高添加按钮，与动作卡片同宽 */}
+                        <PolymorphicItemMenu
+                            compact
+                            onAdd={(type) => onAddActionSet(day.dayIndex, type)}
+                            disabled={saving}
+                        />
+
                         {/* 执行详情模块 */}
                         <ExecutionDetails execution={execution} />
 
@@ -612,8 +631,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                 </div>
                             </Dialog>
                         )}
-                    </div>
-                </ScrollPanel>
+                </div>
             ) : (
                 /* 休息日：骨架感占位 */
                 <div className="flex flex-col items-center justify-center py-16 bg-surface-50/40 rounded-[32px] border border-dashed border-surface-200">

@@ -1,15 +1,24 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+
+function useIsDesktop() {
+    const [isDesktop, setIsDesktop] = useState(false);
+    useEffect(() => {
+        const mql = window.matchMedia('(min-width: 768px)');
+        setIsDesktop(mql.matches);
+        const handler = () => setIsDesktop(mql.matches);
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }, []);
+    return isDesktop;
+}
 import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
-import { Card } from 'primereact/card';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
 import { BatchOperationService } from '@/app/service/batchOperationService';
-import { SSEMessage, ModificationDiff } from '@/app/api/plan-lib/batch-operation/entity';
+import { SSEMessage, ModificationDiff, NewActionDetected, ConversationTurn } from '@/app/api/plan-lib/batch-operation/entity';
 import MarkdownIt from 'markdown-it';
 
 let DOMPurify: any;
@@ -22,10 +31,18 @@ interface BatchOperationDialogProps {
     onHide: () => void;
     templateId: string;
     onSuccess?: () => void;
+    /** modal=弹窗 panel=右侧面板 auto=桌面用面板/移动用弹窗 */
+    variant?: 'modal' | 'panel' | 'auto';
+    /** 收到 preview_result 时回调，用于在左侧编辑器中展示修改并高亮 */
+    onPreviewResult?: (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[] }) => void;
+    /** 用户点击「清空」时回调，用于恢复左侧编辑器为原始数据 */
+    onRestart?: () => void;
+    /** 确认应用时，优先使用此函数返回的 days（左侧编辑器的当前数据） */
+    onGetDaysToApply?: () => any[] | null;
 }
 
 interface LogEntry {
-    type: 'progress' | 'action_plan' | 'stats' | 'error' | 'success';
+    type: 'progress' | 'action_plan' | 'stats' | 'error' | 'success' | 'need_clarification' | 'new_actions';
     content: string;
     timestamp: Date;
     data?: any;
@@ -43,7 +60,13 @@ export function BatchOperationDialog({
     onHide,
     templateId,
     onSuccess,
+    variant = 'modal',
+    onPreviewResult,
+    onRestart,
+    onGetDaysToApply,
 }: BatchOperationDialogProps) {
+    const isDesktop = useIsDesktop();
+    const effectiveVariant = variant === 'auto' ? (isDesktop ? 'panel' : 'modal') : variant;
     const [instruction, setInstruction] = useState('');
     const [submittedInstruction, setSubmittedInstruction] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -57,6 +80,9 @@ export function BatchOperationDialog({
     const [queryAnswer, setQueryAnswer] = useState<string | null>(null);
     const [hasStarted, setHasStarted] = useState(false);
     const [editedModifications, setEditedModifications] = useState<ModificationDiff[]>([]);
+    const [newActionsDetected, setNewActionsDetected] = useState<NewActionDetected[] | null>(null);
+    const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([]);
+    const [clarificationSuggestions, setClarificationSuggestions] = useState<string[] | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<any>(null);
 
@@ -80,11 +106,25 @@ export function BatchOperationDialog({
     const handleMessage = (message: SSEMessage) => {
         switch (message.type) {
             case 'progress':
-                addLog('progress', message.message);
+                // 不展示「加载训练计划」「加载动作库」等前置步骤，保持界面简洁
+                if (message.message !== '正在加载训练计划' && message.message !== '正在加载动作库') {
+                    addLog('progress', message.message);
+                }
                 break;
             
             case 'action_plan':
                 addLog('action_plan', `📋 ${message.plan}`);
+                break;
+
+            case 'need_clarification':
+                addLog('need_clarification', message.question);
+                setConversationHistory((prev) => [...prev, { role: 'assistant', content: message.question }]);
+                setClarificationSuggestions(message.suggestions?.length ? message.suggestions : null);
+                break;
+
+            case 'new_actions_detected':
+                setNewActionsDetected(message.actions);
+                addLog('new_actions', message.message);
                 break;
             
             case 'stats':
@@ -102,8 +142,12 @@ export function BatchOperationDialog({
                         updatedTrainingDays: message.updatedTrainingDays,
                         modifications: message.modifications
                     });
-                    // 初始化可编辑的修改列表
                     setEditedModifications(message.modifications);
+                    onPreviewResult?.({
+                        originalTrainingDays: message.originalTrainingDays,
+                        updatedTrainingDays: message.updatedTrainingDays,
+                        modifications: message.modifications
+                    });
                 } else {
                     addLog('error', '操作失败');
                 }
@@ -132,28 +176,66 @@ export function BatchOperationDialog({
         setLogs([]);
         setPreviewData(null);
         setQueryAnswer(null);
+        setNewActionsDetected(null);
+        setConversationHistory([]);
+        setClarificationSuggestions(null);
 
         await BatchOperationService.executeBatchOperation(
             templateId,
             instruction,
             handleMessage,
-            () => {
-                setIsProcessing(false);
-            },
+            () => setIsProcessing(false),
             (error) => {
                 addLog('error', error);
                 setIsProcessing(false);
-            }
+            },
+            []
         );
     };
 
-    // 处理键盘事件
+    // 多轮对话：用户收到 need_clarification 后在底部输入框补充信息并发送
+    const handleSendFollowUp = async () => {
+        const trimmed = instruction.trim();
+        if (!trimmed || isProcessing) return;
+
+        const nextHistory: ConversationTurn[] = [
+            ...conversationHistory,
+            { role: 'user', content: trimmed },
+        ];
+        setConversationHistory(nextHistory);
+        setClarificationSuggestions(null);
+        addLog('progress', `已收到您的补充：${trimmed}`);
+        setInstruction('');
+        setIsProcessing(true);
+
+        await BatchOperationService.executeBatchOperation(
+            templateId,
+            submittedInstruction,
+            handleMessage,
+            () => setIsProcessing(false),
+            (error) => {
+                addLog('error', error);
+                setIsProcessing(false);
+            },
+            nextHistory
+        );
+    };
+
+    // 处理键盘事件（未开始时为首次发送，已开始时为补充发送）
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            if (!isProcessing && instruction.trim()) {
-                handleExecute();
-            }
+            if (isProcessing) return;
+            if (!hasStarted && instruction.trim()) handleExecute();
+            else if (hasStarted && instruction.trim()) handleSendFollowUp();
+        }
+    };
+
+    // 底部输入框回车发送（仅已开始状态）
+    const handleBottomKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!isProcessing && instruction.trim()) handleSendFollowUp();
         }
     };
 
@@ -161,31 +243,19 @@ export function BatchOperationDialog({
     const handleApply = async () => {
         if (!previewData) return;
 
+        // 若计划中包含不在动作库中的动作，先确认
+        if (newActionsDetected && newActionsDetected.length > 0) {
+            const namesList = newActionsDetected.map((a) => a.suggestedName || a.actionId).join('、');
+            const confirmed = window.confirm(
+                `修改计划中包含以下不在您动作库中的动作：${namesList}。\n\n应用后这些动作在计划中可能显示为「未知动作」，直至您在动作库中创建对应动作。\n\n是否仍要应用计划？`
+            );
+            if (!confirmed) return;
+        }
+
         setIsApplying(true);
         try {
-            // 根据编辑后的 modifications 重新应用更改
-            const finalTrainingDays = JSON.parse(JSON.stringify(previewData.originalTrainingDays));
-            
-            editedModifications.forEach(mod => {
-                const day = finalTrainingDays[mod.dayIndex - 1];
-                if (!day) return;
-
-                // 根据 field 类型应用修改
-                if (mod.field === '替换动作') {
-                    // 查找要替换的动作
-                    const actionIndex = day.actions.findIndex((a: any) => a.name === mod.oldValue);
-                    if (actionIndex !== -1) {
-                        day.actions[actionIndex].name = mod.newValue;
-                    }
-                } else {
-                    // 其他字段修改
-                    const actionIndex = day.actions.findIndex((a: any) => a.name === mod.actionName);
-                    if (actionIndex !== -1) {
-                        day.actions[actionIndex][mod.field] = mod.newValue;
-                    }
-                }
-            });
-
+            // 优先使用左侧编辑器的当前数据（用户可能已微调），否则使用服务端返回的 updatedTrainingDays
+            const daysToApply = onGetDaysToApply?.() ?? previewData.updatedTrainingDays;
             const response = await fetch('/api/plan-lib/apply-batch-operation', {
                 method: 'POST',
                 headers: {
@@ -193,7 +263,7 @@ export function BatchOperationDialog({
                 },
                 body: JSON.stringify({
                     templateId,
-                    updatedTrainingDays: finalTrainingDays
+                    updatedTrainingDays: daysToApply
                 }),
             });
 
@@ -227,12 +297,16 @@ export function BatchOperationDialog({
             setQueryAnswer(null);
             setHasStarted(false);
             setEditedModifications([]);
+            setNewActionsDetected(null);
+            setConversationHistory([]);
+            setClarificationSuggestions(null);
             onHide();
         }
     };
 
     // 重新开始
     const handleRestart = () => {
+        onRestart?.();
         setInstruction('');
         setSubmittedInstruction('');
         setLogs([]);
@@ -240,15 +314,9 @@ export function BatchOperationDialog({
         setQueryAnswer(null);
         setHasStarted(false);
         setEditedModifications([]);
-    };
-
-    // 处理新值编辑
-    const handleNewValueChange = (index: number, newValue: string) => {
-        setEditedModifications(prev => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], newValue };
-            return updated;
-        });
+        setNewActionsDetected(null);
+        setConversationHistory([]);
+        setClarificationSuggestions(null);
     };
 
     // 渲染日志条目
@@ -275,6 +343,10 @@ export function BatchOperationDialog({
                     return 'pi-check-circle';
                 case 'error':
                     return 'pi-exclamation-circle';
+                case 'need_clarification':
+                    return 'pi-question-circle';
+                case 'new_actions':
+                    return 'pi-plus-circle';
                 default:
                     return 'pi-info-circle';
             }
@@ -282,8 +354,11 @@ export function BatchOperationDialog({
 
         const icon = getLogIcon();
 
-        // 错误类型使用特殊样式
+        // 错误 / 需补全 / 新动作提醒 使用突出样式
         const isError = entry.type === 'error';
+        const isClarification = entry.type === 'need_clarification';
+        const isNewActions = entry.type === 'new_actions';
+        const isWarning = isClarification || isNewActions;
 
         return (
             <div
@@ -291,6 +366,8 @@ export function BatchOperationDialog({
                 className={`
                     ${isError 
                         ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/30' 
+                        : isWarning
+                        ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/30'
                         : 'bg-surface-50 border-surface-200'
                     }
                     border rounded-xl px-3 py-2
@@ -302,7 +379,11 @@ export function BatchOperationDialog({
                 }}
             >
                 {/* 图标 */}
-                <div className={`shrink-0 ${isError ? 'text-red-500' : 'text-surface-400 dark:text-surface-500'}`}>
+                <div className={`shrink-0 ${
+                    isError ? 'text-red-500' 
+                    : isWarning ? 'text-amber-600 dark:text-amber-400' 
+                    : 'text-surface-400 dark:text-surface-500'
+                }`}>
                     <i className={`pi ${icon} text-xs`}></i>
                 </div>
                 
@@ -310,6 +391,8 @@ export function BatchOperationDialog({
                 <div className={`flex-1 min-w-0 text-xs font-medium leading-relaxed ${
                     isError 
                         ? 'text-red-700 dark:text-red-300' 
+                        : isWarning 
+                        ? 'text-amber-800 dark:text-amber-200' 
                         : 'text-surface-700 dark:text-surface-500'
                 }`}>
                     {entry.content}
@@ -320,6 +403,8 @@ export function BatchOperationDialog({
                     <div className={`shrink-0 text-[10px] font-medium tabular-nums ${
                         isError 
                             ? 'text-red-400 dark:text-red-500' 
+                            : isWarning 
+                            ? 'text-amber-600 dark:text-amber-500' 
                             : 'text-surface-400 dark:text-surface-500'
                     }`}>
                         {timeStr}
@@ -329,19 +414,8 @@ export function BatchOperationDialog({
         );
     };
 
-    return (
-        <Dialog
-            header={null}
-            visible={visible}
-            onHide={handleHide}
-            style={{ width: '95vw', height: '90vh', maxWidth: '1400px' }}
-            modal
-            closable={!isProcessing && !isApplying}
-            draggable={false}
-            className="batch-operation-dialog-fullscreen"
-            contentClassName="h-full"
-        >
-            <div className="flex flex-col h-full">
+    const content = (
+        <div className="flex flex-col h-full">
                 {/* 未开始状态：居中显示输入框 */}
                 {!hasStarted && (
                     <div className="flex-1 flex flex-col items-center justify-center px-8 relative">
@@ -436,8 +510,8 @@ export function BatchOperationDialog({
                 {/* 已开始状态：显示对话内容 */}
                 {hasStarted && (
                     <div className="flex flex-col h-full">
-                        {/* 顶部返回按钮 */}
-                        <div className="flex-shrink-0 px-8 pt-6 pb-4">
+                        {/* Header：左侧返回，右侧清空 + 确认应用 */}
+                        <div className="flex-shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
                             <Button
                                 icon="pi pi-arrow-left"
                                 text
@@ -449,6 +523,27 @@ export function BatchOperationDialog({
                                 tooltip="关闭对话框"
                                 tooltipOptions={{ position: 'right' }}
                             />
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    label="清空"
+                                    icon="pi pi-trash"
+                                    text
+                                    severity="secondary"
+                                    className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
+                                    onClick={handleRestart}
+                                    disabled={isProcessing || isApplying}
+                                />
+                                {previewData && (
+                                    <Button
+                                        label={isApplying ? '应用中...' : '确认应用'}
+                                        icon={isApplying ? undefined : 'pi pi-check'}
+                                        className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
+                                        onClick={handleApply}
+                                        disabled={isApplying}
+                                        loading={isApplying}
+                                    />
+                                )}
+                            </div>
                         </div>
 
                         {/* 内容容器 */}
@@ -500,121 +595,76 @@ export function BatchOperationDialog({
                                     </div>
                                 )}
 
-                                {/* 修改预览表格 */}
-                                {previewData && previewData.modifications.length > 0 && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-xl bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 flex items-center justify-center">
-                                                <i className="pi pi-list text-sm"></i>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-surface-900 dark:text-surface-100">
-                                                    修改预览
-                                                </h3>
-                                                <p className="text-xs text-surface-500 dark:text-surface-400">
-                                                    共识别到 {previewData.modifications.length} 处修改
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <Card className="rounded-2xl border border-surface-100 dark:border-surface-700">
-                                        <DataTable
-                                            value={editedModifications}
-                                            scrollable
-                                            scrollHeight="400px"
-                                            className="text-sm aero-datatable"
-                                        >
-                                            <Column
-                                                field="dayIndex"
-                                                header="训练日"
-                                                style={{ width: '80px' }}
-                                                body={(row) => (
-                                                    <span className="font-bold text-surface-900">第{row.dayIndex}天</span>
-                                                )}
-                                            />
-                                            <Column
-                                                field="actionName"
-                                                header="动作/项目"
-                                                style={{ minWidth: '120px' }}
-                                                body={(row) => (
-                                                    <span className="font-semibold text-surface-800">{row.actionName}</span>
-                                                )}
-                                            />
-                                            <Column
-                                                field="field"
-                                                header="修改项"
-                                                style={{ width: '100px' }}
-                                                body={(row) => (
-                                                    <span className="text-xs text-surface-600">{row.field}</span>
-                                                )}
-                                            />
-                                            <Column
-                                                field="oldValue"
-                                                header="原值"
-                                                style={{ minWidth: '120px' }}
-                                                body={(row) => (
-                                                    <span className="text-surface-500 line-through text-xs">
-                                                        {typeof row.oldValue === 'object' ? JSON.stringify(row.oldValue) : row.oldValue}
-                                                    </span>
-                                                )}
-                                            />
-                                            <Column
-                                                header="→"
-                                                style={{ width: '40px', textAlign: 'center' }}
-                                                body={() => <span className="text-surface-400">→</span>}
-                                            />
-                                            <Column
-                                                field="newValue"
-                                                header="新值"
-                                                style={{ minWidth: '150px' }}
-                                                body={(row, { rowIndex }) => {
-                                                    const value = typeof row.newValue === 'object' 
-                                                        ? JSON.stringify(row.newValue) 
-                                                        : String(row.newValue);
-                                                    return (
-                                                        <InputText
-                                                            value={value}
-                                                            onChange={(e) => handleNewValueChange(rowIndex, e.target.value)}
-                                                            className="w-full text-xs font-bold text-primary-700 p-1 border-surface-200 focus:border-primary-500 rounded"
-                                                        />
-                                                    );
-                                                }}
-                                            />
-                                        </DataTable>
-                                    </Card>
-                                </div>
-                            )}
+                                {/* 修改已直接施加于左侧编辑器，此处不再展示表格 */}
                             </div>
                         </div>
 
-                        {/* 底部按钮区域 */}
+                        {/* 底部：推荐选项（若有）+ 输入框（内嵌发送按钮） */}
                         <div className="flex-shrink-0 border-t border-surface-100 dark:border-surface-700 px-8 pt-4 pb-6">
-                            <div className="flex justify-between items-center">
-                                <Button
-                                    label="清空"
-                                    icon="pi pi-trash"
-                                    text
-                                    severity="secondary"
-                                    className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
-                                    onClick={handleRestart}
+                            {clarificationSuggestions && clarificationSuggestions.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {clarificationSuggestions.map((s, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-surface-600 bg-surface-100 hover:bg-surface-200 hover:text-surface-900 active:scale-[0.97] transition-all cursor-pointer border border-surface-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700"
+                                            onClick={() => setInstruction(s)}
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="relative">
+                                <InputTextarea
+                                    value={instruction}
+                                    onChange={(e) => setInstruction(e.target.value)}
+                                    onKeyDown={handleBottomKeyDown}
+                                    placeholder={
+                                        conversationHistory.some((t) => t.role === 'assistant')
+                                            ? '请补充信息后发送，例如：跑步、跳绳、骑行…'
+                                            : '继续输入并发送，进行多轮对话'
+                                    }
+                                    rows={2}
+                                    className="w-full rounded-2xl border-surface-200 focus:border-primary-300 text-sm resize-none pr-12"
                                     disabled={isProcessing || isApplying}
                                 />
-                                <div className="flex gap-2">
-                                    {previewData && (
-                                        <Button
-                                            label={isApplying ? '应用中...' : '确认应用'}
-                                            icon={isApplying ? undefined : 'pi pi-check'}
-                                            className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
-                                            onClick={handleApply}
-                                            disabled={isApplying}
-                                            loading={isApplying}
-                                        />
-                                    )}
-                                </div>
+                                <Button
+                                    icon={isProcessing ? 'pi pi-spin pi-spinner' : 'pi pi-send'}
+                                    className="absolute bottom-2 right-2 w-9 h-9 rounded-xl bg-surface-900 border-none text-surface-0 hover:bg-surface-800 active:scale-[0.95] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                    onClick={handleSendFollowUp}
+                                    disabled={!instruction.trim() || isProcessing || isApplying}
+                                    aria-label="发送"
+                                />
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+    );
+
+    if (effectiveVariant === 'panel') {
+        if (!visible) return null;
+        return (
+            <div className="flex flex-col h-full min-h-0 w-full bg-surface">
+                {content}
+            </div>
+        );
+    }
+
+    return (
+        <Dialog
+            header={null}
+            visible={visible}
+            onHide={handleHide}
+            style={{ width: '95vw', height: '90vh', maxWidth: '1400px' }}
+            modal
+            closable={!isProcessing && !isApplying}
+            draggable={false}
+            className="batch-operation-dialog-fullscreen"
+            contentClassName="h-full"
+        >
+            {content}
         </Dialog>
     );
 }

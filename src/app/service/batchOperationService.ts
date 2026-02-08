@@ -1,4 +1,4 @@
-import { SSEMessage } from '@/app/api/plan-lib/batch-operation/entity';
+import { SSEMessage, ConversationTurn } from '@/app/api/plan-lib/batch-operation/entity';
 
 /**
  * 批量操作服务
@@ -6,24 +6,27 @@ import { SSEMessage } from '@/app/api/plan-lib/batch-operation/entity';
 export class BatchOperationService {
     /**
      * 执行批量操作并通过回调处理 SSE 消息
+     * @param conversationHistory 多轮对话历史（助手追问 + 用户补充），用于 need_clarification 后的续写
      */
     static async executeBatchOperation(
         templateId: string,
         instruction: string,
         onMessage: (message: SSEMessage) => void,
         onComplete: () => void,
-        onError: (error: string) => void
+        onError: (error: string) => void,
+        conversationHistory?: ConversationTurn[]
     ): Promise<void> {
         try {
+            const body: Record<string, unknown> = { templateId, instruction };
+            if (conversationHistory && conversationHistory.length > 0) {
+                body.conversationHistory = conversationHistory;
+            }
             const response = await fetch('/api/plan-lib/batch-operation', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    templateId,
-                    instruction,
-                }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) {
