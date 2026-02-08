@@ -1,19 +1,7 @@
-interface DevUser {
-    name: string;
-    phone: string;
-    password: string;
-}
+import { DEV_USERS, type DevUser } from "@/config/devUsers";
 
-export function getWhiteList(): DevUser[] {    
-    const users = [];
-    try {
-        const data = JSON.parse(process.env.NEXT_PUBLIC_DEV_USERS);
-        if (Array.isArray(data)) {
-            return data;
-        }
+export type { DevUser };
 
-        return [];
-    } catch (error) {
-        return [];
-    }
+export function getWhiteList(): DevUser[] {
+    return process.env.NODE_ENV === "development" ? DEV_USERS : [];
 }
