@@ -17,6 +17,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { CoachSubscriptionRow, CoachesRow } from '@/types';
 import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
+import { formatYuanFromFen } from '@/lib/moneyUtils';
 
 // 线下支付数据结构
 interface OfflinePaymentData {
@@ -336,7 +337,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 {offlinePayment.amount && (
                     <div className="flex items-center gap-2">
                         <span className="text-surface-500">金额:</span>
-                        <span>¥{offlinePayment.amount}</span>
+                        <span>¥{formatYuanFromFen(offlinePayment.amount)}</span>
                     </div>
                 )}
                 {offlinePayment.receipt_url && (
@@ -404,7 +405,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 <div className="text-right">
                     {offlinePayment.amount ? (
                         <>
-                            <div className="font-medium text-green-600">¥{offlinePayment.amount}</div>
+                            <div className="font-medium text-green-600">¥{formatYuanFromFen(offlinePayment.amount)}</div>
                             <div className="text-xs text-surface-500">线下实付</div>
                         </>
                     ) : (
@@ -416,7 +417,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
 
         return (
             <div className="text-right">
-                <div>¥{subscription.monthly_price.toFixed(2)}</div>
+                <div>¥{formatYuanFromFen(subscription.monthly_price)}</div>
                 {subscription.order_id && (
                     <div className="text-xs text-surface-500">订单: {subscription.order_id.substring(0, 8)}...</div>
                 )}
