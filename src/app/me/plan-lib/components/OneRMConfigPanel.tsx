@@ -17,17 +17,32 @@ const OneRMConfigPanel: React.FC<OneRMConfigPanelProps> = ({ days, actions, valu
 
     useEffect(() => {
         const usedActionIds = new Set<string>();
+        const usedActionNames = new Set<string>();
         days.forEach(day => {
             day.actionSets.forEach(set => {
                 if (set.actionId && typeof set.actionId === 'string') {
                     usedActionIds.add(set.actionId);
                 }
+                if (set.actionName && typeof set.actionName === 'string') {
+                    usedActionNames.add(set.actionName.trim().toLowerCase());
+                }
             });
         });
 
+        const canConfigureOneRM = (action: CoachActionRow) => {
+            const rawAction = action as CoachActionRow & Record<string, any>;
+            if (typeof rawAction.enableAutoWeightCompute === 'boolean') return rawAction.enableAutoWeightCompute;
+            if (typeof rawAction.enable_auto_weight_compute === 'boolean') return rawAction.enable_auto_weight_compute;
+            if (typeof rawAction.enableautoweightcompute === 'boolean') return rawAction.enableautoweightcompute;
+            return Array.isArray(action.attrs) && action.attrs.includes('强度');
+        };
+
         // 筛选出：既在计划中使用，又开启了 enableAutoWeightCompute 的动作
         const filtered = actions.filter(
-            a => usedActionIds.has(a.id) && a.enableAutoWeightCompute
+            a =>
+                (usedActionIds.has(a.id) ||
+                    (a.name ? usedActionNames.has(a.name.trim().toLowerCase()) : false)) &&
+                canConfigureOneRM(a)
         );
         setRelevantActions(filtered);
     }, [days, actions]);
