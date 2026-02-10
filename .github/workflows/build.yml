@@ -36,10 +36,10 @@ jobs:
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "tags<<EOF" >> $GITHUB_OUTPUT
             echo "$IMAGE:latest" >> $GITHUB_OUTPUT
-            echo "$IMAGE:prod" >> $GITHUB_OUTPUT
+            echo "$IMAGE:production" >> $GITHUB_OUTPUT
             echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=prod" >> $GITHUB_OUTPUT
+            echo "deploy_env=production" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             echo "tags<<EOF" >> $GITHUB_OUTPUT
             echo "$IMAGE:staging" >> $GITHUB_OUTPUT
