@@ -215,7 +215,22 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                                         // load === 0 时不显示重量
                                                                     }
                                                                     
-                                                                    // 只有RM强度，没有计算后的重量
+                                                                    // 只有相对强度，没有计算后的重量
+                                                                    // 需要检查强度类型：RM 还是百分比
+                                                                    const intensityConfig = params.intensityConfig;
+                                                                    const relativeIntensity = intensityConfig?.relativeIntensity;
+                                                                    
+                                                                    if (relativeIntensity?.value && relativeIntensity.value > 0) {
+                                                                        // 根据类型显示正确的后缀
+                                                                        const suffix = relativeIntensity.type === 'percentage' ? '%' : 'RM';
+                                                                        return (
+                                                                            <span className="text-surface-500">
+                                                                                💪 {relativeIntensity.value}{suffix}
+                                                                            </span>
+                                                                        );
+                                                                    }
+                                                                    
+                                                                    // 兼容旧数据：如果没有 intensityConfig 但有 intensity 字段，默认为 RM
                                                                     if (intensity && intensity > 0) {
                                                                         return (
                                                                             <span className="text-surface-500">
