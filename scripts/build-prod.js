@@ -38,6 +38,13 @@ function copyFolderSync(from, to) {
     });
 }
 
+// 清理旧的构建产物，确保每次构建都是全新的
+const nextDir = path.join(__dirname, '..', '.next');
+if (fs.existsSync(nextDir)) {
+    console.log('Cleaning .next directory...');
+    fs.rmSync(nextDir, { recursive: true, force: true });
+}
+
 // Next.js 16 uses Turbopack by default. Force Webpack build to avoid Turbopack/font internal module
 // resolution issues (e.g. next/font/google -> @vercel/turbopack-next/internal/...).
 const nextBuild = crossSpawn('npx', ['next', 'build', '--webpack'], {
