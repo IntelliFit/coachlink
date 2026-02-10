@@ -89,12 +89,13 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
             onSuccess(token);
             onHide();
         } catch (err: any) {
+            verifyInFlightRef.current = false;
             setPosition(0);
             showToast({ severity: 'error', summary: '验证失败', detail: err?.message });
             loadChallenge();
         } finally {
             setVerifying(false);
-            verifyInFlightRef.current = false;
+            // 成功时不重置 ref，避免 pointerLeave 等再次触发时二次请求 verify 导致「验证已过期」误报
         }
     };
 
