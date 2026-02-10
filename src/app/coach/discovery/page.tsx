@@ -856,9 +856,9 @@ const CoachDiscoveryPage: React.FC = () => {
 
                             return finalItems.map((item) => {
                                 if (item._type === 'physical') {
-                                    return renderPhysicalProductCard(item.product, true); // true = small mode
+                                    return React.cloneElement(renderPhysicalProductCard(item.product, true), { key: item._key }); // true = small mode
                                 }
-                                return renderProductCard(item, -1, true); // true = small mode
+                                return React.cloneElement(renderProductCard(item, -1, true), { key: item._key }); // true = small mode
                             });
                         })()}
                         </div>

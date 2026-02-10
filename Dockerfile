@@ -16,6 +16,8 @@ ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+# 清理旧的构建产物，确保每次构建都是全新的
+RUN rm -rf .next
 RUN npm run build
 
 # 运行阶段
@@ -32,9 +34,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # 从构建阶段复制产物
-COPY --from=builder /app/public ./public
+# standalone 目录已经包含了 .next/static 和 public（由 build-prod.js 处理）
+# 只需要复制 standalone 目录即可，避免重复复制导致路径混乱
 COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
 
 USER nextjs
 
