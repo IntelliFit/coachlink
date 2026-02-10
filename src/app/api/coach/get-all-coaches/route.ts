@@ -186,6 +186,12 @@ export async function POST(req: Request) {
 
     // 排序：先“水平”后分页（保证跨页顺序稳定）
     const sorted = coachesWithStats.sort((a: any, b: any) => {
+        // 1) 优先将 "MAX" 放在最后
+        const aIsMax = a.name === 'MAX' ? 1 : 0;
+        const bIsMax = b.name === 'MAX' ? 1 : 0;
+        if (aIsMax !== bIsMax) return aIsMax - bIsMax;
+
+        // 2) is_featured（置顶/推荐）优先
         const af = a.is_featured ? 1 : 0;
         const bf = b.is_featured ? 1 : 0;
         if (bf !== af) return bf - af;
