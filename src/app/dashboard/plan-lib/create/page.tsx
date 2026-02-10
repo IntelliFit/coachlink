@@ -453,16 +453,24 @@ const CreatePlanPage = () => {
 
     return (
         <div className="mx-auto">
-            {/* 智能导入按钮 - 放在顶部显眠位置 */}
+            {/* AI 智能导入按钮 - 与 AI 修改器风格一致 */}
             <div className="mb-4 flex items-center gap-4">
                 <h1 className="text-2xl font-bold text-900">新建计划</h1>
                 <Button
-                    label="智能导入"
+                    label="AI 智能导入"
                     icon="pi pi-bolt"
-                    severity="help"
+                    className="
+                        flex items-center gap-2 px-4 py-2
+                        bg-primary-50 border border-primary-200 rounded-[14px]
+                        text-[12px] font-black text-primary-700 tracking-tight
+                        transition-all duration-200 active:scale-[0.95]
+                        hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
+                        disabled:opacity-40 disabled:cursor-not-allowed
+                    "
+                    text
                     onClick={() => setShowImportDialog(true)}
                     disabled={saving || loading}
-                    tooltip="使用智能导入快速导入训练计划"
+                    tooltip="使用 AI 智能导入从文本快速生成训练计划"
                     tooltipOptions={{ position: 'right' }}
                 />
             </div>

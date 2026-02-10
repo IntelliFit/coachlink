@@ -7,7 +7,6 @@ import { verifyToken } from "./lib/jwt";
 function getSupabaseRestConfig() {
     const supabaseUrl =
         process.env.NEXT_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL ||
         process.env.SUPABASE_URL ||
         "";
     const serviceKey =
@@ -98,11 +97,13 @@ const PUBLIC_PATHS = new Set([
     '/api/trace',
     '/api/captcha/slider/create',
     '/api/captcha/slider/verify',
+    '/api/captcha/slider/image',
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/api/payment/alipay/return", // Alipay return - browser redirect without session
     "/api/payment/alipay/create", // guest payment create
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
+    "/api/hello-world", // hello world test endpoint (public)
     "/docs/agreement",
     "/docs/disclaimer",
     "/disclaimer",

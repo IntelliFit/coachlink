@@ -18,6 +18,7 @@ import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow, ItemType } from '@/types';
 import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
 import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
+import StickyScheduleBar from '@/app/dashboard/plan-lib/components/StickyScheduleBar';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetTemplateDto } from '@/app/api/plan-lib/get-template/entity';
@@ -28,6 +29,7 @@ import { coachService } from '@/app/service/coachService';
 import { checkTrainingDays, makeWeekDays } from '@/utils/template';
 import SmartImportDialog from '@/app/dashboard/plan-lib/components/SmartImportDialog';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 import {
     appendActionToDays,
     deleteActionInDays,
@@ -70,7 +72,12 @@ const EditPlanPage = () => {
     // Mobile day picker
     const [dayPickerVisible, setDayPickerVisible] = useState(false);
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
+    const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
     const [syncDialogVisible, setSyncDialogVisible] = useState(false);
+    /** AI 修改器：收到 preview 前的原始 days，用于清空时恢复 */
+    const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
+    /** AI 修改器：高亮用 key，格式 dayIndex-actionName 或 dayIndex-day */
+    const [aiModificationKeys, setAiModificationKeys] = useState<Set<string> | null>(null);
     const [syncInstances, setSyncInstances] = useState(true);
 
     // Load template data
@@ -519,6 +526,43 @@ const EditPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
+    const handleAiBatchOperationSuccess = async () => {
+        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '训练计划已更新' });
+        setAiBatchDialogVisible(false);
+        setOriginalDaysBeforeAi(null);
+        setAiModificationKeys(null);
+        await loadTemplate();
+    };
+
+    const handleAiPreviewResult = (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: any[] }) => {
+        setOriginalDaysBeforeAi(JSON.parse(JSON.stringify(days)));
+        const converted: FormPlanTrainingDay[] = (data.updatedTrainingDays || []).map((day: any) => ({
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+        })).sort((a: FormPlanTrainingDay, b: FormPlanTrainingDay) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+        const keys = new Set<string>();
+        for (const m of data.modifications || []) {
+            const dayIdx = m.dayIndex;
+            if (m.actionName === '整个训练日' || m.actionName === '训练日类型' || m.actionName === '备注') {
+                keys.add(`${dayIdx}-day`);
+            } else {
+                keys.add(`${dayIdx}-${m.actionName}`);
+            }
+        }
+        setAiModificationKeys(keys.size > 0 ? keys : null);
+    };
+
+    const handleAiRestart = () => {
+        if (originalDaysBeforeAi) {
+            setDays(originalDaysBeforeAi);
+            setOriginalDaysBeforeAi(null);
+        }
+        setAiModificationKeys(null);
+    };
+
     const actionSearchOptions = useMemo(
         () => actions.map(action => ({ label: action.name, value: action.id })),
         [actions]
@@ -566,17 +610,17 @@ const EditPlanPage = () => {
                 </div>
 
                 <Card className="shadow-sm mb-6 p-5">
-                    {/* 第一行：3 列布局 */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
-                        {/* 左侧 Week Calendar Skeleton */}
+                    {/* 垂直布局（仿 /me/plan-lib/create） */}
+                    <div className="flex flex-col gap-6">
+                        {/* Week Calendar Skeleton */}
                         <div className="flex flex-col gap-3">
                             <Skeleton width="100%" height="2rem" />
                             <Skeleton width="100%" height="15rem" />
                             <Skeleton width="100%" height="2rem" />
                         </div>
 
-                        {/* 右侧 PlanDayCard Skeleton */}
-                        <div className="lg:col-span-2 flex flex-col gap-4">
+                        {/* PlanDayCard Skeleton */}
+                        <div className="flex flex-col gap-4">
                             <Skeleton width="40%" height="2rem" />
                             <Skeleton width="100%" height="12rem" />
                             <Skeleton width="100%" height="12rem" />
@@ -595,41 +639,150 @@ const EditPlanPage = () => {
     }
 
     return (
-        <div className="mx-auto">
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-900">编辑训练计划</h1>
-                <Button
-                    label="返回"
-                    icon="pi pi-arrow-left"
-                    onClick={() => router.back()}
-                    className="p-button-text"
-                    disabled={saving}
-                />
+        <div className={`mx-auto pt-[calc(0.75rem+env(safe-area-inset-top)+3rem)] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+3.25rem)] md:pt-[calc(0.75rem+env(safe-area-inset-top)+3.5rem)] ${aiBatchDialogVisible ? 'flex gap-0 min-h-0' : ''}`}>
+            {/* 主编辑区域：桌面端 AI 面板打开时收缩宽度 */}
+            <div className={`flex-1 min-w-0 ${aiBatchDialogVisible ? 'shrink' : ''}`}>
+            {/* 页面头部：标题 + 操作工具栏 */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-surface-900">编辑训练计划</h1>
+                    <p className="text-sm text-surface-500 mt-1">编辑模板元信息与每日编排</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        label="AI 智能导入"
+                        icon="pi pi-file-import"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-surface-0 border border-surface-200
+                            text-[12px] font-bold text-surface-700
+                            hover:bg-surface-50 hover:border-surface-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setShowImportDialog(true)}
+                        disabled={saving}
+                        tooltip="从文本智能解析并导入训练计划"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                    <Button
+                        label="批量操作"
+                        icon="pi pi-sliders-h"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-surface-0 border border-surface-200
+                            text-[12px] font-bold text-surface-700
+                            hover:bg-surface-50 hover:border-surface-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setBatchDialogVisible(true)}
+                        disabled={saving}
+                        tooltip="替换、追加、删除动作"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                    <Button
+                        label="AI 修改器"
+                        icon="pi pi-bolt"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-primary-50 border border-primary-200
+                            text-[12px] font-bold text-primary-700
+                            hover:bg-primary-100 hover:border-primary-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setAiBatchDialogVisible(true)}
+                        disabled={saving}
+                        tooltip="用自然语言描述批量修改"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                </div>
             </div>
 
-            {/* 智能导入按钮 - 编辑页面会覆盖现有内容 */}
-            <div className="mb-4">
-                <Button
-                    label="智能导入（覆盖）"
-                    icon="pi pi-bolt"
-                    severity="warning"
-                    outlined
-                    onClick={() => {
-                        if (days.some(d => d.actionSets && d.actionSets.length > 0)) {
-                            // 如果有现有内容，显示确认
-                            if (window.confirm('智能导入将覆盖当前模板的所有训练日内容，确定要继续吗？')) {
-                                setShowImportDialog(true);
-                            }
-                        } else {
-                            setShowImportDialog(true);
-                        }
-                    }}
-                    disabled={saving}
-                    tooltip="使用智能导入从文本导入，将覆盖现有训练内容"
-                    tooltipOptions={{ position: 'right' }}
-                />
-            </div>
+            {/* 每日定义 */}
+            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-100 rounded-3xl p-0 md:p-4">
+                {/* 动作搜索 */}
+                <div className="mb-3 rounded-xl border border-surface-100 bg-surface-50/50 p-2.5 md:p-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-sm font-black text-surface-800">动作搜索</span>
+                            {actionSearchId && (
+                                <button
+                                    type="button"
+                                    onClick={() => setActionSearchId(null)}
+                                    className="text-[11px] font-black text-primary-600 hover:text-primary-700 transition-colors"
+                                >
+                                    清除
+                                </button>
+                            )}
+                        </div>
+                        <Dropdown
+                            value={actionSearchId}
+                            options={actionSearchOptions}
+                            onChange={(e) => setActionSearchId(e.value || null)}
+                            placeholder="输入动作名称搜索"
+                            filter
+                            showClear
+                            className="w-full sm:max-w-xs aero-dropdown"
+                            panelClassName="aero-dropdown-panel"
+                            disabled={saving || actions.length === 0}
+                        />
+                        {actionSearchId && actionSearchResults.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {actionSearchResults.map((day) => {
+                                    const week = Math.ceil(day.dayIndex / 7);
+                                    const dayOfWeek = (day.dayIndex - 1) % 7 + 1;
+                                    return (
+                                        <button
+                                            key={day.dayIndex}
+                                            type="button"
+                                            onClick={() => setSelectedDayIndex(day.dayIndex)}
+                                            className="px-3 py-1.5 rounded-full border border-surface-200 text-[11px] font-black text-surface-600 hover:border-primary-300 hover:text-primary-700 transition-colors"
+                                        >
+                                            第 {day.dayIndex} 天 · W{week}D{dayOfWeek}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    {actionSearchId && actionSearchResults.length === 0 && (
+                        <div className="text-[11px] text-surface-400 mt-2">未找到包含该动作的训练日</div>
+                    )}
+                </div>
 
+                {/* 每一天动作列表编译器：选中日的详情编辑 */}
+                {selectedDay ? (
+                    <PlanDayCard
+                        day={selectedDay}
+                        dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
+                        actions={actions}
+                        onDayTypeChange={handleDayTypeChange}
+                        onRemoveDay={handleRemoveDay}
+                        onNoteChange={handleNoteChange}
+                        onAddActionSet={handleAddActionSet}
+                        onRemoveActionSet={handleRemoveActionSet}
+                        onActionSetChange={handleActionSetChange}
+                        saving={saving}
+                        totalDays={days.length}
+                        onCopyFromDay={handleCopyFromDay}
+                        existingTrainingDays={existingTrainingDays}
+                        questions={questions}
+                        highlightedModificationKeys={aiModificationKeys}
+                    />
+                ) : (
+                    <div className="text-center py-12 border-2 border-dashed border-surface-200 rounded-lg">
+                        <i className="pi pi-calendar text-4xl text-surface-300 mb-3"></i>
+                        <p className="text-600">请在上方日历中选择一天进行编辑</p>
+                    </div>
+                )}
+            </Card>
+
+            {/* 模板定义（含 footer 保存/取消） */}
             <BasicInfoForm
                 name={name}
                 description={description}
@@ -641,24 +794,6 @@ const EditPlanPage = () => {
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
                 onSave={handleSave}
-                extraButton={
-                    <Button
-                        label="批量操作"
-                        size="small"
-                        icon="pi pi-sliders-h"
-                        className="
-                            flex items-center gap-2 px-4 py-2
-                            bg-surface border border-surface-200 rounded-[14px]
-                            text-[12px] font-black text-surface-700 tracking-tight
-                            transition-all duration-200 active:scale-[0.95]
-                            hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
-                            disabled:opacity-40 disabled:cursor-not-allowed
-                        "
-                        text
-                        onClick={() => setBatchDialogVisible(true)}
-                        disabled={saving}
-                    />
-                }
                 weekDays={weekDays}
                 onWeekDaysChange={setWeekDays}
                 globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
@@ -678,122 +813,34 @@ const EditPlanPage = () => {
                     // 从问卷配置中提取 tags 问题的选项
                     (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
                 }
+                hideHeader
             />
+            <div className="mt-6 flex justify-end gap-2 mb-8">
+                <Button
+                    label="取消"
+                    icon="pi pi-times"
+                    onClick={() => router.back()}
+                    className="p-button-text"
+                    disabled={saving}
+                />
+                <Button
+                    label="保存模板"
+                    icon="pi pi-check"
+                    className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                    onClick={handleSave}
+                    loading={saving}
+                />
+            </div>
 
-            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
-                    {/* 左侧：周历视图 */}
-                    <div className="lg:col-span-1 sticky top-20 self-start max-h-[70vh] md:max-h-[75vh] overflow-auto">
-                        <div className="mb-4 rounded-[20px] border border-surface-200/70 bg-surface p-4">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="text-sm font-black text-surface-800">动作搜索</div>
-                                {actionSearchId && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setActionSearchId(null)}
-                                        className="text-[11px] font-black text-surface-400 hover:text-primary-600 transition-colors"
-                                    >
-                                        清除
-                                    </button>
-                                )}
-                            </div>
-                            <Dropdown
-                                value={actionSearchId}
-                                options={actionSearchOptions}
-                                onChange={(e) => setActionSearchId(e.value || null)}
-                                placeholder="输入动作名称搜索"
-                                filter
-                                showClear
-                                className="w-full"
-                                disabled={saving || actions.length === 0}
-                            />
-                            {actionSearchId && (
-                                <div className="mt-3">
-                                    <div className="text-[11px] font-black text-surface-400 mb-2">
-                                        命中 {actionSearchResults.length} 天
-                                    </div>
-                                    {actionSearchResults.length === 0 ? (
-                                        <div className="text-[11px] text-surface-400">未找到包含该动作的训练日</div>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {actionSearchResults.map((day) => {
-                                                const week = Math.ceil(day.dayIndex / 7);
-                                                const dayOfWeek = (day.dayIndex - 1) % 7 + 1;
-                                                return (
-                                                    <button
-                                                        key={day.dayIndex}
-                                                        type="button"
-                                                        onClick={() => setSelectedDayIndex(day.dayIndex)}
-                                                        className="px-3 py-1.5 rounded-full border border-surface-200 text-[11px] font-black text-surface-600 hover:border-primary-300 hover:text-primary-700 transition-colors"
-                                                    >
-                                                        第 {day.dayIndex} 天 · W{week}D{dayOfWeek}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                        <WeekCalendar
-                            days={days}
-                            selectedDayIndex={selectedDayIndex}
-                            onSelectDay={setSelectedDayIndex}
-                            onAddWeek={handleAddWeek}
-                            onAddWeekFromExisting={handleAddWeekFromExisting}
-                            onDeleteWeek={handleDeleteWeek}
-                            saving={saving}
-                        />
-                    </div>
-
-                    {/* 右侧：训练日详情 */}
-                    <div className="lg:col-span-2">
-                        {selectedDay ? (
-                            <PlanDayCard
-                                day={selectedDay}
-                                dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
-                                actions={actions}
-                                onDayTypeChange={handleDayTypeChange}
-                                onRemoveDay={handleRemoveDay}
-                                onNoteChange={handleNoteChange}
-                                onAddActionSet={handleAddActionSet}
-                                onRemoveActionSet={handleRemoveActionSet}
-                                onActionSetChange={handleActionSetChange}
-                                saving={saving}
-                                totalDays={days.length}
-                                onCopyFromDay={handleCopyFromDay}
-                                existingTrainingDays={existingTrainingDays}
-                                questions={questions}
-                            />
-                        ) : (
-                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
-                                <div className="text-center p-6">
-                                    <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
-                                    <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
-                                    <p className="text-600">从左侧日历中选择一个训练日</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-2">
-                    <Button
-                        label="取消"
-                        icon="pi pi-times"
-                        onClick={() => router.back()}
-                        className="p-button-text"
-                        disabled={saving}
-                    />
-                    <Button
-                        label="保存模板"
-                        icon="pi pi-check"
-                        className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
-                        onClick={handleSave}
-                        loading={saving}
-                    />
-                </div>
-            </Card>
+            {/* 悬停在顶部的训练日选择条（替代原计划排期，当前模式下唯一顶部栏） */}
+            <StickyScheduleBar
+                days={days}
+                selectedDayIndex={selectedDayIndex}
+                onSelectDay={setSelectedDayIndex}
+                onBack={() => router.back()}
+                onAddWeek={handleAddWeek}
+                saving={saving}
+            />
 
             {/* 智能导入对话框 */}
             <SmartImportDialog
@@ -801,8 +848,10 @@ const EditPlanPage = () => {
                 onHide={() => setShowImportDialog(false)}
                 existingActions={actions}
                 onImportComplete={handleImportComplete}
+                willOverwriteExisting={days.some(d => d.actionSets && d.actionSets.length > 0)}
             />
 
+            {/* 传统批量操作对话框 */}
             <BatchActionsDialog
                 visible={batchDialogVisible}
                 onHide={() => setBatchDialogVisible(false)}
@@ -811,6 +860,23 @@ const EditPlanPage = () => {
                 onApply={handleBatchApply}
                 disabled={saving}
             />
+
+            </div>
+            {/* AI 修改器：桌面端右侧推入面板（sticky 粘顶，滚动时保持可见），移动端弹窗 */}
+            {params.id && aiBatchDialogVisible && (
+                <div className="hidden md:flex md:w-[420px] lg:w-[480px] shrink-0 sticky top-[calc(1rem+70px)] self-start h-[calc(100vh-150px)] min-h-[480px] border-l border-surface-100 bg-surface overflow-hidden rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+                    <BatchOperationDialog
+                        visible={aiBatchDialogVisible}
+                        onHide={() => setAiBatchDialogVisible(false)}
+                        templateId={params.id as string}
+                        onSuccess={handleAiBatchOperationSuccess}
+                        variant="auto"
+                        onPreviewResult={handleAiPreviewResult}
+                        onRestart={handleAiRestart}
+                        onGetDaysToApply={() => days}
+                    />
+                </div>
+            )}
 
             <Dialog
                 header="保存模板"

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { sendSystemMessage } from "@/lib/chat";
 import type {
     FriendRequestDto,
     FriendRequestResponseDto,
@@ -123,6 +124,25 @@ export async function POST(request: NextRequest) {
                 success: false,
                 message: "发送请求失败",
             }, { status: 500 });
+        }
+
+        // 3. 发送系统消息通知目标用户
+        try {
+            // 获取请求者的昵称
+            const { data: requesterProfile } = await supabase
+                .from("user_profiles")
+                .select("nickname")
+                .eq("user_id", requesterId)
+                .single();
+
+            const requesterName = requesterProfile?.nickname || "某用户";
+
+            await sendSystemMessage(targetUserId, {
+                content: `**${requesterName}** 请求添加你为好友！[查看](/friends)`,
+            });
+        } catch (notifyError) {
+            // 通知失败不影响好友请求的成功
+            console.error("Send friend request notification error:", notifyError);
         }
 
         return NextResponse.json<FriendRequestResponseDto>({

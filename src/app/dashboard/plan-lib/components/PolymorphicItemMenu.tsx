@@ -6,9 +6,11 @@ import { ItemType } from '@/types';
 interface PolymorphicItemMenuProps {
     onAdd: (type: ItemType) => void;
     disabled?: boolean;
+    /** 紧凑模式：窄高按钮，与动作卡片同宽，用于动作列表末尾 */
+    compact?: boolean;
 }
 
-export const PolymorphicItemMenu: React.FC<PolymorphicItemMenuProps> = ({ onAdd, disabled }) => {
+export const PolymorphicItemMenu: React.FC<PolymorphicItemMenuProps> = ({ onAdd, disabled, compact = false }) => {
     const menu = useRef<Menu>(null);
 
     const items = [
@@ -54,19 +56,28 @@ export const PolymorphicItemMenu: React.FC<PolymorphicItemMenuProps> = ({ onAdd,
             <button
                 onClick={(event) => menu.current?.toggle(event)}
                 disabled={disabled}
-                className="
-                    flex items-center gap-2 px-4 py-2 
-                    bg-surface border border-surface-200 rounded-[14px]
-                    
-                    text-[12px] font-black text-surface-700 tracking-tight
-                    
-                    transition-all duration-200 active:scale-[0.95]
-                    hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
-                    disabled:opacity-40 disabled:cursor-not-allowed
-                "
+                className={
+                    compact
+                        ? `
+                            w-full flex items-center justify-center gap-2 py-2.5
+                            bg-surface-50/80 border border-dashed border-surface-200 rounded-[24px]
+                            text-[11px] font-black text-surface-500 tracking-tight
+                            transition-all duration-200 active:scale-[0.98]
+                            hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        `
+                        : `
+                            flex items-center gap-2 px-4 py-2 
+                            bg-surface border border-surface-200 rounded-[14px]
+                            text-[12px] font-black text-surface-700 tracking-tight
+                            transition-all duration-200 active:scale-[0.95]
+                            hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        `
+                }
             >
-                <i className="pi pi-plus text-[10px] font-bold" />
-                <span>添加项目</span>
+                <i className={`pi pi-plus ${compact ? 'text-[10px]' : 'text-[10px]'} font-bold`} />
+                <span>{compact ? '添加动作' : '添加项目'}</span>
             </button>
         </>
     );

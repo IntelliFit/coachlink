@@ -1,6 +1,5 @@
 import { BaseService } from "@/lib/baseService";
 import axios from "axios";
-import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
 
 // 导入视频服务相关的类型定义
 import type { UploadVideoDto, UploadVideoResponseDto, VideoUploadContext, VideoUploadProgress } from "../api/user/upload-video/entity";
@@ -28,42 +27,18 @@ function getApiErrorMessage(err: unknown): string | null {
 
 class VideoService extends BaseService {
 
-    private buildSignedUploadUrl(bucket: string, path: string, token: string) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-        if (!supabaseUrl) {
-            throw new Error(
-                "Supabase 客户端未初始化（缺少 NEXT_PUBLIC_SUPABASE_URL）",
-            );
-        }
-
-        const encodedPath = path
-            .split("/")
-            .map((seg) => encodeURIComponent(seg))
-            .join("/");
-
-        return `${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}?token=${encodeURIComponent(
-            token,
-        )}`;
-    }
-
+    /** 直传：仅使用服务端下发的 uploadUrl，不携带任何 key */
     private async putWithProgress(
-        url: string,
+        uploadUrl: string,
         file: File,
         onUploadProgress?: (progress: VideoUploadProgress) => void,
     ) {
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
         const contentType = file.type || "application/octet-stream";
 
         return await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("PUT", url);
+            xhr.open("PUT", uploadUrl);
             xhr.setRequestHeader("Content-Type", contentType);
-
-            // Some environments require apikey/Authorization headers even with token
-            if (anonKey) {
-                xhr.setRequestHeader("apikey", anonKey);
-                xhr.setRequestHeader("Authorization", `Bearer ${anonKey}`);
-            }
 
             xhr.upload.onprogress = (evt) => {
                 if (!evt.lengthComputable) return;
@@ -119,10 +94,6 @@ class VideoService extends BaseService {
             // 2) 直接把视频上传到 Supabase Storage（绕开宝塔/Nginx/Next 的大文件限制）
             // 3) 再调用 submit-video-url 写入数据库记录（并更新配额）
 
-            if (!supabaseBrowser) {
-                throw new Error("Supabase 客户端未初始化（缺少 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY）");
-            }
-
             onUploadProgress?.({ loaded: 0, total: file.size, percentage: 0 });
 
             const signRes = await this.post<CreateVideoUploadUrlResponseDto>(
@@ -134,15 +105,14 @@ class VideoService extends BaseService {
                 },
             );
 
-            if (!signRes.data?.success || !signRes.data?.data?.token) {
+            if (!signRes.data?.success || !signRes.data?.data?.uploadUrl) {
                 throw new Error(signRes.data?.message || "创建上传链接失败");
             }
 
-            const { path, token, publicUrl } = signRes.data.data;
+            const { path, publicUrl, uploadUrl } = signRes.data.data;
 
-            // 使用 signed 上传接口 + XHR，拿到真实进度
-            const signedUploadUrl = this.buildSignedUploadUrl("videos", path, token);
-            await this.putWithProgress(signedUploadUrl, file, onUploadProgress);
+            // 直传：仅使用服务端下发的 uploadUrl，不暴露 key
+            await this.putWithProgress(uploadUrl, file, onUploadProgress);
 
             // 写入数据库记录（并进行配额扣减/记录元数据）
             const record = await this.submitVideoUrl({

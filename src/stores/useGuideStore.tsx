@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { createGuide, GUIDE_CONFIGS } from '@/lib/guide-driver';
+import { createGuide, GUIDE_CONFIGS, type GuideInstance } from '@/lib/guide-driver';
 
 // Guide keys type
 export type GuideKey = keyof typeof GUIDE_CONFIGS;
@@ -29,7 +29,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
     const [isGuideActive, setIsGuideActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [startedGuides, setStartedGuides] = useState<Record<string, boolean>>({});
-    const [activeDriver, setActiveDriver] = useState<ReturnType<typeof createGuide> | null>(null);
+    const [activeDriver, setActiveDriver] = useState<GuideInstance | null>(null);
 
     const getLocalGuidesKey = useCallback(() => {
         if (!userId) return null;
@@ -193,34 +193,38 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
               setStartedGuides((prev) => ({ ...prev, [config.key]: true }));
             }
 
-            const guide = createGuide({
-                key: config.key,
-                steps: config.steps,
-                onComplete: () => {
-                    console.log('[GuideStore] Guide completed:', config.key);
-                    // Only mark as complete if not forced (manual restart should not count as completed again)
-                    if (!forceShow) {
-                      markGuideComplete(config.key);
-                    }
+            void (async () => {
+                try {
+                    const guide = await createGuide({
+                        key: config.key,
+                        steps: config.steps,
+                        onComplete: () => {
+                            console.log('[GuideStore] Guide completed:', config.key);
+                            if (!forceShow) {
+                              markGuideComplete(config.key);
+                            }
+                            setIsGuideActive(false);
+                            setActiveDriver(null);
+                        },
+                        onSkip: () => {
+                            console.log('[GuideStore] Guide skipped:', config.key);
+                            if (!forceShow) {
+                              markGuideComplete(config.key);
+                            }
+                            setIsGuideActive(false);
+                            setActiveDriver(null);
+                        },
+                    });
+                    setActiveDriver(guide);
+                    setTimeout(() => {
+                        guide.start();
+                    }, 500);
+                } catch (e) {
+                    console.warn('[GuideStore] Failed to load or start guide:', e);
                     setIsGuideActive(false);
                     setActiveDriver(null);
-                },
-                onSkip: () => {
-                    console.log('[GuideStore] Guide skipped:', config.key);
-                    // Only mark as complete if not forced
-                    if (!forceShow) {
-                      markGuideComplete(config.key);
-                    }
-                    setIsGuideActive(false);
-                    setActiveDriver(null);
-                },
-            });
-
-            setActiveDriver(guide);
-            // Small delay to ensure DOM is ready
-            setTimeout(() => {
-                guide.start();
-            }, 500);
+                }
+            })();
         },
         [hasCompletedGuide, isGuideActive, markGuideComplete, isLoading, startedGuides]
     );
