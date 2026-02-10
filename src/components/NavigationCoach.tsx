@@ -39,6 +39,8 @@ export default function NavigationCoach() {
     const pathname = usePathname();
     const router = useRouter();
     const isStreetlifting = pathname.startsWith('/streetlifting-index');
+    const isPlanLibEdit = pathname?.match(/^\/dashboard\/plan-lib\/edit\/[^/]+$/);
+    const hideTopNav = !!isPlanLibEdit;
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { data: session, status, update: updateSession } = useSession();
@@ -293,7 +295,11 @@ export default function NavigationCoach() {
 
             {/* Mobile Top Nav（/streetlifting-index 下不显示：首页只靠内部板块导航） */}
             {!isStreetlifting && (
-                <div className="md:hidden sticky top-0 z-50 w-full bg-surface/80 backdrop-blur-md border-b border-surface-100">
+                <div
+                    className={`md:hidden sticky top-0 z-50 w-full bg-surface/80 backdrop-blur-md border-b border-surface-100 transition-transform duration-300 ${
+                        hideTopNav ? '-translate-y-full pointer-events-none' : ''
+                    }`}
+                >
                     <div className="flex items-center h-14 px-4">
                         <div className="flex-1">
                             <button
@@ -332,7 +338,11 @@ export default function NavigationCoach() {
             )}
 
             {/* Desktop Menubar */}
-            <div className="hidden md:block sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none">
+            <div
+                className={`hidden md:block sticky top-0 z-50 w-full px-4 pt-3 pointer-events-none transition-transform duration-300 ${
+                    hideTopNav ? '-translate-y-full' : ''
+                }`}
+            >
                 <Menubar model={coachMenuItems} start={start} end={end} className="max-w-7xl mx-auto pointer-events-auto backdrop-blur-md bg-surface/80 border border-surface/20 shadow-sm rounded-3xl px-6 py-2" />
             </div>
 

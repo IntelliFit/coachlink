@@ -47,13 +47,7 @@ const Videos: React.FC = () => {
         ) {
             return true;
         }
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (
-            (supabaseUrl && url.includes(supabaseUrl)) ||
-            url.includes("/storage/v1/object/")
-        ) {
-            return true;
-        }
+        if (url.includes("/storage/v1/object/")) return true;
         return false;
     };
 

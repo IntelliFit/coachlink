@@ -10,9 +10,10 @@ interface TemplateCardProps {
     onSelect?: (template: CoachPlansPreview) => void;
     onCopy?: (id: string) => void;
     onDelete?: (id: string) => void;
+    onBatchOperation?: (id: string) => void;
 }
 
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete }) => {
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete, onBatchOperation }) => {
     // 计算总周数
     const totalWeeks = Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7);
 
@@ -117,6 +118,9 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
             <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 opacity-100 translate-x-0 pointer-events-auto md:opacity-0 md:translate-x-2 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:translate-x-0 md:group-hover:pointer-events-auto transition-all duration-300">
                 {onSelect && (
                     <Button icon="pi pi-check" text rounded severity="success" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-green-50" onClick={() => onSelect(template)} />
+                )}
+                {onBatchOperation && (
+                    <Button icon="pi pi-bolt" text rounded severity="info" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-blue-50" onClick={() => onBatchOperation(template.id)} title="批量操作" />
                 )}
                 {onCopy && (
                     <Button icon="pi pi-copy" text rounded className="w-8 h-8 sm:w-9 sm:h-9 text-surface-400 hover:bg-surface-100" onClick={() => onCopy(template.id)} />

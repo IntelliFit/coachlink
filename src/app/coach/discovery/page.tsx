@@ -782,7 +782,7 @@ const CoachDiscoveryPage: React.FC = () => {
                             label="登录" 
                             size="small" 
                             onClick={() => router.push('/login')} 
-                            className="h-11 rounded-2xl font-bold bg-surface-50 text-surface-900 border-0 hover:bg-surface-100 active:scale-95 transition-all"
+                            className="h-11 rounded-2xl font-bold bg-surface-50 text-surface-900 border-0 hover:bg-surface-100 active:scale-95 transition-all md:hidden"
                          />
                     )}
                 </div>
@@ -856,9 +856,11 @@ const CoachDiscoveryPage: React.FC = () => {
 
                             return finalItems.map((item) => {
                                 if (item._type === 'physical') {
-                                    return renderPhysicalProductCard(item.product, true); // true = small mode
+                                    const card = renderPhysicalProductCard(item.product, true);
+                                    return React.cloneElement(card as React.ReactElement, { key: item._key });
                                 }
-                                return renderProductCard(item, -1, true); // true = small mode
+                                const card = renderProductCard(item, -1, true);
+                                return React.cloneElement(card as React.ReactElement, { key: item._key });
                             });
                         })()}
                         </div>

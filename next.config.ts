@@ -26,6 +26,38 @@ const nextConfig: NextConfig = {
     async redirects() {
         return [];
     },
+    async headers() {
+        const isDev = process.env.NODE_ENV === 'development';
+        
+        // 开发环境：短缓存（10秒），方便调试
+        // 生产环境：根据内容类型设置不同缓存时间
+        const pageCacheControl = isDev
+            ? 'public, s-maxage=10, stale-while-revalidate=5' // 开发环境：10秒缓存
+            : 'public, s-maxage=300, stale-while-revalidate=60'; // 生产环境：5分钟缓存
+        
+        return [
+            {
+                // API 路由：不缓存（API 响应通常是动态的）
+                source: '/api/:path*',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, no-cache, must-revalidate',
+                    },
+                ],
+            },
+            {
+                // 页面路由：根据环境设置缓存时间
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: pageCacheControl,
+                    },
+                ],
+            },
+        ];
+    },
 };
 
 export default nextConfig;

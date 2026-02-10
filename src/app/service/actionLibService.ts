@@ -87,44 +87,18 @@ export class ActionLibService extends BaseService {
         return res.data.data;
     }
 
-    private buildSignedUploadUrl(bucket: string, path: string, token: string) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-        if (!supabaseUrl) {
-            throw new Error(
-                "缺少 NEXT_PUBLIC_SUPABASE_URL，无法进行直传（请检查环境变量）",
-            );
-        }
-
-        // encode each segment but keep slashes
-        const encodedPath = path
-            .split("/")
-            .map((seg) => encodeURIComponent(seg))
-            .join("/");
-
-        // Supabase signed upload endpoint (used internally by supabase-js uploadToSignedUrl)
-        return `${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${encodedPath}?token=${encodeURIComponent(
-            token,
-        )}`;
-    }
-
+    /** 直传：仅使用服务端下发的 uploadUrl，不携带任何 key */
     private async putWithProgress(
-        url: string,
+        uploadUrl: string,
         file: File,
         onProgress?: (percentage: number) => void,
     ) {
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
         const contentType = file.type || "application/octet-stream";
 
         return await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("PUT", url);
+            xhr.open("PUT", uploadUrl);
             xhr.setRequestHeader("Content-Type", contentType);
-
-            // Some environments require apikey/Authorization headers even with token
-            if (anonKey) {
-                xhr.setRequestHeader("apikey", anonKey);
-                xhr.setRequestHeader("Authorization", `Bearer ${anonKey}`);
-            }
 
             xhr.upload.onprogress = (evt) => {
                 if (!evt.lengthComputable) return;
@@ -179,13 +153,12 @@ export class ActionLibService extends BaseService {
             },
         );
 
-        if (!signRes?.data?.success || !signRes.data.data?.token) {
+        if (!signRes?.data?.success || !signRes.data.data?.uploadUrl) {
             throw new Error(signRes?.data?.message || "创建上传链接失败");
         }
 
-        const { bucket, path, token, publicUrl } = signRes.data.data;
-        const signedUploadUrl = this.buildSignedUploadUrl(bucket, path, token);
-        await this.putWithProgress(signedUploadUrl, file, onProgress);
+        const { bucket, path, publicUrl, uploadUrl } = signRes.data.data;
+        await this.putWithProgress(uploadUrl, file, onProgress);
 
         return {
             url: publicUrl,
