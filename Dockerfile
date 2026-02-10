@@ -35,9 +35,14 @@ RUN adduser --system --uid 1001 nextjs
 
 # 从构建阶段复制产物
 # standalone 目录已经包含了 .next/static 和 public（由 build-prod.js 处理）
-# 只需要复制 standalone 目录即可，避免重复复制导致路径混乱
+
+# 【关键点 1】从 builder 复制 standalone 目录内容
 COPY --from=builder /app/.next/standalone ./
 
+# 【关键点 2】必须手动复制 static 和 public 目录到对应的位置
+# Next.js standalone 运行时会在 .next/static 寻找静态资源
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 USER nextjs
 
 EXPOSE 3000
