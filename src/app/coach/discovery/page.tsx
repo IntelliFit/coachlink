@@ -782,7 +782,7 @@ const CoachDiscoveryPage: React.FC = () => {
                             label="登录" 
                             size="small" 
                             onClick={() => router.push('/login')} 
-                            className="h-11 rounded-2xl font-bold bg-surface-50 text-surface-900 border-0 hover:bg-surface-100 active:scale-95 transition-all"
+                            className="h-11 rounded-2xl font-bold bg-surface-50 text-surface-900 border-0 hover:bg-surface-100 active:scale-95 transition-all md:hidden"
                          />
                     )}
                 </div>

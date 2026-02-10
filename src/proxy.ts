@@ -97,6 +97,7 @@ const PUBLIC_PATHS = new Set([
     '/api/trace',
     '/api/captcha/slider/create',
     '/api/captcha/slider/verify',
+    '/api/captcha/slider/image',
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/api/payment/alipay/return", // Alipay return - browser redirect without session
     "/api/payment/alipay/create", // guest payment create
